@@ -21,6 +21,38 @@ pub struct Luks {
     f_payload: Cell<bool>,
     payload: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Luks> for OptRc<Luks> {
+    type Error = KError;
+    fn try_from(v: &Luks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Luks> for OptRc<Luks> {
+    type Error = KError;
+    fn try_from(v: &&Luks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Luks> for Luks {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Luks> for &Luks {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Luks> for OptRc<Luks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Luks> for &OptRc<Luks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Luks {
     type Root = Luks;
     type Parent = Luks;
@@ -69,6 +101,12 @@ impl Luks {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -95,6 +133,38 @@ pub struct Luks_PartitionHeader {
     master_key_checksum_raw: RefCell<Vec<u8>>,
     master_key_salt_parameter_raw: RefCell<Vec<u8>>,
     uuid_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Luks_PartitionHeader> for OptRc<Luks_PartitionHeader> {
+    type Error = KError;
+    fn try_from(v: &Luks_PartitionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Luks_PartitionHeader> for OptRc<Luks_PartitionHeader> {
+    type Error = KError;
+    fn try_from(v: &&Luks_PartitionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader> for Luks_PartitionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader> for &Luks_PartitionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader> for OptRc<Luks_PartitionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader> for &OptRc<Luks_PartitionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Luks_PartitionHeader {
     type Root = Luks;
@@ -205,6 +275,12 @@ impl Luks_PartitionHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Luks_PartitionHeader {
     pub fn cipher_name_specification_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -251,6 +327,38 @@ pub struct Luks_PartitionHeader_KeySlot {
     salt_parameter_raw: RefCell<Vec<u8>>,
     f_key_material: Cell<bool>,
     key_material: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
+    type Error = KError;
+    fn try_from(v: &Luks_PartitionHeader_KeySlot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
+    type Error = KError;
+    fn try_from(v: &&Luks_PartitionHeader_KeySlot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for Luks_PartitionHeader_KeySlot {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for &Luks_PartitionHeader_KeySlot {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for OptRc<Luks_PartitionHeader_KeySlot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Luks_PartitionHeader_KeySlot> for &OptRc<Luks_PartitionHeader_KeySlot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Luks_PartitionHeader_KeySlot>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Luks_PartitionHeader_KeySlot {
     type Root = Luks;
@@ -322,6 +430,12 @@ impl Luks_PartitionHeader_KeySlot {
 impl Luks_PartitionHeader_KeySlot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Luks_PartitionHeader_KeySlot {

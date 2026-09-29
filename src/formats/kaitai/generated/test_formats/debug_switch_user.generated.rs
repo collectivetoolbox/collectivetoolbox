@@ -79,6 +79,22 @@ impl TryFrom<&DebugSwitchUser_Data> for OptRc<DebugSwitchUser_One> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DebugSwitchUser_Data> for OptRc<DebugSwitchUser_One> {
+    type Error = KError;
+    fn try_from(v: &&DebugSwitchUser_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for DebugSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        OptRc::<DebugSwitchUser_One>::try_from(self)
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for &DebugSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DebugSwitchUser_One>> for DebugSwitchUser_Data {
     fn from(v: OptRc<DebugSwitchUser_One>) -> Self {
         Self::DebugSwitchUser_One(v)
@@ -93,9 +109,57 @@ impl TryFrom<&DebugSwitchUser_Data> for OptRc<DebugSwitchUser_Two> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DebugSwitchUser_Data> for OptRc<DebugSwitchUser_Two> {
+    type Error = KError;
+    fn try_from(v: &&DebugSwitchUser_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for DebugSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        OptRc::<DebugSwitchUser_Two>::try_from(self)
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for &DebugSwitchUser_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DebugSwitchUser_Two>> for DebugSwitchUser_Data {
     fn from(v: OptRc<DebugSwitchUser_Two>) -> Self {
         Self::DebugSwitchUser_Two(v)
+    }
+}
+impl TryFrom<&DebugSwitchUser> for OptRc<DebugSwitchUser> {
+    type Error = KError;
+    fn try_from(v: &DebugSwitchUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugSwitchUser> for OptRc<DebugSwitchUser> {
+    type Error = KError;
+    fn try_from(v: &&DebugSwitchUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser> for DebugSwitchUser {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser> for &DebugSwitchUser {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser> for OptRc<DebugSwitchUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugSwitchUser> for &OptRc<DebugSwitchUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for DebugSwitchUser {
@@ -146,6 +210,12 @@ impl DebugSwitchUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -155,6 +225,38 @@ pub struct DebugSwitchUser_One {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DebugSwitchUser_One> for OptRc<DebugSwitchUser_One> {
+    type Error = KError;
+    fn try_from(v: &DebugSwitchUser_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugSwitchUser_One> for OptRc<DebugSwitchUser_One> {
+    type Error = KError;
+    fn try_from(v: &&DebugSwitchUser_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for DebugSwitchUser_One {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for &DebugSwitchUser_One {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for OptRc<DebugSwitchUser_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_One> for &OptRc<DebugSwitchUser_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_One>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DebugSwitchUser_One {
     type Root = DebugSwitchUser;
@@ -188,6 +290,12 @@ impl DebugSwitchUser_One {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -197,6 +305,38 @@ pub struct DebugSwitchUser_Two {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DebugSwitchUser_Two> for OptRc<DebugSwitchUser_Two> {
+    type Error = KError;
+    fn try_from(v: &DebugSwitchUser_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugSwitchUser_Two> for OptRc<DebugSwitchUser_Two> {
+    type Error = KError;
+    fn try_from(v: &&DebugSwitchUser_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for DebugSwitchUser_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for &DebugSwitchUser_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for OptRc<DebugSwitchUser_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugSwitchUser_Two> for &OptRc<DebugSwitchUser_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugSwitchUser_Two>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DebugSwitchUser_Two {
     type Root = DebugSwitchUser;
@@ -229,5 +369,11 @@ impl DebugSwitchUser_Two {
 impl DebugSwitchUser_Two {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

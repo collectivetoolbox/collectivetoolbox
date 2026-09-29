@@ -67,19 +67,51 @@ pub struct CombineBytes {
     _io: RefCell<BytesReader>,
     bytes_limit_raw: RefCell<Vec<u8>>,
     f_bytes_calc: Cell<bool>,
-    bytes_calc: RefCell<Vec<i32>>,
+    bytes_calc: RefCell<Vec<u8>>,
     f_eos_or_calc: Cell<bool>,
-    eos_or_calc: RefCell<Vec<i32>>,
+    eos_or_calc: RefCell<Vec<u8>>,
     f_limit_or_calc: Cell<bool>,
-    limit_or_calc: RefCell<Vec<i32>>,
+    limit_or_calc: RefCell<Vec<u8>>,
     f_limit_or_eos: Cell<bool>,
     limit_or_eos: RefCell<Vec<u8>>,
     f_term_or_calc: Cell<bool>,
-    term_or_calc: RefCell<Vec<i32>>,
+    term_or_calc: RefCell<Vec<u8>>,
     f_term_or_eos: Cell<bool>,
     term_or_eos: RefCell<Vec<u8>>,
     f_term_or_limit: Cell<bool>,
     term_or_limit: RefCell<Vec<u8>>,
+}
+impl TryFrom<&CombineBytes> for OptRc<CombineBytes> {
+    type Error = KError;
+    fn try_from(v: &CombineBytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CombineBytes> for OptRc<CombineBytes> {
+    type Error = KError;
+    fn try_from(v: &&CombineBytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CombineBytes> for CombineBytes {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBytes>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CombineBytes> for &CombineBytes {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBytes>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CombineBytes> for OptRc<CombineBytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBytes>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CombineBytes> for &OptRc<CombineBytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBytes>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CombineBytes {
     type Root = CombineBytes;
@@ -108,19 +140,19 @@ impl CombineBytes {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bytes_calc(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_bytes_calc.get() {
             return Ok(self.bytes_calc.borrow());
         }
         self.f_bytes_calc.set(true);
-        *self.bytes_calc.borrow_mut() = vec![82_i32, 110_i32, 68_i32];
+        *self.bytes_calc.borrow_mut() = vec![0x52u8, 0x6eu8, 0x44u8];
         Ok(self.bytes_calc.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn eos_or_calc(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_eos_or_calc.get() {
             return Ok(self.eos_or_calc.borrow());
@@ -132,7 +164,7 @@ impl CombineBytes {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn limit_or_calc(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_limit_or_calc.get() {
             return Ok(self.limit_or_calc.borrow());
@@ -156,7 +188,7 @@ impl CombineBytes {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn term_or_calc(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_term_or_calc.get() {
             return Ok(self.term_or_calc.borrow());
@@ -208,6 +240,12 @@ impl CombineBytes {
 impl CombineBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl CombineBytes {

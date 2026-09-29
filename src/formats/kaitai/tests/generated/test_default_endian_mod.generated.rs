@@ -85,8 +85,8 @@ fn test_default_endian_mod() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DefaultEndianMod> = DefaultEndianMod::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.main().one(), 1262698832);
-    assert_eq!(*r.main().nest().two(), -52947);
-    assert_eq!(*r.main().nest_be().two(), 1346454347);
+    assert_eq!(*(r.main().one()), 1262698832);
+    assert_eq!(*(r.main().nest().two()), -52947);
+    assert_eq!(*(r.main().nest_be().two()), 1346454347);
     Ok(())
 }

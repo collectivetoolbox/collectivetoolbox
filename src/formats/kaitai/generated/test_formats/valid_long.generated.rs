@@ -77,6 +77,38 @@ pub struct ValidLong {
     magic_uint_raw: RefCell<Vec<u8>>,
     magic_sint_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ValidLong> for OptRc<ValidLong> {
+    type Error = KError;
+    fn try_from(v: &ValidLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidLong> for OptRc<ValidLong> {
+    type Error = KError;
+    fn try_from(v: &&ValidLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidLong> for ValidLong {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidLong>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidLong> for &ValidLong {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidLong>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidLong> for OptRc<ValidLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidLong>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidLong> for &OptRc<ValidLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidLong>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidLong {
     type Root = ValidLong;
     type Parent = ValidLong;
@@ -209,6 +241,12 @@ impl ValidLong {
 impl ValidLong {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ValidLong {

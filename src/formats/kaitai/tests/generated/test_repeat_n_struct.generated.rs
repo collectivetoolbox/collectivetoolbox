@@ -86,9 +86,9 @@ fn test_repeat_n_struct() -> KResult<()> {
     let r: OptRc<RepeatNStruct> = RepeatNStruct::read_into(&_io, None, None)?;
 
     assert_eq!(r.chunks().len(), 2);
-    assert_eq!(*r.chunks()[0].offset(), 16);
-    assert_eq!(*r.chunks()[0].len(), 8312);
-    assert_eq!(*r.chunks()[1].offset(), 8328);
-    assert_eq!(*r.chunks()[1].len(), 15);
+    assert_eq!(*(r.chunks()[0].offset()), 16);
+    assert_eq!(*(r.chunks()[0].len()), 8312);
+    assert_eq!(*(r.chunks()[1].offset()), 8328);
+    assert_eq!(*(r.chunks()[1].len()), 15);
     Ok(())
 }

@@ -33,6 +33,38 @@ pub struct GimpBrush {
     f_len_body: Cell<bool>,
     len_body: RefCell<i32>,
 }
+impl TryFrom<&GimpBrush> for OptRc<GimpBrush> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush> for OptRc<GimpBrush> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush> for GimpBrush {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush> for &GimpBrush {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush> for OptRc<GimpBrush> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush> for &OptRc<GimpBrush> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GimpBrush {
     type Root = GimpBrush;
     type Parent = GimpBrush;
@@ -102,6 +134,12 @@ impl GimpBrush {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl GimpBrush {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -149,6 +187,38 @@ pub struct GimpBrush_Bitmap {
     rows: RefCell<Vec<OptRc<GimpBrush_Row>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&GimpBrush_Bitmap> for OptRc<GimpBrush_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush_Bitmap> for OptRc<GimpBrush_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Bitmap> for GimpBrush_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Bitmap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Bitmap> for &GimpBrush_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Bitmap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Bitmap> for OptRc<GimpBrush_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Bitmap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush_Bitmap> for &OptRc<GimpBrush_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Bitmap>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GimpBrush_Bitmap {
     type Root = GimpBrush;
     type Parent = KStructUnit;
@@ -186,6 +256,12 @@ impl GimpBrush_Bitmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -201,6 +277,38 @@ pub struct GimpBrush_Header {
     spacing: RefCell<u32>,
     brush_name: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GimpBrush_Header> for OptRc<GimpBrush_Header> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush_Header> for OptRc<GimpBrush_Header> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Header> for GimpBrush_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Header> for &GimpBrush_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Header> for OptRc<GimpBrush_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush_Header> for &OptRc<GimpBrush_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GimpBrush_Header {
     type Root = GimpBrush;
@@ -307,6 +415,12 @@ impl GimpBrush_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -331,6 +445,22 @@ impl TryFrom<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelGray> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelGray> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Row_Pixels) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for GimpBrush_Row_Pixels {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        OptRc::<GimpBrush_Row_PixelGray>::try_from(self)
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for &GimpBrush_Row_Pixels {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<GimpBrush_Row_PixelGray>> for GimpBrush_Row_Pixels {
     fn from(v: OptRc<GimpBrush_Row_PixelGray>) -> Self {
         Self::GimpBrush_Row_PixelGray(v)
@@ -345,9 +475,57 @@ impl TryFrom<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelRgba> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelRgba> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Row_Pixels) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for GimpBrush_Row_Pixels {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        OptRc::<GimpBrush_Row_PixelRgba>::try_from(self)
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for &GimpBrush_Row_Pixels {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<GimpBrush_Row_PixelRgba>> for GimpBrush_Row_Pixels {
     fn from(v: OptRc<GimpBrush_Row_PixelRgba>) -> Self {
         Self::GimpBrush_Row_PixelRgba(v)
+    }
+}
+impl TryFrom<&GimpBrush_Row> for OptRc<GimpBrush_Row> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Row) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush_Row> for OptRc<GimpBrush_Row> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Row) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row> for GimpBrush_Row {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row> for &GimpBrush_Row {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row> for OptRc<GimpBrush_Row> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush_Row> for &OptRc<GimpBrush_Row> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for GimpBrush_Row {
@@ -396,6 +574,12 @@ impl GimpBrush_Row {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -413,6 +597,38 @@ pub struct GimpBrush_Row_PixelGray {
     green: RefCell<i32>,
     f_red: Cell<bool>,
     red: RefCell<i32>,
+}
+impl TryFrom<&GimpBrush_Row_PixelGray> for OptRc<GimpBrush_Row_PixelGray> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Row_PixelGray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush_Row_PixelGray> for OptRc<GimpBrush_Row_PixelGray> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Row_PixelGray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for GimpBrush_Row_PixelGray {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for &GimpBrush_Row_PixelGray {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for OptRc<GimpBrush_Row_PixelGray> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelGray> for &OptRc<GimpBrush_Row_PixelGray> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelGray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GimpBrush_Row_PixelGray {
     type Root = GimpBrush;
@@ -494,6 +710,12 @@ impl GimpBrush_Row_PixelGray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -506,6 +728,38 @@ pub struct GimpBrush_Row_PixelRgba {
     blue: RefCell<u8>,
     alpha: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GimpBrush_Row_PixelRgba> for OptRc<GimpBrush_Row_PixelRgba> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Row_PixelRgba) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GimpBrush_Row_PixelRgba> for OptRc<GimpBrush_Row_PixelRgba> {
+    type Error = KError;
+    fn try_from(v: &&GimpBrush_Row_PixelRgba) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for GimpBrush_Row_PixelRgba {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for &GimpBrush_Row_PixelRgba {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for OptRc<GimpBrush_Row_PixelRgba> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GimpBrush_Row_PixelRgba> for &OptRc<GimpBrush_Row_PixelRgba> {
+    fn downcast_optrc(&self) -> Result<OptRc<GimpBrush_Row_PixelRgba>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GimpBrush_Row_PixelRgba {
     type Root = GimpBrush;
@@ -556,5 +810,11 @@ impl GimpBrush_Row_PixelRgba {
 impl GimpBrush_Row_PixelRgba {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

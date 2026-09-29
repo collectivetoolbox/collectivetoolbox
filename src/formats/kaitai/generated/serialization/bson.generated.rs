@@ -23,6 +23,38 @@ pub struct Bson {
     _io: RefCell<BytesReader>,
     fields_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Bson> for OptRc<Bson> {
+    type Error = KError;
+    fn try_from(v: &Bson) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson> for OptRc<Bson> {
+    type Error = KError;
+    fn try_from(v: &&Bson) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson> for Bson {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson> for &Bson {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson> for OptRc<Bson> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson> for &OptRc<Bson> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bson {
     type Root = Bson;
     type Parent = Bson;
@@ -78,6 +110,12 @@ impl Bson {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Bson {
     pub fn fields_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -114,6 +152,22 @@ impl TryFrom<&Bson_BinData_Content> for OptRc<Bson_BinData_ByteArrayDeprecated> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_BinData_Content> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    type Error = KError;
+    fn try_from(v: &&Bson_BinData_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for Bson_BinData_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        OptRc::<Bson_BinData_ByteArrayDeprecated>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &Bson_BinData_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson_BinData_ByteArrayDeprecated>> for Bson_BinData_Content {
     fn from(v: OptRc<Bson_BinData_ByteArrayDeprecated>) -> Self {
         Self::Bson_BinData_ByteArrayDeprecated(v)
@@ -128,9 +182,47 @@ impl TryFrom<&Bson_BinData_Content> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_BinData_Content> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Bson_BinData_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Bson_BinData_Content {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Bson_BinData> for OptRc<Bson_BinData> {
+    type Error = KError;
+    fn try_from(v: &Bson_BinData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_BinData> for OptRc<Bson_BinData> {
+    type Error = KError;
+    fn try_from(v: &&Bson_BinData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData> for Bson_BinData {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData> for &Bson_BinData {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData> for OptRc<Bson_BinData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_BinData> for &OptRc<Bson_BinData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Bson_BinData {
@@ -187,6 +279,12 @@ impl Bson_BinData {
 impl Bson_BinData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Bson_BinData {
@@ -256,6 +354,38 @@ pub struct Bson_BinData_ByteArrayDeprecated {
     _io: RefCell<BytesReader>,
     content_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    type Error = KError;
+    fn try_from(v: &Bson_BinData_ByteArrayDeprecated) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    type Error = KError;
+    fn try_from(v: &&Bson_BinData_ByteArrayDeprecated) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for Bson_BinData_ByteArrayDeprecated {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &Bson_BinData_ByteArrayDeprecated {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for OptRc<Bson_BinData_ByteArrayDeprecated> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_BinData_ByteArrayDeprecated> for &OptRc<Bson_BinData_ByteArrayDeprecated> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData_ByteArrayDeprecated>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bson_BinData_ByteArrayDeprecated {
     type Root = Bson;
     type Parent = Bson_BinData;
@@ -294,6 +424,12 @@ impl Bson_BinData_ByteArrayDeprecated {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Bson_BinData_ByteArrayDeprecated {
     pub fn content_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -310,6 +446,38 @@ pub struct Bson_CodeWithScope {
     source: RefCell<OptRc<Bson_String>>,
     scope: RefCell<OptRc<Bson>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_CodeWithScope> for OptRc<Bson_CodeWithScope> {
+    type Error = KError;
+    fn try_from(v: &Bson_CodeWithScope) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_CodeWithScope> for OptRc<Bson_CodeWithScope> {
+    type Error = KError;
+    fn try_from(v: &&Bson_CodeWithScope) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for Bson_CodeWithScope {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for &Bson_CodeWithScope {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for OptRc<Bson_CodeWithScope> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for &OptRc<Bson_CodeWithScope> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_CodeWithScope {
     type Root = Bson;
@@ -361,6 +529,12 @@ impl Bson_CodeWithScope {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -370,6 +544,38 @@ pub struct Bson_Cstring {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_Cstring> for OptRc<Bson_Cstring> {
+    type Error = KError;
+    fn try_from(v: &Bson_Cstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_Cstring> for OptRc<Bson_Cstring> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Cstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Cstring> for Bson_Cstring {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Cstring>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_Cstring> for &Bson_Cstring {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Cstring>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Cstring> for OptRc<Bson_Cstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Cstring>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_Cstring> for &OptRc<Bson_Cstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Cstring>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_Cstring {
     type Root = Bson;
@@ -407,6 +613,12 @@ impl Bson_Cstring {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -417,6 +629,38 @@ pub struct Bson_DbPointer {
     namespace: RefCell<OptRc<Bson_String>>,
     id: RefCell<OptRc<Bson_ObjectId>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_DbPointer> for OptRc<Bson_DbPointer> {
+    type Error = KError;
+    fn try_from(v: &Bson_DbPointer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_DbPointer> for OptRc<Bson_DbPointer> {
+    type Error = KError;
+    fn try_from(v: &&Bson_DbPointer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for Bson_DbPointer {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for &Bson_DbPointer {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for OptRc<Bson_DbPointer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for &OptRc<Bson_DbPointer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_DbPointer {
     type Root = Bson;
@@ -458,6 +702,12 @@ impl Bson_DbPointer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -495,6 +745,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        OptRc::<Bson>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson>> for Bson_Element_Content {
     fn from(v: OptRc<Bson>) -> Self {
         Self::Bson(v)
@@ -507,6 +773,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_BinData> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_BinData> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_BinData> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        OptRc::<Bson_BinData>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_BinData> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_BinData>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Bson_BinData>> for Bson_Element_Content {
@@ -523,6 +805,12 @@ impl TryFrom<&Bson_Element_Content> for u8 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for u8 {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<u8> for Bson_Element_Content {
     fn from(v: u8) -> Self {
         Self::U1(v)
@@ -535,6 +823,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_CodeWithScope> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_CodeWithScope> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        OptRc::<Bson_CodeWithScope>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_CodeWithScope> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_CodeWithScope>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Bson_CodeWithScope>> for Bson_Element_Content {
@@ -551,6 +855,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_DbPointer> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_DbPointer> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        OptRc::<Bson_DbPointer>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_DbPointer> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_DbPointer>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson_DbPointer>> for Bson_Element_Content {
     fn from(v: OptRc<Bson_DbPointer>) -> Self {
         Self::Bson_DbPointer(v)
@@ -563,6 +883,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_String> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_String> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_String> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        OptRc::<Bson_String>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_String> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Bson_String>> for Bson_Element_Content {
@@ -579,6 +915,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_F16> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_F16> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_F16> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        OptRc::<Bson_F16>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_F16> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson_F16>> for Bson_Element_Content {
     fn from(v: OptRc<Bson_F16>) -> Self {
         Self::Bson_F16(v)
@@ -591,6 +943,12 @@ impl TryFrom<&Bson_Element_Content> for f64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for f64 {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<f64> for Bson_Element_Content {
@@ -607,6 +965,12 @@ impl TryFrom<&Bson_Element_Content> for i32 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for i32 {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i32> for Bson_Element_Content {
     fn from(v: i32) -> Self {
         Self::S4(v)
@@ -619,6 +983,12 @@ impl TryFrom<&Bson_Element_Content> for i64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for i64 {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<i64> for Bson_Element_Content {
@@ -635,6 +1005,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_ObjectId> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_ObjectId> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        OptRc::<Bson_ObjectId>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson_ObjectId>> for Bson_Element_Content {
     fn from(v: OptRc<Bson_ObjectId>) -> Self {
         Self::Bson_ObjectId(v)
@@ -647,6 +1033,22 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_RegEx> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_RegEx> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        OptRc::<Bson_RegEx>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Bson_RegEx>> for Bson_Element_Content {
@@ -663,9 +1065,57 @@ impl TryFrom<&Bson_Element_Content> for OptRc<Bson_Timestamp> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bson_Element_Content> for OptRc<Bson_Timestamp> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        OptRc::<Bson_Timestamp>::try_from(self)
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for &Bson_Element_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Bson_Timestamp>> for Bson_Element_Content {
     fn from(v: OptRc<Bson_Timestamp>) -> Self {
         Self::Bson_Timestamp(v)
+    }
+}
+impl TryFrom<&Bson_Element> for OptRc<Bson_Element> {
+    type Error = KError;
+    fn try_from(v: &Bson_Element) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_Element> for OptRc<Bson_Element> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Element) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Element> for Bson_Element {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Element>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_Element> for &Bson_Element {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Element>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Element> for OptRc<Bson_Element> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Element>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_Element> for &OptRc<Bson_Element> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Element>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Bson_Element {
@@ -778,6 +1228,12 @@ impl Bson_Element {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bson_Element_BsonType {
@@ -880,6 +1336,38 @@ pub struct Bson_ElementsList {
     elements: RefCell<Vec<OptRc<Bson_Element>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Bson_ElementsList> for OptRc<Bson_ElementsList> {
+    type Error = KError;
+    fn try_from(v: &Bson_ElementsList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_ElementsList> for OptRc<Bson_ElementsList> {
+    type Error = KError;
+    fn try_from(v: &&Bson_ElementsList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_ElementsList> for Bson_ElementsList {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ElementsList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_ElementsList> for &Bson_ElementsList {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ElementsList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_ElementsList> for OptRc<Bson_ElementsList> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ElementsList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_ElementsList> for &OptRc<Bson_ElementsList> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ElementsList>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bson_ElementsList {
     type Root = Bson;
     type Parent = Bson;
@@ -920,6 +1408,12 @@ impl Bson_ElementsList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -936,6 +1430,38 @@ pub struct Bson_F16 {
     significand_hi: RefCell<u64>,
     significand_lo: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_F16> for OptRc<Bson_F16> {
+    type Error = KError;
+    fn try_from(v: &Bson_F16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_F16> for OptRc<Bson_F16> {
+    type Error = KError;
+    fn try_from(v: &&Bson_F16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_F16> for Bson_F16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_F16> for &Bson_F16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_F16> for OptRc<Bson_F16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_F16> for &OptRc<Bson_F16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_F16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_F16 {
     type Root = Bson;
@@ -988,6 +1514,12 @@ impl Bson_F16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1004,6 +1536,38 @@ pub struct Bson_ObjectId {
     process_id: RefCell<u16>,
     counter: RefCell<OptRc<Bson_U3>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_ObjectId> for OptRc<Bson_ObjectId> {
+    type Error = KError;
+    fn try_from(v: &Bson_ObjectId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_ObjectId> for OptRc<Bson_ObjectId> {
+    type Error = KError;
+    fn try_from(v: &&Bson_ObjectId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for Bson_ObjectId {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for &Bson_ObjectId {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for OptRc<Bson_ObjectId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_ObjectId> for &OptRc<Bson_ObjectId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_ObjectId>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_ObjectId {
     type Root = Bson;
@@ -1065,6 +1629,12 @@ impl Bson_ObjectId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1075,6 +1645,38 @@ pub struct Bson_RegEx {
     pattern: RefCell<OptRc<Bson_Cstring>>,
     options: RefCell<OptRc<Bson_Cstring>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_RegEx> for OptRc<Bson_RegEx> {
+    type Error = KError;
+    fn try_from(v: &Bson_RegEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_RegEx> for OptRc<Bson_RegEx> {
+    type Error = KError;
+    fn try_from(v: &&Bson_RegEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for Bson_RegEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for &Bson_RegEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for OptRc<Bson_RegEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_RegEx> for &OptRc<Bson_RegEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_RegEx>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_RegEx {
     type Root = Bson;
@@ -1116,6 +1718,12 @@ impl Bson_RegEx {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1128,6 +1736,38 @@ pub struct Bson_String {
     terminator: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Bson_String> for OptRc<Bson_String> {
+    type Error = KError;
+    fn try_from(v: &Bson_String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_String> for OptRc<Bson_String> {
+    type Error = KError;
+    fn try_from(v: &&Bson_String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_String> for Bson_String {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_String> for &Bson_String {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_String> for OptRc<Bson_String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_String> for &OptRc<Bson_String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_String>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_String {
     type Root = Bson;
@@ -1176,6 +1816,12 @@ impl Bson_String {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Bson_String {
     pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1195,6 +1841,38 @@ pub struct Bson_Timestamp {
     increment: RefCell<u32>,
     timestamp: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bson_Timestamp> for OptRc<Bson_Timestamp> {
+    type Error = KError;
+    fn try_from(v: &Bson_Timestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_Timestamp> for OptRc<Bson_Timestamp> {
+    type Error = KError;
+    fn try_from(v: &&Bson_Timestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for Bson_Timestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for &Bson_Timestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for OptRc<Bson_Timestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_Timestamp> for &OptRc<Bson_Timestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_Timestamp>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_Timestamp {
     type Root = Bson;
@@ -1234,6 +1912,12 @@ impl Bson_Timestamp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1251,6 +1935,38 @@ pub struct Bson_U3 {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&Bson_U3> for OptRc<Bson_U3> {
+    type Error = KError;
+    fn try_from(v: &Bson_U3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bson_U3> for OptRc<Bson_U3> {
+    type Error = KError;
+    fn try_from(v: &&Bson_U3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bson_U3> for Bson_U3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_U3>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bson_U3> for &Bson_U3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_U3>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bson_U3> for OptRc<Bson_U3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_U3>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bson_U3> for &OptRc<Bson_U3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bson_U3>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bson_U3 {
     type Root = Bson;
@@ -1307,5 +2023,11 @@ impl Bson_U3 {
 impl Bson_U3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

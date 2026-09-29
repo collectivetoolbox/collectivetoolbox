@@ -85,7 +85,7 @@ fn test_nested_same_name() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NestedSameName> = NestedSameName::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.main_data().main_size(), 2);
-    assert_eq!(*r.main_data().foo().data(), vec![0x10u8, 0x00u8, 0x00u8, 0x00u8]);
+    assert_eq!(*(r.main_data().main_size()), 2);
+    assert_eq!(*(r.main_data().foo().data()), vec![0x10, 0x00, 0x00, 0x00]);
     Ok(())
 }

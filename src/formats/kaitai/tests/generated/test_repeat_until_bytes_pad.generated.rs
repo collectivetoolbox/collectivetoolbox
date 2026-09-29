@@ -86,8 +86,8 @@ fn test_repeat_until_bytes_pad() -> KResult<()> {
     let r: OptRc<RepeatUntilBytesPad> = RepeatUntilBytesPad::read_into(&_io, None, None)?;
 
     assert_eq!(r.records().len(), 3);
-    assert_eq!(r.records()[0], vec![0xe8u8, 0xbau8]);
-    assert_eq!(r.records()[1], vec![0xfau8, 0x9eu8, 0xb8u8]);
-    assert_eq!(r.records()[2], vec![0xaau8, 0x55u8, 0x55u8, 0x55u8, 0x55u8]);
+    assert_eq!(r.records()[0], vec![0xe8, 0xba]);
+    assert_eq!(r.records()[1], vec![0xfa, 0x9e, 0xb8]);
+    assert_eq!(r.records()[2], vec![0xaa, 0x55, 0x55, 0x55, 0x55]);
     Ok(())
 }

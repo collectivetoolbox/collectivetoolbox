@@ -22,6 +22,38 @@ pub struct GptPartitionTable {
     f_sector_size: Cell<bool>,
     sector_size: RefCell<i32>,
 }
+impl TryFrom<&GptPartitionTable> for OptRc<GptPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &GptPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GptPartitionTable> for OptRc<GptPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &&GptPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable> for GptPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable> for &GptPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable> for OptRc<GptPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GptPartitionTable> for &OptRc<GptPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GptPartitionTable {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable;
@@ -92,6 +124,12 @@ impl GptPartitionTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -109,6 +147,38 @@ pub struct GptPartitionTable_PartitionEntry {
     type_guid_raw: RefCell<Vec<u8>>,
     guid_raw: RefCell<Vec<u8>>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &GptPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &&GptPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionEntry> for GptPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionEntry> for &GptPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionEntry> for OptRc<GptPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionEntry> for &OptRc<GptPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GptPartitionTable_PartitionEntry {
     type Root = GptPartitionTable;
@@ -172,6 +242,12 @@ impl GptPartitionTable_PartitionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl GptPartitionTable_PartitionEntry {
     pub fn type_guid_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -213,6 +289,38 @@ pub struct GptPartitionTable_PartitionHeader {
     entries_raw: RefCell<Vec<Vec<u8>>>,
     f_entries: Cell<bool>,
     entries: RefCell<Vec<OptRc<GptPartitionTable_PartitionEntry>>>,
+}
+impl TryFrom<&GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
+    type Error = KError;
+    fn try_from(v: &GptPartitionTable_PartitionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
+    type Error = KError;
+    fn try_from(v: &&GptPartitionTable_PartitionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionHeader> for GptPartitionTable_PartitionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionHeader> for &GptPartitionTable_PartitionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionHeader> for OptRc<GptPartitionTable_PartitionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GptPartitionTable_PartitionHeader> for &OptRc<GptPartitionTable_PartitionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<GptPartitionTable_PartitionHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GptPartitionTable_PartitionHeader {
     type Root = GptPartitionTable;
@@ -268,7 +376,7 @@ impl GptPartitionTable_PartitionHeader {
         *self.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self.entries_count())?;
         for _i in 0_usize..l_entries {
-            self.entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entries_size())?)?.into());
+            self.entries_raw.borrow_mut().push(io.read_bytes(usize::try_from(*self.entries_size())?)?.into());
             let entries_raw = self.entries_raw.borrow();
             let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
             let t = Self::read_into::<BytesReader, GptPartitionTable_PartitionEntry>(&_io_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -351,6 +459,12 @@ impl GptPartitionTable_PartitionHeader {
 impl GptPartitionTable_PartitionHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl GptPartitionTable_PartitionHeader {

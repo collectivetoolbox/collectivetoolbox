@@ -5,7 +5,9 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::packet_ppi::PacketPpi;
+use super::packet_ppi::*;
 use super::ethernet_frame::EthernetFrame;
+use super::ethernet_frame::*;
 
 /**
  * PCAP (named after libpcap / winpcap) is a popular format for saving
@@ -24,6 +26,38 @@ pub struct Pcap {
     hdr: RefCell<OptRc<Pcap_Header>>,
     packets: RefCell<Vec<OptRc<Pcap_Packet>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Pcap> for OptRc<Pcap> {
+    type Error = KError;
+    fn try_from(v: &Pcap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcap> for OptRc<Pcap> {
+    type Error = KError;
+    fn try_from(v: &&Pcap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcap> for Pcap {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcap> for &Pcap {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcap> for OptRc<Pcap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcap> for &OptRc<Pcap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Pcap {
     type Root = Pcap;
@@ -77,6 +111,12 @@ impl Pcap {
 impl Pcap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -789,6 +829,38 @@ pub struct Pcap_Header {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
+impl TryFrom<&Pcap_Header> for OptRc<Pcap_Header> {
+    type Error = KError;
+    fn try_from(v: &Pcap_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcap_Header> for OptRc<Pcap_Header> {
+    type Error = KError;
+    fn try_from(v: &&Pcap_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Header> for Pcap_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Header> for &Pcap_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Header> for OptRc<Pcap_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcap_Header> for &OptRc<Pcap_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Header>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Pcap_Header {
     type Root = Pcap;
     type Parent = Pcap;
@@ -899,6 +971,12 @@ impl Pcap_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -934,6 +1012,22 @@ impl TryFrom<&Pcap_Packet_Body> for OptRc<EthernetFrame> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Pcap_Packet_Body> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &&Pcap_Packet_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<EthernetFrame> for Pcap_Packet_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        OptRc::<EthernetFrame>::try_from(self)
+    }
+}
+impl DowncastOptRc<EthernetFrame> for &Pcap_Packet_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<EthernetFrame>> for Pcap_Packet_Body {
     fn from(v: OptRc<EthernetFrame>) -> Self {
         Self::EthernetFrame(v)
@@ -946,6 +1040,22 @@ impl TryFrom<&Pcap_Packet_Body> for OptRc<PacketPpi> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Pcap_Packet_Body> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &&Pcap_Packet_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PacketPpi> for Pcap_Packet_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        OptRc::<PacketPpi>::try_from(self)
+    }
+}
+impl DowncastOptRc<PacketPpi> for &Pcap_Packet_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PacketPpi>> for Pcap_Packet_Body {
@@ -962,9 +1072,47 @@ impl TryFrom<&Pcap_Packet_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Pcap_Packet_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Pcap_Packet_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Pcap_Packet_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Pcap_Packet> for OptRc<Pcap_Packet> {
+    type Error = KError;
+    fn try_from(v: &Pcap_Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcap_Packet> for OptRc<Pcap_Packet> {
+    type Error = KError;
+    fn try_from(v: &&Pcap_Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Packet> for Pcap_Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Packet>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Packet> for &Pcap_Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Packet>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcap_Packet> for OptRc<Pcap_Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Packet>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcap_Packet> for &OptRc<Pcap_Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcap_Packet>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Pcap_Packet {
@@ -1092,6 +1240,12 @@ impl Pcap_Packet {
 impl Pcap_Packet {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Pcap_Packet {

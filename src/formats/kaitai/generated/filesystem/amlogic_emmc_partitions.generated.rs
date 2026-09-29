@@ -33,6 +33,38 @@ pub struct AmlogicEmmcPartitions {
     _io: RefCell<BytesReader>,
     version_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AmlogicEmmcPartitions> for OptRc<AmlogicEmmcPartitions> {
+    type Error = KError;
+    fn try_from(v: &AmlogicEmmcPartitions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AmlogicEmmcPartitions> for OptRc<AmlogicEmmcPartitions> {
+    type Error = KError;
+    fn try_from(v: &&AmlogicEmmcPartitions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions> for AmlogicEmmcPartitions {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions> for &AmlogicEmmcPartitions {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions> for OptRc<AmlogicEmmcPartitions> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions> for &OptRc<AmlogicEmmcPartitions> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AmlogicEmmcPartitions {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
@@ -115,6 +147,12 @@ impl AmlogicEmmcPartitions {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AmlogicEmmcPartitions {
     pub fn version_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -136,6 +174,38 @@ pub struct AmlogicEmmcPartitions_Partition {
     name_raw: RefCell<Vec<u8>>,
     flags_raw: RefCell<Vec<u8>>,
     padding_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
+    type Error = KError;
+    fn try_from(v: &AmlogicEmmcPartitions_Partition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
+    type Error = KError;
+    fn try_from(v: &&AmlogicEmmcPartitions_Partition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for AmlogicEmmcPartitions_Partition {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for &AmlogicEmmcPartitions_Partition {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for OptRc<AmlogicEmmcPartitions_Partition> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition> for &OptRc<AmlogicEmmcPartitions_Partition> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AmlogicEmmcPartitions_Partition {
     type Root = AmlogicEmmcPartitions;
@@ -201,6 +271,12 @@ impl AmlogicEmmcPartitions_Partition {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AmlogicEmmcPartitions_Partition {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -227,6 +303,38 @@ pub struct AmlogicEmmcPartitions_Partition_PartFlags {
     is_cache: RefCell<bool>,
     is_data: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+    type Error = KError;
+    fn try_from(v: &AmlogicEmmcPartitions_Partition_PartFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+    type Error = KError;
+    fn try_from(v: &&AmlogicEmmcPartitions_Partition_PartFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for AmlogicEmmcPartitions_Partition_PartFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for &AmlogicEmmcPartitions_Partition_PartFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AmlogicEmmcPartitions_Partition_PartFlags> for &OptRc<AmlogicEmmcPartitions_Partition_PartFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
     type Root = AmlogicEmmcPartitions;
@@ -271,5 +379,11 @@ impl AmlogicEmmcPartitions_Partition_PartFlags {
 impl AmlogicEmmcPartitions_Partition_PartFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

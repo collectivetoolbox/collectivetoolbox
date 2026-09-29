@@ -65,6 +65,38 @@ pub struct EosExceptionSized {
     _io: RefCell<BytesReader>,
     envelope_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&EosExceptionSized> for OptRc<EosExceptionSized> {
+    type Error = KError;
+    fn try_from(v: &EosExceptionSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EosExceptionSized> for OptRc<EosExceptionSized> {
+    type Error = KError;
+    fn try_from(v: &&EosExceptionSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized> for EosExceptionSized {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized> for &EosExceptionSized {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized> for OptRc<EosExceptionSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EosExceptionSized> for &OptRc<EosExceptionSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EosExceptionSized {
     type Root = EosExceptionSized;
     type Parent = EosExceptionSized;
@@ -101,6 +133,12 @@ impl EosExceptionSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl EosExceptionSized {
     pub fn envelope_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -116,6 +154,38 @@ pub struct EosExceptionSized_Data {
     buf: RefCell<OptRc<EosExceptionSized_Foo>>,
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&EosExceptionSized_Data> for OptRc<EosExceptionSized_Data> {
+    type Error = KError;
+    fn try_from(v: &EosExceptionSized_Data) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EosExceptionSized_Data> for OptRc<EosExceptionSized_Data> {
+    type Error = KError;
+    fn try_from(v: &&EosExceptionSized_Data) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Data> for EosExceptionSized_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Data>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Data> for &EosExceptionSized_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Data>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Data> for OptRc<EosExceptionSized_Data> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Data>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Data> for &OptRc<EosExceptionSized_Data> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Data>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EosExceptionSized_Data {
     type Root = EosExceptionSized;
@@ -153,6 +223,12 @@ impl EosExceptionSized_Data {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl EosExceptionSized_Data {
     pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -166,6 +242,38 @@ pub struct EosExceptionSized_Foo {
     pub(crate) _parent: SharedType<EosExceptionSized_Data>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EosExceptionSized_Foo> for OptRc<EosExceptionSized_Foo> {
+    type Error = KError;
+    fn try_from(v: &EosExceptionSized_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EosExceptionSized_Foo> for OptRc<EosExceptionSized_Foo> {
+    type Error = KError;
+    fn try_from(v: &&EosExceptionSized_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Foo> for EosExceptionSized_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Foo> for &EosExceptionSized_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Foo> for OptRc<EosExceptionSized_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EosExceptionSized_Foo> for &OptRc<EosExceptionSized_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EosExceptionSized_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EosExceptionSized_Foo {
     type Root = EosExceptionSized;
@@ -192,5 +300,11 @@ impl EosExceptionSized_Foo {
 impl EosExceptionSized_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

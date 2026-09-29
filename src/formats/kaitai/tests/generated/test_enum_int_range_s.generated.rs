@@ -85,8 +85,8 @@ fn test_enum_int_range_s() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumIntRangeS> = EnumIntRangeS::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.f1(), EnumIntRangeS_Constants::IntMin);
-    assert_eq!(*r.f2(), EnumIntRangeS_Constants::Zero);
-    assert_eq!(*r.f3(), EnumIntRangeS_Constants::IntMax);
+    assert_eq!(*(r.f1()), EnumIntRangeS_Constants::IntMin);
+    assert_eq!(*(r.f2()), EnumIntRangeS_Constants::Zero);
+    assert_eq!(*(r.f3()), EnumIntRangeS_Constants::IntMax);
     Ok(())
 }

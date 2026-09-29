@@ -71,6 +71,38 @@ pub struct BitsSeqEndianCombo {
     be8: RefCell<bool>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&BitsSeqEndianCombo> for OptRc<BitsSeqEndianCombo> {
+    type Error = KError;
+    fn try_from(v: &BitsSeqEndianCombo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsSeqEndianCombo> for OptRc<BitsSeqEndianCombo> {
+    type Error = KError;
+    fn try_from(v: &&BitsSeqEndianCombo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsSeqEndianCombo> for BitsSeqEndianCombo {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSeqEndianCombo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsSeqEndianCombo> for &BitsSeqEndianCombo {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSeqEndianCombo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsSeqEndianCombo> for OptRc<BitsSeqEndianCombo> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSeqEndianCombo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsSeqEndianCombo> for &OptRc<BitsSeqEndianCombo> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSeqEndianCombo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsSeqEndianCombo {
     type Root = BitsSeqEndianCombo;
     type Parent = BitsSeqEndianCombo;
@@ -144,5 +176,11 @@ impl BitsSeqEndianCombo {
 impl BitsSeqEndianCombo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,7 +85,7 @@ fn test_params_pass_usertype() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsPassUsertype> = ParamsPassUsertype::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.first().foo(), 1);
-    assert_eq!(*r.one().buf(), vec![2u8]);
+    assert_eq!(*(r.first().foo()), 1);
+    assert_eq!(*(r.one().buf()), vec![2]);
     Ok(())
 }

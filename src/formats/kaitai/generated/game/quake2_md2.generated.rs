@@ -103,9 +103,9 @@ pub struct Quake2Md2 {
     f_anim_names: Cell<bool>,
     anim_names: RefCell<Vec<String>>,
     f_anim_num_frames: Cell<bool>,
-    anim_num_frames: RefCell<Vec<i32>>,
+    anim_num_frames: RefCell<Vec<u8>>,
     f_anim_start_indices: Cell<bool>,
-    anim_start_indices: RefCell<Vec<i32>>,
+    anim_start_indices: RefCell<Vec<u8>>,
     f_anorms_table: Cell<bool>,
     anorms_table: RefCell<Vec<Vec<f64>>>,
     f_frames: Cell<bool>,
@@ -118,6 +118,38 @@ pub struct Quake2Md2 {
     tex_coords: RefCell<Vec<OptRc<Quake2Md2_TexPoint>>>,
     f_triangles: Cell<bool>,
     triangles: RefCell<Vec<OptRc<Quake2Md2_Triangle>>>,
+}
+impl TryFrom<&Quake2Md2> for OptRc<Quake2Md2> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2> for OptRc<Quake2Md2> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2> for Quake2Md2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2> for &Quake2Md2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2> for OptRc<Quake2Md2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2> for &OptRc<Quake2Md2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2 {
     type Root = Quake2Md2;
@@ -179,25 +211,25 @@ impl Quake2Md2 {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anim_num_frames(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_anim_num_frames.get() {
             return Ok(self.anim_num_frames.borrow());
         }
         self.f_anim_num_frames.set(true);
-        *self.anim_num_frames.borrow_mut() = vec![40_i32, 6_i32, 8_i32, 4_i32, 4_i32, 4_i32, 6_i32, 12_i32, 11_i32, 17_i32, 11_i32, 12_i32, 19_i32, 6_i32, 9_i32, 4_i32, 5_i32, 6_i32, 6_i32, 8_i32];
+        *self.anim_num_frames.borrow_mut() = vec![0x28u8, 0x6u8, 0x8u8, 0x4u8, 0x4u8, 0x4u8, 0x6u8, 0xcu8, 0xbu8, 0x11u8, 0xbu8, 0xcu8, 0x13u8, 0x6u8, 0x9u8, 0x4u8, 0x5u8, 0x6u8, 0x6u8, 0x8u8];
         Ok(self.anim_num_frames.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anim_start_indices(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_anim_start_indices.get() {
             return Ok(self.anim_start_indices.borrow());
         }
         self.f_anim_start_indices.set(true);
-        *self.anim_start_indices.borrow_mut() = vec![0_i32, 40_i32, 46_i32, 54_i32, 58_i32, 62_i32, 66_i32, 72_i32, 84_i32, 95_i32, 112_i32, 123_i32, 135_i32, 154_i32, 160_i32, 169_i32, 173_i32, 178_i32, 184_i32, 190_i32];
+        *self.anim_start_indices.borrow_mut() = vec![0x0u8, 0x28u8, 0x2eu8, 0x36u8, 0x3au8, 0x3eu8, 0x42u8, 0x48u8, 0x54u8, 0x5fu8, 0x70u8, 0x7bu8, 0x87u8, 0x9au8, 0xa0u8, 0xa9u8, 0xadu8, 0xb2u8, 0xb8u8, 0xbeu8];
         Ok(self.anim_start_indices.borrow())
     }
 
@@ -412,6 +444,12 @@ impl Quake2Md2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Quake2Md2 {
     pub fn frames_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
@@ -476,6 +514,38 @@ pub struct Quake2Md2_CompressedVec {
     y: RefCell<f32>,
     f_z: Cell<bool>,
     z: RefCell<f32>,
+}
+impl TryFrom<&Quake2Md2_CompressedVec> for OptRc<Quake2Md2_CompressedVec> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_CompressedVec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_CompressedVec> for OptRc<Quake2Md2_CompressedVec> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_CompressedVec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_CompressedVec> for Quake2Md2_CompressedVec {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_CompressedVec>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_CompressedVec> for &Quake2Md2_CompressedVec {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_CompressedVec>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_CompressedVec> for OptRc<Quake2Md2_CompressedVec> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_CompressedVec>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_CompressedVec> for &OptRc<Quake2Md2_CompressedVec> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_CompressedVec>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_CompressedVec {
     type Root = Quake2Md2;
@@ -557,6 +627,12 @@ impl Quake2Md2_CompressedVec {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -570,6 +646,38 @@ pub struct Quake2Md2_Frame {
     vertices: RefCell<Vec<OptRc<Quake2Md2_Vertex>>>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Quake2Md2_Frame> for OptRc<Quake2Md2_Frame> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_Frame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_Frame> for OptRc<Quake2Md2_Frame> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_Frame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Frame> for Quake2Md2_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Frame>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Frame> for &Quake2Md2_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Frame>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Frame> for OptRc<Quake2Md2_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Frame>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_Frame> for &OptRc<Quake2Md2_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Frame>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_Frame {
     type Root = Quake2Md2;
@@ -628,6 +736,12 @@ impl Quake2Md2_Frame {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Quake2Md2_Frame {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -647,6 +761,38 @@ pub struct Quake2Md2_GlCmd {
     num_vertices: RefCell<i32>,
     f_primitive: Cell<bool>,
     primitive: RefCell<Quake2Md2_GlPrimitive>,
+}
+impl TryFrom<&Quake2Md2_GlCmd> for OptRc<Quake2Md2_GlCmd> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_GlCmd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_GlCmd> for OptRc<Quake2Md2_GlCmd> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_GlCmd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmd> for Quake2Md2_GlCmd {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmd> for &Quake2Md2_GlCmd {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmd> for OptRc<Quake2Md2_GlCmd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmd> for &OptRc<Quake2Md2_GlCmd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmd>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_GlCmd {
     type Root = Quake2Md2;
@@ -715,6 +861,12 @@ impl Quake2Md2_GlCmd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -724,6 +876,38 @@ pub struct Quake2Md2_GlCmdsList {
     pub(crate) _self_shared: SharedType<Self>,
     items: RefCell<Vec<OptRc<Quake2Md2_GlCmd>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Quake2Md2_GlCmdsList> for OptRc<Quake2Md2_GlCmdsList> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_GlCmdsList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_GlCmdsList> for OptRc<Quake2Md2_GlCmdsList> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_GlCmdsList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmdsList> for Quake2Md2_GlCmdsList {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmdsList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmdsList> for &Quake2Md2_GlCmdsList {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmdsList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmdsList> for OptRc<Quake2Md2_GlCmdsList> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmdsList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlCmdsList> for &OptRc<Quake2Md2_GlCmdsList> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlCmdsList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_GlCmdsList {
     type Root = Quake2Md2;
@@ -770,6 +954,12 @@ impl Quake2Md2_GlCmdsList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -780,6 +970,38 @@ pub struct Quake2Md2_GlVertex {
     tex_coords_normalized: RefCell<Vec<f32>>,
     vertex_index: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Quake2Md2_GlVertex> for OptRc<Quake2Md2_GlVertex> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_GlVertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_GlVertex> for OptRc<Quake2Md2_GlVertex> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_GlVertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlVertex> for Quake2Md2_GlVertex {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlVertex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlVertex> for &Quake2Md2_GlVertex {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlVertex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlVertex> for OptRc<Quake2Md2_GlVertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlVertex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_GlVertex> for &OptRc<Quake2Md2_GlVertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_GlVertex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_GlVertex {
     type Root = Quake2Md2;
@@ -827,6 +1049,12 @@ impl Quake2Md2_GlVertex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -841,6 +1069,38 @@ pub struct Quake2Md2_TexPoint {
     s_normalized: RefCell<f64>,
     f_t_normalized: Cell<bool>,
     t_normalized: RefCell<f64>,
+}
+impl TryFrom<&Quake2Md2_TexPoint> for OptRc<Quake2Md2_TexPoint> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_TexPoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_TexPoint> for OptRc<Quake2Md2_TexPoint> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_TexPoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_TexPoint> for Quake2Md2_TexPoint {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_TexPoint>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_TexPoint> for &Quake2Md2_TexPoint {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_TexPoint>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_TexPoint> for OptRc<Quake2Md2_TexPoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_TexPoint>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_TexPoint> for &OptRc<Quake2Md2_TexPoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_TexPoint>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_TexPoint {
     type Root = Quake2Md2;
@@ -904,6 +1164,12 @@ impl Quake2Md2_TexPoint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -914,6 +1180,38 @@ pub struct Quake2Md2_Triangle {
     vertex_indices: RefCell<Vec<u16>>,
     tex_point_indices: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Quake2Md2_Triangle> for OptRc<Quake2Md2_Triangle> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_Triangle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_Triangle> for OptRc<Quake2Md2_Triangle> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_Triangle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Triangle> for Quake2Md2_Triangle {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Triangle>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Triangle> for &Quake2Md2_Triangle {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Triangle>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Triangle> for OptRc<Quake2Md2_Triangle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Triangle>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_Triangle> for &OptRc<Quake2Md2_Triangle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Triangle>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_Triangle {
     type Root = Quake2Md2;
@@ -969,6 +1267,12 @@ impl Quake2Md2_Triangle {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -980,6 +1284,38 @@ pub struct Quake2Md2_Vec3f {
     y: RefCell<f32>,
     z: RefCell<f32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Quake2Md2_Vec3f> for OptRc<Quake2Md2_Vec3f> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_Vec3f) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_Vec3f> for OptRc<Quake2Md2_Vec3f> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_Vec3f) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vec3f> for Quake2Md2_Vec3f {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vec3f>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vec3f> for &Quake2Md2_Vec3f {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vec3f>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vec3f> for OptRc<Quake2Md2_Vec3f> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vec3f>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vec3f> for &OptRc<Quake2Md2_Vec3f> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vec3f>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_Vec3f {
     type Root = Quake2Md2;
@@ -1025,6 +1361,12 @@ impl Quake2Md2_Vec3f {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1037,6 +1379,38 @@ pub struct Quake2Md2_Vertex {
     _io: RefCell<BytesReader>,
     f_normal: Cell<bool>,
     normal: RefCell<Vec<f64>>,
+}
+impl TryFrom<&Quake2Md2_Vertex> for OptRc<Quake2Md2_Vertex> {
+    type Error = KError;
+    fn try_from(v: &Quake2Md2_Vertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Quake2Md2_Vertex> for OptRc<Quake2Md2_Vertex> {
+    type Error = KError;
+    fn try_from(v: &&Quake2Md2_Vertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vertex> for Quake2Md2_Vertex {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vertex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vertex> for &Quake2Md2_Vertex {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vertex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vertex> for OptRc<Quake2Md2_Vertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vertex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Quake2Md2_Vertex> for &OptRc<Quake2Md2_Vertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Quake2Md2_Vertex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Quake2Md2_Vertex {
     type Root = Quake2Md2;
@@ -1088,5 +1462,11 @@ impl Quake2Md2_Vertex {
 impl Quake2Md2_Vertex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

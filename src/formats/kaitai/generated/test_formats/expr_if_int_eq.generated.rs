@@ -91,6 +91,38 @@ pub struct ExprIfIntEq {
     f_seq_if_eq_lit: Cell<bool>,
     seq_if_eq_lit: RefCell<bool>,
 }
+impl TryFrom<&ExprIfIntEq> for OptRc<ExprIfIntEq> {
+    type Error = KError;
+    fn try_from(v: &ExprIfIntEq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIfIntEq> for OptRc<ExprIfIntEq> {
+    type Error = KError;
+    fn try_from(v: &&ExprIfIntEq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntEq> for ExprIfIntEq {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntEq>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntEq> for &ExprIfIntEq {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntEq>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntEq> for OptRc<ExprIfIntEq> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntEq>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIfIntEq> for &OptRc<ExprIfIntEq> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntEq>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIfIntEq {
     type Root = ExprIfIntEq;
     type Parent = ExprIfIntEq;
@@ -282,6 +314,12 @@ impl ExprIfIntEq {
 impl ExprIfIntEq {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprIfIntEq {

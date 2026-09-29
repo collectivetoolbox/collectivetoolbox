@@ -93,6 +93,38 @@ pub struct ExprOpsParens {
     f_str_concat_to_i: Cell<bool>,
     str_concat_to_i: RefCell<i32>,
 }
+impl TryFrom<&ExprOpsParens> for OptRc<ExprOpsParens> {
+    type Error = KError;
+    fn try_from(v: &ExprOpsParens) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprOpsParens> for OptRc<ExprOpsParens> {
+    type Error = KError;
+    fn try_from(v: &&ExprOpsParens) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprOpsParens> for ExprOpsParens {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprOpsParens>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprOpsParens> for &ExprOpsParens {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprOpsParens>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprOpsParens> for OptRc<ExprOpsParens> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprOpsParens>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprOpsParens> for &OptRc<ExprOpsParens> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprOpsParens>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprOpsParens {
     type Root = ExprOpsParens;
     type Parent = ExprOpsParens;
@@ -183,7 +215,7 @@ impl ExprOpsParens {
             return Ok(self.f_sum_to_int.borrow());
         }
         self.f_f_sum_to_int.set(true);
-        *self.f_sum_to_int.borrow_mut() = (float_to_int(*((*self.f_2pi()?) + (*self.f_e()?)))?).try_into()?;
+        *self.f_sum_to_int.borrow_mut() = (float_to_int(((*self.f_2pi()?) + (*self.f_e()?)))?).try_into()?;
         Ok(self.f_sum_to_int.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -267,7 +299,7 @@ impl ExprOpsParens {
             return Ok(self.str_concat_rev.borrow());
         }
         self.f_str_concat_rev.set(true);
-        *self.str_concat_rev.borrow_mut() = reverse_string(&format!("{}{}", *self.str_0_to_4()?, *self.str_5_to_9()?))?.to_string();
+        *self.str_concat_rev.borrow_mut() = reverse_string(&*(format!("{}{}", *self.str_0_to_4()?, *self.str_5_to_9()?)))?.to_string();
         Ok(self.str_concat_rev.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -298,5 +330,11 @@ impl ExprOpsParens {
 impl ExprOpsParens {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,13 +85,13 @@ fn test_enum_to_i_invalid() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumToIInvalid> = EnumToIInvalid::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1(), EnumToIInvalid_Animal::Dog);
-    assert_eq!(*r.pet_2(), 111);
-    assert_eq!(*r.pet_2_i()?, 111);
-    assert_eq!(*r.pet_2_i_to_s()?, "111");
-    assert_eq!(*r.pet_2_mod()?, 32879);
-    assert_eq!(*r.one_lt_two()?, true);
-    assert_eq!(*r.pet_2_eq_int_t()?, true);
-    assert_eq!(*r.pet_2_eq_int_f()?, false);
+    assert_eq!(*(r.pet_1()), EnumToIInvalid_Animal::Dog);
+    assert_eq!(i64::from(&*r.pet_2()), 111);
+    assert_eq!(*(r.pet_2_i()?), 111);
+    assert_eq!(*(r.pet_2_i_to_s()?), "111");
+    assert_eq!(*(r.pet_2_mod()?), 32879);
+    assert_eq!(*(r.one_lt_two()?), true);
+    assert_eq!(*(r.pet_2_eq_int_t()?), true);
+    assert_eq!(*(r.pet_2_eq_int_f()?), false);
     Ok(())
 }

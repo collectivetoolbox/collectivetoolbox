@@ -56,7 +56,9 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::params_def_enum_imported::ParamsDefEnumImported;
+use super::params_def_enum_imported::*;
 use super::enum_import_seq::EnumImportSeq;
+use super::enum_import_seq::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsParamsDefEnumImported {
@@ -66,6 +68,38 @@ pub struct ImportsParamsDefEnumImported {
     one: RefCell<OptRc<EnumImportSeq>>,
     two: RefCell<OptRc<ParamsDefEnumImported>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
+    type Error = KError;
+    fn try_from(v: &ImportsParamsDefEnumImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
+    type Error = KError;
+    fn try_from(v: &&ImportsParamsDefEnumImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefEnumImported> for ImportsParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefEnumImported> for &ImportsParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefEnumImported> for OptRc<ImportsParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ImportsParamsDefEnumImported> for &OptRc<ImportsParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefEnumImported>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ImportsParamsDefEnumImported {
     type Root = ImportsParamsDefEnumImported;
@@ -107,5 +141,11 @@ impl ImportsParamsDefEnumImported {
 impl ImportsParamsDefEnumImported {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -66,6 +66,38 @@ pub struct NavParentOverride {
     mediator_2: RefCell<OptRc<NavParentOverride_Mediator>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NavParentOverride> for OptRc<NavParentOverride> {
+    type Error = KError;
+    fn try_from(v: &NavParentOverride) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentOverride> for OptRc<NavParentOverride> {
+    type Error = KError;
+    fn try_from(v: &&NavParentOverride) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride> for NavParentOverride {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride> for &NavParentOverride {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride> for OptRc<NavParentOverride> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentOverride> for &OptRc<NavParentOverride> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParentOverride {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
@@ -112,6 +144,12 @@ impl NavParentOverride {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -122,6 +160,38 @@ pub struct NavParentOverride_Child {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NavParentOverride_Child> for OptRc<NavParentOverride_Child> {
+    type Error = KError;
+    fn try_from(v: &NavParentOverride_Child) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentOverride_Child> for OptRc<NavParentOverride_Child> {
+    type Error = KError;
+    fn try_from(v: &&NavParentOverride_Child) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Child> for NavParentOverride_Child {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Child>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Child> for &NavParentOverride_Child {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Child>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Child> for OptRc<NavParentOverride_Child> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Child>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentOverride_Child> for &OptRc<NavParentOverride_Child> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Child>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentOverride_Child {
     type Root = NavParentOverride;
@@ -155,6 +225,12 @@ impl NavParentOverride_Child {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NavParentOverride_Child {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -169,6 +245,38 @@ pub struct NavParentOverride_Mediator {
     pub(crate) _self_shared: SharedType<Self>,
     child_2: RefCell<OptRc<NavParentOverride_Child>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
+    type Error = KError;
+    fn try_from(v: &NavParentOverride_Mediator) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
+    type Error = KError;
+    fn try_from(v: &&NavParentOverride_Mediator) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Mediator> for NavParentOverride_Mediator {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Mediator> for &NavParentOverride_Mediator {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentOverride_Mediator> for OptRc<NavParentOverride_Mediator> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentOverride_Mediator> for &OptRc<NavParentOverride_Mediator> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentOverride_Mediator>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentOverride_Mediator {
     type Root = NavParentOverride;
@@ -202,5 +310,11 @@ impl NavParentOverride_Mediator {
 impl NavParentOverride_Mediator {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

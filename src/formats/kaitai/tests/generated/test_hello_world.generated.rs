@@ -85,6 +85,6 @@ fn test_hello_world() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<HelloWorld> = HelloWorld::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), 80);
+    assert_eq!(*(r.one()), 80);
     Ok(())
 }

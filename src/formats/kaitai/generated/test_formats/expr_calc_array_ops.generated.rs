@@ -69,11 +69,11 @@ pub struct ExprCalcArrayOps {
     f_double_array_last: Cell<bool>,
     double_array_last: RefCell<f64>,
     f_double_array_max: Cell<bool>,
-    double_array_max: RefCell<i32>,
+    double_array_max: RefCell<f64>,
     f_double_array_mid: Cell<bool>,
     double_array_mid: RefCell<f64>,
     f_double_array_min: Cell<bool>,
-    double_array_min: RefCell<i32>,
+    double_array_min: RefCell<f64>,
     f_double_array_size: Cell<bool>,
     double_array_size: RefCell<i32>,
     f_int_array: Cell<bool>,
@@ -97,13 +97,45 @@ pub struct ExprCalcArrayOps {
     f_str_array_last: Cell<bool>,
     str_array_last: RefCell<String>,
     f_str_array_max: Cell<bool>,
-    str_array_max: RefCell<i32>,
+    str_array_max: RefCell<String>,
     f_str_array_mid: Cell<bool>,
     str_array_mid: RefCell<String>,
     f_str_array_min: Cell<bool>,
-    str_array_min: RefCell<i32>,
+    str_array_min: RefCell<String>,
     f_str_array_size: Cell<bool>,
     str_array_size: RefCell<i32>,
+}
+impl TryFrom<&ExprCalcArrayOps> for OptRc<ExprCalcArrayOps> {
+    type Error = KError;
+    fn try_from(v: &ExprCalcArrayOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprCalcArrayOps> for OptRc<ExprCalcArrayOps> {
+    type Error = KError;
+    fn try_from(v: &&ExprCalcArrayOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprCalcArrayOps> for ExprCalcArrayOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprCalcArrayOps>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprCalcArrayOps> for &ExprCalcArrayOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprCalcArrayOps>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprCalcArrayOps> for OptRc<ExprCalcArrayOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprCalcArrayOps>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprCalcArrayOps> for &OptRc<ExprCalcArrayOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprCalcArrayOps>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprCalcArrayOps {
     type Root = ExprCalcArrayOps;
@@ -165,7 +197,7 @@ impl ExprCalcArrayOps {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn double_array_max(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_double_array_max.get() {
             return Ok(self.double_array_max.borrow());
@@ -189,7 +221,7 @@ impl ExprCalcArrayOps {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn double_array_min(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, f64>> {
         let _io = self._io.borrow();
         if self.f_double_array_min.get() {
             return Ok(self.double_array_min.borrow());
@@ -333,13 +365,13 @@ impl ExprCalcArrayOps {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str_array_max(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str_array_max.get() {
             return Ok(self.str_array_max.borrow());
         }
         self.f_str_array_max.set(true);
-        *self.str_array_max.borrow_mut() = (*self.str_array()?.iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.str_array_max.borrow_mut() = self.str_array()?.iter().max().ok_or(KError::EmptyIterator)?.to_string();
         Ok(self.str_array_max.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -357,13 +389,13 @@ impl ExprCalcArrayOps {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str_array_min(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_str_array_min.get() {
             return Ok(self.str_array_min.borrow());
         }
         self.f_str_array_min.set(true);
-        *self.str_array_min.borrow_mut() = (*self.str_array()?.iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
+        *self.str_array_min.borrow_mut() = self.str_array()?.iter().min().ok_or(KError::EmptyIterator)?.to_string();
         Ok(self.str_array_min.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -382,5 +414,11 @@ impl ExprCalcArrayOps {
 impl ExprCalcArrayOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

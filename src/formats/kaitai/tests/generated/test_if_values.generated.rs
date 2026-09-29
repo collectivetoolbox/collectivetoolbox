@@ -85,11 +85,11 @@ fn test_if_values() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<IfValues> = IfValues::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.codes()[0].opcode(), 80);
-    assert_eq!(*r.codes()[0].half_opcode()?, 40);
-    assert_eq!(*r.codes()[1].opcode(), 65);
-    assert!(r.codes()[1].half_opcode()?.is_none());
-    assert_eq!(*r.codes()[2].opcode(), 67);
-    assert!(r.codes()[2].half_opcode()?.is_none());
+    assert_eq!(*(r.codes()[0].opcode()), 80);
+    assert_eq!(*(r.codes()[0].half_opcode()?), 40);
+    assert_eq!(*(r.codes()[1].opcode()), 65);
+    assert_eq!(*r.codes()[1].half_opcode()?, 0);
+    assert_eq!(*(r.codes()[2].opcode()), 67);
+    assert_eq!(*r.codes()[2].half_opcode()?, 0);
     Ok(())
 }

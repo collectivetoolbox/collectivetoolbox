@@ -26,6 +26,38 @@ pub struct AndroidDto {
     entries: RefCell<Vec<OptRc<AndroidDto_DtTableEntry>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&AndroidDto> for OptRc<AndroidDto> {
+    type Error = KError;
+    fn try_from(v: &AndroidDto) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidDto> for OptRc<AndroidDto> {
+    type Error = KError;
+    fn try_from(v: &&AndroidDto) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto> for AndroidDto {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto> for &AndroidDto {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto> for OptRc<AndroidDto> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidDto> for &OptRc<AndroidDto> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidDto {
     type Root = AndroidDto;
     type Parent = AndroidDto;
@@ -70,6 +102,12 @@ impl AndroidDto {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -85,6 +123,38 @@ pub struct AndroidDto_DtTableEntry {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidDto_DtTableEntry> for OptRc<AndroidDto_DtTableEntry> {
+    type Error = KError;
+    fn try_from(v: &AndroidDto_DtTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidDto_DtTableEntry> for OptRc<AndroidDto_DtTableEntry> {
+    type Error = KError;
+    fn try_from(v: &&AndroidDto_DtTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableEntry> for AndroidDto_DtTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableEntry> for &AndroidDto_DtTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableEntry> for OptRc<AndroidDto_DtTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableEntry> for &OptRc<AndroidDto_DtTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidDto_DtTableEntry {
     type Root = AndroidDto;
@@ -186,6 +256,12 @@ impl AndroidDto_DtTableEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -202,6 +278,38 @@ pub struct AndroidDto_DtTableHeader {
     page_size: RefCell<u32>,
     version: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidDto_DtTableHeader> for OptRc<AndroidDto_DtTableHeader> {
+    type Error = KError;
+    fn try_from(v: &AndroidDto_DtTableHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidDto_DtTableHeader> for OptRc<AndroidDto_DtTableHeader> {
+    type Error = KError;
+    fn try_from(v: &&AndroidDto_DtTableHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableHeader> for AndroidDto_DtTableHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableHeader> for &AndroidDto_DtTableHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableHeader> for OptRc<AndroidDto_DtTableHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidDto_DtTableHeader> for &OptRc<AndroidDto_DtTableHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidDto_DtTableHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidDto_DtTableHeader {
     type Root = AndroidDto;
@@ -307,5 +415,11 @@ impl AndroidDto_DtTableHeader {
 impl AndroidDto_DtTableHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -70,6 +70,38 @@ pub struct DocstringsDocrefMulti {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DocstringsDocrefMulti> for OptRc<DocstringsDocrefMulti> {
+    type Error = KError;
+    fn try_from(v: &DocstringsDocrefMulti) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DocstringsDocrefMulti> for OptRc<DocstringsDocrefMulti> {
+    type Error = KError;
+    fn try_from(v: &&DocstringsDocrefMulti) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DocstringsDocrefMulti> for DocstringsDocrefMulti {
+    fn downcast_optrc(&self) -> Result<OptRc<DocstringsDocrefMulti>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DocstringsDocrefMulti> for &DocstringsDocrefMulti {
+    fn downcast_optrc(&self) -> Result<OptRc<DocstringsDocrefMulti>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DocstringsDocrefMulti> for OptRc<DocstringsDocrefMulti> {
+    fn downcast_optrc(&self) -> Result<OptRc<DocstringsDocrefMulti>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DocstringsDocrefMulti> for &OptRc<DocstringsDocrefMulti> {
+    fn downcast_optrc(&self) -> Result<OptRc<DocstringsDocrefMulti>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DocstringsDocrefMulti {
     type Root = DocstringsDocrefMulti;
     type Parent = DocstringsDocrefMulti;
@@ -95,5 +127,11 @@ impl DocstringsDocrefMulti {
 impl DocstringsDocrefMulti {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

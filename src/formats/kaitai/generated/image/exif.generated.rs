@@ -34,6 +34,38 @@ pub struct Exif {
     body: RefCell<OptRc<Exif_ExifBody>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Exif> for OptRc<Exif> {
+    type Error = KError;
+    fn try_from(v: &Exif) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif> for OptRc<Exif> {
+    type Error = KError;
+    fn try_from(v: &&Exif) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif> for Exif {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif> for &Exif {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif> for OptRc<Exif> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif> for &OptRc<Exif> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Exif {
     type Root = Exif;
     type Parent = Exif;
@@ -72,6 +104,12 @@ impl Exif {
 impl Exif {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -1745,6 +1783,38 @@ pub struct Exif_ExifBody {
     ifd0: RefCell<OptRc<Exif_ExifBody_Ifd>>,
     _is_le: RefCell<i32>,
 }
+impl TryFrom<&Exif_ExifBody> for OptRc<Exif_ExifBody> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody> for OptRc<Exif_ExifBody> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody> for Exif_ExifBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody> for &Exif_ExifBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody> for OptRc<Exif_ExifBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody> for &OptRc<Exif_ExifBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Exif_ExifBody {
     type Root = Exif;
     type Parent = Exif;
@@ -1820,6 +1890,12 @@ impl Exif_ExifBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1830,6 +1906,38 @@ pub struct Exif_ExifBody_AsciiString {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_AsciiString> for OptRc<Exif_ExifBody_AsciiString> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_AsciiString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_AsciiString> for OptRc<Exif_ExifBody_AsciiString> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_AsciiString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for Exif_ExifBody_AsciiString {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for &Exif_ExifBody_AsciiString {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for OptRc<Exif_ExifBody_AsciiString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for &OptRc<Exif_ExifBody_AsciiString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_AsciiString {
     type Root = Exif;
@@ -1894,6 +2002,12 @@ impl Exif_ExifBody_AsciiString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1904,6 +2018,38 @@ pub struct Exif_ExifBody_Doubles {
     values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Doubles> for OptRc<Exif_ExifBody_Doubles> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Doubles) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Doubles> for OptRc<Exif_ExifBody_Doubles> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Doubles) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for Exif_ExifBody_Doubles {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for &Exif_ExifBody_Doubles {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for OptRc<Exif_ExifBody_Doubles> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for &OptRc<Exif_ExifBody_Doubles> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Doubles {
     type Root = Exif;
@@ -1946,6 +2092,12 @@ impl Exif_ExifBody_Doubles {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1956,6 +2108,38 @@ pub struct Exif_ExifBody_Floats {
     values: RefCell<Vec<f32>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Floats> for OptRc<Exif_ExifBody_Floats> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Floats) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Floats> for OptRc<Exif_ExifBody_Floats> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Floats) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for Exif_ExifBody_Floats {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for &Exif_ExifBody_Floats {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for OptRc<Exif_ExifBody_Floats> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for &OptRc<Exif_ExifBody_Floats> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Floats {
     type Root = Exif;
@@ -1998,6 +2182,12 @@ impl Exif_ExifBody_Floats {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2014,6 +2204,38 @@ pub struct Exif_ExifBody_Ifd {
     f_next_ifd: Cell<bool>,
     next_ifd: RefCell<OptRc<Exif_ExifBody_Ifd>>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Ifd> for OptRc<Exif_ExifBody_Ifd> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Ifd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Ifd> for OptRc<Exif_ExifBody_Ifd> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Ifd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Ifd> for Exif_ExifBody_Ifd {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Ifd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Ifd> for &Exif_ExifBody_Ifd {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Ifd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Ifd> for OptRc<Exif_ExifBody_Ifd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Ifd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Ifd> for &OptRc<Exif_ExifBody_Ifd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Ifd>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Ifd {
     type Root = Exif;
@@ -2100,6 +2322,12 @@ impl Exif_ExifBody_Ifd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Exif_ExifBody_Ifd {
     pub fn fields_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2158,6 +2386,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_AsciiString> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_AsciiString> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        OptRc::<Exif_ExifBody_AsciiString>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_AsciiString> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_AsciiString>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_AsciiString>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_AsciiString>) -> Self {
         Self::Exif_ExifBody_AsciiString(v)
@@ -2170,6 +2414,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Doubles> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Doubles> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        OptRc::<Exif_ExifBody_Doubles>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Doubles> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Doubles>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Exif_ExifBody_Doubles>> for Exif_ExifBody_IfdField_Data {
@@ -2186,6 +2446,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Floats> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Floats> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        OptRc::<Exif_ExifBody_Floats>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Floats> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Floats>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_Floats>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_Floats>) -> Self {
         Self::Exif_ExifBody_Floats(v)
@@ -2198,6 +2474,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Longs> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Longs> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        OptRc::<Exif_ExifBody_Longs>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Exif_ExifBody_Longs>> for Exif_ExifBody_IfdField_Data {
@@ -2214,6 +2506,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Rationals> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Rationals> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        OptRc::<Exif_ExifBody_Rationals>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_Rationals>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_Rationals>) -> Self {
         Self::Exif_ExifBody_Rationals(v)
@@ -2226,6 +2534,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Sbytes> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Sbytes> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        OptRc::<Exif_ExifBody_Sbytes>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Exif_ExifBody_Sbytes>> for Exif_ExifBody_IfdField_Data {
@@ -2242,6 +2566,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Shorts> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Shorts> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        OptRc::<Exif_ExifBody_Shorts>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_Shorts>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_Shorts>) -> Self {
         Self::Exif_ExifBody_Shorts(v)
@@ -2254,6 +2594,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Slongs> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Slongs> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        OptRc::<Exif_ExifBody_Slongs>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Exif_ExifBody_Slongs>> for Exif_ExifBody_IfdField_Data {
@@ -2270,6 +2626,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Srationals> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Srationals> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        OptRc::<Exif_ExifBody_Srationals>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_Srationals>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_Srationals>) -> Self {
         Self::Exif_ExifBody_Srationals(v)
@@ -2282,6 +2654,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Sshorts> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Sshorts> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        OptRc::<Exif_ExifBody_Sshorts>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Exif_ExifBody_Sshorts>> for Exif_ExifBody_IfdField_Data {
@@ -2298,6 +2686,22 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Utf8String> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for OptRc<Exif_ExifBody_Utf8String> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        OptRc::<Exif_ExifBody_Utf8String>::try_from(self)
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for &Exif_ExifBody_IfdField_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Exif_ExifBody_Utf8String>> for Exif_ExifBody_IfdField_Data {
     fn from(v: OptRc<Exif_ExifBody_Utf8String>) -> Self {
         Self::Exif_ExifBody_Utf8String(v)
@@ -2312,9 +2716,47 @@ impl TryFrom<&Exif_ExifBody_IfdField_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Exif_ExifBody_IfdField_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Exif_ExifBody_IfdField_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Exif_ExifBody_IfdField> for OptRc<Exif_ExifBody_IfdField> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_IfdField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_IfdField> for OptRc<Exif_ExifBody_IfdField> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_IfdField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_IfdField> for Exif_ExifBody_IfdField {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_IfdField>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_IfdField> for &Exif_ExifBody_IfdField {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_IfdField>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_IfdField> for OptRc<Exif_ExifBody_IfdField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_IfdField>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_IfdField> for &OptRc<Exif_ExifBody_IfdField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_IfdField>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Exif_ExifBody_IfdField {
@@ -2377,7 +2819,7 @@ impl Exif_ExifBody_IfdField {
             return Ok(self.data.borrow());
         }
         self.f_data.set(true);
-        let io = if *self.has_immediate_data()? { KStream::clone(&*_io) } else { KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io()) };
+        let io = if *self.has_immediate_data()? { Clone::clone(&*(_io)) } else { Clone::clone(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io())) };
         let _pos = io.pos();
         io.seek(usize::try_from(if *self.has_immediate_data()? { 8_u32 } else { *self.ofs_data() })?)?;
         match *self.field_type() {
@@ -2547,10 +2989,10 @@ impl Exif_ExifBody_IfdField {
         if self.f_sub_ifd.get() {
             return Ok(self.sub_ifd.borrow());
         }
-        if  ((((to_i128(*self.num_values())) == (to_i128(1)))) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (((to_i128(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*(self.data()?).as_ref().ok_or(KError::CastError)?)?.values().first().ok_or(KError::EmptyIterator)?)) >= (to_i128(0))))) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) ))  {
+        if  ((((to_i128(*self.num_values())) == (to_i128(1)))) && ( ((*self.field_type() == Exif_FieldType::Long) || (*self.field_type() == Exif_FieldType::Ifd) || ( ((*self.field_type() == Exif_FieldType::Slong) && (((to_i128(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)) >= (to_i128(0))))) )) ) && ( ((*self.tag()? == Exif_Tag::ExifOffset) || (*self.tag()? == Exif_Tag::InteropOffset) || (*self.tag()? == Exif_Tag::GpsInfo)) ))  {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*(self.data()?).as_ref().ok_or(KError::CastError)?)?.values().first().ok_or(KError::EmptyIterator)?)? } else { *OptRc::<Exif_ExifBody_Longs>::try_from(&*(self.data()?).as_ref().ok_or(KError::CastError)?)?.values().first().ok_or(KError::EmptyIterator)? })?)?;
+            io.seek(usize::try_from(if *self.field_type() == Exif_FieldType::Slong { u32::try_from(*OptRc::<Exif_ExifBody_Slongs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)?)? } else { *OptRc::<Exif_ExifBody_Longs>::try_from(&*((self.data()?).as_ref().ok_or(KError::CastError)?))?.values().first().ok_or(KError::EmptyIterator)? })?)?;
             let f = |t : &mut Exif_ExifBody_Ifd| Ok(t.set_params(*self.tag()? == Exif_Tag::GpsInfo));
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Ifd>(&io, Some(self._root.clone()), None, &f)?.into();
             *self.sub_ifd.borrow_mut() = t;
@@ -2602,6 +3044,12 @@ impl Exif_ExifBody_IfdField {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Exif_ExifBody_IfdField {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2617,6 +3065,38 @@ pub struct Exif_ExifBody_Longs {
     values: RefCell<Vec<u32>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Longs> for OptRc<Exif_ExifBody_Longs> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Longs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Longs> for OptRc<Exif_ExifBody_Longs> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Longs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for Exif_ExifBody_Longs {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for &Exif_ExifBody_Longs {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for OptRc<Exif_ExifBody_Longs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Longs> for &OptRc<Exif_ExifBody_Longs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Longs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Longs {
     type Root = Exif;
@@ -2659,6 +3139,12 @@ impl Exif_ExifBody_Longs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2672,6 +3158,38 @@ pub struct Exif_ExifBody_Rational {
     f_value: Cell<bool>,
     value: RefCell<f64>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Rational> for OptRc<Exif_ExifBody_Rational> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Rational) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Rational> for OptRc<Exif_ExifBody_Rational> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Rational) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rational> for Exif_ExifBody_Rational {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rational>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rational> for &Exif_ExifBody_Rational {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rational>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rational> for OptRc<Exif_ExifBody_Rational> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rational>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rational> for &OptRc<Exif_ExifBody_Rational> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rational>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Rational {
     type Root = Exif;
@@ -2748,6 +3266,12 @@ impl Exif_ExifBody_Rational {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2758,6 +3282,38 @@ pub struct Exif_ExifBody_Rationals {
     values: RefCell<Vec<OptRc<Exif_ExifBody_Rational>>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Rationals> for OptRc<Exif_ExifBody_Rationals> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Rationals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Rationals> for OptRc<Exif_ExifBody_Rationals> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Rationals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for Exif_ExifBody_Rationals {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for &Exif_ExifBody_Rationals {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for OptRc<Exif_ExifBody_Rationals> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Rationals> for &OptRc<Exif_ExifBody_Rationals> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Rationals>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Rationals {
     type Root = Exif;
@@ -2802,6 +3358,12 @@ impl Exif_ExifBody_Rationals {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2812,6 +3374,38 @@ pub struct Exif_ExifBody_Sbytes {
     values: RefCell<Vec<i8>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Sbytes> for OptRc<Exif_ExifBody_Sbytes> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Sbytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Sbytes> for OptRc<Exif_ExifBody_Sbytes> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Sbytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for Exif_ExifBody_Sbytes {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for &Exif_ExifBody_Sbytes {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for OptRc<Exif_ExifBody_Sbytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sbytes> for &OptRc<Exif_ExifBody_Sbytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sbytes>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Sbytes {
     type Root = Exif;
@@ -2854,6 +3448,12 @@ impl Exif_ExifBody_Sbytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2864,6 +3464,38 @@ pub struct Exif_ExifBody_Shorts {
     values: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Shorts> for OptRc<Exif_ExifBody_Shorts> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Shorts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Shorts> for OptRc<Exif_ExifBody_Shorts> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Shorts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for Exif_ExifBody_Shorts {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for &Exif_ExifBody_Shorts {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for OptRc<Exif_ExifBody_Shorts> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Shorts> for &OptRc<Exif_ExifBody_Shorts> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Shorts>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Shorts {
     type Root = Exif;
@@ -2906,6 +3538,12 @@ impl Exif_ExifBody_Shorts {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2916,6 +3554,38 @@ pub struct Exif_ExifBody_Slongs {
     values: RefCell<Vec<i32>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Slongs> for OptRc<Exif_ExifBody_Slongs> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Slongs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Slongs> for OptRc<Exif_ExifBody_Slongs> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Slongs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for Exif_ExifBody_Slongs {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for &Exif_ExifBody_Slongs {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for OptRc<Exif_ExifBody_Slongs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Slongs> for &OptRc<Exif_ExifBody_Slongs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Slongs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Slongs {
     type Root = Exif;
@@ -2958,6 +3628,12 @@ impl Exif_ExifBody_Slongs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2971,6 +3647,38 @@ pub struct Exif_ExifBody_Srational {
     f_value: Cell<bool>,
     value: RefCell<f64>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Srational> for OptRc<Exif_ExifBody_Srational> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Srational) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Srational> for OptRc<Exif_ExifBody_Srational> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Srational) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srational> for Exif_ExifBody_Srational {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srational>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srational> for &Exif_ExifBody_Srational {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srational>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srational> for OptRc<Exif_ExifBody_Srational> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srational>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srational> for &OptRc<Exif_ExifBody_Srational> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srational>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Srational {
     type Root = Exif;
@@ -3046,6 +3754,12 @@ impl Exif_ExifBody_Srational {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3056,6 +3770,38 @@ pub struct Exif_ExifBody_Srationals {
     values: RefCell<Vec<OptRc<Exif_ExifBody_Srational>>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Srationals> for OptRc<Exif_ExifBody_Srationals> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Srationals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Srationals> for OptRc<Exif_ExifBody_Srationals> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Srationals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for Exif_ExifBody_Srationals {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for &Exif_ExifBody_Srationals {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for OptRc<Exif_ExifBody_Srationals> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Srationals> for &OptRc<Exif_ExifBody_Srationals> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Srationals>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Srationals {
     type Root = Exif;
@@ -3100,6 +3846,12 @@ impl Exif_ExifBody_Srationals {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3110,6 +3862,38 @@ pub struct Exif_ExifBody_Sshorts {
     values: RefCell<Vec<i16>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Sshorts> for OptRc<Exif_ExifBody_Sshorts> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Sshorts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Sshorts> for OptRc<Exif_ExifBody_Sshorts> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Sshorts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for Exif_ExifBody_Sshorts {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for &Exif_ExifBody_Sshorts {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for OptRc<Exif_ExifBody_Sshorts> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Sshorts> for &OptRc<Exif_ExifBody_Sshorts> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Sshorts>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Sshorts {
     type Root = Exif;
@@ -3152,6 +3936,12 @@ impl Exif_ExifBody_Sshorts {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3162,6 +3952,38 @@ pub struct Exif_ExifBody_Utf8String {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Exif_ExifBody_Utf8String> for OptRc<Exif_ExifBody_Utf8String> {
+    type Error = KError;
+    fn try_from(v: &Exif_ExifBody_Utf8String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Exif_ExifBody_Utf8String> for OptRc<Exif_ExifBody_Utf8String> {
+    type Error = KError;
+    fn try_from(v: &&Exif_ExifBody_Utf8String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for Exif_ExifBody_Utf8String {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for &Exif_ExifBody_Utf8String {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for OptRc<Exif_ExifBody_Utf8String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Exif_ExifBody_Utf8String> for &OptRc<Exif_ExifBody_Utf8String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Exif_ExifBody_Utf8String>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Exif_ExifBody_Utf8String {
     type Root = Exif;
@@ -3199,5 +4021,11 @@ impl Exif_ExifBody_Utf8String {
 impl Exif_ExifBody_Utf8String {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

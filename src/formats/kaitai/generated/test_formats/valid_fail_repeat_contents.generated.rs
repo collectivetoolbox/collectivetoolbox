@@ -64,6 +64,38 @@ pub struct ValidFailRepeatContents {
     foo: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ValidFailRepeatContents> for OptRc<ValidFailRepeatContents> {
+    type Error = KError;
+    fn try_from(v: &ValidFailRepeatContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidFailRepeatContents> for OptRc<ValidFailRepeatContents> {
+    type Error = KError;
+    fn try_from(v: &&ValidFailRepeatContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatContents> for ValidFailRepeatContents {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatContents> for &ValidFailRepeatContents {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatContents> for OptRc<ValidFailRepeatContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidFailRepeatContents> for &OptRc<ValidFailRepeatContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatContents>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidFailRepeatContents {
     type Root = ValidFailRepeatContents;
     type Parent = ValidFailRepeatContents;
@@ -105,5 +137,11 @@ impl ValidFailRepeatContents {
 impl ValidFailRepeatContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

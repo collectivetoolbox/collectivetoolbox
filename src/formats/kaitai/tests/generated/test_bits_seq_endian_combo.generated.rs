@@ -85,13 +85,13 @@ fn test_bits_seq_endian_combo() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsSeqEndianCombo> = BitsSeqEndianCombo::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.be1(), 59);
-    assert_eq!(*r.be2(), 187);
-    assert_eq!(*r.le3(), 163);
-    assert_eq!(*r.be4(), 20);
-    assert_eq!(*r.le5(), 10);
-    assert_eq!(*r.le6(), 36);
-    assert_eq!(*r.le7(), 26);
-    assert_eq!(*r.be8(), true);
+    assert_eq!(*(r.be1()), 59);
+    assert_eq!(*(r.be2()), 187);
+    assert_eq!(*(r.le3()), 163);
+    assert_eq!(*(r.be4()), 20);
+    assert_eq!(*(r.le5()), 10);
+    assert_eq!(*(r.le6()), 36);
+    assert_eq!(*(r.le7()), 26);
+    assert_eq!(*(r.be8()), true);
     Ok(())
 }

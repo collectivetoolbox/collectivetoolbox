@@ -64,6 +64,38 @@ pub struct Imported2 {
     one: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Imported2> for OptRc<Imported2> {
+    type Error = KError;
+    fn try_from(v: &Imported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Imported2> for OptRc<Imported2> {
+    type Error = KError;
+    fn try_from(v: &&Imported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Imported2> for Imported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Imported2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Imported2> for &Imported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Imported2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Imported2> for OptRc<Imported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Imported2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Imported2> for &OptRc<Imported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Imported2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Imported2 {
     type Root = Imported2;
     type Parent = Imported2;
@@ -95,5 +127,11 @@ impl Imported2 {
 impl Imported2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -27,6 +27,38 @@ pub struct Dbf {
     header2_raw: RefCell<Vec<u8>>,
     records_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Dbf> for OptRc<Dbf> {
+    type Error = KError;
+    fn try_from(v: &Dbf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf> for OptRc<Dbf> {
+    type Error = KError;
+    fn try_from(v: &&Dbf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf> for Dbf {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf> for &Dbf {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf> for OptRc<Dbf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf> for &OptRc<Dbf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Dbf {
     type Root = Dbf;
     type Parent = Dbf;
@@ -92,6 +124,12 @@ impl Dbf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dbf {
     pub fn header2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -156,6 +194,38 @@ pub struct Dbf_Field {
     reserved1_raw: RefCell<Vec<u8>>,
     reserved2_raw: RefCell<Vec<u8>>,
     reserved3_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Dbf_Field> for OptRc<Dbf_Field> {
+    type Error = KError;
+    fn try_from(v: &Dbf_Field) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_Field> for OptRc<Dbf_Field> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_Field) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Field> for Dbf_Field {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Field>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Field> for &Dbf_Field {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Field>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Field> for OptRc<Dbf_Field> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Field>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_Field> for &OptRc<Dbf_Field> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Field>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_Field {
     type Root = Dbf;
@@ -243,6 +313,12 @@ impl Dbf_Field {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dbf_Field {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -284,6 +360,38 @@ pub struct Dbf_Header1 {
     _io: RefCell<BytesReader>,
     f_dbase_level: Cell<bool>,
     dbase_level: RefCell<i32>,
+}
+impl TryFrom<&Dbf_Header1> for OptRc<Dbf_Header1> {
+    type Error = KError;
+    fn try_from(v: &Dbf_Header1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_Header1> for OptRc<Dbf_Header1> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_Header1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header1> for Dbf_Header1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header1> for &Dbf_Header1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header1> for OptRc<Dbf_Header1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_Header1> for &OptRc<Dbf_Header1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_Header1 {
     type Root = Dbf;
@@ -365,6 +473,12 @@ impl Dbf_Header1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -376,6 +490,38 @@ pub struct Dbf_Header2 {
     header_dbase_7: RefCell<OptRc<Dbf_HeaderDbase7>>,
     fields: RefCell<Vec<OptRc<Dbf_Field>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dbf_Header2> for OptRc<Dbf_Header2> {
+    type Error = KError;
+    fn try_from(v: &Dbf_Header2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_Header2> for OptRc<Dbf_Header2> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_Header2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header2> for Dbf_Header2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header2> for &Dbf_Header2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Header2> for OptRc<Dbf_Header2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_Header2> for &OptRc<Dbf_Header2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Header2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_Header2 {
     type Root = Dbf;
@@ -435,6 +581,12 @@ impl Dbf_Header2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -449,6 +601,38 @@ pub struct Dbf_HeaderDbase3 {
     reserved1_raw: RefCell<Vec<u8>>,
     reserved2_raw: RefCell<Vec<u8>>,
     reserved3_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Dbf_HeaderDbase3> for OptRc<Dbf_HeaderDbase3> {
+    type Error = KError;
+    fn try_from(v: &Dbf_HeaderDbase3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_HeaderDbase3> for OptRc<Dbf_HeaderDbase3> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_HeaderDbase3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase3> for Dbf_HeaderDbase3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase3>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase3> for &Dbf_HeaderDbase3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase3>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase3> for OptRc<Dbf_HeaderDbase3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase3>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase3> for &OptRc<Dbf_HeaderDbase3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase3>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_HeaderDbase3 {
     type Root = Dbf;
@@ -494,6 +678,12 @@ impl Dbf_HeaderDbase3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dbf_HeaderDbase3 {
     pub fn reserved1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -529,6 +719,38 @@ pub struct Dbf_HeaderDbase7 {
     reserved2_raw: RefCell<Vec<u8>>,
     language_driver_name_raw: RefCell<Vec<u8>>,
     reserved4_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Dbf_HeaderDbase7> for OptRc<Dbf_HeaderDbase7> {
+    type Error = KError;
+    fn try_from(v: &Dbf_HeaderDbase7) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_HeaderDbase7> for OptRc<Dbf_HeaderDbase7> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_HeaderDbase7) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase7> for Dbf_HeaderDbase7 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase7>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase7> for &Dbf_HeaderDbase7 {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase7>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase7> for OptRc<Dbf_HeaderDbase7> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase7>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_HeaderDbase7> for &OptRc<Dbf_HeaderDbase7> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_HeaderDbase7>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_HeaderDbase7 {
     type Root = Dbf;
@@ -616,6 +838,12 @@ impl Dbf_HeaderDbase7 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dbf_HeaderDbase7 {
     pub fn reserved2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -642,6 +870,38 @@ pub struct Dbf_Record {
     record_fields: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
     record_fields_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Dbf_Record> for OptRc<Dbf_Record> {
+    type Error = KError;
+    fn try_from(v: &Dbf_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dbf_Record> for OptRc<Dbf_Record> {
+    type Error = KError;
+    fn try_from(v: &&Dbf_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Record> for Dbf_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Record> for &Dbf_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dbf_Record> for OptRc<Dbf_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dbf_Record> for &OptRc<Dbf_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dbf_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dbf_Record {
     type Root = Dbf;
@@ -684,6 +944,12 @@ impl Dbf_Record {
 impl Dbf_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Dbf_Record {

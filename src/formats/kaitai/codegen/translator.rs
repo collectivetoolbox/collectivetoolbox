@@ -252,7 +252,17 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             } else {
                 let elems = elements
                     .iter()
-                    .map(|e| translate_expr(e, ctx))
+                    .map(|e| {
+                        let s = translate_expr(e, ctx);
+                        let is_io = matches!(e, Expr::Attribute { attr, .. } if attr == "_io");
+                        if is_io {
+                            return format!("Clone::clone(&*({s}))");
+                        }
+                        if matches!(ctx.element_type, Some(DataType::UserType { names, .. }) if names.as_slice() == ["struct"]) {
+                            return format!("Struct::from_opt_rc(&({s}))");
+                        }
+                        s
+                    })
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!("vec![{elems}]")
@@ -382,18 +392,40 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     format!("Into::<Vec<u8>>::into(&{inner_str})")
                 }
             } else if let Some(user_class) = resolve_user_class_name(base_raw, ctx) {
+                if ctx.current_class.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"])
+                    && ctx.current_class.name.len() > 1
+                    && user_class == types_to_class_name(&ctx.current_class.name[..ctx.current_class.name.len().saturating_sub(1)])
+                {
+                    if let Some(attr) = ctx.root.seq.iter().find(|a| {
+                        if let DataType::UserType { names, .. } = &a.data_type {
+                            resolve_user_class_name(&names.join("::"), ctx).as_deref() == Some(&user_class)
+                                || types_to_class_name(names) == user_class
+                        } else {
+                            false
+                        }
+                    }) {
+                        return format!("(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.{}()).clone()", attr.id);
+                    }
+                }
                 let inner_str = translate_expr(value, ctx);
                 if is_array {
                     format!("Vec::<OptRc<{user_class}>>::try_from({inner_str})?")
                 } else {
-                    let is_switch = is_switch_type(value, ctx) && !inner_str.ends_with(".as_ref().ok_or(KError::CastError)?");
-                    let arg = if is_switch {
+                    let is_switch = is_switch_type(value, ctx);
+                    let inner_has_cast = inner_str.ends_with(".as_ref().ok_or(KError::CastError)?");
+                    let is_struct = !is_switch && matches!(detect_type_approx(value, ctx), Some(DataType::UserType { names, .. }) if names.as_slice() == ["struct"]);
+                    let arg = if is_switch && !inner_has_cast {
                         let stripped = remove_deref(&inner_str);
                         format!("*({stripped}).as_ref().ok_or(KError::CastError)?")
                     } else {
                         inner_str
                     };
-                    format!("OptRc::<{user_class}>::try_from(&{arg})?")
+                    if is_struct {
+                        format!("DowncastOptRc::<{user_class}>::downcast_optrc(&({arg}))?")
+                    } else {
+                        let stripped = remove_deref(&arg);
+                        format!("OptRc::<{user_class}>::try_from(&*({stripped}))?")
+                    }
                 }
             } else {
                 let rust_type = match base_raw {
@@ -460,9 +492,14 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             }
         }
         Expr::EnumByLabel {
-            enum_name, label, ..
+            enum_name, label, in_type,
         } => {
-            let scoped_enum = resolve_enum_type_name(enum_name, ctx.current_class, Some(ctx.root));
+            let full_enum_name = if in_type.names.is_empty() {
+                enum_name.clone()
+            } else {
+                format!("{}::{enum_name}", in_type.names.join("::"))
+            };
+            let scoped_enum = resolve_enum_type_name(&full_enum_name, ctx.current_class, Some(ctx.root));
             let variant = to_upper_camel_case(label);
             format!("{scoped_enum}::{variant}")
         }
@@ -689,6 +726,17 @@ fn calc_expr_byte_size(value: &Expr, ctx: &TranslationContext<'_>) -> Option<i64
 }
 
 fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -> String {
+    if let Expr::IfExp { condition, if_true, if_false } = value {
+        let new_true = Expr::Attribute {
+            value: if_true.clone(),
+            attr: attr.to_string(),
+        };
+        let new_false = Expr::Attribute {
+            value: if_false.clone(),
+            attr: attr.to_string(),
+        };
+        return translate_if_exp(condition, &new_true, &new_false, ctx);
+    }
     if attr == "_sizeof" {
         if let Some(sz) = calc_expr_byte_size(value, ctx) {
             return format!("{sz}_i32");
@@ -730,7 +778,16 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         let stripped = remove_deref(&t);
         return format!("{stripped}.len()");
     }
-    if attr == "first" || attr == "last" {
+    if (attr == "first" || attr == "last")
+        && matches!(
+            val_type,
+            Some(
+                DataType::ArrayType { .. }
+                    | DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+            )
+        )
+    {
         let stripped = remove_deref(&t);
         let elem_dt = match detect_type_approx(value, ctx) {
             Some(DataType::ArrayType { element, .. }) => Some(*element),
@@ -768,7 +825,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
             return format!("i64::from(&{t})");
         }
         if matches!(val_type, Some(DataType::Float { .. } | DataType::CalcFloatType)) {
-            let t_val = if t.starts_with('*') { t } else { format!("*{t}") };
+            let t_val = if t.starts_with('*') || t.starts_with('(') { t } else { format!("*{t}") };
             return format!("float_to_int({t_val})?");
         }
         if matches!(val_type, Some(DataType::CalcIntType | DataType::Int1 { .. } | DataType::IntMulti { .. } | DataType::Bits { .. })) {
@@ -781,7 +838,7 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
     }
     if attr == "reverse" {
         let stripped = remove_deref(&t);
-        return format!("reverse_string(&{stripped})?");
+        return format!("reverse_string(&*({stripped}))?");
     }
     if attr == "min" || attr == "max" {
         let stripped = remove_deref(&t);
@@ -795,14 +852,6 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         } else {
             return format!("*{stripped}.iter().{attr}().ok_or(KError::EmptyIterator)?");
         }
-    }
-    if attr == "first" {
-        let stripped = remove_deref(&t);
-        return format!("*{stripped}.first().ok_or(KError::EmptyIterator)?");
-    }
-    if attr == "last" {
-        let stripped = remove_deref(&t);
-        return format!("*{stripped}.last().ok_or(KError::EmptyIterator)?");
     }
     let escaped_attr = super::escape_rust_keyword(attr);
     let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
@@ -1465,6 +1514,16 @@ fn translate_if_exp(
     let t_effective = t_resolved.as_ref().or(t_dt.as_ref());
     let f_effective = f_resolved.as_ref().or(f_dt.as_ref());
 
+    if matches!(t_effective, Some(DataType::KaitaiStreamType)) || matches!(f_effective, Some(DataType::KaitaiStreamType)) {
+        return format!("if {cond_str} {{ Clone::clone(&*({t_clean})) }} else {{ Clone::clone(&*({f_clean})) }}");
+    }
+
+    if let (Some(DataType::UserType { names: n1, .. }), Some(DataType::UserType { names: n2, .. })) = (&t_effective, &f_effective) {
+        if n1 != n2 {
+            return format!("if {cond_str} {{ Struct::from_opt_rc(&({t_clean})) }} else {{ Struct::from_opt_rc(&({f_clean})) }}");
+        }
+    }
+
     if matches!(
         t_effective,
         Some(DataType::UserType { .. } | DataType::EnumType { .. } | DataType::ArrayType { .. })
@@ -1644,9 +1703,22 @@ pub(crate) fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Optio
     } else {
         path
     };
+    if parts.is_empty() {
+        return Some(root);
+    }
     let mut cur = root;
-    for part in parts {
-        cur = cur.subclasses.get(part)?;
+    for (i, part) in parts.iter().enumerate() {
+        if let Some(sub) = cur.subclasses.get(part) {
+            cur = sub;
+        } else if i == 0 {
+            if let Some(imp) = root.imported_classes.get(part) {
+                cur = imp;
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
     }
     Some(cur)
 }
@@ -1676,12 +1748,19 @@ fn resolve_user_class_spec<'a>(type_name: &str, ctx: &'a TranslationContext<'_>)
         if let Some(spec) = root.subclasses.get(type_name) {
             return Some(spec);
         }
+        if let Some(spec) = root.imported_classes.get(type_name) {
+            return Some(spec);
+        }
     } else {
         let mut candidate = root.name.clone();
         for p in &parts {
             candidate.push((*p).to_string());
         }
         if let Some(spec) = find_class_spec(root, &candidate) {
+            return Some(spec);
+        }
+        let full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
+        if let Some(spec) = find_class_spec(root, &full_parts) {
             return Some(spec);
         }
     }
@@ -1718,9 +1797,16 @@ pub fn resolve_enum_type_name(
             if let Some(base) = base_opt {
                 let mut curr = base;
                 let mut found = true;
-                for part in &parts {
+                for (i, part) in parts.iter().enumerate() {
                     if let Some(sub) = curr.subclasses.get(*part) {
                         curr = sub;
+                    } else if i == 0 {
+                        if let Some(imp) = base.imported_classes.get(*part) {
+                            curr = imp;
+                        } else {
+                            found = false;
+                            break;
+                        }
                     } else {
                         found = false;
                         break;
@@ -1728,6 +1814,17 @@ pub fn resolve_enum_type_name(
                 }
                 if found && curr.enums.contains_key(simple_enum_name) {
                     let mut full_parts = curr.name.clone();
+                    full_parts.push(simple_enum_name.to_string());
+                    return types_to_class_name(&full_parts);
+                }
+            }
+        }
+        if let Some(root_spec) = root {
+            if let Some(first) = parts.first() {
+                if root_spec.external_types.iter().any(|ext| ext.first().map(String::as_str) == Some(*first))
+                    || root_spec.meta_imports.iter().any(|imp| imp.trim_start_matches('/').split('/').last() == Some(*first))
+                {
+                    let mut full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
                     full_parts.push(simple_enum_name.to_string());
                     return types_to_class_name(&full_parts);
                 }
@@ -1813,7 +1910,7 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
             })
         }
         Expr::Str(_) => Some(DataType::CalcStrType),
-        Expr::EnumByLabel { enum_name, .. } => {
+        Expr::EnumByLabel { enum_name, in_type, .. } => {
             let mut curr_opt = Some(current_class.name.as_slice());
             while let Some(cls_name) = curr_opt {
                 if let Some(cls) = find_class_spec(ctx.root, cls_name) {
@@ -1838,7 +1935,11 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                     underlying: None,
                 });
             }
-            None
+            Some(DataType::EnumType {
+                owner: in_type.names.clone(),
+                name: enum_name.clone(),
+                underlying: None,
+            })
         }
         Expr::ByteSizeOfType(_) | Expr::BitSizeOfType(_) => Some(DataType::CalcIntType),
         Expr::Name(name) => {
@@ -1972,6 +2073,9 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                         return Some(resolve_switch_type(&element));
                     }
                 }
+            }
+            if attr == "_io" {
+                return Some(DataType::KaitaiStreamType);
             }
             if attr == "_sizeof" {
                 return Some(DataType::CalcIntType);
@@ -2122,8 +2226,18 @@ pub(crate) fn is_copy_type(dt: &DataType) -> bool {
 
 pub(crate) fn resolve_switch_type(dt: &DataType) -> DataType {
     if let DataType::SwitchType { cases, .. } = dt {
+        let non_fallback_cases: Vec<&DataType> = cases
+            .iter()
+            .filter(|(k, _)| k.as_str() != "_")
+            .map(|(_, v)| v)
+            .collect();
+        let target_cases = if non_fallback_cases.is_empty() {
+            cases.values().collect()
+        } else {
+            non_fallback_cases
+        };
         let mut combined: Option<DataType> = None;
-        for c in cases.values() {
+        for c in target_cases {
             combined = match combined {
                 None => Some(c.clone()),
                 Some(prev) => Some(combine_types(&prev, c)),

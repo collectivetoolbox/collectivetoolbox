@@ -29,6 +29,38 @@ pub struct MozillaMar {
     f_index: Cell<bool>,
     index: RefCell<OptRc<MozillaMar_MarIndex>>,
 }
+impl TryFrom<&MozillaMar> for OptRc<MozillaMar> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar> for OptRc<MozillaMar> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar> for MozillaMar {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar> for &MozillaMar {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar> for OptRc<MozillaMar> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar> for &OptRc<MozillaMar> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MozillaMar {
     type Root = MozillaMar;
     type Parent = MozillaMar;
@@ -125,6 +157,12 @@ impl MozillaMar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MozillaMar_BlockIdentifiers {
@@ -213,6 +251,22 @@ impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductIn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for MozillaMar_AdditionalSection_Bytes {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        OptRc::<MozillaMar_ProductInformationBlock>::try_from(self)
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &MozillaMar_AdditionalSection_Bytes {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MozillaMar_ProductInformationBlock>> for MozillaMar_AdditionalSection_Bytes {
     fn from(v: OptRc<MozillaMar_ProductInformationBlock>) -> Self {
         Self::MozillaMar_ProductInformationBlock(v)
@@ -227,9 +281,47 @@ impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for MozillaMar_AdditionalSection_Bytes {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_AdditionalSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_AdditionalSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_AdditionalSection> for MozillaMar_AdditionalSection {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_AdditionalSection> for &MozillaMar_AdditionalSection {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_AdditionalSection> for OptRc<MozillaMar_AdditionalSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_AdditionalSection> for &OptRc<MozillaMar_AdditionalSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_AdditionalSection>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for MozillaMar_AdditionalSection {
@@ -287,6 +379,12 @@ impl MozillaMar_AdditionalSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MozillaMar_AdditionalSection {
     pub fn bytes_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -301,6 +399,38 @@ pub struct MozillaMar_IndexEntries {
     pub(crate) _self_shared: SharedType<Self>,
     index_entry: RefCell<Vec<OptRc<MozillaMar_IndexEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MozillaMar_IndexEntries> for OptRc<MozillaMar_IndexEntries> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_IndexEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_IndexEntries> for OptRc<MozillaMar_IndexEntries> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_IndexEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntries> for MozillaMar_IndexEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntries>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntries> for &MozillaMar_IndexEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntries>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntries> for OptRc<MozillaMar_IndexEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntries>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntries> for &OptRc<MozillaMar_IndexEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntries>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MozillaMar_IndexEntries {
     type Root = MozillaMar;
@@ -342,6 +472,12 @@ impl MozillaMar_IndexEntries {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -356,6 +492,38 @@ pub struct MozillaMar_IndexEntry {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MozillaMar_IndexEntry> for OptRc<MozillaMar_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_IndexEntry> for OptRc<MozillaMar_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntry> for MozillaMar_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntry> for &MozillaMar_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntry> for OptRc<MozillaMar_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_IndexEntry> for &OptRc<MozillaMar_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_IndexEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MozillaMar_IndexEntry {
     type Root = MozillaMar;
@@ -427,6 +595,12 @@ impl MozillaMar_IndexEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -438,6 +612,38 @@ pub struct MozillaMar_MarIndex {
     index_entries: RefCell<OptRc<MozillaMar_IndexEntries>>,
     _io: RefCell<BytesReader>,
     index_entries_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MozillaMar_MarIndex> for OptRc<MozillaMar_MarIndex> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_MarIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_MarIndex> for OptRc<MozillaMar_MarIndex> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_MarIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_MarIndex> for MozillaMar_MarIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_MarIndex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_MarIndex> for &MozillaMar_MarIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_MarIndex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_MarIndex> for OptRc<MozillaMar_MarIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_MarIndex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_MarIndex> for &OptRc<MozillaMar_MarIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_MarIndex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MozillaMar_MarIndex {
     type Root = MozillaMar;
@@ -481,6 +687,12 @@ impl MozillaMar_MarIndex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MozillaMar_MarIndex {
     pub fn index_entries_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -498,6 +710,38 @@ pub struct MozillaMar_ProductInformationBlock {
     _io: RefCell<BytesReader>,
     mar_channel_name_raw: RefCell<Vec<u8>>,
     product_version_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_ProductInformationBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_ProductInformationBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for MozillaMar_ProductInformationBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &MozillaMar_ProductInformationBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for OptRc<MozillaMar_ProductInformationBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_ProductInformationBlock> for &OptRc<MozillaMar_ProductInformationBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_ProductInformationBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MozillaMar_ProductInformationBlock {
     type Root = MozillaMar;
@@ -537,6 +781,12 @@ impl MozillaMar_ProductInformationBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MozillaMar_ProductInformationBlock {
     pub fn mar_channel_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -559,6 +809,38 @@ pub struct MozillaMar_Signature {
     signature: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     signature_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MozillaMar_Signature> for OptRc<MozillaMar_Signature> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_Signature) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MozillaMar_Signature> for OptRc<MozillaMar_Signature> {
+    type Error = KError;
+    fn try_from(v: &&MozillaMar_Signature) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_Signature> for MozillaMar_Signature {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_Signature>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_Signature> for &MozillaMar_Signature {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_Signature>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MozillaMar_Signature> for OptRc<MozillaMar_Signature> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_Signature>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MozillaMar_Signature> for &OptRc<MozillaMar_Signature> {
+    fn downcast_optrc(&self) -> Result<OptRc<MozillaMar_Signature>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MozillaMar_Signature {
     type Root = MozillaMar;
@@ -603,6 +885,12 @@ impl MozillaMar_Signature {
 impl MozillaMar_Signature {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MozillaMar_Signature {

@@ -85,6 +85,22 @@ impl TryFrom<&ProcessCoerceSwitch_BufUnproc> for OptRc<ProcessCoerceSwitch_Foo> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProcessCoerceSwitch_BufUnproc> for OptRc<ProcessCoerceSwitch_Foo> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for ProcessCoerceSwitch_BufUnproc {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        OptRc::<ProcessCoerceSwitch_Foo>::try_from(self)
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for &ProcessCoerceSwitch_BufUnproc {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ProcessCoerceSwitch_Foo>> for ProcessCoerceSwitch_BufUnproc {
     fn from(v: OptRc<ProcessCoerceSwitch_Foo>) -> Self {
         Self::ProcessCoerceSwitch_Foo(v)
@@ -97,6 +113,12 @@ impl TryFrom<&ProcessCoerceSwitch_BufUnproc> for Vec<u8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ProcessCoerceSwitch_BufUnproc> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch_BufUnproc) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<Vec<u8>> for ProcessCoerceSwitch_BufUnproc {
@@ -118,6 +140,22 @@ impl TryFrom<&ProcessCoerceSwitch_BufProc> for OptRc<ProcessCoerceSwitch_Foo> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProcessCoerceSwitch_BufProc> for OptRc<ProcessCoerceSwitch_Foo> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch_BufProc) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for ProcessCoerceSwitch_BufProc {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        OptRc::<ProcessCoerceSwitch_Foo>::try_from(self)
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for &ProcessCoerceSwitch_BufProc {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ProcessCoerceSwitch_Foo>> for ProcessCoerceSwitch_BufProc {
     fn from(v: OptRc<ProcessCoerceSwitch_Foo>) -> Self {
         Self::ProcessCoerceSwitch_Foo(v)
@@ -132,9 +170,47 @@ impl TryFrom<&ProcessCoerceSwitch_BufProc> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProcessCoerceSwitch_BufProc> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch_BufProc) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for ProcessCoerceSwitch_BufProc {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&ProcessCoerceSwitch> for OptRc<ProcessCoerceSwitch> {
+    type Error = KError;
+    fn try_from(v: &ProcessCoerceSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCoerceSwitch> for OptRc<ProcessCoerceSwitch> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch> for ProcessCoerceSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch> for &ProcessCoerceSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch> for OptRc<ProcessCoerceSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch> for &OptRc<ProcessCoerceSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for ProcessCoerceSwitch {
@@ -197,7 +273,7 @@ impl ProcessCoerceSwitch {
         if self.f_buf.get() {
             return Ok(self.buf.borrow());
         }
-        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { self.buf_unproc() } else { self.buf_proc() }.clone();
+        *self.buf.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(0))) { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_unproc()).as_ref().ok_or(KError::CastError)?)? } else { OptRc::<ProcessCoerceSwitch_Foo>::try_from(&*(self.buf_proc()).as_ref().ok_or(KError::CastError)?)? }.clone();
         Ok(self.buf.borrow())
     }
 }
@@ -225,6 +301,12 @@ impl ProcessCoerceSwitch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessCoerceSwitch {
     pub fn buf_unproc_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -245,6 +327,38 @@ pub struct ProcessCoerceSwitch_Foo {
     bar: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     bar_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ProcessCoerceSwitch_Foo> for OptRc<ProcessCoerceSwitch_Foo> {
+    type Error = KError;
+    fn try_from(v: &ProcessCoerceSwitch_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCoerceSwitch_Foo> for OptRc<ProcessCoerceSwitch_Foo> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceSwitch_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for ProcessCoerceSwitch_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for &ProcessCoerceSwitch_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for OptRc<ProcessCoerceSwitch_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCoerceSwitch_Foo> for &OptRc<ProcessCoerceSwitch_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceSwitch_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessCoerceSwitch_Foo {
     type Root = ProcessCoerceSwitch;
@@ -277,6 +391,12 @@ impl ProcessCoerceSwitch_Foo {
 impl ProcessCoerceSwitch_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProcessCoerceSwitch_Foo {

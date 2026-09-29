@@ -70,6 +70,38 @@ pub struct EnumLongRangeS {
     f7: RefCell<EnumLongRangeS_Constants>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumLongRangeS> for OptRc<EnumLongRangeS> {
+    type Error = KError;
+    fn try_from(v: &EnumLongRangeS) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumLongRangeS> for OptRc<EnumLongRangeS> {
+    type Error = KError;
+    fn try_from(v: &&EnumLongRangeS) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeS> for EnumLongRangeS {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeS>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeS> for &EnumLongRangeS {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeS>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeS> for OptRc<EnumLongRangeS> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeS>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumLongRangeS> for &OptRc<EnumLongRangeS> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeS>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumLongRangeS {
     type Root = EnumLongRangeS;
     type Parent = EnumLongRangeS;
@@ -137,6 +169,12 @@ impl EnumLongRangeS {
 impl EnumLongRangeS {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

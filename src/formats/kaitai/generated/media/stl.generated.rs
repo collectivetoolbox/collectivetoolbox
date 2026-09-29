@@ -35,6 +35,38 @@ pub struct Stl {
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Stl> for OptRc<Stl> {
+    type Error = KError;
+    fn try_from(v: &Stl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Stl> for OptRc<Stl> {
+    type Error = KError;
+    fn try_from(v: &&Stl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Stl> for Stl {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Stl> for &Stl {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Stl> for OptRc<Stl> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Stl> for &OptRc<Stl> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Stl {
     type Root = Stl;
     type Parent = Stl;
@@ -84,6 +116,12 @@ impl Stl {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Stl {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -106,6 +144,38 @@ pub struct Stl_Triangle {
     vertices: RefCell<Vec<OptRc<Stl_Vec3d>>>,
     abr: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Stl_Triangle> for OptRc<Stl_Triangle> {
+    type Error = KError;
+    fn try_from(v: &Stl_Triangle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Stl_Triangle> for OptRc<Stl_Triangle> {
+    type Error = KError;
+    fn try_from(v: &&Stl_Triangle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Stl_Triangle> for Stl_Triangle {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Triangle>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Stl_Triangle> for &Stl_Triangle {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Triangle>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Stl_Triangle> for OptRc<Stl_Triangle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Triangle>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Stl_Triangle> for &OptRc<Stl_Triangle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Triangle>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Stl_Triangle {
     type Root = Stl;
@@ -168,6 +238,12 @@ impl Stl_Triangle {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -179,6 +255,38 @@ pub struct Stl_Vec3d {
     y: RefCell<f32>,
     z: RefCell<f32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Stl_Vec3d> for OptRc<Stl_Vec3d> {
+    type Error = KError;
+    fn try_from(v: &Stl_Vec3d) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Stl_Vec3d> for OptRc<Stl_Vec3d> {
+    type Error = KError;
+    fn try_from(v: &&Stl_Vec3d) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Stl_Vec3d> for Stl_Vec3d {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Vec3d>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Stl_Vec3d> for &Stl_Vec3d {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Vec3d>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Stl_Vec3d> for OptRc<Stl_Vec3d> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Vec3d>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Stl_Vec3d> for &OptRc<Stl_Vec3d> {
+    fn downcast_optrc(&self) -> Result<OptRc<Stl_Vec3d>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Stl_Vec3d {
     type Root = Stl;
@@ -223,5 +331,11 @@ impl Stl_Vec3d {
 impl Stl_Vec3d {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

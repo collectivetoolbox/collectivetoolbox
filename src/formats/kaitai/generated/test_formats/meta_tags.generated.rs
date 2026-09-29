@@ -63,6 +63,38 @@ pub struct MetaTags {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&MetaTags> for OptRc<MetaTags> {
+    type Error = KError;
+    fn try_from(v: &MetaTags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MetaTags> for OptRc<MetaTags> {
+    type Error = KError;
+    fn try_from(v: &&MetaTags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MetaTags> for MetaTags {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaTags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MetaTags> for &MetaTags {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaTags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MetaTags> for OptRc<MetaTags> {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaTags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MetaTags> for &OptRc<MetaTags> {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaTags>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MetaTags {
     type Root = MetaTags;
     type Parent = MetaTags;
@@ -88,5 +120,11 @@ impl MetaTags {
 impl MetaTags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

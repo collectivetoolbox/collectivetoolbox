@@ -85,9 +85,9 @@ fn test_debug_enum_name() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DebugEnumName> = DebugEnumName::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), DebugEnumName_TestEnum1::EnumValue80);
+    assert_eq!(*(r.one()), DebugEnumName_TestEnum1::EnumValue80);
     assert_eq!(r.array_of_ints()[0], DebugEnumName_TestEnum2::EnumValue65);
-    assert_eq!(*r.test_type().field1(), DebugEnumName_TestSubtype_InnerEnum1::EnumValue67);
-    assert_eq!(*r.test_type().instance_field()?, DebugEnumName_TestSubtype_InnerEnum2::EnumValue11);
+    assert_eq!(*(r.test_type().field1()), DebugEnumName_TestSubtype_InnerEnum1::EnumValue67);
+    assert_eq!(*(r.test_type().instance_field()?), DebugEnumName_TestSubtype_InnerEnum2::EnumValue11);
     Ok(())
 }

@@ -85,9 +85,9 @@ fn test_imports_params_def_enum_imported() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ImportsParamsDefEnumImported> = ImportsParamsDefEnumImported::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one().pet_1(), Enum0_Animal::Cat);
-    assert_eq!(*r.one().pet_2(), EnumDeep_Container1_Container2_Animal::Hare);
-    assert_eq!(*r.two().pet_1_param(), Enum0_Animal::Cat);
-    assert_eq!(*r.two().pet_2_param(), EnumDeep_Container1_Container2_Animal::Hare);
+    assert_eq!(*(r.one().pet_1()), Enum0_Animal::Cat);
+    assert_eq!(*(r.one().pet_2()), EnumDeep_Container1_Container2_Animal::Hare);
+    assert_eq!(*(r.two().pet_1_param()), Enum0_Animal::Cat);
+    assert_eq!(*(r.two().pet_2_param()), EnumDeep_Container1_Container2_Animal::Hare);
     Ok(())
 }

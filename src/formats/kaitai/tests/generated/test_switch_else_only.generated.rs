@@ -85,8 +85,8 @@ fn test_switch_else_only() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<SwitchElseOnly> = SwitchElseOnly::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.opcode(), 83);
-    assert_eq!(*r.prim_byte(), 102);
-    assert_eq!(*r.ut().value(), vec![0x72u8, 0x00u8, 0x49u8, 0x42u8]);
+    assert_eq!(*(r.opcode()), 83);
+    assert_eq!(r.prim_byte(), 102);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchElseOnly_Data>::downcast_optrc(&r.ut())?.value()), vec![0x72, 0x00, 0x49, 0x42]);
     Ok(())
 }

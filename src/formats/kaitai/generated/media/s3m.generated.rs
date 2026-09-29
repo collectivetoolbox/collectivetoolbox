@@ -60,6 +60,38 @@ pub struct S3m {
     reserved2_raw: RefCell<Vec<u8>>,
     orders_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&S3m> for OptRc<S3m> {
+    type Error = KError;
+    fn try_from(v: &S3m) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m> for OptRc<S3m> {
+    type Error = KError;
+    fn try_from(v: &&S3m) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m> for S3m {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m> for &S3m {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m> for OptRc<S3m> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m> for &OptRc<S3m> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for S3m {
     type Root = S3m;
     type Parent = S3m;
@@ -289,6 +321,12 @@ impl S3m {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl S3m {
     pub fn song_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -319,6 +357,38 @@ pub struct S3m_Channel {
     is_disabled: RefCell<bool>,
     ch_type: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&S3m_Channel> for OptRc<S3m_Channel> {
+    type Error = KError;
+    fn try_from(v: &S3m_Channel) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_Channel> for OptRc<S3m_Channel> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Channel) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Channel> for S3m_Channel {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Channel>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_Channel> for &S3m_Channel {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Channel>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Channel> for OptRc<S3m_Channel> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Channel>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_Channel> for &OptRc<S3m_Channel> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Channel>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_Channel {
     type Root = S3m;
@@ -362,6 +432,12 @@ impl S3m_Channel {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -374,6 +450,38 @@ pub struct S3m_ChannelPan {
     reserved2: RefCell<bool>,
     pan: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&S3m_ChannelPan> for OptRc<S3m_ChannelPan> {
+    type Error = KError;
+    fn try_from(v: &S3m_ChannelPan) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_ChannelPan> for OptRc<S3m_ChannelPan> {
+    type Error = KError;
+    fn try_from(v: &&S3m_ChannelPan) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_ChannelPan> for S3m_ChannelPan {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_ChannelPan>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_ChannelPan> for &S3m_ChannelPan {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_ChannelPan>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_ChannelPan> for OptRc<S3m_ChannelPan> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_ChannelPan>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_ChannelPan> for &OptRc<S3m_ChannelPan> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_ChannelPan>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_ChannelPan {
     type Root = S3m;
@@ -431,6 +539,12 @@ impl S3m_ChannelPan {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -464,6 +578,22 @@ impl TryFrom<&S3m_Instrument_Body> for OptRc<S3m_Instrument_Sampled> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&S3m_Instrument_Body> for OptRc<S3m_Instrument_Sampled> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Instrument_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for S3m_Instrument_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        OptRc::<S3m_Instrument_Sampled>::try_from(self)
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for &S3m_Instrument_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<S3m_Instrument_Sampled>> for S3m_Instrument_Body {
     fn from(v: OptRc<S3m_Instrument_Sampled>) -> Self {
         Self::S3m_Instrument_Sampled(v)
@@ -478,9 +608,57 @@ impl TryFrom<&S3m_Instrument_Body> for OptRc<S3m_Instrument_Adlib> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&S3m_Instrument_Body> for OptRc<S3m_Instrument_Adlib> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Instrument_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for S3m_Instrument_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        OptRc::<S3m_Instrument_Adlib>::try_from(self)
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for &S3m_Instrument_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<S3m_Instrument_Adlib>> for S3m_Instrument_Body {
     fn from(v: OptRc<S3m_Instrument_Adlib>) -> Self {
         Self::S3m_Instrument_Adlib(v)
+    }
+}
+impl TryFrom<&S3m_Instrument> for OptRc<S3m_Instrument> {
+    type Error = KError;
+    fn try_from(v: &S3m_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_Instrument> for OptRc<S3m_Instrument> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument> for S3m_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument> for &S3m_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument> for OptRc<S3m_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_Instrument> for &OptRc<S3m_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for S3m_Instrument {
@@ -563,6 +741,12 @@ impl S3m_Instrument {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl S3m_Instrument {
     pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -637,6 +821,38 @@ pub struct S3m_Instrument_Adlib {
     _io: RefCell<BytesReader>,
     unnamed1_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&S3m_Instrument_Adlib> for OptRc<S3m_Instrument_Adlib> {
+    type Error = KError;
+    fn try_from(v: &S3m_Instrument_Adlib) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_Instrument_Adlib> for OptRc<S3m_Instrument_Adlib> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Instrument_Adlib) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for S3m_Instrument_Adlib {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for &S3m_Instrument_Adlib {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for OptRc<S3m_Instrument_Adlib> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Adlib> for &OptRc<S3m_Instrument_Adlib> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Adlib>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for S3m_Instrument_Adlib {
     type Root = S3m;
     type Parent = S3m_Instrument;
@@ -678,6 +894,12 @@ impl S3m_Instrument_Adlib {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl S3m_Instrument_Adlib {
     pub fn unnamed1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -701,6 +923,38 @@ pub struct S3m_Instrument_Sampled {
     _io: RefCell<BytesReader>,
     f_sample: Cell<bool>,
     sample: RefCell<Vec<u8>>,
+}
+impl TryFrom<&S3m_Instrument_Sampled> for OptRc<S3m_Instrument_Sampled> {
+    type Error = KError;
+    fn try_from(v: &S3m_Instrument_Sampled) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_Instrument_Sampled> for OptRc<S3m_Instrument_Sampled> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Instrument_Sampled) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for S3m_Instrument_Sampled {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for &S3m_Instrument_Sampled {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for OptRc<S3m_Instrument_Sampled> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_Instrument_Sampled> for &OptRc<S3m_Instrument_Sampled> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Instrument_Sampled>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_Instrument_Sampled {
     type Root = S3m;
@@ -800,6 +1054,12 @@ impl S3m_Instrument_Sampled {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -811,6 +1071,38 @@ pub struct S3m_InstrumentPtr {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<OptRc<S3m_Instrument>>,
+}
+impl TryFrom<&S3m_InstrumentPtr> for OptRc<S3m_InstrumentPtr> {
+    type Error = KError;
+    fn try_from(v: &S3m_InstrumentPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_InstrumentPtr> for OptRc<S3m_InstrumentPtr> {
+    type Error = KError;
+    fn try_from(v: &&S3m_InstrumentPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_InstrumentPtr> for S3m_InstrumentPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_InstrumentPtr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_InstrumentPtr> for &S3m_InstrumentPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_InstrumentPtr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_InstrumentPtr> for OptRc<S3m_InstrumentPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_InstrumentPtr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_InstrumentPtr> for &OptRc<S3m_InstrumentPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_InstrumentPtr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_InstrumentPtr {
     type Root = S3m;
@@ -859,6 +1151,12 @@ impl S3m_InstrumentPtr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -870,6 +1168,38 @@ pub struct S3m_Pattern {
     body: RefCell<OptRc<S3m_PatternCells>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&S3m_Pattern> for OptRc<S3m_Pattern> {
+    type Error = KError;
+    fn try_from(v: &S3m_Pattern) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_Pattern> for OptRc<S3m_Pattern> {
+    type Error = KError;
+    fn try_from(v: &&S3m_Pattern) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Pattern> for S3m_Pattern {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Pattern>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_Pattern> for &S3m_Pattern {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Pattern>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_Pattern> for OptRc<S3m_Pattern> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Pattern>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_Pattern> for &OptRc<S3m_Pattern> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_Pattern>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_Pattern {
     type Root = S3m;
@@ -913,6 +1243,12 @@ impl S3m_Pattern {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl S3m_Pattern {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -935,6 +1271,38 @@ pub struct S3m_PatternCell {
     fx_type: RefCell<u8>,
     fx_value: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&S3m_PatternCell> for OptRc<S3m_PatternCell> {
+    type Error = KError;
+    fn try_from(v: &S3m_PatternCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_PatternCell> for OptRc<S3m_PatternCell> {
+    type Error = KError;
+    fn try_from(v: &&S3m_PatternCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCell> for S3m_PatternCell {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCell>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCell> for &S3m_PatternCell {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCell>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCell> for OptRc<S3m_PatternCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCell>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_PatternCell> for &OptRc<S3m_PatternCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCell>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_PatternCell {
     type Root = S3m;
@@ -1027,6 +1395,12 @@ impl S3m_PatternCell {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1036,6 +1410,38 @@ pub struct S3m_PatternCells {
     pub(crate) _self_shared: SharedType<Self>,
     cells: RefCell<Vec<OptRc<S3m_PatternCell>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&S3m_PatternCells> for OptRc<S3m_PatternCells> {
+    type Error = KError;
+    fn try_from(v: &S3m_PatternCells) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_PatternCells> for OptRc<S3m_PatternCells> {
+    type Error = KError;
+    fn try_from(v: &&S3m_PatternCells) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCells> for S3m_PatternCells {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCells>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCells> for &S3m_PatternCells {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCells>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternCells> for OptRc<S3m_PatternCells> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCells>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_PatternCells> for &OptRc<S3m_PatternCells> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternCells>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_PatternCells {
     type Root = S3m;
@@ -1077,6 +1483,12 @@ impl S3m_PatternCells {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1088,6 +1500,38 @@ pub struct S3m_PatternPtr {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<OptRc<S3m_Pattern>>,
+}
+impl TryFrom<&S3m_PatternPtr> for OptRc<S3m_PatternPtr> {
+    type Error = KError;
+    fn try_from(v: &S3m_PatternPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_PatternPtr> for OptRc<S3m_PatternPtr> {
+    type Error = KError;
+    fn try_from(v: &&S3m_PatternPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternPtr> for S3m_PatternPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternPtr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternPtr> for &S3m_PatternPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternPtr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_PatternPtr> for OptRc<S3m_PatternPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternPtr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_PatternPtr> for &OptRc<S3m_PatternPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_PatternPtr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_PatternPtr {
     type Root = S3m;
@@ -1136,6 +1580,12 @@ impl S3m_PatternPtr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1152,6 +1602,38 @@ pub struct S3m_SwappedU3 {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&S3m_SwappedU3> for OptRc<S3m_SwappedU3> {
+    type Error = KError;
+    fn try_from(v: &S3m_SwappedU3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&S3m_SwappedU3> for OptRc<S3m_SwappedU3> {
+    type Error = KError;
+    fn try_from(v: &&S3m_SwappedU3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<S3m_SwappedU3> for S3m_SwappedU3 {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_SwappedU3>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<S3m_SwappedU3> for &S3m_SwappedU3 {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_SwappedU3>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<S3m_SwappedU3> for OptRc<S3m_SwappedU3> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_SwappedU3>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<S3m_SwappedU3> for &OptRc<S3m_SwappedU3> {
+    fn downcast_optrc(&self) -> Result<OptRc<S3m_SwappedU3>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for S3m_SwappedU3 {
     type Root = S3m;
@@ -1202,5 +1684,11 @@ impl S3m_SwappedU3 {
 impl S3m_SwappedU3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

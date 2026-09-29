@@ -16,6 +16,38 @@ pub struct Ext2 {
     f_root_dir: Cell<bool>,
     root_dir: RefCell<OptRc<Ext2_Dir>>,
 }
+impl TryFrom<&Ext2> for OptRc<Ext2> {
+    type Error = KError;
+    fn try_from(v: &Ext2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2> for OptRc<Ext2> {
+    type Error = KError;
+    fn try_from(v: &&Ext2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2> for Ext2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2> for &Ext2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2> for OptRc<Ext2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2> for &OptRc<Ext2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ext2 {
     type Root = Ext2;
     type Parent = Ext2;
@@ -68,6 +100,12 @@ impl Ext2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -90,6 +128,38 @@ pub struct Ext2_Bgd {
     inode_bitmap: RefCell<Vec<u8>>,
     f_inodes: Cell<bool>,
     inodes: RefCell<Vec<OptRc<Ext2_Inode>>>,
+}
+impl TryFrom<&Ext2_Bgd> for OptRc<Ext2_Bgd> {
+    type Error = KError;
+    fn try_from(v: &Ext2_Bgd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_Bgd> for OptRc<Ext2_Bgd> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_Bgd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Bgd> for Ext2_Bgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Bgd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Bgd> for &Ext2_Bgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Bgd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Bgd> for OptRc<Ext2_Bgd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Bgd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_Bgd> for &OptRc<Ext2_Bgd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Bgd>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_Bgd {
     type Root = Ext2;
@@ -209,6 +279,12 @@ impl Ext2_Bgd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ext2_Bgd {
     pub fn pad_reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -225,6 +301,38 @@ pub struct Ext2_BlockGroup {
     block_groups: RefCell<Vec<OptRc<Ext2_Bgd>>>,
     _io: RefCell<BytesReader>,
     super_block_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ext2_BlockGroup> for OptRc<Ext2_BlockGroup> {
+    type Error = KError;
+    fn try_from(v: &Ext2_BlockGroup) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_BlockGroup> for OptRc<Ext2_BlockGroup> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_BlockGroup) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockGroup> for Ext2_BlockGroup {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockGroup>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockGroup> for &Ext2_BlockGroup {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockGroup>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockGroup> for OptRc<Ext2_BlockGroup> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockGroup>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_BlockGroup> for &OptRc<Ext2_BlockGroup> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockGroup>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_BlockGroup {
     type Root = Ext2;
@@ -273,6 +381,12 @@ impl Ext2_BlockGroup {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ext2_BlockGroup {
     pub fn super_block_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -290,6 +404,38 @@ pub struct Ext2_BlockPtr {
     body_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<OptRc<Ext2_RawBlock>>,
+}
+impl TryFrom<&Ext2_BlockPtr> for OptRc<Ext2_BlockPtr> {
+    type Error = KError;
+    fn try_from(v: &Ext2_BlockPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_BlockPtr> for OptRc<Ext2_BlockPtr> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_BlockPtr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockPtr> for Ext2_BlockPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockPtr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockPtr> for &Ext2_BlockPtr {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockPtr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_BlockPtr> for OptRc<Ext2_BlockPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockPtr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_BlockPtr> for &OptRc<Ext2_BlockPtr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_BlockPtr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_BlockPtr {
     type Root = Ext2;
@@ -341,6 +487,12 @@ impl Ext2_BlockPtr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ext2_BlockPtr {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -355,6 +507,38 @@ pub struct Ext2_Dir {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Ext2_DirEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Ext2_Dir> for OptRc<Ext2_Dir> {
+    type Error = KError;
+    fn try_from(v: &Ext2_Dir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_Dir> for OptRc<Ext2_Dir> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_Dir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Dir> for Ext2_Dir {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Dir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Dir> for &Ext2_Dir {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Dir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Dir> for OptRc<Ext2_Dir> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Dir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_Dir> for &OptRc<Ext2_Dir> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Dir>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_Dir {
     type Root = Ext2;
@@ -396,6 +580,12 @@ impl Ext2_Dir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -414,6 +604,38 @@ pub struct Ext2_DirEntry {
     padding_raw: RefCell<Vec<u8>>,
     f_inode: Cell<bool>,
     inode: RefCell<OptRc<Ext2_Inode>>,
+}
+impl TryFrom<&Ext2_DirEntry> for OptRc<Ext2_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &Ext2_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_DirEntry> for OptRc<Ext2_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_DirEntry> for Ext2_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_DirEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_DirEntry> for &Ext2_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_DirEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_DirEntry> for OptRc<Ext2_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_DirEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_DirEntry> for &OptRc<Ext2_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_DirEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_DirEntry {
     type Root = Ext2;
@@ -487,6 +709,12 @@ impl Ext2_DirEntry {
 impl Ext2_DirEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ext2_DirEntry {
@@ -577,6 +805,38 @@ pub struct Ext2_Inode {
     osd2_raw: RefCell<Vec<u8>>,
     f_as_dir: Cell<bool>,
     as_dir: RefCell<OptRc<Ext2_Dir>>,
+}
+impl TryFrom<&Ext2_Inode> for OptRc<Ext2_Inode> {
+    type Error = KError;
+    fn try_from(v: &Ext2_Inode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_Inode> for OptRc<Ext2_Inode> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_Inode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Inode> for Ext2_Inode {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Inode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Inode> for &Ext2_Inode {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Inode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_Inode> for OptRc<Ext2_Inode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Inode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_Inode> for &OptRc<Ext2_Inode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_Inode>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_Inode {
     type Root = Ext2;
@@ -733,6 +993,12 @@ impl Ext2_Inode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ext2_Inode {
     pub fn osd2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -748,6 +1014,38 @@ pub struct Ext2_RawBlock {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ext2_RawBlock> for OptRc<Ext2_RawBlock> {
+    type Error = KError;
+    fn try_from(v: &Ext2_RawBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_RawBlock> for OptRc<Ext2_RawBlock> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_RawBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_RawBlock> for Ext2_RawBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_RawBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_RawBlock> for &Ext2_RawBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_RawBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_RawBlock> for OptRc<Ext2_RawBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_RawBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_RawBlock> for &OptRc<Ext2_RawBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_RawBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_RawBlock {
     type Root = Ext2;
@@ -780,6 +1078,12 @@ impl Ext2_RawBlock {
 impl Ext2_RawBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ext2_RawBlock {
@@ -847,6 +1151,38 @@ pub struct Ext2_SuperBlockStruct {
     block_group_count: RefCell<u32>,
     f_block_size: Cell<bool>,
     block_size: RefCell<i32>,
+}
+impl TryFrom<&Ext2_SuperBlockStruct> for OptRc<Ext2_SuperBlockStruct> {
+    type Error = KError;
+    fn try_from(v: &Ext2_SuperBlockStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ext2_SuperBlockStruct> for OptRc<Ext2_SuperBlockStruct> {
+    type Error = KError;
+    fn try_from(v: &&Ext2_SuperBlockStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_SuperBlockStruct> for Ext2_SuperBlockStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_SuperBlockStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ext2_SuperBlockStruct> for &Ext2_SuperBlockStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_SuperBlockStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ext2_SuperBlockStruct> for OptRc<Ext2_SuperBlockStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_SuperBlockStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ext2_SuperBlockStruct> for &OptRc<Ext2_SuperBlockStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ext2_SuperBlockStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ext2_SuperBlockStruct {
     type Root = Ext2;
@@ -1168,6 +1504,12 @@ impl Ext2_SuperBlockStruct {
 impl Ext2_SuperBlockStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ext2_SuperBlockStruct {

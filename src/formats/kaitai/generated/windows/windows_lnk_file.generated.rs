@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::windows_shell_items::WindowsShellItems;
+use super::windows_shell_items::*;
 
 /**
  * Windows .lnk files (AKA "shell link" file) are most frequently used
@@ -28,6 +29,38 @@ pub struct WindowsLnkFile {
     arguments: RefCell<OptRc<WindowsLnkFile_StringData>>,
     icon_location: RefCell<OptRc<WindowsLnkFile_StringData>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsLnkFile> for OptRc<WindowsLnkFile> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile> for OptRc<WindowsLnkFile> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile> for WindowsLnkFile {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile> for &WindowsLnkFile {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile> for OptRc<WindowsLnkFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile> for &OptRc<WindowsLnkFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile {
     type Root = WindowsLnkFile;
@@ -124,6 +157,12 @@ impl WindowsLnkFile {
 impl WindowsLnkFile {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -232,6 +271,38 @@ pub struct WindowsLnkFile_FileHeader {
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     flags_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsLnkFile_FileHeader> for OptRc<WindowsLnkFile_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_FileHeader> for OptRc<WindowsLnkFile_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for WindowsLnkFile_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for &WindowsLnkFile_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for OptRc<WindowsLnkFile_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_FileHeader> for &OptRc<WindowsLnkFile_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_FileHeader {
     type Root = WindowsLnkFile;
@@ -366,6 +437,12 @@ impl WindowsLnkFile_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsLnkFile_FileHeader {
     pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -395,6 +472,38 @@ pub struct WindowsLnkFile_LinkFlags {
     keep_local_id_list_for_unc_target: RefCell<bool>,
     unnamed11: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsLnkFile_LinkFlags> for OptRc<WindowsLnkFile_LinkFlags> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkFlags> for OptRc<WindowsLnkFile_LinkFlags> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for WindowsLnkFile_LinkFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for &WindowsLnkFile_LinkFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for OptRc<WindowsLnkFile_LinkFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkFlags> for &OptRc<WindowsLnkFile_LinkFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkFlags {
     type Root = WindowsLnkFile;
@@ -494,6 +603,12 @@ impl WindowsLnkFile_LinkFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -509,6 +624,38 @@ pub struct WindowsLnkFile_LinkInfo {
     all: RefCell<OptRc<WindowsLnkFile_LinkInfo_All>>,
     _io: RefCell<BytesReader>,
     all_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo> for OptRc<WindowsLnkFile_LinkInfo> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo> for OptRc<WindowsLnkFile_LinkInfo> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo> for WindowsLnkFile_LinkInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo> for &WindowsLnkFile_LinkInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo> for OptRc<WindowsLnkFile_LinkInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo> for &OptRc<WindowsLnkFile_LinkInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo {
     type Root = WindowsLnkFile;
@@ -552,6 +699,12 @@ impl WindowsLnkFile_LinkInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsLnkFile_LinkInfo {
     pub fn all_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -576,6 +729,38 @@ pub struct WindowsLnkFile_LinkInfo_All {
     local_base_path: RefCell<i32>,
     f_volume_id: Cell<bool>,
     volume_id: RefCell<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo_All) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_All) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for WindowsLnkFile_LinkInfo_All {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for &WindowsLnkFile_LinkInfo_All {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for OptRc<WindowsLnkFile_LinkInfo_All> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_All> for &OptRc<WindowsLnkFile_LinkInfo_All> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_All>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo_All {
     type Root = WindowsLnkFile;
@@ -653,6 +838,12 @@ impl WindowsLnkFile_LinkInfo_All {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsLnkFile_LinkInfo_All {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -677,6 +868,38 @@ pub struct WindowsLnkFile_LinkInfo_Header {
     ofs_local_base_path_unicode: RefCell<u32>,
     ofs_common_path_suffix_unicode: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for WindowsLnkFile_LinkInfo_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for &WindowsLnkFile_LinkInfo_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for OptRc<WindowsLnkFile_LinkInfo_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_Header> for &OptRc<WindowsLnkFile_LinkInfo_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo_Header {
     type Root = WindowsLnkFile;
@@ -751,6 +974,12 @@ impl WindowsLnkFile_LinkInfo_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -767,6 +996,38 @@ pub struct WindowsLnkFile_LinkInfo_LinkInfoFlags {
     has_volume_id_and_local_base_path: RefCell<bool>,
     reserved2: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo_LinkInfoFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_LinkInfoFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for WindowsLnkFile_LinkInfo_LinkInfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for &WindowsLnkFile_LinkInfo_LinkInfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> for &OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_LinkInfoFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
     type Root = WindowsLnkFile;
@@ -818,6 +1079,12 @@ impl WindowsLnkFile_LinkInfo_LinkInfoFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -838,6 +1105,38 @@ pub struct WindowsLnkFile_LinkInfo_VolumeIdBody {
     is_unicode: RefCell<bool>,
     f_volume_label_ansi: Cell<bool>,
     volume_label_ansi: RefCell<String>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo_VolumeIdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_VolumeIdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for WindowsLnkFile_LinkInfo_VolumeIdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for &WindowsLnkFile_LinkInfo_VolumeIdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
     type Root = WindowsLnkFile;
@@ -920,6 +1219,12 @@ impl WindowsLnkFile_LinkInfo_VolumeIdBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -935,6 +1240,38 @@ pub struct WindowsLnkFile_LinkInfo_VolumeIdSpec {
     body: RefCell<OptRc<WindowsLnkFile_LinkInfo_VolumeIdBody>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkInfo_VolumeIdSpec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkInfo_VolumeIdSpec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for WindowsLnkFile_LinkInfo_VolumeIdSpec {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for &WindowsLnkFile_LinkInfo_VolumeIdSpec {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> for &OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkInfo_VolumeIdSpec>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdSpec {
     type Root = WindowsLnkFile;
@@ -978,6 +1315,12 @@ impl WindowsLnkFile_LinkInfo_VolumeIdSpec {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsLnkFile_LinkInfo_VolumeIdSpec {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -998,6 +1341,38 @@ pub struct WindowsLnkFile_LinkTargetIdList {
     id_list: RefCell<OptRc<WindowsShellItems>>,
     _io: RefCell<BytesReader>,
     id_list_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_LinkTargetIdList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_LinkTargetIdList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for WindowsLnkFile_LinkTargetIdList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for &WindowsLnkFile_LinkTargetIdList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for OptRc<WindowsLnkFile_LinkTargetIdList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_LinkTargetIdList> for &OptRc<WindowsLnkFile_LinkTargetIdList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_LinkTargetIdList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_LinkTargetIdList {
     type Root = WindowsLnkFile;
@@ -1041,6 +1416,12 @@ impl WindowsLnkFile_LinkTargetIdList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsLnkFile_LinkTargetIdList {
     pub fn id_list_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1057,6 +1438,38 @@ pub struct WindowsLnkFile_StringData {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsLnkFile_StringData> for OptRc<WindowsLnkFile_StringData> {
+    type Error = KError;
+    fn try_from(v: &WindowsLnkFile_StringData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsLnkFile_StringData> for OptRc<WindowsLnkFile_StringData> {
+    type Error = KError;
+    fn try_from(v: &&WindowsLnkFile_StringData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_StringData> for WindowsLnkFile_StringData {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_StringData> for &WindowsLnkFile_StringData {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_StringData> for OptRc<WindowsLnkFile_StringData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsLnkFile_StringData> for &OptRc<WindowsLnkFile_StringData> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsLnkFile_StringData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsLnkFile_StringData {
     type Root = WindowsLnkFile;
@@ -1095,6 +1508,12 @@ impl WindowsLnkFile_StringData {
 impl WindowsLnkFile_StringData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl WindowsLnkFile_StringData {

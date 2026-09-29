@@ -22,6 +22,38 @@ pub struct NtMdtPal {
     _io: RefCell<BytesReader>,
     something2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&NtMdtPal> for OptRc<NtMdtPal> {
+    type Error = KError;
+    fn try_from(v: &NtMdtPal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NtMdtPal> for OptRc<NtMdtPal> {
+    type Error = KError;
+    fn try_from(v: &&NtMdtPal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal> for NtMdtPal {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal> for &NtMdtPal {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal> for OptRc<NtMdtPal> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NtMdtPal> for &OptRc<NtMdtPal> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NtMdtPal {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
@@ -92,6 +124,12 @@ impl NtMdtPal {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NtMdtPal {
     pub fn something2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -112,6 +150,38 @@ pub struct NtMdtPal_ColTable {
     colors: RefCell<Vec<OptRc<NtMdtPal_Color>>>,
     _io: RefCell<BytesReader>,
     title_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NtMdtPal_ColTable> for OptRc<NtMdtPal_ColTable> {
+    type Error = KError;
+    fn try_from(v: &NtMdtPal_ColTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NtMdtPal_ColTable> for OptRc<NtMdtPal_ColTable> {
+    type Error = KError;
+    fn try_from(v: &&NtMdtPal_ColTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_ColTable> for NtMdtPal_ColTable {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_ColTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_ColTable> for &NtMdtPal_ColTable {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_ColTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_ColTable> for OptRc<NtMdtPal_ColTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_ColTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NtMdtPal_ColTable> for &OptRc<NtMdtPal_ColTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_ColTable>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NtMdtPal_ColTable {
     type Root = NtMdtPal;
@@ -184,6 +254,12 @@ impl NtMdtPal_ColTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NtMdtPal_ColTable {
     pub fn title_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -201,6 +277,38 @@ pub struct NtMdtPal_Color {
     blue: RefCell<u8>,
     green: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NtMdtPal_Color> for OptRc<NtMdtPal_Color> {
+    type Error = KError;
+    fn try_from(v: &NtMdtPal_Color) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NtMdtPal_Color> for OptRc<NtMdtPal_Color> {
+    type Error = KError;
+    fn try_from(v: &&NtMdtPal_Color) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Color> for NtMdtPal_Color {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Color>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Color> for &NtMdtPal_Color {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Color>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Color> for OptRc<NtMdtPal_Color> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Color>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NtMdtPal_Color> for &OptRc<NtMdtPal_Color> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Color>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NtMdtPal_Color {
     type Root = NtMdtPal;
@@ -252,6 +360,12 @@ impl NtMdtPal_Color {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -276,6 +390,38 @@ pub struct NtMdtPal_Meta {
     unkn10_raw: RefCell<Vec<u8>>,
     unkn11_raw: RefCell<Vec<u8>>,
     unkn12_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NtMdtPal_Meta> for OptRc<NtMdtPal_Meta> {
+    type Error = KError;
+    fn try_from(v: &NtMdtPal_Meta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NtMdtPal_Meta> for OptRc<NtMdtPal_Meta> {
+    type Error = KError;
+    fn try_from(v: &&NtMdtPal_Meta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Meta> for NtMdtPal_Meta {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Meta>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Meta> for &NtMdtPal_Meta {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Meta>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NtMdtPal_Meta> for OptRc<NtMdtPal_Meta> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Meta>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NtMdtPal_Meta> for &OptRc<NtMdtPal_Meta> {
+    fn downcast_optrc(&self) -> Result<OptRc<NtMdtPal_Meta>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NtMdtPal_Meta {
     type Root = NtMdtPal;
@@ -376,6 +522,12 @@ impl NtMdtPal_Meta {
 impl NtMdtPal_Meta {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl NtMdtPal_Meta {

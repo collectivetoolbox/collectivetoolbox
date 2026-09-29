@@ -57,6 +57,38 @@ pub struct AndroidImg {
     f_tags_offset: Cell<bool>,
     tags_offset: RefCell<i32>,
 }
+impl TryFrom<&AndroidImg> for OptRc<AndroidImg> {
+    type Error = KError;
+    fn try_from(v: &AndroidImg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidImg> for OptRc<AndroidImg> {
+    type Error = KError;
+    fn try_from(v: &&AndroidImg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg> for AndroidImg {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg> for &AndroidImg {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg> for OptRc<AndroidImg> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidImg> for &OptRc<AndroidImg> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidImg {
     type Root = AndroidImg;
     type Parent = AndroidImg;
@@ -369,6 +401,12 @@ impl AndroidImg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidImg {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -399,6 +437,38 @@ pub struct AndroidImg_Load {
     size: RefCell<u32>,
     addr: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidImg_Load> for OptRc<AndroidImg_Load> {
+    type Error = KError;
+    fn try_from(v: &AndroidImg_Load) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidImg_Load> for OptRc<AndroidImg_Load> {
+    type Error = KError;
+    fn try_from(v: &&AndroidImg_Load) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_Load> for AndroidImg_Load {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_Load>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_Load> for &AndroidImg_Load {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_Load>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_Load> for OptRc<AndroidImg_Load> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_Load>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidImg_Load> for &OptRc<AndroidImg_Load> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_Load>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidImg_Load {
     type Root = AndroidImg;
@@ -438,6 +508,12 @@ impl AndroidImg_Load {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -448,6 +524,38 @@ pub struct AndroidImg_LoadLong {
     size: RefCell<u32>,
     addr: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidImg_LoadLong> for OptRc<AndroidImg_LoadLong> {
+    type Error = KError;
+    fn try_from(v: &AndroidImg_LoadLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidImg_LoadLong> for OptRc<AndroidImg_LoadLong> {
+    type Error = KError;
+    fn try_from(v: &&AndroidImg_LoadLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_LoadLong> for AndroidImg_LoadLong {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_LoadLong>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_LoadLong> for &AndroidImg_LoadLong {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_LoadLong>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_LoadLong> for OptRc<AndroidImg_LoadLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_LoadLong>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidImg_LoadLong> for &OptRc<AndroidImg_LoadLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_LoadLong>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidImg_LoadLong {
     type Root = AndroidImg;
@@ -487,6 +595,12 @@ impl AndroidImg_LoadLong {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -506,6 +620,38 @@ pub struct AndroidImg_OsVersion {
     patch: RefCell<i32>,
     f_year: Cell<bool>,
     year: RefCell<i32>,
+}
+impl TryFrom<&AndroidImg_OsVersion> for OptRc<AndroidImg_OsVersion> {
+    type Error = KError;
+    fn try_from(v: &AndroidImg_OsVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidImg_OsVersion> for OptRc<AndroidImg_OsVersion> {
+    type Error = KError;
+    fn try_from(v: &&AndroidImg_OsVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_OsVersion> for AndroidImg_OsVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_OsVersion>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_OsVersion> for &AndroidImg_OsVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_OsVersion>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_OsVersion> for OptRc<AndroidImg_OsVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_OsVersion>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidImg_OsVersion> for &OptRc<AndroidImg_OsVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_OsVersion>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidImg_OsVersion {
     type Root = AndroidImg;
@@ -599,6 +745,12 @@ impl AndroidImg_OsVersion {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -609,6 +761,38 @@ pub struct AndroidImg_SizeOffset {
     size: RefCell<u32>,
     offset: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidImg_SizeOffset> for OptRc<AndroidImg_SizeOffset> {
+    type Error = KError;
+    fn try_from(v: &AndroidImg_SizeOffset) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidImg_SizeOffset> for OptRc<AndroidImg_SizeOffset> {
+    type Error = KError;
+    fn try_from(v: &&AndroidImg_SizeOffset) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_SizeOffset> for AndroidImg_SizeOffset {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_SizeOffset>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_SizeOffset> for &AndroidImg_SizeOffset {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_SizeOffset>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidImg_SizeOffset> for OptRc<AndroidImg_SizeOffset> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_SizeOffset>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidImg_SizeOffset> for &OptRc<AndroidImg_SizeOffset> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidImg_SizeOffset>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidImg_SizeOffset {
     type Root = AndroidImg;
@@ -647,5 +831,11 @@ impl AndroidImg_SizeOffset {
 impl AndroidImg_SizeOffset {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

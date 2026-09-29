@@ -85,12 +85,12 @@ fn test_buffered_struct() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BufferedStruct> = BufferedStruct::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.len1(), 16);
-    assert_eq!(*r.block1().number1(), 66);
-    assert_eq!(*r.block1().number2(), 67);
-    assert_eq!(*r.len2(), 8);
-    assert_eq!(*r.block2().number1(), 68);
-    assert_eq!(*r.block2().number2(), 69);
-    assert_eq!(*r.finisher(), 238);
+    assert_eq!(*(r.len1()), 16);
+    assert_eq!(*(r.block1().number1()), 66);
+    assert_eq!(*(r.block1().number2()), 67);
+    assert_eq!(*(r.len2()), 8);
+    assert_eq!(*(r.block2().number1()), 68);
+    assert_eq!(*(r.block2().number2()), 69);
+    assert_eq!(*(r.finisher()), 238);
     Ok(())
 }

@@ -60,6 +60,22 @@ impl TryFrom<&Asn1Der_Body> for OptRc<Asn1Der_BodyObjectId> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Asn1Der_Body> for OptRc<Asn1Der_BodyObjectId> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        OptRc::<Asn1Der_BodyObjectId>::try_from(self)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for &Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Asn1Der_BodyObjectId>> for Asn1Der_Body {
     fn from(v: OptRc<Asn1Der_BodyObjectId>) -> Self {
         Self::Asn1Der_BodyObjectId(v)
@@ -72,6 +88,22 @@ impl TryFrom<&Asn1Der_Body> for OptRc<Asn1Der_BodyPrintableString> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Asn1Der_Body> for OptRc<Asn1Der_BodyPrintableString> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        OptRc::<Asn1Der_BodyPrintableString>::try_from(self)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for &Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Asn1Der_BodyPrintableString>> for Asn1Der_Body {
@@ -88,6 +120,22 @@ impl TryFrom<&Asn1Der_Body> for OptRc<Asn1Der_BodySequence> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Asn1Der_Body> for OptRc<Asn1Der_BodySequence> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        OptRc::<Asn1Der_BodySequence>::try_from(self)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for &Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Asn1Der_BodySequence>> for Asn1Der_Body {
     fn from(v: OptRc<Asn1Der_BodySequence>) -> Self {
         Self::Asn1Der_BodySequence(v)
@@ -100,6 +148,22 @@ impl TryFrom<&Asn1Der_Body> for OptRc<Asn1Der_BodyUtf8string> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Asn1Der_Body> for OptRc<Asn1Der_BodyUtf8string> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        OptRc::<Asn1Der_BodyUtf8string>::try_from(self)
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for &Asn1Der_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Asn1Der_BodyUtf8string>> for Asn1Der_Body {
@@ -116,9 +180,47 @@ impl TryFrom<&Asn1Der_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Asn1Der_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Asn1Der_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Asn1Der> for OptRc<Asn1Der> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der> for OptRc<Asn1Der> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der> for Asn1Der {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der> for &Asn1Der {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der> for OptRc<Asn1Der> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der> for &OptRc<Asn1Der> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Asn1Der {
@@ -211,6 +313,12 @@ impl Asn1Der {
 impl Asn1Der {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Asn1Der {
@@ -319,6 +427,38 @@ pub struct Asn1Der_BodyObjectId {
     f_second: Cell<bool>,
     second: RefCell<i32>,
 }
+impl TryFrom<&Asn1Der_BodyObjectId> for OptRc<Asn1Der_BodyObjectId> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der_BodyObjectId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der_BodyObjectId> for OptRc<Asn1Der_BodyObjectId> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_BodyObjectId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for Asn1Der_BodyObjectId {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for &Asn1Der_BodyObjectId {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for OptRc<Asn1Der_BodyObjectId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyObjectId> for &OptRc<Asn1Der_BodyObjectId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyObjectId>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Asn1Der_BodyObjectId {
     type Root = Asn1Der;
     type Parent = Asn1Der;
@@ -381,6 +521,12 @@ impl Asn1Der_BodyObjectId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -390,6 +536,38 @@ pub struct Asn1Der_BodyPrintableString {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der_BodyPrintableString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_BodyPrintableString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for Asn1Der_BodyPrintableString {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for &Asn1Der_BodyPrintableString {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for OptRc<Asn1Der_BodyPrintableString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyPrintableString> for &OptRc<Asn1Der_BodyPrintableString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyPrintableString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Asn1Der_BodyPrintableString {
     type Root = Asn1Der;
@@ -423,6 +601,12 @@ impl Asn1Der_BodyPrintableString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -432,6 +616,38 @@ pub struct Asn1Der_BodySequence {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Asn1Der>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Asn1Der_BodySequence> for OptRc<Asn1Der_BodySequence> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der_BodySequence) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der_BodySequence> for OptRc<Asn1Der_BodySequence> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_BodySequence) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for Asn1Der_BodySequence {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for &Asn1Der_BodySequence {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for OptRc<Asn1Der_BodySequence> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der_BodySequence> for &OptRc<Asn1Der_BodySequence> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodySequence>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Asn1Der_BodySequence {
     type Root = Asn1Der;
@@ -473,6 +689,12 @@ impl Asn1Der_BodySequence {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -482,6 +704,38 @@ pub struct Asn1Der_BodyUtf8string {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Asn1Der_BodyUtf8string> for OptRc<Asn1Der_BodyUtf8string> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der_BodyUtf8string) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der_BodyUtf8string> for OptRc<Asn1Der_BodyUtf8string> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_BodyUtf8string) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for Asn1Der_BodyUtf8string {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for &Asn1Der_BodyUtf8string {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for OptRc<Asn1Der_BodyUtf8string> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der_BodyUtf8string> for &OptRc<Asn1Der_BodyUtf8string> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_BodyUtf8string>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Asn1Der_BodyUtf8string {
     type Root = Asn1Der;
@@ -515,6 +769,12 @@ impl Asn1Der_BodyUtf8string {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -528,6 +788,38 @@ pub struct Asn1Der_LenEncoded {
     _io: RefCell<BytesReader>,
     f_result: Cell<bool>,
     result: RefCell<u16>,
+}
+impl TryFrom<&Asn1Der_LenEncoded> for OptRc<Asn1Der_LenEncoded> {
+    type Error = KError;
+    fn try_from(v: &Asn1Der_LenEncoded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Asn1Der_LenEncoded> for OptRc<Asn1Der_LenEncoded> {
+    type Error = KError;
+    fn try_from(v: &&Asn1Der_LenEncoded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_LenEncoded> for Asn1Der_LenEncoded {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_LenEncoded>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_LenEncoded> for &Asn1Der_LenEncoded {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_LenEncoded>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Asn1Der_LenEncoded> for OptRc<Asn1Der_LenEncoded> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_LenEncoded>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Asn1Der_LenEncoded> for &OptRc<Asn1Der_LenEncoded> {
+    fn downcast_optrc(&self) -> Result<OptRc<Asn1Der_LenEncoded>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Asn1Der_LenEncoded {
     type Root = Asn1Der;
@@ -588,5 +880,11 @@ impl Asn1Der_LenEncoded {
 impl Asn1Der_LenEncoded {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

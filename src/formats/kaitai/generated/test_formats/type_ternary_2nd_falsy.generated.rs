@@ -89,6 +89,38 @@ pub struct TypeTernary2ndFalsy {
     f_v_str_w_zero: Cell<bool>,
     v_str_w_zero: RefCell<String>,
 }
+impl TryFrom<&TypeTernary2ndFalsy> for OptRc<TypeTernary2ndFalsy> {
+    type Error = KError;
+    fn try_from(v: &TypeTernary2ndFalsy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TypeTernary2ndFalsy> for OptRc<TypeTernary2ndFalsy> {
+    type Error = KError;
+    fn try_from(v: &&TypeTernary2ndFalsy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy> for TypeTernary2ndFalsy {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy> for &TypeTernary2ndFalsy {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy> for OptRc<TypeTernary2ndFalsy> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy> for &OptRc<TypeTernary2ndFalsy> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TypeTernary2ndFalsy {
     type Root = TypeTernary2ndFalsy;
     type Parent = TypeTernary2ndFalsy;
@@ -280,6 +312,12 @@ impl TypeTernary2ndFalsy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -289,6 +327,38 @@ pub struct TypeTernary2ndFalsy_Foo {
     pub(crate) _self_shared: SharedType<Self>,
     m: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TypeTernary2ndFalsy_Foo> for OptRc<TypeTernary2ndFalsy_Foo> {
+    type Error = KError;
+    fn try_from(v: &TypeTernary2ndFalsy_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TypeTernary2ndFalsy_Foo> for OptRc<TypeTernary2ndFalsy_Foo> {
+    type Error = KError;
+    fn try_from(v: &&TypeTernary2ndFalsy_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy_Foo> for TypeTernary2ndFalsy_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy_Foo> for &TypeTernary2ndFalsy_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy_Foo> for OptRc<TypeTernary2ndFalsy_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TypeTernary2ndFalsy_Foo> for &OptRc<TypeTernary2ndFalsy_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernary2ndFalsy_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TypeTernary2ndFalsy_Foo {
     type Root = TypeTernary2ndFalsy;
@@ -321,5 +391,11 @@ impl TypeTernary2ndFalsy_Foo {
 impl TypeTernary2ndFalsy_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -67,6 +67,38 @@ pub struct ExprIoPosBits {
     qux: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ExprIoPosBits> for OptRc<ExprIoPosBits> {
+    type Error = KError;
+    fn try_from(v: &ExprIoPosBits) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoPosBits> for OptRc<ExprIoPosBits> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoPosBits) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPosBits> for ExprIoPosBits {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPosBits>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPosBits> for &ExprIoPosBits {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPosBits>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPosBits> for OptRc<ExprIoPosBits> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPosBits>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoPosBits> for &OptRc<ExprIoPosBits> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPosBits>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIoPosBits {
     type Root = ExprIoPosBits;
     type Parent = ExprIoPosBits;
@@ -122,5 +154,11 @@ impl ExprIoPosBits {
 impl ExprIoPosBits {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

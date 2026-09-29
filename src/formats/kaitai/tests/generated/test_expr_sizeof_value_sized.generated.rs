@@ -85,10 +85,10 @@ fn test_expr_sizeof_value_sized() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprSizeofValueSized> = ExprSizeofValueSized::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.self_sizeof()?, 14);
-    assert_eq!(*r.sizeof_block()?, 12);
-    assert_eq!(*r.sizeof_block_a()?, 1);
-    assert_eq!(*r.sizeof_block_b()?, 4);
-    assert_eq!(*r.sizeof_block_c()?, 2);
+    assert_eq!(*(r.self_sizeof()?), 14);
+    assert_eq!(*(r.sizeof_block()?), 12);
+    assert_eq!(*(r.sizeof_block_a()?), 1);
+    assert_eq!(*(r.sizeof_block_b()?), 4);
+    assert_eq!(*(r.sizeof_block_c()?), 2);
     Ok(())
 }

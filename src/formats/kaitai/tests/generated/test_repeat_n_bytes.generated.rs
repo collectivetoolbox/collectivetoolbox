@@ -86,8 +86,8 @@ fn test_repeat_n_bytes() -> KResult<()> {
     let r: OptRc<RepeatNBytes> = RepeatNBytes::read_into(&_io, None, None)?;
 
     assert_eq!(r.records().len(), 3);
-    assert_eq!(r.records()[0], vec![0xe8u8, 0xbau8, 0xaau8, 0xaau8, 0xaau8]);
-    assert_eq!(r.records()[1], vec![0xfau8, 0x9eu8, 0xb8u8, 0xaau8, 0xaau8]);
-    assert_eq!(r.records()[2], vec![0xaau8, 0x55u8, 0x55u8, 0x55u8, 0x55u8]);
+    assert_eq!(r.records()[0], vec![0xe8, 0xba, 0xaa, 0xaa, 0xaa]);
+    assert_eq!(r.records()[1], vec![0xfa, 0x9e, 0xb8, 0xaa, 0xaa]);
+    assert_eq!(r.records()[2], vec![0xaa, 0x55, 0x55, 0x55, 0x55]);
     Ok(())
 }

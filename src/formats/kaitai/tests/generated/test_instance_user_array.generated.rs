@@ -85,15 +85,15 @@ fn test_instance_user_array() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<InstanceUserArray> = InstanceUserArray::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.ofs(), 16);
-    assert_eq!(*r.qty_entries(), 3);
-    assert_eq!(*r.entry_size(), 4);
+    assert_eq!(*(r.ofs()), 16);
+    assert_eq!(*(r.qty_entries()), 3);
+    assert_eq!(*(r.entry_size()), 4);
     assert_eq!(r.user_entries()?.len(), 3);
-    assert_eq!(*r.user_entries()?[0].word1(), 4369);
-    assert_eq!(*r.user_entries()?[0].word2(), 4369);
-    assert_eq!(*r.user_entries()?[1].word1(), 8738);
-    assert_eq!(*r.user_entries()?[1].word2(), 8738);
-    assert_eq!(*r.user_entries()?[2].word1(), 13107);
-    assert_eq!(*r.user_entries()?[2].word2(), 13107);
+    assert_eq!(*(r.user_entries()?[0].word1()), 4369);
+    assert_eq!(*(r.user_entries()?[0].word2()), 4369);
+    assert_eq!(*(r.user_entries()?[1].word1()), 8738);
+    assert_eq!(*(r.user_entries()?[1].word2()), 8738);
+    assert_eq!(*(r.user_entries()?[2].word1()), 13107);
+    assert_eq!(*(r.user_entries()?[2].word2()), 13107);
     Ok(())
 }

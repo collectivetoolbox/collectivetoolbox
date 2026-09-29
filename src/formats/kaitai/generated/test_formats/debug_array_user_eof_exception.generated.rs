@@ -65,6 +65,38 @@ pub struct DebugArrayUserEofException {
     array_of_cats: RefCell<Vec<OptRc<DebugArrayUserEofException_Cat>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
+    type Error = KError;
+    fn try_from(v: &DebugArrayUserEofException) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
+    type Error = KError;
+    fn try_from(v: &&DebugArrayUserEofException) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException> for DebugArrayUserEofException {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException> for &DebugArrayUserEofException {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException> for OptRc<DebugArrayUserEofException> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException> for &OptRc<DebugArrayUserEofException> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DebugArrayUserEofException {
     type Root = DebugArrayUserEofException;
     type Parent = DebugArrayUserEofException;
@@ -114,6 +146,12 @@ impl DebugArrayUserEofException {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -124,6 +162,38 @@ pub struct DebugArrayUserEofException_Cat {
     meow: RefCell<u8>,
     chirp: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
+    type Error = KError;
+    fn try_from(v: &DebugArrayUserEofException_Cat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
+    type Error = KError;
+    fn try_from(v: &&DebugArrayUserEofException_Cat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException_Cat> for DebugArrayUserEofException_Cat {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException_Cat> for &DebugArrayUserEofException_Cat {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException_Cat> for OptRc<DebugArrayUserEofException_Cat> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugArrayUserEofException_Cat> for &OptRc<DebugArrayUserEofException_Cat> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserEofException_Cat>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DebugArrayUserEofException_Cat {
     type Root = DebugArrayUserEofException;
@@ -162,5 +232,11 @@ impl DebugArrayUserEofException_Cat {
 impl DebugArrayUserEofException_Cat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

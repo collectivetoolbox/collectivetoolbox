@@ -99,6 +99,38 @@ pub struct ExprStrOps {
     f_two_substr_4_to_10: Cell<bool>,
     two_substr_4_to_10: RefCell<String>,
 }
+impl TryFrom<&ExprStrOps> for OptRc<ExprStrOps> {
+    type Error = KError;
+    fn try_from(v: &ExprStrOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprStrOps> for OptRc<ExprStrOps> {
+    type Error = KError;
+    fn try_from(v: &&ExprStrOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprStrOps> for ExprStrOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprStrOps>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprStrOps> for &ExprStrOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprStrOps>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprStrOps> for OptRc<ExprStrOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprStrOps>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprStrOps> for &OptRc<ExprStrOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprStrOps>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprStrOps {
     type Root = ExprStrOps;
     type Parent = ExprStrOps;
@@ -142,7 +174,7 @@ impl ExprStrOps {
             return Ok(self.one_rev.borrow());
         }
         self.f_one_rev.set(true);
-        *self.one_rev.borrow_mut() = reverse_string(&self.one())?.to_string();
+        *self.one_rev.borrow_mut() = reverse_string(&*(self.one()))?.to_string();
         Ok(self.one_rev.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -286,7 +318,7 @@ impl ExprStrOps {
             return Ok(self.two_rev.borrow());
         }
         self.f_two_rev.set(true);
-        *self.two_rev.borrow_mut() = reverse_string(&self.two()?)?.to_string();
+        *self.two_rev.borrow_mut() = reverse_string(&*(self.two()?))?.to_string();
         Ok(self.two_rev.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -334,6 +366,12 @@ impl ExprStrOps {
 impl ExprStrOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprStrOps {

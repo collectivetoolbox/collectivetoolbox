@@ -85,7 +85,7 @@ fn test_position_abs() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<PositionAbs> = PositionAbs::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.index_offset(), 32);
-    assert_eq!(*r.index()?.entry(), "foo");
+    assert_eq!(*(r.index_offset()), 32);
+    assert_eq!(*(r.index()?.entry()), "foo");
     Ok(())
 }

@@ -21,6 +21,38 @@ pub struct Avi {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Avi> for OptRc<Avi> {
+    type Error = KError;
+    fn try_from(v: &Avi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi> for OptRc<Avi> {
+    type Error = KError;
+    fn try_from(v: &&Avi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi> for Avi {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi> for &Avi {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi> for OptRc<Avi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi> for &OptRc<Avi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Avi {
     type Root = Avi;
     type Parent = Avi;
@@ -80,6 +112,12 @@ impl Avi {
 impl Avi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Avi {
@@ -250,6 +288,38 @@ pub struct Avi_AvihBody {
     _io: RefCell<BytesReader>,
     reserved_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Avi_AvihBody> for OptRc<Avi_AvihBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_AvihBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_AvihBody> for OptRc<Avi_AvihBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_AvihBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for Avi_AvihBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for &Avi_AvihBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for OptRc<Avi_AvihBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for &OptRc<Avi_AvihBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Avi_AvihBody {
     type Root = Avi;
     type Parent = Avi_Block;
@@ -342,6 +412,12 @@ impl Avi_AvihBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Avi_AvihBody {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -376,6 +452,22 @@ impl TryFrom<&Avi_Block_Data> for OptRc<Avi_AvihBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Avi_Block_Data> for OptRc<Avi_AvihBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Block_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        OptRc::<Avi_AvihBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Avi_AvihBody> for &Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_AvihBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Avi_AvihBody>> for Avi_Block_Data {
     fn from(v: OptRc<Avi_AvihBody>) -> Self {
         Self::Avi_AvihBody(v)
@@ -388,6 +480,22 @@ impl TryFrom<&Avi_Block_Data> for OptRc<Avi_ListBody> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Avi_Block_Data> for OptRc<Avi_ListBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Block_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        OptRc::<Avi_ListBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for &Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Avi_ListBody>> for Avi_Block_Data {
@@ -404,6 +512,22 @@ impl TryFrom<&Avi_Block_Data> for OptRc<Avi_StrhBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Avi_Block_Data> for OptRc<Avi_StrhBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Block_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        OptRc::<Avi_StrhBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for &Avi_Block_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Avi_StrhBody>> for Avi_Block_Data {
     fn from(v: OptRc<Avi_StrhBody>) -> Self {
         Self::Avi_StrhBody(v)
@@ -418,9 +542,47 @@ impl TryFrom<&Avi_Block_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Avi_Block_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Block_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Avi_Block_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Avi_Block> for OptRc<Avi_Block> {
+    type Error = KError;
+    fn try_from(v: &Avi_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_Block> for OptRc<Avi_Block> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Block> for Avi_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_Block> for &Avi_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Block> for OptRc<Avi_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_Block> for &OptRc<Avi_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Block>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Avi_Block {
@@ -492,6 +654,12 @@ impl Avi_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Avi_Block {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -506,6 +674,38 @@ pub struct Avi_Blocks {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Avi_Block>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Avi_Blocks> for OptRc<Avi_Blocks> {
+    type Error = KError;
+    fn try_from(v: &Avi_Blocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_Blocks> for OptRc<Avi_Blocks> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Blocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Blocks> for Avi_Blocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Blocks>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_Blocks> for &Avi_Blocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Blocks>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Blocks> for OptRc<Avi_Blocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Blocks>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_Blocks> for &OptRc<Avi_Blocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Blocks>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Avi_Blocks {
     type Root = Avi;
@@ -547,6 +747,12 @@ impl Avi_Blocks {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -557,6 +763,38 @@ pub struct Avi_ListBody {
     list_type: RefCell<Avi_ChunkType>,
     data: RefCell<OptRc<Avi_Blocks>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Avi_ListBody> for OptRc<Avi_ListBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_ListBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_ListBody> for OptRc<Avi_ListBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_ListBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for Avi_ListBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for &Avi_ListBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for OptRc<Avi_ListBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_ListBody> for &OptRc<Avi_ListBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_ListBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Avi_ListBody {
     type Root = Avi;
@@ -597,6 +835,12 @@ impl Avi_ListBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -609,6 +853,38 @@ pub struct Avi_Rect {
     right: RefCell<i16>,
     bottom: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Avi_Rect> for OptRc<Avi_Rect> {
+    type Error = KError;
+    fn try_from(v: &Avi_Rect) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_Rect> for OptRc<Avi_Rect> {
+    type Error = KError;
+    fn try_from(v: &&Avi_Rect) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Rect> for Avi_Rect {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Rect>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_Rect> for &Avi_Rect {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Rect>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_Rect> for OptRc<Avi_Rect> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Rect>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_Rect> for &OptRc<Avi_Rect> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_Rect>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Avi_Rect {
     type Root = Avi;
@@ -660,6 +936,12 @@ impl Avi_Rect {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -672,6 +954,38 @@ pub struct Avi_StrfBody {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Avi_StrfBody> for OptRc<Avi_StrfBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_StrfBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_StrfBody> for OptRc<Avi_StrfBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_StrfBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrfBody> for Avi_StrfBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrfBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrfBody> for &Avi_StrfBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrfBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrfBody> for OptRc<Avi_StrfBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrfBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_StrfBody> for &OptRc<Avi_StrfBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrfBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Avi_StrfBody {
     type Root = Avi;
@@ -698,6 +1012,12 @@ impl Avi_StrfBody {
 impl Avi_StrfBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -726,6 +1046,38 @@ pub struct Avi_StrhBody {
     sample_size: RefCell<u32>,
     frame: RefCell<OptRc<Avi_Rect>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Avi_StrhBody> for OptRc<Avi_StrhBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_StrhBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Avi_StrhBody> for OptRc<Avi_StrhBody> {
+    type Error = KError;
+    fn try_from(v: &&Avi_StrhBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for Avi_StrhBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for &Avi_StrhBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for OptRc<Avi_StrhBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Avi_StrhBody> for &OptRc<Avi_StrhBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Avi_StrhBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Avi_StrhBody {
     type Root = Avi;
@@ -845,5 +1197,11 @@ impl Avi_StrhBody {
 impl Avi_StrhBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

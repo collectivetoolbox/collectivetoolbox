@@ -5,10 +5,15 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::icmp_packet::IcmpPacket;
+use super::icmp_packet::*;
 use super::ipv6_packet::Ipv6Packet;
+use super::ipv6_packet::*;
 use super::ipv4_packet::Ipv4Packet;
+use super::ipv4_packet::*;
 use super::tcp_segment::TcpSegment;
+use super::tcp_segment::*;
 use super::udp_datagram::UdpDatagram;
+use super::udp_datagram::*;
 
 /**
  * Protocol body represents particular payload on transport level (OSI
@@ -56,6 +61,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        OptRc::<ProtocolBody_OptionHopByHop>::try_from(self)
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ProtocolBody_OptionHopByHop>> for ProtocolBody_Body {
     fn from(v: OptRc<ProtocolBody_OptionHopByHop>) -> Self {
         Self::ProtocolBody_OptionHopByHop(v)
@@ -68,6 +89,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<IcmpPacket> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ProtocolBody_Body> for OptRc<IcmpPacket> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<IcmpPacket> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        OptRc::<IcmpPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<IcmpPacket> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<IcmpPacket>> for ProtocolBody_Body {
@@ -84,6 +121,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<Ipv4Packet> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProtocolBody_Body> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        OptRc::<Ipv4Packet>::try_from(self)
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Ipv4Packet>> for ProtocolBody_Body {
     fn from(v: OptRc<Ipv4Packet>) -> Self {
         Self::Ipv4Packet(v)
@@ -96,6 +149,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<Ipv6Packet> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ProtocolBody_Body> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        OptRc::<Ipv6Packet>::try_from(self)
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Ipv6Packet>> for ProtocolBody_Body {
@@ -112,6 +181,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        OptRc::<ProtocolBody_NoNextHeader>::try_from(self)
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ProtocolBody_NoNextHeader>> for ProtocolBody_Body {
     fn from(v: OptRc<ProtocolBody_NoNextHeader>) -> Self {
         Self::ProtocolBody_NoNextHeader(v)
@@ -124,6 +209,22 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<TcpSegment> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ProtocolBody_Body> for OptRc<TcpSegment> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<TcpSegment> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        OptRc::<TcpSegment>::try_from(self)
+    }
+}
+impl DowncastOptRc<TcpSegment> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<TcpSegment>> for ProtocolBody_Body {
@@ -140,9 +241,57 @@ impl TryFrom<&ProtocolBody_Body> for OptRc<UdpDatagram> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ProtocolBody_Body> for OptRc<UdpDatagram> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<UdpDatagram> for ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        OptRc::<UdpDatagram>::try_from(self)
+    }
+}
+impl DowncastOptRc<UdpDatagram> for &ProtocolBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<UdpDatagram>> for ProtocolBody_Body {
     fn from(v: OptRc<UdpDatagram>) -> Self {
         Self::UdpDatagram(v)
+    }
+}
+impl TryFrom<&ProtocolBody> for OptRc<ProtocolBody> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProtocolBody> for OptRc<ProtocolBody> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody> for ProtocolBody {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody> for &ProtocolBody {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody> for OptRc<ProtocolBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProtocolBody> for &OptRc<ProtocolBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for ProtocolBody {
@@ -228,6 +377,12 @@ impl ProtocolBody {
 impl ProtocolBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -700,6 +855,38 @@ pub struct ProtocolBody_NoNextHeader {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ProtocolBody_NoNextHeader> for OptRc<ProtocolBody_NoNextHeader> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_NoNextHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProtocolBody_NoNextHeader> for OptRc<ProtocolBody_NoNextHeader> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_NoNextHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for ProtocolBody_NoNextHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for &ProtocolBody_NoNextHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for OptRc<ProtocolBody_NoNextHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProtocolBody_NoNextHeader> for &OptRc<ProtocolBody_NoNextHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_NoNextHeader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProtocolBody_NoNextHeader {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
@@ -726,6 +913,12 @@ impl ProtocolBody_NoNextHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -739,6 +932,38 @@ pub struct ProtocolBody_OptionHopByHop {
     next_header: RefCell<OptRc<ProtocolBody>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_OptionHopByHop) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
+    type Error = KError;
+    fn try_from(v: &&ProtocolBody_OptionHopByHop) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for ProtocolBody_OptionHopByHop {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &ProtocolBody_OptionHopByHop {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for OptRc<ProtocolBody_OptionHopByHop> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProtocolBody_OptionHopByHop> for &OptRc<ProtocolBody_OptionHopByHop> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProtocolBody_OptionHopByHop>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProtocolBody_OptionHopByHop {
     type Root = ProtocolBody;
@@ -791,6 +1016,12 @@ impl ProtocolBody_OptionHopByHop {
 impl ProtocolBody_OptionHopByHop {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProtocolBody_OptionHopByHop {

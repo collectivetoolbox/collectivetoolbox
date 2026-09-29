@@ -85,7 +85,7 @@ fn test_params_enum() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsEnum> = ParamsEnum::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), ParamsEnum_Animal::Cat);
-    assert_eq!(*r.invoke_with_param().is_cat()?, true);
+    assert_eq!(*(r.one()), ParamsEnum_Animal::Cat);
+    assert_eq!(*(r.invoke_with_param().is_cat()?), true);
     Ok(())
 }

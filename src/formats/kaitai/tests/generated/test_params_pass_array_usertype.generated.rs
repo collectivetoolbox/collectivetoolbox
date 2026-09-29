@@ -86,9 +86,9 @@ fn test_params_pass_array_usertype() -> KResult<()> {
     let r: OptRc<ParamsPassArrayUsertype> = ParamsPassArrayUsertype::read_into(&_io, None, None)?;
 
     assert_eq!(r.pass_blocks().bar().len(), 2);
-    assert_eq!(*r.pass_blocks().bar()[0].foo(), 1);
-    assert_eq!(*r.pass_blocks().bar()[1].foo(), 2);
-    assert_eq!(*r.pass_blocks().one(), vec![3u8]);
-    assert_eq!(*r.pass_blocks().two(), vec![4u8, 5u8]);
+    assert_eq!(*(r.pass_blocks().bar()[0].foo()), 1);
+    assert_eq!(*(r.pass_blocks().bar()[1].foo()), 2);
+    assert_eq!(*(r.pass_blocks().one()), vec![3]);
+    assert_eq!(*(r.pass_blocks().two()), vec![4, 5]);
     Ok(())
 }

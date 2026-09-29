@@ -85,6 +85,6 @@ fn test_opaque_external_type() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<OpaqueExternalType> = OpaqueExternalType::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.hw().one().as_ref().context("Missing optional field")?, 102);
+    assert_eq!(*(r.hw().one()), 102);
     Ok(())
 }

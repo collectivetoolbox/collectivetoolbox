@@ -68,6 +68,38 @@ pub struct StrLiteralsLatin1 {
     f_parsed_eq_literal: Cell<bool>,
     parsed_eq_literal: RefCell<bool>,
 }
+impl TryFrom<&StrLiteralsLatin1> for OptRc<StrLiteralsLatin1> {
+    type Error = KError;
+    fn try_from(v: &StrLiteralsLatin1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrLiteralsLatin1> for OptRc<StrLiteralsLatin1> {
+    type Error = KError;
+    fn try_from(v: &&StrLiteralsLatin1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrLiteralsLatin1> for StrLiteralsLatin1 {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiteralsLatin1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrLiteralsLatin1> for &StrLiteralsLatin1 {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiteralsLatin1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrLiteralsLatin1> for OptRc<StrLiteralsLatin1> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiteralsLatin1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrLiteralsLatin1> for &OptRc<StrLiteralsLatin1> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiteralsLatin1>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrLiteralsLatin1 {
     type Root = StrLiteralsLatin1;
     type Parent = StrLiteralsLatin1;
@@ -117,6 +149,12 @@ impl StrLiteralsLatin1 {
 impl StrLiteralsLatin1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl StrLiteralsLatin1 {

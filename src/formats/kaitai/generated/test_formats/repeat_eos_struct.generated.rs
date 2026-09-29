@@ -64,6 +64,38 @@ pub struct RepeatEosStruct {
     chunks: RefCell<Vec<OptRc<RepeatEosStruct_Chunk>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RepeatEosStruct> for OptRc<RepeatEosStruct> {
+    type Error = KError;
+    fn try_from(v: &RepeatEosStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatEosStruct> for OptRc<RepeatEosStruct> {
+    type Error = KError;
+    fn try_from(v: &&RepeatEosStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct> for RepeatEosStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct> for &RepeatEosStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct> for OptRc<RepeatEosStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatEosStruct> for &OptRc<RepeatEosStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatEosStruct {
     type Root = RepeatEosStruct;
     type Parent = RepeatEosStruct;
@@ -104,6 +136,12 @@ impl RepeatEosStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -114,6 +152,38 @@ pub struct RepeatEosStruct_Chunk {
     offset: RefCell<u32>,
     len: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatEosStruct_Chunk> for OptRc<RepeatEosStruct_Chunk> {
+    type Error = KError;
+    fn try_from(v: &RepeatEosStruct_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatEosStruct_Chunk> for OptRc<RepeatEosStruct_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&RepeatEosStruct_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct_Chunk> for RepeatEosStruct_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct_Chunk> for &RepeatEosStruct_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosStruct_Chunk> for OptRc<RepeatEosStruct_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatEosStruct_Chunk> for &OptRc<RepeatEosStruct_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosStruct_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatEosStruct_Chunk {
     type Root = RepeatEosStruct;
@@ -152,5 +222,11 @@ impl RepeatEosStruct_Chunk {
 impl RepeatEosStruct_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

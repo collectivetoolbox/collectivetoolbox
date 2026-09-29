@@ -86,11 +86,11 @@ fn test_repeat_until_calc_array_type() -> KResult<()> {
     let r: OptRc<RepeatUntilCalcArrayType> = RepeatUntilCalcArrayType::read_into(&_io, None, None)?;
 
     assert_eq!(r.records().len(), 3);
-    assert_eq!(*r.records()[0].marker(), 232);
-    assert_eq!(r.records()[0].body(), 2863311546);
-    assert_eq!(*r.records()[1].marker(), 250);
-    assert_eq!(r.records()[1].body(), 2863315102);
-    assert_eq!(*r.records()[2].marker(), 170);
-    assert_eq!(r.records()[2].body(), 1431655765);
+    assert_eq!(*(r.records()[0].marker()), 232);
+    assert_eq!(*(r.records()[0].body()), 2863311546);
+    assert_eq!(*(r.records()[1].marker()), 250);
+    assert_eq!(*(r.records()[1].body()), 2863315102);
+    assert_eq!(*(r.records()[2].marker()), 170);
+    assert_eq!(*(r.records()[2].body()), 1431655765);
     Ok(())
 }

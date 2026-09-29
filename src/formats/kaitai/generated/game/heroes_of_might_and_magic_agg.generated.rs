@@ -21,6 +21,38 @@ pub struct HeroesOfMightAndMagicAgg {
     f_filenames: Cell<bool>,
     filenames: RefCell<Vec<OptRc<HeroesOfMightAndMagicAgg_Filename>>>,
 }
+impl TryFrom<&HeroesOfMightAndMagicAgg> for OptRc<HeroesOfMightAndMagicAgg> {
+    type Error = KError;
+    fn try_from(v: &HeroesOfMightAndMagicAgg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&HeroesOfMightAndMagicAgg> for OptRc<HeroesOfMightAndMagicAgg> {
+    type Error = KError;
+    fn try_from(v: &&HeroesOfMightAndMagicAgg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg> for HeroesOfMightAndMagicAgg {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg> for &HeroesOfMightAndMagicAgg {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg> for OptRc<HeroesOfMightAndMagicAgg> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg> for &OptRc<HeroesOfMightAndMagicAgg> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for HeroesOfMightAndMagicAgg {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
@@ -88,6 +120,12 @@ impl HeroesOfMightAndMagicAgg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl HeroesOfMightAndMagicAgg {
     pub fn filenames_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
@@ -107,6 +145,38 @@ pub struct HeroesOfMightAndMagicAgg_Entry {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
+    type Error = KError;
+    fn try_from(v: &HeroesOfMightAndMagicAgg_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
+    type Error = KError;
+    fn try_from(v: &&HeroesOfMightAndMagicAgg_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for HeroesOfMightAndMagicAgg_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for &HeroesOfMightAndMagicAgg_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for OptRc<HeroesOfMightAndMagicAgg_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Entry> for &OptRc<HeroesOfMightAndMagicAgg_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Entry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for HeroesOfMightAndMagicAgg_Entry {
     type Root = HeroesOfMightAndMagicAgg;
@@ -173,6 +243,12 @@ impl HeroesOfMightAndMagicAgg_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -182,6 +258,38 @@ pub struct HeroesOfMightAndMagicAgg_Filename {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
+    type Error = KError;
+    fn try_from(v: &HeroesOfMightAndMagicAgg_Filename) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
+    type Error = KError;
+    fn try_from(v: &&HeroesOfMightAndMagicAgg_Filename) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for HeroesOfMightAndMagicAgg_Filename {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for &HeroesOfMightAndMagicAgg_Filename {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for OptRc<HeroesOfMightAndMagicAgg_Filename> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicAgg_Filename> for &OptRc<HeroesOfMightAndMagicAgg_Filename> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicAgg_Filename>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for HeroesOfMightAndMagicAgg_Filename {
     type Root = HeroesOfMightAndMagicAgg;
@@ -214,5 +322,11 @@ impl HeroesOfMightAndMagicAgg_Filename {
 impl HeroesOfMightAndMagicAgg_Filename {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::protocol_body::ProtocolBody;
+use super::protocol_body::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct Ipv6Packet {
@@ -24,6 +25,38 @@ pub struct Ipv6Packet {
     _io: RefCell<BytesReader>,
     src_ipv6_addr_raw: RefCell<Vec<u8>>,
     dst_ipv6_addr_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ipv6Packet> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &Ipv6Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ipv6Packet> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &&Ipv6Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for Ipv6Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for &Ipv6Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for OptRc<Ipv6Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for &OptRc<Ipv6Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ipv6Packet {
     type Root = Ipv6Packet;
@@ -113,6 +146,12 @@ impl Ipv6Packet {
 impl Ipv6Packet {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ipv6Packet {

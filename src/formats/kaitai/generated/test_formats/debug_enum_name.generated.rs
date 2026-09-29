@@ -66,6 +66,38 @@ pub struct DebugEnumName {
     test_type: RefCell<OptRc<DebugEnumName_TestSubtype>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DebugEnumName> for OptRc<DebugEnumName> {
+    type Error = KError;
+    fn try_from(v: &DebugEnumName) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugEnumName> for OptRc<DebugEnumName> {
+    type Error = KError;
+    fn try_from(v: &&DebugEnumName) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName> for DebugEnumName {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName> for &DebugEnumName {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName> for OptRc<DebugEnumName> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugEnumName> for &OptRc<DebugEnumName> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DebugEnumName {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
@@ -114,6 +146,12 @@ impl DebugEnumName {
 impl DebugEnumName {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -186,6 +224,38 @@ pub struct DebugEnumName_TestSubtype {
     f_instance_field: Cell<bool>,
     instance_field: RefCell<DebugEnumName_TestSubtype_InnerEnum2>,
 }
+impl TryFrom<&DebugEnumName_TestSubtype> for OptRc<DebugEnumName_TestSubtype> {
+    type Error = KError;
+    fn try_from(v: &DebugEnumName_TestSubtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugEnumName_TestSubtype> for OptRc<DebugEnumName_TestSubtype> {
+    type Error = KError;
+    fn try_from(v: &&DebugEnumName_TestSubtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName_TestSubtype> for DebugEnumName_TestSubtype {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName_TestSubtype> for &DebugEnumName_TestSubtype {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugEnumName_TestSubtype> for OptRc<DebugEnumName_TestSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugEnumName_TestSubtype> for &OptRc<DebugEnumName_TestSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugEnumName_TestSubtype>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DebugEnumName_TestSubtype {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
@@ -235,6 +305,12 @@ impl DebugEnumName_TestSubtype {
 impl DebugEnumName_TestSubtype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

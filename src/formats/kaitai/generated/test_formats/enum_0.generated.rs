@@ -65,6 +65,38 @@ pub struct Enum0 {
     pet_2: RefCell<Enum0_Animal>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Enum0> for OptRc<Enum0> {
+    type Error = KError;
+    fn try_from(v: &Enum0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Enum0> for OptRc<Enum0> {
+    type Error = KError;
+    fn try_from(v: &&Enum0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Enum0> for Enum0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Enum0> for &Enum0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Enum0> for OptRc<Enum0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Enum0> for &OptRc<Enum0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum0>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Enum0 {
     type Root = Enum0;
     type Parent = Enum0;
@@ -102,6 +134,12 @@ impl Enum0 {
 impl Enum0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

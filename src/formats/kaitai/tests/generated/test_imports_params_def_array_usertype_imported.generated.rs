@@ -86,9 +86,9 @@ fn test_imports_params_def_array_usertype_imported() -> KResult<()> {
     let r: OptRc<ImportsParamsDefArrayUsertypeImported> = ImportsParamsDefArrayUsertypeImported::read_into(&_io, None, None)?;
 
     assert_eq!(r.hws().len(), 2);
-    assert_eq!(*r.hws()[0].one(), 236);
-    assert_eq!(*r.hws()[1].one(), 187);
-    assert_eq!(*r.two().hw0_one(), 236);
-    assert_eq!(*r.two().hw1_one(), 187);
+    assert_eq!(*(r.hws()[0].one()), 236);
+    assert_eq!(*(r.hws()[1].one()), 187);
+    assert_eq!(*(r.two().hw0_one()?), 236);
+    assert_eq!(*(r.two().hw1_one()?), 187);
     Ok(())
 }

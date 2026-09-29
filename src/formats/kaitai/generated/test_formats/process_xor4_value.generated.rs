@@ -67,6 +67,38 @@ pub struct ProcessXor4Value {
     key_raw: RefCell<Vec<u8>>,
     buf_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessXor4Value> for OptRc<ProcessXor4Value> {
+    type Error = KError;
+    fn try_from(v: &ProcessXor4Value) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessXor4Value> for OptRc<ProcessXor4Value> {
+    type Error = KError;
+    fn try_from(v: &&ProcessXor4Value) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessXor4Value> for ProcessXor4Value {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessXor4Value>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessXor4Value> for &ProcessXor4Value {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessXor4Value>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessXor4Value> for OptRc<ProcessXor4Value> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessXor4Value>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessXor4Value> for &OptRc<ProcessXor4Value> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessXor4Value>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessXor4Value {
     type Root = ProcessXor4Value;
     type Parent = ProcessXor4Value;
@@ -104,6 +136,12 @@ impl ProcessXor4Value {
 impl ProcessXor4Value {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProcessXor4Value {

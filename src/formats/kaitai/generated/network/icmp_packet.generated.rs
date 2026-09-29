@@ -16,6 +16,38 @@ pub struct IcmpPacket {
     echo: RefCell<OptRc<IcmpPacket_EchoMsg>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IcmpPacket> for OptRc<IcmpPacket> {
+    type Error = KError;
+    fn try_from(v: &IcmpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IcmpPacket> for OptRc<IcmpPacket> {
+    type Error = KError;
+    fn try_from(v: &&IcmpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket> for IcmpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket> for &IcmpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket> for OptRc<IcmpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IcmpPacket> for &OptRc<IcmpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IcmpPacket {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
@@ -75,6 +107,12 @@ impl IcmpPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum IcmpPacket_IcmpTypeEnum {
@@ -130,6 +168,38 @@ pub struct IcmpPacket_DestinationUnreachableMsg {
     checksum: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
+    type Error = KError;
+    fn try_from(v: &IcmpPacket_DestinationUnreachableMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
+    type Error = KError;
+    fn try_from(v: &&IcmpPacket_DestinationUnreachableMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for IcmpPacket_DestinationUnreachableMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for &IcmpPacket_DestinationUnreachableMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for OptRc<IcmpPacket_DestinationUnreachableMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IcmpPacket_DestinationUnreachableMsg> for &OptRc<IcmpPacket_DestinationUnreachableMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_DestinationUnreachableMsg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IcmpPacket_DestinationUnreachableMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
@@ -167,6 +237,12 @@ impl IcmpPacket_DestinationUnreachableMsg {
 impl IcmpPacket_DestinationUnreachableMsg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -256,6 +332,38 @@ pub struct IcmpPacket_EchoMsg {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IcmpPacket_EchoMsg> for OptRc<IcmpPacket_EchoMsg> {
+    type Error = KError;
+    fn try_from(v: &IcmpPacket_EchoMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IcmpPacket_EchoMsg> for OptRc<IcmpPacket_EchoMsg> {
+    type Error = KError;
+    fn try_from(v: &&IcmpPacket_EchoMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_EchoMsg> for IcmpPacket_EchoMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_EchoMsg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_EchoMsg> for &IcmpPacket_EchoMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_EchoMsg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_EchoMsg> for OptRc<IcmpPacket_EchoMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_EchoMsg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IcmpPacket_EchoMsg> for &OptRc<IcmpPacket_EchoMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_EchoMsg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IcmpPacket_EchoMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
@@ -315,6 +423,12 @@ impl IcmpPacket_EchoMsg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -325,6 +439,38 @@ pub struct IcmpPacket_TimeExceededMsg {
     code: RefCell<IcmpPacket_TimeExceededMsg_TimeExceededCode>,
     checksum: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
+    type Error = KError;
+    fn try_from(v: &IcmpPacket_TimeExceededMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
+    type Error = KError;
+    fn try_from(v: &&IcmpPacket_TimeExceededMsg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for IcmpPacket_TimeExceededMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for &IcmpPacket_TimeExceededMsg {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for OptRc<IcmpPacket_TimeExceededMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IcmpPacket_TimeExceededMsg> for &OptRc<IcmpPacket_TimeExceededMsg> {
+    fn downcast_optrc(&self) -> Result<OptRc<IcmpPacket_TimeExceededMsg>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IcmpPacket_TimeExceededMsg {
     type Root = IcmpPacket;
@@ -363,6 +509,12 @@ impl IcmpPacket_TimeExceededMsg {
 impl IcmpPacket_TimeExceededMsg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

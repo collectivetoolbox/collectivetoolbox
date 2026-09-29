@@ -22,6 +22,38 @@ pub struct AndesFirmware {
     ilm_raw: RefCell<Vec<u8>>,
     dlm_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AndesFirmware> for OptRc<AndesFirmware> {
+    type Error = KError;
+    fn try_from(v: &AndesFirmware) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndesFirmware> for OptRc<AndesFirmware> {
+    type Error = KError;
+    fn try_from(v: &&AndesFirmware) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware> for AndesFirmware {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware> for &AndesFirmware {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware> for OptRc<AndesFirmware> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndesFirmware> for &OptRc<AndesFirmware> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndesFirmware {
     type Root = AndesFirmware;
     type Parent = AndesFirmware;
@@ -70,6 +102,12 @@ impl AndesFirmware {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndesFirmware {
     pub fn image_header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -100,6 +138,38 @@ pub struct AndesFirmware_ImageHeader {
     build_time: RefCell<String>,
     _io: RefCell<BytesReader>,
     build_time_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndesFirmware_ImageHeader> for OptRc<AndesFirmware_ImageHeader> {
+    type Error = KError;
+    fn try_from(v: &AndesFirmware_ImageHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndesFirmware_ImageHeader> for OptRc<AndesFirmware_ImageHeader> {
+    type Error = KError;
+    fn try_from(v: &&AndesFirmware_ImageHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware_ImageHeader> for AndesFirmware_ImageHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware_ImageHeader> for &AndesFirmware_ImageHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndesFirmware_ImageHeader> for OptRc<AndesFirmware_ImageHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndesFirmware_ImageHeader> for &OptRc<AndesFirmware_ImageHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndesFirmware_ImageHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndesFirmware_ImageHeader {
     type Root = AndesFirmware;
@@ -162,6 +232,12 @@ impl AndesFirmware_ImageHeader {
 impl AndesFirmware_ImageHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AndesFirmware_ImageHeader {

@@ -85,10 +85,10 @@ fn test_switch_integers2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<SwitchIntegers2> = SwitchIntegers2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.code(), 1);
-    assert_eq!(*r.len(), 7);
-    assert_eq!(*r.ham(), vec![0x02u8, 0x40u8, 0x40u8, 0x04u8, 0x37u8, 0x13u8, 0x00u8]);
-    assert_eq!(*r.padding(), 0);
-    assert_eq!(*r.len_mod_str()?, "13");
+    assert_eq!(*(r.code()), 1);
+    assert_eq!(r.len(), 7);
+    assert_eq!(*(r.ham()), vec![0x02, 0x40, 0x40, 0x04, 0x37, 0x13, 0x00]);
+    assert_eq!(*(r.padding()), 0);
+    assert_eq!(*(r.len_mod_str()?), "13");
     Ok(())
 }

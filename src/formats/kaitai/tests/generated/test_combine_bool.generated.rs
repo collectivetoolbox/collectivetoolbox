@@ -85,7 +85,7 @@ fn test_combine_bool() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CombineBool> = CombineBool::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.bool_bit(), true);
-    assert_eq!(*r.bool_calc_bit()?, false);
+    assert_eq!(*(r.bool_bit()), true);
+    assert_eq!(*(r.bool_calc_bit()?), false);
     Ok(())
 }

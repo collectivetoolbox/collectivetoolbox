@@ -85,7 +85,7 @@ fn test_repeat_n_strz() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<RepeatNStrz> = RepeatNStrz::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.qty(), 2);
-    assert_eq!(*r.lines(), vec!["foo", "bar"]);
+    assert_eq!(*(r.qty()), 2);
+    assert_eq!(*(r.lines()), vec!["foo", "bar"]);
     Ok(())
 }

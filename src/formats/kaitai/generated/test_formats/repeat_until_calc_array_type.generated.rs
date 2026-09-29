@@ -69,6 +69,38 @@ pub struct RepeatUntilCalcArrayType {
     f_recs_accessor: Cell<bool>,
     recs_accessor: RefCell<Vec<OptRc<RepeatUntilCalcArrayType_Record>>>,
 }
+impl TryFrom<&RepeatUntilCalcArrayType> for OptRc<RepeatUntilCalcArrayType> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilCalcArrayType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilCalcArrayType> for OptRc<RepeatUntilCalcArrayType> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilCalcArrayType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType> for RepeatUntilCalcArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType> for &RepeatUntilCalcArrayType {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType> for OptRc<RepeatUntilCalcArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType> for &OptRc<RepeatUntilCalcArrayType> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatUntilCalcArrayType {
     type Root = RepeatUntilCalcArrayType;
     type Parent = RepeatUntilCalcArrayType;
@@ -137,6 +169,12 @@ impl RepeatUntilCalcArrayType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RepeatUntilCalcArrayType {
     pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -152,6 +190,38 @@ pub struct RepeatUntilCalcArrayType_Record {
     marker: RefCell<u8>,
     body: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilCalcArrayType_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilCalcArrayType_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for RepeatUntilCalcArrayType_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for &RepeatUntilCalcArrayType_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for OptRc<RepeatUntilCalcArrayType_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilCalcArrayType_Record> for &OptRc<RepeatUntilCalcArrayType_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilCalcArrayType_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatUntilCalcArrayType_Record {
     type Root = RepeatUntilCalcArrayType;
@@ -190,5 +260,11 @@ impl RepeatUntilCalcArrayType_Record {
 impl RepeatUntilCalcArrayType_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

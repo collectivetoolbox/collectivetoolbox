@@ -67,6 +67,38 @@ pub struct NavParentRecursive {
     f_parent_value: Cell<bool>,
     parent_value: RefCell<u8>,
 }
+impl TryFrom<&NavParentRecursive> for OptRc<NavParentRecursive> {
+    type Error = KError;
+    fn try_from(v: &NavParentRecursive) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentRecursive> for OptRc<NavParentRecursive> {
+    type Error = KError;
+    fn try_from(v: &&NavParentRecursive) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentRecursive> for NavParentRecursive {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentRecursive>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentRecursive> for &NavParentRecursive {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentRecursive>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentRecursive> for OptRc<NavParentRecursive> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentRecursive>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentRecursive> for &OptRc<NavParentRecursive> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentRecursive>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParentRecursive {
     type Root = NavParentRecursive;
     type Parent = NavParentRecursive;
@@ -103,7 +135,7 @@ impl NavParentRecursive {
         }
         self.f_parent_value.set(true);
         if ((to_i128(*self.value())) != (to_i128(255))) {
-            *self.parent_value.borrow_mut() = (*OptRc::<NavParentRecursive>::try_from(&self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?)?.value()).try_into()?;
+            *self.parent_value.borrow_mut() = (*OptRc::<NavParentRecursive>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?))?.value()).try_into()?;
         }
         Ok(self.parent_value.borrow())
     }
@@ -121,5 +153,11 @@ impl NavParentRecursive {
 impl NavParentRecursive {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

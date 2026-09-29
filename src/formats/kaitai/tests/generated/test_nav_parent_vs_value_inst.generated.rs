@@ -85,6 +85,6 @@ fn test_nav_parent_vs_value_inst() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentVsValueInst> = NavParentVsValueInst::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1(), "foo");
+    assert_eq!(*(r.s1()), "foo");
     Ok(())
 }

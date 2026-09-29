@@ -31,6 +31,38 @@ pub struct GenmidiOp2 {
     _io: RefCell<BytesReader>,
     instrument_names_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&GenmidiOp2> for OptRc<GenmidiOp2> {
+    type Error = KError;
+    fn try_from(v: &GenmidiOp2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GenmidiOp2> for OptRc<GenmidiOp2> {
+    type Error = KError;
+    fn try_from(v: &&GenmidiOp2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2> for GenmidiOp2 {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2> for &GenmidiOp2 {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2> for OptRc<GenmidiOp2> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GenmidiOp2> for &OptRc<GenmidiOp2> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GenmidiOp2 {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2;
@@ -87,6 +119,12 @@ impl GenmidiOp2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl GenmidiOp2 {
     pub fn instrument_names_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -105,6 +143,38 @@ pub struct GenmidiOp2_Instrument {
     unused: RefCell<u8>,
     base_note: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GenmidiOp2_Instrument> for OptRc<GenmidiOp2_Instrument> {
+    type Error = KError;
+    fn try_from(v: &GenmidiOp2_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GenmidiOp2_Instrument> for OptRc<GenmidiOp2_Instrument> {
+    type Error = KError;
+    fn try_from(v: &&GenmidiOp2_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_Instrument> for GenmidiOp2_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_Instrument>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_Instrument> for &GenmidiOp2_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_Instrument>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_Instrument> for OptRc<GenmidiOp2_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_Instrument>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GenmidiOp2_Instrument> for &OptRc<GenmidiOp2_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_Instrument>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GenmidiOp2_Instrument {
     type Root = GenmidiOp2;
@@ -172,6 +242,12 @@ impl GenmidiOp2_Instrument {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -184,6 +260,38 @@ pub struct GenmidiOp2_InstrumentEntry {
     note: RefCell<u8>,
     instruments: RefCell<Vec<OptRc<GenmidiOp2_Instrument>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GenmidiOp2_InstrumentEntry> for OptRc<GenmidiOp2_InstrumentEntry> {
+    type Error = KError;
+    fn try_from(v: &GenmidiOp2_InstrumentEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GenmidiOp2_InstrumentEntry> for OptRc<GenmidiOp2_InstrumentEntry> {
+    type Error = KError;
+    fn try_from(v: &&GenmidiOp2_InstrumentEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_InstrumentEntry> for GenmidiOp2_InstrumentEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_InstrumentEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_InstrumentEntry> for &GenmidiOp2_InstrumentEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_InstrumentEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_InstrumentEntry> for OptRc<GenmidiOp2_InstrumentEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_InstrumentEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GenmidiOp2_InstrumentEntry> for &OptRc<GenmidiOp2_InstrumentEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_InstrumentEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GenmidiOp2_InstrumentEntry {
     type Root = GenmidiOp2;
@@ -244,6 +352,12 @@ impl GenmidiOp2_InstrumentEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -262,6 +376,38 @@ pub struct GenmidiOp2_OpSettings {
     scale: RefCell<u8>,
     level: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GenmidiOp2_OpSettings> for OptRc<GenmidiOp2_OpSettings> {
+    type Error = KError;
+    fn try_from(v: &GenmidiOp2_OpSettings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GenmidiOp2_OpSettings> for OptRc<GenmidiOp2_OpSettings> {
+    type Error = KError;
+    fn try_from(v: &&GenmidiOp2_OpSettings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_OpSettings> for GenmidiOp2_OpSettings {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_OpSettings>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_OpSettings> for &GenmidiOp2_OpSettings {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_OpSettings>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GenmidiOp2_OpSettings> for OptRc<GenmidiOp2_OpSettings> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_OpSettings>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GenmidiOp2_OpSettings> for &OptRc<GenmidiOp2_OpSettings> {
+    fn downcast_optrc(&self) -> Result<OptRc<GenmidiOp2_OpSettings>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GenmidiOp2_OpSettings {
     type Root = GenmidiOp2;
@@ -348,5 +494,11 @@ impl GenmidiOp2_OpSettings {
 impl GenmidiOp2_OpSettings {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

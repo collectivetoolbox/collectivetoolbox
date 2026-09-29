@@ -65,6 +65,38 @@ pub struct ParamsCall {
     buf2: RefCell<OptRc<ParamsCall_MyStr2>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ParamsCall> for OptRc<ParamsCall> {
+    type Error = KError;
+    fn try_from(v: &ParamsCall) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsCall> for OptRc<ParamsCall> {
+    type Error = KError;
+    fn try_from(v: &&ParamsCall) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall> for ParamsCall {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall> for &ParamsCall {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall> for OptRc<ParamsCall> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsCall> for &OptRc<ParamsCall> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsCall {
     type Root = ParamsCall;
     type Parent = ParamsCall;
@@ -107,6 +139,12 @@ impl ParamsCall {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -118,6 +156,38 @@ pub struct ParamsCall_MyStr1 {
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ParamsCall_MyStr1> for OptRc<ParamsCall_MyStr1> {
+    type Error = KError;
+    fn try_from(v: &ParamsCall_MyStr1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsCall_MyStr1> for OptRc<ParamsCall_MyStr1> {
+    type Error = KError;
+    fn try_from(v: &&ParamsCall_MyStr1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr1> for ParamsCall_MyStr1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr1> for &ParamsCall_MyStr1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr1> for OptRc<ParamsCall_MyStr1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr1> for &OptRc<ParamsCall_MyStr1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsCall_MyStr1 {
     type Root = ParamsCall;
@@ -161,6 +231,12 @@ impl ParamsCall_MyStr1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ParamsCall_MyStr1 {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -179,6 +255,38 @@ pub struct ParamsCall_MyStr2 {
     trailer: RefCell<u8>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ParamsCall_MyStr2> for OptRc<ParamsCall_MyStr2> {
+    type Error = KError;
+    fn try_from(v: &ParamsCall_MyStr2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsCall_MyStr2> for OptRc<ParamsCall_MyStr2> {
+    type Error = KError;
+    fn try_from(v: &&ParamsCall_MyStr2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr2> for ParamsCall_MyStr2 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr2> for &ParamsCall_MyStr2 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr2> for OptRc<ParamsCall_MyStr2> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsCall_MyStr2> for &OptRc<ParamsCall_MyStr2> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCall_MyStr2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsCall_MyStr2 {
     type Root = ParamsCall;
@@ -235,6 +343,12 @@ impl ParamsCall_MyStr2 {
 impl ParamsCall_MyStr2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ParamsCall_MyStr2 {

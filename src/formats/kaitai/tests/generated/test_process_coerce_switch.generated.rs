@@ -85,8 +85,8 @@ fn test_process_coerce_switch() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessCoerceSwitch> = ProcessCoerceSwitch::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf_type(), 0);
-    assert_eq!(*r.flag(), 0);
-    assert_eq!(*r.buf()?.as_ref().context("Missing optional field")?.bar(), vec![0x41u8, 0x41u8, 0x41u8, 0x41u8]);
+    assert_eq!(*(r.buf_type()), 0);
+    assert_eq!(*(r.flag()), 0);
+    assert_eq!(*(kaitai::DowncastOptRc::<ProcessCoerceSwitch_Foo>::downcast_optrc(&r.buf()?)?.bar()), vec![0x41, 0x41, 0x41, 0x41]);
     Ok(())
 }

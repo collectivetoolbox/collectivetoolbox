@@ -55,7 +55,6 @@ SOFTWARE.
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::r#struct::Struct;
 
 #[derive(Default, Debug, Clone)]
 pub struct ExprIoTernary {
@@ -69,7 +68,7 @@ pub struct ExprIoTernary {
     obj1_raw: RefCell<Vec<u8>>,
     obj2_raw: RefCell<Vec<u8>>,
     f_one_or_two_io: Cell<bool>,
-    one_or_two_io: RefCell<i32>,
+    one_or_two_io: RefCell<BytesReader>,
     f_one_or_two_io_size1: Cell<bool>,
     one_or_two_io_size1: RefCell<i32>,
     f_one_or_two_io_size2: Cell<bool>,
@@ -78,6 +77,38 @@ pub struct ExprIoTernary {
     one_or_two_io_size_add_3: RefCell<i32>,
     f_one_or_two_obj: Cell<bool>,
     one_or_two_obj: RefCell<OptRc<Struct>>,
+}
+impl TryFrom<&ExprIoTernary> for OptRc<ExprIoTernary> {
+    type Error = KError;
+    fn try_from(v: &ExprIoTernary) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoTernary> for OptRc<ExprIoTernary> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoTernary) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary> for ExprIoTernary {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary> for &ExprIoTernary {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary> for OptRc<ExprIoTernary> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoTernary> for &OptRc<ExprIoTernary> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprIoTernary {
     type Root = ExprIoTernary;
@@ -114,13 +145,13 @@ impl ExprIoTernary {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_or_two_io(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, BytesReader>> {
         let _io = self._io.borrow();
         if self.f_one_or_two_io.get() {
             return Ok(self.one_or_two_io.borrow());
         }
         self.f_one_or_two_io.set(true);
-        *self.one_or_two_io.borrow_mut() = (if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io()).try_into()?;
+        *self.one_or_two_io.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) };
         Ok(self.one_or_two_io.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -132,7 +163,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io_size1.borrow());
         }
         self.f_one_or_two_io_size1.set(true);
-        *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io().size())?)).try_into()?;
+        *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).try_into()?;
         Ok(self.one_or_two_io_size1.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -144,7 +175,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io_size2.borrow());
         }
         self.f_one_or_two_io_size2.set(true);
-        *self.one_or_two_io_size2.borrow_mut() = (*self.one_or_two_io()?.size()).try_into()?;
+        *self.one_or_two_io_size2.borrow_mut() = ((i64::try_from(self.one_or_two_io()?.size())?)).try_into()?;
         Ok(self.one_or_two_io_size2.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -156,7 +187,7 @@ impl ExprIoTernary {
             return Ok(self.one_or_two_io_size_add_3.borrow());
         }
         self.f_one_or_two_io_size_add_3.set(true);
-        *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io().size())?)).saturating_add(3_i64)).try_into()?;
+        *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { Clone::clone(&*(self.obj1()._io())) } else { Clone::clone(&*(self.obj2()._io())) }.size())?)).saturating_add(3_i64)).try_into()?;
         Ok(self.one_or_two_io_size_add_3.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -167,7 +198,7 @@ impl ExprIoTernary {
         if self.f_one_or_two_obj.get() {
             return Ok(self.one_or_two_obj.borrow());
         }
-        *self.one_or_two_obj.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }.clone();
+        *self.one_or_two_obj.borrow_mut() = if ((to_i128(*self.flag())) == (to_i128(64))) { Struct::from_opt_rc(&(self.obj1())) } else { Struct::from_opt_rc(&(self.obj2())) }.clone();
         Ok(self.one_or_two_obj.borrow())
     }
 }
@@ -190,6 +221,12 @@ impl ExprIoTernary {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ExprIoTernary {
     pub fn obj1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -209,6 +246,38 @@ pub struct ExprIoTernary_One {
     pub(crate) _self_shared: SharedType<Self>,
     one: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ExprIoTernary_One> for OptRc<ExprIoTernary_One> {
+    type Error = KError;
+    fn try_from(v: &ExprIoTernary_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoTernary_One> for OptRc<ExprIoTernary_One> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoTernary_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_One> for ExprIoTernary_One {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_One>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_One> for &ExprIoTernary_One {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_One>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_One> for OptRc<ExprIoTernary_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_One>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoTernary_One> for &OptRc<ExprIoTernary_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_One>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprIoTernary_One {
     type Root = ExprIoTernary;
@@ -242,6 +311,12 @@ impl ExprIoTernary_One {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -251,6 +326,38 @@ pub struct ExprIoTernary_Two {
     pub(crate) _self_shared: SharedType<Self>,
     two: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ExprIoTernary_Two> for OptRc<ExprIoTernary_Two> {
+    type Error = KError;
+    fn try_from(v: &ExprIoTernary_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoTernary_Two> for OptRc<ExprIoTernary_Two> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoTernary_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_Two> for ExprIoTernary_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_Two>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_Two> for &ExprIoTernary_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_Two>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoTernary_Two> for OptRc<ExprIoTernary_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_Two>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoTernary_Two> for &OptRc<ExprIoTernary_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoTernary_Two>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprIoTernary_Two {
     type Root = ExprIoTernary;
@@ -283,5 +390,11 @@ impl ExprIoTernary_Two {
 impl ExprIoTernary_Two {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

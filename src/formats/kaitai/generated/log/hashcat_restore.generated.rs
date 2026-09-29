@@ -28,6 +28,38 @@ pub struct HashcatRestore {
     padding_raw: RefCell<Vec<u8>>,
     padding2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&HashcatRestore> for OptRc<HashcatRestore> {
+    type Error = KError;
+    fn try_from(v: &HashcatRestore) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&HashcatRestore> for OptRc<HashcatRestore> {
+    type Error = KError;
+    fn try_from(v: &&HashcatRestore) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<HashcatRestore> for HashcatRestore {
+    fn downcast_optrc(&self) -> Result<OptRc<HashcatRestore>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<HashcatRestore> for &HashcatRestore {
+    fn downcast_optrc(&self) -> Result<OptRc<HashcatRestore>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<HashcatRestore> for OptRc<HashcatRestore> {
+    fn downcast_optrc(&self) -> Result<OptRc<HashcatRestore>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<HashcatRestore> for &OptRc<HashcatRestore> {
+    fn downcast_optrc(&self) -> Result<OptRc<HashcatRestore>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for HashcatRestore {
     type Root = HashcatRestore;
     type Parent = HashcatRestore;
@@ -111,6 +143,12 @@ impl HashcatRestore {
 impl HashcatRestore {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl HashcatRestore {

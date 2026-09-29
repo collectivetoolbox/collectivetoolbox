@@ -49,6 +49,38 @@ pub struct DosDatetime {
     date: RefCell<OptRc<DosDatetime_Date>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DosDatetime> for OptRc<DosDatetime> {
+    type Error = KError;
+    fn try_from(v: &DosDatetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosDatetime> for OptRc<DosDatetime> {
+    type Error = KError;
+    fn try_from(v: &&DosDatetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime> for DosDatetime {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime> for &DosDatetime {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime> for OptRc<DosDatetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosDatetime> for &OptRc<DosDatetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DosDatetime {
     type Root = DosDatetime;
     type Parent = DosDatetime;
@@ -89,6 +121,12 @@ impl DosDatetime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -108,6 +146,38 @@ pub struct DosDatetime_Date {
     padded_year: RefCell<String>,
     f_year: Cell<bool>,
     year: RefCell<i32>,
+}
+impl TryFrom<&DosDatetime_Date> for OptRc<DosDatetime_Date> {
+    type Error = KError;
+    fn try_from(v: &DosDatetime_Date) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosDatetime_Date> for OptRc<DosDatetime_Date> {
+    type Error = KError;
+    fn try_from(v: &&DosDatetime_Date) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Date> for DosDatetime_Date {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Date>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Date> for &DosDatetime_Date {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Date>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Date> for OptRc<DosDatetime_Date> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Date>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosDatetime_Date> for &OptRc<DosDatetime_Date> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Date>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DosDatetime_Date {
     type Root = DosDatetime;
@@ -217,6 +287,12 @@ impl DosDatetime_Date {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -236,6 +312,38 @@ pub struct DosDatetime_Time {
     padded_second: RefCell<String>,
     f_second: Cell<bool>,
     second: RefCell<i32>,
+}
+impl TryFrom<&DosDatetime_Time> for OptRc<DosDatetime_Time> {
+    type Error = KError;
+    fn try_from(v: &DosDatetime_Time) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosDatetime_Time> for OptRc<DosDatetime_Time> {
+    type Error = KError;
+    fn try_from(v: &&DosDatetime_Time) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Time> for DosDatetime_Time {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Time>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Time> for &DosDatetime_Time {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Time>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosDatetime_Time> for OptRc<DosDatetime_Time> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Time>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosDatetime_Time> for &OptRc<DosDatetime_Time> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosDatetime_Time>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DosDatetime_Time {
     type Root = DosDatetime;
@@ -340,5 +448,11 @@ impl DosDatetime_Time {
 impl DosDatetime_Time {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

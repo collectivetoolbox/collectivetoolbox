@@ -71,6 +71,38 @@ pub struct StrEosPadTermEmpty {
     str_term_and_pad_raw: RefCell<Vec<u8>>,
     str_term_include_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&StrEosPadTermEmpty> for OptRc<StrEosPadTermEmpty> {
+    type Error = KError;
+    fn try_from(v: &StrEosPadTermEmpty) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEosPadTermEmpty> for OptRc<StrEosPadTermEmpty> {
+    type Error = KError;
+    fn try_from(v: &&StrEosPadTermEmpty) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty> for StrEosPadTermEmpty {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty> for &StrEosPadTermEmpty {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty> for OptRc<StrEosPadTermEmpty> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty> for &OptRc<StrEosPadTermEmpty> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrEosPadTermEmpty {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
@@ -137,6 +169,12 @@ impl StrEosPadTermEmpty {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl StrEosPadTermEmpty {
     pub fn str_pad_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -166,6 +204,38 @@ pub struct StrEosPadTermEmpty_StrPadType {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
+    type Error = KError;
+    fn try_from(v: &StrEosPadTermEmpty_StrPadType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
+    type Error = KError;
+    fn try_from(v: &&StrEosPadTermEmpty_StrPadType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for StrEosPadTermEmpty_StrPadType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for &StrEosPadTermEmpty_StrPadType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for OptRc<StrEosPadTermEmpty_StrPadType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrPadType> for &OptRc<StrEosPadTermEmpty_StrPadType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrPadType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEosPadTermEmpty_StrPadType {
     type Root = StrEosPadTermEmpty;
@@ -199,6 +269,12 @@ impl StrEosPadTermEmpty_StrPadType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -208,6 +284,38 @@ pub struct StrEosPadTermEmpty_StrTermAndPadType {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+    type Error = KError;
+    fn try_from(v: &StrEosPadTermEmpty_StrTermAndPadType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+    type Error = KError;
+    fn try_from(v: &&StrEosPadTermEmpty_StrTermAndPadType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for StrEosPadTermEmpty_StrTermAndPadType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for &StrEosPadTermEmpty_StrTermAndPadType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermAndPadType> for &OptRc<StrEosPadTermEmpty_StrTermAndPadType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermAndPadType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEosPadTermEmpty_StrTermAndPadType {
     type Root = StrEosPadTermEmpty;
@@ -241,6 +349,12 @@ impl StrEosPadTermEmpty_StrTermAndPadType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -250,6 +364,38 @@ pub struct StrEosPadTermEmpty_StrTermIncludeType {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+    type Error = KError;
+    fn try_from(v: &StrEosPadTermEmpty_StrTermIncludeType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+    type Error = KError;
+    fn try_from(v: &&StrEosPadTermEmpty_StrTermIncludeType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for StrEosPadTermEmpty_StrTermIncludeType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for &StrEosPadTermEmpty_StrTermIncludeType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermIncludeType> for &OptRc<StrEosPadTermEmpty_StrTermIncludeType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermIncludeType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEosPadTermEmpty_StrTermIncludeType {
     type Root = StrEosPadTermEmpty;
@@ -283,6 +429,12 @@ impl StrEosPadTermEmpty_StrTermIncludeType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -292,6 +444,38 @@ pub struct StrEosPadTermEmpty_StrTermType {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
+    type Error = KError;
+    fn try_from(v: &StrEosPadTermEmpty_StrTermType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
+    type Error = KError;
+    fn try_from(v: &&StrEosPadTermEmpty_StrTermType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for StrEosPadTermEmpty_StrTermType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for &StrEosPadTermEmpty_StrTermType {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for OptRc<StrEosPadTermEmpty_StrTermType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEosPadTermEmpty_StrTermType> for &OptRc<StrEosPadTermEmpty_StrTermType> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEosPadTermEmpty_StrTermType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEosPadTermEmpty_StrTermType {
     type Root = StrEosPadTermEmpty;
@@ -324,5 +508,11 @@ impl StrEosPadTermEmpty_StrTermType {
 impl StrEosPadTermEmpty_StrTermType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

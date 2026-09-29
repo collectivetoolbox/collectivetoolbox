@@ -20,6 +20,38 @@ pub struct Code6502 {
     operations: RefCell<Vec<OptRc<Code6502_Operation>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Code6502> for OptRc<Code6502> {
+    type Error = KError;
+    fn try_from(v: &Code6502) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Code6502> for OptRc<Code6502> {
+    type Error = KError;
+    fn try_from(v: &&Code6502) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Code6502> for Code6502 {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Code6502> for &Code6502 {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Code6502> for OptRc<Code6502> {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Code6502> for &OptRc<Code6502> {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Code6502 {
     type Root = Code6502;
     type Parent = Code6502;
@@ -59,6 +91,12 @@ impl Code6502 {
 impl Code6502 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -637,6 +675,38 @@ impl TryFrom<&Code6502_Operation_Args> for usize {
     }
 }
 
+impl TryFrom<&Code6502_Operation> for OptRc<Code6502_Operation> {
+    type Error = KError;
+    fn try_from(v: &Code6502_Operation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Code6502_Operation> for OptRc<Code6502_Operation> {
+    type Error = KError;
+    fn try_from(v: &&Code6502_Operation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Code6502_Operation> for Code6502_Operation {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502_Operation>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Code6502_Operation> for &Code6502_Operation {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502_Operation>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Code6502_Operation> for OptRc<Code6502_Operation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502_Operation>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Code6502_Operation> for &OptRc<Code6502_Operation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Code6502_Operation>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Code6502_Operation {
     type Root = Code6502;
     type Parent = Code6502;
@@ -1046,5 +1116,11 @@ impl Code6502_Operation {
 impl Code6502_Operation {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

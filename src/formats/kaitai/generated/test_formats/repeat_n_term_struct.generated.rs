@@ -69,6 +69,38 @@ pub struct RepeatNTermStruct {
     records2_raw: RefCell<Vec<u8>>,
     records3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&RepeatNTermStruct> for OptRc<RepeatNTermStruct> {
+    type Error = KError;
+    fn try_from(v: &RepeatNTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatNTermStruct> for OptRc<RepeatNTermStruct> {
+    type Error = KError;
+    fn try_from(v: &&RepeatNTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct> for RepeatNTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct> for &RepeatNTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct> for OptRc<RepeatNTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct> for &OptRc<RepeatNTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatNTermStruct {
     type Root = RepeatNTermStruct;
     type Parent = RepeatNTermStruct;
@@ -134,6 +166,12 @@ impl RepeatNTermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RepeatNTermStruct {
     pub fn records1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -158,6 +196,38 @@ pub struct RepeatNTermStruct_BytesWrapper {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &RepeatNTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &&RepeatNTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for RepeatNTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for &RepeatNTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for OptRc<RepeatNTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatNTermStruct_BytesWrapper> for &OptRc<RepeatNTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNTermStruct_BytesWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatNTermStruct_BytesWrapper {
     type Root = RepeatNTermStruct;
@@ -190,5 +260,11 @@ impl RepeatNTermStruct_BytesWrapper {
 impl RepeatNTermStruct_BytesWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

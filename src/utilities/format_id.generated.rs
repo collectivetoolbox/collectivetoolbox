@@ -1327,6 +1327,16 @@ pub enum FormatId {
     Freeze2,
     /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman) (Short 622, Category: compression)
     Freeze1,
+    /// szip (Michael Schindler) (Short 623, Category: compression)
+    Szip,
+    /// szip (Michael Schindler) version 1.00 to 1.04 (Short 624, Category: compression)
+    Szip100,
+    /// szip (Michael Schindler) version 1.05X (Short 625, Category: compression)
+    Szip105,
+    /// szip (Michael Schindler) version 1.10 (alpha) (Short 626, Category: compression)
+    Szip110,
+    /// szip (Michael Schindler) version 1.11+ (Short 627, Category: compression)
+    Szip111,
 }
 
 impl FormatId {
@@ -1429,7 +1439,12 @@ impl FormatId {
             | Self::Lzma
             | Self::Lzma2
             | Self::Freeze2
-            | Self::Freeze1 => FormatCategory::Compression,
+            | Self::Freeze1
+            | Self::Szip
+            | Self::Szip100
+            | Self::Szip105
+            | Self::Szip110
+            | Self::Szip111 => FormatCategory::Compression,
             Self::Tar
             | Self::Zip
             | Self::CtbAssetBundle
@@ -2589,6 +2604,11 @@ impl FormatId {
             "paddingfit" | "padding_fit" => Some(Self::PaddingFit),
             "freeze2" | "freeze" | "melt" => Some(Self::Freeze2),
             "freeze1" | "freeze-1" | "melt1" => Some(Self::Freeze1),
+            "szip" => Some(Self::Szip),
+            "szip100" => Some(Self::Szip100),
+            "szip105" => Some(Self::Szip105),
+            "szip110" => Some(Self::Szip110),
+            "szip111" => Some(Self::Szip111),
             _ => None,
         }
     }
@@ -3220,6 +3240,11 @@ impl FormatId {
             Self::PaddingFit => "PaddingFit",
             Self::Freeze2 => "Freeze2",
             Self::Freeze1 => "Freeze1",
+            Self::Szip => "Szip",
+            Self::Szip100 => "Szip100",
+            Self::Szip105 => "Szip105",
+            Self::Szip110 => "Szip110",
+            Self::Szip111 => "Szip111",
         }
     }
 
@@ -4028,6 +4053,11 @@ impl FormatId {
             Self::PaddingFit => "f620",
             Self::Freeze2 => "f621",
             Self::Freeze1 => "f622",
+            Self::Szip => "f623",
+            Self::Szip100 => "f624",
+            Self::Szip105 => "f625",
+            Self::Szip110 => "f626",
+            Self::Szip111 => "f627",
         }
     }
 
@@ -4659,6 +4689,11 @@ impl FormatId {
             "f620" => Some(Self::PaddingFit),
             "f621" => Some(Self::Freeze2),
             "f622" => Some(Self::Freeze1),
+            "f623" => Some(Self::Szip),
+            "f624" => Some(Self::Szip100),
+            "f625" => Some(Self::Szip105),
+            "f626" => Some(Self::Szip110),
+            "f627" => Some(Self::Szip111),
             _ => None,
         }
     }
@@ -5290,6 +5325,11 @@ impl FormatId {
             Self::PaddingFit => Some(2228844_u128),
             Self::Freeze2 => Some(2228845_u128),
             Self::Freeze1 => Some(2228846_u128),
+            Self::Szip => Some(2228847_u128),
+            Self::Szip100 => Some(2228848_u128),
+            Self::Szip105 => Some(2228849_u128),
+            Self::Szip110 => Some(2228850_u128),
+            Self::Szip111 => Some(2228851_u128),
         }
     }
 
@@ -5933,6 +5973,11 @@ impl FormatId {
             2228844_u128 => Some(Self::PaddingFit),
             2228845_u128 => Some(Self::Freeze2),
             2228846_u128 => Some(Self::Freeze1),
+            2228847_u128 => Some(Self::Szip),
+            2228848_u128 => Some(Self::Szip100),
+            2228849_u128 => Some(Self::Szip105),
+            2228850_u128 => Some(Self::Szip110),
+            2228851_u128 => Some(Self::Szip111),
             _ => None,
         }
     }
@@ -7184,3 +7229,13 @@ pub const DC_PADDING_FIT: DcChar = DcChar::from_format(620);
 pub const DC_FREEZE2: DcChar = DcChar::from_format(621);
 /// DcChar constant for Format `Freeze1` (Short f622, Category: compression): freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
 pub const DC_FREEZE1: DcChar = DcChar::from_format(622);
+/// DcChar constant for Format `Szip` (Short f623, Category: compression): szip (Michael Schindler)
+pub const DC_SZIP: DcChar = DcChar::from_format(623);
+/// DcChar constant for Format `Szip100` (Short f624, Category: compression): szip (Michael Schindler) version 1.00 to 1.04
+pub const DC_SZIP100: DcChar = DcChar::from_format(624);
+/// DcChar constant for Format `Szip105` (Short f625, Category: compression): szip (Michael Schindler) version 1.05X
+pub const DC_SZIP105: DcChar = DcChar::from_format(625);
+/// DcChar constant for Format `Szip110` (Short f626, Category: compression): szip (Michael Schindler) version 1.10 (alpha)
+pub const DC_SZIP110: DcChar = DcChar::from_format(626);
+/// DcChar constant for Format `Szip111` (Short f627, Category: compression): szip (Michael Schindler) version 1.11+
+pub const DC_SZIP111: DcChar = DcChar::from_format(627);

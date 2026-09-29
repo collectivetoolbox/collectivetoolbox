@@ -85,11 +85,11 @@ fn test_expr_mod() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprMod> = ExprMod::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.int_u(), 1262698832);
-    assert_eq!(*r.int_s(), -52947);
-    assert_eq!(*r.mod_pos_const()?, 9);
-    assert_eq!(*r.mod_neg_const()?, 4);
-    assert_eq!(*r.mod_pos_seq()?, 5);
-    assert_eq!(*r.mod_neg_seq()?, 2);
+    assert_eq!(*(r.int_u()), 1262698832);
+    assert_eq!(*(r.int_s()), -52947);
+    assert_eq!(*(r.mod_pos_const()?), 9);
+    assert_eq!(*(r.mod_neg_const()?), 4);
+    assert_eq!(*(r.mod_pos_seq()?), 5);
+    assert_eq!(*(r.mod_neg_seq()?), 2);
     Ok(())
 }

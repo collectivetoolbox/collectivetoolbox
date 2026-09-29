@@ -66,6 +66,38 @@ pub struct BitsUnalignedB64Be {
     c: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&BitsUnalignedB64Be> for OptRc<BitsUnalignedB64Be> {
+    type Error = KError;
+    fn try_from(v: &BitsUnalignedB64Be) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsUnalignedB64Be> for OptRc<BitsUnalignedB64Be> {
+    type Error = KError;
+    fn try_from(v: &&BitsUnalignedB64Be) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsUnalignedB64Be> for BitsUnalignedB64Be {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsUnalignedB64Be>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsUnalignedB64Be> for &BitsUnalignedB64Be {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsUnalignedB64Be>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsUnalignedB64Be> for OptRc<BitsUnalignedB64Be> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsUnalignedB64Be>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsUnalignedB64Be> for &OptRc<BitsUnalignedB64Be> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsUnalignedB64Be>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsUnalignedB64Be {
     type Root = BitsUnalignedB64Be;
     type Parent = BitsUnalignedB64Be;
@@ -109,5 +141,11 @@ impl BitsUnalignedB64Be {
 impl BitsUnalignedB64Be {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

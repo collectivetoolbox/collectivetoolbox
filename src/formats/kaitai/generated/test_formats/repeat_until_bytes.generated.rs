@@ -65,6 +65,38 @@ pub struct RepeatUntilBytes {
     _io: RefCell<BytesReader>,
     records_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&RepeatUntilBytes> for OptRc<RepeatUntilBytes> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilBytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilBytes> for OptRc<RepeatUntilBytes> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilBytes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilBytes> for RepeatUntilBytes {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilBytes>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilBytes> for &RepeatUntilBytes {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilBytes>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilBytes> for OptRc<RepeatUntilBytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilBytes>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilBytes> for &OptRc<RepeatUntilBytes> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilBytes>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatUntilBytes {
     type Root = RepeatUntilBytes;
     type Parent = RepeatUntilBytes;
@@ -106,6 +138,12 @@ impl RepeatUntilBytes {
 impl RepeatUntilBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl RepeatUntilBytes {

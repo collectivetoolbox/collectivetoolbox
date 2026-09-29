@@ -32,6 +32,38 @@ pub struct Vp8DuckIvf {
     image_data: RefCell<Vec<OptRc<Vp8DuckIvf_Blocks>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Vp8DuckIvf> for OptRc<Vp8DuckIvf> {
+    type Error = KError;
+    fn try_from(v: &Vp8DuckIvf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vp8DuckIvf> for OptRc<Vp8DuckIvf> {
+    type Error = KError;
+    fn try_from(v: &&Vp8DuckIvf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf> for Vp8DuckIvf {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf> for &Vp8DuckIvf {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf> for OptRc<Vp8DuckIvf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf> for &OptRc<Vp8DuckIvf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Vp8DuckIvf {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
@@ -171,6 +203,12 @@ impl Vp8DuckIvf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -183,6 +221,38 @@ pub struct Vp8DuckIvf_Block {
     framedata: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     framedata_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Vp8DuckIvf_Block> for OptRc<Vp8DuckIvf_Block> {
+    type Error = KError;
+    fn try_from(v: &Vp8DuckIvf_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vp8DuckIvf_Block> for OptRc<Vp8DuckIvf_Block> {
+    type Error = KError;
+    fn try_from(v: &&Vp8DuckIvf_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Block> for Vp8DuckIvf_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Block> for &Vp8DuckIvf_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Block> for OptRc<Vp8DuckIvf_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Block> for &OptRc<Vp8DuckIvf_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vp8DuckIvf_Block {
     type Root = Vp8DuckIvf;
@@ -232,6 +302,12 @@ impl Vp8DuckIvf_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vp8DuckIvf_Block {
     pub fn framedata_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -246,6 +322,38 @@ pub struct Vp8DuckIvf_Blocks {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<OptRc<Vp8DuckIvf_Block>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Vp8DuckIvf_Blocks> for OptRc<Vp8DuckIvf_Blocks> {
+    type Error = KError;
+    fn try_from(v: &Vp8DuckIvf_Blocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vp8DuckIvf_Blocks> for OptRc<Vp8DuckIvf_Blocks> {
+    type Error = KError;
+    fn try_from(v: &&Vp8DuckIvf_Blocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Blocks> for Vp8DuckIvf_Blocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Blocks>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Blocks> for &Vp8DuckIvf_Blocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Blocks>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Blocks> for OptRc<Vp8DuckIvf_Blocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Blocks>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vp8DuckIvf_Blocks> for &OptRc<Vp8DuckIvf_Blocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vp8DuckIvf_Blocks>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vp8DuckIvf_Blocks {
     type Root = Vp8DuckIvf;
@@ -279,5 +387,11 @@ impl Vp8DuckIvf_Blocks {
 impl Vp8DuckIvf_Blocks {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

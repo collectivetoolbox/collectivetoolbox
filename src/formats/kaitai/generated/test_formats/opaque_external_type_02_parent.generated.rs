@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::opaque_external_type_02_child::OpaqueExternalType02Child;
+use super::opaque_external_type_02_child::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct OpaqueExternalType02Parent {
@@ -64,6 +65,38 @@ pub struct OpaqueExternalType02Parent {
     pub(crate) _self_shared: SharedType<Self>,
     parent: RefCell<OptRc<OpaqueExternalType02Parent_ParentObj>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&OpaqueExternalType02Parent> for OptRc<OpaqueExternalType02Parent> {
+    type Error = KError;
+    fn try_from(v: &OpaqueExternalType02Parent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&OpaqueExternalType02Parent> for OptRc<OpaqueExternalType02Parent> {
+    type Error = KError;
+    fn try_from(v: &&OpaqueExternalType02Parent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent> for OpaqueExternalType02Parent {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent> for &OpaqueExternalType02Parent {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent> for OptRc<OpaqueExternalType02Parent> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent> for &OptRc<OpaqueExternalType02Parent> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for OpaqueExternalType02Parent {
     type Root = OpaqueExternalType02Parent;
@@ -98,6 +131,12 @@ impl OpaqueExternalType02Parent {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -107,6 +146,38 @@ pub struct OpaqueExternalType02Parent_ParentObj {
     pub(crate) _self_shared: SharedType<Self>,
     child: RefCell<OptRc<OpaqueExternalType02Child>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&OpaqueExternalType02Parent_ParentObj> for OptRc<OpaqueExternalType02Parent_ParentObj> {
+    type Error = KError;
+    fn try_from(v: &OpaqueExternalType02Parent_ParentObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&OpaqueExternalType02Parent_ParentObj> for OptRc<OpaqueExternalType02Parent_ParentObj> {
+    type Error = KError;
+    fn try_from(v: &&OpaqueExternalType02Parent_ParentObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent_ParentObj> for OpaqueExternalType02Parent_ParentObj {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent_ParentObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent_ParentObj> for &OpaqueExternalType02Parent_ParentObj {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent_ParentObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent_ParentObj> for OptRc<OpaqueExternalType02Parent_ParentObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent_ParentObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<OpaqueExternalType02Parent_ParentObj> for &OptRc<OpaqueExternalType02Parent_ParentObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType02Parent_ParentObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for OpaqueExternalType02Parent_ParentObj {
     type Root = OpaqueExternalType02Parent;
@@ -140,5 +211,11 @@ impl OpaqueExternalType02Parent_ParentObj {
 impl OpaqueExternalType02Parent_ParentObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -23,6 +23,38 @@ pub struct ZxSpectrumTap {
     blocks: RefCell<Vec<OptRc<ZxSpectrumTap_Block>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ZxSpectrumTap> for OptRc<ZxSpectrumTap> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap> for OptRc<ZxSpectrumTap> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap> for ZxSpectrumTap {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap> for &ZxSpectrumTap {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap> for OptRc<ZxSpectrumTap> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap> for &OptRc<ZxSpectrumTap> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ZxSpectrumTap {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap;
@@ -62,6 +94,12 @@ impl ZxSpectrumTap {
 impl ZxSpectrumTap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -145,6 +183,38 @@ pub struct ZxSpectrumTap_ArrayParams {
     reserved1: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ZxSpectrumTap_ArrayParams> for OptRc<ZxSpectrumTap_ArrayParams> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap_ArrayParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_ArrayParams> for OptRc<ZxSpectrumTap_ArrayParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_ArrayParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for ZxSpectrumTap_ArrayParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &ZxSpectrumTap_ArrayParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for OptRc<ZxSpectrumTap_ArrayParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &OptRc<ZxSpectrumTap_ArrayParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ZxSpectrumTap_ArrayParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
@@ -196,6 +266,12 @@ impl ZxSpectrumTap_ArrayParams {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -211,6 +287,38 @@ pub struct ZxSpectrumTap_Block {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
     headerless_data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ZxSpectrumTap_Block> for OptRc<ZxSpectrumTap_Block> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_Block> for OptRc<ZxSpectrumTap_Block> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Block> for ZxSpectrumTap_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Block> for &ZxSpectrumTap_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Block> for OptRc<ZxSpectrumTap_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Block> for &OptRc<ZxSpectrumTap_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ZxSpectrumTap_Block {
     type Root = ZxSpectrumTap;
@@ -275,6 +383,12 @@ impl ZxSpectrumTap_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ZxSpectrumTap_Block {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -296,6 +410,38 @@ pub struct ZxSpectrumTap_BytesParams {
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ZxSpectrumTap_BytesParams> for OptRc<ZxSpectrumTap_BytesParams> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap_BytesParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_BytesParams> for OptRc<ZxSpectrumTap_BytesParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_BytesParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for ZxSpectrumTap_BytesParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &ZxSpectrumTap_BytesParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for OptRc<ZxSpectrumTap_BytesParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &OptRc<ZxSpectrumTap_BytesParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ZxSpectrumTap_BytesParams {
     type Root = ZxSpectrumTap;
@@ -335,6 +481,12 @@ impl ZxSpectrumTap_BytesParams {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ZxSpectrumTap_BytesParams {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -370,6 +522,22 @@ impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_BytesParams> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_BytesParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        OptRc::<ZxSpectrumTap_BytesParams>::try_from(self)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_BytesParams> for &ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_BytesParams>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ZxSpectrumTap_BytesParams>> for ZxSpectrumTap_Header_Params {
     fn from(v: OptRc<ZxSpectrumTap_BytesParams>) -> Self {
         Self::ZxSpectrumTap_BytesParams(v)
@@ -382,6 +550,22 @@ impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ArrayParams> 
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ArrayParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        OptRc::<ZxSpectrumTap_ArrayParams>::try_from(self)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ArrayParams> for &ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ArrayParams>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ZxSpectrumTap_ArrayParams>> for ZxSpectrumTap_Header_Params {
@@ -398,9 +582,57 @@ impl TryFrom<&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ProgramParams
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ZxSpectrumTap_Header_Params> for OptRc<ZxSpectrumTap_ProgramParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_Header_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        OptRc::<ZxSpectrumTap_ProgramParams>::try_from(self)
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &ZxSpectrumTap_Header_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ZxSpectrumTap_ProgramParams>> for ZxSpectrumTap_Header_Params {
     fn from(v: OptRc<ZxSpectrumTap_ProgramParams>) -> Self {
         Self::ZxSpectrumTap_ProgramParams(v)
+    }
+}
+impl TryFrom<&ZxSpectrumTap_Header> for OptRc<ZxSpectrumTap_Header> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_Header> for OptRc<ZxSpectrumTap_Header> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Header> for ZxSpectrumTap_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Header> for &ZxSpectrumTap_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Header> for OptRc<ZxSpectrumTap_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_Header> for &OptRc<ZxSpectrumTap_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_Header>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for ZxSpectrumTap_Header {
@@ -481,6 +713,12 @@ impl ZxSpectrumTap_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ZxSpectrumTap_Header {
     pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -496,6 +734,38 @@ pub struct ZxSpectrumTap_ProgramParams {
     autostart_line: RefCell<u16>,
     len_program: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
+    type Error = KError;
+    fn try_from(v: &ZxSpectrumTap_ProgramParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
+    type Error = KError;
+    fn try_from(v: &&ZxSpectrumTap_ProgramParams) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for ZxSpectrumTap_ProgramParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &ZxSpectrumTap_ProgramParams {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for OptRc<ZxSpectrumTap_ProgramParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZxSpectrumTap_ProgramParams> for &OptRc<ZxSpectrumTap_ProgramParams> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZxSpectrumTap_ProgramParams>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ZxSpectrumTap_ProgramParams {
     type Root = ZxSpectrumTap;
@@ -534,5 +804,11 @@ impl ZxSpectrumTap_ProgramParams {
 impl ZxSpectrumTap_ProgramParams {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

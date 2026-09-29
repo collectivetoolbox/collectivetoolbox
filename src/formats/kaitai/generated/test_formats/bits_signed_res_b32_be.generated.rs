@@ -64,6 +64,38 @@ pub struct BitsSignedResB32Be {
     a: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&BitsSignedResB32Be> for OptRc<BitsSignedResB32Be> {
+    type Error = KError;
+    fn try_from(v: &BitsSignedResB32Be) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsSignedResB32Be> for OptRc<BitsSignedResB32Be> {
+    type Error = KError;
+    fn try_from(v: &&BitsSignedResB32Be) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsSignedResB32Be> for BitsSignedResB32Be {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSignedResB32Be>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsSignedResB32Be> for &BitsSignedResB32Be {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSignedResB32Be>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsSignedResB32Be> for OptRc<BitsSignedResB32Be> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSignedResB32Be>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsSignedResB32Be> for &OptRc<BitsSignedResB32Be> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSignedResB32Be>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsSignedResB32Be {
     type Root = BitsSignedResB32Be;
     type Parent = BitsSignedResB32Be;
@@ -95,5 +127,11 @@ impl BitsSignedResB32Be {
 impl BitsSignedResB32Be {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

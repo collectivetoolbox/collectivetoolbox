@@ -64,6 +64,38 @@ pub struct ValidFailRepeatMinInt {
     foo: RefCell<Vec<i8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ValidFailRepeatMinInt> for OptRc<ValidFailRepeatMinInt> {
+    type Error = KError;
+    fn try_from(v: &ValidFailRepeatMinInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidFailRepeatMinInt> for OptRc<ValidFailRepeatMinInt> {
+    type Error = KError;
+    fn try_from(v: &&ValidFailRepeatMinInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatMinInt> for ValidFailRepeatMinInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatMinInt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatMinInt> for &ValidFailRepeatMinInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatMinInt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRepeatMinInt> for OptRc<ValidFailRepeatMinInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatMinInt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidFailRepeatMinInt> for &OptRc<ValidFailRepeatMinInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRepeatMinInt>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidFailRepeatMinInt {
     type Root = ValidFailRepeatMinInt;
     type Parent = ValidFailRepeatMinInt;
@@ -106,5 +138,11 @@ impl ValidFailRepeatMinInt {
 impl ValidFailRepeatMinInt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

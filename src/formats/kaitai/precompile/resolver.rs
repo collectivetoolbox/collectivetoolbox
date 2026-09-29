@@ -185,6 +185,25 @@ pub fn resolve_ksy(
         let hb = java_string_hash(&b.join("::"));
         ha.cmp(&hb).then_with(|| a.cmp(b))
     });
+
+    if let Some(reg) = registry {
+        for imp in &root_spec.meta_imports {
+            let stem = imp
+                .trim_start_matches('/')
+                .split('/')
+                .last()
+                .unwrap_or(imp);
+            if let Some(imported_ksy) = reg.get(stem) {
+                let imp_name = vec![stem.to_string()];
+                let imp_slice: &[String] = &imp_name;
+                let imp_scopes = [(imp_slice, imported_ksy)];
+                if let Ok(imported_spec) = resolve_class_spec(&imp_name, None, &imp_name, imported_ksy, Some(reg), None, &imp_scopes) {
+                    root_spec.imported_classes.insert(stem.to_string(), imported_spec);
+                }
+            }
+        }
+    }
+
     Ok(root_spec)
 }
 
@@ -279,8 +298,18 @@ fn find_class_spec<'a>(root: &'a ClassSpec, path: &[String]) -> Option<&'a Class
 
 fn resolve_switch_type(dt: &DataType) -> DataType {
     if let DataType::SwitchType { cases, .. } = dt {
+        let non_fallback_cases: Vec<&DataType> = cases
+            .iter()
+            .filter(|(k, _)| k.as_str() != "_")
+            .map(|(_, v)| v)
+            .collect();
+        let target_cases = if non_fallback_cases.is_empty() {
+            cases.values().collect()
+        } else {
+            non_fallback_cases
+        };
         let mut combined: Option<DataType> = None;
-        for c in cases.values() {
+        for c in target_cases {
             combined = match combined {
                 None => Some(c.clone()),
                 Some(prev) => Some(combine_types(&prev, c)),
@@ -313,7 +342,7 @@ fn infer_expr_type_with_root(
     root: &ClassSpec,
 ) -> Option<DataType> {
     match expr {
-        Expr::EnumByLabel { enum_name, .. } => {
+        Expr::EnumByLabel { enum_name, in_type, .. } => {
             let mut curr_opt = Some(curr_class_name);
             while let Some(cls_name) = curr_opt {
                 if let Some(cls) = find_class_spec(root, cls_name) {
@@ -338,7 +367,11 @@ fn infer_expr_type_with_root(
                     underlying: None,
                 });
             }
-            None
+            Some(DataType::EnumType {
+                owner: in_type.names.clone(),
+                name: enum_name.clone(),
+                underlying: None,
+            })
         }
         Expr::Attribute { value, attr } => {
             if attr == "to_i" || attr == "length" || attr == "size" || attr == "pos" {
@@ -413,10 +446,11 @@ fn infer_expr_type_with_root(
             } else if matches!(s.as_str(), "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
+                let parts: Vec<&str> = s.split("::").collect();
                 let mut curr_opt = Some(curr_class_name);
                 while let Some(cls_name) = curr_opt {
                     let mut full = cls_name.to_vec();
-                    full.push(s.clone());
+                    full.extend(parts.iter().map(|p| (*p).to_string()));
                     if find_class_spec(root, &full).is_some() {
                         return Some(DataType::UserType {
                             names: full,
@@ -431,7 +465,8 @@ fn infer_expr_type_with_root(
                     };
                 }
                 if let Some(first) = root.name.first() {
-                    let root_full = vec![first.clone(), s.clone()];
+                    let mut root_full = vec![first.clone()];
+                    root_full.extend(parts.iter().map(|p| (*p).to_string()));
                     if find_class_spec(root, &root_full).is_some() {
                         return Some(DataType::UserType {
                             names: root_full,
@@ -440,9 +475,10 @@ fn infer_expr_type_with_root(
                         });
                     }
                 }
-                if find_class_spec(root, std::slice::from_ref(&s)).is_some() {
+                let full_parts: Vec<String> = parts.iter().map(|p| (*p).to_string()).collect();
+                if find_class_spec(root, &full_parts).is_some() {
                     return Some(DataType::UserType {
-                        names: vec![s],
+                        names: full_parts,
                         is_external: false,
                         args: Vec::new(),
                     });
@@ -627,7 +663,7 @@ fn markup_parent_types(root: &mut ClassSpec) {
 
             for attr in &curr.seq {
                 let p_target = match &attr.parent_expr {
-                    Some(crate::spec::ValueOrExpr::Bool(false)) => Some(vec!["KStructUnit".to_string()]),
+                    Some(crate::spec::ValueOrExpr::Bool(false)) => None,
                     Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => p_name.clone(),
                     _ => Some(curr.name.clone()),
                 };
@@ -641,7 +677,7 @@ fn markup_parent_types(root: &mut ClassSpec) {
             for inst in curr.instances.values() {
                 if inst.pos_expr.is_some() || inst.io_expr.is_some() || inst.value_expr.is_none() {
                     let p_target = match &inst.parent_expr {
-                        Some(crate::spec::ValueOrExpr::Bool(false)) => Some(vec!["KStructUnit".to_string()]),
+                        Some(crate::spec::ValueOrExpr::Bool(false)) => None,
                         Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => p_name.clone(),
                         _ => Some(curr.name.clone()),
                     };
@@ -749,11 +785,14 @@ fn resolve_class_spec(
         for (raw_key, val_spec) in enum_values {
             // Reason for fallback: parse failure on malformed enum key defaults to 0 value
             let num: i64 = if let Some(stripped) = raw_key.strip_prefix("0x") {
-                // Reason for fallback: hex parse failure on malformed enum key defaults to 0
-                i64::from_str_radix(stripped, 16).unwrap_or(0)
+                u64::from_str_radix(stripped, 16)
+                    .map(|v| i64::from_ne_bytes(v.to_ne_bytes()))
+                    .unwrap_or_else(|_| i64::from_str_radix(stripped, 16).unwrap_or(0))
             } else {
-                // Reason for fallback: decimal parse failure on malformed enum key defaults to 0
-                raw_key.parse().unwrap_or(0)
+                raw_key
+                    .parse::<u64>()
+                    .map(|v| i64::from_ne_bytes(v.to_ne_bytes()))
+                    .unwrap_or_else(|_| raw_key.parse::<i64>().unwrap_or(0))
             };
             let (label, doc, doc_ref) = match val_spec {
                 EnumValueSpec::Simple(s) => (s.clone(), None, None),
@@ -1017,6 +1056,7 @@ fn resolve_class_spec(
         meta_license,
         meta_imports,
         external_types,
+        imported_classes: IndexMap::new(),
         ks_debug,
         to_string,
     })
@@ -1320,12 +1360,54 @@ fn resolve_simple_type(
     scopes: &[(&[String], &KsyFile)],
     registry: Option<&SpecRegistry>,
 ) -> Result<(DataType, Option<Vec<String>>)> {
-    let (clean_type_str, type_args) = if let Ok(parsed_ref) = crate::expr::parser::parse_type_ref(type_str) {
-        (parsed_ref.type_name.names.join("::"), parsed_ref.arguments)
+    let (clean_type_str, type_args, is_array) = if let Ok(parsed_ref) = crate::expr::parser::parse_type_ref(type_str) {
+        (parsed_ref.type_name.names.join("::"), parsed_ref.arguments, parsed_ref.type_name.is_array)
     } else {
-        (type_str.to_string(), Vec::new())
+        let is_arr = type_str.ends_with("[]");
+        let s = if is_arr {
+            type_str.trim_end_matches("[]")
+        } else {
+            type_str
+        };
+        (s.to_string(), Vec::new(), is_arr)
     };
-    let clean_str = clean_type_str.as_str();
+    let is_array = is_array || clean_type_str.ends_with("[]");
+    let clean_type_str = if clean_type_str.ends_with("[]") {
+        clean_type_str.trim_end_matches("[]").to_string()
+    } else {
+        clean_type_str
+    };
+
+    let (base_type, ext) = resolve_simple_type_inner(
+        &clean_type_str,
+        type_args,
+        enum_name,
+        default_endian,
+        scopes,
+        registry,
+    )?;
+
+    if is_array {
+        Ok((
+            DataType::ArrayType {
+                element: Box::new(base_type),
+                repeat: RepeatMode::None,
+            },
+            ext,
+        ))
+    } else {
+        Ok((base_type, ext))
+    }
+}
+
+fn resolve_simple_type_inner(
+    clean_str: &str,
+    type_args: Vec<Expr>,
+    enum_name: Option<&str>,
+    default_endian: Option<Endianness>,
+    scopes: &[(&[String], &KsyFile)],
+    registry: Option<&SpecRegistry>,
+) -> Result<(DataType, Option<Vec<String>>)> {
 
     // 1. Bit types
     if let Some(bit_str) = clean_str.strip_prefix('b') {
@@ -2067,6 +2149,14 @@ fn infer_expr_type(
         }
         Expr::FloatNum(_) => Some(DataType::CalcFloatType),
         Expr::List(elements) => {
+            let is_byte_array = !elements.is_empty()
+                && elements.iter().all(|e| match e {
+                    Expr::IntNum(n) => (0..=255).contains(n),
+                    _ => false,
+                });
+            if is_byte_array {
+                return Some(DataType::CalcBytesType);
+            }
             // Reason for fallback: empty list or uninferrable element type defaults to integer calculation type
             let mut elem_type = DataType::CalcIntType;
             if let Some(first) = elements.first().and_then(|e| infer_expr_type(e, scopes, registry)) {
@@ -2119,17 +2209,30 @@ fn infer_expr_type(
                 _ => Some(DataType::CalcIntType),
             }
         }
-        Expr::EnumByLabel { enum_name, .. } => {
+        Expr::EnumByLabel { enum_name, in_type, .. } => {
             for (scope_name, scope_ksy) in scopes.iter().rev() {
-                if scope_ksy.enums.contains_key(enum_name) {
-                    return Some(DataType::EnumType {
-                        owner: scope_name.to_vec(),
-                        name: enum_name.clone(),
-                        underlying: None,
-                    });
+                let target_ksy = if in_type.names.is_empty() {
+                    Some(*scope_ksy)
+                } else {
+                    find_ksy_file_by_path(scope_ksy, &in_type.names)
+                };
+                if let Some(target) = target_ksy {
+                    if target.enums.contains_key(enum_name) {
+                        let mut owner = scope_name.to_vec();
+                        owner.extend(in_type.names.clone());
+                        return Some(DataType::EnumType {
+                            owner,
+                            name: enum_name.clone(),
+                            underlying: None,
+                        });
+                    }
                 }
             }
-            None
+            Some(DataType::EnumType {
+                owner: in_type.names.clone(),
+                name: enum_name.clone(),
+                underlying: None,
+            })
         }
         Expr::Name(name) => {
             if name == "_root" {
@@ -2246,7 +2349,7 @@ fn infer_expr_type(
             }
         }
         Expr::Attribute { value, attr } => {
-            if attr == "first" || attr == "last" {
+            if attr == "first" || attr == "last" || attr == "min" || attr == "max" {
                 if let Some(DataType::ArrayType { element, .. }) = infer_expr_type(value, scopes, registry) {
                     return Some(*element);
                 }
@@ -2269,6 +2372,9 @@ fn infer_expr_type(
                         });
                     }
                 }
+            }
+            if attr == "_io" {
+                return Some(DataType::KaitaiStreamType);
             }
             if attr == "eof" {
                 return Some(DataType::CalcBoolType);
@@ -2397,7 +2503,9 @@ fn infer_expr_type(
                     "u8" => DataType::IntMulti { signed: false, width: 8, endian: None },
                     "s8" => DataType::IntMulti { signed: true, width: 8, endian: None },
                     "f4" | "f8" => DataType::CalcFloatType,
-                    _ => DataType::CalcIntType,
+                    _ => resolve_simple_type(base_str, None, None, scopes, registry)
+                        .map(|(dt, _)| dt)
+                        .unwrap_or(DataType::CalcIntType),
                 };
                 Some(DataType::ArrayType {
                     element: Box::new(elem_dt),
@@ -2412,7 +2520,7 @@ fn infer_expr_type(
             } else if matches!(base_str, "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
-                None
+                resolve_simple_type(base_str, None, None, scopes, registry).ok().map(|(dt, _)| dt)
             }
         }
         _ => None,

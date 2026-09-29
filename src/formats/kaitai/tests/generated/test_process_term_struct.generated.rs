@@ -85,8 +85,8 @@ fn test_process_term_struct() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessTermStruct> = ProcessTermStruct::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1().value(), vec![0x46u8, 0x4fu8, 0x4fu8]);
-    assert_eq!(*r.s2().value(), vec![0x42u8, 0x41u8, 0x52u8]);
-    assert_eq!(*r.s3().value(), vec![0x5cu8, 0x42u8, 0x41u8, 0x5au8, 0x20u8]);
+    assert_eq!(*(r.s1().value()), vec![0x46, 0x4f, 0x4f]);
+    assert_eq!(*(r.s2().value()), vec![0x42, 0x41, 0x52]);
+    assert_eq!(*(r.s3().value()), vec![0x5c, 0x42, 0x41, 0x5a, 0x20]);
     Ok(())
 }

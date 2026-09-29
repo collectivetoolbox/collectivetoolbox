@@ -85,7 +85,7 @@ fn test_process_repeat_bytes() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatBytes> = ProcessRepeatBytes::read_into(&_io, None, None)?;
 
-    assert_eq!(r.bufs()[0], vec![0x72u8, 0x25u8, 0x3du8, 0x8au8, 0x14u8]);
-    assert_eq!(r.bufs()[1], vec![0x4au8, 0x52u8, 0xaau8, 0x10u8, 0x44u8]);
+    assert_eq!(r.bufs()[0], vec![0x72, 0x25, 0x3d, 0x8a, 0x14]);
+    assert_eq!(r.bufs()[1], vec![0x4a, 0x52, 0xaa, 0x10, 0x44]);
     Ok(())
 }

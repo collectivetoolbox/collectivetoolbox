@@ -69,6 +69,38 @@ pub struct ZlibSurrounded {
     zlib_raw: RefCell<Vec<u8>>,
     post_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ZlibSurrounded> for OptRc<ZlibSurrounded> {
+    type Error = KError;
+    fn try_from(v: &ZlibSurrounded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZlibSurrounded> for OptRc<ZlibSurrounded> {
+    type Error = KError;
+    fn try_from(v: &&ZlibSurrounded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded> for ZlibSurrounded {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded> for &ZlibSurrounded {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded> for OptRc<ZlibSurrounded> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZlibSurrounded> for &OptRc<ZlibSurrounded> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ZlibSurrounded {
     type Root = ZlibSurrounded;
     type Parent = ZlibSurrounded;
@@ -118,6 +150,12 @@ impl ZlibSurrounded {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ZlibSurrounded {
     pub fn pre_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -142,6 +180,38 @@ pub struct ZlibSurrounded_Inflated {
     pub(crate) _self_shared: SharedType<Self>,
     num: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ZlibSurrounded_Inflated> for OptRc<ZlibSurrounded_Inflated> {
+    type Error = KError;
+    fn try_from(v: &ZlibSurrounded_Inflated) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZlibSurrounded_Inflated> for OptRc<ZlibSurrounded_Inflated> {
+    type Error = KError;
+    fn try_from(v: &&ZlibSurrounded_Inflated) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded_Inflated> for ZlibSurrounded_Inflated {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded_Inflated>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded_Inflated> for &ZlibSurrounded_Inflated {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded_Inflated>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZlibSurrounded_Inflated> for OptRc<ZlibSurrounded_Inflated> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded_Inflated>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZlibSurrounded_Inflated> for &OptRc<ZlibSurrounded_Inflated> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibSurrounded_Inflated>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ZlibSurrounded_Inflated {
     type Root = ZlibSurrounded;
@@ -174,5 +244,11 @@ impl ZlibSurrounded_Inflated {
 impl ZlibSurrounded_Inflated {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

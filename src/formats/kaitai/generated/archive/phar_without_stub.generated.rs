@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::php_serialized_value::PhpSerializedValue;
+use super::php_serialized_value::*;
 
 /**
  * A phar (PHP archive) file. The phar format is a custom archive format
@@ -63,6 +64,38 @@ pub struct PharWithoutStub {
     _io: RefCell<BytesReader>,
     files_raw: RefCell<Vec<u8>>,
     signature_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PharWithoutStub> for OptRc<PharWithoutStub> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub> for OptRc<PharWithoutStub> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub> for PharWithoutStub {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub> for &PharWithoutStub {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub> for OptRc<PharWithoutStub> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub> for &OptRc<PharWithoutStub> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub {
     type Root = PharWithoutStub;
@@ -139,6 +172,12 @@ impl PharWithoutStub {
 impl PharWithoutStub {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl PharWithoutStub {
@@ -268,6 +307,38 @@ pub struct PharWithoutStub_ApiVersion {
     unused: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PharWithoutStub_ApiVersion> for OptRc<PharWithoutStub_ApiVersion> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_ApiVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_ApiVersion> for OptRc<PharWithoutStub_ApiVersion> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_ApiVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_ApiVersion> for PharWithoutStub_ApiVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_ApiVersion>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_ApiVersion> for &PharWithoutStub_ApiVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_ApiVersion>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_ApiVersion> for OptRc<PharWithoutStub_ApiVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_ApiVersion>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_ApiVersion> for &OptRc<PharWithoutStub_ApiVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_ApiVersion>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PharWithoutStub_ApiVersion {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
@@ -318,6 +389,12 @@ impl PharWithoutStub_ApiVersion {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -337,6 +414,38 @@ pub struct PharWithoutStub_FileEntry {
     _io: RefCell<BytesReader>,
     filename_raw: RefCell<Vec<u8>>,
     metadata_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PharWithoutStub_FileEntry> for OptRc<PharWithoutStub_FileEntry> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_FileEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_FileEntry> for OptRc<PharWithoutStub_FileEntry> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_FileEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileEntry> for PharWithoutStub_FileEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileEntry> for &PharWithoutStub_FileEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileEntry> for OptRc<PharWithoutStub_FileEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileEntry> for &OptRc<PharWithoutStub_FileEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_FileEntry {
     type Root = PharWithoutStub;
@@ -469,6 +578,12 @@ impl PharWithoutStub_FileEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PharWithoutStub_FileEntry {
     pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -494,6 +609,38 @@ pub struct PharWithoutStub_FileFlags {
     permissions: RefCell<i32>,
     f_zlib_compressed: Cell<bool>,
     zlib_compressed: RefCell<bool>,
+}
+impl TryFrom<&PharWithoutStub_FileFlags> for OptRc<PharWithoutStub_FileFlags> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_FileFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_FileFlags> for OptRc<PharWithoutStub_FileFlags> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_FileFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileFlags> for PharWithoutStub_FileFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileFlags> for &PharWithoutStub_FileFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileFlags> for OptRc<PharWithoutStub_FileFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_FileFlags> for &OptRc<PharWithoutStub_FileFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_FileFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_FileFlags {
     type Root = PharWithoutStub;
@@ -579,6 +726,12 @@ impl PharWithoutStub_FileFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -594,6 +747,38 @@ pub struct PharWithoutStub_GlobalFlags {
     any_zlib_compressed: RefCell<bool>,
     f_has_signature: Cell<bool>,
     has_signature: RefCell<bool>,
+}
+impl TryFrom<&PharWithoutStub_GlobalFlags> for OptRc<PharWithoutStub_GlobalFlags> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_GlobalFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_GlobalFlags> for OptRc<PharWithoutStub_GlobalFlags> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_GlobalFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_GlobalFlags> for PharWithoutStub_GlobalFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_GlobalFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_GlobalFlags> for &PharWithoutStub_GlobalFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_GlobalFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_GlobalFlags> for OptRc<PharWithoutStub_GlobalFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_GlobalFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_GlobalFlags> for &OptRc<PharWithoutStub_GlobalFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_GlobalFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_GlobalFlags {
     type Root = PharWithoutStub;
@@ -681,6 +866,12 @@ impl PharWithoutStub_GlobalFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -700,6 +891,38 @@ pub struct PharWithoutStub_Manifest {
     _io: RefCell<BytesReader>,
     alias_raw: RefCell<Vec<u8>>,
     metadata_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PharWithoutStub_Manifest> for OptRc<PharWithoutStub_Manifest> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_Manifest) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_Manifest> for OptRc<PharWithoutStub_Manifest> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_Manifest) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Manifest> for PharWithoutStub_Manifest {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Manifest>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Manifest> for &PharWithoutStub_Manifest {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Manifest>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Manifest> for OptRc<PharWithoutStub_Manifest> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Manifest>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Manifest> for &OptRc<PharWithoutStub_Manifest> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Manifest>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_Manifest {
     type Root = PharWithoutStub;
@@ -836,6 +1059,12 @@ impl PharWithoutStub_Manifest {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PharWithoutStub_Manifest {
     pub fn alias_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -857,6 +1086,38 @@ pub struct PharWithoutStub_SerializedValue {
     _io: RefCell<BytesReader>,
     f_parsed: Cell<bool>,
     parsed: RefCell<OptRc<PhpSerializedValue>>,
+}
+impl TryFrom<&PharWithoutStub_SerializedValue> for OptRc<PharWithoutStub_SerializedValue> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_SerializedValue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_SerializedValue> for OptRc<PharWithoutStub_SerializedValue> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_SerializedValue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_SerializedValue> for PharWithoutStub_SerializedValue {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_SerializedValue>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_SerializedValue> for &PharWithoutStub_SerializedValue {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_SerializedValue>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_SerializedValue> for OptRc<PharWithoutStub_SerializedValue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_SerializedValue>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_SerializedValue> for &OptRc<PharWithoutStub_SerializedValue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_SerializedValue>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_SerializedValue {
     type Root = PharWithoutStub;
@@ -913,6 +1174,12 @@ impl PharWithoutStub_SerializedValue {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -925,6 +1192,38 @@ pub struct PharWithoutStub_Signature {
     magic: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PharWithoutStub_Signature> for OptRc<PharWithoutStub_Signature> {
+    type Error = KError;
+    fn try_from(v: &PharWithoutStub_Signature) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PharWithoutStub_Signature> for OptRc<PharWithoutStub_Signature> {
+    type Error = KError;
+    fn try_from(v: &&PharWithoutStub_Signature) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Signature> for PharWithoutStub_Signature {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Signature>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Signature> for &PharWithoutStub_Signature {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Signature>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Signature> for OptRc<PharWithoutStub_Signature> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Signature>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PharWithoutStub_Signature> for &OptRc<PharWithoutStub_Signature> {
+    fn downcast_optrc(&self) -> Result<OptRc<PharWithoutStub_Signature>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PharWithoutStub_Signature {
     type Root = PharWithoutStub;
@@ -981,6 +1280,12 @@ impl PharWithoutStub_Signature {
 impl PharWithoutStub_Signature {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl PharWithoutStub_Signature {

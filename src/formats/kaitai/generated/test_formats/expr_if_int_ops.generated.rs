@@ -73,6 +73,38 @@ pub struct ExprIfIntOps {
     f_items_sub_key: Cell<bool>,
     items_sub_key: RefCell<i8>,
 }
+impl TryFrom<&ExprIfIntOps> for OptRc<ExprIfIntOps> {
+    type Error = KError;
+    fn try_from(v: &ExprIfIntOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIfIntOps> for OptRc<ExprIfIntOps> {
+    type Error = KError;
+    fn try_from(v: &&ExprIfIntOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntOps> for ExprIfIntOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntOps>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntOps> for &ExprIfIntOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntOps>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIfIntOps> for OptRc<ExprIfIntOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntOps>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIfIntOps> for &OptRc<ExprIfIntOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIfIntOps>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIfIntOps {
     type Root = ExprIfIntOps;
     type Parent = ExprIfIntOps;
@@ -152,6 +184,12 @@ impl ExprIfIntOps {
 impl ExprIfIntOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprIfIntOps {

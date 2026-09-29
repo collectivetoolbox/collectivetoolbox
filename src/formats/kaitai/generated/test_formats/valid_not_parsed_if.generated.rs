@@ -65,6 +65,38 @@ pub struct ValidNotParsedIf {
     parsed: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ValidNotParsedIf> for OptRc<ValidNotParsedIf> {
+    type Error = KError;
+    fn try_from(v: &ValidNotParsedIf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidNotParsedIf> for OptRc<ValidNotParsedIf> {
+    type Error = KError;
+    fn try_from(v: &&ValidNotParsedIf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidNotParsedIf> for ValidNotParsedIf {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidNotParsedIf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidNotParsedIf> for &ValidNotParsedIf {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidNotParsedIf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidNotParsedIf> for OptRc<ValidNotParsedIf> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidNotParsedIf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidNotParsedIf> for &OptRc<ValidNotParsedIf> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidNotParsedIf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidNotParsedIf {
     type Root = ValidNotParsedIf;
     type Parent = ValidNotParsedIf;
@@ -114,5 +146,11 @@ impl ValidNotParsedIf {
 impl ValidNotParsedIf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

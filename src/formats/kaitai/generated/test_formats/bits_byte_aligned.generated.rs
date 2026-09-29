@@ -77,6 +77,38 @@ pub struct BitsByteAligned {
     byte_2_raw: RefCell<Vec<u8>>,
     byte_3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&BitsByteAligned> for OptRc<BitsByteAligned> {
+    type Error = KError;
+    fn try_from(v: &BitsByteAligned) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsByteAligned> for OptRc<BitsByteAligned> {
+    type Error = KError;
+    fn try_from(v: &&BitsByteAligned) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned> for BitsByteAligned {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned> for &BitsByteAligned {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned> for OptRc<BitsByteAligned> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsByteAligned> for &OptRc<BitsByteAligned> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsByteAligned {
     type Root = BitsByteAligned;
     type Parent = BitsByteAligned;
@@ -184,6 +216,12 @@ impl BitsByteAligned {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl BitsByteAligned {
     pub fn byte_2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -203,6 +241,38 @@ pub struct BitsByteAligned_Foo {
     pub(crate) _self_shared: SharedType<Self>,
     inner: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&BitsByteAligned_Foo> for OptRc<BitsByteAligned_Foo> {
+    type Error = KError;
+    fn try_from(v: &BitsByteAligned_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsByteAligned_Foo> for OptRc<BitsByteAligned_Foo> {
+    type Error = KError;
+    fn try_from(v: &&BitsByteAligned_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned_Foo> for BitsByteAligned_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned_Foo> for &BitsByteAligned_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAligned_Foo> for OptRc<BitsByteAligned_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsByteAligned_Foo> for &OptRc<BitsByteAligned_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAligned_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BitsByteAligned_Foo {
     type Root = BitsByteAligned;
@@ -235,5 +305,11 @@ impl BitsByteAligned_Foo {
 impl BitsByteAligned_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -71,6 +71,38 @@ pub struct Uf2 {
     blocks: RefCell<Vec<OptRc<Uf2_Block>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Uf2> for OptRc<Uf2> {
+    type Error = KError;
+    fn try_from(v: &Uf2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2> for OptRc<Uf2> {
+    type Error = KError;
+    fn try_from(v: &&Uf2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2> for Uf2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2> for &Uf2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2> for OptRc<Uf2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2> for &OptRc<Uf2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Uf2 {
     type Root = Uf2;
     type Parent = Uf2;
@@ -114,6 +146,12 @@ impl Uf2 {
 impl Uf2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -795,6 +833,38 @@ pub struct Uf2_Block {
     f_num_blocks: Cell<bool>,
     num_blocks: RefCell<i32>,
 }
+impl TryFrom<&Uf2_Block> for OptRc<Uf2_Block> {
+    type Error = KError;
+    fn try_from(v: &Uf2_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2_Block> for OptRc<Uf2_Block> {
+    type Error = KError;
+    fn try_from(v: &&Uf2_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Block> for Uf2_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Block> for &Uf2_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Block> for OptRc<Uf2_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2_Block> for &OptRc<Uf2_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Block>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Uf2_Block {
     type Root = Uf2;
     type Parent = Uf2;
@@ -1023,6 +1093,12 @@ impl Uf2_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Uf2_Block {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1042,6 +1118,38 @@ pub struct Uf2_BlockData {
     payload_raw: RefCell<Vec<u8>>,
     f_md5_checksum: Cell<bool>,
     md5_checksum: RefCell<OptRc<Uf2_Md5Checksum>>,
+}
+impl TryFrom<&Uf2_BlockData> for OptRc<Uf2_BlockData> {
+    type Error = KError;
+    fn try_from(v: &Uf2_BlockData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2_BlockData> for OptRc<Uf2_BlockData> {
+    type Error = KError;
+    fn try_from(v: &&Uf2_BlockData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_BlockData> for Uf2_BlockData {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_BlockData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2_BlockData> for &Uf2_BlockData {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_BlockData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_BlockData> for OptRc<Uf2_BlockData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_BlockData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2_BlockData> for &OptRc<Uf2_BlockData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_BlockData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Uf2_BlockData {
     type Root = Uf2;
@@ -1140,6 +1248,12 @@ impl Uf2_BlockData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Uf2_BlockData {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1168,6 +1282,38 @@ pub struct Uf2_ExtensionTag {
     f_min_len_tag: Cell<bool>,
     min_len_tag: RefCell<i32>,
 }
+impl TryFrom<&Uf2_ExtensionTag> for OptRc<Uf2_ExtensionTag> {
+    type Error = KError;
+    fn try_from(v: &Uf2_ExtensionTag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2_ExtensionTag> for OptRc<Uf2_ExtensionTag> {
+    type Error = KError;
+    fn try_from(v: &&Uf2_ExtensionTag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_ExtensionTag> for Uf2_ExtensionTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_ExtensionTag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2_ExtensionTag> for &Uf2_ExtensionTag {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_ExtensionTag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_ExtensionTag> for OptRc<Uf2_ExtensionTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_ExtensionTag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2_ExtensionTag> for &OptRc<Uf2_ExtensionTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_ExtensionTag>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Uf2_ExtensionTag {
     type Root = Uf2;
     type Parent = Uf2_BlockData;
@@ -1190,7 +1336,7 @@ impl KStruct for Uf2_ExtensionTag {
         if !( ((_tmpa == 0_u8) || ((to_i128(_tmpa)) >= (to_i128(*self_rc.min_len_tag()?)))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/extension_tag/seq/0".to_string() }));
         }
-        *self_rc.tag_type.borrow_mut() = i64::try_from(_io.read_bits_int_le(24)?)?.try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_le(24)?).to_ne_bytes()).try_into()?;
         io.align_to_byte()?;
         if ((to_i128(*self_rc.len_tag())) != (to_i128(0))) {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
@@ -1261,6 +1407,12 @@ impl Uf2_ExtensionTag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Uf2_ExtensionTag {
     pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1295,6 +1447,38 @@ pub struct Uf2_Flags {
     is_file_container: RefCell<bool>,
     f_not_main_flash: Cell<bool>,
     not_main_flash: RefCell<bool>,
+}
+impl TryFrom<&Uf2_Flags> for OptRc<Uf2_Flags> {
+    type Error = KError;
+    fn try_from(v: &Uf2_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2_Flags> for OptRc<Uf2_Flags> {
+    type Error = KError;
+    fn try_from(v: &&Uf2_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Flags> for Uf2_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Flags> for &Uf2_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Flags> for OptRc<Uf2_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2_Flags> for &OptRc<Uf2_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Uf2_Flags {
     type Root = Uf2;
@@ -1436,6 +1620,12 @@ impl Uf2_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1452,6 +1642,38 @@ pub struct Uf2_Md5Checksum {
     md5: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     md5_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Uf2_Md5Checksum> for OptRc<Uf2_Md5Checksum> {
+    type Error = KError;
+    fn try_from(v: &Uf2_Md5Checksum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uf2_Md5Checksum> for OptRc<Uf2_Md5Checksum> {
+    type Error = KError;
+    fn try_from(v: &&Uf2_Md5Checksum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Md5Checksum> for Uf2_Md5Checksum {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Md5Checksum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Md5Checksum> for &Uf2_Md5Checksum {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Md5Checksum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uf2_Md5Checksum> for OptRc<Uf2_Md5Checksum> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Md5Checksum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uf2_Md5Checksum> for &OptRc<Uf2_Md5Checksum> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uf2_Md5Checksum>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Uf2_Md5Checksum {
     type Root = Uf2;
@@ -1496,6 +1718,12 @@ impl Uf2_Md5Checksum {
 impl Uf2_Md5Checksum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Uf2_Md5Checksum {

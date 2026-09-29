@@ -67,6 +67,38 @@ pub struct IndexSizes {
     _io: RefCell<BytesReader>,
     bufs_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&IndexSizes> for OptRc<IndexSizes> {
+    type Error = KError;
+    fn try_from(v: &IndexSizes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IndexSizes> for OptRc<IndexSizes> {
+    type Error = KError;
+    fn try_from(v: &&IndexSizes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IndexSizes> for IndexSizes {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexSizes>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IndexSizes> for &IndexSizes {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexSizes>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IndexSizes> for OptRc<IndexSizes> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexSizes>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IndexSizes> for &OptRc<IndexSizes> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexSizes>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IndexSizes {
     type Root = IndexSizes;
     type Parent = IndexSizes;
@@ -118,6 +150,12 @@ impl IndexSizes {
 impl IndexSizes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl IndexSizes {

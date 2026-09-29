@@ -85,9 +85,9 @@ fn test_expr_if_int_ops() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIfIntOps> = ExprIfIntOps::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.key(), 3);
-    assert_eq!(*r.bytes(), vec![0xfcu8, 0xfcu8, 0xfcu8, 0xfdu8, 0x09u8, 0x03u8, 0x03u8, 0x03u8]);
-    assert_eq!(*r.bytes_sub_key()?, 253);
-    assert_eq!(*r.items_sub_key()?, -3);
+    assert_eq!(*(r.key()), 3);
+    assert_eq!(*(r.bytes()), vec![0xfc, 0xfc, 0xfc, 0xfd, 0x09, 0x03, 0x03, 0x03]);
+    assert_eq!(*(r.bytes_sub_key()?), 253);
+    assert_eq!(*(r.items_sub_key()?), -3);
     Ok(())
 }

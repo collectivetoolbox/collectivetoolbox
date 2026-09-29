@@ -20,6 +20,38 @@ pub struct Dune2Pak {
     f_dir_size: Cell<bool>,
     dir_size: RefCell<u32>,
 }
+impl TryFrom<&Dune2Pak> for OptRc<Dune2Pak> {
+    type Error = KError;
+    fn try_from(v: &Dune2Pak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dune2Pak> for OptRc<Dune2Pak> {
+    type Error = KError;
+    fn try_from(v: &&Dune2Pak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak> for Dune2Pak {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak> for &Dune2Pak {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak> for OptRc<Dune2Pak> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dune2Pak> for &OptRc<Dune2Pak> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Dune2Pak {
     type Root = Dune2Pak;
     type Parent = Dune2Pak;
@@ -71,6 +103,12 @@ impl Dune2Pak {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dune2Pak {
     pub fn dir_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -93,6 +131,38 @@ pub struct Dune2Pak_File {
     next_ofs: RefCell<i32>,
     f_next_ofs0: Cell<bool>,
     next_ofs0: RefCell<u32>,
+}
+impl TryFrom<&Dune2Pak_File> for OptRc<Dune2Pak_File> {
+    type Error = KError;
+    fn try_from(v: &Dune2Pak_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dune2Pak_File> for OptRc<Dune2Pak_File> {
+    type Error = KError;
+    fn try_from(v: &&Dune2Pak_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_File> for Dune2Pak_File {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_File>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_File> for &Dune2Pak_File {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_File>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_File> for OptRc<Dune2Pak_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_File>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dune2Pak_File> for &OptRc<Dune2Pak_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_File>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dune2Pak_File {
     type Root = Dune2Pak;
@@ -190,6 +260,12 @@ impl Dune2Pak_File {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -199,6 +275,38 @@ pub struct Dune2Pak_Files {
     pub(crate) _self_shared: SharedType<Self>,
     files: RefCell<Vec<OptRc<Dune2Pak_File>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dune2Pak_Files> for OptRc<Dune2Pak_Files> {
+    type Error = KError;
+    fn try_from(v: &Dune2Pak_Files) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dune2Pak_Files> for OptRc<Dune2Pak_Files> {
+    type Error = KError;
+    fn try_from(v: &&Dune2Pak_Files) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_Files> for Dune2Pak_Files {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_Files>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_Files> for &Dune2Pak_Files {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_Files>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dune2Pak_Files> for OptRc<Dune2Pak_Files> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_Files>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dune2Pak_Files> for &OptRc<Dune2Pak_Files> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dune2Pak_Files>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dune2Pak_Files {
     type Root = Dune2Pak;
@@ -240,5 +348,11 @@ impl Dune2Pak_Files {
 impl Dune2Pak_Files {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

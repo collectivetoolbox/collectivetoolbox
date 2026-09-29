@@ -86,9 +86,9 @@ fn test_repeat_eos_struct() -> KResult<()> {
     let r: OptRc<RepeatEosStruct> = RepeatEosStruct::read_into(&_io, None, None)?;
 
     assert_eq!(r.chunks().len(), 2);
-    assert_eq!(*r.chunks()[0].offset(), 0);
-    assert_eq!(*r.chunks()[0].len(), 66);
-    assert_eq!(*r.chunks()[1].offset(), 66);
-    assert_eq!(*r.chunks()[1].len(), 2069);
+    assert_eq!(*(r.chunks()[0].offset()), 0);
+    assert_eq!(*(r.chunks()[0].len()), 66);
+    assert_eq!(*(r.chunks()[1].offset()), 66);
+    assert_eq!(*(r.chunks()[1].len()), 2069);
     Ok(())
 }

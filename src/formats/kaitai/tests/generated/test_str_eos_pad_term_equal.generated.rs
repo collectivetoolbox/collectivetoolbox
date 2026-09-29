@@ -85,9 +85,9 @@ fn test_str_eos_pad_term_equal() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEosPadTermEqual> = StrEosPadTermEqual::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1().value(), "str1");
-    assert_eq!(*r.s2().value(), "str2foo@");
-    assert_eq!(*r.s3().value(), "str");
-    assert_eq!(*r.s4().value(), "str4baz@.");
+    assert_eq!(*(r.s1().value()), "str1");
+    assert_eq!(*(r.s2().value()), "str2foo@");
+    assert_eq!(*(r.s3().value()), "str");
+    assert_eq!(*(r.s4().value()), "str4baz@.");
     Ok(())
 }

@@ -85,7 +85,7 @@ fn test_process_xor_const() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessXorConst> = ProcessXorConst::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.key(), 255);
-    assert_eq!(*r.buf(), vec![0x66u8, 0x6fu8, 0x6fu8, 0x20u8, 0x62u8, 0x61u8, 0x72u8]);
+    assert_eq!(*(r.key()), 255);
+    assert_eq!(*(r.buf()), vec![0x66, 0x6f, 0x6f, 0x20, 0x62, 0x61, 0x72]);
     Ok(())
 }

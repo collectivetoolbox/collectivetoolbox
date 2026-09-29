@@ -85,9 +85,9 @@ fn test_str_eos_pad_term_empty() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEosPadTermEmpty> = StrEosPadTermEmpty::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_pad().value(), "");
-    assert_eq!(*r.str_term().value(), "");
-    assert_eq!(*r.str_term_and_pad().value(), "");
-    assert_eq!(*r.str_term_include().value(), "@");
+    assert_eq!(*(r.str_pad().value()), "");
+    assert_eq!(*(r.str_term().value()), "");
+    assert_eq!(*(r.str_term_and_pad().value()), "");
+    assert_eq!(*(r.str_term_include().value()), "@");
     Ok(())
 }

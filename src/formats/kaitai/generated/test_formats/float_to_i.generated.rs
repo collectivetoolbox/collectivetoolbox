@@ -95,6 +95,38 @@ pub struct FloatToI {
     f_single_if_i: Cell<bool>,
     single_if_i: RefCell<i32>,
 }
+impl TryFrom<&FloatToI> for OptRc<FloatToI> {
+    type Error = KError;
+    fn try_from(v: &FloatToI) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FloatToI> for OptRc<FloatToI> {
+    type Error = KError;
+    fn try_from(v: &&FloatToI) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FloatToI> for FloatToI {
+    fn downcast_optrc(&self) -> Result<OptRc<FloatToI>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FloatToI> for &FloatToI {
+    fn downcast_optrc(&self) -> Result<OptRc<FloatToI>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FloatToI> for OptRc<FloatToI> {
+    fn downcast_optrc(&self) -> Result<OptRc<FloatToI>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FloatToI> for &OptRc<FloatToI> {
+    fn downcast_optrc(&self) -> Result<OptRc<FloatToI>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FloatToI {
     type Root = FloatToI;
     type Parent = FloatToI;
@@ -316,5 +348,11 @@ impl FloatToI {
 impl FloatToI {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::enum_to_i_class_border_1::EnumToIClassBorder1;
+use super::enum_to_i_class_border_1::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumToIClassBorder2 {
@@ -66,6 +67,38 @@ pub struct EnumToIClassBorder2 {
     _io: RefCell<BytesReader>,
     f_is_dog: Cell<bool>,
     is_dog: RefCell<bool>,
+}
+impl TryFrom<&EnumToIClassBorder2> for OptRc<EnumToIClassBorder2> {
+    type Error = KError;
+    fn try_from(v: &EnumToIClassBorder2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumToIClassBorder2> for OptRc<EnumToIClassBorder2> {
+    type Error = KError;
+    fn try_from(v: &&EnumToIClassBorder2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder2> for EnumToIClassBorder2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder2> for &EnumToIClassBorder2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder2> for OptRc<EnumToIClassBorder2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder2> for &OptRc<EnumToIClassBorder2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumToIClassBorder2 {
     type Root = EnumToIClassBorder2;
@@ -107,12 +140,18 @@ impl EnumToIClassBorder2 {
             return Ok(self.is_dog.borrow());
         }
         self.f_is_dog.set(true);
-        *self.is_dog.borrow_mut() = (*self.parent().some_dog().parse::<i32>().map_err(|_| KError::CastError)? == 4).try_into()?;
+        *self.is_dog.borrow_mut() = (((to_i128(i64::from(&*self.parent().some_dog()?))) == (to_i128(4)))).try_into()?;
         Ok(self.is_dog.borrow())
     }
 }
 impl EnumToIClassBorder2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -24,6 +24,38 @@ pub struct AndroidSuper {
     f_root: Cell<bool>,
     root: RefCell<OptRc<AndroidSuper_Root>>,
 }
+impl TryFrom<&AndroidSuper> for OptRc<AndroidSuper> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper> for OptRc<AndroidSuper> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper> for AndroidSuper {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper> for &AndroidSuper {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper> for OptRc<AndroidSuper> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper> for &OptRc<AndroidSuper> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidSuper {
     type Root = AndroidSuper;
     type Parent = AndroidSuper;
@@ -65,6 +97,12 @@ impl AndroidSuper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -80,6 +118,38 @@ pub struct AndroidSuper_Geometry {
     logical_block_size: RefCell<u32>,
     _io: RefCell<BytesReader>,
     checksum_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Geometry> for OptRc<AndroidSuper_Geometry> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Geometry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Geometry> for OptRc<AndroidSuper_Geometry> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Geometry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Geometry> for AndroidSuper_Geometry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Geometry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Geometry> for &AndroidSuper_Geometry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Geometry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Geometry> for OptRc<AndroidSuper_Geometry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Geometry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Geometry> for &OptRc<AndroidSuper_Geometry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Geometry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Geometry {
     type Root = AndroidSuper;
@@ -151,6 +221,12 @@ impl AndroidSuper_Geometry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Geometry {
     pub fn checksum_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -177,6 +253,38 @@ pub struct AndroidSuper_Metadata {
     _io: RefCell<BytesReader>,
     header_checksum_raw: RefCell<Vec<u8>>,
     tables_checksum_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Metadata> for OptRc<AndroidSuper_Metadata> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata> for OptRc<AndroidSuper_Metadata> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata> for AndroidSuper_Metadata {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata> for &AndroidSuper_Metadata {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata> for OptRc<AndroidSuper_Metadata> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata> for &OptRc<AndroidSuper_Metadata> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Metadata {
     type Root = AndroidSuper;
@@ -290,6 +398,12 @@ impl AndroidSuper_Metadata {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Metadata {
     pub fn header_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -354,6 +468,38 @@ pub struct AndroidSuper_Metadata_BlockDevice {
     flags_reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
     partition_name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Metadata_BlockDevice> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_BlockDevice) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_BlockDevice> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_BlockDevice) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for AndroidSuper_Metadata_BlockDevice {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for &AndroidSuper_Metadata_BlockDevice {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for &OptRc<AndroidSuper_Metadata_BlockDevice> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Metadata_BlockDevice {
     type Root = AndroidSuper;
@@ -423,6 +569,12 @@ impl AndroidSuper_Metadata_BlockDevice {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Metadata_BlockDevice {
     pub fn partition_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -440,6 +592,38 @@ pub struct AndroidSuper_Metadata_Extent {
     target_data: RefCell<u64>,
     target_source: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidSuper_Metadata_Extent> for OptRc<AndroidSuper_Metadata_Extent> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_Extent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_Extent> for OptRc<AndroidSuper_Metadata_Extent> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_Extent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for AndroidSuper_Metadata_Extent {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for &AndroidSuper_Metadata_Extent {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for OptRc<AndroidSuper_Metadata_Extent> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for &OptRc<AndroidSuper_Metadata_Extent> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Metadata_Extent {
     type Root = AndroidSuper;
@@ -491,6 +675,12 @@ impl AndroidSuper_Metadata_Extent {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AndroidSuper_Metadata_Extent_TargetType {
@@ -536,6 +726,38 @@ pub struct AndroidSuper_Metadata_Group {
     maximum_size: RefCell<u64>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Metadata_Group> for OptRc<AndroidSuper_Metadata_Group> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_Group> for OptRc<AndroidSuper_Metadata_Group> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for AndroidSuper_Metadata_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for &AndroidSuper_Metadata_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for OptRc<AndroidSuper_Metadata_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for &OptRc<AndroidSuper_Metadata_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Metadata_Group {
     type Root = AndroidSuper;
@@ -588,6 +810,12 @@ impl AndroidSuper_Metadata_Group {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Metadata_Group {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -611,6 +839,38 @@ pub struct AndroidSuper_Metadata_Partition {
     group_index: RefCell<u32>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Metadata_Partition> for OptRc<AndroidSuper_Metadata_Partition> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_Partition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_Partition> for OptRc<AndroidSuper_Metadata_Partition> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_Partition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for AndroidSuper_Metadata_Partition {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for &AndroidSuper_Metadata_Partition {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for OptRc<AndroidSuper_Metadata_Partition> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for &OptRc<AndroidSuper_Metadata_Partition> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Metadata_Partition {
     type Root = AndroidSuper;
@@ -693,6 +953,12 @@ impl AndroidSuper_Metadata_Partition {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Metadata_Partition {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -731,6 +997,22 @@ impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSupe
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        OptRc::<AndroidSuper_Metadata_BlockDevice>::try_from(self)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_BlockDevice> for &AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_BlockDevice>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AndroidSuper_Metadata_BlockDevice>> for AndroidSuper_Metadata_TableDescriptor_Table {
     fn from(v: OptRc<AndroidSuper_Metadata_BlockDevice>) -> Self {
         Self::AndroidSuper_Metadata_BlockDevice(v)
@@ -743,6 +1025,22 @@ impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSupe
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Extent> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        OptRc::<AndroidSuper_Metadata_Extent>::try_from(self)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Extent> for &AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Extent>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_Extent>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -759,6 +1057,22 @@ impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSupe
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Group> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        OptRc::<AndroidSuper_Metadata_Group>::try_from(self)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Group> for &AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Group>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AndroidSuper_Metadata_Group>> for AndroidSuper_Metadata_TableDescriptor_Table {
     fn from(v: OptRc<AndroidSuper_Metadata_Group>) -> Self {
         Self::AndroidSuper_Metadata_Group(v)
@@ -771,6 +1085,22 @@ impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSupe
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Partition> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        OptRc::<AndroidSuper_Metadata_Partition>::try_from(self)
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_Partition> for &AndroidSuper_Metadata_TableDescriptor_Table {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_Partition>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_Partition>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -787,9 +1117,47 @@ impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor_Table> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for AndroidSuper_Metadata_TableDescriptor_Table {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor> for OptRc<AndroidSuper_Metadata_TableDescriptor> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Metadata_TableDescriptor> for OptRc<AndroidSuper_Metadata_TableDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Metadata_TableDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_TableDescriptor> for AndroidSuper_Metadata_TableDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_TableDescriptor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_TableDescriptor> for &AndroidSuper_Metadata_TableDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_TableDescriptor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_TableDescriptor> for OptRc<AndroidSuper_Metadata_TableDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_TableDescriptor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Metadata_TableDescriptor> for &OptRc<AndroidSuper_Metadata_TableDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Metadata_TableDescriptor>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for AndroidSuper_Metadata_TableDescriptor {
@@ -889,6 +1257,12 @@ impl AndroidSuper_Metadata_TableDescriptor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSuper_Metadata_TableDescriptor {
     pub fn table_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
@@ -910,6 +1284,38 @@ pub struct AndroidSuper_Root {
     backup_geometry_raw: RefCell<Vec<u8>>,
     primary_metadata_raw: RefCell<Vec<u8>>,
     backup_metadata_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidSuper_Root> for OptRc<AndroidSuper_Root> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Root) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSuper_Root> for OptRc<AndroidSuper_Root> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSuper_Root) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Root> for AndroidSuper_Root {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Root>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Root> for &AndroidSuper_Root {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Root>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSuper_Root> for OptRc<AndroidSuper_Root> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Root>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSuper_Root> for &OptRc<AndroidSuper_Root> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSuper_Root>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSuper_Root {
     type Root = AndroidSuper;
@@ -982,6 +1388,12 @@ impl AndroidSuper_Root {
 impl AndroidSuper_Root {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AndroidSuper_Root {

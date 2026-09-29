@@ -72,6 +72,38 @@ pub struct Docstrings {
     f_two: Cell<bool>,
     two: RefCell<u8>,
 }
+impl TryFrom<&Docstrings> for OptRc<Docstrings> {
+    type Error = KError;
+    fn try_from(v: &Docstrings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Docstrings> for OptRc<Docstrings> {
+    type Error = KError;
+    fn try_from(v: &&Docstrings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Docstrings> for Docstrings {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Docstrings> for &Docstrings {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Docstrings> for OptRc<Docstrings> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Docstrings> for &OptRc<Docstrings> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Docstrings {
     type Root = Docstrings;
     type Parent = Docstrings;
@@ -143,6 +175,12 @@ impl Docstrings {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -167,6 +205,38 @@ pub struct Docstrings_ComplexSubtype {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Docstrings_ComplexSubtype> for OptRc<Docstrings_ComplexSubtype> {
+    type Error = KError;
+    fn try_from(v: &Docstrings_ComplexSubtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Docstrings_ComplexSubtype> for OptRc<Docstrings_ComplexSubtype> {
+    type Error = KError;
+    fn try_from(v: &&Docstrings_ComplexSubtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Docstrings_ComplexSubtype> for Docstrings_ComplexSubtype {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Docstrings_ComplexSubtype> for &Docstrings_ComplexSubtype {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Docstrings_ComplexSubtype> for OptRc<Docstrings_ComplexSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Docstrings_ComplexSubtype> for &OptRc<Docstrings_ComplexSubtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<Docstrings_ComplexSubtype>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Docstrings_ComplexSubtype {
     type Root = Docstrings;
@@ -193,5 +263,11 @@ impl Docstrings_ComplexSubtype {
 impl Docstrings_ComplexSubtype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

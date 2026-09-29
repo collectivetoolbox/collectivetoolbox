@@ -64,6 +64,38 @@ pub struct DefaultEndianExprException {
     docs: RefCell<Vec<OptRc<DefaultEndianExprException_Doc>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DefaultEndianExprException> for OptRc<DefaultEndianExprException> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprException) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprException> for OptRc<DefaultEndianExprException> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprException) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException> for DefaultEndianExprException {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException> for &DefaultEndianExprException {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException> for OptRc<DefaultEndianExprException> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException> for &OptRc<DefaultEndianExprException> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DefaultEndianExprException {
     type Root = DefaultEndianExprException;
     type Parent = DefaultEndianExprException;
@@ -104,6 +136,12 @@ impl DefaultEndianExprException {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -115,6 +153,38 @@ pub struct DefaultEndianExprException_Doc {
     main: RefCell<OptRc<DefaultEndianExprException_Doc_MainObj>>,
     _io: RefCell<BytesReader>,
     indicator_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DefaultEndianExprException_Doc> for OptRc<DefaultEndianExprException_Doc> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprException_Doc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprException_Doc> for OptRc<DefaultEndianExprException_Doc> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprException_Doc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc> for DefaultEndianExprException_Doc {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc> for &DefaultEndianExprException_Doc {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc> for OptRc<DefaultEndianExprException_Doc> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc> for &OptRc<DefaultEndianExprException_Doc> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianExprException_Doc {
     type Root = DefaultEndianExprException;
@@ -155,6 +225,12 @@ impl DefaultEndianExprException_Doc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DefaultEndianExprException_Doc {
     pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -173,6 +249,38 @@ pub struct DefaultEndianExprException_Doc_MainObj {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
+impl TryFrom<&DefaultEndianExprException_Doc_MainObj> for OptRc<DefaultEndianExprException_Doc_MainObj> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprException_Doc_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprException_Doc_MainObj> for OptRc<DefaultEndianExprException_Doc_MainObj> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprException_Doc_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc_MainObj> for DefaultEndianExprException_Doc_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc_MainObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc_MainObj> for &DefaultEndianExprException_Doc_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc_MainObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc_MainObj> for OptRc<DefaultEndianExprException_Doc_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc_MainObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprException_Doc_MainObj> for &OptRc<DefaultEndianExprException_Doc_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprException_Doc_MainObj>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DefaultEndianExprException_Doc_MainObj {
     type Root = DefaultEndianExprException;
     type Parent = DefaultEndianExprException_Doc;
@@ -189,7 +297,7 @@ impl KStruct for DefaultEndianExprException_Doc_MainObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.indicator() {
+        match self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.indicator().as_slice() {
             [0x49, 0x49] => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -233,5 +341,11 @@ impl DefaultEndianExprException_Doc_MainObj {
 impl DefaultEndianExprException_Doc_MainObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

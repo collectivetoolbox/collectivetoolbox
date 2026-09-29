@@ -63,6 +63,38 @@ pub struct MetaXref {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&MetaXref> for OptRc<MetaXref> {
+    type Error = KError;
+    fn try_from(v: &MetaXref) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MetaXref> for OptRc<MetaXref> {
+    type Error = KError;
+    fn try_from(v: &&MetaXref) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MetaXref> for MetaXref {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaXref>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MetaXref> for &MetaXref {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaXref>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MetaXref> for OptRc<MetaXref> {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaXref>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MetaXref> for &OptRc<MetaXref> {
+    fn downcast_optrc(&self) -> Result<OptRc<MetaXref>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MetaXref {
     type Root = MetaXref;
     type Parent = MetaXref;
@@ -88,5 +120,11 @@ impl MetaXref {
 impl MetaXref {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

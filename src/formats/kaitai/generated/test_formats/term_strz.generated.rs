@@ -66,6 +66,38 @@ pub struct TermStrz {
     s3: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&TermStrz> for OptRc<TermStrz> {
+    type Error = KError;
+    fn try_from(v: &TermStrz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStrz> for OptRc<TermStrz> {
+    type Error = KError;
+    fn try_from(v: &&TermStrz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStrz> for TermStrz {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrz>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStrz> for &TermStrz {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrz>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStrz> for OptRc<TermStrz> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrz>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStrz> for &OptRc<TermStrz> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrz>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TermStrz {
     type Root = TermStrz;
     type Parent = TermStrz;
@@ -109,5 +141,11 @@ impl TermStrz {
 impl TermStrz {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

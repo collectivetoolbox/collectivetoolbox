@@ -4,7 +4,8 @@
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::*;
 
 /**
  * LHA (LHarc, LZH) is a file format used by a popular freeware
@@ -23,6 +24,38 @@ pub struct Lzh {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Lzh_Record>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Lzh> for OptRc<Lzh> {
+    type Error = KError;
+    fn try_from(v: &Lzh) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Lzh> for OptRc<Lzh> {
+    type Error = KError;
+    fn try_from(v: &&Lzh) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Lzh> for Lzh {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Lzh> for &Lzh {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Lzh> for OptRc<Lzh> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Lzh> for &OptRc<Lzh> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Lzh {
     type Root = Lzh;
@@ -64,6 +97,12 @@ impl Lzh {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -77,6 +116,38 @@ pub struct Lzh_FileRecord {
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Lzh_FileRecord> for OptRc<Lzh_FileRecord> {
+    type Error = KError;
+    fn try_from(v: &Lzh_FileRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Lzh_FileRecord> for OptRc<Lzh_FileRecord> {
+    type Error = KError;
+    fn try_from(v: &&Lzh_FileRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_FileRecord> for Lzh_FileRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_FileRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Lzh_FileRecord> for &Lzh_FileRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_FileRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_FileRecord> for OptRc<Lzh_FileRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_FileRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Lzh_FileRecord> for &OptRc<Lzh_FileRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_FileRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Lzh_FileRecord {
     type Root = Lzh;
@@ -128,6 +199,12 @@ impl Lzh_FileRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Lzh_FileRecord {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -153,6 +230,38 @@ pub struct Lzh_Header {
     ext_header_size: RefCell<u16>,
     _io: RefCell<BytesReader>,
     filename_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Lzh_Header> for OptRc<Lzh_Header> {
+    type Error = KError;
+    fn try_from(v: &Lzh_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Lzh_Header> for OptRc<Lzh_Header> {
+    type Error = KError;
+    fn try_from(v: &&Lzh_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header> for Lzh_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header> for &Lzh_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header> for OptRc<Lzh_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Lzh_Header> for &OptRc<Lzh_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Lzh_Header {
     type Root = Lzh;
@@ -231,6 +340,12 @@ impl Lzh_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Lzh_Header {
     pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -253,6 +368,38 @@ pub struct Lzh_Header1 {
     _io: RefCell<BytesReader>,
     method_id_raw: RefCell<Vec<u8>>,
     file_timestamp_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Lzh_Header1> for OptRc<Lzh_Header1> {
+    type Error = KError;
+    fn try_from(v: &Lzh_Header1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Lzh_Header1> for OptRc<Lzh_Header1> {
+    type Error = KError;
+    fn try_from(v: &&Lzh_Header1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header1> for Lzh_Header1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header1> for &Lzh_Header1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Header1> for OptRc<Lzh_Header1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Lzh_Header1> for &OptRc<Lzh_Header1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Header1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Lzh_Header1 {
     type Root = Lzh;
@@ -342,6 +489,12 @@ impl Lzh_Header1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Lzh_Header1 {
     pub fn method_id_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -362,6 +515,38 @@ pub struct Lzh_Record {
     header_len: RefCell<u8>,
     file_record: RefCell<OptRc<Lzh_FileRecord>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Lzh_Record> for OptRc<Lzh_Record> {
+    type Error = KError;
+    fn try_from(v: &Lzh_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Lzh_Record> for OptRc<Lzh_Record> {
+    type Error = KError;
+    fn try_from(v: &&Lzh_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Record> for Lzh_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Record> for &Lzh_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Lzh_Record> for OptRc<Lzh_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Lzh_Record> for &OptRc<Lzh_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Lzh_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Lzh_Record {
     type Root = Lzh;
@@ -403,5 +588,11 @@ impl Lzh_Record {
 impl Lzh_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

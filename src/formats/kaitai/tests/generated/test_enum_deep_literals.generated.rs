@@ -85,7 +85,7 @@ fn test_enum_deep_literals() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumDeepLiterals> = EnumDeepLiterals::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.is_pet_1_ok()?, true);
-    assert_eq!(*r.is_pet_2_ok()?, true);
+    assert_eq!(*(r.is_pet_1_ok()?), true);
+    assert_eq!(*(r.is_pet_2_ok()?), true);
     Ok(())
 }

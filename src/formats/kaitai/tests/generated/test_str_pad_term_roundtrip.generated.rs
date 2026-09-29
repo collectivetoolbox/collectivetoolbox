@@ -85,9 +85,9 @@ fn test_str_pad_term_roundtrip() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrPadTermRoundtrip> = StrPadTermRoundtrip::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_pad(), "str1");
-    assert_eq!(*r.str_term(), "str2foo");
-    assert_eq!(*r.str_term_and_pad(), "str+++3bar+++");
-    assert_eq!(*r.str_term_include(), "str4baz@");
+    assert_eq!(*(r.str_pad()), "str1");
+    assert_eq!(*(r.str_term()), "str2foo");
+    assert_eq!(*(r.str_term_and_pad()), "str+++3bar+++");
+    assert_eq!(*(r.str_term_include()), "str4baz@");
     Ok(())
 }

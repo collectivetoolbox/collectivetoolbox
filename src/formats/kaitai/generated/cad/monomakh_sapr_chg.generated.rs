@@ -27,6 +27,38 @@ pub struct MonomakhSaprChg {
     _io: RefCell<BytesReader>,
     title_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&MonomakhSaprChg> for OptRc<MonomakhSaprChg> {
+    type Error = KError;
+    fn try_from(v: &MonomakhSaprChg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MonomakhSaprChg> for OptRc<MonomakhSaprChg> {
+    type Error = KError;
+    fn try_from(v: &&MonomakhSaprChg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg> for MonomakhSaprChg {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg> for &MonomakhSaprChg {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg> for OptRc<MonomakhSaprChg> {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg> for &OptRc<MonomakhSaprChg> {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MonomakhSaprChg {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
@@ -73,6 +105,12 @@ impl MonomakhSaprChg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MonomakhSaprChg {
     pub fn title_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -91,6 +129,38 @@ pub struct MonomakhSaprChg_Block {
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
     file_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MonomakhSaprChg_Block> for OptRc<MonomakhSaprChg_Block> {
+    type Error = KError;
+    fn try_from(v: &MonomakhSaprChg_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MonomakhSaprChg_Block> for OptRc<MonomakhSaprChg_Block> {
+    type Error = KError;
+    fn try_from(v: &&MonomakhSaprChg_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg_Block> for MonomakhSaprChg_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg_Block> for &MonomakhSaprChg_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg_Block> for OptRc<MonomakhSaprChg_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MonomakhSaprChg_Block> for &OptRc<MonomakhSaprChg_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<MonomakhSaprChg_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MonomakhSaprChg_Block {
     type Root = MonomakhSaprChg;
@@ -135,6 +205,12 @@ impl MonomakhSaprChg_Block {
 impl MonomakhSaprChg_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MonomakhSaprChg_Block {

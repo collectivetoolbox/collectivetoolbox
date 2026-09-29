@@ -27,6 +27,38 @@ pub struct AndroidBootldrAsus {
     images: RefCell<Vec<OptRc<AndroidBootldrAsus_Image>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&AndroidBootldrAsus> for OptRc<AndroidBootldrAsus> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrAsus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrAsus> for OptRc<AndroidBootldrAsus> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrAsus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus> for AndroidBootldrAsus {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus> for &AndroidBootldrAsus {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus> for OptRc<AndroidBootldrAsus> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus> for &OptRc<AndroidBootldrAsus> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidBootldrAsus {
     type Root = AndroidBootldrAsus;
     type Parent = AndroidBootldrAsus;
@@ -100,6 +132,12 @@ impl AndroidBootldrAsus {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -119,6 +157,38 @@ pub struct AndroidBootldrAsus_Image {
     body_raw: RefCell<Vec<u8>>,
     f_file_name: Cell<bool>,
     file_name: RefCell<String>,
+}
+impl TryFrom<&AndroidBootldrAsus_Image> for OptRc<AndroidBootldrAsus_Image> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrAsus_Image) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrAsus_Image> for OptRc<AndroidBootldrAsus_Image> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrAsus_Image) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus_Image> for AndroidBootldrAsus_Image {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus_Image> for &AndroidBootldrAsus_Image {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus_Image> for OptRc<AndroidBootldrAsus_Image> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrAsus_Image> for &OptRc<AndroidBootldrAsus_Image> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrAsus_Image>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidBootldrAsus_Image {
     type Root = AndroidBootldrAsus;
@@ -208,6 +278,12 @@ impl AndroidBootldrAsus_Image {
 impl AndroidBootldrAsus_Image {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AndroidBootldrAsus_Image {

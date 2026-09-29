@@ -85,10 +85,10 @@ fn test_imports_circular_a() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ImportsCircularA> = ImportsCircularA::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.code(), 80);
-    assert_eq!(*r.two().initial(), 65);
-    assert_eq!(*r.two().back_ref().code(), 67);
-    assert_eq!(*r.two().back_ref().two().initial(), 75);
+    assert_eq!(*(r.code()), 80);
+    assert_eq!(*(r.two().initial()), 65);
+    assert_eq!(*(r.two().back_ref().code()), 67);
+    assert_eq!(*(r.two().back_ref().two().initial()), 75);
     assert!(r.two().back_ref().two().back_ref().is_none());
     Ok(())
 }

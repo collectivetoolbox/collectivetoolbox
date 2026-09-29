@@ -65,6 +65,38 @@ pub struct ProcessToUser {
     _io: RefCell<BytesReader>,
     buf1_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessToUser> for OptRc<ProcessToUser> {
+    type Error = KError;
+    fn try_from(v: &ProcessToUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessToUser> for OptRc<ProcessToUser> {
+    type Error = KError;
+    fn try_from(v: &&ProcessToUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser> for ProcessToUser {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser> for &ProcessToUser {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser> for OptRc<ProcessToUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessToUser> for &OptRc<ProcessToUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessToUser {
     type Root = ProcessToUser;
     type Parent = ProcessToUser;
@@ -102,6 +134,12 @@ impl ProcessToUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessToUser {
     pub fn buf1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -116,6 +154,38 @@ pub struct ProcessToUser_JustStr {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessToUser_JustStr> for OptRc<ProcessToUser_JustStr> {
+    type Error = KError;
+    fn try_from(v: &ProcessToUser_JustStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessToUser_JustStr> for OptRc<ProcessToUser_JustStr> {
+    type Error = KError;
+    fn try_from(v: &&ProcessToUser_JustStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser_JustStr> for ProcessToUser_JustStr {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser_JustStr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser_JustStr> for &ProcessToUser_JustStr {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser_JustStr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessToUser_JustStr> for OptRc<ProcessToUser_JustStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser_JustStr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessToUser_JustStr> for &OptRc<ProcessToUser_JustStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessToUser_JustStr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessToUser_JustStr {
     type Root = ProcessToUser;
@@ -148,5 +218,11 @@ impl ProcessToUser_JustStr {
 impl ProcessToUser_JustStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

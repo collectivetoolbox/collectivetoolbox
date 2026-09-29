@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::ethernet_frame::EthernetFrame;
+use super::ethernet_frame::*;
 
 /**
  * PPI is a standard for link layer packet encapsulation, proposed as
@@ -44,6 +45,22 @@ impl TryFrom<&PacketPpi_Body> for OptRc<EthernetFrame> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PacketPpi_Body> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<EthernetFrame> for PacketPpi_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        OptRc::<EthernetFrame>::try_from(self)
+    }
+}
+impl DowncastOptRc<EthernetFrame> for &PacketPpi_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<EthernetFrame>> for PacketPpi_Body {
     fn from(v: OptRc<EthernetFrame>) -> Self {
         Self::EthernetFrame(v)
@@ -56,6 +73,22 @@ impl TryFrom<&PacketPpi_Body> for OptRc<PacketPpi> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PacketPpi_Body> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PacketPpi> for PacketPpi_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        OptRc::<PacketPpi>::try_from(self)
+    }
+}
+impl DowncastOptRc<PacketPpi> for &PacketPpi_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PacketPpi>> for PacketPpi_Body {
@@ -72,9 +105,47 @@ impl TryFrom<&PacketPpi_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PacketPpi_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for PacketPpi_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&PacketPpi> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi> for PacketPpi {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi> for &PacketPpi {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi> for OptRc<PacketPpi> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi> for &OptRc<PacketPpi> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for PacketPpi {
@@ -143,6 +214,12 @@ impl PacketPpi {
 impl PacketPpi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl PacketPpi {
@@ -555,6 +632,38 @@ pub struct PacketPpi_MacFlags {
     _io: RefCell<BytesReader>,
     unused2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&PacketPpi_MacFlags> for OptRc<PacketPpi_MacFlags> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_MacFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_MacFlags> for OptRc<PacketPpi_MacFlags> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_MacFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_MacFlags> for PacketPpi_MacFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_MacFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_MacFlags> for &PacketPpi_MacFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_MacFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_MacFlags> for OptRc<PacketPpi_MacFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_MacFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_MacFlags> for &OptRc<PacketPpi_MacFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_MacFlags>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PacketPpi_MacFlags {
     type Root = PacketPpi;
     type Parent = KStructUnit;
@@ -664,6 +773,12 @@ impl PacketPpi_MacFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PacketPpi_MacFlags {
     pub fn unused2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -702,6 +817,22 @@ impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211Commo
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211CommonBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        OptRc::<PacketPpi_Radio80211CommonBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for &PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PacketPpi_Radio80211CommonBody>> for PacketPpi_PacketPpiField_Body {
     fn from(v: OptRc<PacketPpi_Radio80211CommonBody>) -> Self {
         Self::PacketPpi_Radio80211CommonBody(v)
@@ -714,6 +845,22 @@ impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacE
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacExtBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        OptRc::<PacketPpi_Radio80211nMacExtBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for &PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PacketPpi_Radio80211nMacExtBody>> for PacketPpi_PacketPpiField_Body {
@@ -730,6 +877,22 @@ impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacP
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        OptRc::<PacketPpi_Radio80211nMacPhyExtBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for &PacketPpi_PacketPpiField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PacketPpi_Radio80211nMacPhyExtBody>> for PacketPpi_PacketPpiField_Body {
     fn from(v: OptRc<PacketPpi_Radio80211nMacPhyExtBody>) -> Self {
         Self::PacketPpi_Radio80211nMacPhyExtBody(v)
@@ -744,9 +907,47 @@ impl TryFrom<&PacketPpi_PacketPpiField_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PacketPpi_PacketPpiField_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for PacketPpi_PacketPpiField_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&PacketPpi_PacketPpiField> for OptRc<PacketPpi_PacketPpiField> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_PacketPpiField> for OptRc<PacketPpi_PacketPpiField> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiField> for PacketPpi_PacketPpiField {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiField>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiField> for &PacketPpi_PacketPpiField {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiField>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiField> for OptRc<PacketPpi_PacketPpiField> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiField>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiField> for &OptRc<PacketPpi_PacketPpiField> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiField>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for PacketPpi_PacketPpiField {
@@ -818,6 +1019,12 @@ impl PacketPpi_PacketPpiField {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PacketPpi_PacketPpiField {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -832,6 +1039,38 @@ pub struct PacketPpi_PacketPpiFields {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<PacketPpi_PacketPpiField>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_PacketPpiFields> for OptRc<PacketPpi_PacketPpiFields> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiFields) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_PacketPpiFields> for OptRc<PacketPpi_PacketPpiFields> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiFields) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiFields> for PacketPpi_PacketPpiFields {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiFields>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiFields> for &PacketPpi_PacketPpiFields {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiFields>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiFields> for OptRc<PacketPpi_PacketPpiFields> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiFields>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiFields> for &OptRc<PacketPpi_PacketPpiFields> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiFields>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_PacketPpiFields {
     type Root = PacketPpi;
@@ -873,6 +1112,12 @@ impl PacketPpi_PacketPpiFields {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -889,6 +1134,38 @@ pub struct PacketPpi_PacketPpiHeader {
     pph_len: RefCell<u16>,
     pph_dlt: RefCell<PacketPpi_Linktype>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_PacketPpiHeader> for OptRc<PacketPpi_PacketPpiHeader> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_PacketPpiHeader> for OptRc<PacketPpi_PacketPpiHeader> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_PacketPpiHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiHeader> for PacketPpi_PacketPpiHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiHeader> for &PacketPpi_PacketPpiHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiHeader> for OptRc<PacketPpi_PacketPpiHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_PacketPpiHeader> for &OptRc<PacketPpi_PacketPpiHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_PacketPpiHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_PacketPpiHeader {
     type Root = PacketPpi;
@@ -940,6 +1217,12 @@ impl PacketPpi_PacketPpiHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -961,6 +1244,38 @@ pub struct PacketPpi_Radio80211CommonBody {
     dbm_antsignal: RefCell<i8>,
     dbm_antnoise: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_Radio80211CommonBody> for OptRc<PacketPpi_Radio80211CommonBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Radio80211CommonBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_Radio80211CommonBody> for OptRc<PacketPpi_Radio80211CommonBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Radio80211CommonBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for PacketPpi_Radio80211CommonBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for &PacketPpi_Radio80211CommonBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for OptRc<PacketPpi_Radio80211CommonBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211CommonBody> for &OptRc<PacketPpi_Radio80211CommonBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211CommonBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_Radio80211CommonBody {
     type Root = PacketPpi;
@@ -1042,6 +1357,12 @@ impl PacketPpi_Radio80211CommonBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1059,6 +1380,38 @@ pub struct PacketPpi_Radio80211nMacExtBody {
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PacketPpi_Radio80211nMacExtBody> for OptRc<PacketPpi_Radio80211nMacExtBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Radio80211nMacExtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_Radio80211nMacExtBody> for OptRc<PacketPpi_Radio80211nMacExtBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Radio80211nMacExtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for PacketPpi_Radio80211nMacExtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for &PacketPpi_Radio80211nMacExtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for OptRc<PacketPpi_Radio80211nMacExtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacExtBody> for &OptRc<PacketPpi_Radio80211nMacExtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacExtBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_Radio80211nMacExtBody {
     type Root = PacketPpi;
@@ -1111,6 +1464,12 @@ impl PacketPpi_Radio80211nMacExtBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PacketPpi_Radio80211nMacExtBody {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1140,6 +1499,38 @@ pub struct PacketPpi_Radio80211nMacPhyExtBody {
     rf_signal_noise: RefCell<Vec<OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>>>,
     evm: RefCell<Vec<u32>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_Radio80211nMacPhyExtBody> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Radio80211nMacPhyExtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_Radio80211nMacPhyExtBody> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Radio80211nMacPhyExtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for PacketPpi_Radio80211nMacPhyExtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for &PacketPpi_Radio80211nMacPhyExtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody> for &OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
     type Root = PacketPpi;
@@ -1294,6 +1685,12 @@ impl PacketPpi_Radio80211nMacPhyExtBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1311,6 +1708,38 @@ pub struct PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
     only_passive_scan: RefCell<bool>,
     spectrum_5ghz: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for &PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> for &OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
     type Root = PacketPpi;
@@ -1420,6 +1849,12 @@ impl PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1434,6 +1869,38 @@ pub struct PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
     signal: RefCell<i8>,
     noise: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Radio80211nMacPhyExtBody_SignalNoise) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> {
+    type Error = KError;
+    fn try_from(v: &&PacketPpi_Radio80211nMacPhyExtBody_SignalNoise) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for &PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> for &OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise> {
+    fn downcast_optrc(&self) -> Result<OptRc<PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
     type Root = PacketPpi;
@@ -1480,5 +1947,11 @@ impl PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
 impl PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -65,6 +65,38 @@ pub struct EnumNegative {
     f2: RefCell<EnumNegative_Constants>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumNegative> for OptRc<EnumNegative> {
+    type Error = KError;
+    fn try_from(v: &EnumNegative) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumNegative> for OptRc<EnumNegative> {
+    type Error = KError;
+    fn try_from(v: &&EnumNegative) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumNegative> for EnumNegative {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumNegative>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumNegative> for &EnumNegative {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumNegative>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumNegative> for OptRc<EnumNegative> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumNegative>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumNegative> for &OptRc<EnumNegative> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumNegative>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumNegative {
     type Root = EnumNegative;
     type Parent = EnumNegative;
@@ -102,6 +134,12 @@ impl EnumNegative {
 impl EnumNegative {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

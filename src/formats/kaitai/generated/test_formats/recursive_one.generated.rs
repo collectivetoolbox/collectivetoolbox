@@ -79,6 +79,22 @@ impl TryFrom<&RecursiveOne_Next> for OptRc<RecursiveOne> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RecursiveOne_Next> for OptRc<RecursiveOne> {
+    type Error = KError;
+    fn try_from(v: &&RecursiveOne_Next) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RecursiveOne> for RecursiveOne_Next {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        OptRc::<RecursiveOne>::try_from(self)
+    }
+}
+impl DowncastOptRc<RecursiveOne> for &RecursiveOne_Next {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RecursiveOne>> for RecursiveOne_Next {
     fn from(v: OptRc<RecursiveOne>) -> Self {
         Self::RecursiveOne(v)
@@ -93,9 +109,57 @@ impl TryFrom<&RecursiveOne_Next> for OptRc<RecursiveOne_Fini> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RecursiveOne_Next> for OptRc<RecursiveOne_Fini> {
+    type Error = KError;
+    fn try_from(v: &&RecursiveOne_Next) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for RecursiveOne_Next {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        OptRc::<RecursiveOne_Fini>::try_from(self)
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for &RecursiveOne_Next {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RecursiveOne_Fini>> for RecursiveOne_Next {
     fn from(v: OptRc<RecursiveOne_Fini>) -> Self {
         Self::RecursiveOne_Fini(v)
+    }
+}
+impl TryFrom<&RecursiveOne> for OptRc<RecursiveOne> {
+    type Error = KError;
+    fn try_from(v: &RecursiveOne) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RecursiveOne> for OptRc<RecursiveOne> {
+    type Error = KError;
+    fn try_from(v: &&RecursiveOne) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne> for RecursiveOne {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne> for &RecursiveOne {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne> for OptRc<RecursiveOne> {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RecursiveOne> for &OptRc<RecursiveOne> {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RecursiveOne {
@@ -154,6 +218,12 @@ impl RecursiveOne {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -163,6 +233,38 @@ pub struct RecursiveOne_Fini {
     pub(crate) _self_shared: SharedType<Self>,
     finisher: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RecursiveOne_Fini> for OptRc<RecursiveOne_Fini> {
+    type Error = KError;
+    fn try_from(v: &RecursiveOne_Fini) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RecursiveOne_Fini> for OptRc<RecursiveOne_Fini> {
+    type Error = KError;
+    fn try_from(v: &&RecursiveOne_Fini) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for RecursiveOne_Fini {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for &RecursiveOne_Fini {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for OptRc<RecursiveOne_Fini> {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RecursiveOne_Fini> for &OptRc<RecursiveOne_Fini> {
+    fn downcast_optrc(&self) -> Result<OptRc<RecursiveOne_Fini>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RecursiveOne_Fini {
     type Root = RecursiveOne;
@@ -195,5 +297,11 @@ impl RecursiveOne_Fini {
 impl RecursiveOne_Fini {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

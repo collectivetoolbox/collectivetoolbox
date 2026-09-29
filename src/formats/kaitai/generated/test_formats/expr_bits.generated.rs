@@ -119,6 +119,38 @@ impl TryFrom<&ExprBits_SwitchOnType> for usize {
     }
 }
 
+impl TryFrom<&ExprBits> for OptRc<ExprBits> {
+    type Error = KError;
+    fn try_from(v: &ExprBits) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprBits> for OptRc<ExprBits> {
+    type Error = KError;
+    fn try_from(v: &&ExprBits) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprBits> for ExprBits {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprBits> for &ExprBits {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprBits> for OptRc<ExprBits> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprBits> for &OptRc<ExprBits> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprBits {
     type Root = ExprBits;
     type Parent = ExprBits;
@@ -135,7 +167,7 @@ impl KStruct for ExprBits {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.enum_seq.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.enum_seq.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         *self_rc.a.borrow_mut() = _io.read_bits_int_be(3)?;
         io.align_to_byte()?;
         *self_rc.byte_size.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.a())?)?;
@@ -166,7 +198,7 @@ impl ExprBits {
             return Ok(self.enum_inst.borrow());
         }
         self.f_enum_inst.set(true);
-        *self.enum_inst.borrow_mut() = i64::try_from(*self.a())?.try_into()?;
+        *self.enum_inst.borrow_mut() = i64::from_ne_bytes((*self.a()).to_ne_bytes()).try_into()?;
         Ok(self.enum_inst.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -223,6 +255,12 @@ impl ExprBits {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ExprBits {
     pub fn byte_size_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -270,6 +308,38 @@ pub struct ExprBits_EndianSwitch {
     foo: RefCell<i16>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&ExprBits_EndianSwitch> for OptRc<ExprBits_EndianSwitch> {
+    type Error = KError;
+    fn try_from(v: &ExprBits_EndianSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprBits_EndianSwitch> for OptRc<ExprBits_EndianSwitch> {
+    type Error = KError;
+    fn try_from(v: &&ExprBits_EndianSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprBits_EndianSwitch> for ExprBits_EndianSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits_EndianSwitch>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprBits_EndianSwitch> for &ExprBits_EndianSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits_EndianSwitch>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprBits_EndianSwitch> for OptRc<ExprBits_EndianSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits_EndianSwitch>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprBits_EndianSwitch> for &OptRc<ExprBits_EndianSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBits_EndianSwitch>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprBits_EndianSwitch {
     type Root = ExprBits;
@@ -319,5 +389,11 @@ impl ExprBits_EndianSwitch {
 impl ExprBits_EndianSwitch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

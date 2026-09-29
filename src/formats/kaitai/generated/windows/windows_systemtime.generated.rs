@@ -26,6 +26,38 @@ pub struct WindowsSystemtime {
     msec: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&WindowsSystemtime> for OptRc<WindowsSystemtime> {
+    type Error = KError;
+    fn try_from(v: &WindowsSystemtime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsSystemtime> for OptRc<WindowsSystemtime> {
+    type Error = KError;
+    fn try_from(v: &&WindowsSystemtime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsSystemtime> for WindowsSystemtime {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsSystemtime>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsSystemtime> for &WindowsSystemtime {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsSystemtime>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsSystemtime> for OptRc<WindowsSystemtime> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsSystemtime>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsSystemtime> for &OptRc<WindowsSystemtime> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsSystemtime>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for WindowsSystemtime {
     type Root = WindowsSystemtime;
     type Parent = WindowsSystemtime;
@@ -131,5 +163,11 @@ impl WindowsSystemtime {
 impl WindowsSystemtime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

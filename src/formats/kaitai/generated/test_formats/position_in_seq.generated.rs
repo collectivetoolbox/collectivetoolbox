@@ -66,6 +66,38 @@ pub struct PositionInSeq {
     f_header: Cell<bool>,
     header: RefCell<OptRc<PositionInSeq_HeaderObj>>,
 }
+impl TryFrom<&PositionInSeq> for OptRc<PositionInSeq> {
+    type Error = KError;
+    fn try_from(v: &PositionInSeq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionInSeq> for OptRc<PositionInSeq> {
+    type Error = KError;
+    fn try_from(v: &&PositionInSeq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq> for PositionInSeq {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq> for &PositionInSeq {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq> for OptRc<PositionInSeq> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionInSeq> for &OptRc<PositionInSeq> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PositionInSeq {
     type Root = PositionInSeq;
     type Parent = PositionInSeq;
@@ -117,6 +149,12 @@ impl PositionInSeq {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -126,6 +164,38 @@ pub struct PositionInSeq_HeaderObj {
     pub(crate) _self_shared: SharedType<Self>,
     qty_numbers: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PositionInSeq_HeaderObj> for OptRc<PositionInSeq_HeaderObj> {
+    type Error = KError;
+    fn try_from(v: &PositionInSeq_HeaderObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionInSeq_HeaderObj> for OptRc<PositionInSeq_HeaderObj> {
+    type Error = KError;
+    fn try_from(v: &&PositionInSeq_HeaderObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq_HeaderObj> for PositionInSeq_HeaderObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq_HeaderObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq_HeaderObj> for &PositionInSeq_HeaderObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq_HeaderObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionInSeq_HeaderObj> for OptRc<PositionInSeq_HeaderObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq_HeaderObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionInSeq_HeaderObj> for &OptRc<PositionInSeq_HeaderObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionInSeq_HeaderObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PositionInSeq_HeaderObj {
     type Root = PositionInSeq;
@@ -158,5 +228,11 @@ impl PositionInSeq_HeaderObj {
 impl PositionInSeq_HeaderObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

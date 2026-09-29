@@ -65,6 +65,38 @@ pub struct InstanceInSized {
     _io: RefCell<BytesReader>,
     cont_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&InstanceInSized> for OptRc<InstanceInSized> {
+    type Error = KError;
+    fn try_from(v: &InstanceInSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInSized> for OptRc<InstanceInSized> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized> for InstanceInSized {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized> for &InstanceInSized {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized> for OptRc<InstanceInSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInSized> for &OptRc<InstanceInSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for InstanceInSized {
     type Root = InstanceInSized;
     type Parent = InstanceInSized;
@@ -101,6 +133,12 @@ impl InstanceInSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl InstanceInSized {
     pub fn cont_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -117,6 +155,38 @@ pub struct InstanceInSized_Bar {
     _io: RefCell<BytesReader>,
     f_inst: Cell<bool>,
     inst: RefCell<Vec<u8>>,
+}
+impl TryFrom<&InstanceInSized_Bar> for OptRc<InstanceInSized_Bar> {
+    type Error = KError;
+    fn try_from(v: &InstanceInSized_Bar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInSized_Bar> for OptRc<InstanceInSized_Bar> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInSized_Bar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Bar> for InstanceInSized_Bar {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Bar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Bar> for &InstanceInSized_Bar {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Bar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Bar> for OptRc<InstanceInSized_Bar> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Bar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInSized_Bar> for &OptRc<InstanceInSized_Bar> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Bar>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceInSized_Bar {
     type Root = InstanceInSized;
@@ -165,6 +235,12 @@ impl InstanceInSized_Bar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -176,6 +252,38 @@ pub struct InstanceInSized_Baz {
     _io: RefCell<BytesReader>,
     f_inst: Cell<bool>,
     inst: RefCell<Vec<u8>>,
+}
+impl TryFrom<&InstanceInSized_Baz> for OptRc<InstanceInSized_Baz> {
+    type Error = KError;
+    fn try_from(v: &InstanceInSized_Baz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInSized_Baz> for OptRc<InstanceInSized_Baz> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInSized_Baz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Baz> for InstanceInSized_Baz {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Baz>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Baz> for &InstanceInSized_Baz {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Baz>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Baz> for OptRc<InstanceInSized_Baz> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Baz>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInSized_Baz> for &OptRc<InstanceInSized_Baz> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Baz>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceInSized_Baz {
     type Root = InstanceInSized;
@@ -224,6 +332,12 @@ impl InstanceInSized_Baz {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -237,6 +351,38 @@ pub struct InstanceInSized_Qux {
     inst_invoked: RefCell<u8>,
     f_inst_unused_by_seq: Cell<bool>,
     inst_unused_by_seq: RefCell<Vec<u8>>,
+}
+impl TryFrom<&InstanceInSized_Qux> for OptRc<InstanceInSized_Qux> {
+    type Error = KError;
+    fn try_from(v: &InstanceInSized_Qux) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInSized_Qux> for OptRc<InstanceInSized_Qux> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInSized_Qux) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Qux> for InstanceInSized_Qux {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Qux>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Qux> for &InstanceInSized_Qux {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Qux>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Qux> for OptRc<InstanceInSized_Qux> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Qux>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInSized_Qux> for &OptRc<InstanceInSized_Qux> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Qux>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceInSized_Qux {
     type Root = InstanceInSized;
@@ -302,6 +448,12 @@ impl InstanceInSized_Qux {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -318,6 +470,38 @@ pub struct InstanceInSized_Wrapper {
     inst_in_stream: RefCell<OptRc<InstanceInSized_Baz>>,
     f_inst_sized: Cell<bool>,
     inst_sized: RefCell<OptRc<InstanceInSized_Qux>>,
+}
+impl TryFrom<&InstanceInSized_Wrapper> for OptRc<InstanceInSized_Wrapper> {
+    type Error = KError;
+    fn try_from(v: &InstanceInSized_Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInSized_Wrapper> for OptRc<InstanceInSized_Wrapper> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInSized_Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Wrapper> for InstanceInSized_Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Wrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Wrapper> for &InstanceInSized_Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Wrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInSized_Wrapper> for OptRc<InstanceInSized_Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Wrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInSized_Wrapper> for &OptRc<InstanceInSized_Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInSized_Wrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceInSized_Wrapper {
     type Root = InstanceInSized;
@@ -394,6 +578,12 @@ impl InstanceInSized_Wrapper {
 impl InstanceInSized_Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl InstanceInSized_Wrapper {

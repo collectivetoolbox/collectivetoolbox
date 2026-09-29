@@ -39,6 +39,38 @@ pub struct Elf {
     f_sh_idx_lo_reserved: Cell<bool>,
     sh_idx_lo_reserved: RefCell<i32>,
 }
+impl TryFrom<&Elf> for OptRc<Elf> {
+    type Error = KError;
+    fn try_from(v: &Elf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf> for OptRc<Elf> {
+    type Error = KError;
+    fn try_from(v: &&Elf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf> for Elf {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf> for &Elf {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf> for OptRc<Elf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf> for &OptRc<Elf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf {
     type Root = Elf;
     type Parent = Elf;
@@ -223,6 +255,12 @@ impl Elf {
 impl Elf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Elf {
@@ -3786,6 +3824,38 @@ pub struct Elf_DtFlag1Values {
     f_weak_filter: Cell<bool>,
     weak_filter: RefCell<bool>,
 }
+impl TryFrom<&Elf_DtFlag1Values> for OptRc<Elf_DtFlag1Values> {
+    type Error = KError;
+    fn try_from(v: &Elf_DtFlag1Values) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_DtFlag1Values> for OptRc<Elf_DtFlag1Values> {
+    type Error = KError;
+    fn try_from(v: &&Elf_DtFlag1Values) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlag1Values> for Elf_DtFlag1Values {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlag1Values>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlag1Values> for &Elf_DtFlag1Values {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlag1Values>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlag1Values> for OptRc<Elf_DtFlag1Values> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlag1Values>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_DtFlag1Values> for &OptRc<Elf_DtFlag1Values> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlag1Values>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_DtFlag1Values {
     type Root = Elf;
     type Parent = KStructUnit;
@@ -4305,6 +4375,12 @@ impl Elf_DtFlag1Values {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -4330,6 +4406,38 @@ pub struct Elf_DtFlagValues {
     symbolic: RefCell<bool>,
     f_textrel: Cell<bool>,
     textrel: RefCell<bool>,
+}
+impl TryFrom<&Elf_DtFlagValues> for OptRc<Elf_DtFlagValues> {
+    type Error = KError;
+    fn try_from(v: &Elf_DtFlagValues) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_DtFlagValues> for OptRc<Elf_DtFlagValues> {
+    type Error = KError;
+    fn try_from(v: &&Elf_DtFlagValues) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlagValues> for Elf_DtFlagValues {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlagValues>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlagValues> for &Elf_DtFlagValues {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlagValues>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_DtFlagValues> for OptRc<Elf_DtFlagValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlagValues>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_DtFlagValues> for &OptRc<Elf_DtFlagValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_DtFlagValues>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_DtFlagValues {
     type Root = Elf;
@@ -4447,6 +4555,12 @@ impl Elf_DtFlagValues {
 impl Elf_DtFlagValues {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -4651,6 +4765,38 @@ impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for usize {
     }
 }
 
+impl TryFrom<&Elf_EndianElf> for OptRc<Elf_EndianElf> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf> for OptRc<Elf_EndianElf> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf> for Elf_EndianElf {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf> for &Elf_EndianElf {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf> for OptRc<Elf_EndianElf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf> for &OptRc<Elf_EndianElf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf {
     type Root = Elf;
     type Parent = Elf;
@@ -4882,6 +5028,12 @@ impl Elf_EndianElf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf {
     pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -4914,6 +5066,38 @@ pub struct Elf_EndianElf_DynsymSection {
     f_is_string_table_linked: Cell<bool>,
     is_string_table_linked: RefCell<bool>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_DynsymSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_DynsymSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for Elf_EndianElf_DynsymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &Elf_EndianElf_DynsymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for OptRc<Elf_EndianElf_DynsymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &OptRc<Elf_EndianElf_DynsymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_DynsymSection {
     type Root = Elf;
@@ -4973,6 +5157,12 @@ impl Elf_EndianElf_DynsymSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -5013,6 +5203,38 @@ pub struct Elf_EndianElf_DynsymSectionEntry {
     visibility: RefCell<Elf_SymbolVisibility>,
     _is_le: RefCell<i32>,
 }
+impl TryFrom<&Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_DynsymSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_DynsymSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for Elf_EndianElf_DynsymSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for &Elf_EndianElf_DynsymSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSectionEntry> for &OptRc<Elf_EndianElf_DynsymSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf_DynsymSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_DynsymSection;
@@ -5036,8 +5258,8 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
             *self_rc.size_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         }
-        *self_rc.bind.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
-        *self_rc.r#type.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
+        *self_rc.bind.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
         io.align_to_byte()?;
         *self_rc.other.borrow_mut() = _io.read_u1()?;
         *self_rc.sh_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
@@ -5103,7 +5325,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         }
         self.f_name.set(true);
         if  ((((to_i128(*self.ofs_name())) != (to_i128(0)))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -5221,6 +5443,12 @@ impl Elf_EndianElf_DynsymSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -5231,6 +5459,38 @@ pub struct Elf_EndianElf_NoteSection {
     entries: RefCell<Vec<OptRc<Elf_EndianElf_NoteSectionEntry>>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_NoteSection> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_NoteSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_NoteSection> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_NoteSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_NoteSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_NoteSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for OptRc<Elf_EndianElf_NoteSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &OptRc<Elf_EndianElf_NoteSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_NoteSection {
     type Root = Elf;
@@ -5278,6 +5538,12 @@ impl Elf_EndianElf_NoteSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -5303,6 +5569,38 @@ pub struct Elf_EndianElf_NoteSectionEntry {
     descriptor_raw: RefCell<Vec<u8>>,
     descriptor_padding_raw: RefCell<Vec<u8>>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_NoteSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_NoteSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for Elf_EndianElf_NoteSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for &Elf_EndianElf_NoteSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for OptRc<Elf_EndianElf_NoteSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSectionEntry> for &OptRc<Elf_EndianElf_NoteSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_NoteSectionEntry {
     type Root = Elf;
@@ -5384,6 +5682,12 @@ impl Elf_EndianElf_NoteSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_NoteSectionEntry {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -5445,6 +5749,38 @@ pub struct Elf_EndianElf_PhDynamicSection {
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
 }
+impl TryFrom<&Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_PhDynamicSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_PhDynamicSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for Elf_EndianElf_PhDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &Elf_EndianElf_PhDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &OptRc<Elf_EndianElf_PhDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf_PhDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
@@ -5493,6 +5829,12 @@ impl Elf_EndianElf_PhDynamicSection {
 impl Elf_EndianElf_PhDynamicSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -5632,6 +5974,38 @@ impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for usize {
     }
 }
 
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_PhDynamicSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_PhDynamicSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for Elf_EndianElf_PhDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for &Elf_EndianElf_PhDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSectionEntry> for &OptRc<Elf_EndianElf_PhDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_PhDynamicSection;
@@ -5727,7 +6101,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() = i64::try_from(self.tag())?.try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_ne_bytes((self.tag()).to_ne_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
 }
@@ -5752,6 +6126,12 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
 impl Elf_EndianElf_PhDynamicSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -6128,6 +6508,22 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynami
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        OptRc::<Elf_EndianElf_PhDynamicSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_PhDynamicSection> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_PhDynamicSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_PhDynamicSection>> for Elf_EndianElf_ProgramHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_PhDynamicSection>) -> Self {
         Self::Elf_EndianElf_PhDynamicSection(v)
@@ -6140,6 +6536,22 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramH
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        OptRc::<Elf_EndianElf_ProgramHeader_PhInterpreter>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>> for Elf_EndianElf_ProgramHeader_Body {
@@ -6156,6 +6568,22 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSect
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        OptRc::<Elf_EndianElf_NoteSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_ProgramHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_ProgramHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_NoteSection>) -> Self {
         Self::Elf_EndianElf_NoteSection(v)
@@ -6168,6 +6596,12 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<Vec<u8>> for Elf_EndianElf_ProgramHeader_Body {
@@ -6188,9 +6622,57 @@ impl TryFrom<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags>
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_FlagsObj) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for Elf_EndianElf_ProgramHeader_FlagsObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        OptRc::<Elf_PhdrTypeFlags>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for &Elf_EndianElf_ProgramHeader_FlagsObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_PhdrTypeFlags>> for Elf_EndianElf_ProgramHeader_FlagsObj {
     fn from(v: OptRc<Elf_PhdrTypeFlags>) -> Self {
         Self::Elf_PhdrTypeFlags(v)
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for Elf_EndianElf_ProgramHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for &Elf_EndianElf_ProgramHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for OptRc<Elf_EndianElf_ProgramHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader> for &OptRc<Elf_EndianElf_ProgramHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Elf_EndianElf_ProgramHeader {
@@ -6448,6 +6930,12 @@ impl Elf_EndianElf_ProgramHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_ProgramHeader {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -6468,6 +6956,38 @@ pub struct Elf_EndianElf_ProgramHeader_PhInterpreter {
     path_name: RefCell<String>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_PhInterpreter) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ProgramHeader_PhInterpreter) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for Elf_EndianElf_ProgramHeader_PhInterpreter {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &Elf_EndianElf_ProgramHeader_PhInterpreter {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> for &OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
     type Root = Elf;
@@ -6506,6 +7026,12 @@ impl Elf_EndianElf_ProgramHeader_PhInterpreter {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -6522,6 +7048,38 @@ pub struct Elf_EndianElf_RelocationSection {
     entries: RefCell<Vec<OptRc<Elf_EndianElf_RelocationSectionEntry>>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_RelocationSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_RelocationSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for Elf_EndianElf_RelocationSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &Elf_EndianElf_RelocationSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for OptRc<Elf_EndianElf_RelocationSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &OptRc<Elf_EndianElf_RelocationSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_RelocationSection {
     type Root = Elf;
@@ -6578,6 +7136,12 @@ impl Elf_EndianElf_RelocationSection {
 impl Elf_EndianElf_RelocationSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -6757,6 +7321,38 @@ impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for usize {
     }
 }
 
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_RelocationSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_RelocationSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for Elf_EndianElf_RelocationSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for &Elf_EndianElf_RelocationSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSectionEntry> for &OptRc<Elf_EndianElf_RelocationSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf_RelocationSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_RelocationSection;
@@ -6843,6 +7439,12 @@ impl Elf_EndianElf_RelocationSectionEntry {
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -7229,6 +7831,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSe
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        OptRc::<Elf_EndianElf_DynsymSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_DynsymSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_DynsymSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_DynsymSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_DynsymSection>) -> Self {
         Self::Elf_EndianElf_DynsymSection(v)
@@ -7241,6 +7859,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedS
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        OptRc::<Elf_EndianElf_VerneedSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Elf_EndianElf_VerneedSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -7257,6 +7891,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSect
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        OptRc::<Elf_EndianElf_NoteSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_NoteSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_NoteSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_NoteSection>) -> Self {
         Self::Elf_EndianElf_NoteSection(v)
@@ -7269,6 +7919,12 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<Vec<u8>> for Elf_EndianElf_SectionHeader_Body {
@@ -7285,6 +7941,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsS
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        OptRc::<Elf_EndianElf_StringsStruct>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_StringsStruct>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_StringsStruct>) -> Self {
         Self::Elf_EndianElf_StringsStruct(v)
@@ -7297,6 +7969,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSe
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        OptRc::<Elf_EndianElf_VerdefSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Elf_EndianElf_VerdefSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -7313,6 +8001,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_Relocati
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        OptRc::<Elf_EndianElf_RelocationSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_RelocationSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_RelocationSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_RelocationSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_RelocationSection>) -> Self {
         Self::Elf_EndianElf_RelocationSection(v)
@@ -7325,6 +8029,22 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynami
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        OptRc::<Elf_EndianElf_ShDynamicSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Elf_EndianElf_ShDynamicSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -7341,9 +8061,57 @@ impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSe
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        OptRc::<Elf_EndianElf_VersymSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &Elf_EndianElf_SectionHeader_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Elf_EndianElf_VersymSection>> for Elf_EndianElf_SectionHeader_Body {
     fn from(v: OptRc<Elf_EndianElf_VersymSection>) -> Self {
         Self::Elf_EndianElf_VersymSection(v)
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_SectionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for Elf_EndianElf_SectionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for &Elf_EndianElf_SectionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for OptRc<Elf_EndianElf_SectionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_SectionHeader> for &OptRc<Elf_EndianElf_SectionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_SectionHeader>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Elf_EndianElf_SectionHeader {
@@ -7658,6 +8426,12 @@ impl Elf_EndianElf_SectionHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_SectionHeader {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -7684,6 +8458,38 @@ pub struct Elf_EndianElf_ShDynamicSection {
     f_is_string_table_linked: Cell<bool>,
     is_string_table_linked: RefCell<bool>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ShDynamicSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ShDynamicSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for Elf_EndianElf_ShDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &Elf_EndianElf_ShDynamicSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSection> for &OptRc<Elf_EndianElf_ShDynamicSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_ShDynamicSection {
     type Root = Elf;
@@ -7745,6 +8551,12 @@ impl Elf_EndianElf_ShDynamicSection {
 impl Elf_EndianElf_ShDynamicSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -7886,6 +8698,38 @@ impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for usize {
     }
 }
 
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ShDynamicSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_ShDynamicSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for Elf_EndianElf_ShDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for &Elf_EndianElf_ShDynamicSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_ShDynamicSectionEntry> for &OptRc<Elf_EndianElf_ShDynamicSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_ShDynamicSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_ShDynamicSection;
@@ -7981,7 +8825,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() = i64::try_from(self.tag())?.try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_ne_bytes((self.tag()).to_ne_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -7994,7 +8838,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         }
         self.f_value_str.set(true);
         if  ((*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.value_or_ptr())?)?;
             *self.value_str.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
@@ -8025,6 +8869,12 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -8035,6 +8885,38 @@ pub struct Elf_EndianElf_StringsStruct {
     entries: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_StringsStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_StringsStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for Elf_EndianElf_StringsStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &Elf_EndianElf_StringsStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for OptRc<Elf_EndianElf_StringsStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_StringsStruct> for &OptRc<Elf_EndianElf_StringsStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_StringsStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_StringsStruct {
     type Root = Elf;
@@ -8080,6 +8962,12 @@ impl Elf_EndianElf_StringsStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -8105,6 +8993,38 @@ pub struct Elf_EndianElf_VerdauxEntry {
     f_ofs_start: Cell<bool>,
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VerdauxEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VerdauxEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for Elf_EndianElf_VerdauxEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for &Elf_EndianElf_VerdauxEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for OptRc<Elf_EndianElf_VerdauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdauxEntry> for &OptRc<Elf_EndianElf_VerdauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdauxEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VerdauxEntry {
     type Root = Elf;
@@ -8152,7 +9072,7 @@ impl Elf_EndianElf_VerdauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8221,6 +9141,12 @@ impl Elf_EndianElf_VerdauxEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_VerdauxEntry {
     pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -8264,6 +9190,38 @@ pub struct Elf_EndianElf_VerdefSection {
     f_num_entries: Cell<bool>,
     num_entries: RefCell<u32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VerdefSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VerdefSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for Elf_EndianElf_VerdefSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &Elf_EndianElf_VerdefSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for OptRc<Elf_EndianElf_VerdefSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSection> for &OptRc<Elf_EndianElf_VerdefSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VerdefSection {
     type Root = Elf;
@@ -8339,6 +9297,12 @@ impl Elf_EndianElf_VerdefSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -8373,6 +9337,38 @@ pub struct Elf_EndianElf_VerdefSectionEntry {
     f_version_index_special: Cell<bool>,
     version_index_special: RefCell<Elf_VersionIndexSpecial>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VerdefSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VerdefSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for Elf_EndianElf_VerdefSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for &Elf_EndianElf_VerdefSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerdefSectionEntry> for &OptRc<Elf_EndianElf_VerdefSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerdefSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VerdefSectionEntry {
     type Root = Elf;
@@ -8588,6 +9584,12 @@ impl Elf_EndianElf_VerdefSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_VerdefSectionEntry {
     pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -8623,6 +9625,38 @@ pub struct Elf_EndianElf_VernauxEntry {
     f_ofs_start: Cell<bool>,
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VernauxEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VernauxEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for Elf_EndianElf_VernauxEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for &Elf_EndianElf_VernauxEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for OptRc<Elf_EndianElf_VernauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VernauxEntry> for &OptRc<Elf_EndianElf_VernauxEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VernauxEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VernauxEntry {
     type Root = Elf;
@@ -8688,7 +9722,7 @@ impl Elf_EndianElf_VernauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8787,6 +9821,12 @@ impl Elf_EndianElf_VernauxEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_VernauxEntry {
     pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -8832,6 +9872,38 @@ pub struct Elf_EndianElf_VerneedSection {
     f_num_entries: Cell<bool>,
     num_entries: RefCell<u32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VerneedSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VerneedSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for Elf_EndianElf_VerneedSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &Elf_EndianElf_VerneedSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for OptRc<Elf_EndianElf_VerneedSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSection> for &OptRc<Elf_EndianElf_VerneedSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VerneedSection {
     type Root = Elf;
@@ -8907,6 +9979,12 @@ impl Elf_EndianElf_VerneedSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -8937,6 +10015,38 @@ pub struct Elf_EndianElf_VerneedSectionEntry {
     f_ofs_start: Cell<bool>,
     ofs_start: RefCell<i32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VerneedSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VerneedSectionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for Elf_EndianElf_VerneedSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for &Elf_EndianElf_VerneedSectionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VerneedSectionEntry> for &OptRc<Elf_EndianElf_VerneedSectionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VerneedSectionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VerneedSectionEntry {
     type Root = Elf;
@@ -8999,7 +10109,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         }
         self.f_file_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?))?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_file_name())?)?;
             *self.file_name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -9117,6 +10227,12 @@ impl Elf_EndianElf_VerneedSectionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Elf_EndianElf_VerneedSectionEntry {
     pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -9147,6 +10263,38 @@ pub struct Elf_EndianElf_VersionFlags {
     f_weak: Cell<bool>,
     weak: RefCell<bool>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VersionFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VersionFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for Elf_EndianElf_VersionFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for &Elf_EndianElf_VersionFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for OptRc<Elf_EndianElf_VersionFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionFlags> for &OptRc<Elf_EndianElf_VersionFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VersionFlags {
     type Root = Elf;
@@ -9243,6 +10391,12 @@ impl Elf_EndianElf_VersionFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -9259,6 +10413,38 @@ pub struct Elf_EndianElf_VersionIndex {
     f_version_index_special: Cell<bool>,
     version_index_special: RefCell<Elf_VersionIndexSpecial>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VersionIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VersionIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for Elf_EndianElf_VersionIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for &Elf_EndianElf_VersionIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for OptRc<Elf_EndianElf_VersionIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersionIndex> for &OptRc<Elf_EndianElf_VersionIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersionIndex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VersionIndex {
     type Root = Elf;
@@ -9366,6 +10552,12 @@ impl Elf_EndianElf_VersionIndex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -9390,6 +10582,38 @@ pub struct Elf_EndianElf_VersymSection {
     entries: RefCell<Vec<OptRc<Elf_EndianElf_VersionIndex>>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_VersymSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
+    type Error = KError;
+    fn try_from(v: &&Elf_EndianElf_VersymSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for Elf_EndianElf_VersymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &Elf_EndianElf_VersymSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for OptRc<Elf_EndianElf_VersymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_EndianElf_VersymSection> for &OptRc<Elf_EndianElf_VersymSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_EndianElf_VersymSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_EndianElf_VersymSection {
     type Root = Elf;
@@ -9450,6 +10674,12 @@ impl Elf_EndianElf_VersymSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -9467,6 +10697,38 @@ pub struct Elf_PhdrTypeFlags {
     read: RefCell<bool>,
     f_write: Cell<bool>,
     write: RefCell<bool>,
+}
+impl TryFrom<&Elf_PhdrTypeFlags> for OptRc<Elf_PhdrTypeFlags> {
+    type Error = KError;
+    fn try_from(v: &Elf_PhdrTypeFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_PhdrTypeFlags> for OptRc<Elf_PhdrTypeFlags> {
+    type Error = KError;
+    fn try_from(v: &&Elf_PhdrTypeFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for Elf_PhdrTypeFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for &Elf_PhdrTypeFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for OptRc<Elf_PhdrTypeFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_PhdrTypeFlags> for &OptRc<Elf_PhdrTypeFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_PhdrTypeFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_PhdrTypeFlags {
     type Root = Elf;
@@ -9552,6 +10814,12 @@ impl Elf_PhdrTypeFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -9601,6 +10869,38 @@ pub struct Elf_SectionHeaderFlags {
     tls: RefCell<bool>,
     f_write: Cell<bool>,
     write: RefCell<bool>,
+}
+impl TryFrom<&Elf_SectionHeaderFlags> for OptRc<Elf_SectionHeaderFlags> {
+    type Error = KError;
+    fn try_from(v: &Elf_SectionHeaderFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Elf_SectionHeaderFlags> for OptRc<Elf_SectionHeaderFlags> {
+    type Error = KError;
+    fn try_from(v: &&Elf_SectionHeaderFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Elf_SectionHeaderFlags> for Elf_SectionHeaderFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_SectionHeaderFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Elf_SectionHeaderFlags> for &Elf_SectionHeaderFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_SectionHeaderFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Elf_SectionHeaderFlags> for OptRc<Elf_SectionHeaderFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_SectionHeaderFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Elf_SectionHeaderFlags> for &OptRc<Elf_SectionHeaderFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Elf_SectionHeaderFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Elf_SectionHeaderFlags {
     type Root = Elf;
@@ -9922,5 +11222,11 @@ impl Elf_SectionHeaderFlags {
 impl Elf_SectionHeaderFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

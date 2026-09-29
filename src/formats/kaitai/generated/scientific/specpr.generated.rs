@@ -25,6 +25,38 @@ pub struct Specpr {
     records: RefCell<Vec<OptRc<Specpr_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Specpr> for OptRc<Specpr> {
+    type Error = KError;
+    fn try_from(v: &Specpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr> for OptRc<Specpr> {
+    type Error = KError;
+    fn try_from(v: &&Specpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr> for Specpr {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr> for &Specpr {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr> for OptRc<Specpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr> for &OptRc<Specpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Specpr {
     type Root = Specpr;
     type Parent = Specpr;
@@ -64,6 +96,12 @@ impl Specpr {
 impl Specpr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -115,6 +153,38 @@ pub struct Specpr_CoarseTimestamp {
     f_seconds: Cell<bool>,
     seconds: RefCell<f64>,
 }
+impl TryFrom<&Specpr_CoarseTimestamp> for OptRc<Specpr_CoarseTimestamp> {
+    type Error = KError;
+    fn try_from(v: &Specpr_CoarseTimestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_CoarseTimestamp> for OptRc<Specpr_CoarseTimestamp> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_CoarseTimestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_CoarseTimestamp> for Specpr_CoarseTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_CoarseTimestamp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_CoarseTimestamp> for &Specpr_CoarseTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_CoarseTimestamp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_CoarseTimestamp> for OptRc<Specpr_CoarseTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_CoarseTimestamp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_CoarseTimestamp> for &OptRc<Specpr_CoarseTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_CoarseTimestamp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Specpr_CoarseTimestamp {
     type Root = Specpr;
     type Parent = Specpr_DataInitial;
@@ -159,6 +229,12 @@ impl Specpr_CoarseTimestamp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -168,6 +244,38 @@ pub struct Specpr_DataContinuation {
     pub(crate) _self_shared: SharedType<Self>,
     cdata: RefCell<Vec<f32>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Specpr_DataContinuation> for OptRc<Specpr_DataContinuation> {
+    type Error = KError;
+    fn try_from(v: &Specpr_DataContinuation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_DataContinuation> for OptRc<Specpr_DataContinuation> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_DataContinuation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for Specpr_DataContinuation {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for &Specpr_DataContinuation {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for OptRc<Specpr_DataContinuation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for &OptRc<Specpr_DataContinuation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_DataContinuation {
     type Root = Specpr;
@@ -208,6 +316,12 @@ impl Specpr_DataContinuation {
 impl Specpr_DataContinuation {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -250,6 +364,38 @@ pub struct Specpr_DataInitial {
     mhist_raw: RefCell<Vec<u8>>,
     f_phase_angle_arcsec: Cell<bool>,
     phase_angle_arcsec: RefCell<f64>,
+}
+impl TryFrom<&Specpr_DataInitial> for OptRc<Specpr_DataInitial> {
+    type Error = KError;
+    fn try_from(v: &Specpr_DataInitial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_DataInitial> for OptRc<Specpr_DataInitial> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_DataInitial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for Specpr_DataInitial {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for &Specpr_DataInitial {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for OptRc<Specpr_DataInitial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for &OptRc<Specpr_DataInitial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_DataInitial {
     type Root = Specpr;
@@ -602,6 +748,12 @@ impl Specpr_DataInitial {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Specpr_DataInitial {
     pub fn ihist_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -633,6 +785,38 @@ pub struct Specpr_Icflag {
     _io: RefCell<BytesReader>,
     f_type: Cell<bool>,
     r#type: RefCell<Specpr_RecordType>,
+}
+impl TryFrom<&Specpr_Icflag> for OptRc<Specpr_Icflag> {
+    type Error = KError;
+    fn try_from(v: &Specpr_Icflag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_Icflag> for OptRc<Specpr_Icflag> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Icflag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Icflag> for Specpr_Icflag {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Icflag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Icflag> for &Specpr_Icflag {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Icflag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Icflag> for OptRc<Specpr_Icflag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Icflag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_Icflag> for &OptRc<Specpr_Icflag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Icflag>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_Icflag {
     type Root = Specpr;
@@ -751,6 +935,12 @@ impl Specpr_Icflag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -763,6 +953,38 @@ pub struct Specpr_Identifiers {
     _io: RefCell<BytesReader>,
     ititle_raw: RefCell<Vec<u8>>,
     usernm_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Specpr_Identifiers> for OptRc<Specpr_Identifiers> {
+    type Error = KError;
+    fn try_from(v: &Specpr_Identifiers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_Identifiers> for OptRc<Specpr_Identifiers> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Identifiers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Identifiers> for Specpr_Identifiers {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Identifiers>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Identifiers> for &Specpr_Identifiers {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Identifiers>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Identifiers> for OptRc<Specpr_Identifiers> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Identifiers>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_Identifiers> for &OptRc<Specpr_Identifiers> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Identifiers>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_Identifiers {
     type Root = Specpr;
@@ -810,6 +1032,12 @@ impl Specpr_Identifiers {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Specpr_Identifiers {
     pub fn ititle_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -835,6 +1063,38 @@ pub struct Specpr_IllumAngle {
     minutes_total: RefCell<i32>,
     f_seconds_total: Cell<bool>,
     seconds_total: RefCell<i32>,
+}
+impl TryFrom<&Specpr_IllumAngle> for OptRc<Specpr_IllumAngle> {
+    type Error = KError;
+    fn try_from(v: &Specpr_IllumAngle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_IllumAngle> for OptRc<Specpr_IllumAngle> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_IllumAngle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_IllumAngle> for Specpr_IllumAngle {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_IllumAngle>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_IllumAngle> for &Specpr_IllumAngle {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_IllumAngle>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_IllumAngle> for OptRc<Specpr_IllumAngle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_IllumAngle>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_IllumAngle> for &OptRc<Specpr_IllumAngle> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_IllumAngle>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_IllumAngle {
     type Root = Specpr;
@@ -908,6 +1168,12 @@ impl Specpr_IllumAngle {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -937,6 +1203,22 @@ impl TryFrom<&Specpr_Record_Content> for OptRc<Specpr_DataContinuation> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Specpr_Record_Content> for OptRc<Specpr_DataContinuation> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        OptRc::<Specpr_DataContinuation>::try_from(self)
+    }
+}
+impl DowncastOptRc<Specpr_DataContinuation> for &Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataContinuation>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Specpr_DataContinuation>> for Specpr_Record_Content {
     fn from(v: OptRc<Specpr_DataContinuation>) -> Self {
         Self::Specpr_DataContinuation(v)
@@ -949,6 +1231,22 @@ impl TryFrom<&Specpr_Record_Content> for OptRc<Specpr_DataInitial> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Specpr_Record_Content> for OptRc<Specpr_DataInitial> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        OptRc::<Specpr_DataInitial>::try_from(self)
+    }
+}
+impl DowncastOptRc<Specpr_DataInitial> for &Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_DataInitial>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Specpr_DataInitial>> for Specpr_Record_Content {
@@ -965,6 +1263,22 @@ impl TryFrom<&Specpr_Record_Content> for OptRc<Specpr_TextContinuation> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Specpr_Record_Content> for OptRc<Specpr_TextContinuation> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        OptRc::<Specpr_TextContinuation>::try_from(self)
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for &Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Specpr_TextContinuation>> for Specpr_Record_Content {
     fn from(v: OptRc<Specpr_TextContinuation>) -> Self {
         Self::Specpr_TextContinuation(v)
@@ -977,6 +1291,22 @@ impl TryFrom<&Specpr_Record_Content> for OptRc<Specpr_TextInitial> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Specpr_Record_Content> for OptRc<Specpr_TextInitial> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        OptRc::<Specpr_TextInitial>::try_from(self)
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for &Specpr_Record_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Specpr_TextInitial>> for Specpr_Record_Content {
@@ -993,9 +1323,47 @@ impl TryFrom<&Specpr_Record_Content> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Specpr_Record_Content> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Specpr_Record_Content {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Specpr_Record> for OptRc<Specpr_Record> {
+    type Error = KError;
+    fn try_from(v: &Specpr_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_Record> for OptRc<Specpr_Record> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Record> for Specpr_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Record> for &Specpr_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_Record> for OptRc<Specpr_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_Record> for &OptRc<Specpr_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_Record>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Specpr_Record {
@@ -1073,6 +1441,12 @@ impl Specpr_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Specpr_Record {
     pub fn content_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1088,6 +1462,38 @@ pub struct Specpr_TextContinuation {
     tdata: RefCell<String>,
     _io: RefCell<BytesReader>,
     tdata_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Specpr_TextContinuation> for OptRc<Specpr_TextContinuation> {
+    type Error = KError;
+    fn try_from(v: &Specpr_TextContinuation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_TextContinuation> for OptRc<Specpr_TextContinuation> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_TextContinuation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for Specpr_TextContinuation {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for &Specpr_TextContinuation {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for OptRc<Specpr_TextContinuation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_TextContinuation> for &OptRc<Specpr_TextContinuation> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextContinuation>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_TextContinuation {
     type Root = Specpr;
@@ -1125,6 +1531,12 @@ impl Specpr_TextContinuation {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Specpr_TextContinuation {
     pub fn tdata_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1143,6 +1555,38 @@ pub struct Specpr_TextInitial {
     itext: RefCell<String>,
     _io: RefCell<BytesReader>,
     itext_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Specpr_TextInitial> for OptRc<Specpr_TextInitial> {
+    type Error = KError;
+    fn try_from(v: &Specpr_TextInitial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Specpr_TextInitial> for OptRc<Specpr_TextInitial> {
+    type Error = KError;
+    fn try_from(v: &&Specpr_TextInitial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for Specpr_TextInitial {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for &Specpr_TextInitial {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for OptRc<Specpr_TextInitial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Specpr_TextInitial> for &OptRc<Specpr_TextInitial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Specpr_TextInitial>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Specpr_TextInitial {
     type Root = Specpr;
@@ -1206,6 +1650,12 @@ impl Specpr_TextInitial {
 impl Specpr_TextInitial {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Specpr_TextInitial {

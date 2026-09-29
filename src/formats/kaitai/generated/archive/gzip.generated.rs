@@ -51,9 +51,57 @@ impl TryFrom<&Gzip_ExtraFlags> for OptRc<Gzip_ExtraFlagsDeflate> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Gzip_ExtraFlags> for OptRc<Gzip_ExtraFlagsDeflate> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_ExtraFlags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for Gzip_ExtraFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        OptRc::<Gzip_ExtraFlagsDeflate>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for &Gzip_ExtraFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Gzip_ExtraFlagsDeflate>> for Gzip_ExtraFlags {
     fn from(v: OptRc<Gzip_ExtraFlagsDeflate>) -> Self {
         Self::Gzip_ExtraFlagsDeflate(v)
+    }
+}
+impl TryFrom<&Gzip> for OptRc<Gzip> {
+    type Error = KError;
+    fn try_from(v: &Gzip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip> for OptRc<Gzip> {
+    type Error = KError;
+    fn try_from(v: &&Gzip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip> for Gzip {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip> for &Gzip {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip> for OptRc<Gzip> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip> for &OptRc<Gzip> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Gzip {
@@ -209,6 +257,12 @@ impl Gzip {
 impl Gzip {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Gzip {
@@ -381,6 +435,38 @@ pub struct Gzip_ExtraFlagsDeflate {
     compression_strength: RefCell<Gzip_ExtraFlagsDeflate_CompressionStrengths>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Gzip_ExtraFlagsDeflate> for OptRc<Gzip_ExtraFlagsDeflate> {
+    type Error = KError;
+    fn try_from(v: &Gzip_ExtraFlagsDeflate) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip_ExtraFlagsDeflate> for OptRc<Gzip_ExtraFlagsDeflate> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_ExtraFlagsDeflate) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for Gzip_ExtraFlagsDeflate {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for &Gzip_ExtraFlagsDeflate {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for OptRc<Gzip_ExtraFlagsDeflate> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip_ExtraFlagsDeflate> for &OptRc<Gzip_ExtraFlagsDeflate> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_ExtraFlagsDeflate>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Gzip_ExtraFlagsDeflate {
     type Root = Gzip;
     type Parent = Gzip;
@@ -412,6 +498,12 @@ impl Gzip_ExtraFlagsDeflate {
 impl Gzip_ExtraFlagsDeflate {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -457,6 +549,38 @@ pub struct Gzip_Extras {
     _io: RefCell<BytesReader>,
     subfields_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Gzip_Extras> for OptRc<Gzip_Extras> {
+    type Error = KError;
+    fn try_from(v: &Gzip_Extras) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip_Extras> for OptRc<Gzip_Extras> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_Extras) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Extras> for Gzip_Extras {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Extras>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Extras> for &Gzip_Extras {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Extras>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Extras> for OptRc<Gzip_Extras> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Extras>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip_Extras> for &OptRc<Gzip_Extras> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Extras>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Gzip_Extras {
     type Root = Gzip;
     type Parent = Gzip;
@@ -499,6 +623,12 @@ impl Gzip_Extras {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gzip_Extras {
     pub fn subfields_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -518,6 +648,38 @@ pub struct Gzip_Flags {
     has_header_crc: RefCell<bool>,
     is_text: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gzip_Flags> for OptRc<Gzip_Flags> {
+    type Error = KError;
+    fn try_from(v: &Gzip_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip_Flags> for OptRc<Gzip_Flags> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Flags> for Gzip_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Flags> for &Gzip_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Flags> for OptRc<Gzip_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip_Flags> for &OptRc<Gzip_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gzip_Flags {
     type Root = Gzip;
@@ -594,6 +756,12 @@ impl Gzip_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -617,6 +785,38 @@ pub struct Gzip_Subfield {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Gzip_Subfield> for OptRc<Gzip_Subfield> {
+    type Error = KError;
+    fn try_from(v: &Gzip_Subfield) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip_Subfield> for OptRc<Gzip_Subfield> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_Subfield) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfield> for Gzip_Subfield {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfield>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfield> for &Gzip_Subfield {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfield>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfield> for OptRc<Gzip_Subfield> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfield>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip_Subfield> for &OptRc<Gzip_Subfield> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfield>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gzip_Subfield {
     type Root = Gzip;
@@ -666,6 +866,12 @@ impl Gzip_Subfield {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gzip_Subfield {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -684,6 +890,38 @@ pub struct Gzip_Subfields {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Gzip_Subfield>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gzip_Subfields> for OptRc<Gzip_Subfields> {
+    type Error = KError;
+    fn try_from(v: &Gzip_Subfields) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gzip_Subfields> for OptRc<Gzip_Subfields> {
+    type Error = KError;
+    fn try_from(v: &&Gzip_Subfields) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfields> for Gzip_Subfields {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfields>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfields> for &Gzip_Subfields {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfields>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gzip_Subfields> for OptRc<Gzip_Subfields> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfields>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gzip_Subfields> for &OptRc<Gzip_Subfields> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gzip_Subfields>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gzip_Subfields {
     type Root = Gzip;
@@ -724,5 +962,11 @@ impl Gzip_Subfields {
 impl Gzip_Subfields {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -20,6 +20,38 @@ pub struct Websocket {
     trailing_frames: RefCell<Vec<OptRc<Websocket_Dataframe>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Websocket> for OptRc<Websocket> {
+    type Error = KError;
+    fn try_from(v: &Websocket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Websocket> for OptRc<Websocket> {
+    type Error = KError;
+    fn try_from(v: &&Websocket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Websocket> for Websocket {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Websocket> for &Websocket {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Websocket> for OptRc<Websocket> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Websocket> for &OptRc<Websocket> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Websocket {
     type Root = Websocket;
     type Parent = Websocket;
@@ -71,6 +103,12 @@ impl Websocket {
 impl Websocket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -160,6 +198,38 @@ pub struct Websocket_Dataframe {
     payload_bytes_raw: RefCell<Vec<u8>>,
     payload_text_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Websocket_Dataframe> for OptRc<Websocket_Dataframe> {
+    type Error = KError;
+    fn try_from(v: &Websocket_Dataframe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Websocket_Dataframe> for OptRc<Websocket_Dataframe> {
+    type Error = KError;
+    fn try_from(v: &&Websocket_Dataframe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_Dataframe> for Websocket_Dataframe {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_Dataframe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Websocket_Dataframe> for &Websocket_Dataframe {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_Dataframe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_Dataframe> for OptRc<Websocket_Dataframe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_Dataframe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Websocket_Dataframe> for &OptRc<Websocket_Dataframe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_Dataframe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Websocket_Dataframe {
     type Root = Websocket;
     type Parent = Websocket;
@@ -209,6 +279,12 @@ impl Websocket_Dataframe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Websocket_Dataframe {
     pub fn payload_bytes_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -238,6 +314,38 @@ pub struct Websocket_FrameHeader {
     f_len_payload: Cell<bool>,
     len_payload: RefCell<u64>,
 }
+impl TryFrom<&Websocket_FrameHeader> for OptRc<Websocket_FrameHeader> {
+    type Error = KError;
+    fn try_from(v: &Websocket_FrameHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Websocket_FrameHeader> for OptRc<Websocket_FrameHeader> {
+    type Error = KError;
+    fn try_from(v: &&Websocket_FrameHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_FrameHeader> for Websocket_FrameHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_FrameHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Websocket_FrameHeader> for &Websocket_FrameHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_FrameHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_FrameHeader> for OptRc<Websocket_FrameHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_FrameHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Websocket_FrameHeader> for &OptRc<Websocket_FrameHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_FrameHeader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Websocket_FrameHeader {
     type Root = Websocket;
     type Parent = KStructUnit;
@@ -256,7 +364,7 @@ impl KStruct for Websocket_FrameHeader {
         let _io = io;
         *self_rc.finished.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(3)?;
-        *self_rc.opcode.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
+        *self_rc.opcode.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
         *self_rc.is_masked.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.len_payload_primary.borrow_mut() = _io.read_bits_int_be(7)?;
         io.align_to_byte()?;
@@ -331,6 +439,12 @@ impl Websocket_FrameHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -344,6 +458,38 @@ pub struct Websocket_InitialFrame {
     _io: RefCell<BytesReader>,
     payload_bytes_raw: RefCell<Vec<u8>>,
     payload_text_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Websocket_InitialFrame> for OptRc<Websocket_InitialFrame> {
+    type Error = KError;
+    fn try_from(v: &Websocket_InitialFrame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Websocket_InitialFrame> for OptRc<Websocket_InitialFrame> {
+    type Error = KError;
+    fn try_from(v: &&Websocket_InitialFrame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_InitialFrame> for Websocket_InitialFrame {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_InitialFrame>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Websocket_InitialFrame> for &Websocket_InitialFrame {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_InitialFrame>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Websocket_InitialFrame> for OptRc<Websocket_InitialFrame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_InitialFrame>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Websocket_InitialFrame> for &OptRc<Websocket_InitialFrame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Websocket_InitialFrame>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Websocket_InitialFrame {
     type Root = Websocket;
@@ -393,6 +539,12 @@ impl Websocket_InitialFrame {
 impl Websocket_InitialFrame {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Websocket_InitialFrame {

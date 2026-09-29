@@ -85,8 +85,8 @@ fn test_combine_enum() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CombineEnum> = CombineEnum::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.enum_u4(), CombineEnum_Animal::Pig);
-    assert_eq!(*r.enum_u2(), CombineEnum_Animal::Horse);
-    assert_eq!(*r.enum_u4_u2()?, CombineEnum_Animal::Horse);
+    assert_eq!(*(r.enum_u4()), CombineEnum_Animal::Pig);
+    assert_eq!(*(r.enum_u2()), CombineEnum_Animal::Horse);
+    assert_eq!(*(r.enum_u4_u2()?), CombineEnum_Animal::Horse);
     Ok(())
 }

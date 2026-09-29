@@ -65,6 +65,38 @@ pub struct EofExceptionBitsLe2 {
     fail_bits: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EofExceptionBitsLe2> for OptRc<EofExceptionBitsLe2> {
+    type Error = KError;
+    fn try_from(v: &EofExceptionBitsLe2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EofExceptionBitsLe2> for OptRc<EofExceptionBitsLe2> {
+    type Error = KError;
+    fn try_from(v: &&EofExceptionBitsLe2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EofExceptionBitsLe2> for EofExceptionBitsLe2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionBitsLe2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EofExceptionBitsLe2> for &EofExceptionBitsLe2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionBitsLe2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EofExceptionBitsLe2> for OptRc<EofExceptionBitsLe2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionBitsLe2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EofExceptionBitsLe2> for &OptRc<EofExceptionBitsLe2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EofExceptionBitsLe2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EofExceptionBitsLe2 {
     type Root = EofExceptionBitsLe2;
     type Parent = EofExceptionBitsLe2;
@@ -102,5 +134,11 @@ impl EofExceptionBitsLe2 {
 impl EofExceptionBitsLe2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

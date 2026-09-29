@@ -28,6 +28,38 @@ pub struct Warcraft2Pud {
     sections: RefCell<Vec<OptRc<Warcraft2Pud_Section>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Warcraft2Pud> for OptRc<Warcraft2Pud> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud> for OptRc<Warcraft2Pud> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud> for Warcraft2Pud {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud> for &Warcraft2Pud {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud> for OptRc<Warcraft2Pud> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud> for &OptRc<Warcraft2Pud> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Warcraft2Pud {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud;
@@ -67,6 +99,12 @@ impl Warcraft2Pud {
 impl Warcraft2Pud {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -513,6 +551,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionDim> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionDim> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        OptRc::<Warcraft2Pud_SectionDim>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Warcraft2Pud_SectionDim>> for Warcraft2Pud_Section_Body {
     fn from(v: OptRc<Warcraft2Pud_SectionDim>) -> Self {
         Self::Warcraft2Pud_SectionDim(v)
@@ -525,6 +579,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionEra> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionEra> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        OptRc::<Warcraft2Pud_SectionEra>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Warcraft2Pud_SectionEra>> for Warcraft2Pud_Section_Body {
@@ -541,6 +611,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionOwnr> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionOwnr> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        OptRc::<Warcraft2Pud_SectionOwnr>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Warcraft2Pud_SectionOwnr>> for Warcraft2Pud_Section_Body {
     fn from(v: OptRc<Warcraft2Pud_SectionOwnr>) -> Self {
         Self::Warcraft2Pud_SectionOwnr(v)
@@ -553,6 +639,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionStartingR
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        OptRc::<Warcraft2Pud_SectionStartingResource>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Warcraft2Pud_SectionStartingResource>> for Warcraft2Pud_Section_Body {
@@ -569,6 +671,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionType> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionType> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        OptRc::<Warcraft2Pud_SectionType>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Warcraft2Pud_SectionType>> for Warcraft2Pud_Section_Body {
     fn from(v: OptRc<Warcraft2Pud_SectionType>) -> Self {
         Self::Warcraft2Pud_SectionType(v)
@@ -581,6 +699,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionUnit> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionUnit> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        OptRc::<Warcraft2Pud_SectionUnit>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Warcraft2Pud_SectionUnit>> for Warcraft2Pud_Section_Body {
@@ -597,6 +731,22 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionVer> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Warcraft2Pud_Section_Body> for OptRc<Warcraft2Pud_SectionVer> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        OptRc::<Warcraft2Pud_SectionVer>::try_from(self)
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for &Warcraft2Pud_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Warcraft2Pud_SectionVer>> for Warcraft2Pud_Section_Body {
     fn from(v: OptRc<Warcraft2Pud_SectionVer>) -> Self {
         Self::Warcraft2Pud_SectionVer(v)
@@ -611,9 +761,47 @@ impl TryFrom<&Warcraft2Pud_Section_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Warcraft2Pud_Section_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Warcraft2Pud_Section_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Warcraft2Pud_Section> for OptRc<Warcraft2Pud_Section> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_Section> for OptRc<Warcraft2Pud_Section> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Section> for Warcraft2Pud_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Section>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Section> for &Warcraft2Pud_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Section>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Section> for OptRc<Warcraft2Pud_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Section>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Section> for &OptRc<Warcraft2Pud_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Section>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Warcraft2Pud_Section {
@@ -734,6 +922,12 @@ impl Warcraft2Pud_Section {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Warcraft2Pud_Section {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -754,6 +948,38 @@ pub struct Warcraft2Pud_SectionDim {
     x: RefCell<u16>,
     y: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionDim> for OptRc<Warcraft2Pud_SectionDim> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionDim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionDim> for OptRc<Warcraft2Pud_SectionDim> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionDim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for Warcraft2Pud_SectionDim {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for &Warcraft2Pud_SectionDim {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for OptRc<Warcraft2Pud_SectionDim> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionDim> for &OptRc<Warcraft2Pud_SectionDim> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionDim>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionDim {
     type Root = Warcraft2Pud;
@@ -793,6 +1019,12 @@ impl Warcraft2Pud_SectionDim {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -806,6 +1038,38 @@ pub struct Warcraft2Pud_SectionEra {
     pub(crate) _self_shared: SharedType<Self>,
     terrain: RefCell<Warcraft2Pud_TerrainType>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionEra> for OptRc<Warcraft2Pud_SectionEra> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionEra) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionEra> for OptRc<Warcraft2Pud_SectionEra> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionEra) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for Warcraft2Pud_SectionEra {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for &Warcraft2Pud_SectionEra {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for OptRc<Warcraft2Pud_SectionEra> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionEra> for &OptRc<Warcraft2Pud_SectionEra> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionEra>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionEra {
     type Root = Warcraft2Pud;
@@ -839,6 +1103,12 @@ impl Warcraft2Pud_SectionEra {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -852,6 +1122,38 @@ pub struct Warcraft2Pud_SectionOwnr {
     pub(crate) _self_shared: SharedType<Self>,
     controller_by_player: RefCell<Vec<Warcraft2Pud_Controller>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionOwnr> for OptRc<Warcraft2Pud_SectionOwnr> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionOwnr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionOwnr> for OptRc<Warcraft2Pud_SectionOwnr> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionOwnr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for Warcraft2Pud_SectionOwnr {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &Warcraft2Pud_SectionOwnr {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for OptRc<Warcraft2Pud_SectionOwnr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionOwnr> for &OptRc<Warcraft2Pud_SectionOwnr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionOwnr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionOwnr {
     type Root = Warcraft2Pud;
@@ -892,6 +1194,12 @@ impl Warcraft2Pud_SectionOwnr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -901,6 +1209,38 @@ pub struct Warcraft2Pud_SectionStartingResource {
     pub(crate) _self_shared: SharedType<Self>,
     resources_by_player: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionStartingResource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionStartingResource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for Warcraft2Pud_SectionStartingResource {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &Warcraft2Pud_SectionStartingResource {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for OptRc<Warcraft2Pud_SectionStartingResource> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionStartingResource> for &OptRc<Warcraft2Pud_SectionStartingResource> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionStartingResource>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionStartingResource {
     type Root = Warcraft2Pud;
@@ -941,6 +1281,12 @@ impl Warcraft2Pud_SectionStartingResource {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -960,6 +1306,38 @@ pub struct Warcraft2Pud_SectionType {
     id_tag: RefCell<u32>,
     _io: RefCell<BytesReader>,
     unused_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Warcraft2Pud_SectionType> for OptRc<Warcraft2Pud_SectionType> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionType> for OptRc<Warcraft2Pud_SectionType> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for Warcraft2Pud_SectionType {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for &Warcraft2Pud_SectionType {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for OptRc<Warcraft2Pud_SectionType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionType> for &OptRc<Warcraft2Pud_SectionType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionType {
     type Root = Warcraft2Pud;
@@ -1016,6 +1394,12 @@ impl Warcraft2Pud_SectionType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Warcraft2Pud_SectionType {
     pub fn unused_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1030,6 +1414,38 @@ pub struct Warcraft2Pud_SectionUnit {
     pub(crate) _self_shared: SharedType<Self>,
     units: RefCell<Vec<OptRc<Warcraft2Pud_Unit>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionUnit> for OptRc<Warcraft2Pud_SectionUnit> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionUnit) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionUnit> for OptRc<Warcraft2Pud_SectionUnit> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionUnit) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for Warcraft2Pud_SectionUnit {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &Warcraft2Pud_SectionUnit {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for OptRc<Warcraft2Pud_SectionUnit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionUnit> for &OptRc<Warcraft2Pud_SectionUnit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionUnit>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionUnit {
     type Root = Warcraft2Pud;
@@ -1071,6 +1487,12 @@ impl Warcraft2Pud_SectionUnit {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1084,6 +1506,38 @@ pub struct Warcraft2Pud_SectionVer {
     pub(crate) _self_shared: SharedType<Self>,
     version: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Warcraft2Pud_SectionVer> for OptRc<Warcraft2Pud_SectionVer> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_SectionVer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_SectionVer> for OptRc<Warcraft2Pud_SectionVer> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_SectionVer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for Warcraft2Pud_SectionVer {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for &Warcraft2Pud_SectionVer {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for OptRc<Warcraft2Pud_SectionVer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_SectionVer> for &OptRc<Warcraft2Pud_SectionVer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_SectionVer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_SectionVer {
     type Root = Warcraft2Pud;
@@ -1117,6 +1571,12 @@ impl Warcraft2Pud_SectionVer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1132,6 +1592,38 @@ pub struct Warcraft2Pud_Unit {
     _io: RefCell<BytesReader>,
     f_resource: Cell<bool>,
     resource: RefCell<i32>,
+}
+impl TryFrom<&Warcraft2Pud_Unit> for OptRc<Warcraft2Pud_Unit> {
+    type Error = KError;
+    fn try_from(v: &Warcraft2Pud_Unit) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Warcraft2Pud_Unit> for OptRc<Warcraft2Pud_Unit> {
+    type Error = KError;
+    fn try_from(v: &&Warcraft2Pud_Unit) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Unit> for Warcraft2Pud_Unit {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Unit>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Unit> for &Warcraft2Pud_Unit {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Unit>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Unit> for OptRc<Warcraft2Pud_Unit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Unit>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Warcraft2Pud_Unit> for &OptRc<Warcraft2Pud_Unit> {
+    fn downcast_optrc(&self) -> Result<OptRc<Warcraft2Pud_Unit>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Warcraft2Pud_Unit {
     type Root = Warcraft2Pud;
@@ -1206,5 +1698,11 @@ impl Warcraft2Pud_Unit {
 impl Warcraft2Pud_Unit {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

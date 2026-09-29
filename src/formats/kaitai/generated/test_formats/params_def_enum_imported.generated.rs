@@ -56,7 +56,9 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
 use super::enum_0::Enum0;
+use super::enum_0::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsDefEnumImported {
@@ -66,6 +68,38 @@ pub struct ParamsDefEnumImported {
     pet_1_param: RefCell<Enum0_Animal>,
     pet_2_param: RefCell<EnumDeep_Container1_Container2_Animal>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsDefEnumImported> for OptRc<ParamsDefEnumImported> {
+    type Error = KError;
+    fn try_from(v: &ParamsDefEnumImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsDefEnumImported> for OptRc<ParamsDefEnumImported> {
+    type Error = KError;
+    fn try_from(v: &&ParamsDefEnumImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsDefEnumImported> for ParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefEnumImported>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsDefEnumImported> for &ParamsDefEnumImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefEnumImported>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsDefEnumImported> for OptRc<ParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefEnumImported>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsDefEnumImported> for &OptRc<ParamsDefEnumImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsDefEnumImported>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsDefEnumImported {
     type Root = ParamsDefEnumImported;
@@ -108,5 +142,11 @@ impl ParamsDefEnumImported {
 impl ParamsDefEnumImported {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

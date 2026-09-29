@@ -4,7 +4,8 @@
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::vlq_base128_be::VlqBase128Be;
+use crate::generated::common::vlq_base128_be::VlqBase128Be;
+use crate::generated::common::vlq_base128_be::*;
 
 /**
  * SQLite3 is a popular serverless SQL engine, implemented as a library
@@ -56,6 +57,38 @@ pub struct Sqlite3 {
     reserved_raw: RefCell<Vec<u8>>,
     f_len_page: Cell<bool>,
     len_page: RefCell<i32>,
+}
+impl TryFrom<&Sqlite3> for OptRc<Sqlite3> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3> for OptRc<Sqlite3> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3> for Sqlite3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3> for &Sqlite3 {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3> for OptRc<Sqlite3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3> for &OptRc<Sqlite3> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3 {
     type Root = Sqlite3;
@@ -305,6 +338,12 @@ impl Sqlite3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Sqlite3 {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -393,6 +432,38 @@ pub struct Sqlite3_BtreePage {
     cells: RefCell<Vec<OptRc<Sqlite3_RefCell>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Sqlite3_BtreePage> for OptRc<Sqlite3_BtreePage> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_BtreePage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_BtreePage> for OptRc<Sqlite3_BtreePage> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_BtreePage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_BtreePage> for Sqlite3_BtreePage {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_BtreePage>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_BtreePage> for &Sqlite3_BtreePage {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_BtreePage>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_BtreePage> for OptRc<Sqlite3_BtreePage> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_BtreePage>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_BtreePage> for &OptRc<Sqlite3_BtreePage> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_BtreePage>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Sqlite3_BtreePage {
     type Root = Sqlite3;
     type Parent = Sqlite3;
@@ -468,6 +539,12 @@ impl Sqlite3_BtreePage {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -484,6 +561,38 @@ pub struct Sqlite3_CellIndexInterior {
     payload: RefCell<OptRc<Sqlite3_CellPayload>>,
     _io: RefCell<BytesReader>,
     payload_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Sqlite3_CellIndexInterior> for OptRc<Sqlite3_CellIndexInterior> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_CellIndexInterior) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_CellIndexInterior> for OptRc<Sqlite3_CellIndexInterior> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_CellIndexInterior) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for Sqlite3_CellIndexInterior {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for &Sqlite3_CellIndexInterior {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for OptRc<Sqlite3_CellIndexInterior> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for &OptRc<Sqlite3_CellIndexInterior> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_CellIndexInterior {
     type Root = Sqlite3;
@@ -534,6 +643,12 @@ impl Sqlite3_CellIndexInterior {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Sqlite3_CellIndexInterior {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -554,6 +669,38 @@ pub struct Sqlite3_CellIndexLeaf {
     payload: RefCell<OptRc<Sqlite3_CellPayload>>,
     _io: RefCell<BytesReader>,
     payload_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Sqlite3_CellIndexLeaf> for OptRc<Sqlite3_CellIndexLeaf> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_CellIndexLeaf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_CellIndexLeaf> for OptRc<Sqlite3_CellIndexLeaf> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_CellIndexLeaf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for Sqlite3_CellIndexLeaf {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for &Sqlite3_CellIndexLeaf {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for OptRc<Sqlite3_CellIndexLeaf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for &OptRc<Sqlite3_CellIndexLeaf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_CellIndexLeaf {
     type Root = Sqlite3;
@@ -598,6 +745,12 @@ impl Sqlite3_CellIndexLeaf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Sqlite3_CellIndexLeaf {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -619,6 +772,38 @@ pub struct Sqlite3_CellPayload {
     column_contents: RefCell<Vec<OptRc<Sqlite3_ColumnContent>>>,
     _io: RefCell<BytesReader>,
     column_serials_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Sqlite3_CellPayload> for OptRc<Sqlite3_CellPayload> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_CellPayload) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_CellPayload> for OptRc<Sqlite3_CellPayload> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_CellPayload) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellPayload> for Sqlite3_CellPayload {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellPayload>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellPayload> for &Sqlite3_CellPayload {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellPayload>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellPayload> for OptRc<Sqlite3_CellPayload> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellPayload>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_CellPayload> for &OptRc<Sqlite3_CellPayload> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellPayload>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_CellPayload {
     type Root = Sqlite3;
@@ -646,7 +831,7 @@ impl KStruct for Sqlite3_CellPayload {
         *self_rc.column_contents.borrow_mut() = Vec::new();
         let l_column_contents = usize::try_from(self_rc.column_serials().entries().len())?;
         for _i in 0_usize..l_column_contents {
-            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params(self_rc.column_serials().entries().get(_i).ok_or(KError::CastError)?.clone()));
+            let f = |t : &mut Sqlite3_ColumnContent| Ok(t.set_params((self_rc.column_serials().entries().get(_i).ok_or(KError::CastError)?).clone()));
             let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.column_contents.borrow_mut().push(t);
         }
@@ -675,6 +860,12 @@ impl Sqlite3_CellPayload {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Sqlite3_CellPayload {
     pub fn column_serials_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -694,6 +885,38 @@ pub struct Sqlite3_CellTableInterior {
     left_child_page: RefCell<u32>,
     row_id: RefCell<OptRc<VlqBase128Be>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Sqlite3_CellTableInterior> for OptRc<Sqlite3_CellTableInterior> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_CellTableInterior) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_CellTableInterior> for OptRc<Sqlite3_CellTableInterior> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_CellTableInterior) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for Sqlite3_CellTableInterior {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for &Sqlite3_CellTableInterior {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for OptRc<Sqlite3_CellTableInterior> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for &OptRc<Sqlite3_CellTableInterior> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_CellTableInterior {
     type Root = Sqlite3;
@@ -734,6 +957,12 @@ impl Sqlite3_CellTableInterior {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -750,6 +979,38 @@ pub struct Sqlite3_CellTableLeaf {
     payload: RefCell<OptRc<Sqlite3_CellPayload>>,
     _io: RefCell<BytesReader>,
     payload_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Sqlite3_CellTableLeaf> for OptRc<Sqlite3_CellTableLeaf> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_CellTableLeaf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_CellTableLeaf> for OptRc<Sqlite3_CellTableLeaf> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_CellTableLeaf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for Sqlite3_CellTableLeaf {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for &Sqlite3_CellTableLeaf {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for OptRc<Sqlite3_CellTableLeaf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for &OptRc<Sqlite3_CellTableLeaf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_CellTableLeaf {
     type Root = Sqlite3;
@@ -800,6 +1061,12 @@ impl Sqlite3_CellTableLeaf {
 impl Sqlite3_CellTableLeaf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Sqlite3_CellTableLeaf {
@@ -928,6 +1195,38 @@ impl TryFrom<&Sqlite3_ColumnContent_AsInt> for usize {
     }
 }
 
+impl TryFrom<&Sqlite3_ColumnContent> for OptRc<Sqlite3_ColumnContent> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_ColumnContent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_ColumnContent> for OptRc<Sqlite3_ColumnContent> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_ColumnContent) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_ColumnContent> for Sqlite3_ColumnContent {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_ColumnContent>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_ColumnContent> for &Sqlite3_ColumnContent {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_ColumnContent>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_ColumnContent> for OptRc<Sqlite3_ColumnContent> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_ColumnContent>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_ColumnContent> for &OptRc<Sqlite3_ColumnContent> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_ColumnContent>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Sqlite3_ColumnContent {
     type Root = Sqlite3;
     type Parent = Sqlite3_CellPayload;
@@ -1018,6 +1317,12 @@ impl Sqlite3_ColumnContent {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Sqlite3_ColumnContent {
     pub fn as_blob_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1056,6 +1361,22 @@ impl TryFrom<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexLeaf> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexLeaf> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_RefCell_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        OptRc::<Sqlite3_CellIndexLeaf>::try_from(self)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexLeaf> for &Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexLeaf>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Sqlite3_CellIndexLeaf>> for Sqlite3_RefCell_Body {
     fn from(v: OptRc<Sqlite3_CellIndexLeaf>) -> Self {
         Self::Sqlite3_CellIndexLeaf(v)
@@ -1068,6 +1389,22 @@ impl TryFrom<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableLeaf> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableLeaf> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_RefCell_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        OptRc::<Sqlite3_CellTableLeaf>::try_from(self)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableLeaf> for &Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableLeaf>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Sqlite3_CellTableLeaf>> for Sqlite3_RefCell_Body {
@@ -1084,6 +1421,22 @@ impl TryFrom<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexInterior> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellIndexInterior> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_RefCell_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        OptRc::<Sqlite3_CellIndexInterior>::try_from(self)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellIndexInterior> for &Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellIndexInterior>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Sqlite3_CellIndexInterior>> for Sqlite3_RefCell_Body {
     fn from(v: OptRc<Sqlite3_CellIndexInterior>) -> Self {
         Self::Sqlite3_CellIndexInterior(v)
@@ -1098,9 +1451,57 @@ impl TryFrom<&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableInterior> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Sqlite3_RefCell_Body> for OptRc<Sqlite3_CellTableInterior> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_RefCell_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        OptRc::<Sqlite3_CellTableInterior>::try_from(self)
+    }
+}
+impl DowncastOptRc<Sqlite3_CellTableInterior> for &Sqlite3_RefCell_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_CellTableInterior>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Sqlite3_CellTableInterior>> for Sqlite3_RefCell_Body {
     fn from(v: OptRc<Sqlite3_CellTableInterior>) -> Self {
         Self::Sqlite3_CellTableInterior(v)
+    }
+}
+impl TryFrom<&Sqlite3_RefCell> for OptRc<Sqlite3_RefCell> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_RefCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_RefCell> for OptRc<Sqlite3_RefCell> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_RefCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_RefCell> for Sqlite3_RefCell {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_RefCell>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_RefCell> for &Sqlite3_RefCell {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_RefCell>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_RefCell> for OptRc<Sqlite3_RefCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_RefCell>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_RefCell> for &OptRc<Sqlite3_RefCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_RefCell>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Sqlite3_RefCell {
@@ -1168,6 +1569,12 @@ impl Sqlite3_RefCell {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1183,6 +1590,38 @@ pub struct Sqlite3_Serial {
     is_string: RefCell<bool>,
     f_len_content: Cell<bool>,
     len_content: RefCell<i32>,
+}
+impl TryFrom<&Sqlite3_Serial> for OptRc<Sqlite3_Serial> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_Serial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_Serial> for OptRc<Sqlite3_Serial> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_Serial) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serial> for Sqlite3_Serial {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serial>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serial> for &Sqlite3_Serial {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serial>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serial> for OptRc<Sqlite3_Serial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serial>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_Serial> for &OptRc<Sqlite3_Serial> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serial>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_Serial {
     type Root = Sqlite3;
@@ -1216,7 +1655,7 @@ impl Sqlite3_Serial {
             return Ok(self.is_blob.borrow());
         }
         self.f_is_blob.set(true);
-        *self.is_blob.borrow_mut() = ( ((*self.code().value()? >= 12) && ((*self.code().value()?).checked_rem(2_i32).ok_or(KError::CastError)? == 0)) ).try_into()?;
+        *self.is_blob.borrow_mut() = ( ((*self.code().value()? >= 12) && (modulo(i64::from(*self.code().value()?), 2_i64) == 0)) ).try_into()?;
         Ok(self.is_blob.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1228,7 +1667,7 @@ impl Sqlite3_Serial {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() = ( ((*self.code().value()? >= 13) && ((*self.code().value()?).checked_rem(2_i32).ok_or(KError::CastError)? == 1)) ).try_into()?;
+        *self.is_string.borrow_mut() = ( ((*self.code().value()? >= 13) && (modulo(i64::from(*self.code().value()?), 2_i64) == 1)) ).try_into()?;
         Ok(self.is_string.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1255,6 +1694,12 @@ impl Sqlite3_Serial {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1264,6 +1709,38 @@ pub struct Sqlite3_Serials {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Sqlite3_Serial>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Sqlite3_Serials> for OptRc<Sqlite3_Serials> {
+    type Error = KError;
+    fn try_from(v: &Sqlite3_Serials) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Sqlite3_Serials> for OptRc<Sqlite3_Serials> {
+    type Error = KError;
+    fn try_from(v: &&Sqlite3_Serials) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serials> for Sqlite3_Serials {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serials>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serials> for &Sqlite3_Serials {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serials>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Sqlite3_Serials> for OptRc<Sqlite3_Serials> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serials>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Sqlite3_Serials> for &OptRc<Sqlite3_Serials> {
+    fn downcast_optrc(&self) -> Result<OptRc<Sqlite3_Serials>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Sqlite3_Serials {
     type Root = Sqlite3;
@@ -1304,5 +1781,11 @@ impl Sqlite3_Serials {
 impl Sqlite3_Serials {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,8 +85,8 @@ fn test_bits_unaligned_b64_le() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsUnalignedB64Le> = BitsUnalignedB64Le::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.a(), false);
-    assert_eq!(*r.b(), 1902324737369038326_u64);
-    assert_eq!(*r.c(), 71);
+    assert_eq!(*(r.a()), false);
+    assert_eq!(*(r.b()), 1902324737369038326_u64);
+    assert_eq!(*(r.c()), 71);
     Ok(())
 }

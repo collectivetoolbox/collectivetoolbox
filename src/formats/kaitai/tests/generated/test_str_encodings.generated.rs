@@ -85,9 +85,9 @@ fn test_str_encodings() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEncodings> = StrEncodings::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str1(), "Some ASCII");
-    assert_eq!(*r.str2(), "こんにちは");
-    assert_eq!(*r.str3(), "こんにちは");
-    assert_eq!(*r.str4(), "░▒▓");
+    assert_eq!(*(r.str1()), "Some ASCII");
+    assert_eq!(*(r.str2()), "こんにちは");
+    assert_eq!(*(r.str3()), "こんにちは");
+    assert_eq!(*(r.str4()), "░▒▓");
     Ok(())
 }

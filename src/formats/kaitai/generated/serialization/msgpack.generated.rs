@@ -286,6 +286,38 @@ impl TryFrom<&Msgpack_IntExtra> for usize {
     }
 }
 
+impl TryFrom<&Msgpack> for OptRc<Msgpack> {
+    type Error = KError;
+    fn try_from(v: &Msgpack) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Msgpack> for OptRc<Msgpack> {
+    type Error = KError;
+    fn try_from(v: &&Msgpack) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Msgpack> for Msgpack {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Msgpack> for &Msgpack {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Msgpack> for OptRc<Msgpack> {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Msgpack> for &OptRc<Msgpack> {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Msgpack {
     type Root = Msgpack;
     type Parent = Msgpack;
@@ -902,6 +934,12 @@ impl Msgpack {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Msgpack {
     pub fn str_value_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -917,6 +955,38 @@ pub struct Msgpack_MapTuple {
     key: RefCell<OptRc<Msgpack>>,
     value: RefCell<OptRc<Msgpack>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Msgpack_MapTuple> for OptRc<Msgpack_MapTuple> {
+    type Error = KError;
+    fn try_from(v: &Msgpack_MapTuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Msgpack_MapTuple> for OptRc<Msgpack_MapTuple> {
+    type Error = KError;
+    fn try_from(v: &&Msgpack_MapTuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Msgpack_MapTuple> for Msgpack_MapTuple {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack_MapTuple>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Msgpack_MapTuple> for &Msgpack_MapTuple {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack_MapTuple>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Msgpack_MapTuple> for OptRc<Msgpack_MapTuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack_MapTuple>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Msgpack_MapTuple> for &OptRc<Msgpack_MapTuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<Msgpack_MapTuple>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Msgpack_MapTuple {
     type Root = Msgpack;
@@ -957,5 +1027,11 @@ impl Msgpack_MapTuple {
 impl Msgpack_MapTuple {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -64,6 +64,38 @@ pub struct NestedTypeParam {
     main_seq: RefCell<OptRc<NestedTypeParam_Nested_MyType>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NestedTypeParam> for OptRc<NestedTypeParam> {
+    type Error = KError;
+    fn try_from(v: &NestedTypeParam) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypeParam> for OptRc<NestedTypeParam> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypeParam) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam> for NestedTypeParam {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam> for &NestedTypeParam {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam> for OptRc<NestedTypeParam> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypeParam> for &OptRc<NestedTypeParam> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NestedTypeParam {
     type Root = NestedTypeParam;
     type Parent = NestedTypeParam;
@@ -98,6 +130,12 @@ impl NestedTypeParam {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -106,6 +144,38 @@ pub struct NestedTypeParam_Nested {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypeParam_Nested> for OptRc<NestedTypeParam_Nested> {
+    type Error = KError;
+    fn try_from(v: &NestedTypeParam_Nested) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypeParam_Nested> for OptRc<NestedTypeParam_Nested> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypeParam_Nested) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested> for NestedTypeParam_Nested {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested> for &NestedTypeParam_Nested {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested> for OptRc<NestedTypeParam_Nested> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested> for &OptRc<NestedTypeParam_Nested> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypeParam_Nested {
     type Root = NestedTypeParam;
@@ -133,6 +203,12 @@ impl NestedTypeParam_Nested {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -144,6 +220,38 @@ pub struct NestedTypeParam_Nested_MyType {
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
+    type Error = KError;
+    fn try_from(v: &NestedTypeParam_Nested_MyType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypeParam_Nested_MyType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for NestedTypeParam_Nested_MyType {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for &NestedTypeParam_Nested_MyType {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for OptRc<NestedTypeParam_Nested_MyType> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypeParam_Nested_MyType> for &OptRc<NestedTypeParam_Nested_MyType> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypeParam_Nested_MyType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypeParam_Nested_MyType {
     type Root = NestedTypeParam;
@@ -186,6 +294,12 @@ impl NestedTypeParam_Nested_MyType {
 impl NestedTypeParam_Nested_MyType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl NestedTypeParam_Nested_MyType {

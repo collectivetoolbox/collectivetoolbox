@@ -70,6 +70,38 @@ pub struct BufferedStruct {
     block1_raw: RefCell<Vec<u8>>,
     block2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&BufferedStruct> for OptRc<BufferedStruct> {
+    type Error = KError;
+    fn try_from(v: &BufferedStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BufferedStruct> for OptRc<BufferedStruct> {
+    type Error = KError;
+    fn try_from(v: &&BufferedStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct> for BufferedStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct> for &BufferedStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct> for OptRc<BufferedStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BufferedStruct> for &OptRc<BufferedStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BufferedStruct {
     type Root = BufferedStruct;
     type Parent = BufferedStruct;
@@ -134,6 +166,12 @@ impl BufferedStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl BufferedStruct {
     pub fn block1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -154,6 +192,38 @@ pub struct BufferedStruct_Block {
     number1: RefCell<u32>,
     number2: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&BufferedStruct_Block> for OptRc<BufferedStruct_Block> {
+    type Error = KError;
+    fn try_from(v: &BufferedStruct_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BufferedStruct_Block> for OptRc<BufferedStruct_Block> {
+    type Error = KError;
+    fn try_from(v: &&BufferedStruct_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct_Block> for BufferedStruct_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct_Block> for &BufferedStruct_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BufferedStruct_Block> for OptRc<BufferedStruct_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BufferedStruct_Block> for &OptRc<BufferedStruct_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<BufferedStruct_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BufferedStruct_Block {
     type Root = BufferedStruct;
@@ -192,5 +262,11 @@ impl BufferedStruct_Block {
 impl BufferedStruct_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

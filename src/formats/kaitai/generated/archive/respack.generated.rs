@@ -20,6 +20,38 @@ pub struct Respack {
     _io: RefCell<BytesReader>,
     json_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Respack> for OptRc<Respack> {
+    type Error = KError;
+    fn try_from(v: &Respack) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Respack> for OptRc<Respack> {
+    type Error = KError;
+    fn try_from(v: &&Respack) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Respack> for Respack {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Respack> for &Respack {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Respack> for OptRc<Respack> {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Respack> for &OptRc<Respack> {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Respack {
     type Root = Respack;
     type Parent = Respack;
@@ -59,6 +91,12 @@ impl Respack {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Respack {
     pub fn json_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -78,6 +116,38 @@ pub struct Respack_Header {
     _io: RefCell<BytesReader>,
     unknown_raw: RefCell<Vec<u8>>,
     md5_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Respack_Header> for OptRc<Respack_Header> {
+    type Error = KError;
+    fn try_from(v: &Respack_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Respack_Header> for OptRc<Respack_Header> {
+    type Error = KError;
+    fn try_from(v: &&Respack_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Respack_Header> for Respack_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Respack_Header> for &Respack_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Respack_Header> for OptRc<Respack_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Respack_Header> for &OptRc<Respack_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Respack_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Respack_Header {
     type Root = Respack;
@@ -135,6 +205,12 @@ impl Respack_Header {
 impl Respack_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Respack_Header {

@@ -85,9 +85,9 @@ fn test_recursive_one() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<RecursiveOne> = RecursiveOne::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), 80);
-    assert_eq!(*r.next().as_ref().context("Missing optional field")?.one(), 65);
-    assert_eq!(*r.next().as_ref().context("Missing optional field")?.next().as_ref().context("Missing optional field")?.one(), 67);
-    assert_eq!(*r.next().as_ref().context("Missing optional field")?.next().as_ref().context("Missing optional field")?.next().as_ref().context("Missing optional field")?.finisher(), 11595);
+    assert_eq!(*(r.one()), 80);
+    assert_eq!(*(kaitai::DowncastOptRc::<RecursiveOne>::downcast_optrc(&r.next())?.one()), 65);
+    assert_eq!(*(kaitai::DowncastOptRc::<RecursiveOne>::downcast_optrc(&kaitai::DowncastOptRc::<RecursiveOne>::downcast_optrc(&r.next())?.next())?.one()), 67);
+    assert_eq!(*(kaitai::DowncastOptRc::<RecursiveOne_Fini>::downcast_optrc(&kaitai::DowncastOptRc::<RecursiveOne>::downcast_optrc(&kaitai::DowncastOptRc::<RecursiveOne>::downcast_optrc(&r.next())?.next())?.next())?.finisher()), 11595);
     Ok(())
 }

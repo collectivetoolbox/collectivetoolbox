@@ -69,6 +69,38 @@ pub struct StrEncodingsUtf16 {
     be_bom_removed_raw: RefCell<Vec<u8>>,
     le_bom_removed_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&StrEncodingsUtf16> for OptRc<StrEncodingsUtf16> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsUtf16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsUtf16> for OptRc<StrEncodingsUtf16> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsUtf16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16> for StrEncodingsUtf16 {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16> for &StrEncodingsUtf16 {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16> for OptRc<StrEncodingsUtf16> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16> for &OptRc<StrEncodingsUtf16> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrEncodingsUtf16 {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
@@ -127,6 +159,12 @@ impl StrEncodingsUtf16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl StrEncodingsUtf16 {
     pub fn be_bom_removed_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -147,6 +185,38 @@ pub struct StrEncodingsUtf16_StrBeBomRemoved {
     bom: RefCell<u16>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsUtf16_StrBeBomRemoved) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsUtf16_StrBeBomRemoved) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for StrEncodingsUtf16_StrBeBomRemoved {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for &StrEncodingsUtf16_StrBeBomRemoved {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrBeBomRemoved> for &OptRc<StrEncodingsUtf16_StrBeBomRemoved> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrBeBomRemoved>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
     type Root = StrEncodingsUtf16;
@@ -186,6 +256,12 @@ impl StrEncodingsUtf16_StrBeBomRemoved {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -196,6 +272,38 @@ pub struct StrEncodingsUtf16_StrLeBomRemoved {
     bom: RefCell<u16>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsUtf16_StrLeBomRemoved) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsUtf16_StrLeBomRemoved) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for StrEncodingsUtf16_StrLeBomRemoved {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for &StrEncodingsUtf16_StrLeBomRemoved {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsUtf16_StrLeBomRemoved> for &OptRc<StrEncodingsUtf16_StrLeBomRemoved> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsUtf16_StrLeBomRemoved>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
     type Root = StrEncodingsUtf16;
@@ -234,5 +342,11 @@ impl StrEncodingsUtf16_StrLeBomRemoved {
 impl StrEncodingsUtf16_StrLeBomRemoved {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

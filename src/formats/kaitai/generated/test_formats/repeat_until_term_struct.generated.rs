@@ -69,6 +69,38 @@ pub struct RepeatUntilTermStruct {
     records2_raw: RefCell<Vec<u8>>,
     records3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&RepeatUntilTermStruct> for OptRc<RepeatUntilTermStruct> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilTermStruct> for OptRc<RepeatUntilTermStruct> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct> for RepeatUntilTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct> for &RepeatUntilTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct> for OptRc<RepeatUntilTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct> for &OptRc<RepeatUntilTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatUntilTermStruct {
     type Root = RepeatUntilTermStruct;
     type Parent = RepeatUntilTermStruct;
@@ -152,6 +184,12 @@ impl RepeatUntilTermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RepeatUntilTermStruct {
     pub fn records1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -176,6 +214,38 @@ pub struct RepeatUntilTermStruct_BytesWrapper {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatUntilTermStruct_BytesWrapper> for OptRc<RepeatUntilTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilTermStruct_BytesWrapper> for OptRc<RepeatUntilTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct_BytesWrapper> for RepeatUntilTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct_BytesWrapper> for &RepeatUntilTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct_BytesWrapper> for OptRc<RepeatUntilTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct_BytesWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilTermStruct_BytesWrapper> for &OptRc<RepeatUntilTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilTermStruct_BytesWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatUntilTermStruct_BytesWrapper {
     type Root = RepeatUntilTermStruct;
@@ -208,5 +278,11 @@ impl RepeatUntilTermStruct_BytesWrapper {
 impl RepeatUntilTermStruct_BytesWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

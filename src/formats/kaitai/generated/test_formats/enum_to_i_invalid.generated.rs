@@ -77,6 +77,38 @@ pub struct EnumToIInvalid {
     f_pet_2_mod: Cell<bool>,
     pet_2_mod: RefCell<i32>,
 }
+impl TryFrom<&EnumToIInvalid> for OptRc<EnumToIInvalid> {
+    type Error = KError;
+    fn try_from(v: &EnumToIInvalid) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumToIInvalid> for OptRc<EnumToIInvalid> {
+    type Error = KError;
+    fn try_from(v: &&EnumToIInvalid) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIInvalid> for EnumToIInvalid {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIInvalid>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumToIInvalid> for &EnumToIInvalid {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIInvalid>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIInvalid> for OptRc<EnumToIInvalid> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIInvalid>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumToIInvalid> for &OptRc<EnumToIInvalid> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIInvalid>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumToIInvalid {
     type Root = EnumToIInvalid;
     type Parent = EnumToIInvalid;
@@ -186,6 +218,12 @@ impl EnumToIInvalid {
 impl EnumToIInvalid {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

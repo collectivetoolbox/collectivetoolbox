@@ -126,9 +126,57 @@ impl TryFrom<&SwitchElseOnly_Ut> for OptRc<SwitchElseOnly_Data> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchElseOnly_Ut> for OptRc<SwitchElseOnly_Data> {
+    type Error = KError;
+    fn try_from(v: &&SwitchElseOnly_Ut) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for SwitchElseOnly_Ut {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        OptRc::<SwitchElseOnly_Data>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for &SwitchElseOnly_Ut {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchElseOnly_Data>> for SwitchElseOnly_Ut {
     fn from(v: OptRc<SwitchElseOnly_Data>) -> Self {
         Self::SwitchElseOnly_Data(v)
+    }
+}
+impl TryFrom<&SwitchElseOnly> for OptRc<SwitchElseOnly> {
+    type Error = KError;
+    fn try_from(v: &SwitchElseOnly) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchElseOnly> for OptRc<SwitchElseOnly> {
+    type Error = KError;
+    fn try_from(v: &&SwitchElseOnly) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly> for SwitchElseOnly {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly> for &SwitchElseOnly {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly> for OptRc<SwitchElseOnly> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchElseOnly> for &OptRc<SwitchElseOnly> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchElseOnly {
@@ -194,6 +242,12 @@ impl SwitchElseOnly {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchElseOnly {
     pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -209,6 +263,38 @@ pub struct SwitchElseOnly_Data {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     value_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SwitchElseOnly_Data> for OptRc<SwitchElseOnly_Data> {
+    type Error = KError;
+    fn try_from(v: &SwitchElseOnly_Data) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchElseOnly_Data> for OptRc<SwitchElseOnly_Data> {
+    type Error = KError;
+    fn try_from(v: &&SwitchElseOnly_Data) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for SwitchElseOnly_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for &SwitchElseOnly_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for OptRc<SwitchElseOnly_Data> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchElseOnly_Data> for &OptRc<SwitchElseOnly_Data> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchElseOnly_Data>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchElseOnly_Data {
     type Root = SwitchElseOnly;
@@ -241,6 +327,12 @@ impl SwitchElseOnly_Data {
 impl SwitchElseOnly_Data {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl SwitchElseOnly_Data {

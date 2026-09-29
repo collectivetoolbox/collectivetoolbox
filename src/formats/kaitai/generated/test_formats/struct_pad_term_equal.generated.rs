@@ -71,6 +71,38 @@ pub struct StructPadTermEqual {
     s3_raw: RefCell<Vec<u8>>,
     s4_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&StructPadTermEqual> for OptRc<StructPadTermEqual> {
+    type Error = KError;
+    fn try_from(v: &StructPadTermEqual) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StructPadTermEqual> for OptRc<StructPadTermEqual> {
+    type Error = KError;
+    fn try_from(v: &&StructPadTermEqual) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual> for StructPadTermEqual {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual> for &StructPadTermEqual {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual> for OptRc<StructPadTermEqual> {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StructPadTermEqual> for &OptRc<StructPadTermEqual> {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StructPadTermEqual {
     type Root = StructPadTermEqual;
     type Parent = StructPadTermEqual;
@@ -137,6 +169,12 @@ impl StructPadTermEqual {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl StructPadTermEqual {
     pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -166,6 +204,38 @@ pub struct StructPadTermEqual_BytesWrapper {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &StructPadTermEqual_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &&StructPadTermEqual_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for StructPadTermEqual_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for &StructPadTermEqual_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for OptRc<StructPadTermEqual_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StructPadTermEqual_BytesWrapper> for &OptRc<StructPadTermEqual_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StructPadTermEqual_BytesWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StructPadTermEqual_BytesWrapper {
     type Root = StructPadTermEqual;
@@ -198,5 +268,11 @@ impl StructPadTermEqual_BytesWrapper {
 impl StructPadTermEqual_BytesWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

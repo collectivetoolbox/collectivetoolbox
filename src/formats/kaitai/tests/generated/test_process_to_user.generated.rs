@@ -85,6 +85,6 @@ fn test_process_to_user() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessToUser> = ProcessToUser::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf1().str(), "Hello");
+    assert_eq!(*(r.buf1().str()), "Hello");
     Ok(())
 }

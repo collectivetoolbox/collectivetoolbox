@@ -58,6 +58,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ArrayCon
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ArrayContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        OptRc::<PhpSerializedValue_ArrayContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PhpSerializedValue_ArrayContents>> for PhpSerializedValue_Contents {
     fn from(v: OptRc<PhpSerializedValue_ArrayContents>) -> Self {
         Self::PhpSerializedValue_ArrayContents(v)
@@ -70,6 +86,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_BoolCont
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_BoolContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        OptRc::<PhpSerializedValue_BoolContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PhpSerializedValue_BoolContents>> for PhpSerializedValue_Contents {
@@ -86,6 +118,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_CustomSe
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        OptRc::<PhpSerializedValue_CustomSerializedObjectContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PhpSerializedValue_CustomSerializedObjectContents>> for PhpSerializedValue_Contents {
     fn from(v: OptRc<PhpSerializedValue_CustomSerializedObjectContents>) -> Self {
         Self::PhpSerializedValue_CustomSerializedObjectContents(v)
@@ -98,6 +146,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_FloatCon
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_FloatContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        OptRc::<PhpSerializedValue_FloatContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PhpSerializedValue_FloatContents>> for PhpSerializedValue_Contents {
@@ -114,6 +178,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_IntConte
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_IntContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        OptRc::<PhpSerializedValue_IntContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PhpSerializedValue_IntContents>> for PhpSerializedValue_Contents {
     fn from(v: OptRc<PhpSerializedValue_IntContents>) -> Self {
         Self::PhpSerializedValue_IntContents(v)
@@ -126,6 +206,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_NullCont
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_NullContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        OptRc::<PhpSerializedValue_NullContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PhpSerializedValue_NullContents>> for PhpSerializedValue_Contents {
@@ -142,6 +238,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ObjectCo
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        OptRc::<PhpSerializedValue_ObjectContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PhpSerializedValue_ObjectContents>> for PhpSerializedValue_Contents {
     fn from(v: OptRc<PhpSerializedValue_ObjectContents>) -> Self {
         Self::PhpSerializedValue_ObjectContents(v)
@@ -154,6 +266,22 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_Php3Obje
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        OptRc::<PhpSerializedValue_Php3ObjectContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PhpSerializedValue_Php3ObjectContents>> for PhpSerializedValue_Contents {
@@ -170,9 +298,57 @@ impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_StringCo
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_StringContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        OptRc::<PhpSerializedValue_StringContents>::try_from(self)
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for &PhpSerializedValue_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PhpSerializedValue_StringContents>> for PhpSerializedValue_Contents {
     fn from(v: OptRc<PhpSerializedValue_StringContents>) -> Self {
         Self::PhpSerializedValue_StringContents(v)
+    }
+}
+impl TryFrom<&PhpSerializedValue> for OptRc<PhpSerializedValue> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue> for OptRc<PhpSerializedValue> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue> for PhpSerializedValue {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue> for &PhpSerializedValue {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue> for OptRc<PhpSerializedValue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue> for &OptRc<PhpSerializedValue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for PhpSerializedValue {
@@ -270,6 +446,12 @@ impl PhpSerializedValue {
 impl PhpSerializedValue {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -442,6 +624,38 @@ pub struct PhpSerializedValue_ArrayContents {
     elements: RefCell<OptRc<PhpSerializedValue_CountPrefixedMapping>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PhpSerializedValue_ArrayContents> for OptRc<PhpSerializedValue_ArrayContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_ArrayContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_ArrayContents> for OptRc<PhpSerializedValue_ArrayContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_ArrayContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for PhpSerializedValue_ArrayContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for &PhpSerializedValue_ArrayContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for OptRc<PhpSerializedValue_ArrayContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ArrayContents> for &OptRc<PhpSerializedValue_ArrayContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ArrayContents>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PhpSerializedValue_ArrayContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
@@ -489,6 +703,12 @@ impl PhpSerializedValue_ArrayContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -506,6 +726,38 @@ pub struct PhpSerializedValue_BoolContents {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<bool>,
+}
+impl TryFrom<&PhpSerializedValue_BoolContents> for OptRc<PhpSerializedValue_BoolContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_BoolContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_BoolContents> for OptRc<PhpSerializedValue_BoolContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_BoolContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for PhpSerializedValue_BoolContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for &PhpSerializedValue_BoolContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for OptRc<PhpSerializedValue_BoolContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_BoolContents> for &OptRc<PhpSerializedValue_BoolContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_BoolContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_BoolContents {
     type Root = PhpSerializedValue;
@@ -577,6 +829,12 @@ impl PhpSerializedValue_BoolContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -595,6 +853,38 @@ pub struct PhpSerializedValue_CountPrefixedMapping {
     _io: RefCell<BytesReader>,
     f_num_entries: Cell<bool>,
     num_entries: RefCell<i32>,
+}
+impl TryFrom<&PhpSerializedValue_CountPrefixedMapping> for OptRc<PhpSerializedValue_CountPrefixedMapping> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_CountPrefixedMapping) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_CountPrefixedMapping> for OptRc<PhpSerializedValue_CountPrefixedMapping> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_CountPrefixedMapping) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CountPrefixedMapping> for PhpSerializedValue_CountPrefixedMapping {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CountPrefixedMapping>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CountPrefixedMapping> for &PhpSerializedValue_CountPrefixedMapping {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CountPrefixedMapping>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CountPrefixedMapping> for OptRc<PhpSerializedValue_CountPrefixedMapping> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CountPrefixedMapping>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CountPrefixedMapping> for &OptRc<PhpSerializedValue_CountPrefixedMapping> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CountPrefixedMapping>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_CountPrefixedMapping {
     type Root = PhpSerializedValue;
@@ -681,6 +971,12 @@ impl PhpSerializedValue_CountPrefixedMapping {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -704,6 +1000,38 @@ pub struct PhpSerializedValue_CustomSerializedObjectContents {
     data_raw: RefCell<Vec<u8>>,
     f_len_data: Cell<bool>,
     len_data: RefCell<i32>,
+}
+impl TryFrom<&PhpSerializedValue_CustomSerializedObjectContents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_CustomSerializedObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_CustomSerializedObjectContents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_CustomSerializedObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for PhpSerializedValue_CustomSerializedObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for &PhpSerializedValue_CustomSerializedObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_CustomSerializedObjectContents> for &OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_CustomSerializedObjectContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_CustomSerializedObjectContents {
     type Root = PhpSerializedValue;
@@ -821,6 +1149,12 @@ impl PhpSerializedValue_CustomSerializedObjectContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PhpSerializedValue_CustomSerializedObjectContents {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -840,6 +1174,38 @@ pub struct PhpSerializedValue_FloatContents {
     colon: RefCell<Vec<u8>>,
     value_dec: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PhpSerializedValue_FloatContents> for OptRc<PhpSerializedValue_FloatContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_FloatContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_FloatContents> for OptRc<PhpSerializedValue_FloatContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_FloatContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for PhpSerializedValue_FloatContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for &PhpSerializedValue_FloatContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for OptRc<PhpSerializedValue_FloatContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_FloatContents> for &OptRc<PhpSerializedValue_FloatContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_FloatContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_FloatContents {
     type Root = PhpSerializedValue;
@@ -893,6 +1259,12 @@ impl PhpSerializedValue_FloatContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -911,6 +1283,38 @@ pub struct PhpSerializedValue_IntContents {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&PhpSerializedValue_IntContents> for OptRc<PhpSerializedValue_IntContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_IntContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_IntContents> for OptRc<PhpSerializedValue_IntContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_IntContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for PhpSerializedValue_IntContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for &PhpSerializedValue_IntContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for OptRc<PhpSerializedValue_IntContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_IntContents> for &OptRc<PhpSerializedValue_IntContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_IntContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_IntContents {
     type Root = PhpSerializedValue;
@@ -973,6 +1377,12 @@ impl PhpSerializedValue_IntContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -997,6 +1407,38 @@ pub struct PhpSerializedValue_LengthPrefixedQuotedString {
     data_raw: RefCell<Vec<u8>>,
     f_len_data: Cell<bool>,
     len_data: RefCell<i32>,
+}
+impl TryFrom<&PhpSerializedValue_LengthPrefixedQuotedString> for OptRc<PhpSerializedValue_LengthPrefixedQuotedString> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_LengthPrefixedQuotedString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_LengthPrefixedQuotedString> for OptRc<PhpSerializedValue_LengthPrefixedQuotedString> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_LengthPrefixedQuotedString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_LengthPrefixedQuotedString> for PhpSerializedValue_LengthPrefixedQuotedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_LengthPrefixedQuotedString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_LengthPrefixedQuotedString> for &PhpSerializedValue_LengthPrefixedQuotedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_LengthPrefixedQuotedString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_LengthPrefixedQuotedString> for OptRc<PhpSerializedValue_LengthPrefixedQuotedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_LengthPrefixedQuotedString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_LengthPrefixedQuotedString> for &OptRc<PhpSerializedValue_LengthPrefixedQuotedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_LengthPrefixedQuotedString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_LengthPrefixedQuotedString {
     type Root = PhpSerializedValue;
@@ -1080,6 +1522,12 @@ impl PhpSerializedValue_LengthPrefixedQuotedString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PhpSerializedValue_LengthPrefixedQuotedString {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1099,6 +1547,38 @@ pub struct PhpSerializedValue_MappingEntry {
     key: RefCell<OptRc<PhpSerializedValue>>,
     value: RefCell<OptRc<PhpSerializedValue>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PhpSerializedValue_MappingEntry> for OptRc<PhpSerializedValue_MappingEntry> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_MappingEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_MappingEntry> for OptRc<PhpSerializedValue_MappingEntry> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_MappingEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_MappingEntry> for PhpSerializedValue_MappingEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_MappingEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_MappingEntry> for &PhpSerializedValue_MappingEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_MappingEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_MappingEntry> for OptRc<PhpSerializedValue_MappingEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_MappingEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_MappingEntry> for &OptRc<PhpSerializedValue_MappingEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_MappingEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_MappingEntry {
     type Root = PhpSerializedValue;
@@ -1148,6 +1628,12 @@ impl PhpSerializedValue_MappingEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1162,6 +1648,38 @@ pub struct PhpSerializedValue_NullContents {
     pub(crate) _self_shared: SharedType<Self>,
     semicolon: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PhpSerializedValue_NullContents> for OptRc<PhpSerializedValue_NullContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_NullContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_NullContents> for OptRc<PhpSerializedValue_NullContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_NullContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for PhpSerializedValue_NullContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for &PhpSerializedValue_NullContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for OptRc<PhpSerializedValue_NullContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_NullContents> for &OptRc<PhpSerializedValue_NullContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_NullContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_NullContents {
     type Root = PhpSerializedValue;
@@ -1198,6 +1716,12 @@ impl PhpSerializedValue_NullContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1215,6 +1739,38 @@ pub struct PhpSerializedValue_ObjectContents {
     colon2: RefCell<Vec<u8>>,
     properties: RefCell<OptRc<PhpSerializedValue_CountPrefixedMapping>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PhpSerializedValue_ObjectContents> for OptRc<PhpSerializedValue_ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_ObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_ObjectContents> for OptRc<PhpSerializedValue_ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_ObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for PhpSerializedValue_ObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for &PhpSerializedValue_ObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for OptRc<PhpSerializedValue_ObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_ObjectContents> for &OptRc<PhpSerializedValue_ObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_ObjectContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_ObjectContents {
     type Root = PhpSerializedValue;
@@ -1283,6 +1839,12 @@ impl PhpSerializedValue_ObjectContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1298,6 +1860,38 @@ pub struct PhpSerializedValue_Php3ObjectContents {
     colon: RefCell<Vec<u8>>,
     properties: RefCell<OptRc<PhpSerializedValue_CountPrefixedMapping>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PhpSerializedValue_Php3ObjectContents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Php3ObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_Php3ObjectContents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_Php3ObjectContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for PhpSerializedValue_Php3ObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for &PhpSerializedValue_Php3ObjectContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_Php3ObjectContents> for &OptRc<PhpSerializedValue_Php3ObjectContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_Php3ObjectContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_Php3ObjectContents {
     type Root = PhpSerializedValue;
@@ -1346,6 +1940,12 @@ impl PhpSerializedValue_Php3ObjectContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1366,6 +1966,38 @@ pub struct PhpSerializedValue_StringContents {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PhpSerializedValue_StringContents> for OptRc<PhpSerializedValue_StringContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_StringContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PhpSerializedValue_StringContents> for OptRc<PhpSerializedValue_StringContents> {
+    type Error = KError;
+    fn try_from(v: &&PhpSerializedValue_StringContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for PhpSerializedValue_StringContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for &PhpSerializedValue_StringContents {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for OptRc<PhpSerializedValue_StringContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PhpSerializedValue_StringContents> for &OptRc<PhpSerializedValue_StringContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<PhpSerializedValue_StringContents>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PhpSerializedValue_StringContents {
     type Root = PhpSerializedValue;
@@ -1433,5 +2065,11 @@ impl PhpSerializedValue_StringContents {
 impl PhpSerializedValue_StringContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

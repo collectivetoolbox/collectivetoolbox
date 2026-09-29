@@ -85,10 +85,10 @@ fn test_process_repeat_usertype_dynarg_xor() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatUsertypeDynargXor> = ProcessRepeatUsertypeDynargXor::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.blocks()[0].a(), 2319263090);
-    assert_eq!(*r.blocks()[1].a(), 263540053);
-    assert_eq!(*r.blocks_b().dummy(), 209);
-    assert_eq!(*r.blocks_b().blocks_0_b()?, 20);
-    assert_eq!(*r.blocks_b().blocks_1_b()?, 91);
+    assert_eq!(*(r.blocks()[0].a()), 2319263090);
+    assert_eq!(*(r.blocks()[1].a()), 263540053);
+    assert_eq!(*(r.blocks_b().dummy()), 209);
+    assert_eq!(*(r.blocks_b().blocks_0_b()?), 20);
+    assert_eq!(*(r.blocks_b().blocks_1_b()?), 91);
     Ok(())
 }

@@ -5,7 +5,9 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::ipv6_packet::Ipv6Packet;
+use super::ipv6_packet::*;
 use super::ipv4_packet::Ipv4Packet;
+use super::ipv4_packet::*;
 
 /**
  * Ethernet frame is a OSI data link layer (layer 2) protocol data unit
@@ -47,6 +49,22 @@ impl TryFrom<&EthernetFrame_Body> for OptRc<Ipv4Packet> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&EthernetFrame_Body> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &&EthernetFrame_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for EthernetFrame_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        OptRc::<Ipv4Packet>::try_from(self)
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for &EthernetFrame_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Ipv4Packet>> for EthernetFrame_Body {
     fn from(v: OptRc<Ipv4Packet>) -> Self {
         Self::Ipv4Packet(v)
@@ -59,6 +77,22 @@ impl TryFrom<&EthernetFrame_Body> for OptRc<Ipv6Packet> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&EthernetFrame_Body> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &&EthernetFrame_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for EthernetFrame_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        OptRc::<Ipv6Packet>::try_from(self)
+    }
+}
+impl DowncastOptRc<Ipv6Packet> for &EthernetFrame_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv6Packet>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Ipv6Packet>> for EthernetFrame_Body {
@@ -75,9 +109,47 @@ impl TryFrom<&EthernetFrame_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&EthernetFrame_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&EthernetFrame_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for EthernetFrame_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&EthernetFrame> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &EthernetFrame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EthernetFrame> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &&EthernetFrame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame> for EthernetFrame {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame> for &EthernetFrame {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame> for OptRc<EthernetFrame> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EthernetFrame> for &OptRc<EthernetFrame> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for EthernetFrame {
@@ -196,6 +268,12 @@ impl EthernetFrame {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl EthernetFrame {
     pub fn dst_mac_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -281,6 +359,38 @@ pub struct EthernetFrame_TagControlInfo {
     vlan_id: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
+    type Error = KError;
+    fn try_from(v: &EthernetFrame_TagControlInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
+    type Error = KError;
+    fn try_from(v: &&EthernetFrame_TagControlInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for EthernetFrame_TagControlInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for &EthernetFrame_TagControlInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for OptRc<EthernetFrame_TagControlInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EthernetFrame_TagControlInfo> for &OptRc<EthernetFrame_TagControlInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<EthernetFrame_TagControlInfo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EthernetFrame_TagControlInfo {
     type Root = EthernetFrame;
     type Parent = EthernetFrame;
@@ -340,5 +450,11 @@ impl EthernetFrame_TagControlInfo {
 impl EthernetFrame_TagControlInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

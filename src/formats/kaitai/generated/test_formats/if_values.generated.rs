@@ -64,6 +64,38 @@ pub struct IfValues {
     codes: RefCell<Vec<OptRc<IfValues_Code>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IfValues> for OptRc<IfValues> {
+    type Error = KError;
+    fn try_from(v: &IfValues) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IfValues> for OptRc<IfValues> {
+    type Error = KError;
+    fn try_from(v: &&IfValues) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IfValues> for IfValues {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IfValues> for &IfValues {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IfValues> for OptRc<IfValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IfValues> for &OptRc<IfValues> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IfValues {
     type Root = IfValues;
     type Parent = IfValues;
@@ -101,6 +133,12 @@ impl IfValues {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -112,6 +150,38 @@ pub struct IfValues_Code {
     _io: RefCell<BytesReader>,
     f_half_opcode: Cell<bool>,
     half_opcode: RefCell<i32>,
+}
+impl TryFrom<&IfValues_Code> for OptRc<IfValues_Code> {
+    type Error = KError;
+    fn try_from(v: &IfValues_Code) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IfValues_Code> for OptRc<IfValues_Code> {
+    type Error = KError;
+    fn try_from(v: &&IfValues_Code) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IfValues_Code> for IfValues_Code {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues_Code>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IfValues_Code> for &IfValues_Code {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues_Code>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IfValues_Code> for OptRc<IfValues_Code> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues_Code>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IfValues_Code> for &OptRc<IfValues_Code> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfValues_Code>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IfValues_Code {
     type Root = IfValues;
@@ -158,5 +228,11 @@ impl IfValues_Code {
 impl IfValues_Code {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

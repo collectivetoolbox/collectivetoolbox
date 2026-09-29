@@ -29,6 +29,38 @@ pub struct FasttrackerXmModule {
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&FasttrackerXmModule> for OptRc<FasttrackerXmModule> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule> for OptRc<FasttrackerXmModule> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule> for FasttrackerXmModule {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule> for &FasttrackerXmModule {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule> for OptRc<FasttrackerXmModule> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule> for &OptRc<FasttrackerXmModule> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FasttrackerXmModule {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
@@ -94,6 +126,12 @@ impl FasttrackerXmModule {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -109,6 +147,38 @@ pub struct FasttrackerXmModule_Flags {
     reserved: RefCell<u64>,
     freq_table_type: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&FasttrackerXmModule_Flags> for OptRc<FasttrackerXmModule_Flags> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Flags> for OptRc<FasttrackerXmModule_Flags> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Flags> for FasttrackerXmModule_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Flags> for &FasttrackerXmModule_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Flags> for OptRc<FasttrackerXmModule_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Flags> for &OptRc<FasttrackerXmModule_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Flags {
     type Root = FasttrackerXmModule;
@@ -152,6 +222,12 @@ impl FasttrackerXmModule_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -169,6 +245,38 @@ pub struct FasttrackerXmModule_Header {
     default_bpm: RefCell<u16>,
     pattern_order_table: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Header> for FasttrackerXmModule_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Header> for &FasttrackerXmModule_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Header> for OptRc<FasttrackerXmModule_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Header> for &OptRc<FasttrackerXmModule_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Header {
     type Root = FasttrackerXmModule;
@@ -275,6 +383,12 @@ impl FasttrackerXmModule_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -299,6 +413,38 @@ pub struct FasttrackerXmModule_Instrument {
     samples: RefCell<Vec<OptRc<FasttrackerXmModule_Instrument_SamplesData>>>,
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument> for FasttrackerXmModule_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument> for &FasttrackerXmModule_Instrument {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument> for OptRc<FasttrackerXmModule_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument> for &OptRc<FasttrackerXmModule_Instrument> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Instrument {
     type Root = FasttrackerXmModule;
@@ -331,7 +477,7 @@ impl KStruct for FasttrackerXmModule_Instrument {
         *self_rc.samples.borrow_mut() = Vec::new();
         let l_samples = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples {
-            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params(self_rc.samples_headers().get(_i).ok_or(KError::CastError)?.clone()));
+            let f = |t : &mut FasttrackerXmModule_Instrument_SamplesData| Ok(t.set_params((self_rc.samples_headers().get(_i).ok_or(KError::CastError)?).clone()));
             let t = Self::read_into_with_init::<_, FasttrackerXmModule_Instrument_SamplesData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.samples.borrow_mut().push(t);
         }
@@ -370,6 +516,12 @@ impl FasttrackerXmModule_Instrument {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Instrument {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -403,6 +555,38 @@ pub struct FasttrackerXmModule_Instrument_ExtraHeader {
     volume_fadeout: RefCell<u16>,
     reserved: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_ExtraHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_ExtraHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for FasttrackerXmModule_Instrument_ExtraHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for &FasttrackerXmModule_Instrument_ExtraHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader> for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
     type Root = FasttrackerXmModule;
@@ -578,6 +762,12 @@ impl FasttrackerXmModule_Instrument_ExtraHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum FasttrackerXmModule_Instrument_ExtraHeader_Type {
@@ -633,6 +823,38 @@ pub struct FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     y: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for &FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> for &OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_ExtraHeader;
@@ -679,6 +901,12 @@ impl FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -692,6 +920,38 @@ pub struct FasttrackerXmModule_Instrument_Header {
     extra_header: RefCell<OptRc<FasttrackerXmModule_Instrument_ExtraHeader>>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for FasttrackerXmModule_Instrument_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for &FasttrackerXmModule_Instrument_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for OptRc<FasttrackerXmModule_Instrument_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_Header> for &OptRc<FasttrackerXmModule_Instrument_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Instrument_Header {
     type Root = FasttrackerXmModule;
@@ -750,6 +1010,12 @@ impl FasttrackerXmModule_Instrument_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Instrument_Header {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -774,6 +1040,38 @@ pub struct FasttrackerXmModule_Instrument_SampleHeader {
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_SampleHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_SampleHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for FasttrackerXmModule_Instrument_SampleHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for &FasttrackerXmModule_Instrument_SampleHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader> for &OptRc<FasttrackerXmModule_Instrument_SampleHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
     type Root = FasttrackerXmModule;
@@ -870,6 +1168,12 @@ impl FasttrackerXmModule_Instrument_SampleHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Instrument_SampleHeader {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -887,6 +1191,38 @@ pub struct FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     reserved1: RefCell<u64>,
     loop_type: RefCell<FasttrackerXmModule_Instrument_SampleHeader_LoopType_LoopType>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_SampleHeader_LoopType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_SampleHeader_LoopType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for &FasttrackerXmModule_Instrument_SampleHeader_LoopType {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> for &OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SampleHeader_LoopType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     type Root = FasttrackerXmModule;
@@ -907,7 +1243,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
         *self_rc.reserved0.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc.is_sample_data_16_bit.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(2)?;
-        *self_rc.loop_type.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.loop_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -937,6 +1273,12 @@ impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
 impl FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -995,6 +1337,38 @@ pub struct FasttrackerXmModule_Instrument_SamplesData {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Instrument_SamplesData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Instrument_SamplesData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for FasttrackerXmModule_Instrument_SamplesData {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for &FasttrackerXmModule_Instrument_SamplesData {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Instrument_SamplesData> for &OptRc<FasttrackerXmModule_Instrument_SamplesData> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Instrument_SamplesData>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
@@ -1037,6 +1411,12 @@ impl FasttrackerXmModule_Instrument_SamplesData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Instrument_SamplesData {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1053,6 +1433,38 @@ pub struct FasttrackerXmModule_Pattern {
     packed_data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     packed_data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Pattern) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Pattern) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern> for FasttrackerXmModule_Pattern {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern> for &FasttrackerXmModule_Pattern {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern> for OptRc<FasttrackerXmModule_Pattern> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern> for &OptRc<FasttrackerXmModule_Pattern> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Pattern {
     type Root = FasttrackerXmModule;
@@ -1093,6 +1505,12 @@ impl FasttrackerXmModule_Pattern {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Pattern {
     pub fn packed_data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1109,6 +1527,38 @@ pub struct FasttrackerXmModule_Pattern_Header {
     main: RefCell<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>>,
     _io: RefCell<BytesReader>,
     main_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Pattern_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Pattern_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for FasttrackerXmModule_Pattern_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for &FasttrackerXmModule_Pattern_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for OptRc<FasttrackerXmModule_Pattern_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header> for &OptRc<FasttrackerXmModule_Pattern_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Pattern_Header {
     type Root = FasttrackerXmModule;
@@ -1155,6 +1605,12 @@ impl FasttrackerXmModule_Pattern_Header {
 impl FasttrackerXmModule_Pattern_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl FasttrackerXmModule_Pattern_Header {
@@ -1240,6 +1696,38 @@ impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw> for usiz
     }
 }
 
+impl TryFrom<&FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Pattern_Header_HeaderMain) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Pattern_Header_HeaderMain) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for FasttrackerXmModule_Pattern_Header_HeaderMain {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for &FasttrackerXmModule_Pattern_Header_HeaderMain {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> for &OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Pattern_Header_HeaderMain>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Pattern_Header;
@@ -1298,9 +1786,9 @@ impl FasttrackerXmModule_Pattern_Header_HeaderMain {
  * Number of rows in pattern (1..256)
  */
 impl FasttrackerXmModule_Pattern_Header_HeaderMain {
-    pub fn num_rows_raw(&self) -> u16 {
+    pub fn num_rows_raw(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.num_rows_raw.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.num_rows_raw.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
     }
     pub fn num_rows_raw_enum(&self) -> Ref<'_, Option<FasttrackerXmModule_Pattern_Header_HeaderMain_NumRowsRaw>> {
         self.num_rows_raw.borrow()
@@ -1319,6 +1807,12 @@ impl FasttrackerXmModule_Pattern_Header_HeaderMain {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1335,6 +1829,38 @@ pub struct FasttrackerXmModule_Preheader {
     _io: RefCell<BytesReader>,
     module_name_raw: RefCell<Vec<u8>>,
     tracker_name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Preheader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Preheader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader> for FasttrackerXmModule_Preheader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader> for &FasttrackerXmModule_Preheader {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader> for OptRc<FasttrackerXmModule_Preheader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader> for &OptRc<FasttrackerXmModule_Preheader> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Preheader {
     type Root = FasttrackerXmModule;
@@ -1421,6 +1947,12 @@ impl FasttrackerXmModule_Preheader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl FasttrackerXmModule_Preheader {
     pub fn module_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1443,6 +1975,38 @@ pub struct FasttrackerXmModule_Preheader_Version {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
+    type Error = KError;
+    fn try_from(v: &FasttrackerXmModule_Preheader_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
+    type Error = KError;
+    fn try_from(v: &&FasttrackerXmModule_Preheader_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for FasttrackerXmModule_Preheader_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for &FasttrackerXmModule_Preheader_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for OptRc<FasttrackerXmModule_Preheader_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FasttrackerXmModule_Preheader_Version> for &OptRc<FasttrackerXmModule_Preheader_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<FasttrackerXmModule_Preheader_Version>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FasttrackerXmModule_Preheader_Version {
     type Root = FasttrackerXmModule;
@@ -1501,5 +2065,11 @@ impl FasttrackerXmModule_Preheader_Version {
 impl FasttrackerXmModule_Preheader_Version {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

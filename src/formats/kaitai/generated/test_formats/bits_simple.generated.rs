@@ -78,6 +78,38 @@ pub struct BitsSimple {
     f_test_if_b1: Cell<bool>,
     test_if_b1: RefCell<i32>,
 }
+impl TryFrom<&BitsSimple> for OptRc<BitsSimple> {
+    type Error = KError;
+    fn try_from(v: &BitsSimple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsSimple> for OptRc<BitsSimple> {
+    type Error = KError;
+    fn try_from(v: &&BitsSimple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsSimple> for BitsSimple {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSimple>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsSimple> for &BitsSimple {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSimple>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsSimple> for OptRc<BitsSimple> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSimple>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsSimple> for &OptRc<BitsSimple> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsSimple>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsSimple {
     type Root = BitsSimple;
     type Parent = BitsSimple;
@@ -196,5 +228,11 @@ impl BitsSimple {
 impl BitsSimple {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

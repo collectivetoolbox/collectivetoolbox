@@ -14,6 +14,38 @@ pub struct GlibcUtmp {
     _io: RefCell<BytesReader>,
     records_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&GlibcUtmp> for OptRc<GlibcUtmp> {
+    type Error = KError;
+    fn try_from(v: &GlibcUtmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GlibcUtmp> for OptRc<GlibcUtmp> {
+    type Error = KError;
+    fn try_from(v: &&GlibcUtmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp> for GlibcUtmp {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp> for &GlibcUtmp {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp> for OptRc<GlibcUtmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GlibcUtmp> for &OptRc<GlibcUtmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GlibcUtmp {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
@@ -55,6 +87,12 @@ impl GlibcUtmp {
 impl GlibcUtmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl GlibcUtmp {
@@ -142,6 +180,38 @@ pub struct GlibcUtmp_Record {
     host_raw: RefCell<Vec<u8>>,
     addr_v6_raw: RefCell<Vec<u8>>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&GlibcUtmp_Record> for OptRc<GlibcUtmp_Record> {
+    type Error = KError;
+    fn try_from(v: &GlibcUtmp_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GlibcUtmp_Record> for OptRc<GlibcUtmp_Record> {
+    type Error = KError;
+    fn try_from(v: &&GlibcUtmp_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Record> for GlibcUtmp_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Record> for &GlibcUtmp_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Record> for OptRc<GlibcUtmp_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Record> for &OptRc<GlibcUtmp_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GlibcUtmp_Record {
     type Root = GlibcUtmp;
@@ -276,6 +346,12 @@ impl GlibcUtmp_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl GlibcUtmp_Record {
     pub fn line_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -316,6 +392,38 @@ pub struct GlibcUtmp_Timeval {
     sec: RefCell<u32>,
     usec: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&GlibcUtmp_Timeval> for OptRc<GlibcUtmp_Timeval> {
+    type Error = KError;
+    fn try_from(v: &GlibcUtmp_Timeval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GlibcUtmp_Timeval> for OptRc<GlibcUtmp_Timeval> {
+    type Error = KError;
+    fn try_from(v: &&GlibcUtmp_Timeval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Timeval> for GlibcUtmp_Timeval {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Timeval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Timeval> for &GlibcUtmp_Timeval {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Timeval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Timeval> for OptRc<GlibcUtmp_Timeval> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Timeval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GlibcUtmp_Timeval> for &OptRc<GlibcUtmp_Timeval> {
+    fn downcast_optrc(&self) -> Result<OptRc<GlibcUtmp_Timeval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GlibcUtmp_Timeval {
     type Root = GlibcUtmp;
@@ -362,5 +470,11 @@ impl GlibcUtmp_Timeval {
 impl GlibcUtmp_Timeval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

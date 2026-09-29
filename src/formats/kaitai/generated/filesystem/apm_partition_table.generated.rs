@@ -24,6 +24,38 @@ pub struct ApmPartitionTable {
     f_sector_size: Cell<bool>,
     sector_size: RefCell<i32>,
 }
+impl TryFrom<&ApmPartitionTable> for OptRc<ApmPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &ApmPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ApmPartitionTable> for OptRc<ApmPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &&ApmPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable> for ApmPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable> for &ApmPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable> for OptRc<ApmPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ApmPartitionTable> for &OptRc<ApmPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ApmPartitionTable {
     type Root = ApmPartitionTable;
     type Parent = ApmPartitionTable;
@@ -61,7 +93,7 @@ impl ApmPartitionTable {
         *self.partition_entries.borrow_mut() = Vec::new();
         let l_partition_entries = usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.partition_lookup()?.number_of_partitions())?;
         for _i in 0_usize..l_partition_entries {
-            self.partition_entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into());
+            self.partition_entries_raw.borrow_mut().push(io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into());
             let partition_entries_raw = self.partition_entries_raw.borrow();
             let _io_partition_entries_raw = BytesReader::from(partition_entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
             let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&_io_partition_entries_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -87,7 +119,7 @@ impl ApmPartitionTable {
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?)?;
-        *self.partition_lookup_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into();
+        *self.partition_lookup_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.sector_size()?)?)?.into();
         let partition_lookup_raw = self.partition_lookup_raw.borrow();
         let _t_partition_lookup_raw_io = BytesReader::from(partition_lookup_raw.clone());
         let t = Self::read_into::<BytesReader, ApmPartitionTable_PartitionEntry>(&_t_partition_lookup_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -116,6 +148,12 @@ impl ApmPartitionTable {
 impl ApmPartitionTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ApmPartitionTable {
@@ -165,6 +203,38 @@ pub struct ApmPartitionTable_PartitionEntry {
     data: RefCell<Vec<u8>>,
     f_partition: Cell<bool>,
     partition: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &ApmPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &&ApmPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for ApmPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for &ApmPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for OptRc<ApmPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ApmPartitionTable_PartitionEntry> for &OptRc<ApmPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<ApmPartitionTable_PartitionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ApmPartitionTable_PartitionEntry {
     type Root = ApmPartitionTable;
@@ -388,6 +458,12 @@ impl ApmPartitionTable_PartitionEntry {
 impl ApmPartitionTable_PartitionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ApmPartitionTable_PartitionEntry {

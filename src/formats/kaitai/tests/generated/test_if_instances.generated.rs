@@ -85,6 +85,6 @@ fn test_if_instances() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<IfInstances> = IfInstances::read_into(&_io, None, None)?;
 
-    assert!(r.never_happens()?.is_none());
+    assert_eq!(*r.never_happens()?, 0);
     Ok(())
 }

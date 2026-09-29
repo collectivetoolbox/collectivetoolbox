@@ -85,8 +85,8 @@ fn test_expr_enum() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprEnum> = ExprEnum::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.const_dog()?, ExprEnum_Animal::Dog);
-    assert_eq!(*r.derived_boom()?, ExprEnum_Animal::Boom);
-    assert_eq!(*r.derived_dog()?, ExprEnum_Animal::Dog);
+    assert_eq!(*(r.const_dog()?), ExprEnum_Animal::Dog);
+    assert_eq!(*(r.derived_boom()?), ExprEnum_Animal::Boom);
+    assert_eq!(*(r.derived_dog()?), ExprEnum_Animal::Dog);
     Ok(())
 }

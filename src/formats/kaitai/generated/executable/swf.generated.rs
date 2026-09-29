@@ -36,6 +36,38 @@ pub struct Swf {
     plain_body_raw: RefCell<Vec<u8>>,
     zlib_body_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Swf> for OptRc<Swf> {
+    type Error = KError;
+    fn try_from(v: &Swf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf> for OptRc<Swf> {
+    type Error = KError;
+    fn try_from(v: &&Swf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf> for Swf {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf> for &Swf {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf> for OptRc<Swf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf> for &OptRc<Swf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Swf {
     type Root = Swf;
     type Parent = Swf;
@@ -113,6 +145,12 @@ impl Swf {
 impl Swf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Swf {
@@ -251,6 +289,38 @@ pub struct Swf_DefineSoundBody {
     num_samples: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Swf_DefineSoundBody> for OptRc<Swf_DefineSoundBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_DefineSoundBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_DefineSoundBody> for OptRc<Swf_DefineSoundBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_DefineSoundBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for Swf_DefineSoundBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for &Swf_DefineSoundBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for OptRc<Swf_DefineSoundBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for &OptRc<Swf_DefineSoundBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Swf_DefineSoundBody {
     type Root = Swf;
     type Parent = Swf_Tag;
@@ -269,9 +339,9 @@ impl KStruct for Swf_DefineSoundBody {
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
         *self_rc.format.borrow_mut() = _io.read_bits_int_be(4)?;
-        *self_rc.sampling_rate.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
-        *self_rc.bits_per_sample.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
-        *self_rc.num_channels.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc.sampling_rate.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc.bits_per_sample.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc.num_channels.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
         io.align_to_byte()?;
         *self_rc.num_samples.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = io.clone();
@@ -317,6 +387,12 @@ impl Swf_DefineSoundBody {
 impl Swf_DefineSoundBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -432,6 +508,38 @@ pub struct Swf_DoAbcBody {
     abcdata: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Swf_DoAbcBody> for OptRc<Swf_DoAbcBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_DoAbcBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_DoAbcBody> for OptRc<Swf_DoAbcBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_DoAbcBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for Swf_DoAbcBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for &Swf_DoAbcBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for OptRc<Swf_DoAbcBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for &OptRc<Swf_DoAbcBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Swf_DoAbcBody {
     type Root = Swf;
     type Parent = Swf_Tag;
@@ -476,6 +584,12 @@ impl Swf_DoAbcBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -492,6 +606,38 @@ pub struct Swf_RecordHeader {
     small_len: RefCell<i32>,
     f_tag_type: Cell<bool>,
     tag_type: RefCell<Swf_TagType>,
+}
+impl TryFrom<&Swf_RecordHeader> for OptRc<Swf_RecordHeader> {
+    type Error = KError;
+    fn try_from(v: &Swf_RecordHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_RecordHeader> for OptRc<Swf_RecordHeader> {
+    type Error = KError;
+    fn try_from(v: &&Swf_RecordHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_RecordHeader> for Swf_RecordHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_RecordHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_RecordHeader> for &Swf_RecordHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_RecordHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_RecordHeader> for OptRc<Swf_RecordHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_RecordHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_RecordHeader> for &OptRc<Swf_RecordHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_RecordHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_RecordHeader {
     type Root = Swf;
@@ -569,6 +715,12 @@ impl Swf_RecordHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -584,6 +736,38 @@ pub struct Swf_Rect {
     num_bits: RefCell<i32>,
     f_num_bytes: Cell<bool>,
     num_bytes: RefCell<i32>,
+}
+impl TryFrom<&Swf_Rect> for OptRc<Swf_Rect> {
+    type Error = KError;
+    fn try_from(v: &Swf_Rect) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_Rect> for OptRc<Swf_Rect> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Rect) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rect> for Swf_Rect {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rect>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rect> for &Swf_Rect {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rect>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rect> for OptRc<Swf_Rect> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rect>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_Rect> for &OptRc<Swf_Rect> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rect>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_Rect {
     type Root = Swf;
@@ -647,6 +831,12 @@ impl Swf_Rect {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Swf_Rect {
     pub fn skip_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -663,6 +853,38 @@ pub struct Swf_Rgb {
     g: RefCell<u8>,
     b: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Swf_Rgb> for OptRc<Swf_Rgb> {
+    type Error = KError;
+    fn try_from(v: &Swf_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_Rgb> for OptRc<Swf_Rgb> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for Swf_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for &Swf_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for OptRc<Swf_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for &OptRc<Swf_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_Rgb {
     type Root = Swf;
@@ -708,6 +930,12 @@ impl Swf_Rgb {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -718,6 +946,38 @@ pub struct Swf_ScriptLimitsBody {
     max_recursion_depth: RefCell<u16>,
     script_timeout_seconds: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Swf_ScriptLimitsBody> for OptRc<Swf_ScriptLimitsBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_ScriptLimitsBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_ScriptLimitsBody> for OptRc<Swf_ScriptLimitsBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_ScriptLimitsBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for Swf_ScriptLimitsBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for &Swf_ScriptLimitsBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for OptRc<Swf_ScriptLimitsBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for &OptRc<Swf_ScriptLimitsBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_ScriptLimitsBody {
     type Root = Swf;
@@ -757,6 +1017,12 @@ impl Swf_ScriptLimitsBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -770,6 +1036,38 @@ pub struct Swf_SwfBody {
     file_attributes_tag: RefCell<OptRc<Swf_Tag>>,
     tags: RefCell<Vec<OptRc<Swf_Tag>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Swf_SwfBody> for OptRc<Swf_SwfBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_SwfBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_SwfBody> for OptRc<Swf_SwfBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_SwfBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SwfBody> for Swf_SwfBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SwfBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_SwfBody> for &Swf_SwfBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SwfBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SwfBody> for OptRc<Swf_SwfBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SwfBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_SwfBody> for &OptRc<Swf_SwfBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SwfBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_SwfBody {
     type Root = Swf;
@@ -839,6 +1137,12 @@ impl Swf_SwfBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -849,6 +1153,38 @@ pub struct Swf_SymbolClassBody {
     num_symbols: RefCell<u16>,
     symbols: RefCell<Vec<OptRc<Swf_SymbolClassBody_Symbol>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Swf_SymbolClassBody> for OptRc<Swf_SymbolClassBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_SymbolClassBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_SymbolClassBody> for OptRc<Swf_SymbolClassBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_SymbolClassBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for Swf_SymbolClassBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for &Swf_SymbolClassBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for OptRc<Swf_SymbolClassBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for &OptRc<Swf_SymbolClassBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_SymbolClassBody {
     type Root = Swf;
@@ -893,6 +1229,12 @@ impl Swf_SymbolClassBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -903,6 +1245,38 @@ pub struct Swf_SymbolClassBody_Symbol {
     tag: RefCell<u16>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Swf_SymbolClassBody_Symbol> for OptRc<Swf_SymbolClassBody_Symbol> {
+    type Error = KError;
+    fn try_from(v: &Swf_SymbolClassBody_Symbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_SymbolClassBody_Symbol> for OptRc<Swf_SymbolClassBody_Symbol> {
+    type Error = KError;
+    fn try_from(v: &&Swf_SymbolClassBody_Symbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody_Symbol> for Swf_SymbolClassBody_Symbol {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody_Symbol>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody_Symbol> for &Swf_SymbolClassBody_Symbol {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody_Symbol>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody_Symbol> for OptRc<Swf_SymbolClassBody_Symbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody_Symbol>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody_Symbol> for &OptRc<Swf_SymbolClassBody_Symbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody_Symbol>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Swf_SymbolClassBody_Symbol {
     type Root = Swf;
@@ -942,6 +1316,12 @@ impl Swf_SymbolClassBody_Symbol {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -972,6 +1352,22 @@ impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_DefineSoundBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Swf_Tag_TagBody> for OptRc<Swf_DefineSoundBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        OptRc::<Swf_DefineSoundBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Swf_DefineSoundBody> for &Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DefineSoundBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Swf_DefineSoundBody>> for Swf_Tag_TagBody {
     fn from(v: OptRc<Swf_DefineSoundBody>) -> Self {
         Self::Swf_DefineSoundBody(v)
@@ -984,6 +1380,22 @@ impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_DoAbcBody> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Swf_Tag_TagBody> for OptRc<Swf_DoAbcBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        OptRc::<Swf_DoAbcBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Swf_DoAbcBody> for &Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_DoAbcBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Swf_DoAbcBody>> for Swf_Tag_TagBody {
@@ -1000,6 +1412,22 @@ impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_SymbolClassBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Swf_Tag_TagBody> for OptRc<Swf_SymbolClassBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        OptRc::<Swf_SymbolClassBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Swf_SymbolClassBody> for &Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_SymbolClassBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Swf_SymbolClassBody>> for Swf_Tag_TagBody {
     fn from(v: OptRc<Swf_SymbolClassBody>) -> Self {
         Self::Swf_SymbolClassBody(v)
@@ -1012,6 +1440,22 @@ impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_ScriptLimitsBody> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Swf_Tag_TagBody> for OptRc<Swf_ScriptLimitsBody> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        OptRc::<Swf_ScriptLimitsBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<Swf_ScriptLimitsBody> for &Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_ScriptLimitsBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Swf_ScriptLimitsBody>> for Swf_Tag_TagBody {
@@ -1028,6 +1472,22 @@ impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_Rgb> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Swf_Tag_TagBody> for OptRc<Swf_Rgb> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        OptRc::<Swf_Rgb>::try_from(self)
+    }
+}
+impl DowncastOptRc<Swf_Rgb> for &Swf_Tag_TagBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Rgb>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Swf_Rgb>> for Swf_Tag_TagBody {
     fn from(v: OptRc<Swf_Rgb>) -> Self {
         Self::Swf_Rgb(v)
@@ -1042,9 +1502,47 @@ impl TryFrom<&Swf_Tag_TagBody> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Swf_Tag_TagBody> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag_TagBody) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Swf_Tag_TagBody {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Swf_Tag> for OptRc<Swf_Tag> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Swf_Tag> for OptRc<Swf_Tag> {
+    type Error = KError;
+    fn try_from(v: &&Swf_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Tag> for Swf_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Tag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Swf_Tag> for &Swf_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Tag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Swf_Tag> for OptRc<Swf_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Tag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Swf_Tag> for &OptRc<Swf_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Swf_Tag>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Swf_Tag {
@@ -1131,6 +1629,12 @@ impl Swf_Tag {
 impl Swf_Tag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Swf_Tag {

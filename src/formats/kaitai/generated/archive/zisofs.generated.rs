@@ -31,6 +31,38 @@ pub struct Zisofs {
     f_blocks: Cell<bool>,
     blocks: RefCell<Vec<OptRc<Zisofs_Block>>>,
 }
+impl TryFrom<&Zisofs> for OptRc<Zisofs> {
+    type Error = KError;
+    fn try_from(v: &Zisofs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zisofs> for OptRc<Zisofs> {
+    type Error = KError;
+    fn try_from(v: &&Zisofs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs> for Zisofs {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zisofs> for &Zisofs {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs> for OptRc<Zisofs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zisofs> for &OptRc<Zisofs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Zisofs {
     type Root = Zisofs;
     type Parent = Zisofs;
@@ -100,6 +132,12 @@ impl Zisofs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zisofs {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -119,6 +157,38 @@ pub struct Zisofs_Block {
     data: RefCell<Vec<u8>>,
     f_len_data: Cell<bool>,
     len_data: RefCell<u32>,
+}
+impl TryFrom<&Zisofs_Block> for OptRc<Zisofs_Block> {
+    type Error = KError;
+    fn try_from(v: &Zisofs_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zisofs_Block> for OptRc<Zisofs_Block> {
+    type Error = KError;
+    fn try_from(v: &&Zisofs_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Block> for Zisofs_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Block> for &Zisofs_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Block> for OptRc<Zisofs_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zisofs_Block> for &OptRc<Zisofs_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zisofs_Block {
     type Root = Zisofs;
@@ -190,6 +260,12 @@ impl Zisofs_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -207,6 +283,38 @@ pub struct Zisofs_Header {
     block_size: RefCell<i32>,
     f_num_blocks: Cell<bool>,
     num_blocks: RefCell<i32>,
+}
+impl TryFrom<&Zisofs_Header> for OptRc<Zisofs_Header> {
+    type Error = KError;
+    fn try_from(v: &Zisofs_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zisofs_Header> for OptRc<Zisofs_Header> {
+    type Error = KError;
+    fn try_from(v: &&Zisofs_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Header> for Zisofs_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Header> for &Zisofs_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zisofs_Header> for OptRc<Zisofs_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zisofs_Header> for &OptRc<Zisofs_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zisofs_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zisofs_Header {
     type Root = Zisofs;
@@ -316,5 +424,11 @@ impl Zisofs_Header {
 impl Zisofs_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

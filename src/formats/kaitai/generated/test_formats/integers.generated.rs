@@ -90,6 +90,38 @@ pub struct Integers {
     sint64be: RefCell<i64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Integers> for OptRc<Integers> {
+    type Error = KError;
+    fn try_from(v: &Integers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Integers> for OptRc<Integers> {
+    type Error = KError;
+    fn try_from(v: &&Integers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Integers> for Integers {
+    fn downcast_optrc(&self) -> Result<OptRc<Integers>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Integers> for &Integers {
+    fn downcast_optrc(&self) -> Result<OptRc<Integers>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Integers> for OptRc<Integers> {
+    fn downcast_optrc(&self) -> Result<OptRc<Integers>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Integers> for &OptRc<Integers> {
+    fn downcast_optrc(&self) -> Result<OptRc<Integers>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Integers {
     type Root = Integers;
     type Parent = Integers;
@@ -298,5 +330,11 @@ impl Integers {
 impl Integers {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

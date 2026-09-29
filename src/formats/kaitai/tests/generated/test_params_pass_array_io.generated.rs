@@ -85,7 +85,7 @@ fn test_params_pass_array_io() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsPassArrayIo> = ParamsPassArrayIo::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.first().foo(), 255);
-    assert_eq!(*r.one().buf(), vec![1u8]);
+    assert_eq!(*(r.first().foo()), 255);
+    assert_eq!(*(r.one().buf()), vec![1]);
     Ok(())
 }

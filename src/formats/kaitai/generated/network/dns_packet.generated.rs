@@ -26,6 +26,38 @@ pub struct DnsPacket {
     additionals: RefCell<Vec<OptRc<DnsPacket_Answer>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DnsPacket> for OptRc<DnsPacket> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket> for OptRc<DnsPacket> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket> for DnsPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket> for &DnsPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket> for OptRc<DnsPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket> for &OptRc<DnsPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DnsPacket {
     type Root = DnsPacket;
     type Parent = DnsPacket;
@@ -169,6 +201,12 @@ impl DnsPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DnsPacket_ClassType {
@@ -298,6 +336,38 @@ pub struct DnsPacket_Address {
     _io: RefCell<BytesReader>,
     ip_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&DnsPacket_Address> for OptRc<DnsPacket_Address> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Address) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Address> for OptRc<DnsPacket_Address> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Address) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for DnsPacket_Address {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for &DnsPacket_Address {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for OptRc<DnsPacket_Address> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for &OptRc<DnsPacket_Address> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DnsPacket_Address {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
@@ -330,6 +400,12 @@ impl DnsPacket_Address {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DnsPacket_Address {
     pub fn ip_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -345,6 +421,38 @@ pub struct DnsPacket_AddressV6 {
     ip_v6: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     ip_v6_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DnsPacket_AddressV6> for OptRc<DnsPacket_AddressV6> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_AddressV6) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_AddressV6> for OptRc<DnsPacket_AddressV6> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_AddressV6) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for DnsPacket_AddressV6 {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for &DnsPacket_AddressV6 {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for OptRc<DnsPacket_AddressV6> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for &OptRc<DnsPacket_AddressV6> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_AddressV6 {
     type Root = DnsPacket;
@@ -377,6 +485,12 @@ impl DnsPacket_AddressV6 {
 impl DnsPacket_AddressV6 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl DnsPacket_AddressV6 {
@@ -419,6 +533,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Address> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Address> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        OptRc::<DnsPacket_Address>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_Address> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Address>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DnsPacket_Address>> for DnsPacket_Answer_Payload {
     fn from(v: OptRc<DnsPacket_Address>) -> Self {
         Self::DnsPacket_Address(v)
@@ -431,6 +561,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AddressV6> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AddressV6> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        OptRc::<DnsPacket_AddressV6>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_AddressV6> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AddressV6>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DnsPacket_AddressV6>> for DnsPacket_Answer_Payload {
@@ -447,6 +593,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_DomainName> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_DomainName> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        OptRc::<DnsPacket_DomainName>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DnsPacket_DomainName>> for DnsPacket_Answer_Payload {
     fn from(v: OptRc<DnsPacket_DomainName>) -> Self {
         Self::DnsPacket_DomainName(v)
@@ -459,6 +621,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_MxInfo> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_MxInfo> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        OptRc::<DnsPacket_MxInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DnsPacket_MxInfo>> for DnsPacket_Answer_Payload {
@@ -475,6 +653,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AuthorityInfo> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AuthorityInfo> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        OptRc::<DnsPacket_AuthorityInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DnsPacket_AuthorityInfo>> for DnsPacket_Answer_Payload {
     fn from(v: OptRc<DnsPacket_AuthorityInfo>) -> Self {
         Self::DnsPacket_AuthorityInfo(v)
@@ -487,6 +681,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Service> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Service> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        OptRc::<DnsPacket_Service>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DnsPacket_Service>> for DnsPacket_Answer_Payload {
@@ -503,6 +713,22 @@ impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_TxtBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DnsPacket_Answer_Payload> for OptRc<DnsPacket_TxtBody> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        OptRc::<DnsPacket_TxtBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for &DnsPacket_Answer_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DnsPacket_TxtBody>> for DnsPacket_Answer_Payload {
     fn from(v: OptRc<DnsPacket_TxtBody>) -> Self {
         Self::DnsPacket_TxtBody(v)
@@ -517,9 +743,47 @@ impl TryFrom<&DnsPacket_Answer_Payload> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DnsPacket_Answer_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for DnsPacket_Answer_Payload {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&DnsPacket_Answer> for OptRc<DnsPacket_Answer> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Answer> for OptRc<DnsPacket_Answer> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Answer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Answer> for DnsPacket_Answer {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Answer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Answer> for &DnsPacket_Answer {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Answer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Answer> for OptRc<DnsPacket_Answer> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Answer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Answer> for &OptRc<DnsPacket_Answer> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Answer>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for DnsPacket_Answer {
@@ -660,6 +924,12 @@ impl DnsPacket_Answer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DnsPacket_Answer {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -680,6 +950,38 @@ pub struct DnsPacket_AuthorityInfo {
     expire_limit: RefCell<u32>,
     min_ttl: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_AuthorityInfo> for OptRc<DnsPacket_AuthorityInfo> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_AuthorityInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_AuthorityInfo> for OptRc<DnsPacket_AuthorityInfo> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_AuthorityInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for DnsPacket_AuthorityInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for &DnsPacket_AuthorityInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for OptRc<DnsPacket_AuthorityInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_AuthorityInfo> for &OptRc<DnsPacket_AuthorityInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_AuthorityInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_AuthorityInfo {
     type Root = DnsPacket;
@@ -751,6 +1053,12 @@ impl DnsPacket_AuthorityInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -760,6 +1068,38 @@ pub struct DnsPacket_DomainName {
     pub(crate) _self_shared: SharedType<Self>,
     name: RefCell<Vec<OptRc<DnsPacket_Label>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_DomainName> for OptRc<DnsPacket_DomainName> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_DomainName) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_DomainName> for OptRc<DnsPacket_DomainName> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_DomainName) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for DnsPacket_DomainName {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for &DnsPacket_DomainName {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for OptRc<DnsPacket_DomainName> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_DomainName> for &OptRc<DnsPacket_DomainName> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_DomainName>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_DomainName {
     type Root = DnsPacket;
@@ -808,6 +1148,12 @@ impl DnsPacket_DomainName {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -822,6 +1168,38 @@ pub struct DnsPacket_Label {
     name_raw: RefCell<Vec<u8>>,
     f_is_pointer: Cell<bool>,
     is_pointer: RefCell<bool>,
+}
+impl TryFrom<&DnsPacket_Label> for OptRc<DnsPacket_Label> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Label) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Label> for OptRc<DnsPacket_Label> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Label) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Label> for DnsPacket_Label {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Label>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Label> for &DnsPacket_Label {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Label>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Label> for OptRc<DnsPacket_Label> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Label>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Label> for &OptRc<DnsPacket_Label> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Label>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_Label {
     type Root = DnsPacket;
@@ -892,6 +1270,12 @@ impl DnsPacket_Label {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DnsPacket_Label {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -907,6 +1291,38 @@ pub struct DnsPacket_MxInfo {
     preference: RefCell<u16>,
     mx: RefCell<OptRc<DnsPacket_DomainName>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_MxInfo> for OptRc<DnsPacket_MxInfo> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_MxInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_MxInfo> for OptRc<DnsPacket_MxInfo> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_MxInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for DnsPacket_MxInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for &DnsPacket_MxInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for OptRc<DnsPacket_MxInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_MxInfo> for &OptRc<DnsPacket_MxInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_MxInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_MxInfo {
     type Root = DnsPacket;
@@ -947,6 +1363,12 @@ impl DnsPacket_MxInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -978,6 +1400,38 @@ pub struct DnsPacket_PacketFlags {
     tc: RefCell<i32>,
     f_z: Cell<bool>,
     z: RefCell<i32>,
+}
+impl TryFrom<&DnsPacket_PacketFlags> for OptRc<DnsPacket_PacketFlags> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_PacketFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_PacketFlags> for OptRc<DnsPacket_PacketFlags> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_PacketFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PacketFlags> for DnsPacket_PacketFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PacketFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PacketFlags> for &DnsPacket_PacketFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PacketFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PacketFlags> for OptRc<DnsPacket_PacketFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PacketFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_PacketFlags> for &OptRc<DnsPacket_PacketFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PacketFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_PacketFlags {
     type Root = DnsPacket;
@@ -1143,6 +1597,12 @@ impl DnsPacket_PacketFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1154,6 +1614,38 @@ pub struct DnsPacket_PointerStruct {
     _io: RefCell<BytesReader>,
     f_contents: Cell<bool>,
     contents: RefCell<OptRc<DnsPacket_DomainName>>,
+}
+impl TryFrom<&DnsPacket_PointerStruct> for OptRc<DnsPacket_PointerStruct> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_PointerStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_PointerStruct> for OptRc<DnsPacket_PointerStruct> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_PointerStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PointerStruct> for DnsPacket_PointerStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PointerStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PointerStruct> for &DnsPacket_PointerStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PointerStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_PointerStruct> for OptRc<DnsPacket_PointerStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PointerStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_PointerStruct> for &OptRc<DnsPacket_PointerStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_PointerStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_PointerStruct {
     type Root = DnsPacket;
@@ -1207,6 +1699,12 @@ impl DnsPacket_PointerStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1218,6 +1716,38 @@ pub struct DnsPacket_Query {
     r#type: RefCell<DnsPacket_TypeType>,
     query_class: RefCell<DnsPacket_ClassType>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_Query> for OptRc<DnsPacket_Query> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Query) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Query> for OptRc<DnsPacket_Query> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Query) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Query> for DnsPacket_Query {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Query>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Query> for &DnsPacket_Query {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Query>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Query> for OptRc<DnsPacket_Query> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Query>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Query> for &OptRc<DnsPacket_Query> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Query>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_Query {
     type Root = DnsPacket;
@@ -1264,6 +1794,12 @@ impl DnsPacket_Query {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1276,6 +1812,38 @@ pub struct DnsPacket_Service {
     port: RefCell<u16>,
     target: RefCell<OptRc<DnsPacket_DomainName>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_Service> for OptRc<DnsPacket_Service> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Service) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Service> for OptRc<DnsPacket_Service> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Service) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for DnsPacket_Service {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for &DnsPacket_Service {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for OptRc<DnsPacket_Service> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Service> for &OptRc<DnsPacket_Service> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Service>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_Service {
     type Root = DnsPacket;
@@ -1328,6 +1896,12 @@ impl DnsPacket_Service {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1339,6 +1913,38 @@ pub struct DnsPacket_Txt {
     text: RefCell<String>,
     _io: RefCell<BytesReader>,
     text_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DnsPacket_Txt> for OptRc<DnsPacket_Txt> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Txt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_Txt> for OptRc<DnsPacket_Txt> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_Txt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Txt> for DnsPacket_Txt {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Txt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Txt> for &DnsPacket_Txt {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Txt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_Txt> for OptRc<DnsPacket_Txt> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Txt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_Txt> for &OptRc<DnsPacket_Txt> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_Txt>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_Txt {
     type Root = DnsPacket;
@@ -1378,6 +1984,12 @@ impl DnsPacket_Txt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DnsPacket_Txt {
     pub fn text_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1392,6 +2004,38 @@ pub struct DnsPacket_TxtBody {
     pub(crate) _self_shared: SharedType<Self>,
     data: RefCell<Vec<OptRc<DnsPacket_Txt>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DnsPacket_TxtBody> for OptRc<DnsPacket_TxtBody> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_TxtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DnsPacket_TxtBody> for OptRc<DnsPacket_TxtBody> {
+    type Error = KError;
+    fn try_from(v: &&DnsPacket_TxtBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for DnsPacket_TxtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for &DnsPacket_TxtBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for OptRc<DnsPacket_TxtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DnsPacket_TxtBody> for &OptRc<DnsPacket_TxtBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DnsPacket_TxtBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DnsPacket_TxtBody {
     type Root = DnsPacket;
@@ -1432,5 +2076,11 @@ impl DnsPacket_TxtBody {
 impl DnsPacket_TxtBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

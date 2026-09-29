@@ -21,6 +21,38 @@ pub struct GranTurismoVol {
     f_ofs_dir: Cell<bool>,
     ofs_dir: RefCell<u32>,
 }
+impl TryFrom<&GranTurismoVol> for OptRc<GranTurismoVol> {
+    type Error = KError;
+    fn try_from(v: &GranTurismoVol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GranTurismoVol> for OptRc<GranTurismoVol> {
+    type Error = KError;
+    fn try_from(v: &&GranTurismoVol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol> for GranTurismoVol {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol> for &GranTurismoVol {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol> for OptRc<GranTurismoVol> {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GranTurismoVol> for &OptRc<GranTurismoVol> {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for GranTurismoVol {
     type Root = GranTurismoVol;
     type Parent = GranTurismoVol;
@@ -119,6 +151,12 @@ impl GranTurismoVol {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -140,6 +178,38 @@ pub struct GranTurismoVol_FileInfo {
     is_last_entry: RefCell<bool>,
     f_size: Cell<bool>,
     size: RefCell<u32>,
+}
+impl TryFrom<&GranTurismoVol_FileInfo> for OptRc<GranTurismoVol_FileInfo> {
+    type Error = KError;
+    fn try_from(v: &GranTurismoVol_FileInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&GranTurismoVol_FileInfo> for OptRc<GranTurismoVol_FileInfo> {
+    type Error = KError;
+    fn try_from(v: &&GranTurismoVol_FileInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol_FileInfo> for GranTurismoVol_FileInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol_FileInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol_FileInfo> for &GranTurismoVol_FileInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol_FileInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<GranTurismoVol_FileInfo> for OptRc<GranTurismoVol_FileInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol_FileInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<GranTurismoVol_FileInfo> for &OptRc<GranTurismoVol_FileInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<GranTurismoVol_FileInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for GranTurismoVol_FileInfo {
     type Root = GranTurismoVol;
@@ -243,6 +313,12 @@ impl GranTurismoVol_FileInfo {
 impl GranTurismoVol_FileInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl GranTurismoVol_FileInfo {

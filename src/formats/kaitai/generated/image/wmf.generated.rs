@@ -26,6 +26,38 @@ pub struct Wmf {
     records: RefCell<Vec<OptRc<Wmf_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Wmf> for OptRc<Wmf> {
+    type Error = KError;
+    fn try_from(v: &Wmf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf> for OptRc<Wmf> {
+    type Error = KError;
+    fn try_from(v: &&Wmf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf> for Wmf {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf> for &Wmf {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf> for OptRc<Wmf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf> for &OptRc<Wmf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Wmf {
     type Root = Wmf;
     type Parent = Wmf;
@@ -82,6 +114,12 @@ impl Wmf {
 impl Wmf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -474,6 +512,38 @@ pub struct Wmf_ColorRef {
     reserved: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Wmf_ColorRef> for OptRc<Wmf_ColorRef> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ColorRef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ColorRef> for OptRc<Wmf_ColorRef> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ColorRef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for Wmf_ColorRef {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for &Wmf_ColorRef {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for OptRc<Wmf_ColorRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for &OptRc<Wmf_ColorRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Wmf_ColorRef {
     type Root = Wmf;
     type Parent = Wmf_Record;
@@ -524,6 +594,12 @@ impl Wmf_ColorRef {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -539,6 +615,38 @@ pub struct Wmf_Header {
     max_record: RefCell<u32>,
     number_of_members: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_Header> for OptRc<Wmf_Header> {
+    type Error = KError;
+    fn try_from(v: &Wmf_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_Header> for OptRc<Wmf_Header> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Header> for Wmf_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Header> for &Wmf_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Header> for OptRc<Wmf_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_Header> for &OptRc<Wmf_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_Header {
     type Root = Wmf;
@@ -608,6 +716,12 @@ impl Wmf_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Wmf_Header_MetafileType {
@@ -655,6 +769,38 @@ pub struct Wmf_ParamsPolygon {
     points: RefCell<Vec<OptRc<Wmf_PointS>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Wmf_ParamsPolygon> for OptRc<Wmf_ParamsPolygon> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsPolygon) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsPolygon> for OptRc<Wmf_ParamsPolygon> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsPolygon) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for Wmf_ParamsPolygon {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for &Wmf_ParamsPolygon {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for OptRc<Wmf_ParamsPolygon> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for &OptRc<Wmf_ParamsPolygon> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Wmf_ParamsPolygon {
     type Root = Wmf;
     type Parent = Wmf_Record;
@@ -698,6 +844,12 @@ impl Wmf_ParamsPolygon {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -712,6 +864,38 @@ pub struct Wmf_ParamsPolyline {
     num_points: RefCell<i16>,
     points: RefCell<Vec<OptRc<Wmf_PointS>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsPolyline> for OptRc<Wmf_ParamsPolyline> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsPolyline) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsPolyline> for OptRc<Wmf_ParamsPolyline> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsPolyline) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for Wmf_ParamsPolyline {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for &Wmf_ParamsPolyline {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for OptRc<Wmf_ParamsPolyline> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for &OptRc<Wmf_ParamsPolyline> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsPolyline {
     type Root = Wmf;
@@ -756,6 +940,12 @@ impl Wmf_ParamsPolyline {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -769,6 +959,38 @@ pub struct Wmf_ParamsSetbkmode {
     pub(crate) _self_shared: SharedType<Self>,
     bk_mode: RefCell<Wmf_MixMode>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsSetbkmode> for OptRc<Wmf_ParamsSetbkmode> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsSetbkmode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsSetbkmode> for OptRc<Wmf_ParamsSetbkmode> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsSetbkmode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for Wmf_ParamsSetbkmode {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for &Wmf_ParamsSetbkmode {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for OptRc<Wmf_ParamsSetbkmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for &OptRc<Wmf_ParamsSetbkmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsSetbkmode {
     type Root = Wmf;
@@ -806,6 +1028,12 @@ impl Wmf_ParamsSetbkmode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -819,6 +1047,38 @@ pub struct Wmf_ParamsSetpolyfillmode {
     pub(crate) _self_shared: SharedType<Self>,
     poly_fill_mode: RefCell<Wmf_PolyFillMode>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsSetpolyfillmode> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsSetpolyfillmode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsSetpolyfillmode> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsSetpolyfillmode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for Wmf_ParamsSetpolyfillmode {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &Wmf_ParamsSetpolyfillmode {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &OptRc<Wmf_ParamsSetpolyfillmode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsSetpolyfillmode {
     type Root = Wmf;
@@ -856,6 +1116,12 @@ impl Wmf_ParamsSetpolyfillmode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -869,6 +1135,38 @@ pub struct Wmf_ParamsSetrop2 {
     pub(crate) _self_shared: SharedType<Self>,
     draw_mode: RefCell<Wmf_BinRasterOp>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsSetrop2> for OptRc<Wmf_ParamsSetrop2> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsSetrop2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsSetrop2> for OptRc<Wmf_ParamsSetrop2> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsSetrop2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for Wmf_ParamsSetrop2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for &Wmf_ParamsSetrop2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for OptRc<Wmf_ParamsSetrop2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for &OptRc<Wmf_ParamsSetrop2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsSetrop2 {
     type Root = Wmf;
@@ -906,6 +1204,12 @@ impl Wmf_ParamsSetrop2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -920,6 +1224,38 @@ pub struct Wmf_ParamsSetwindowext {
     y: RefCell<i16>,
     x: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsSetwindowext> for OptRc<Wmf_ParamsSetwindowext> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsSetwindowext) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsSetwindowext> for OptRc<Wmf_ParamsSetwindowext> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsSetwindowext) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for Wmf_ParamsSetwindowext {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for &Wmf_ParamsSetwindowext {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for OptRc<Wmf_ParamsSetwindowext> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for &OptRc<Wmf_ParamsSetwindowext> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsSetwindowext {
     type Root = Wmf;
@@ -967,6 +1303,12 @@ impl Wmf_ParamsSetwindowext {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -981,6 +1323,38 @@ pub struct Wmf_ParamsSetwindoworg {
     y: RefCell<i16>,
     x: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_ParamsSetwindoworg> for OptRc<Wmf_ParamsSetwindoworg> {
+    type Error = KError;
+    fn try_from(v: &Wmf_ParamsSetwindoworg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_ParamsSetwindoworg> for OptRc<Wmf_ParamsSetwindoworg> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_ParamsSetwindoworg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for Wmf_ParamsSetwindoworg {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for &Wmf_ParamsSetwindoworg {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for OptRc<Wmf_ParamsSetwindoworg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for &OptRc<Wmf_ParamsSetwindoworg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_ParamsSetwindoworg {
     type Root = Wmf;
@@ -1028,6 +1402,12 @@ impl Wmf_ParamsSetwindoworg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1042,6 +1422,38 @@ pub struct Wmf_PointS {
     x: RefCell<i16>,
     y: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_PointS> for OptRc<Wmf_PointS> {
+    type Error = KError;
+    fn try_from(v: &Wmf_PointS) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_PointS> for OptRc<Wmf_PointS> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_PointS) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_PointS> for Wmf_PointS {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_PointS>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_PointS> for &Wmf_PointS {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_PointS>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_PointS> for OptRc<Wmf_PointS> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_PointS>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_PointS> for &OptRc<Wmf_PointS> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_PointS>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_PointS {
     type Root = Wmf;
@@ -1089,6 +1501,12 @@ impl Wmf_PointS {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1123,6 +1541,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsPolygon> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsPolygon> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        OptRc::<Wmf_ParamsPolygon>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolygon> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolygon>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Wmf_ParamsPolygon>> for Wmf_Record_Params {
     fn from(v: OptRc<Wmf_ParamsPolygon>) -> Self {
         Self::Wmf_ParamsPolygon(v)
@@ -1135,6 +1569,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsPolyline> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsPolyline> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        OptRc::<Wmf_ParamsPolyline>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsPolyline> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsPolyline>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Wmf_ParamsPolyline>> for Wmf_Record_Params {
@@ -1151,6 +1601,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ColorRef> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ColorRef> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        OptRc::<Wmf_ColorRef>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ColorRef> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ColorRef>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Wmf_ColorRef>> for Wmf_Record_Params {
     fn from(v: OptRc<Wmf_ColorRef>) -> Self {
         Self::Wmf_ColorRef(v)
@@ -1163,6 +1629,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetbkmode> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetbkmode> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        OptRc::<Wmf_ParamsSetbkmode>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetbkmode> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetbkmode>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Wmf_ParamsSetbkmode>> for Wmf_Record_Params {
@@ -1179,6 +1661,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetpolyfillmode> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetpolyfillmode> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        OptRc::<Wmf_ParamsSetpolyfillmode>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetpolyfillmode> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetpolyfillmode>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Wmf_ParamsSetpolyfillmode>> for Wmf_Record_Params {
     fn from(v: OptRc<Wmf_ParamsSetpolyfillmode>) -> Self {
         Self::Wmf_ParamsSetpolyfillmode(v)
@@ -1191,6 +1689,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetrop2> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetrop2> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        OptRc::<Wmf_ParamsSetrop2>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetrop2> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetrop2>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Wmf_ParamsSetrop2>> for Wmf_Record_Params {
@@ -1207,6 +1721,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindowext> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindowext> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        OptRc::<Wmf_ParamsSetwindowext>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindowext> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindowext>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Wmf_ParamsSetwindowext>> for Wmf_Record_Params {
     fn from(v: OptRc<Wmf_ParamsSetwindowext>) -> Self {
         Self::Wmf_ParamsSetwindowext(v)
@@ -1219,6 +1749,22 @@ impl TryFrom<&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindoworg> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Wmf_Record_Params> for OptRc<Wmf_ParamsSetwindoworg> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        OptRc::<Wmf_ParamsSetwindoworg>::try_from(self)
+    }
+}
+impl DowncastOptRc<Wmf_ParamsSetwindoworg> for &Wmf_Record_Params {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_ParamsSetwindoworg>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Wmf_ParamsSetwindoworg>> for Wmf_Record_Params {
@@ -1235,9 +1781,47 @@ impl TryFrom<&Wmf_Record_Params> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Wmf_Record_Params> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record_Params) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Wmf_Record_Params {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Wmf_Record> for OptRc<Wmf_Record> {
+    type Error = KError;
+    fn try_from(v: &Wmf_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_Record> for OptRc<Wmf_Record> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Record> for Wmf_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Record> for &Wmf_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_Record> for OptRc<Wmf_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_Record> for &OptRc<Wmf_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_Record>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Wmf_Record {
@@ -1344,6 +1928,12 @@ impl Wmf_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Wmf_Record {
     pub fn params_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1366,6 +1956,38 @@ pub struct Wmf_SpecialHeader {
     reserved: RefCell<Vec<u8>>,
     checksum: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Wmf_SpecialHeader> for OptRc<Wmf_SpecialHeader> {
+    type Error = KError;
+    fn try_from(v: &Wmf_SpecialHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Wmf_SpecialHeader> for OptRc<Wmf_SpecialHeader> {
+    type Error = KError;
+    fn try_from(v: &&Wmf_SpecialHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_SpecialHeader> for Wmf_SpecialHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_SpecialHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Wmf_SpecialHeader> for &Wmf_SpecialHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_SpecialHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Wmf_SpecialHeader> for OptRc<Wmf_SpecialHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_SpecialHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Wmf_SpecialHeader> for &OptRc<Wmf_SpecialHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Wmf_SpecialHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Wmf_SpecialHeader {
     type Root = Wmf;
@@ -1455,5 +2077,11 @@ impl Wmf_SpecialHeader {
 impl Wmf_SpecialHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

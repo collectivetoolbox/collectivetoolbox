@@ -85,7 +85,7 @@ fn test_position_to_end() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<PositionToEnd> = PositionToEnd::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.index()?.foo(), 66);
-    assert_eq!(*r.index()?.bar(), 4660);
+    assert_eq!(*(r.index()?.foo()), 66);
+    assert_eq!(*(r.index()?.bar()), 4660);
     Ok(())
 }

@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::imported_and_rel::ImportedAndRel;
+use super::imported_and_rel::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsAbsRel {
@@ -65,6 +66,38 @@ pub struct ImportsAbsRel {
     one: RefCell<u8>,
     two: RefCell<OptRc<ImportedAndRel>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ImportsAbsRel> for OptRc<ImportsAbsRel> {
+    type Error = KError;
+    fn try_from(v: &ImportsAbsRel) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ImportsAbsRel> for OptRc<ImportsAbsRel> {
+    type Error = KError;
+    fn try_from(v: &&ImportsAbsRel) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ImportsAbsRel> for ImportsAbsRel {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsAbsRel>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ImportsAbsRel> for &ImportsAbsRel {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsAbsRel>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ImportsAbsRel> for OptRc<ImportsAbsRel> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsAbsRel>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ImportsAbsRel> for &OptRc<ImportsAbsRel> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsAbsRel>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ImportsAbsRel {
     type Root = ImportsAbsRel;
@@ -104,5 +137,11 @@ impl ImportsAbsRel {
 impl ImportsAbsRel {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

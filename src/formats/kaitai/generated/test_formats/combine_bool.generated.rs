@@ -68,6 +68,38 @@ pub struct CombineBool {
     f_bool_calc_bit: Cell<bool>,
     bool_calc_bit: RefCell<bool>,
 }
+impl TryFrom<&CombineBool> for OptRc<CombineBool> {
+    type Error = KError;
+    fn try_from(v: &CombineBool) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CombineBool> for OptRc<CombineBool> {
+    type Error = KError;
+    fn try_from(v: &&CombineBool) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CombineBool> for CombineBool {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBool>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CombineBool> for &CombineBool {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBool>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CombineBool> for OptRc<CombineBool> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBool>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CombineBool> for &OptRc<CombineBool> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineBool>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for CombineBool {
     type Root = CombineBool;
     type Parent = CombineBool;
@@ -123,5 +155,11 @@ impl CombineBool {
 impl CombineBool {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

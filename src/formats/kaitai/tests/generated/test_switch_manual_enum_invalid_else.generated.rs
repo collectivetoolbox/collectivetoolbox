@@ -86,9 +86,9 @@ fn test_switch_manual_enum_invalid_else() -> KResult<()> {
     let r: OptRc<SwitchManualEnumInvalidElse> = SwitchManualEnumInvalidElse::read_into(&_io, None, None)?;
 
     assert_eq!(r.opcodes().len(), 2);
-    assert_eq!(*r.opcodes()[0].code(), 255);
-    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), 123);
-    assert_eq!(*r.opcodes()[1].code(), SwitchManualEnumInvalidElse_Opcode_CodeEnum::Foo);
-    assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.value(), 123);
+    assert_eq!(i64::from(&*r.opcodes()[0].code()), 255);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualEnumInvalidElse_Opcode_Defval>::downcast_optrc(&r.opcodes()[0].body())?.value()?), 123);
+    assert_eq!(*(r.opcodes()[1].code()), SwitchManualEnumInvalidElse_Opcode_CodeEnum::Foo);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualEnumInvalidElse_Opcode_Defval>::downcast_optrc(&r.opcodes()[1].body())?.value()?), 123);
     Ok(())
 }

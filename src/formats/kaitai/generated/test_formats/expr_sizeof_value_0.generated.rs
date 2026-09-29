@@ -75,6 +75,38 @@ pub struct ExprSizeofValue0 {
     f_sizeof_block_c: Cell<bool>,
     sizeof_block_c: RefCell<i32>,
 }
+impl TryFrom<&ExprSizeofValue0> for OptRc<ExprSizeofValue0> {
+    type Error = KError;
+    fn try_from(v: &ExprSizeofValue0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprSizeofValue0> for OptRc<ExprSizeofValue0> {
+    type Error = KError;
+    fn try_from(v: &&ExprSizeofValue0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0> for ExprSizeofValue0 {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0> for &ExprSizeofValue0 {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0> for OptRc<ExprSizeofValue0> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0> for &OptRc<ExprSizeofValue0> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprSizeofValue0 {
     type Root = ExprSizeofValue0;
     type Parent = ExprSizeofValue0;
@@ -174,6 +206,12 @@ impl ExprSizeofValue0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -186,6 +224,38 @@ pub struct ExprSizeofValue0_Block {
     c: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     c_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ExprSizeofValue0_Block> for OptRc<ExprSizeofValue0_Block> {
+    type Error = KError;
+    fn try_from(v: &ExprSizeofValue0_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprSizeofValue0_Block> for OptRc<ExprSizeofValue0_Block> {
+    type Error = KError;
+    fn try_from(v: &&ExprSizeofValue0_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0_Block> for ExprSizeofValue0_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0_Block> for &ExprSizeofValue0_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0_Block> for OptRc<ExprSizeofValue0_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprSizeofValue0_Block> for &OptRc<ExprSizeofValue0_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprSizeofValue0_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprSizeofValue0_Block {
     type Root = ExprSizeofValue0;
@@ -230,6 +300,12 @@ impl ExprSizeofValue0_Block {
 impl ExprSizeofValue0_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprSizeofValue0_Block {

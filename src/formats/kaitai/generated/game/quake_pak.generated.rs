@@ -22,6 +22,38 @@ pub struct QuakePak {
     f_index: Cell<bool>,
     index: RefCell<OptRc<QuakePak_IndexStruct>>,
 }
+impl TryFrom<&QuakePak> for OptRc<QuakePak> {
+    type Error = KError;
+    fn try_from(v: &QuakePak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuakePak> for OptRc<QuakePak> {
+    type Error = KError;
+    fn try_from(v: &&QuakePak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak> for QuakePak {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuakePak> for &QuakePak {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak> for OptRc<QuakePak> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuakePak> for &OptRc<QuakePak> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for QuakePak {
     type Root = QuakePak;
     type Parent = QuakePak;
@@ -87,6 +119,12 @@ impl QuakePak {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl QuakePak {
     pub fn index_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -106,6 +144,38 @@ pub struct QuakePak_IndexEntry {
     name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&QuakePak_IndexEntry> for OptRc<QuakePak_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &QuakePak_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuakePak_IndexEntry> for OptRc<QuakePak_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &&QuakePak_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexEntry> for QuakePak_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexEntry> for &QuakePak_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexEntry> for OptRc<QuakePak_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuakePak_IndexEntry> for &OptRc<QuakePak_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuakePak_IndexEntry {
     type Root = QuakePak;
@@ -167,6 +237,12 @@ impl QuakePak_IndexEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl QuakePak_IndexEntry {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -181,6 +257,38 @@ pub struct QuakePak_IndexStruct {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<QuakePak_IndexEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&QuakePak_IndexStruct> for OptRc<QuakePak_IndexStruct> {
+    type Error = KError;
+    fn try_from(v: &QuakePak_IndexStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuakePak_IndexStruct> for OptRc<QuakePak_IndexStruct> {
+    type Error = KError;
+    fn try_from(v: &&QuakePak_IndexStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexStruct> for QuakePak_IndexStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexStruct> for &QuakePak_IndexStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuakePak_IndexStruct> for OptRc<QuakePak_IndexStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuakePak_IndexStruct> for &OptRc<QuakePak_IndexStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuakePak_IndexStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuakePak_IndexStruct {
     type Root = QuakePak;
@@ -221,5 +329,11 @@ impl QuakePak_IndexStruct {
 impl QuakePak_IndexStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

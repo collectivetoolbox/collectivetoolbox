@@ -86,13 +86,13 @@ fn test_switch_manual_int() -> KResult<()> {
     let r: OptRc<SwitchManualInt> = SwitchManualInt::read_into(&_io, None, None)?;
 
     assert_eq!(r.opcodes().len(), 4);
-    assert_eq!(*r.opcodes()[0].code(), 83);
-    assert_eq!(*r.opcodes()[0].body().as_ref().context("Missing optional field")?.value(), "foobar");
-    assert_eq!(*r.opcodes()[1].code(), 73);
-    assert_eq!(*r.opcodes()[1].body().as_ref().context("Missing optional field")?.value(), 66);
-    assert_eq!(*r.opcodes()[2].code(), 73);
-    assert_eq!(*r.opcodes()[2].body().as_ref().context("Missing optional field")?.value(), 55);
-    assert_eq!(*r.opcodes()[3].code(), 83);
-    assert_eq!(*r.opcodes()[3].body().as_ref().context("Missing optional field")?.value(), "");
+    assert_eq!(*(r.opcodes()[0].code()), 83);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualInt_Opcode_Strval>::downcast_optrc(&r.opcodes()[0].body())?.value()), "foobar");
+    assert_eq!(*(r.opcodes()[1].code()), 73);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualInt_Opcode_Intval>::downcast_optrc(&r.opcodes()[1].body())?.value()), 66);
+    assert_eq!(*(r.opcodes()[2].code()), 73);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualInt_Opcode_Intval>::downcast_optrc(&r.opcodes()[2].body())?.value()), 55);
+    assert_eq!(*(r.opcodes()[3].code()), 83);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualInt_Opcode_Strval>::downcast_optrc(&r.opcodes()[3].body())?.value()), "");
     Ok(())
 }

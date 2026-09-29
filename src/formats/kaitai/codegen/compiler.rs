@@ -49,7 +49,7 @@ use super::writer::CodeWriter;
 use crate::expr::Expr;
 use crate::precompile::hierarchy::{
     to_upper_camel_case, types_to_class_name, ClassSpec, ResolvedAttr, ResolvedInstance,
-    ResolvedValidation, ValidationRule,
+    ResolvedParam, ResolvedValidation, ValidationRule,
 };
 use crate::precompile::types::{BitEndianness, DataType, Endianness, RepeatMode};
 
@@ -101,12 +101,24 @@ fn emit_file_header(w: &mut CodeWriter, spec: &ClassSpec) {
 fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
     for ext in &root_spec.external_types {
         if let Some(first) = ext.first() {
+            if first == "struct" || first == "bytes_reader" || first == "kstruct" {
+                continue;
+            }
             let class_name = types_to_class_name(ext);
             if class_name == root_spec.class_type_name() || root_spec.name.first() == Some(first) {
                 continue;
             }
             let first_escaped = escape_rust_keyword(first);
-            w.puts(&format!("use super::{first_escaped}::{class_name};"));
+            let is_common = root_spec.meta_imports.iter().any(|imp| {
+                imp.starts_with("/common/") && imp.trim_start_matches('/').split('/').last() == Some(first)
+            });
+            if is_common {
+                w.puts(&format!("use crate::generated::common::{first_escaped}::{class_name};"));
+                w.puts(&format!("use crate::generated::common::{first_escaped}::*;"));
+            } else {
+                w.puts(&format!("use super::{first_escaped}::{class_name};"));
+                w.puts(&format!("use super::{first_escaped}::*;"));
+            }
         }
     }
 }
@@ -542,6 +554,37 @@ fn emit_switch_enum(
                 w.puts("}");
                 w.dec();
                 w.puts("}");
+                w.puts(&format!("impl TryFrom<&&{enum_name}> for {inner_type} {{"));
+                w.inc();
+                w.puts("type Error = KError;");
+                w.puts(&format!("fn try_from(v: &&{enum_name}) -> Result<Self, Self::Error> {{"));
+                w.inc();
+                w.puts("Self::try_from(*v)");
+                w.dec();
+                w.puts("}");
+                w.dec();
+                w.puts("}");
+
+                if let Some(target) = inner_type.strip_prefix("OptRc<").and_then(|s| s.strip_suffix('>')) {
+                    w.puts(&format!("impl DowncastOptRc<{target}> for {enum_name} {{"));
+                    w.inc();
+                    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{target}>, KError> {{"));
+                    w.inc();
+                    w.puts(&format!("OptRc::<{target}>::try_from(self)"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("impl DowncastOptRc<{target}> for &{enum_name} {{"));
+                    w.inc();
+                    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{target}>, KError> {{"));
+                    w.inc();
+                    w.puts("(*self).downcast_optrc()");
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                }
             }
 
             if seen_from_into.insert(inner_type.clone()) {
@@ -563,6 +606,68 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     let class_name = current.class_type_name();
     let root_class_name = root.class_type_name();
     let parent_class_name = current.parent_class_type_name();
+
+    w.puts(&format!("impl TryFrom<&{class_name}> for OptRc<{class_name}> {{"));
+    w.inc();
+    w.puts("type Error = KError;");
+    w.puts(&format!("fn try_from(v: &{class_name}) -> Result<Self, Self::Error> {{"));
+    w.inc();
+    w.puts("Ok(OptRc::from(v.clone()))");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
+
+    w.puts(&format!("impl TryFrom<&&{class_name}> for OptRc<{class_name}> {{"));
+    w.inc();
+    w.puts("type Error = KError;");
+    w.puts(&format!("fn try_from(v: &&{class_name}) -> Result<Self, Self::Error> {{"));
+    w.inc();
+    w.puts("Ok(OptRc::from((*v).clone()))");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
+
+    w.puts(&format!("impl DowncastOptRc<{class_name}> for {class_name} {{"));
+    w.inc();
+    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.inc();
+    w.puts("Ok(OptRc::from(self.clone()))");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
+
+    w.puts(&format!("impl DowncastOptRc<{class_name}> for &{class_name} {{"));
+    w.inc();
+    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.inc();
+    w.puts("Ok(OptRc::from((*self).clone()))");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
+
+    w.puts(&format!("impl DowncastOptRc<{class_name}> for OptRc<{class_name}> {{"));
+    w.inc();
+    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.inc();
+    w.puts("Ok(self.clone())");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
+
+    w.puts(&format!("impl DowncastOptRc<{class_name}> for &OptRc<{class_name}> {{"));
+    w.inc();
+    w.puts(&format!("fn downcast_optrc(&self) -> Result<OptRc<{class_name}>, KError> {{"));
+    w.inc();
+    w.puts("Ok((*self).clone())");
+    w.dec();
+    w.puts("}");
+    w.dec();
+    w.puts("}");
 
     w.puts(&format!("impl KStruct for {class_name} {{"));
     w.inc();
@@ -590,8 +695,17 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     let ctx = TranslationContext::new(current, root, true);
 
     if let Some(sw) = &current.endian_switch {
-        let switch_on = translate_expr(&sw.switch_on, &ctx);
-        w.puts(&format!("match {switch_on} {{"));
+        let sw_type = super::translator::detect_type_approx(&sw.switch_on, &ctx);
+        let is_bytes_switch = matches!(sw_type, Some(DataType::Bytes { .. } | DataType::CalcBytesType))
+            || sw.cases.keys().any(|k| k.starts_with('[') && k.ends_with(']'));
+        let switch_on_expr = translate_expr(&sw.switch_on, &ctx);
+        let match_target = if is_bytes_switch {
+            let stripped = super::translator::remove_deref(&switch_on_expr);
+            format!("{stripped}.as_slice()")
+        } else {
+            switch_on_expr
+        };
+        w.puts(&format!("match {match_target} {{"));
         w.inc();
         for (case_key, case_endian) in &sw.cases {
             let pattern = if let Some((p0, p1)) = case_key.split_once("::") {
@@ -673,10 +787,13 @@ fn emit_read_array_element(
         let type_name = types_to_class_name(names);
         let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
 
+        let target_class = super::translator::find_class_spec(ctx.root, names);
+        let target_params = target_class.map(|c| c.params.as_slice());
+
         if current.ks_debug {
             w.puts(&format!("let t: OptRc<{type_name}> = OptRc::from({type_name}::default());"));
             if !args.is_empty() {
-                let trans_args = translate_args(args, ctx, true);
+                let trans_args = translate_args(args, ctx, true, target_params);
                 w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_params({trans_args})); f(&mut *t.get_mut()) }})();"));
             }
             if current.has_dynamic_endian() {
@@ -703,7 +820,7 @@ fn emit_read_array_element(
             }
             w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
         } else {
-            let trans_args = translate_args(args, ctx, true);
+            let trans_args = translate_args(args, ctx, true, target_params);
             w.puts(&format!(
                 "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
             ));
@@ -756,12 +873,14 @@ fn emit_read_array_element(
             if let DataType::UserType { names, is_external, args } = case_type {
                 let type_name = types_to_class_name(names);
                 let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
+                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<{stream_type}, {type_name}>({io_expr}, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true);
+                    let trans_args = translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -839,7 +958,7 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. })
+                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
                 {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
@@ -897,7 +1016,7 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. })
+                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
                 {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
@@ -958,7 +1077,7 @@ fn emit_attr_read(
                     || attr.size_eos
                     || attr.process.is_some()
                     || attr.terminator.is_some())
-                    && matches!(element.as_ref(), DataType::UserType { .. })
+                    && matches!(element.as_ref(), DataType::UserType { .. } | DataType::SwitchType { .. })
                 {
                     let mut read_call = if attr.size_eos {
                         "_io.read_bytes_full()?".to_string()
@@ -1597,31 +1716,55 @@ fn get_target_args(
     format!("Some({self_name}._root.clone()), {parent}")
 }
 
-fn translate_args(args: &[Expr], ctx: &TranslationContext<'_>, into: bool) -> String {
-    args.iter().map(|a| {
-        let typ = super::translator::detect_type_approx(a, ctx);
-        let mut translated = translate_expr(a, ctx);
-        if translated == "_r" {
-            translated = "OptRc::new(&_rrc)".to_string();
-        }
-        if matches!(a, Expr::Name(n) if n == "_index") {
-            return "(_i).try_into().map_err(|_| KError::CastError)?".to_string();
-        }
-        if let Some(t) = &typ {
-            if super::translator::is_numeric_type(t) {
-                if into {
-                    return format!("({translated}).try_into().map_err(|_| KError::CastError)?");
-                }
-            } else if !super::translator::is_copy_type(t) {
-                return format!("{translated}.clone()");
+fn translate_args(
+    args: &[Expr],
+    ctx: &TranslationContext<'_>,
+    into: bool,
+    target_params: Option<&[ResolvedParam]>,
+) -> String {
+    args.iter()
+        .enumerate()
+        .map(|(idx, a)| {
+            let typ = super::translator::detect_type_approx(a, ctx);
+            let mut translated = translate_expr(a, ctx);
+            if translated == "_r" {
+                translated = "OptRc::new(&_rrc)".to_string();
             }
-        }
-        if translated.ends_with(']') {
-            format!("{translated}.clone()")
-        } else {
-            translated
-        }
-    }).collect::<Vec<_>>().join(", ")
+            if matches!(a, Expr::Name(n) if n == "_index") {
+                return "(_i).try_into().map_err(|_| KError::CastError)?".to_string();
+            }
+            let is_root_or_parent = matches!(a, Expr::Name(n) if n == "_root" || n == "_parent")
+                || matches!(a, Expr::Attribute { attr, .. } if attr == "_root" || attr == "_parent");
+            if is_root_or_parent {
+                return format!("OptRc::from(({translated}).clone())");
+            }
+            if let Some(params) = target_params {
+                if let Some(param) = params.get(idx) {
+                    if matches!(&param.data_type, DataType::UserType { names, .. } if names.as_slice() == ["struct"]) {
+                        let clean = super::translator::remove_deref(&translated);
+                        return format!("Struct::from_opt_rc(&({clean}))");
+                    }
+                }
+            }
+            if let Some(t) = &typ {
+                if super::translator::is_numeric_type(t) {
+                    if into {
+                        return format!("({translated}).try_into().map_err(|_| KError::CastError)?");
+                    }
+                } else if matches!(t, DataType::KaitaiStreamType) {
+                    return format!("Clone::clone(&({translated}))");
+                } else if !super::translator::is_copy_type(t) {
+                    return format!("({translated}).clone()");
+                }
+            }
+            if translated.ends_with(']') {
+                format!("({translated}).clone()")
+            } else {
+                translated
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn emit_single_read(
@@ -1640,7 +1783,9 @@ fn emit_single_read(
     if let DataType::UserType { names, is_external, args } = &attr.data_type {
         let type_name = types_to_class_name(names);
         let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
-        let trans_args = translate_args(args, ctx, true);
+        let target_class = super::translator::find_class_spec(ctx.root, names);
+        let target_params = target_class.map(|c| c.params.as_slice());
+        let trans_args = translate_args(args, ctx, true, target_params);
         let io_ref = if attr.size_expr.is_some()
             || attr.size_eos
             || attr.process.is_some()
@@ -1801,12 +1946,14 @@ fn emit_switch_read(
 
                 let type_name = types_to_class_name(names);
                 let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
+                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true);
+                    let trans_args = translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -1818,12 +1965,14 @@ fn emit_switch_read(
             } else {
                 let type_name = types_to_class_name(names);
                 let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
+                let target_class = super::translator::find_class_spec(ctx.root, names);
+                let target_params = target_class.map(|c| c.params.as_slice());
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<_, {type_name}>(&*_io, {target_args})?.into();"
                     ));
                 } else {
-                    let trans_args = translate_args(args, ctx, true);
+                    let trans_args = translate_args(args, ctx, true, target_params);
                     w.puts(&format!(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
@@ -1854,7 +2003,13 @@ fn emit_switch_read(
         if has_bytes_case {
             w.puts("_ => {");
             w.inc();
-            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(_io.read_bytes_full()?.into());"));
+            let read_call = if let Some(size_expr) = &attr.size_expr {
+                let s = expr_to_usize(size_expr, ctx);
+                format!("_io.read_bytes({s})?.into()")
+            } else {
+                "_io.read_bytes_full()?.into()".to_string()
+            };
+            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some({read_call});"));
             w.dec();
             w.puts("}");
         } else {
@@ -2226,7 +2381,7 @@ fn read_expr_for_type(
                 false
             };
             if is_u64 {
-                format!("i64::try_from({read_call})?.try_into()?")
+                format!("i64::from_ne_bytes(({read_call}).to_ne_bytes()).try_into()?")
             } else if is_s64 {
                 format!("{read_call}.try_into()?")
             } else {
@@ -2237,10 +2392,12 @@ fn read_expr_for_type(
             let type_name = types_to_class_name(names);
             let target_args = get_target_args(names, *is_external, ctx.self_name(), ctx, None);
             let io_ref = if io == "_io" { "&*_io".to_string() } else { format!("&{io}") };
+            let target_class = super::translator::find_class_spec(ctx.root, names);
+            let target_params = target_class.map(|c| c.params.as_slice());
             if args.is_empty() {
                 format!("Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()")
             } else {
-                let trans_args = translate_args(args, ctx, true);
+                let trans_args = translate_args(args, ctx, true, target_params);
                 format!("{{ let f = |t: &mut {type_name}| Ok(t.set_params({trans_args})); Self::read_into_with_init::<_, {type_name}>({io_ref}, {target_args}, &f)?.into() }}")
             }
         }
@@ -2343,7 +2500,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                                     DataType::Bits { .. }
                                     | DataType::IntMulti { signed: false, width: 8, .. },
                                 ) => {
-                                    format!("i64::try_from({expr_str})?.try_into()?")
+                                    format!("i64::from_ne_bytes(({expr_str}).to_ne_bytes()).try_into()?")
                                 }
                                 Some(DataType::IntMulti { signed: true, width: 8, .. }) => {
                                     format!("({expr_str}).try_into()?")
@@ -2361,6 +2518,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                             expr_str
                         }
                     }
+                    DataType::KaitaiStreamType => expr_str,
                     _ => {
                         let derefed = if (expr_str.starts_with("self.")
                             || expr_str.starts_with("self_rc.")
@@ -2502,9 +2660,10 @@ fn emit_parse_instance_body(
                     let type_name = types_to_class_name(names);
                     let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
                     let target_class = super::translator::find_class_spec(ctx.root, names);
+                    let target_params = target_class.map(|c| c.params.as_slice());
                     let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
                         || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
-                    let trans_args = translate_args(args, ctx, true);
+                    let trans_args = translate_args(args, ctx, true, target_params);
                     if !trans_args.is_empty() {
                         w.puts(&format!(
                             "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
@@ -2581,7 +2740,7 @@ fn emit_parse_instance_body(
                         w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
                         let size_str = expr_to_usize(size, ctx);
-                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes({size_str})?.into());"));
+                        w.puts(&format!("self.{inst_id}_raw.borrow_mut().push({io_var}.read_bytes({size_str})?.into());"));
                         w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                         w.puts(&format!("let _io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
                         let raw_io = format!("_io_{inst_id}_raw");
@@ -2641,13 +2800,14 @@ fn emit_parse_instance_body(
             let type_name = types_to_class_name(names);
             let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
             let target_class = super::translator::find_class_spec(ctx.root, names);
+            let target_params = target_class.map(|c| c.params.as_slice());
             let has_dyn_endian = target_class.is_some_and(ClassSpec::has_dynamic_endian)
                 || (current.has_dynamic_endian() && target_class.is_some_and(|tc| tc.meta_endian == Some(Endianness::Inherited)));
-            let trans_args = translate_args(args, ctx, true);
+            let trans_args = translate_args(args, ctx, true, target_params);
 
             if let Some(size) = &inst.size_expr {
                 let size_str = expr_to_usize(size, ctx);
-                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = _io.read_bytes({size_str})?.into();"));
+                w.puts(&format!("*self.{inst_id}_raw.borrow_mut() = {io_var}.read_bytes({size_str})?.into();"));
                 w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                 w.puts(&format!("let _t_{inst_id}_raw_io = BytesReader::from({inst_id}_raw.clone());"));
                 if !trans_args.is_empty() {
@@ -2740,12 +2900,22 @@ fn emit_attribute_getters(w: &mut CodeWriter, current: &ClassSpec) {
         w.puts("}");
     }
 
-    // _io getter
+    // _io, _parent, and _root getters
     w.puts(&format!("impl {class_name} {{"));
     w.inc();
     w.puts("pub fn _io(&self) -> Ref<'_, BytesReader> {");
     w.inc();
     w.puts("self._io.borrow()");
+    w.dec();
+    w.puts("}");
+    w.puts("pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {");
+    w.inc();
+    w.puts("self._parent.get().ok()");
+    w.dec();
+    w.puts("}");
+    w.puts("pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {");
+    w.inc();
+    w.puts("self._root.get().ok()");
     w.dec();
     w.puts("}");
     w.dec();

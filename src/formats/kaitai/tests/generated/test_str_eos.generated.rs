@@ -85,6 +85,6 @@ fn test_str_eos() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEos> = StrEos::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str(), "foo|bar|baz@");
+    assert_eq!(*(r.str()), "foo|bar|baz@");
     Ok(())
 }

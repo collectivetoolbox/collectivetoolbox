@@ -14,6 +14,38 @@ pub struct ShapefileMain {
     records: RefCell<Vec<OptRc<ShapefileMain_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ShapefileMain> for OptRc<ShapefileMain> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain> for OptRc<ShapefileMain> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain> for ShapefileMain {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain> for &ShapefileMain {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain> for OptRc<ShapefileMain> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain> for &OptRc<ShapefileMain> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ShapefileMain {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
@@ -64,6 +96,12 @@ impl ShapefileMain {
 impl ShapefileMain {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -188,6 +226,38 @@ pub struct ShapefileMain_BoundingBoxXY {
     y: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ShapefileMain_BoundingBoxXY> for OptRc<ShapefileMain_BoundingBoxXY> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_BoundingBoxXY) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_BoundingBoxXY> for OptRc<ShapefileMain_BoundingBoxXY> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_BoundingBoxXY) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXY> for ShapefileMain_BoundingBoxXY {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXY>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXY> for &ShapefileMain_BoundingBoxXY {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXY>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXY> for OptRc<ShapefileMain_BoundingBoxXY> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXY>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXY> for &OptRc<ShapefileMain_BoundingBoxXY> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXY>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ShapefileMain_BoundingBoxXY {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
@@ -228,6 +298,12 @@ impl ShapefileMain_BoundingBoxXY {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -240,6 +316,38 @@ pub struct ShapefileMain_BoundingBoxXYZM {
     z: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_BoundingBoxXYZM> for OptRc<ShapefileMain_BoundingBoxXYZM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_BoundingBoxXYZM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_BoundingBoxXYZM> for OptRc<ShapefileMain_BoundingBoxXYZM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_BoundingBoxXYZM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXYZM> for ShapefileMain_BoundingBoxXYZM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXYZM>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXYZM> for &ShapefileMain_BoundingBoxXYZM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXYZM>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXYZM> for OptRc<ShapefileMain_BoundingBoxXYZM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXYZM>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundingBoxXYZM> for &OptRc<ShapefileMain_BoundingBoxXYZM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundingBoxXYZM>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_BoundingBoxXYZM {
     type Root = ShapefileMain;
@@ -295,6 +403,12 @@ impl ShapefileMain_BoundingBoxXYZM {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -305,6 +419,38 @@ pub struct ShapefileMain_BoundsMinMax {
     min: RefCell<f64>,
     max: RefCell<f64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_BoundsMinMax> for OptRc<ShapefileMain_BoundsMinMax> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_BoundsMinMax) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_BoundsMinMax> for OptRc<ShapefileMain_BoundsMinMax> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_BoundsMinMax) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundsMinMax> for ShapefileMain_BoundsMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundsMinMax>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundsMinMax> for &ShapefileMain_BoundsMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundsMinMax>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundsMinMax> for OptRc<ShapefileMain_BoundsMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundsMinMax>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_BoundsMinMax> for &OptRc<ShapefileMain_BoundsMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_BoundsMinMax>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_BoundsMinMax {
     type Root = ShapefileMain;
@@ -344,6 +490,12 @@ impl ShapefileMain_BoundsMinMax {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -362,6 +514,38 @@ pub struct ShapefileMain_FileHeader {
     shape_type: RefCell<ShapefileMain_ShapeType>,
     bounding_box: RefCell<OptRc<ShapefileMain_BoundingBoxXYZM>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_FileHeader> for OptRc<ShapefileMain_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_FileHeader> for OptRc<ShapefileMain_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_FileHeader> for ShapefileMain_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_FileHeader> for &ShapefileMain_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_FileHeader> for OptRc<ShapefileMain_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_FileHeader> for &OptRc<ShapefileMain_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_FileHeader {
     type Root = ShapefileMain;
@@ -479,6 +663,12 @@ impl ShapefileMain_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -497,6 +687,38 @@ pub struct ShapefileMain_MultiPatch {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_MultiPatch> for OptRc<ShapefileMain_MultiPatch> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_MultiPatch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_MultiPatch> for OptRc<ShapefileMain_MultiPatch> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_MultiPatch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for ShapefileMain_MultiPatch {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for &ShapefileMain_MultiPatch {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for OptRc<ShapefileMain_MultiPatch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for &OptRc<ShapefileMain_MultiPatch> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_MultiPatch {
     type Root = ShapefileMain;
@@ -608,6 +830,12 @@ impl ShapefileMain_MultiPatch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -619,6 +847,38 @@ pub struct ShapefileMain_MultiPoint {
     number_of_points: RefCell<i32>,
     points: RefCell<Vec<OptRc<ShapefileMain_Point>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_MultiPoint> for OptRc<ShapefileMain_MultiPoint> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_MultiPoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_MultiPoint> for OptRc<ShapefileMain_MultiPoint> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_MultiPoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for ShapefileMain_MultiPoint {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for &ShapefileMain_MultiPoint {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for OptRc<ShapefileMain_MultiPoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for &OptRc<ShapefileMain_MultiPoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_MultiPoint {
     type Root = ShapefileMain;
@@ -670,6 +930,12 @@ impl ShapefileMain_MultiPoint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -683,6 +949,38 @@ pub struct ShapefileMain_MultiPointM {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_MultiPointM> for OptRc<ShapefileMain_MultiPointM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_MultiPointM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_MultiPointM> for OptRc<ShapefileMain_MultiPointM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_MultiPointM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for ShapefileMain_MultiPointM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for &ShapefileMain_MultiPointM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for OptRc<ShapefileMain_MultiPointM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for &OptRc<ShapefileMain_MultiPointM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_MultiPointM {
     type Root = ShapefileMain;
@@ -751,6 +1049,12 @@ impl ShapefileMain_MultiPointM {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -766,6 +1070,38 @@ pub struct ShapefileMain_MultiPointZ {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_MultiPointZ> for OptRc<ShapefileMain_MultiPointZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_MultiPointZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_MultiPointZ> for OptRc<ShapefileMain_MultiPointZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_MultiPointZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for ShapefileMain_MultiPointZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for &ShapefileMain_MultiPointZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for OptRc<ShapefileMain_MultiPointZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for &OptRc<ShapefileMain_MultiPointZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_MultiPointZ {
     type Root = ShapefileMain;
@@ -851,6 +1187,12 @@ impl ShapefileMain_MultiPointZ {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -861,6 +1203,38 @@ pub struct ShapefileMain_Point {
     x: RefCell<f64>,
     y: RefCell<f64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_Point> for OptRc<ShapefileMain_Point> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_Point) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_Point> for OptRc<ShapefileMain_Point> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_Point) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for ShapefileMain_Point {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for &ShapefileMain_Point {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for OptRc<ShapefileMain_Point> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for &OptRc<ShapefileMain_Point> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_Point {
     type Root = ShapefileMain;
@@ -900,6 +1274,12 @@ impl ShapefileMain_Point {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -911,6 +1291,38 @@ pub struct ShapefileMain_PointM {
     y: RefCell<f64>,
     m: RefCell<f64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PointM> for OptRc<ShapefileMain_PointM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PointM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PointM> for OptRc<ShapefileMain_PointM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PointM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for ShapefileMain_PointM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for &ShapefileMain_PointM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for OptRc<ShapefileMain_PointM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for &OptRc<ShapefileMain_PointM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PointM {
     type Root = ShapefileMain;
@@ -956,6 +1368,12 @@ impl ShapefileMain_PointM {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -968,6 +1386,38 @@ pub struct ShapefileMain_PointZ {
     z: RefCell<f64>,
     m: RefCell<f64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PointZ> for OptRc<ShapefileMain_PointZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PointZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PointZ> for OptRc<ShapefileMain_PointZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PointZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for ShapefileMain_PointZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for &ShapefileMain_PointZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for OptRc<ShapefileMain_PointZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for &OptRc<ShapefileMain_PointZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PointZ {
     type Root = ShapefileMain;
@@ -1019,6 +1469,12 @@ impl ShapefileMain_PointZ {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1032,6 +1488,38 @@ pub struct ShapefileMain_PolyLine {
     parts: RefCell<Vec<i32>>,
     points: RefCell<Vec<OptRc<ShapefileMain_Point>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PolyLine> for OptRc<ShapefileMain_PolyLine> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PolyLine) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PolyLine> for OptRc<ShapefileMain_PolyLine> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PolyLine) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for ShapefileMain_PolyLine {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for &ShapefileMain_PolyLine {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for OptRc<ShapefileMain_PolyLine> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for &OptRc<ShapefileMain_PolyLine> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PolyLine {
     type Root = ShapefileMain;
@@ -1099,6 +1587,12 @@ impl ShapefileMain_PolyLine {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1114,6 +1608,38 @@ pub struct ShapefileMain_PolyLineM {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PolyLineM> for OptRc<ShapefileMain_PolyLineM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PolyLineM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PolyLineM> for OptRc<ShapefileMain_PolyLineM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PolyLineM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for ShapefileMain_PolyLineM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for &ShapefileMain_PolyLineM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for OptRc<ShapefileMain_PolyLineM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for &OptRc<ShapefileMain_PolyLineM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PolyLineM {
     type Root = ShapefileMain;
@@ -1198,6 +1724,12 @@ impl ShapefileMain_PolyLineM {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1215,6 +1747,38 @@ pub struct ShapefileMain_PolyLineZ {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PolyLineZ> for OptRc<ShapefileMain_PolyLineZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PolyLineZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PolyLineZ> for OptRc<ShapefileMain_PolyLineZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PolyLineZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for ShapefileMain_PolyLineZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for &ShapefileMain_PolyLineZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for OptRc<ShapefileMain_PolyLineZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for &OptRc<ShapefileMain_PolyLineZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PolyLineZ {
     type Root = ShapefileMain;
@@ -1316,6 +1880,12 @@ impl ShapefileMain_PolyLineZ {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1329,6 +1899,38 @@ pub struct ShapefileMain_Polygon {
     parts: RefCell<Vec<i32>>,
     points: RefCell<Vec<OptRc<ShapefileMain_Point>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_Polygon> for OptRc<ShapefileMain_Polygon> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_Polygon) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_Polygon> for OptRc<ShapefileMain_Polygon> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_Polygon) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for ShapefileMain_Polygon {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for &ShapefileMain_Polygon {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for OptRc<ShapefileMain_Polygon> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for &OptRc<ShapefileMain_Polygon> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_Polygon {
     type Root = ShapefileMain;
@@ -1396,6 +1998,12 @@ impl ShapefileMain_Polygon {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1411,6 +2019,38 @@ pub struct ShapefileMain_PolygonM {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PolygonM> for OptRc<ShapefileMain_PolygonM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PolygonM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PolygonM> for OptRc<ShapefileMain_PolygonM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PolygonM) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for ShapefileMain_PolygonM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for &ShapefileMain_PolygonM {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for OptRc<ShapefileMain_PolygonM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for &OptRc<ShapefileMain_PolygonM> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PolygonM {
     type Root = ShapefileMain;
@@ -1495,6 +2135,12 @@ impl ShapefileMain_PolygonM {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1512,6 +2158,38 @@ pub struct ShapefileMain_PolygonZ {
     m_range: RefCell<OptRc<ShapefileMain_BoundsMinMax>>,
     m_values: RefCell<Vec<f64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_PolygonZ> for OptRc<ShapefileMain_PolygonZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_PolygonZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_PolygonZ> for OptRc<ShapefileMain_PolygonZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_PolygonZ) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for ShapefileMain_PolygonZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for &ShapefileMain_PolygonZ {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for OptRc<ShapefileMain_PolygonZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for &OptRc<ShapefileMain_PolygonZ> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_PolygonZ {
     type Root = ShapefileMain;
@@ -1613,6 +2291,12 @@ impl ShapefileMain_PolygonZ {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1623,6 +2307,38 @@ pub struct ShapefileMain_Record {
     header: RefCell<OptRc<ShapefileMain_RecordHeader>>,
     contents: RefCell<OptRc<ShapefileMain_RecordContents>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_Record> for OptRc<ShapefileMain_Record> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_Record> for OptRc<ShapefileMain_Record> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Record> for ShapefileMain_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Record> for &ShapefileMain_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_Record> for OptRc<ShapefileMain_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_Record> for &OptRc<ShapefileMain_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_Record {
     type Root = ShapefileMain;
@@ -1668,6 +2384,12 @@ impl ShapefileMain_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1704,6 +2426,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPatch> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        OptRc::<ShapefileMain_MultiPatch>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPatch> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPatch>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_MultiPatch>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_MultiPatch>) -> Self {
         Self::ShapefileMain_MultiPatch(v)
@@ -1716,6 +2454,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPoint> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        OptRc::<ShapefileMain_MultiPoint>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPoint> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPoint>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_MultiPoint>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1732,6 +2486,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        OptRc::<ShapefileMain_MultiPointM>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointM> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointM>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_MultiPointM>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_MultiPointM>) -> Self {
         Self::ShapefileMain_MultiPointM(v)
@@ -1744,6 +2514,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        OptRc::<ShapefileMain_MultiPointZ>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_MultiPointZ> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_MultiPointZ>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_MultiPointZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1760,6 +2546,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Point> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        OptRc::<ShapefileMain_Point>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_Point> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Point>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_Point>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_Point>) -> Self {
         Self::ShapefileMain_Point(v)
@@ -1772,6 +2574,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        OptRc::<ShapefileMain_PointM>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointM> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointM>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_PointM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1788,6 +2606,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        OptRc::<ShapefileMain_PointZ>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PointZ> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PointZ>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_PointZ>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_PointZ>) -> Self {
         Self::ShapefileMain_PointZ(v)
@@ -1800,6 +2634,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLine> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        OptRc::<ShapefileMain_PolyLine>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLine> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLine>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_PolyLine>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1816,6 +2666,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        OptRc::<ShapefileMain_PolyLineM>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineM> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineM>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_PolyLineM>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_PolyLineM>) -> Self {
         Self::ShapefileMain_PolyLineM(v)
@@ -1828,6 +2694,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        OptRc::<ShapefileMain_PolyLineZ>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolyLineZ> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolyLineZ>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_PolyLineZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1844,6 +2726,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Polygon> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        OptRc::<ShapefileMain_Polygon>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_Polygon> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_Polygon>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_Polygon>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_Polygon>) -> Self {
         Self::ShapefileMain_Polygon(v)
@@ -1856,6 +2754,22 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonM> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        OptRc::<ShapefileMain_PolygonM>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonM> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonM>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<ShapefileMain_PolygonM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1872,9 +2786,57 @@ impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonZ> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        OptRc::<ShapefileMain_PolygonZ>::try_from(self)
+    }
+}
+impl DowncastOptRc<ShapefileMain_PolygonZ> for &ShapefileMain_RecordContents_ShapeParameters {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_PolygonZ>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<ShapefileMain_PolygonZ>> for ShapefileMain_RecordContents_ShapeParameters {
     fn from(v: OptRc<ShapefileMain_PolygonZ>) -> Self {
         Self::ShapefileMain_PolygonZ(v)
+    }
+}
+impl TryFrom<&ShapefileMain_RecordContents> for OptRc<ShapefileMain_RecordContents> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordContents> for OptRc<ShapefileMain_RecordContents> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordContents> for ShapefileMain_RecordContents {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordContents> for &ShapefileMain_RecordContents {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordContents> for OptRc<ShapefileMain_RecordContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordContents> for &OptRc<ShapefileMain_RecordContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordContents>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for ShapefileMain_RecordContents {
@@ -1971,6 +2933,12 @@ impl ShapefileMain_RecordContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1981,6 +2949,38 @@ pub struct ShapefileMain_RecordHeader {
     record_number: RefCell<i32>,
     content_length: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ShapefileMain_RecordHeader> for OptRc<ShapefileMain_RecordHeader> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ShapefileMain_RecordHeader> for OptRc<ShapefileMain_RecordHeader> {
+    type Error = KError;
+    fn try_from(v: &&ShapefileMain_RecordHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordHeader> for ShapefileMain_RecordHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordHeader> for &ShapefileMain_RecordHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordHeader> for OptRc<ShapefileMain_RecordHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ShapefileMain_RecordHeader> for &OptRc<ShapefileMain_RecordHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<ShapefileMain_RecordHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ShapefileMain_RecordHeader {
     type Root = ShapefileMain;
@@ -2019,5 +3019,11 @@ impl ShapefileMain_RecordHeader {
 impl ShapefileMain_RecordHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

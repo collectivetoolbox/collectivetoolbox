@@ -85,7 +85,7 @@ fn test_expr_0() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<Expr0> = Expr0::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.must_be_f7()?, 247);
-    assert_eq!(*r.must_be_abc123()?, "abc123");
+    assert_eq!(*(r.must_be_f7()?), 247);
+    assert_eq!(*(r.must_be_abc123()?), "abc123");
     Ok(())
 }

@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::some_ip::SomeIp;
+use super::some_ip::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct SomeIpContainer {
@@ -13,6 +14,38 @@ pub struct SomeIpContainer {
     pub(crate) _self_shared: SharedType<Self>,
     some_ip_packages: RefCell<Vec<OptRc<SomeIp>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SomeIpContainer> for OptRc<SomeIpContainer> {
+    type Error = KError;
+    fn try_from(v: &SomeIpContainer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpContainer> for OptRc<SomeIpContainer> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpContainer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpContainer> for SomeIpContainer {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpContainer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpContainer> for &SomeIpContainer {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpContainer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpContainer> for OptRc<SomeIpContainer> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpContainer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpContainer> for &OptRc<SomeIpContainer> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpContainer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpContainer {
     type Root = SomeIpContainer;
@@ -53,5 +86,11 @@ impl SomeIpContainer {
 impl SomeIpContainer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

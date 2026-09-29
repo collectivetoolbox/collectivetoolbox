@@ -65,6 +65,38 @@ pub struct PositionToEnd {
     f_index: Cell<bool>,
     index: RefCell<OptRc<PositionToEnd_IndexObj>>,
 }
+impl TryFrom<&PositionToEnd> for OptRc<PositionToEnd> {
+    type Error = KError;
+    fn try_from(v: &PositionToEnd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionToEnd> for OptRc<PositionToEnd> {
+    type Error = KError;
+    fn try_from(v: &&PositionToEnd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd> for PositionToEnd {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd> for &PositionToEnd {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd> for OptRc<PositionToEnd> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionToEnd> for &OptRc<PositionToEnd> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PositionToEnd {
     type Root = PositionToEnd;
     type Parent = PositionToEnd;
@@ -106,6 +138,12 @@ impl PositionToEnd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -116,6 +154,38 @@ pub struct PositionToEnd_IndexObj {
     foo: RefCell<u32>,
     bar: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PositionToEnd_IndexObj> for OptRc<PositionToEnd_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &PositionToEnd_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionToEnd_IndexObj> for OptRc<PositionToEnd_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &&PositionToEnd_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd_IndexObj> for PositionToEnd_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd_IndexObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd_IndexObj> for &PositionToEnd_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd_IndexObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionToEnd_IndexObj> for OptRc<PositionToEnd_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd_IndexObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionToEnd_IndexObj> for &OptRc<PositionToEnd_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionToEnd_IndexObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PositionToEnd_IndexObj {
     type Root = PositionToEnd;
@@ -154,5 +224,11 @@ impl PositionToEnd_IndexObj {
 impl PositionToEnd_IndexObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

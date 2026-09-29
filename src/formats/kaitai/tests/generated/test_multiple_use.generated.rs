@@ -85,7 +85,7 @@ fn test_multiple_use() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<MultipleUse> = MultipleUse::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.t1().first_use().value(), 32);
-    assert_eq!(*r.t2().second_use()?.value(), 32);
+    assert_eq!(*(r.t1().first_use().value()), 32);
+    assert_eq!(*(r.t2().second_use()?.value()), 32);
     Ok(())
 }

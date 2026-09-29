@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct CastToImported2 {
@@ -65,7 +66,39 @@ pub struct CastToImported2 {
     hw_param: RefCell<OptRc<Struct>>,
     _io: RefCell<BytesReader>,
     f_hw: Cell<bool>,
-    hw: RefCell<i32>,
+    hw: RefCell<OptRc<HelloWorld>>,
+}
+impl TryFrom<&CastToImported2> for OptRc<CastToImported2> {
+    type Error = KError;
+    fn try_from(v: &CastToImported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastToImported2> for OptRc<CastToImported2> {
+    type Error = KError;
+    fn try_from(v: &&CastToImported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastToImported2> for CastToImported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToImported2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastToImported2> for &CastToImported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToImported2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastToImported2> for OptRc<CastToImported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToImported2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastToImported2> for &OptRc<CastToImported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToImported2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CastToImported2 {
     type Root = CastToImported2;
@@ -101,18 +134,23 @@ impl CastToImported2 {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hw(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
         let _io = self._io.borrow();
         if self.f_hw.get() {
             return Ok(self.hw.borrow());
         }
-        self.f_hw.set(true);
-        *self.hw.borrow_mut() = (hello_world::try_from(self.hw_param())?).try_into()?;
+        *self.hw.borrow_mut() = DowncastOptRc::<HelloWorld>::downcast_optrc(&(self.hw_param()))?.clone();
         Ok(self.hw.borrow())
     }
 }
 impl CastToImported2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

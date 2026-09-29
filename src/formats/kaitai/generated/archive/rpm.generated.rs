@@ -81,6 +81,38 @@ pub struct Rpm {
     f_signature_size_tag: Cell<bool>,
     signature_size_tag: RefCell<OptRc<Rpm_HeaderIndexRecord>>,
 }
+impl TryFrom<&Rpm> for OptRc<Rpm> {
+    type Error = KError;
+    fn try_from(v: &Rpm) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm> for OptRc<Rpm> {
+    type Error = KError;
+    fn try_from(v: &&Rpm) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm> for Rpm {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm> for &Rpm {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm> for OptRc<Rpm> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm> for &OptRc<Rpm> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Rpm {
     type Root = Rpm;
     type Parent = Rpm;
@@ -229,7 +261,7 @@ impl Rpm {
         }
         self.f_len_payload.set(true);
         if *self.has_payload()? {
-            *self.len_payload.borrow_mut() = (if *self.has_header_payload_size_tag()? { *(OptRc::<Rpm_RecordTypeUint64>::try_from(&*self.header_payload_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?)?.values().get(0_usize).ok_or(KError::CastError)?) } else { if *self.has_signature_long_size_tag()? { (*(OptRc::<Rpm_RecordTypeUint64>::try_from(&*self.signature_long_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?)?.values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u64::try_from(*self.len_header()?)?) } else { u64::from((*(OptRc::<Rpm_RecordTypeUint32>::try_from(&*self.signature_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?)?.values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u32::try_from(*self.len_header()?)?)) } }).try_into()?;
+            *self.len_payload.borrow_mut() = (if *self.has_header_payload_size_tag()? { *(OptRc::<Rpm_RecordTypeUint64>::try_from(&*(self.header_payload_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?))?.values().get(0_usize).ok_or(KError::CastError)?) } else { if *self.has_signature_long_size_tag()? { (*(OptRc::<Rpm_RecordTypeUint64>::try_from(&*(self.signature_long_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?))?.values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u64::try_from(*self.len_header()?)?) } else { u64::from((*(OptRc::<Rpm_RecordTypeUint32>::try_from(&*(self.signature_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?))?.values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u32::try_from(*self.len_header()?)?)) } }).try_into()?;
         }
         Ok(self.len_payload.borrow())
     }
@@ -372,6 +404,12 @@ impl Rpm {
 impl Rpm {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Rpm {
@@ -2155,6 +2193,38 @@ pub struct Rpm_Dummy {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Rpm_Dummy> for OptRc<Rpm_Dummy> {
+    type Error = KError;
+    fn try_from(v: &Rpm_Dummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_Dummy> for OptRc<Rpm_Dummy> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_Dummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Dummy> for Rpm_Dummy {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Dummy>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Dummy> for &Rpm_Dummy {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Dummy>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Dummy> for OptRc<Rpm_Dummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Dummy>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_Dummy> for &OptRc<Rpm_Dummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Dummy>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Rpm_Dummy {
     type Root = Rpm;
     type Parent = Rpm_Header;
@@ -2181,6 +2251,12 @@ impl Rpm_Dummy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2202,6 +2278,38 @@ pub struct Rpm_Header {
     storage_section_raw: RefCell<Vec<u8>>,
     f_is_header: Cell<bool>,
     is_header: RefCell<bool>,
+}
+impl TryFrom<&Rpm_Header> for OptRc<Rpm_Header> {
+    type Error = KError;
+    fn try_from(v: &Rpm_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_Header> for OptRc<Rpm_Header> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Header> for Rpm_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Header> for &Rpm_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Header> for OptRc<Rpm_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_Header> for &OptRc<Rpm_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_Header {
     type Root = Rpm;
@@ -2279,6 +2387,12 @@ impl Rpm_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Rpm_Header {
     pub fn storage_section_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2326,6 +2440,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeBin> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeBin> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        OptRc::<Rpm_RecordTypeBin>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Rpm_RecordTypeBin>> for Rpm_HeaderIndexRecord_Body {
     fn from(v: OptRc<Rpm_RecordTypeBin>) -> Self {
         Self::Rpm_RecordTypeBin(v)
@@ -2338,6 +2468,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint8> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        OptRc::<Rpm_RecordTypeUint8>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint8>> for Rpm_HeaderIndexRecord_Body {
@@ -2354,6 +2500,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeStringArray> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeStringArray> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        OptRc::<Rpm_RecordTypeStringArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Rpm_RecordTypeStringArray>> for Rpm_HeaderIndexRecord_Body {
     fn from(v: OptRc<Rpm_RecordTypeStringArray>) -> Self {
         Self::Rpm_RecordTypeStringArray(v)
@@ -2366,6 +2528,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeString> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeString> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        OptRc::<Rpm_RecordTypeString>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Rpm_RecordTypeString>> for Rpm_HeaderIndexRecord_Body {
@@ -2382,6 +2560,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint16> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint16> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        OptRc::<Rpm_RecordTypeUint16>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Rpm_RecordTypeUint16>> for Rpm_HeaderIndexRecord_Body {
     fn from(v: OptRc<Rpm_RecordTypeUint16>) -> Self {
         Self::Rpm_RecordTypeUint16(v)
@@ -2394,6 +2588,22 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint32> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint32> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        OptRc::<Rpm_RecordTypeUint32>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint32>> for Rpm_HeaderIndexRecord_Body {
@@ -2410,9 +2620,57 @@ impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint64> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint64> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        OptRc::<Rpm_RecordTypeUint64>::try_from(self)
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for &Rpm_HeaderIndexRecord_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Rpm_RecordTypeUint64>> for Rpm_HeaderIndexRecord_Body {
     fn from(v: OptRc<Rpm_RecordTypeUint64>) -> Self {
         Self::Rpm_RecordTypeUint64(v)
+    }
+}
+impl TryFrom<&Rpm_HeaderIndexRecord> for OptRc<Rpm_HeaderIndexRecord> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_HeaderIndexRecord> for OptRc<Rpm_HeaderIndexRecord> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderIndexRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderIndexRecord> for Rpm_HeaderIndexRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderIndexRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderIndexRecord> for &Rpm_HeaderIndexRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderIndexRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderIndexRecord> for OptRc<Rpm_HeaderIndexRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderIndexRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_HeaderIndexRecord> for &OptRc<Rpm_HeaderIndexRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderIndexRecord>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Rpm_HeaderIndexRecord {
@@ -2594,6 +2852,12 @@ impl Rpm_HeaderIndexRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2606,6 +2870,38 @@ pub struct Rpm_HeaderRecord {
     num_index_records: RefCell<u32>,
     len_storage_section: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_HeaderRecord> for OptRc<Rpm_HeaderRecord> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_HeaderRecord> for OptRc<Rpm_HeaderRecord> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderRecord> for Rpm_HeaderRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderRecord> for &Rpm_HeaderRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderRecord> for OptRc<Rpm_HeaderRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_HeaderRecord> for &OptRc<Rpm_HeaderRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_HeaderRecord {
     type Root = Rpm;
@@ -2680,6 +2976,12 @@ impl Rpm_HeaderRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2697,6 +2999,38 @@ pub struct Rpm_HeaderTagsStep {
     _io: RefCell<BytesReader>,
     f_payload_size_tag_idx: Cell<bool>,
     payload_size_tag_idx: RefCell<i32>,
+}
+impl TryFrom<&Rpm_HeaderTagsStep> for OptRc<Rpm_HeaderTagsStep> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderTagsStep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_HeaderTagsStep> for OptRc<Rpm_HeaderTagsStep> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_HeaderTagsStep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderTagsStep> for Rpm_HeaderTagsStep {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderTagsStep>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderTagsStep> for &Rpm_HeaderTagsStep {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderTagsStep>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_HeaderTagsStep> for OptRc<Rpm_HeaderTagsStep> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderTagsStep>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_HeaderTagsStep> for &OptRc<Rpm_HeaderTagsStep> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_HeaderTagsStep>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_HeaderTagsStep {
     type Root = Rpm;
@@ -2752,6 +3086,12 @@ impl Rpm_HeaderTagsStep {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2789,6 +3129,38 @@ pub struct Rpm_Lead {
     _io: RefCell<BytesReader>,
     package_name_raw: RefCell<Vec<u8>>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Rpm_Lead> for OptRc<Rpm_Lead> {
+    type Error = KError;
+    fn try_from(v: &Rpm_Lead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_Lead> for OptRc<Rpm_Lead> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_Lead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Lead> for Rpm_Lead {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Lead>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Lead> for &Rpm_Lead {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Lead>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_Lead> for OptRc<Rpm_Lead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Lead>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_Lead> for &OptRc<Rpm_Lead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_Lead>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_Lead {
     type Root = Rpm;
@@ -2876,6 +3248,12 @@ impl Rpm_Lead {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Rpm_Lead {
     pub fn package_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2897,6 +3275,38 @@ pub struct Rpm_RecordTypeBin {
     values: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
     values_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Rpm_RecordTypeBin> for OptRc<Rpm_RecordTypeBin> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeBin) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeBin> for OptRc<Rpm_RecordTypeBin> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeBin) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for Rpm_RecordTypeBin {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for &Rpm_RecordTypeBin {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for OptRc<Rpm_RecordTypeBin> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeBin> for &OptRc<Rpm_RecordTypeBin> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeBin>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeBin {
     type Root = Rpm;
@@ -2944,6 +3354,12 @@ impl Rpm_RecordTypeBin {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Rpm_RecordTypeBin {
     pub fn values_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2958,6 +3374,38 @@ pub struct Rpm_RecordTypeString {
     pub(crate) _self_shared: SharedType<Self>,
     values: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeString> for OptRc<Rpm_RecordTypeString> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeString> for OptRc<Rpm_RecordTypeString> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for Rpm_RecordTypeString {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for &Rpm_RecordTypeString {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for OptRc<Rpm_RecordTypeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeString> for &OptRc<Rpm_RecordTypeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeString {
     type Root = Rpm;
@@ -2995,6 +3443,12 @@ impl Rpm_RecordTypeString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3005,6 +3459,38 @@ pub struct Rpm_RecordTypeStringArray {
     num_values: RefCell<u32>,
     values: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeStringArray> for OptRc<Rpm_RecordTypeStringArray> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeStringArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeStringArray> for OptRc<Rpm_RecordTypeStringArray> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeStringArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for Rpm_RecordTypeStringArray {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for &Rpm_RecordTypeStringArray {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for OptRc<Rpm_RecordTypeStringArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeStringArray> for &OptRc<Rpm_RecordTypeStringArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeStringArray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeStringArray {
     type Root = Rpm;
@@ -3052,6 +3538,12 @@ impl Rpm_RecordTypeStringArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3062,6 +3554,38 @@ pub struct Rpm_RecordTypeUint16 {
     num_values: RefCell<u32>,
     values: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeUint16> for OptRc<Rpm_RecordTypeUint16> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeUint16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeUint16> for OptRc<Rpm_RecordTypeUint16> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeUint16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for Rpm_RecordTypeUint16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for &Rpm_RecordTypeUint16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for OptRc<Rpm_RecordTypeUint16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint16> for &OptRc<Rpm_RecordTypeUint16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeUint16 {
     type Root = Rpm;
@@ -3109,6 +3633,12 @@ impl Rpm_RecordTypeUint16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3119,6 +3649,38 @@ pub struct Rpm_RecordTypeUint32 {
     num_values: RefCell<u32>,
     values: RefCell<Vec<u32>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeUint32> for OptRc<Rpm_RecordTypeUint32> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeUint32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeUint32> for OptRc<Rpm_RecordTypeUint32> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeUint32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for Rpm_RecordTypeUint32 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for &Rpm_RecordTypeUint32 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for OptRc<Rpm_RecordTypeUint32> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint32> for &OptRc<Rpm_RecordTypeUint32> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint32>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeUint32 {
     type Root = Rpm;
@@ -3166,6 +3728,12 @@ impl Rpm_RecordTypeUint32 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3176,6 +3744,38 @@ pub struct Rpm_RecordTypeUint64 {
     num_values: RefCell<u32>,
     values: RefCell<Vec<u64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeUint64> for OptRc<Rpm_RecordTypeUint64> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeUint64) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeUint64> for OptRc<Rpm_RecordTypeUint64> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeUint64) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for Rpm_RecordTypeUint64 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for &Rpm_RecordTypeUint64 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for OptRc<Rpm_RecordTypeUint64> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint64> for &OptRc<Rpm_RecordTypeUint64> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint64>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeUint64 {
     type Root = Rpm;
@@ -3223,6 +3823,12 @@ impl Rpm_RecordTypeUint64 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3233,6 +3839,38 @@ pub struct Rpm_RecordTypeUint8 {
     num_values: RefCell<u32>,
     values: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RecordTypeUint8> for OptRc<Rpm_RecordTypeUint8> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RecordTypeUint8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RecordTypeUint8> for OptRc<Rpm_RecordTypeUint8> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RecordTypeUint8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for Rpm_RecordTypeUint8 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for &Rpm_RecordTypeUint8 {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for OptRc<Rpm_RecordTypeUint8> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RecordTypeUint8> for &OptRc<Rpm_RecordTypeUint8> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RecordTypeUint8>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RecordTypeUint8 {
     type Root = Rpm;
@@ -3280,6 +3918,12 @@ impl Rpm_RecordTypeUint8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3290,6 +3934,38 @@ pub struct Rpm_RpmVersion {
     major: RefCell<u8>,
     minor: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rpm_RpmVersion> for OptRc<Rpm_RpmVersion> {
+    type Error = KError;
+    fn try_from(v: &Rpm_RpmVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_RpmVersion> for OptRc<Rpm_RpmVersion> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_RpmVersion) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RpmVersion> for Rpm_RpmVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RpmVersion>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RpmVersion> for &Rpm_RpmVersion {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RpmVersion>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_RpmVersion> for OptRc<Rpm_RpmVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RpmVersion>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_RpmVersion> for &OptRc<Rpm_RpmVersion> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_RpmVersion>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_RpmVersion {
     type Root = Rpm;
@@ -3342,6 +4018,12 @@ impl Rpm_RpmVersion {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3364,6 +4046,38 @@ pub struct Rpm_SignatureTagsStep {
     long_size_tag_idx: RefCell<i32>,
     f_size_tag_idx: Cell<bool>,
     size_tag_idx: RefCell<i32>,
+}
+impl TryFrom<&Rpm_SignatureTagsStep> for OptRc<Rpm_SignatureTagsStep> {
+    type Error = KError;
+    fn try_from(v: &Rpm_SignatureTagsStep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rpm_SignatureTagsStep> for OptRc<Rpm_SignatureTagsStep> {
+    type Error = KError;
+    fn try_from(v: &&Rpm_SignatureTagsStep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_SignatureTagsStep> for Rpm_SignatureTagsStep {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_SignatureTagsStep>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rpm_SignatureTagsStep> for &Rpm_SignatureTagsStep {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_SignatureTagsStep>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rpm_SignatureTagsStep> for OptRc<Rpm_SignatureTagsStep> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_SignatureTagsStep>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rpm_SignatureTagsStep> for &OptRc<Rpm_SignatureTagsStep> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rpm_SignatureTagsStep>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rpm_SignatureTagsStep {
     type Root = Rpm;
@@ -3436,5 +4150,11 @@ impl Rpm_SignatureTagsStep {
 impl Rpm_SignatureTagsStep {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

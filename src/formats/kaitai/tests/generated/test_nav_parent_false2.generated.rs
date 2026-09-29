@@ -85,6 +85,6 @@ fn test_nav_parent_false2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentFalse2> = NavParentFalse2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.parentless().foo(), 80);
+    assert_eq!(*(r.parentless().foo()), 80);
     Ok(())
 }

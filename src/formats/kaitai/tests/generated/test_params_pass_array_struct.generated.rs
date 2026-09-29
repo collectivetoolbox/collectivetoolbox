@@ -86,7 +86,7 @@ fn test_params_pass_array_struct() -> KResult<()> {
     let r: OptRc<ParamsPassArrayStruct> = ParamsPassArrayStruct::read_into(&_io, None, None)?;
 
     assert_eq!(r.pass_structs().structs().len(), 2);
-    assert_eq!(*r.pass_structs().structs()[0].as_ref().context("Missing optional field")?.f(), 1);
-    assert_eq!(*r.pass_structs().structs()[1].as_ref().context("Missing optional field")?.b(), 2);
+    assert_eq!(*(kaitai::DowncastOptRc::<ParamsPassArrayStruct_Foo>::downcast_optrc(&r.pass_structs().structs()[0])?.f()), 1);
+    assert_eq!(*(kaitai::DowncastOptRc::<ParamsPassArrayStruct_Bar>::downcast_optrc(&r.pass_structs().structs()[1])?.b()), 2);
     Ok(())
 }

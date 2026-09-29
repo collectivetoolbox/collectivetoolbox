@@ -85,9 +85,9 @@ fn test_bytes_pad_term_empty() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BytesPadTermEmpty> = BytesPadTermEmpty::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_pad(), Vec::<u8>::new());
-    assert_eq!(*r.str_term(), Vec::<u8>::new());
-    assert_eq!(*r.str_term_and_pad(), Vec::<u8>::new());
-    assert_eq!(*r.str_term_include(), vec![0x40u8]);
+    assert_eq!(*(r.str_pad()), Vec::<u8>::new());
+    assert_eq!(*(r.str_term()), Vec::<u8>::new());
+    assert_eq!(*(r.str_term_and_pad()), Vec::<u8>::new());
+    assert_eq!(*(r.str_term_include()), vec![0x40]);
     Ok(())
 }

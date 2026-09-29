@@ -21,6 +21,38 @@ pub struct Hccap {
     records: RefCell<Vec<OptRc<Hccap_HccapRecord>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Hccap> for OptRc<Hccap> {
+    type Error = KError;
+    fn try_from(v: &Hccap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Hccap> for OptRc<Hccap> {
+    type Error = KError;
+    fn try_from(v: &&Hccap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Hccap> for Hccap {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Hccap> for &Hccap {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Hccap> for OptRc<Hccap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Hccap> for &OptRc<Hccap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Hccap {
     type Root = Hccap;
     type Parent = Hccap;
@@ -61,6 +93,12 @@ impl Hccap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -69,6 +107,38 @@ pub struct Hccap_EapolDummy {
     pub(crate) _parent: SharedType<Hccap_HccapRecord>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Hccap_EapolDummy> for OptRc<Hccap_EapolDummy> {
+    type Error = KError;
+    fn try_from(v: &Hccap_EapolDummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Hccap_EapolDummy> for OptRc<Hccap_EapolDummy> {
+    type Error = KError;
+    fn try_from(v: &&Hccap_EapolDummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Hccap_EapolDummy> for Hccap_EapolDummy {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_EapolDummy>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Hccap_EapolDummy> for &Hccap_EapolDummy {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_EapolDummy>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Hccap_EapolDummy> for OptRc<Hccap_EapolDummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_EapolDummy>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Hccap_EapolDummy> for &OptRc<Hccap_EapolDummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_EapolDummy>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Hccap_EapolDummy {
     type Root = Hccap;
@@ -96,6 +166,12 @@ impl Hccap_EapolDummy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -122,6 +198,38 @@ pub struct Hccap_HccapRecord {
     keymic_raw: RefCell<Vec<u8>>,
     f_eapol: Cell<bool>,
     eapol: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Hccap_HccapRecord> for OptRc<Hccap_HccapRecord> {
+    type Error = KError;
+    fn try_from(v: &Hccap_HccapRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Hccap_HccapRecord> for OptRc<Hccap_HccapRecord> {
+    type Error = KError;
+    fn try_from(v: &&Hccap_HccapRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Hccap_HccapRecord> for Hccap_HccapRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_HccapRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Hccap_HccapRecord> for &Hccap_HccapRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_HccapRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Hccap_HccapRecord> for OptRc<Hccap_HccapRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_HccapRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Hccap_HccapRecord> for &OptRc<Hccap_HccapRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Hccap_HccapRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Hccap_HccapRecord {
     type Root = Hccap;
@@ -256,6 +364,12 @@ impl Hccap_HccapRecord {
 impl Hccap_HccapRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Hccap_HccapRecord {

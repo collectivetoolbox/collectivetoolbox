@@ -85,9 +85,9 @@ fn test_expr_io_pos_bits() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoPosBits> = ExprIoPosBits::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.foo(), 7);
-    assert_eq!(*r.bar(), 12);
-    assert_eq!(*r.baz(), true);
-    assert_eq!(*r.qux(), 59);
+    assert_eq!(*(r.foo()), 7);
+    assert_eq!(*(r.bar()), 12);
+    assert_eq!(*(r.baz()), true);
+    assert_eq!(*(r.qux()), 59);
     Ok(())
 }

@@ -43,6 +43,22 @@ impl TryFrom<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEcdsa> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEcdsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        OptRc::<SshPublicKey_KeyEcdsa>::try_from(self)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for &SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SshPublicKey_KeyEcdsa>> for SshPublicKey_Body {
     fn from(v: OptRc<SshPublicKey_KeyEcdsa>) -> Self {
         Self::SshPublicKey_KeyEcdsa(v)
@@ -55,6 +71,22 @@ impl TryFrom<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyDsa> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SshPublicKey_Body> for OptRc<SshPublicKey_KeyDsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        OptRc::<SshPublicKey_KeyDsa>::try_from(self)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for &SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SshPublicKey_KeyDsa>> for SshPublicKey_Body {
@@ -71,6 +103,22 @@ impl TryFrom<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEd25519> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SshPublicKey_Body> for OptRc<SshPublicKey_KeyEd25519> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        OptRc::<SshPublicKey_KeyEd25519>::try_from(self)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for &SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SshPublicKey_KeyEd25519>> for SshPublicKey_Body {
     fn from(v: OptRc<SshPublicKey_KeyEd25519>) -> Self {
         Self::SshPublicKey_KeyEd25519(v)
@@ -85,9 +133,57 @@ impl TryFrom<&SshPublicKey_Body> for OptRc<SshPublicKey_KeyRsa> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SshPublicKey_Body> for OptRc<SshPublicKey_KeyRsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        OptRc::<SshPublicKey_KeyRsa>::try_from(self)
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for &SshPublicKey_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SshPublicKey_KeyRsa>> for SshPublicKey_Body {
     fn from(v: OptRc<SshPublicKey_KeyRsa>) -> Self {
         Self::SshPublicKey_KeyRsa(v)
+    }
+}
+impl TryFrom<&SshPublicKey> for OptRc<SshPublicKey> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey> for OptRc<SshPublicKey> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey> for SshPublicKey {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey> for &SshPublicKey {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey> for OptRc<SshPublicKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey> for &OptRc<SshPublicKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SshPublicKey {
@@ -147,6 +243,12 @@ impl SshPublicKey {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -172,6 +274,38 @@ pub struct SshPublicKey_Bignum2 {
     body_raw: RefCell<Vec<u8>>,
     f_length_in_bits: Cell<bool>,
     length_in_bits: RefCell<i32>,
+}
+impl TryFrom<&SshPublicKey_Bignum2> for OptRc<SshPublicKey_Bignum2> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_Bignum2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_Bignum2> for OptRc<SshPublicKey_Bignum2> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Bignum2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Bignum2> for SshPublicKey_Bignum2 {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Bignum2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Bignum2> for &SshPublicKey_Bignum2 {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Bignum2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Bignum2> for OptRc<SshPublicKey_Bignum2> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Bignum2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_Bignum2> for &OptRc<SshPublicKey_Bignum2> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Bignum2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_Bignum2 {
     type Root = SshPublicKey;
@@ -228,6 +362,12 @@ impl SshPublicKey_Bignum2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SshPublicKey_Bignum2 {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -251,6 +391,38 @@ pub struct SshPublicKey_Cstring {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
     value_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SshPublicKey_Cstring> for OptRc<SshPublicKey_Cstring> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_Cstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_Cstring> for OptRc<SshPublicKey_Cstring> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_Cstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Cstring> for SshPublicKey_Cstring {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Cstring>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Cstring> for &SshPublicKey_Cstring {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Cstring>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_Cstring> for OptRc<SshPublicKey_Cstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Cstring>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_Cstring> for &OptRc<SshPublicKey_Cstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_Cstring>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_Cstring {
     type Root = SshPublicKey;
@@ -290,6 +462,12 @@ impl SshPublicKey_Cstring {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SshPublicKey_Cstring {
     pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -316,6 +494,38 @@ pub struct SshPublicKey_EllipticCurve {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_EllipticCurve) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_EllipticCurve) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_EllipticCurve> for SshPublicKey_EllipticCurve {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_EllipticCurve> for &SshPublicKey_EllipticCurve {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_EllipticCurve> for OptRc<SshPublicKey_EllipticCurve> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_EllipticCurve> for &OptRc<SshPublicKey_EllipticCurve> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_EllipticCurve>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_EllipticCurve {
     type Root = SshPublicKey;
@@ -355,6 +565,12 @@ impl SshPublicKey_EllipticCurve {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SshPublicKey_EllipticCurve {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -376,6 +592,38 @@ pub struct SshPublicKey_KeyDsa {
     dsa_g: RefCell<OptRc<SshPublicKey_Bignum2>>,
     dsa_pub_key: RefCell<OptRc<SshPublicKey_Bignum2>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SshPublicKey_KeyDsa> for OptRc<SshPublicKey_KeyDsa> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_KeyDsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_KeyDsa> for OptRc<SshPublicKey_KeyDsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_KeyDsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for SshPublicKey_KeyDsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for &SshPublicKey_KeyDsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for OptRc<SshPublicKey_KeyDsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyDsa> for &OptRc<SshPublicKey_KeyDsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyDsa>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_KeyDsa {
     type Root = SshPublicKey;
@@ -431,6 +679,12 @@ impl SshPublicKey_KeyDsa {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -445,6 +699,38 @@ pub struct SshPublicKey_KeyEcdsa {
     curve_name: RefCell<OptRc<SshPublicKey_Cstring>>,
     ec: RefCell<OptRc<SshPublicKey_EllipticCurve>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SshPublicKey_KeyEcdsa> for OptRc<SshPublicKey_KeyEcdsa> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_KeyEcdsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_KeyEcdsa> for OptRc<SshPublicKey_KeyEcdsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_KeyEcdsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for SshPublicKey_KeyEcdsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for &SshPublicKey_KeyEcdsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for OptRc<SshPublicKey_KeyEcdsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEcdsa> for &OptRc<SshPublicKey_KeyEcdsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEcdsa>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_KeyEcdsa {
     type Root = SshPublicKey;
@@ -486,6 +772,12 @@ impl SshPublicKey_KeyEcdsa {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -501,6 +793,38 @@ pub struct SshPublicKey_KeyEd25519 {
     pk: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     pk_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SshPublicKey_KeyEd25519> for OptRc<SshPublicKey_KeyEd25519> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_KeyEd25519) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_KeyEd25519> for OptRc<SshPublicKey_KeyEd25519> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_KeyEd25519) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for SshPublicKey_KeyEd25519 {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for &SshPublicKey_KeyEd25519 {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for OptRc<SshPublicKey_KeyEd25519> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyEd25519> for &OptRc<SshPublicKey_KeyEd25519> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyEd25519>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_KeyEd25519 {
     type Root = SshPublicKey;
@@ -540,6 +864,12 @@ impl SshPublicKey_KeyEd25519 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SshPublicKey_KeyEd25519 {
     pub fn pk_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -561,6 +891,38 @@ pub struct SshPublicKey_KeyRsa {
     _io: RefCell<BytesReader>,
     f_key_length: Cell<bool>,
     key_length: RefCell<i32>,
+}
+impl TryFrom<&SshPublicKey_KeyRsa> for OptRc<SshPublicKey_KeyRsa> {
+    type Error = KError;
+    fn try_from(v: &SshPublicKey_KeyRsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SshPublicKey_KeyRsa> for OptRc<SshPublicKey_KeyRsa> {
+    type Error = KError;
+    fn try_from(v: &&SshPublicKey_KeyRsa) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for SshPublicKey_KeyRsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for &SshPublicKey_KeyRsa {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for OptRc<SshPublicKey_KeyRsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SshPublicKey_KeyRsa> for &OptRc<SshPublicKey_KeyRsa> {
+    fn downcast_optrc(&self) -> Result<OptRc<SshPublicKey_KeyRsa>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SshPublicKey_KeyRsa {
     type Root = SshPublicKey;
@@ -626,5 +988,11 @@ impl SshPublicKey_KeyRsa {
 impl SshPublicKey_KeyRsa {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

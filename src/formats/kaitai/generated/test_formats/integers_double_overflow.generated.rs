@@ -79,6 +79,38 @@ pub struct IntegersDoubleOverflow {
     f_unsigned_unsafe_pos_le: Cell<bool>,
     unsigned_unsafe_pos_le: RefCell<u64>,
 }
+impl TryFrom<&IntegersDoubleOverflow> for OptRc<IntegersDoubleOverflow> {
+    type Error = KError;
+    fn try_from(v: &IntegersDoubleOverflow) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IntegersDoubleOverflow> for OptRc<IntegersDoubleOverflow> {
+    type Error = KError;
+    fn try_from(v: &&IntegersDoubleOverflow) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IntegersDoubleOverflow> for IntegersDoubleOverflow {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersDoubleOverflow>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IntegersDoubleOverflow> for &IntegersDoubleOverflow {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersDoubleOverflow>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IntegersDoubleOverflow> for OptRc<IntegersDoubleOverflow> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersDoubleOverflow>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IntegersDoubleOverflow> for &OptRc<IntegersDoubleOverflow> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersDoubleOverflow>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IntegersDoubleOverflow {
     type Root = IntegersDoubleOverflow;
     type Parent = IntegersDoubleOverflow;
@@ -212,5 +244,11 @@ impl IntegersDoubleOverflow {
 impl IntegersDoubleOverflow {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,16 +85,16 @@ fn test_process_repeat_usertype_dynarg_rotate() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatUsertypeDynargRotate> = ProcessRepeatUsertypeDynargRotate::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.blocks_rol()[0].a(), 25928);
-    assert_eq!(*r.blocks_rol()[1].a(), 46902);
-    assert_eq!(*r.blocks_ror()[0].a(), 29295);
-    assert_eq!(*r.blocks_ror()[1].a(), 16584);
-    assert_eq!(*r.blocks_ror()[2].a(), 22810);
-    assert_eq!(*r.blocks_b().dummy(), 178);
-    assert_eq!(*r.blocks_b().blocks_rol_0_b()?, 108);
-    assert_eq!(*r.blocks_b().blocks_rol_1_b()?, 234);
-    assert_eq!(*r.blocks_b().blocks_ror_0_b()?, 108);
-    assert_eq!(*r.blocks_b().blocks_ror_1_b()?, 138);
-    assert_eq!(*r.blocks_b().blocks_ror_2_b()?, 156);
+    assert_eq!(*(r.blocks_rol()[0].a()), 25928);
+    assert_eq!(*(r.blocks_rol()[1].a()), 46902);
+    assert_eq!(*(r.blocks_ror()[0].a()), 29295);
+    assert_eq!(*(r.blocks_ror()[1].a()), 16584);
+    assert_eq!(*(r.blocks_ror()[2].a()), 22810);
+    assert_eq!(*(r.blocks_b().dummy()), 178);
+    assert_eq!(*(r.blocks_b().blocks_rol_0_b()?), 108);
+    assert_eq!(*(r.blocks_b().blocks_rol_1_b()?), 234);
+    assert_eq!(*(r.blocks_b().blocks_ror_0_b()?), 108);
+    assert_eq!(*(r.blocks_b().blocks_ror_1_b()?), 138);
+    assert_eq!(*(r.blocks_b().blocks_ror_2_b()?), 156);
     Ok(())
 }

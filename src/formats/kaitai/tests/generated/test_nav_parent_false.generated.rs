@@ -85,10 +85,10 @@ fn test_nav_parent_false() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentFalse> = NavParentFalse::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.child_size(), 3);
-    assert_eq!(*r.element_a().foo().code(), 73);
-    assert_eq!(*r.element_a().foo().more(), vec![0x31u8, 0x32u8, 0x33u8]);
-    assert_eq!(*r.element_a().bar().foo().code(), 66);
-    assert_eq!(*r.element_b().foo().code(), 98);
+    assert_eq!(*(r.child_size()), 3);
+    assert_eq!(*(r.element_a().foo().code()), 73);
+    assert_eq!(*(r.element_a().foo().more()), vec![0x31, 0x32, 0x33]);
+    assert_eq!(*(r.element_a().bar().foo().code()), 66);
+    assert_eq!(*(r.element_b().foo().code()), 98);
     Ok(())
 }

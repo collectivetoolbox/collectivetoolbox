@@ -65,6 +65,38 @@ pub struct BitsShiftByB64Le {
     b: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&BitsShiftByB64Le> for OptRc<BitsShiftByB64Le> {
+    type Error = KError;
+    fn try_from(v: &BitsShiftByB64Le) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsShiftByB64Le> for OptRc<BitsShiftByB64Le> {
+    type Error = KError;
+    fn try_from(v: &&BitsShiftByB64Le) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsShiftByB64Le> for BitsShiftByB64Le {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsShiftByB64Le>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsShiftByB64Le> for &BitsShiftByB64Le {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsShiftByB64Le>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsShiftByB64Le> for OptRc<BitsShiftByB64Le> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsShiftByB64Le>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsShiftByB64Le> for &OptRc<BitsShiftByB64Le> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsShiftByB64Le>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsShiftByB64Le {
     type Root = BitsShiftByB64Le;
     type Parent = BitsShiftByB64Le;
@@ -102,5 +134,11 @@ impl BitsShiftByB64Le {
 impl BitsShiftByB64Le {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

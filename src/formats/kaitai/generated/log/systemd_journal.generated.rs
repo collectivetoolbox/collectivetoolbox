@@ -33,6 +33,38 @@ pub struct SystemdJournal {
     f_len_header: Cell<bool>,
     len_header: RefCell<u64>,
 }
+impl TryFrom<&SystemdJournal> for OptRc<SystemdJournal> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SystemdJournal> for OptRc<SystemdJournal> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal> for SystemdJournal {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal> for &SystemdJournal {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal> for OptRc<SystemdJournal> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SystemdJournal> for &OptRc<SystemdJournal> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SystemdJournal {
     type Root = SystemdJournal;
     type Parent = SystemdJournal;
@@ -130,6 +162,12 @@ impl SystemdJournal {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SystemdJournal {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -211,6 +249,38 @@ pub struct SystemdJournal_DataObject {
     head_field: RefCell<OptRc<SystemdJournal_JournalObject>>,
     f_next_hash: Cell<bool>,
     next_hash: RefCell<OptRc<SystemdJournal_JournalObject>>,
+}
+impl TryFrom<&SystemdJournal_DataObject> for OptRc<SystemdJournal_DataObject> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal_DataObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SystemdJournal_DataObject> for OptRc<SystemdJournal_DataObject> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal_DataObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for SystemdJournal_DataObject {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for &SystemdJournal_DataObject {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for OptRc<SystemdJournal_DataObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for &OptRc<SystemdJournal_DataObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SystemdJournal_DataObject {
     type Root = SystemdJournal;
@@ -352,6 +422,12 @@ impl SystemdJournal_DataObject {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -393,6 +469,38 @@ pub struct SystemdJournal_Header {
     machine_id_raw: RefCell<Vec<u8>>,
     boot_id_raw: RefCell<Vec<u8>>,
     seqnum_id_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SystemdJournal_Header> for OptRc<SystemdJournal_Header> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SystemdJournal_Header> for OptRc<SystemdJournal_Header> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_Header> for SystemdJournal_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_Header> for &SystemdJournal_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_Header> for OptRc<SystemdJournal_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SystemdJournal_Header> for &OptRc<SystemdJournal_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SystemdJournal_Header {
     type Root = SystemdJournal;
@@ -599,6 +707,12 @@ impl SystemdJournal_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SystemdJournal_Header {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -660,6 +774,22 @@ impl TryFrom<&SystemdJournal_JournalObject_Payload> for OptRc<SystemdJournal_Dat
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SystemdJournal_JournalObject_Payload> for OptRc<SystemdJournal_DataObject> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal_JournalObject_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for SystemdJournal_JournalObject_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        OptRc::<SystemdJournal_DataObject>::try_from(self)
+    }
+}
+impl DowncastOptRc<SystemdJournal_DataObject> for &SystemdJournal_JournalObject_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_DataObject>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SystemdJournal_DataObject>> for SystemdJournal_JournalObject_Payload {
     fn from(v: OptRc<SystemdJournal_DataObject>) -> Self {
         Self::SystemdJournal_DataObject(v)
@@ -674,9 +804,47 @@ impl TryFrom<&SystemdJournal_JournalObject_Payload> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SystemdJournal_JournalObject_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal_JournalObject_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for SystemdJournal_JournalObject_Payload {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&SystemdJournal_JournalObject> for OptRc<SystemdJournal_JournalObject> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal_JournalObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SystemdJournal_JournalObject> for OptRc<SystemdJournal_JournalObject> {
+    type Error = KError;
+    fn try_from(v: &&SystemdJournal_JournalObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_JournalObject> for SystemdJournal_JournalObject {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_JournalObject>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_JournalObject> for &SystemdJournal_JournalObject {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_JournalObject>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SystemdJournal_JournalObject> for OptRc<SystemdJournal_JournalObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_JournalObject>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SystemdJournal_JournalObject> for &OptRc<SystemdJournal_JournalObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<SystemdJournal_JournalObject>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SystemdJournal_JournalObject {
@@ -751,6 +919,12 @@ impl SystemdJournal_JournalObject {
 impl SystemdJournal_JournalObject {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl SystemdJournal_JournalObject {

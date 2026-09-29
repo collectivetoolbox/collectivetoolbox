@@ -14,6 +14,38 @@ pub struct FtlDat {
     files: RefCell<Vec<OptRc<FtlDat_File>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&FtlDat> for OptRc<FtlDat> {
+    type Error = KError;
+    fn try_from(v: &FtlDat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FtlDat> for OptRc<FtlDat> {
+    type Error = KError;
+    fn try_from(v: &&FtlDat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat> for FtlDat {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FtlDat> for &FtlDat {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat> for OptRc<FtlDat> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FtlDat> for &OptRc<FtlDat> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FtlDat {
     type Root = FtlDat;
     type Parent = FtlDat;
@@ -61,6 +93,12 @@ impl FtlDat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -72,6 +110,38 @@ pub struct FtlDat_File {
     _io: RefCell<BytesReader>,
     f_meta: Cell<bool>,
     meta: RefCell<OptRc<FtlDat_Meta>>,
+}
+impl TryFrom<&FtlDat_File> for OptRc<FtlDat_File> {
+    type Error = KError;
+    fn try_from(v: &FtlDat_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FtlDat_File> for OptRc<FtlDat_File> {
+    type Error = KError;
+    fn try_from(v: &&FtlDat_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_File> for FtlDat_File {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_File>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_File> for &FtlDat_File {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_File>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_File> for OptRc<FtlDat_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_File>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FtlDat_File> for &OptRc<FtlDat_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_File>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FtlDat_File {
     type Root = FtlDat;
@@ -122,6 +192,12 @@ impl FtlDat_File {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -136,6 +212,38 @@ pub struct FtlDat_Meta {
     _io: RefCell<BytesReader>,
     filename_raw: RefCell<Vec<u8>>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&FtlDat_Meta> for OptRc<FtlDat_Meta> {
+    type Error = KError;
+    fn try_from(v: &FtlDat_Meta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FtlDat_Meta> for OptRc<FtlDat_Meta> {
+    type Error = KError;
+    fn try_from(v: &&FtlDat_Meta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_Meta> for FtlDat_Meta {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_Meta>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_Meta> for &FtlDat_Meta {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_Meta>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FtlDat_Meta> for OptRc<FtlDat_Meta> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_Meta>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FtlDat_Meta> for &OptRc<FtlDat_Meta> {
+    fn downcast_optrc(&self) -> Result<OptRc<FtlDat_Meta>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FtlDat_Meta {
     type Root = FtlDat;
@@ -186,6 +294,12 @@ impl FtlDat_Meta {
 impl FtlDat_Meta {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl FtlDat_Meta {

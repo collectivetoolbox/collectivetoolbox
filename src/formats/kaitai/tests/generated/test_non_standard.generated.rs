@@ -85,6 +85,6 @@ fn test_non_standard() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NonStandard> = NonStandard::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.foo(), 80);
+    assert_eq!(*(r.foo()), 80);
     Ok(())
 }

@@ -64,6 +64,38 @@ pub struct ValidFailRangeFloat {
     foo: RefCell<f32>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ValidFailRangeFloat> for OptRc<ValidFailRangeFloat> {
+    type Error = KError;
+    fn try_from(v: &ValidFailRangeFloat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidFailRangeFloat> for OptRc<ValidFailRangeFloat> {
+    type Error = KError;
+    fn try_from(v: &&ValidFailRangeFloat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRangeFloat> for ValidFailRangeFloat {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRangeFloat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRangeFloat> for &ValidFailRangeFloat {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRangeFloat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailRangeFloat> for OptRc<ValidFailRangeFloat> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRangeFloat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidFailRangeFloat> for &OptRc<ValidFailRangeFloat> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailRangeFloat>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidFailRangeFloat {
     type Root = ValidFailRangeFloat;
     type Parent = ValidFailRangeFloat;
@@ -103,5 +135,11 @@ impl ValidFailRangeFloat {
 impl ValidFailRangeFloat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

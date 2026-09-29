@@ -85,8 +85,8 @@ fn test_nav_parent_switch() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentSwitch> = NavParentSwitch::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.category(), 1);
-    assert_eq!(*r.content().as_ref().context("Missing optional field")?.foo(), 66);
-    assert_eq!(*r.content().as_ref().context("Missing optional field")?.subelement().bar(), 255);
+    assert_eq!(*(r.category()), 1);
+    assert_eq!(*(kaitai::DowncastOptRc::<NavParentSwitch_Element1>::downcast_optrc(&r.content())?.foo()), 66);
+    assert_eq!(*(kaitai::DowncastOptRc::<NavParentSwitch_Element1>::downcast_optrc(&r.content())?.subelement().bar()), 255);
     Ok(())
 }

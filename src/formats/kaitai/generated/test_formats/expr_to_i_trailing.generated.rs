@@ -69,6 +69,38 @@ pub struct ExprToITrailing {
     f_to_i_r16: Cell<bool>,
     to_i_r16: RefCell<i32>,
 }
+impl TryFrom<&ExprToITrailing> for OptRc<ExprToITrailing> {
+    type Error = KError;
+    fn try_from(v: &ExprToITrailing) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprToITrailing> for OptRc<ExprToITrailing> {
+    type Error = KError;
+    fn try_from(v: &&ExprToITrailing) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprToITrailing> for ExprToITrailing {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprToITrailing>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprToITrailing> for &ExprToITrailing {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprToITrailing>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprToITrailing> for OptRc<ExprToITrailing> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprToITrailing>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprToITrailing> for &OptRc<ExprToITrailing> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprToITrailing>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprToITrailing {
     type Root = ExprToITrailing;
     type Parent = ExprToITrailing;
@@ -130,5 +162,11 @@ impl ExprToITrailing {
 impl ExprToITrailing {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -23,6 +23,38 @@ pub struct Zchunk {
     dict_raw: RefCell<Vec<u8>>,
     chunks_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Zchunk> for OptRc<Zchunk> {
+    type Error = KError;
+    fn try_from(v: &Zchunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk> for OptRc<Zchunk> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk> for Zchunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk> for &Zchunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk> for OptRc<Zchunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk> for &OptRc<Zchunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Zchunk {
     type Root = Zchunk;
     type Parent = Zchunk;
@@ -101,6 +133,12 @@ impl Zchunk {
 impl Zchunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Zchunk {
@@ -201,6 +239,38 @@ pub struct Zchunk_ChecksumType {
     f_value: Cell<bool>,
     value: RefCell<Zchunk_ChecksumTypes>,
 }
+impl TryFrom<&Zchunk_ChecksumType> for OptRc<Zchunk_ChecksumType> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_ChecksumType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_ChecksumType> for OptRc<Zchunk_ChecksumType> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_ChecksumType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_ChecksumType> for Zchunk_ChecksumType {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_ChecksumType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_ChecksumType> for &Zchunk_ChecksumType {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_ChecksumType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_ChecksumType> for OptRc<Zchunk_ChecksumType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_ChecksumType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_ChecksumType> for &OptRc<Zchunk_ChecksumType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_ChecksumType>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Zchunk_ChecksumType {
     type Root = Zchunk;
     type Parent = KStructUnit;
@@ -267,6 +337,12 @@ impl Zchunk_ChecksumType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -285,6 +361,38 @@ pub struct Zchunk_Chunk {
     _io: RefCell<BytesReader>,
     chunk_checksum_raw: RefCell<Vec<u8>>,
     uncompressed_chunk_checksum_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zchunk_Chunk> for OptRc<Zchunk_Chunk> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_Chunk> for OptRc<Zchunk_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Chunk> for Zchunk_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Chunk> for &Zchunk_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Chunk> for OptRc<Zchunk_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_Chunk> for &OptRc<Zchunk_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_Chunk {
     type Root = Zchunk;
@@ -376,6 +484,12 @@ impl Zchunk_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zchunk_Chunk {
     pub fn chunk_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -408,6 +522,38 @@ pub struct Zchunk_CompressedInteger {
     len: RefCell<i32>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&Zchunk_CompressedInteger> for OptRc<Zchunk_CompressedInteger> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_CompressedInteger) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_CompressedInteger> for OptRc<Zchunk_CompressedInteger> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_CompressedInteger) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger> for Zchunk_CompressedInteger {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger> for &Zchunk_CompressedInteger {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger> for OptRc<Zchunk_CompressedInteger> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger> for &OptRc<Zchunk_CompressedInteger> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_CompressedInteger {
     type Root = Zchunk;
@@ -481,6 +627,12 @@ impl Zchunk_CompressedInteger {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -496,6 +648,38 @@ pub struct Zchunk_CompressedInteger_Group {
     is_last: RefCell<bool>,
     value: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zchunk_CompressedInteger_Group> for OptRc<Zchunk_CompressedInteger_Group> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_CompressedInteger_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_CompressedInteger_Group> for OptRc<Zchunk_CompressedInteger_Group> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_CompressedInteger_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger_Group> for Zchunk_CompressedInteger_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger_Group>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger_Group> for &Zchunk_CompressedInteger_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger_Group>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger_Group> for OptRc<Zchunk_CompressedInteger_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger_Group>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_CompressedInteger_Group> for &OptRc<Zchunk_CompressedInteger_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_CompressedInteger_Group>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_CompressedInteger_Group {
     type Root = Zchunk;
@@ -568,6 +752,12 @@ impl Zchunk_CompressedInteger_Group {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -584,6 +774,38 @@ pub struct Zchunk_HeaderLead {
     header_checksum_raw: RefCell<Vec<u8>>,
     f_is_detached_header: Cell<bool>,
     is_detached_header: RefCell<bool>,
+}
+impl TryFrom<&Zchunk_HeaderLead> for OptRc<Zchunk_HeaderLead> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_HeaderLead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_HeaderLead> for OptRc<Zchunk_HeaderLead> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_HeaderLead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderLead> for Zchunk_HeaderLead {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderLead>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderLead> for &Zchunk_HeaderLead {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderLead>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderLead> for OptRc<Zchunk_HeaderLead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderLead>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderLead> for &OptRc<Zchunk_HeaderLead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderLead>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_HeaderLead {
     type Root = Zchunk;
@@ -687,6 +909,12 @@ impl Zchunk_HeaderLead {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zchunk_HeaderLead {
     pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -710,6 +938,38 @@ pub struct Zchunk_HeaderWithoutLead {
     num_signatures: RefCell<OptRc<Zchunk_CompressedInteger>>,
     _io: RefCell<BytesReader>,
     index_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zchunk_HeaderWithoutLead> for OptRc<Zchunk_HeaderWithoutLead> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_HeaderWithoutLead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_HeaderWithoutLead> for OptRc<Zchunk_HeaderWithoutLead> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_HeaderWithoutLead) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderWithoutLead> for Zchunk_HeaderWithoutLead {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderWithoutLead>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderWithoutLead> for &Zchunk_HeaderWithoutLead {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderWithoutLead>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderWithoutLead> for OptRc<Zchunk_HeaderWithoutLead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderWithoutLead>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_HeaderWithoutLead> for &OptRc<Zchunk_HeaderWithoutLead> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_HeaderWithoutLead>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_HeaderWithoutLead {
     type Root = Zchunk;
@@ -790,6 +1050,12 @@ impl Zchunk_HeaderWithoutLead {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zchunk_HeaderWithoutLead {
     pub fn index_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -815,6 +1081,38 @@ pub struct Zchunk_Index {
     uncompressed_dict_checksum_raw: RefCell<Vec<u8>>,
     f_num_data_chunks: Cell<bool>,
     num_data_chunks: RefCell<i32>,
+}
+impl TryFrom<&Zchunk_Index> for OptRc<Zchunk_Index> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_Index) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_Index> for OptRc<Zchunk_Index> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_Index) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Index> for Zchunk_Index {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Index>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Index> for &Zchunk_Index {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Index>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Index> for OptRc<Zchunk_Index> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Index>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_Index> for &OptRc<Zchunk_Index> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Index>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_Index {
     type Root = Zchunk;
@@ -963,6 +1261,12 @@ impl Zchunk_Index {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zchunk_Index {
     pub fn dict_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -985,6 +1289,38 @@ pub struct Zchunk_OptionalElement {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zchunk_OptionalElement> for OptRc<Zchunk_OptionalElement> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_OptionalElement) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_OptionalElement> for OptRc<Zchunk_OptionalElement> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_OptionalElement) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_OptionalElement> for Zchunk_OptionalElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_OptionalElement>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_OptionalElement> for &Zchunk_OptionalElement {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_OptionalElement>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_OptionalElement> for OptRc<Zchunk_OptionalElement> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_OptionalElement>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_OptionalElement> for &OptRc<Zchunk_OptionalElement> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_OptionalElement>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_OptionalElement {
     type Root = Zchunk;
@@ -1032,6 +1368,12 @@ impl Zchunk_OptionalElement {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zchunk_OptionalElement {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1059,6 +1401,38 @@ pub struct Zchunk_Preface {
     has_optional_elements: RefCell<bool>,
     f_has_uncompressed_source: Cell<bool>,
     has_uncompressed_source: RefCell<bool>,
+}
+impl TryFrom<&Zchunk_Preface> for OptRc<Zchunk_Preface> {
+    type Error = KError;
+    fn try_from(v: &Zchunk_Preface) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zchunk_Preface> for OptRc<Zchunk_Preface> {
+    type Error = KError;
+    fn try_from(v: &&Zchunk_Preface) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Preface> for Zchunk_Preface {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Preface>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Preface> for &Zchunk_Preface {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Preface>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zchunk_Preface> for OptRc<Zchunk_Preface> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Preface>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zchunk_Preface> for &OptRc<Zchunk_Preface> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zchunk_Preface>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zchunk_Preface {
     type Root = Zchunk;
@@ -1226,6 +1600,12 @@ impl Zchunk_Preface {
 impl Zchunk_Preface {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Zchunk_Preface {

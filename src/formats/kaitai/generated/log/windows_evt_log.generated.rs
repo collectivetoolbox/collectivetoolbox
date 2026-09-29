@@ -39,6 +39,38 @@ pub struct WindowsEvtLog {
     records: RefCell<Vec<OptRc<WindowsEvtLog_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&WindowsEvtLog> for OptRc<WindowsEvtLog> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog> for OptRc<WindowsEvtLog> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog> for WindowsEvtLog {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog> for &WindowsEvtLog {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog> for OptRc<WindowsEvtLog> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog> for &OptRc<WindowsEvtLog> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for WindowsEvtLog {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
@@ -86,6 +118,12 @@ impl WindowsEvtLog {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -103,6 +141,38 @@ pub struct WindowsEvtLog_CursorRecordBody {
     idx_next_record: RefCell<u32>,
     idx_first_record: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog_CursorRecordBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_CursorRecordBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for WindowsEvtLog_CursorRecordBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &WindowsEvtLog_CursorRecordBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for OptRc<WindowsEvtLog_CursorRecordBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &OptRc<WindowsEvtLog_CursorRecordBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsEvtLog_CursorRecordBody {
     type Root = WindowsEvtLog;
@@ -163,6 +233,12 @@ impl WindowsEvtLog_CursorRecordBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -187,6 +263,38 @@ pub struct WindowsEvtLog_Header {
     retention: RefCell<u32>,
     len_header_2: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsEvtLog_Header> for OptRc<WindowsEvtLog_Header> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog_Header> for OptRc<WindowsEvtLog_Header> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header> for WindowsEvtLog_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header> for &WindowsEvtLog_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header> for OptRc<WindowsEvtLog_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header> for &OptRc<WindowsEvtLog_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsEvtLog_Header {
     type Root = WindowsEvtLog;
@@ -319,6 +427,12 @@ impl WindowsEvtLog_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -332,6 +446,38 @@ pub struct WindowsEvtLog_Header_Flags {
     wrap: RefCell<bool>,
     dirty: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog_Header_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Header_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header_Flags> for WindowsEvtLog_Header_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header_Flags> for &WindowsEvtLog_Header_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header_Flags> for OptRc<WindowsEvtLog_Header_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Header_Flags> for &OptRc<WindowsEvtLog_Header_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Header_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsEvtLog_Header_Flags {
     type Root = WindowsEvtLog;
@@ -406,6 +552,12 @@ impl WindowsEvtLog_Header_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -439,6 +591,22 @@ impl TryFrom<&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_RecordBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_RecordBody> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for WindowsEvtLog_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        OptRc::<WindowsEvtLog_RecordBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for &WindowsEvtLog_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<WindowsEvtLog_RecordBody>> for WindowsEvtLog_Record_Body {
     fn from(v: OptRc<WindowsEvtLog_RecordBody>) -> Self {
         Self::WindowsEvtLog_RecordBody(v)
@@ -451,6 +619,22 @@ impl TryFrom<&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_CursorRecordBod
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&WindowsEvtLog_Record_Body> for OptRc<WindowsEvtLog_CursorRecordBody> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for WindowsEvtLog_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        OptRc::<WindowsEvtLog_CursorRecordBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_CursorRecordBody> for &WindowsEvtLog_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_CursorRecordBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<WindowsEvtLog_CursorRecordBody>> for WindowsEvtLog_Record_Body {
@@ -467,9 +651,47 @@ impl TryFrom<&WindowsEvtLog_Record_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsEvtLog_Record_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for WindowsEvtLog_Record_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&WindowsEvtLog_Record> for OptRc<WindowsEvtLog_Record> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog_Record> for OptRc<WindowsEvtLog_Record> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Record> for WindowsEvtLog_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Record> for &WindowsEvtLog_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Record> for OptRc<WindowsEvtLog_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_Record> for &OptRc<WindowsEvtLog_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_Record>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for WindowsEvtLog_Record {
@@ -560,6 +782,12 @@ impl WindowsEvtLog_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsEvtLog_Record {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -595,6 +823,38 @@ pub struct WindowsEvtLog_RecordBody {
     data: RefCell<Vec<u8>>,
     f_user_sid: Cell<bool>,
     user_sid: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsEvtLog_RecordBody> for OptRc<WindowsEvtLog_RecordBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsEvtLog_RecordBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsEvtLog_RecordBody> for OptRc<WindowsEvtLog_RecordBody> {
+    type Error = KError;
+    fn try_from(v: &&WindowsEvtLog_RecordBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for WindowsEvtLog_RecordBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for &WindowsEvtLog_RecordBody {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for OptRc<WindowsEvtLog_RecordBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsEvtLog_RecordBody> for &OptRc<WindowsEvtLog_RecordBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsEvtLog_RecordBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsEvtLog_RecordBody {
     type Root = WindowsEvtLog;
@@ -763,6 +1023,12 @@ impl WindowsEvtLog_RecordBody {
 impl WindowsEvtLog_RecordBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl WindowsEvtLog_RecordBody {

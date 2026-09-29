@@ -85,9 +85,9 @@ fn test_nav_parent_recursive() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentRecursive> = NavParentRecursive::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.value(), 255);
-    assert_eq!(*r.next().value(), 1);
-    assert_eq!(*r.next().parent_value()?, 255);
+    assert_eq!(*(r.value()), 255);
+    assert_eq!(*(r.next().value()), 1);
+    assert_eq!(*(r.next().parent_value()?), 255);
     assert!(r.next().next().is_none());
     Ok(())
 }

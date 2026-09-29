@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::pcx::Pcx;
+use super::pcx::*;
 
 /**
  * DCX is a simple extension of PCX image format allowing to bundle
@@ -21,6 +22,38 @@ pub struct PcxDcx {
     magic: RefCell<Vec<u8>>,
     files: RefCell<Vec<OptRc<PcxDcx_PcxOffset>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PcxDcx> for OptRc<PcxDcx> {
+    type Error = KError;
+    fn try_from(v: &PcxDcx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PcxDcx> for OptRc<PcxDcx> {
+    type Error = KError;
+    fn try_from(v: &&PcxDcx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx> for PcxDcx {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx> for &PcxDcx {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx> for OptRc<PcxDcx> {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PcxDcx> for &OptRc<PcxDcx> {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PcxDcx {
     type Root = PcxDcx;
@@ -74,6 +107,12 @@ impl PcxDcx {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -85,6 +124,38 @@ pub struct PcxDcx_PcxOffset {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<OptRc<Pcx>>,
+}
+impl TryFrom<&PcxDcx_PcxOffset> for OptRc<PcxDcx_PcxOffset> {
+    type Error = KError;
+    fn try_from(v: &PcxDcx_PcxOffset) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PcxDcx_PcxOffset> for OptRc<PcxDcx_PcxOffset> {
+    type Error = KError;
+    fn try_from(v: &&PcxDcx_PcxOffset) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx_PcxOffset> for PcxDcx_PcxOffset {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx_PcxOffset>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx_PcxOffset> for &PcxDcx_PcxOffset {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx_PcxOffset>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PcxDcx_PcxOffset> for OptRc<PcxDcx_PcxOffset> {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx_PcxOffset>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PcxDcx_PcxOffset> for &OptRc<PcxDcx_PcxOffset> {
+    fn downcast_optrc(&self) -> Result<OptRc<PcxDcx_PcxOffset>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PcxDcx_PcxOffset {
     type Root = PcxDcx;
@@ -134,5 +205,11 @@ impl PcxDcx_PcxOffset {
 impl PcxDcx_PcxOffset {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -4,7 +4,8 @@
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::*;
 
 /**
  * ZIP is a popular archive file format, introduced in 1989 by Phil Katz
@@ -28,6 +29,38 @@ pub struct Zip {
     pub(crate) _self_shared: SharedType<Self>,
     sections: RefCell<Vec<OptRc<Zip_PkSection>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip> for OptRc<Zip> {
+    type Error = KError;
+    fn try_from(v: &Zip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip> for OptRc<Zip> {
+    type Error = KError;
+    fn try_from(v: &&Zip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip> for Zip {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip> for &Zip {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip> for OptRc<Zip> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip> for &OptRc<Zip> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip {
     type Root = Zip;
@@ -68,6 +101,12 @@ impl Zip {
 impl Zip {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -299,6 +338,38 @@ pub struct Zip_CentralDirEntry {
     f_local_header: Cell<bool>,
     local_header: RefCell<OptRc<Zip_PkSection>>,
 }
+impl TryFrom<&Zip_CentralDirEntry> for OptRc<Zip_CentralDirEntry> {
+    type Error = KError;
+    fn try_from(v: &Zip_CentralDirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_CentralDirEntry> for OptRc<Zip_CentralDirEntry> {
+    type Error = KError;
+    fn try_from(v: &&Zip_CentralDirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for Zip_CentralDirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for &Zip_CentralDirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for OptRc<Zip_CentralDirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for &OptRc<Zip_CentralDirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Zip_CentralDirEntry {
     type Root = Zip;
     type Parent = Zip_PkSection;
@@ -456,6 +527,12 @@ impl Zip_CentralDirEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_CentralDirEntry {
     pub fn file_mod_time_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -487,6 +564,38 @@ pub struct Zip_DataDescriptor {
     len_body_compressed: RefCell<u32>,
     len_body_uncompressed: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip_DataDescriptor> for OptRc<Zip_DataDescriptor> {
+    type Error = KError;
+    fn try_from(v: &Zip_DataDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_DataDescriptor> for OptRc<Zip_DataDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&Zip_DataDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for Zip_DataDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for &Zip_DataDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for OptRc<Zip_DataDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for &OptRc<Zip_DataDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_DataDescriptor {
     type Root = Zip;
@@ -532,6 +641,12 @@ impl Zip_DataDescriptor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -549,6 +664,38 @@ pub struct Zip_EndOfCentralDir {
     comment: RefCell<String>,
     _io: RefCell<BytesReader>,
     comment_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zip_EndOfCentralDir> for OptRc<Zip_EndOfCentralDir> {
+    type Error = KError;
+    fn try_from(v: &Zip_EndOfCentralDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_EndOfCentralDir> for OptRc<Zip_EndOfCentralDir> {
+    type Error = KError;
+    fn try_from(v: &&Zip_EndOfCentralDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for Zip_EndOfCentralDir {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for &Zip_EndOfCentralDir {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for OptRc<Zip_EndOfCentralDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for &OptRc<Zip_EndOfCentralDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_EndOfCentralDir {
     type Root = Zip;
@@ -624,6 +771,12 @@ impl Zip_EndOfCentralDir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_EndOfCentralDir {
     pub fn comment_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -658,6 +811,22 @@ impl TryFrom<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        OptRc::<Zip_ExtraField_ExtendedTimestamp>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_ExtraField_ExtendedTimestamp>> for Zip_ExtraField_Body {
     fn from(v: OptRc<Zip_ExtraField_ExtendedTimestamp>) -> Self {
         Self::Zip_ExtraField_ExtendedTimestamp(v)
@@ -670,6 +839,22 @@ impl TryFrom<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_InfozipUnixVarSize> 
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        OptRc::<Zip_ExtraField_InfozipUnixVarSize>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Zip_ExtraField_InfozipUnixVarSize>> for Zip_ExtraField_Body {
@@ -686,6 +871,22 @@ impl TryFrom<&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_Ntfs> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_ExtraField_Body> for OptRc<Zip_ExtraField_Ntfs> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        OptRc::<Zip_ExtraField_Ntfs>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for &Zip_ExtraField_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_ExtraField_Ntfs>> for Zip_ExtraField_Body {
     fn from(v: OptRc<Zip_ExtraField_Ntfs>) -> Self {
         Self::Zip_ExtraField_Ntfs(v)
@@ -700,9 +901,47 @@ impl TryFrom<&Zip_ExtraField_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_ExtraField_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Zip_ExtraField_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Zip_ExtraField> for OptRc<Zip_ExtraField> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField> for OptRc<Zip_ExtraField> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField> for Zip_ExtraField {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField> for &Zip_ExtraField {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField> for OptRc<Zip_ExtraField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField> for &OptRc<Zip_ExtraField> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Zip_ExtraField {
@@ -774,6 +1013,12 @@ impl Zip_ExtraField {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_ExtraField {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -796,6 +1041,38 @@ pub struct Zip_ExtraField_ExtendedTimestamp {
     create_time: RefCell<u32>,
     _io: RefCell<BytesReader>,
     flags_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_ExtendedTimestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_ExtendedTimestamp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for Zip_ExtraField_ExtendedTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &Zip_ExtraField_ExtendedTimestamp {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp> for &OptRc<Zip_ExtraField_ExtendedTimestamp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_ExtraField_ExtendedTimestamp {
     type Root = Zip;
@@ -869,6 +1146,12 @@ impl Zip_ExtraField_ExtendedTimestamp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_ExtraField_ExtendedTimestamp {
     pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -886,6 +1169,38 @@ pub struct Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     has_create_time: RefCell<bool>,
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_ExtendedTimestamp_InfoFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_ExtendedTimestamp_InfoFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for &Zip_ExtraField_ExtendedTimestamp_InfoFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> for &OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_ExtendedTimestamp_InfoFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     type Root = Zip;
@@ -937,6 +1252,12 @@ impl Zip_ExtraField_ExtendedTimestamp_InfoFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -956,6 +1277,38 @@ pub struct Zip_ExtraField_InfozipUnixVarSize {
     _io: RefCell<BytesReader>,
     uid_raw: RefCell<Vec<u8>>,
     gid_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_InfozipUnixVarSize) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_InfozipUnixVarSize) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for Zip_ExtraField_InfozipUnixVarSize {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &Zip_ExtraField_InfozipUnixVarSize {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_InfozipUnixVarSize> for &OptRc<Zip_ExtraField_InfozipUnixVarSize> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_InfozipUnixVarSize>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_ExtraField_InfozipUnixVarSize {
     type Root = Zip;
@@ -1033,6 +1386,12 @@ impl Zip_ExtraField_InfozipUnixVarSize {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_ExtraField_InfozipUnixVarSize {
     pub fn uid_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1057,6 +1416,38 @@ pub struct Zip_ExtraField_Ntfs {
     reserved: RefCell<u32>,
     attributes: RefCell<Vec<OptRc<Zip_ExtraField_Ntfs_Attribute>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip_ExtraField_Ntfs> for OptRc<Zip_ExtraField_Ntfs> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_Ntfs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_Ntfs> for OptRc<Zip_ExtraField_Ntfs> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Ntfs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for Zip_ExtraField_Ntfs {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for &Zip_ExtraField_Ntfs {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for OptRc<Zip_ExtraField_Ntfs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs> for &OptRc<Zip_ExtraField_Ntfs> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_ExtraField_Ntfs {
     type Root = Zip;
@@ -1104,6 +1495,12 @@ impl Zip_ExtraField_Ntfs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1131,6 +1528,22 @@ impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body> for OptRc<Zip_ExtraField_Ntfs_
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute_Body> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for Zip_ExtraField_Ntfs_Attribute_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        OptRc::<Zip_ExtraField_Ntfs_Attribute1>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &Zip_ExtraField_Ntfs_Attribute_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_ExtraField_Ntfs_Attribute1>> for Zip_ExtraField_Ntfs_Attribute_Body {
     fn from(v: OptRc<Zip_ExtraField_Ntfs_Attribute1>) -> Self {
         Self::Zip_ExtraField_Ntfs_Attribute1(v)
@@ -1145,9 +1558,47 @@ impl TryFrom<&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Zip_ExtraField_Ntfs_Attribute_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for Zip_ExtraField_Ntfs_Attribute {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for &Zip_ExtraField_Ntfs_Attribute {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute> for &OptRc<Zip_ExtraField_Ntfs_Attribute> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Zip_ExtraField_Ntfs_Attribute {
@@ -1205,6 +1656,12 @@ impl Zip_ExtraField_Ntfs_Attribute {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_ExtraField_Ntfs_Attribute {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1221,6 +1678,38 @@ pub struct Zip_ExtraField_Ntfs_Attribute1 {
     last_access_time: RefCell<u64>,
     creation_time: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    type Error = KError;
+    fn try_from(v: &Zip_ExtraField_Ntfs_Attribute1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    type Error = KError;
+    fn try_from(v: &&Zip_ExtraField_Ntfs_Attribute1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for Zip_ExtraField_Ntfs_Attribute1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &Zip_ExtraField_Ntfs_Attribute1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_ExtraField_Ntfs_Attribute1> for &OptRc<Zip_ExtraField_Ntfs_Attribute1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_ExtraField_Ntfs_Attribute1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_ExtraField_Ntfs_Attribute1 {
     type Root = Zip;
@@ -1266,6 +1755,12 @@ impl Zip_ExtraField_Ntfs_Attribute1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1275,6 +1770,38 @@ pub struct Zip_Extras {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Zip_ExtraField>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Zip_Extras> for OptRc<Zip_Extras> {
+    type Error = KError;
+    fn try_from(v: &Zip_Extras) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_Extras> for OptRc<Zip_Extras> {
+    type Error = KError;
+    fn try_from(v: &&Zip_Extras) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_Extras> for Zip_Extras {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_Extras>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_Extras> for &Zip_Extras {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_Extras>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_Extras> for OptRc<Zip_Extras> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_Extras>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_Extras> for &OptRc<Zip_Extras> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_Extras>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_Extras {
     type Root = Zip;
@@ -1316,6 +1843,12 @@ impl Zip_Extras {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1327,6 +1860,38 @@ pub struct Zip_LocalFile {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zip_LocalFile> for OptRc<Zip_LocalFile> {
+    type Error = KError;
+    fn try_from(v: &Zip_LocalFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_LocalFile> for OptRc<Zip_LocalFile> {
+    type Error = KError;
+    fn try_from(v: &&Zip_LocalFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for Zip_LocalFile {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for &Zip_LocalFile {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for OptRc<Zip_LocalFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for &OptRc<Zip_LocalFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_LocalFile {
     type Root = Zip;
@@ -1367,6 +1932,12 @@ impl Zip_LocalFile {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_LocalFile {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1395,6 +1966,38 @@ pub struct Zip_LocalFileHeader {
     file_mod_time_raw: RefCell<Vec<u8>>,
     file_name_raw: RefCell<Vec<u8>>,
     extra_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Zip_LocalFileHeader> for OptRc<Zip_LocalFileHeader> {
+    type Error = KError;
+    fn try_from(v: &Zip_LocalFileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_LocalFileHeader> for OptRc<Zip_LocalFileHeader> {
+    type Error = KError;
+    fn try_from(v: &&Zip_LocalFileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader> for Zip_LocalFileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader> for &Zip_LocalFileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader> for OptRc<Zip_LocalFileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader> for &OptRc<Zip_LocalFileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Zip_LocalFileHeader {
     type Root = Zip;
@@ -1500,6 +2103,12 @@ impl Zip_LocalFileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Zip_LocalFileHeader {
     pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1553,6 +2162,38 @@ pub struct Zip_LocalFileHeader_GpFlags {
     f_lzma_has_eos_marker: Cell<bool>,
     lzma_has_eos_marker: RefCell<bool>,
 }
+impl TryFrom<&Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
+    type Error = KError;
+    fn try_from(v: &Zip_LocalFileHeader_GpFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
+    type Error = KError;
+    fn try_from(v: &&Zip_LocalFileHeader_GpFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for Zip_LocalFileHeader_GpFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for &Zip_LocalFileHeader_GpFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for OptRc<Zip_LocalFileHeader_GpFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_LocalFileHeader_GpFlags> for &OptRc<Zip_LocalFileHeader_GpFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFileHeader_GpFlags>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Zip_LocalFileHeader_GpFlags {
     type Root = Zip;
     type Parent = Zip_LocalFileHeader;
@@ -1595,7 +2236,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_deflated_mode.set(true);
         if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Deflated) || (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::EnhancedDeflated))  {
-            *self.deflated_mode.borrow_mut() = i64::try_from(*self.comp_options_raw())?.try_into()?;
+            *self.deflated_mode.borrow_mut() = i64::from_ne_bytes((*self.comp_options_raw()).to_ne_bytes()).try_into()?;
         }
         Ok(self.deflated_mode.borrow())
     }
@@ -1709,6 +2350,12 @@ impl Zip_LocalFileHeader_GpFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Zip_LocalFileHeader_GpFlags_DeflateMode {
@@ -1775,6 +2422,22 @@ impl TryFrom<&Zip_PkSection_Body> for OptRc<Zip_LocalFile> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_PkSection_Body> for OptRc<Zip_LocalFile> {
+    type Error = KError;
+    fn try_from(v: &&Zip_PkSection_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        OptRc::<Zip_LocalFile>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_LocalFile> for &Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_LocalFile>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_LocalFile>> for Zip_PkSection_Body {
     fn from(v: OptRc<Zip_LocalFile>) -> Self {
         Self::Zip_LocalFile(v)
@@ -1787,6 +2450,22 @@ impl TryFrom<&Zip_PkSection_Body> for OptRc<Zip_EndOfCentralDir> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Zip_PkSection_Body> for OptRc<Zip_EndOfCentralDir> {
+    type Error = KError;
+    fn try_from(v: &&Zip_PkSection_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        OptRc::<Zip_EndOfCentralDir>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_EndOfCentralDir> for &Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_EndOfCentralDir>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Zip_EndOfCentralDir>> for Zip_PkSection_Body {
@@ -1803,6 +2482,22 @@ impl TryFrom<&Zip_PkSection_Body> for OptRc<Zip_DataDescriptor> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_PkSection_Body> for OptRc<Zip_DataDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&Zip_PkSection_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        OptRc::<Zip_DataDescriptor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_DataDescriptor> for &Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_DataDescriptor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_DataDescriptor>> for Zip_PkSection_Body {
     fn from(v: OptRc<Zip_DataDescriptor>) -> Self {
         Self::Zip_DataDescriptor(v)
@@ -1817,9 +2512,57 @@ impl TryFrom<&Zip_PkSection_Body> for OptRc<Zip_CentralDirEntry> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Zip_PkSection_Body> for OptRc<Zip_CentralDirEntry> {
+    type Error = KError;
+    fn try_from(v: &&Zip_PkSection_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        OptRc::<Zip_CentralDirEntry>::try_from(self)
+    }
+}
+impl DowncastOptRc<Zip_CentralDirEntry> for &Zip_PkSection_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_CentralDirEntry>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Zip_CentralDirEntry>> for Zip_PkSection_Body {
     fn from(v: OptRc<Zip_CentralDirEntry>) -> Self {
         Self::Zip_CentralDirEntry(v)
+    }
+}
+impl TryFrom<&Zip_PkSection> for OptRc<Zip_PkSection> {
+    type Error = KError;
+    fn try_from(v: &Zip_PkSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Zip_PkSection> for OptRc<Zip_PkSection> {
+    type Error = KError;
+    fn try_from(v: &&Zip_PkSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Zip_PkSection> for Zip_PkSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_PkSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Zip_PkSection> for &Zip_PkSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_PkSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Zip_PkSection> for OptRc<Zip_PkSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_PkSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Zip_PkSection> for &OptRc<Zip_PkSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Zip_PkSection>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Zip_PkSection {
@@ -1886,5 +2629,11 @@ impl Zip_PkSection {
 impl Zip_PkSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

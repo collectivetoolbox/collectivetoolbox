@@ -65,6 +65,38 @@ pub struct FixedStruct {
     f_hdr: Cell<bool>,
     hdr: RefCell<OptRc<FixedStruct_Header>>,
 }
+impl TryFrom<&FixedStruct> for OptRc<FixedStruct> {
+    type Error = KError;
+    fn try_from(v: &FixedStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FixedStruct> for OptRc<FixedStruct> {
+    type Error = KError;
+    fn try_from(v: &&FixedStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct> for FixedStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct> for &FixedStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct> for OptRc<FixedStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FixedStruct> for &OptRc<FixedStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FixedStruct {
     type Root = FixedStruct;
     type Parent = FixedStruct;
@@ -106,6 +138,12 @@ impl FixedStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -141,6 +179,38 @@ pub struct FixedStruct_Header {
     sint32be: RefCell<i32>,
     sint64be: RefCell<i64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&FixedStruct_Header> for OptRc<FixedStruct_Header> {
+    type Error = KError;
+    fn try_from(v: &FixedStruct_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FixedStruct_Header> for OptRc<FixedStruct_Header> {
+    type Error = KError;
+    fn try_from(v: &&FixedStruct_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct_Header> for FixedStruct_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct_Header> for &FixedStruct_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FixedStruct_Header> for OptRc<FixedStruct_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FixedStruct_Header> for &OptRc<FixedStruct_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedStruct_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for FixedStruct_Header {
     type Root = FixedStruct;
@@ -350,5 +420,11 @@ impl FixedStruct_Header {
 impl FixedStruct_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

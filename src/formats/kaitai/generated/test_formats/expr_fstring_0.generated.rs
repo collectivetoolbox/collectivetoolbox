@@ -80,6 +80,38 @@ pub struct ExprFstring0 {
     f_literal_with_escapes: Cell<bool>,
     literal_with_escapes: RefCell<String>,
 }
+impl TryFrom<&ExprFstring0> for OptRc<ExprFstring0> {
+    type Error = KError;
+    fn try_from(v: &ExprFstring0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprFstring0> for OptRc<ExprFstring0> {
+    type Error = KError;
+    fn try_from(v: &&ExprFstring0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprFstring0> for ExprFstring0 {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprFstring0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprFstring0> for &ExprFstring0 {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprFstring0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprFstring0> for OptRc<ExprFstring0> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprFstring0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprFstring0> for &OptRc<ExprFstring0> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprFstring0>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprFstring0 {
     type Root = ExprFstring0;
     type Parent = ExprFstring0;
@@ -201,6 +233,12 @@ impl ExprFstring0 {
 impl ExprFstring0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprFstring0 {

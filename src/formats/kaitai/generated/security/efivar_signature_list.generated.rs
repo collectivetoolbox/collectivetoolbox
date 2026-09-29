@@ -35,6 +35,38 @@ pub struct EfivarSignatureList {
     signatures: RefCell<Vec<OptRc<EfivarSignatureList_SignatureList>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EfivarSignatureList> for OptRc<EfivarSignatureList> {
+    type Error = KError;
+    fn try_from(v: &EfivarSignatureList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EfivarSignatureList> for OptRc<EfivarSignatureList> {
+    type Error = KError;
+    fn try_from(v: &&EfivarSignatureList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList> for EfivarSignatureList {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList> for &EfivarSignatureList {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList> for OptRc<EfivarSignatureList> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EfivarSignatureList> for &OptRc<EfivarSignatureList> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EfivarSignatureList {
     type Root = EfivarSignatureList;
     type Parent = EfivarSignatureList;
@@ -86,6 +118,12 @@ impl EfivarSignatureList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -107,6 +145,38 @@ pub struct EfivarSignatureList_EfiVarAttr {
     non_volatile: RefCell<bool>,
     reserved1: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EfivarSignatureList_EfiVarAttr> for OptRc<EfivarSignatureList_EfiVarAttr> {
+    type Error = KError;
+    fn try_from(v: &EfivarSignatureList_EfiVarAttr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EfivarSignatureList_EfiVarAttr> for OptRc<EfivarSignatureList_EfiVarAttr> {
+    type Error = KError;
+    fn try_from(v: &&EfivarSignatureList_EfiVarAttr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_EfiVarAttr> for EfivarSignatureList_EfiVarAttr {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_EfiVarAttr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_EfiVarAttr> for &EfivarSignatureList_EfiVarAttr {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_EfiVarAttr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_EfiVarAttr> for OptRc<EfivarSignatureList_EfiVarAttr> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_EfiVarAttr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_EfiVarAttr> for &OptRc<EfivarSignatureList_EfiVarAttr> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_EfiVarAttr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EfivarSignatureList_EfiVarAttr {
     type Root = EfivarSignatureList;
@@ -192,6 +262,12 @@ impl EfivarSignatureList_EfiVarAttr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -207,6 +283,38 @@ pub struct EfivarSignatureList_SignatureData {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     owner_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&EfivarSignatureList_SignatureData> for OptRc<EfivarSignatureList_SignatureData> {
+    type Error = KError;
+    fn try_from(v: &EfivarSignatureList_SignatureData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EfivarSignatureList_SignatureData> for OptRc<EfivarSignatureList_SignatureData> {
+    type Error = KError;
+    fn try_from(v: &&EfivarSignatureList_SignatureData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureData> for EfivarSignatureList_SignatureData {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureData> for &EfivarSignatureList_SignatureData {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureData> for OptRc<EfivarSignatureList_SignatureData> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureData> for &OptRc<EfivarSignatureList_SignatureData> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EfivarSignatureList_SignatureData {
     type Root = EfivarSignatureList;
@@ -253,6 +361,12 @@ impl EfivarSignatureList_SignatureData {
 impl EfivarSignatureList_SignatureData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl EfivarSignatureList_SignatureData {
@@ -306,6 +420,38 @@ pub struct EfivarSignatureList_SignatureList {
     is_cert_sha512_x509: RefCell<bool>,
     f_is_cert_x509: Cell<bool>,
     is_cert_x509: RefCell<bool>,
+}
+impl TryFrom<&EfivarSignatureList_SignatureList> for OptRc<EfivarSignatureList_SignatureList> {
+    type Error = KError;
+    fn try_from(v: &EfivarSignatureList_SignatureList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EfivarSignatureList_SignatureList> for OptRc<EfivarSignatureList_SignatureList> {
+    type Error = KError;
+    fn try_from(v: &&EfivarSignatureList_SignatureList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureList> for EfivarSignatureList_SignatureList {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureList> for &EfivarSignatureList_SignatureList {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureList> for OptRc<EfivarSignatureList_SignatureList> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EfivarSignatureList_SignatureList> for &OptRc<EfivarSignatureList_SignatureList> {
+    fn downcast_optrc(&self) -> Result<OptRc<EfivarSignatureList_SignatureList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EfivarSignatureList_SignatureList {
     type Root = EfivarSignatureList;
@@ -622,6 +768,12 @@ impl EfivarSignatureList_SignatureList {
 impl EfivarSignatureList_SignatureList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl EfivarSignatureList_SignatureList {

@@ -85,11 +85,11 @@ fn test_str_encodings_utf16() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrEncodingsUtf16> = StrEncodingsUtf16::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.len_be(), 12);
-    assert_eq!(*r.be_bom_removed().bom(), 65279);
-    assert_eq!(*r.be_bom_removed().str(), "こんにちは");
-    assert_eq!(*r.len_le(), 12);
-    assert_eq!(*r.le_bom_removed().bom(), 65279);
-    assert_eq!(*r.le_bom_removed().str(), "こんにちは");
+    assert_eq!(*(r.len_be()), 12);
+    assert_eq!(*(r.be_bom_removed().bom()), 65279);
+    assert_eq!(*(r.be_bom_removed().str()), "こんにちは");
+    assert_eq!(*(r.len_le()), 12);
+    assert_eq!(*(r.le_bom_removed().bom()), 65279);
+    assert_eq!(*(r.le_bom_removed().str()), "こんにちは");
     Ok(())
 }

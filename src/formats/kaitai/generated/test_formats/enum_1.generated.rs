@@ -64,6 +64,38 @@ pub struct Enum1 {
     main: RefCell<OptRc<Enum1_MainObj>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Enum1> for OptRc<Enum1> {
+    type Error = KError;
+    fn try_from(v: &Enum1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Enum1> for OptRc<Enum1> {
+    type Error = KError;
+    fn try_from(v: &&Enum1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Enum1> for Enum1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Enum1> for &Enum1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Enum1> for OptRc<Enum1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Enum1> for &OptRc<Enum1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Enum1 {
     type Root = Enum1;
     type Parent = Enum1;
@@ -97,6 +129,12 @@ impl Enum1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -106,6 +144,38 @@ pub struct Enum1_MainObj {
     pub(crate) _self_shared: SharedType<Self>,
     submain: RefCell<OptRc<Enum1_MainObj_SubmainObj>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Enum1_MainObj> for OptRc<Enum1_MainObj> {
+    type Error = KError;
+    fn try_from(v: &Enum1_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Enum1_MainObj> for OptRc<Enum1_MainObj> {
+    type Error = KError;
+    fn try_from(v: &&Enum1_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj> for Enum1_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj> for &Enum1_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj> for OptRc<Enum1_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Enum1_MainObj> for &OptRc<Enum1_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Enum1_MainObj {
     type Root = Enum1;
@@ -139,6 +209,12 @@ impl Enum1_MainObj {
 impl Enum1_MainObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -186,6 +262,38 @@ pub struct Enum1_MainObj_SubmainObj {
     pet_2: RefCell<Enum1_MainObj_Animal>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Enum1_MainObj_SubmainObj> for OptRc<Enum1_MainObj_SubmainObj> {
+    type Error = KError;
+    fn try_from(v: &Enum1_MainObj_SubmainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Enum1_MainObj_SubmainObj> for OptRc<Enum1_MainObj_SubmainObj> {
+    type Error = KError;
+    fn try_from(v: &&Enum1_MainObj_SubmainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj_SubmainObj> for Enum1_MainObj_SubmainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj_SubmainObj> for &Enum1_MainObj_SubmainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Enum1_MainObj_SubmainObj> for OptRc<Enum1_MainObj_SubmainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Enum1_MainObj_SubmainObj> for &OptRc<Enum1_MainObj_SubmainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<Enum1_MainObj_SubmainObj>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Enum1_MainObj_SubmainObj {
     type Root = Enum1;
     type Parent = Enum1_MainObj;
@@ -223,5 +331,11 @@ impl Enum1_MainObj_SubmainObj {
 impl Enum1_MainObj_SubmainObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

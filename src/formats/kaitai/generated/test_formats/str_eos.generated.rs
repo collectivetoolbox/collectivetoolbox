@@ -64,6 +64,38 @@ pub struct StrEos {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&StrEos> for OptRc<StrEos> {
+    type Error = KError;
+    fn try_from(v: &StrEos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEos> for OptRc<StrEos> {
+    type Error = KError;
+    fn try_from(v: &&StrEos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEos> for StrEos {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEos>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEos> for &StrEos {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEos>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEos> for OptRc<StrEos> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEos>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEos> for &OptRc<StrEos> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEos>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrEos {
     type Root = StrEos;
     type Parent = StrEos;
@@ -95,5 +127,11 @@ impl StrEos {
 impl StrEos {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

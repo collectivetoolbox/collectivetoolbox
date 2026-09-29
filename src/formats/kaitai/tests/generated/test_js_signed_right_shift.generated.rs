@@ -85,7 +85,7 @@ fn test_js_signed_right_shift() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<JsSignedRightShift> = JsSignedRightShift::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.should_be_40000000()?, 1073741824);
-    assert_eq!(*r.should_be_a00000()?, 10485760);
+    assert_eq!(*(r.should_be_40000000()?), 1073741824);
+    assert_eq!(*(r.should_be_a00000()?), 10485760);
     Ok(())
 }

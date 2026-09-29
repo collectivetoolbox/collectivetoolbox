@@ -85,15 +85,15 @@ fn test_expr_if_int_eq() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIfIntEq> = ExprIfIntEq::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.seq_eq_lit()?, true);
-    assert_eq!(*r.seq_eq_calc()?, true);
-    assert_eq!(*r.seq_eq_calc_if()?, true);
-    assert_eq!(*r.seq_eq_seq_if()?, true);
-    assert_eq!(*r.calc_eq_lit()?, true);
-    assert_eq!(*r.calc_eq_calc_if()?, true);
-    assert_eq!(*r.calc_eq_seq_if()?, true);
-    assert_eq!(*r.calc_if_eq_lit()?, true);
-    assert_eq!(*r.calc_if_eq_seq_if()?, true);
-    assert_eq!(*r.seq_if_eq_lit()?, true);
+    assert_eq!(*(r.seq_eq_lit()?), true);
+    assert_eq!(*(r.seq_eq_calc()?), true);
+    assert_eq!(*(r.seq_eq_calc_if()?), true);
+    assert_eq!(*(r.seq_eq_seq_if()?), true);
+    assert_eq!(*(r.calc_eq_lit()?), true);
+    assert_eq!(*(r.calc_eq_calc_if()?), true);
+    assert_eq!(*(r.calc_eq_seq_if()?), true);
+    assert_eq!(*(r.calc_if_eq_lit()?), true);
+    assert_eq!(*(r.calc_if_eq_seq_if()?), true);
+    assert_eq!(*(r.seq_if_eq_lit()?), true);
     Ok(())
 }

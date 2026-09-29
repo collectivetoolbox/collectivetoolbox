@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::enum_to_i_class_border_2::EnumToIClassBorder2;
+use super::enum_to_i_class_border_2::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumToIClassBorder1 {
@@ -69,6 +70,38 @@ pub struct EnumToIClassBorder1 {
     checker: RefCell<OptRc<EnumToIClassBorder2>>,
     f_some_dog: Cell<bool>,
     some_dog: RefCell<EnumToIClassBorder1_Animal>,
+}
+impl TryFrom<&EnumToIClassBorder1> for OptRc<EnumToIClassBorder1> {
+    type Error = KError;
+    fn try_from(v: &EnumToIClassBorder1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumToIClassBorder1> for OptRc<EnumToIClassBorder1> {
+    type Error = KError;
+    fn try_from(v: &&EnumToIClassBorder1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder1> for EnumToIClassBorder1 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder1> for &EnumToIClassBorder1 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder1> for OptRc<EnumToIClassBorder1> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumToIClassBorder1> for &OptRc<EnumToIClassBorder1> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumToIClassBorder1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumToIClassBorder1 {
     type Root = EnumToIClassBorder1;
@@ -103,7 +136,7 @@ impl EnumToIClassBorder1 {
         }
         let _pos = _io.pos();
         _io.seek(0_usize)?;
-        let f = |t : &mut EnumToIClassBorder2| Ok(t.set_params(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.clone()));
+        let f = |t : &mut EnumToIClassBorder2| Ok(t.set_params(OptRc::from((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?).clone())));
         let t = Self::read_into_with_init::<_, EnumToIClassBorder2>(&*_io, None, None, &f)?.into();
         *self.checker.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -135,6 +168,12 @@ impl EnumToIClassBorder1 {
 impl EnumToIClassBorder1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

@@ -26,6 +26,38 @@ pub struct PsxTim {
     f_has_clut: Cell<bool>,
     has_clut: RefCell<bool>,
 }
+impl TryFrom<&PsxTim> for OptRc<PsxTim> {
+    type Error = KError;
+    fn try_from(v: &PsxTim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PsxTim> for OptRc<PsxTim> {
+    type Error = KError;
+    fn try_from(v: &&PsxTim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PsxTim> for PsxTim {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PsxTim> for &PsxTim {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PsxTim> for OptRc<PsxTim> {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PsxTim> for &OptRc<PsxTim> {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PsxTim {
     type Root = PsxTim;
     type Parent = PsxTim;
@@ -115,6 +147,12 @@ impl PsxTim {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PsxTim_BppType {
@@ -168,6 +206,38 @@ pub struct PsxTim_Bitmap {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PsxTim_Bitmap> for OptRc<PsxTim_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &PsxTim_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PsxTim_Bitmap> for OptRc<PsxTim_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &&PsxTim_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PsxTim_Bitmap> for PsxTim_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim_Bitmap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PsxTim_Bitmap> for &PsxTim_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim_Bitmap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PsxTim_Bitmap> for OptRc<PsxTim_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim_Bitmap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PsxTim_Bitmap> for &OptRc<PsxTim_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<PsxTim_Bitmap>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PsxTim_Bitmap {
     type Root = PsxTim;
@@ -230,6 +300,12 @@ impl PsxTim_Bitmap {
 impl PsxTim_Bitmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl PsxTim_Bitmap {

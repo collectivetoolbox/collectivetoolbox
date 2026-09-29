@@ -67,7 +67,7 @@ pub struct CombineStr {
     _io: RefCell<BytesReader>,
     str_limit_raw: RefCell<Vec<u8>>,
     f_calc_bytes: Cell<bool>,
-    calc_bytes: RefCell<Vec<i32>>,
+    calc_bytes: RefCell<Vec<u8>>,
     f_calc_or_calc_bytes: Cell<bool>,
     calc_or_calc_bytes: RefCell<String>,
     f_eos_or_calc: Cell<bool>,
@@ -92,6 +92,38 @@ pub struct CombineStr {
     term_or_eos: RefCell<String>,
     f_term_or_limit: Cell<bool>,
     term_or_limit: RefCell<String>,
+}
+impl TryFrom<&CombineStr> for OptRc<CombineStr> {
+    type Error = KError;
+    fn try_from(v: &CombineStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CombineStr> for OptRc<CombineStr> {
+    type Error = KError;
+    fn try_from(v: &&CombineStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CombineStr> for CombineStr {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineStr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CombineStr> for &CombineStr {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineStr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CombineStr> for OptRc<CombineStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineStr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CombineStr> for &OptRc<CombineStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineStr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CombineStr {
     type Root = CombineStr;
@@ -120,13 +152,13 @@ impl CombineStr {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_bytes(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_calc_bytes.get() {
             return Ok(self.calc_bytes.borrow());
         }
         self.f_calc_bytes.set(true);
-        *self.calc_bytes.borrow_mut() = vec![98_i32, 97_i32, 122_i32];
+        *self.calc_bytes.borrow_mut() = vec![0x62u8, 0x61u8, 0x7au8];
         Ok(self.calc_bytes.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -292,6 +324,12 @@ impl CombineStr {
 impl CombineStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl CombineStr {

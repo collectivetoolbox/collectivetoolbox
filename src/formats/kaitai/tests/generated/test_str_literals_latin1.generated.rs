@@ -85,6 +85,6 @@ fn test_str_literals_latin1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrLiteralsLatin1> = StrLiteralsLatin1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.parsed_eq_literal()?, true);
+    assert_eq!(*(r.parsed_eq_literal()?), true);
     Ok(())
 }

@@ -53,6 +53,38 @@ pub struct VlqBase128Le {
     f_value_signed: Cell<bool>,
     value_signed: RefCell<i32>,
 }
+impl TryFrom<&VlqBase128Le> for OptRc<VlqBase128Le> {
+    type Error = KError;
+    fn try_from(v: &VlqBase128Le) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&VlqBase128Le> for OptRc<VlqBase128Le> {
+    type Error = KError;
+    fn try_from(v: &&VlqBase128Le) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le> for VlqBase128Le {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le> for &VlqBase128Le {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le> for OptRc<VlqBase128Le> {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<VlqBase128Le> for &OptRc<VlqBase128Le> {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for VlqBase128Le {
     type Root = VlqBase128Le;
     type Parent = VlqBase128Le;
@@ -149,6 +181,12 @@ impl VlqBase128Le {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -168,6 +206,38 @@ pub struct VlqBase128Le_Group {
     _io: RefCell<BytesReader>,
     f_interm_value: Cell<bool>,
     interm_value: RefCell<i32>,
+}
+impl TryFrom<&VlqBase128Le_Group> for OptRc<VlqBase128Le_Group> {
+    type Error = KError;
+    fn try_from(v: &VlqBase128Le_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&VlqBase128Le_Group> for OptRc<VlqBase128Le_Group> {
+    type Error = KError;
+    fn try_from(v: &&VlqBase128Le_Group) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le_Group> for VlqBase128Le_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le_Group>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le_Group> for &VlqBase128Le_Group {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le_Group>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<VlqBase128Le_Group> for OptRc<VlqBase128Le_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le_Group>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<VlqBase128Le_Group> for &OptRc<VlqBase128Le_Group> {
+    fn downcast_optrc(&self) -> Result<OptRc<VlqBase128Le_Group>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for VlqBase128Le_Group {
     type Root = VlqBase128Le;
@@ -263,5 +333,11 @@ impl VlqBase128Le_Group {
 impl VlqBase128Le_Group {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

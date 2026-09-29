@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::rtp_packet::RtpPacket;
+use super::rtp_packet::*;
 
 /**
  * rtpdump is a format used by rtptools to record and replay
@@ -20,6 +21,38 @@ pub struct Rtpdump {
     file_header: RefCell<OptRc<Rtpdump_HeaderT>>,
     packets: RefCell<Vec<OptRc<Rtpdump_PacketT>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rtpdump> for OptRc<Rtpdump> {
+    type Error = KError;
+    fn try_from(v: &Rtpdump) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rtpdump> for OptRc<Rtpdump> {
+    type Error = KError;
+    fn try_from(v: &&Rtpdump) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump> for Rtpdump {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump> for &Rtpdump {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump> for OptRc<Rtpdump> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rtpdump> for &OptRc<Rtpdump> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rtpdump {
     type Root = Rtpdump;
@@ -68,6 +101,12 @@ impl Rtpdump {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -85,6 +124,38 @@ pub struct Rtpdump_HeaderT {
     port2: RefCell<u16>,
     padding: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Rtpdump_HeaderT> for OptRc<Rtpdump_HeaderT> {
+    type Error = KError;
+    fn try_from(v: &Rtpdump_HeaderT) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rtpdump_HeaderT> for OptRc<Rtpdump_HeaderT> {
+    type Error = KError;
+    fn try_from(v: &&Rtpdump_HeaderT) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_HeaderT> for Rtpdump_HeaderT {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_HeaderT>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_HeaderT> for &Rtpdump_HeaderT {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_HeaderT>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_HeaderT> for OptRc<Rtpdump_HeaderT> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_HeaderT>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rtpdump_HeaderT> for &OptRc<Rtpdump_HeaderT> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_HeaderT>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rtpdump_HeaderT {
     type Root = Rtpdump;
@@ -192,6 +263,12 @@ impl Rtpdump_HeaderT {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -205,6 +282,38 @@ pub struct Rtpdump_PacketT {
     body: RefCell<OptRc<RtpPacket>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Rtpdump_PacketT> for OptRc<Rtpdump_PacketT> {
+    type Error = KError;
+    fn try_from(v: &Rtpdump_PacketT) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Rtpdump_PacketT> for OptRc<Rtpdump_PacketT> {
+    type Error = KError;
+    fn try_from(v: &&Rtpdump_PacketT) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_PacketT> for Rtpdump_PacketT {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_PacketT>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_PacketT> for &Rtpdump_PacketT {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_PacketT>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Rtpdump_PacketT> for OptRc<Rtpdump_PacketT> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_PacketT>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Rtpdump_PacketT> for &OptRc<Rtpdump_PacketT> {
+    fn downcast_optrc(&self) -> Result<OptRc<Rtpdump_PacketT>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Rtpdump_PacketT {
     type Root = Rtpdump;
@@ -271,6 +380,12 @@ impl Rtpdump_PacketT {
 impl Rtpdump_PacketT {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Rtpdump_PacketT {

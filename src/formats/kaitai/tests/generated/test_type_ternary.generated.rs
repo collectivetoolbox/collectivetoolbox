@@ -85,6 +85,6 @@ fn test_type_ternary() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TypeTernary> = TypeTernary::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.dif()?.value(), 101);
+    assert_eq!(*(r.dif()?.value()), 101);
     Ok(())
 }

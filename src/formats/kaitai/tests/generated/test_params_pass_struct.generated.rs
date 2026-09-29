@@ -85,9 +85,9 @@ fn test_params_pass_struct() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsPassStruct> = ParamsPassStruct::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.first().foo(), 255);
-    assert_eq!(*r.one().bar().qux(), 1);
-    assert_eq!(*r.one().foo().as_ref().context("Missing optional field")?.foo(), 255);
-    assert_eq!(*r.one().bar().foo().as_ref().context("Missing optional field")?.foo(), 255);
+    assert_eq!(*(r.first().foo()), 255);
+    assert_eq!(*(r.one().bar().qux()), 1);
+    assert_eq!(*(kaitai::DowncastOptRc::<ParamsPassStruct_Block>::downcast_optrc(&r.one().foo())?.foo()), 255);
+    assert_eq!(*(kaitai::DowncastOptRc::<ParamsPassStruct_Block>::downcast_optrc(&r.one().bar().foo())?.foo()), 255);
     Ok(())
 }

@@ -55,7 +55,6 @@ SOFTWARE.
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::r#struct::Struct;
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsPassArrayStruct {
@@ -68,6 +67,38 @@ pub struct ParamsPassArrayStruct {
     _io: RefCell<BytesReader>,
     f_one_two: Cell<bool>,
     one_two: RefCell<Vec<OptRc<Struct>>>,
+}
+impl TryFrom<&ParamsPassArrayStruct> for OptRc<ParamsPassArrayStruct> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayStruct> for OptRc<ParamsPassArrayStruct> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct> for ParamsPassArrayStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct> for &ParamsPassArrayStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct> for OptRc<ParamsPassArrayStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct> for &OptRc<ParamsPassArrayStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayStruct {
     type Root = ParamsPassArrayStruct;
@@ -89,7 +120,7 @@ impl KStruct for ParamsPassArrayStruct {
         *self_rc.one.borrow_mut() = t;
         let t = Self::read_into::<_, ParamsPassArrayStruct_Bar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.two.borrow_mut() = t;
-        let f = |t : &mut ParamsPassArrayStruct_StructType| Ok(t.set_params(*self_rc.one_two()?.clone()));
+        let f = |t : &mut ParamsPassArrayStruct_StructType| Ok(t.set_params((*self_rc.one_two()?).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayStruct_StructType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_structs.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -106,7 +137,7 @@ impl ParamsPassArrayStruct {
             return Ok(self.one_two.borrow());
         }
         self.f_one_two.set(true);
-        *self.one_two.borrow_mut() = vec![self.one(), self.two()];
+        *self.one_two.borrow_mut() = vec![Struct::from_opt_rc(&(self.one())), Struct::from_opt_rc(&(self.two()))];
         Ok(self.one_two.borrow())
     }
 }
@@ -129,6 +160,12 @@ impl ParamsPassArrayStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -138,6 +175,38 @@ pub struct ParamsPassArrayStruct_Bar {
     pub(crate) _self_shared: SharedType<Self>,
     b: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassArrayStruct_Bar> for OptRc<ParamsPassArrayStruct_Bar> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayStruct_Bar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayStruct_Bar> for OptRc<ParamsPassArrayStruct_Bar> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayStruct_Bar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Bar> for ParamsPassArrayStruct_Bar {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Bar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Bar> for &ParamsPassArrayStruct_Bar {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Bar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Bar> for OptRc<ParamsPassArrayStruct_Bar> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Bar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Bar> for &OptRc<ParamsPassArrayStruct_Bar> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Bar>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayStruct_Bar {
     type Root = ParamsPassArrayStruct;
@@ -171,6 +240,12 @@ impl ParamsPassArrayStruct_Bar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -180,6 +255,38 @@ pub struct ParamsPassArrayStruct_Foo {
     pub(crate) _self_shared: SharedType<Self>,
     f: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassArrayStruct_Foo> for OptRc<ParamsPassArrayStruct_Foo> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayStruct_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayStruct_Foo> for OptRc<ParamsPassArrayStruct_Foo> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayStruct_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Foo> for ParamsPassArrayStruct_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Foo> for &ParamsPassArrayStruct_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Foo> for OptRc<ParamsPassArrayStruct_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_Foo> for &OptRc<ParamsPassArrayStruct_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayStruct_Foo {
     type Root = ParamsPassArrayStruct;
@@ -213,6 +320,12 @@ impl ParamsPassArrayStruct_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -220,8 +333,40 @@ pub struct ParamsPassArrayStruct_StructType {
     pub(crate) _root: SharedType<ParamsPassArrayStruct>,
     pub(crate) _parent: SharedType<ParamsPassArrayStruct>,
     pub(crate) _self_shared: SharedType<Self>,
-    structs: RefCell<OptRc<Struct>>,
+    structs: RefCell<Vec<OptRc<Struct>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassArrayStruct_StructType> for OptRc<ParamsPassArrayStruct_StructType> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayStruct_StructType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayStruct_StructType> for OptRc<ParamsPassArrayStruct_StructType> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayStruct_StructType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_StructType> for ParamsPassArrayStruct_StructType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_StructType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_StructType> for &ParamsPassArrayStruct_StructType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_StructType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_StructType> for OptRc<ParamsPassArrayStruct_StructType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_StructType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayStruct_StructType> for &OptRc<ParamsPassArrayStruct_StructType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayStruct_StructType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayStruct_StructType {
     type Root = ParamsPassArrayStruct;
@@ -244,12 +389,12 @@ impl KStruct for ParamsPassArrayStruct_StructType {
     }
 }
 impl ParamsPassArrayStruct_StructType {
-    pub fn structs(&self) -> Ref<'_, OptRc<Struct>> {
+    pub fn structs(&self) -> Ref<'_, Vec<OptRc<Struct>>> {
         self.structs.borrow()
     }
 }
 impl ParamsPassArrayStruct_StructType {
-    pub fn set_params(&mut self, structs: OptRc<Struct>) {
+    pub fn set_params(&mut self, structs: Vec<OptRc<Struct>>) {
         *self.structs.borrow_mut() = structs;
     }
 }
@@ -258,5 +403,11 @@ impl ParamsPassArrayStruct_StructType {
 impl ParamsPassArrayStruct_StructType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

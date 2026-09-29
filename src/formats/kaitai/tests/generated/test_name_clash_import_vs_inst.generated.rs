@@ -85,7 +85,7 @@ fn test_name_clash_import_vs_inst() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NameClashImportVsInst> = NameClashImportVsInst::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.integers()?.uint8(), 255);
-    assert_eq!(*r.std()?, 3);
+    assert_eq!(*(r.integers()?.uint8()), 255);
+    assert_eq!(*(r.std()?), 3);
     Ok(())
 }

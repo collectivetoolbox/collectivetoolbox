@@ -85,6 +85,6 @@ fn test_default_big_endian() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DefaultBigEndian> = DefaultBigEndian::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), 117440512);
+    assert_eq!(*(r.one()), 117440512);
     Ok(())
 }

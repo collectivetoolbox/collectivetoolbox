@@ -75,6 +75,38 @@ pub struct StrEncodingsEscapingEnc {
     str3_raw: RefCell<Vec<u8>>,
     str4_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&StrEncodingsEscapingEnc> for OptRc<StrEncodingsEscapingEnc> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsEscapingEnc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsEscapingEnc> for OptRc<StrEncodingsEscapingEnc> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsEscapingEnc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc> for StrEncodingsEscapingEnc {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc> for &StrEncodingsEscapingEnc {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc> for OptRc<StrEncodingsEscapingEnc> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc> for &OptRc<StrEncodingsEscapingEnc> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrEncodingsEscapingEnc {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
@@ -165,6 +197,12 @@ impl StrEncodingsEscapingEnc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl StrEncodingsEscapingEnc {
     pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -195,6 +233,38 @@ pub struct StrEncodingsEscapingEnc_Str1Wrapper {
     _io: RefCell<BytesReader>,
     f_v: Cell<bool>,
     v: RefCell<String>,
+}
+impl TryFrom<&StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsEscapingEnc_Str1Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsEscapingEnc_Str1Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for StrEncodingsEscapingEnc_Str1Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for &StrEncodingsEscapingEnc_Str1Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str1Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str1Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str1Wrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     type Root = StrEncodingsEscapingEnc;
@@ -237,6 +307,12 @@ impl StrEncodingsEscapingEnc_Str1Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -247,6 +323,38 @@ pub struct StrEncodingsEscapingEnc_Str2Wrapper {
     _io: RefCell<BytesReader>,
     f_v: Cell<bool>,
     v: RefCell<String>,
+}
+impl TryFrom<&StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsEscapingEnc_Str2Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsEscapingEnc_Str2Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for StrEncodingsEscapingEnc_Str2Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for &StrEncodingsEscapingEnc_Str2Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str2Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str2Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str2Wrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     type Root = StrEncodingsEscapingEnc;
@@ -289,6 +397,12 @@ impl StrEncodingsEscapingEnc_Str2Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -299,6 +413,38 @@ pub struct StrEncodingsEscapingEnc_Str3Wrapper {
     _io: RefCell<BytesReader>,
     f_v: Cell<bool>,
     v: RefCell<String>,
+}
+impl TryFrom<&StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsEscapingEnc_Str3Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsEscapingEnc_Str3Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for StrEncodingsEscapingEnc_Str3Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for &StrEncodingsEscapingEnc_Str3Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str3Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str3Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str3Wrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     type Root = StrEncodingsEscapingEnc;
@@ -341,6 +487,12 @@ impl StrEncodingsEscapingEnc_Str3Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -351,6 +503,38 @@ pub struct StrEncodingsEscapingEnc_Str4Wrapper {
     _io: RefCell<BytesReader>,
     f_v: Cell<bool>,
     v: RefCell<String>,
+}
+impl TryFrom<&StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsEscapingEnc_Str4Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsEscapingEnc_Str4Wrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for StrEncodingsEscapingEnc_Str4Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for &StrEncodingsEscapingEnc_Str4Wrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsEscapingEnc_Str4Wrapper> for &OptRc<StrEncodingsEscapingEnc_Str4Wrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     type Root = StrEncodingsEscapingEnc;
@@ -392,5 +576,11 @@ impl StrEncodingsEscapingEnc_Str4Wrapper {
 impl StrEncodingsEscapingEnc_Str4Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

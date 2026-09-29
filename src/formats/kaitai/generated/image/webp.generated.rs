@@ -21,6 +21,38 @@ pub struct Webp {
     _io: RefCell<BytesReader>,
     payload_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Webp> for OptRc<Webp> {
+    type Error = KError;
+    fn try_from(v: &Webp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp> for OptRc<Webp> {
+    type Error = KError;
+    fn try_from(v: &&Webp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp> for Webp {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp> for &Webp {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp> for OptRc<Webp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp> for &OptRc<Webp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Webp {
     type Root = Webp;
     type Parent = Webp;
@@ -80,6 +112,12 @@ impl Webp {
 impl Webp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Webp {
@@ -261,6 +299,38 @@ pub struct Webp_Alph {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Webp_Alph> for OptRc<Webp_Alph> {
+    type Error = KError;
+    fn try_from(v: &Webp_Alph) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Alph> for OptRc<Webp_Alph> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Alph) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Alph> for Webp_Alph {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Alph> for &Webp_Alph {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Alph> for OptRc<Webp_Alph> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Alph> for &OptRc<Webp_Alph> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Webp_Alph {
     type Root = Webp;
     type Parent = Webp_Chunk;
@@ -282,12 +352,12 @@ impl KStruct for Webp_Alph {
         if !(*self_rc.reserved() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/alph/seq/0".to_string() }));
         }
-        *self_rc.preprocessing.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.preprocessing.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         if matches!(*self_rc.preprocessing(), Webp_Preprocessing::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/1".to_string() }));
         }
-        *self_rc.filtering.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
-        *self_rc.compression.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.filtering.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc.compression.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         if matches!(*self_rc.compression(), Webp_CompressionMethod::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/3".to_string() }));
         }
@@ -328,6 +398,12 @@ impl Webp_Alph {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -342,6 +418,38 @@ pub struct Webp_Anim {
     background_color: RefCell<OptRc<Webp_Anim_BgColor>>,
     loop_count: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Webp_Anim> for OptRc<Webp_Anim> {
+    type Error = KError;
+    fn try_from(v: &Webp_Anim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Anim> for OptRc<Webp_Anim> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Anim) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim> for Webp_Anim {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim> for &Webp_Anim {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim> for OptRc<Webp_Anim> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Anim> for &OptRc<Webp_Anim> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Anim {
     type Root = Webp;
@@ -382,6 +490,12 @@ impl Webp_Anim {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -394,6 +508,38 @@ pub struct Webp_Anim_BgColor {
     red: RefCell<u8>,
     alpha: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Webp_Anim_BgColor> for OptRc<Webp_Anim_BgColor> {
+    type Error = KError;
+    fn try_from(v: &Webp_Anim_BgColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Anim_BgColor> for OptRc<Webp_Anim_BgColor> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Anim_BgColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim_BgColor> for Webp_Anim_BgColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim_BgColor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim_BgColor> for &Webp_Anim_BgColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim_BgColor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anim_BgColor> for OptRc<Webp_Anim_BgColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim_BgColor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Anim_BgColor> for &OptRc<Webp_Anim_BgColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim_BgColor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Anim_BgColor {
     type Root = Webp;
@@ -445,6 +591,12 @@ impl Webp_Anim_BgColor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -470,6 +622,38 @@ pub struct Webp_Anmf {
     frame_x: RefCell<u64>,
     f_frame_y: Cell<bool>,
     frame_y: RefCell<u64>,
+}
+impl TryFrom<&Webp_Anmf> for OptRc<Webp_Anmf> {
+    type Error = KError;
+    fn try_from(v: &Webp_Anmf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Anmf> for OptRc<Webp_Anmf> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Anmf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for Webp_Anmf {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for &Webp_Anmf {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for OptRc<Webp_Anmf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for &OptRc<Webp_Anmf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Anmf {
     type Root = Webp;
@@ -604,6 +788,12 @@ impl Webp_Anmf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -638,6 +828,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Alph> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Alph> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Alph> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        OptRc::<Webp_Alph>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Alph> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Alph>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Webp_Alph>> for Webp_Chunk_Data {
     fn from(v: OptRc<Webp_Alph>) -> Self {
         Self::Webp_Alph(v)
@@ -650,6 +856,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Anim> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Anim> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Anim> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        OptRc::<Webp_Anim>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Anim> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anim>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Webp_Anim>> for Webp_Chunk_Data {
@@ -666,6 +888,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Anmf> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Anmf> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        OptRc::<Webp_Anmf>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Anmf> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Anmf>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Webp_Anmf>> for Webp_Chunk_Data {
     fn from(v: OptRc<Webp_Anmf>) -> Self {
         Self::Webp_Anmf(v)
@@ -678,6 +916,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Vp8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Vp8> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        OptRc::<Webp_Vp8>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Webp_Vp8>> for Webp_Chunk_Data {
@@ -694,6 +948,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Vp8l> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Vp8l> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        OptRc::<Webp_Vp8l>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Webp_Vp8l>> for Webp_Chunk_Data {
     fn from(v: OptRc<Webp_Vp8l>) -> Self {
         Self::Webp_Vp8l(v)
@@ -706,6 +976,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Vp8x> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Vp8x> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        OptRc::<Webp_Vp8x>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Webp_Vp8x>> for Webp_Chunk_Data {
@@ -722,6 +1008,22 @@ impl TryFrom<&Webp_Chunk_Data> for OptRc<Webp_Xmp> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Webp_Chunk_Data> for OptRc<Webp_Xmp> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        OptRc::<Webp_Xmp>::try_from(self)
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for &Webp_Chunk_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Webp_Xmp>> for Webp_Chunk_Data {
     fn from(v: OptRc<Webp_Xmp>) -> Self {
         Self::Webp_Xmp(v)
@@ -736,9 +1038,47 @@ impl TryFrom<&Webp_Chunk_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Webp_Chunk_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Webp_Chunk_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Webp_Chunk> for OptRc<Webp_Chunk> {
+    type Error = KError;
+    fn try_from(v: &Webp_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Chunk> for OptRc<Webp_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunk> for Webp_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunk> for &Webp_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunk> for OptRc<Webp_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Chunk> for &OptRc<Webp_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Webp_Chunk {
@@ -859,6 +1199,12 @@ impl Webp_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Webp_Chunk {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -873,6 +1219,38 @@ pub struct Webp_Chunks {
     pub(crate) _self_shared: SharedType<Self>,
     chunks: RefCell<Vec<OptRc<Webp_Chunk>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Webp_Chunks> for OptRc<Webp_Chunks> {
+    type Error = KError;
+    fn try_from(v: &Webp_Chunks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Chunks> for OptRc<Webp_Chunks> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Chunks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunks> for Webp_Chunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunks>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunks> for &Webp_Chunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunks>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Chunks> for OptRc<Webp_Chunks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunks>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Chunks> for &OptRc<Webp_Chunks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Chunks>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Chunks {
     type Root = Webp;
@@ -914,6 +1292,12 @@ impl Webp_Chunks {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -936,6 +1320,38 @@ pub struct Webp_Vp8 {
     vertical_scale: RefCell<u64>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Webp_Vp8> for OptRc<Webp_Vp8> {
+    type Error = KError;
+    fn try_from(v: &Webp_Vp8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Vp8> for OptRc<Webp_Vp8> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Vp8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for Webp_Vp8 {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for &Webp_Vp8 {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for OptRc<Webp_Vp8> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Vp8> for &OptRc<Webp_Vp8> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Vp8 {
     type Root = Webp;
@@ -1035,6 +1451,12 @@ impl Webp_Vp8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1057,6 +1479,38 @@ pub struct Webp_Vp8l {
     image_height: RefCell<u64>,
     f_image_width: Cell<bool>,
     image_width: RefCell<u64>,
+}
+impl TryFrom<&Webp_Vp8l> for OptRc<Webp_Vp8l> {
+    type Error = KError;
+    fn try_from(v: &Webp_Vp8l) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Vp8l> for OptRc<Webp_Vp8l> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Vp8l) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for Webp_Vp8l {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for &Webp_Vp8l {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for OptRc<Webp_Vp8l> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Vp8l> for &OptRc<Webp_Vp8l> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8l>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Vp8l {
     type Root = Webp;
@@ -1158,6 +1612,12 @@ impl Webp_Vp8l {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1180,6 +1640,38 @@ pub struct Webp_Vp8x {
     canvas_height: RefCell<u64>,
     f_canvas_width: Cell<bool>,
     canvas_width: RefCell<u64>,
+}
+impl TryFrom<&Webp_Vp8x> for OptRc<Webp_Vp8x> {
+    type Error = KError;
+    fn try_from(v: &Webp_Vp8x) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Vp8x> for OptRc<Webp_Vp8x> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Vp8x) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for Webp_Vp8x {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for &Webp_Vp8x {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for OptRc<Webp_Vp8x> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Vp8x> for &OptRc<Webp_Vp8x> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Vp8x>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Vp8x {
     type Root = Webp;
@@ -1306,6 +1798,12 @@ impl Webp_Vp8x {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1315,6 +1813,38 @@ pub struct Webp_Xmp {
     pub(crate) _self_shared: SharedType<Self>,
     data: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Webp_Xmp> for OptRc<Webp_Xmp> {
+    type Error = KError;
+    fn try_from(v: &Webp_Xmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Webp_Xmp> for OptRc<Webp_Xmp> {
+    type Error = KError;
+    fn try_from(v: &&Webp_Xmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for Webp_Xmp {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for &Webp_Xmp {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for OptRc<Webp_Xmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Webp_Xmp> for &OptRc<Webp_Xmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Webp_Xmp>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Webp_Xmp {
     type Root = Webp;
@@ -1347,5 +1877,11 @@ impl Webp_Xmp {
 impl Webp_Xmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

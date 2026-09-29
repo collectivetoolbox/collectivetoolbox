@@ -64,6 +64,38 @@ pub struct ProcessCoerceUsertype1 {
     records: RefCell<Vec<OptRc<ProcessCoerceUsertype1_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ProcessCoerceUsertype1> for OptRc<ProcessCoerceUsertype1> {
+    type Error = KError;
+    fn try_from(v: &ProcessCoerceUsertype1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCoerceUsertype1> for OptRc<ProcessCoerceUsertype1> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceUsertype1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1> for ProcessCoerceUsertype1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1> for &ProcessCoerceUsertype1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1> for OptRc<ProcessCoerceUsertype1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1> for &OptRc<ProcessCoerceUsertype1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessCoerceUsertype1 {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1;
@@ -101,6 +133,12 @@ impl ProcessCoerceUsertype1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -110,6 +148,38 @@ pub struct ProcessCoerceUsertype1_Foo {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
+    type Error = KError;
+    fn try_from(v: &ProcessCoerceUsertype1_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceUsertype1_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for ProcessCoerceUsertype1_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for &ProcessCoerceUsertype1_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for OptRc<ProcessCoerceUsertype1_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Foo> for &OptRc<ProcessCoerceUsertype1_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Foo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessCoerceUsertype1_Foo {
     type Root = ProcessCoerceUsertype1;
@@ -143,6 +213,12 @@ impl ProcessCoerceUsertype1_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -158,6 +234,38 @@ pub struct ProcessCoerceUsertype1_Record {
     buf_proc_raw: RefCell<Vec<u8>>,
     f_buf: Cell<bool>,
     buf: RefCell<OptRc<ProcessCoerceUsertype1_Foo>>,
+}
+impl TryFrom<&ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
+    type Error = KError;
+    fn try_from(v: &ProcessCoerceUsertype1_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCoerceUsertype1_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Record> for ProcessCoerceUsertype1_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Record> for &ProcessCoerceUsertype1_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Record> for OptRc<ProcessCoerceUsertype1_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCoerceUsertype1_Record> for &OptRc<ProcessCoerceUsertype1_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCoerceUsertype1_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessCoerceUsertype1_Record {
     type Root = ProcessCoerceUsertype1;
@@ -226,6 +334,12 @@ impl ProcessCoerceUsertype1_Record {
 impl ProcessCoerceUsertype1_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProcessCoerceUsertype1_Record {

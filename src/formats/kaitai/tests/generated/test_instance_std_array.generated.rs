@@ -85,12 +85,12 @@ fn test_instance_std_array() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<InstanceStdArray> = InstanceStdArray::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.ofs(), 16);
-    assert_eq!(*r.qty_entries(), 3);
-    assert_eq!(*r.entry_size(), 4);
+    assert_eq!(*(r.ofs()), 16);
+    assert_eq!(*(r.qty_entries()), 3);
+    assert_eq!(*(r.entry_size()), 4);
     assert_eq!(r.entries()?.len(), 3);
-    assert_eq!(r.entries()?[0], vec![0x11u8, 0x11u8, 0x11u8, 0x11u8]);
-    assert_eq!(r.entries()?[1], vec![0x22u8, 0x22u8, 0x22u8, 0x22u8]);
-    assert_eq!(r.entries()?[2], vec![0x33u8, 0x33u8, 0x33u8, 0x33u8]);
+    assert_eq!(r.entries()?[0], vec![0x11, 0x11, 0x11, 0x11]);
+    assert_eq!(r.entries()?[1], vec![0x22, 0x22, 0x22, 0x22]);
+    assert_eq!(r.entries()?[2], vec![0x33, 0x33, 0x33, 0x33]);
     Ok(())
 }

@@ -79,6 +79,38 @@ pub struct Expr2 {
     f_str2_tuple5: Cell<bool>,
     str2_tuple5: RefCell<OptRc<Expr2_Tuple>>,
 }
+impl TryFrom<&Expr2> for OptRc<Expr2> {
+    type Error = KError;
+    fn try_from(v: &Expr2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Expr2> for OptRc<Expr2> {
+    type Error = KError;
+    fn try_from(v: &&Expr2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Expr2> for Expr2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Expr2> for &Expr2 {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Expr2> for OptRc<Expr2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Expr2> for &OptRc<Expr2> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Expr2 {
     type Root = Expr2;
     type Parent = Expr2;
@@ -201,6 +233,12 @@ impl Expr2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -220,6 +258,38 @@ pub struct Expr2_ModStr {
     len_mod: RefCell<i32>,
     f_tuple5: Cell<bool>,
     tuple5: RefCell<OptRc<Expr2_Tuple>>,
+}
+impl TryFrom<&Expr2_ModStr> for OptRc<Expr2_ModStr> {
+    type Error = KError;
+    fn try_from(v: &Expr2_ModStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Expr2_ModStr> for OptRc<Expr2_ModStr> {
+    type Error = KError;
+    fn try_from(v: &&Expr2_ModStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Expr2_ModStr> for Expr2_ModStr {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_ModStr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Expr2_ModStr> for &Expr2_ModStr {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_ModStr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Expr2_ModStr> for OptRc<Expr2_ModStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_ModStr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Expr2_ModStr> for &OptRc<Expr2_ModStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_ModStr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Expr2_ModStr {
     type Root = Expr2;
@@ -311,6 +381,12 @@ impl Expr2_ModStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Expr2_ModStr {
     pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -334,6 +410,38 @@ pub struct Expr2_Tuple {
     _io: RefCell<BytesReader>,
     f_avg: Cell<bool>,
     avg: RefCell<i32>,
+}
+impl TryFrom<&Expr2_Tuple> for OptRc<Expr2_Tuple> {
+    type Error = KError;
+    fn try_from(v: &Expr2_Tuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Expr2_Tuple> for OptRc<Expr2_Tuple> {
+    type Error = KError;
+    fn try_from(v: &&Expr2_Tuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Expr2_Tuple> for Expr2_Tuple {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_Tuple>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Expr2_Tuple> for &Expr2_Tuple {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_Tuple>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Expr2_Tuple> for OptRc<Expr2_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_Tuple>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Expr2_Tuple> for &OptRc<Expr2_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr2_Tuple>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Expr2_Tuple {
     type Root = Expr2;
@@ -390,5 +498,11 @@ impl Expr2_Tuple {
 impl Expr2_Tuple {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -25,6 +25,38 @@ pub struct Ogg {
     pages: RefCell<Vec<OptRc<Ogg_Page>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Ogg> for OptRc<Ogg> {
+    type Error = KError;
+    fn try_from(v: &Ogg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ogg> for OptRc<Ogg> {
+    type Error = KError;
+    fn try_from(v: &&Ogg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ogg> for Ogg {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ogg> for &Ogg {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ogg> for OptRc<Ogg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ogg> for &OptRc<Ogg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ogg {
     type Root = Ogg;
     type Parent = Ogg;
@@ -65,6 +97,12 @@ impl Ogg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -92,6 +130,38 @@ pub struct Ogg_Page {
     segments: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
     segments_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ogg_Page> for OptRc<Ogg_Page> {
+    type Error = KError;
+    fn try_from(v: &Ogg_Page) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ogg_Page> for OptRc<Ogg_Page> {
+    type Error = KError;
+    fn try_from(v: &&Ogg_Page) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ogg_Page> for Ogg_Page {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg_Page>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ogg_Page> for &Ogg_Page {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg_Page>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ogg_Page> for OptRc<Ogg_Page> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg_Page>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ogg_Page> for &OptRc<Ogg_Page> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ogg_Page>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ogg_Page {
     type Root = Ogg;
@@ -278,6 +348,12 @@ impl Ogg_Page {
 impl Ogg_Page {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ogg_Page {

@@ -73,6 +73,38 @@ pub struct TermStrzUtf16V4 {
     skip_term2_raw: RefCell<Vec<u8>>,
     s3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&TermStrzUtf16V4> for OptRc<TermStrzUtf16V4> {
+    type Error = KError;
+    fn try_from(v: &TermStrzUtf16V4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStrzUtf16V4> for OptRc<TermStrzUtf16V4> {
+    type Error = KError;
+    fn try_from(v: &&TermStrzUtf16V4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4> for TermStrzUtf16V4 {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4> for &TermStrzUtf16V4 {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4> for OptRc<TermStrzUtf16V4> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4> for &OptRc<TermStrzUtf16V4> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TermStrzUtf16V4 {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
@@ -141,6 +173,12 @@ impl TermStrzUtf16V4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl TermStrzUtf16V4 {
     pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -176,6 +214,38 @@ pub struct TermStrzUtf16V4_S1Type {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&TermStrzUtf16V4_S1Type> for OptRc<TermStrzUtf16V4_S1Type> {
+    type Error = KError;
+    fn try_from(v: &TermStrzUtf16V4_S1Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStrzUtf16V4_S1Type> for OptRc<TermStrzUtf16V4_S1Type> {
+    type Error = KError;
+    fn try_from(v: &&TermStrzUtf16V4_S1Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S1Type> for TermStrzUtf16V4_S1Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S1Type>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S1Type> for &TermStrzUtf16V4_S1Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S1Type>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S1Type> for OptRc<TermStrzUtf16V4_S1Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S1Type>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S1Type> for &OptRc<TermStrzUtf16V4_S1Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S1Type>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TermStrzUtf16V4_S1Type {
     type Root = TermStrzUtf16V4;
     type Parent = TermStrzUtf16V4;
@@ -208,6 +278,12 @@ impl TermStrzUtf16V4_S1Type {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -217,6 +293,38 @@ pub struct TermStrzUtf16V4_S2Type {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TermStrzUtf16V4_S2Type> for OptRc<TermStrzUtf16V4_S2Type> {
+    type Error = KError;
+    fn try_from(v: &TermStrzUtf16V4_S2Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStrzUtf16V4_S2Type> for OptRc<TermStrzUtf16V4_S2Type> {
+    type Error = KError;
+    fn try_from(v: &&TermStrzUtf16V4_S2Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S2Type> for TermStrzUtf16V4_S2Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S2Type>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S2Type> for &TermStrzUtf16V4_S2Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S2Type>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S2Type> for OptRc<TermStrzUtf16V4_S2Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S2Type>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S2Type> for &OptRc<TermStrzUtf16V4_S2Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S2Type>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TermStrzUtf16V4_S2Type {
     type Root = TermStrzUtf16V4;
@@ -250,6 +358,12 @@ impl TermStrzUtf16V4_S2Type {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -259,6 +373,38 @@ pub struct TermStrzUtf16V4_S3Type {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TermStrzUtf16V4_S3Type> for OptRc<TermStrzUtf16V4_S3Type> {
+    type Error = KError;
+    fn try_from(v: &TermStrzUtf16V4_S3Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStrzUtf16V4_S3Type> for OptRc<TermStrzUtf16V4_S3Type> {
+    type Error = KError;
+    fn try_from(v: &&TermStrzUtf16V4_S3Type) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S3Type> for TermStrzUtf16V4_S3Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S3Type>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S3Type> for &TermStrzUtf16V4_S3Type {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S3Type>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S3Type> for OptRc<TermStrzUtf16V4_S3Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S3Type>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStrzUtf16V4_S3Type> for &OptRc<TermStrzUtf16V4_S3Type> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStrzUtf16V4_S3Type>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TermStrzUtf16V4_S3Type {
     type Root = TermStrzUtf16V4;
@@ -291,5 +437,11 @@ impl TermStrzUtf16V4_S3Type {
 impl TermStrzUtf16V4_S3Type {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

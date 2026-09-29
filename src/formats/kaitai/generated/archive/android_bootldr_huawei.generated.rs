@@ -38,6 +38,38 @@ pub struct AndroidBootldrHuawei {
     header_ext_raw: RefCell<Vec<u8>>,
     image_header_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AndroidBootldrHuawei> for OptRc<AndroidBootldrHuawei> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrHuawei) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrHuawei> for OptRc<AndroidBootldrHuawei> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrHuawei) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei> for AndroidBootldrHuawei {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei> for &AndroidBootldrHuawei {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei> for OptRc<AndroidBootldrHuawei> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei> for &OptRc<AndroidBootldrHuawei> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidBootldrHuawei {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei;
@@ -87,6 +119,12 @@ impl AndroidBootldrHuawei {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidBootldrHuawei {
     pub fn header_ext_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -106,6 +144,38 @@ pub struct AndroidBootldrHuawei_ImageHdr {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<AndroidBootldrHuawei_ImageHdrEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidBootldrHuawei_ImageHdr> for OptRc<AndroidBootldrHuawei_ImageHdr> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrHuawei_ImageHdr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrHuawei_ImageHdr> for OptRc<AndroidBootldrHuawei_ImageHdr> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrHuawei_ImageHdr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdr> for AndroidBootldrHuawei_ImageHdr {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdr> for &AndroidBootldrHuawei_ImageHdr {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdr> for OptRc<AndroidBootldrHuawei_ImageHdr> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdr> for &OptRc<AndroidBootldrHuawei_ImageHdr> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidBootldrHuawei_ImageHdr {
     type Root = AndroidBootldrHuawei;
@@ -160,6 +230,12 @@ impl AndroidBootldrHuawei_ImageHdr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -176,6 +252,38 @@ pub struct AndroidBootldrHuawei_ImageHdrEntry {
     body: RefCell<Vec<u8>>,
     f_is_used: Cell<bool>,
     is_used: RefCell<bool>,
+}
+impl TryFrom<&AndroidBootldrHuawei_ImageHdrEntry> for OptRc<AndroidBootldrHuawei_ImageHdrEntry> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrHuawei_ImageHdrEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrHuawei_ImageHdrEntry> for OptRc<AndroidBootldrHuawei_ImageHdrEntry> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrHuawei_ImageHdrEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdrEntry> for AndroidBootldrHuawei_ImageHdrEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdrEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdrEntry> for &AndroidBootldrHuawei_ImageHdrEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdrEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdrEntry> for OptRc<AndroidBootldrHuawei_ImageHdrEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdrEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_ImageHdrEntry> for &OptRc<AndroidBootldrHuawei_ImageHdrEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_ImageHdrEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidBootldrHuawei_ImageHdrEntry {
     type Root = AndroidBootldrHuawei;
@@ -259,6 +367,12 @@ impl AndroidBootldrHuawei_ImageHdrEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidBootldrHuawei_ImageHdrEntry {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -278,6 +392,38 @@ pub struct AndroidBootldrHuawei_MetaHdr {
     len_image_header: RefCell<u16>,
     _io: RefCell<BytesReader>,
     image_version_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AndroidBootldrHuawei_MetaHdr> for OptRc<AndroidBootldrHuawei_MetaHdr> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrHuawei_MetaHdr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrHuawei_MetaHdr> for OptRc<AndroidBootldrHuawei_MetaHdr> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrHuawei_MetaHdr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_MetaHdr> for AndroidBootldrHuawei_MetaHdr {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_MetaHdr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_MetaHdr> for &AndroidBootldrHuawei_MetaHdr {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_MetaHdr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_MetaHdr> for OptRc<AndroidBootldrHuawei_MetaHdr> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_MetaHdr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_MetaHdr> for &OptRc<AndroidBootldrHuawei_MetaHdr> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_MetaHdr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidBootldrHuawei_MetaHdr {
     type Root = AndroidBootldrHuawei;
@@ -339,6 +485,12 @@ impl AndroidBootldrHuawei_MetaHdr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidBootldrHuawei_MetaHdr {
     pub fn image_version_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -354,6 +506,38 @@ pub struct AndroidBootldrHuawei_Version {
     major: RefCell<u16>,
     minor: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidBootldrHuawei_Version> for OptRc<AndroidBootldrHuawei_Version> {
+    type Error = KError;
+    fn try_from(v: &AndroidBootldrHuawei_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidBootldrHuawei_Version> for OptRc<AndroidBootldrHuawei_Version> {
+    type Error = KError;
+    fn try_from(v: &&AndroidBootldrHuawei_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_Version> for AndroidBootldrHuawei_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_Version>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_Version> for &AndroidBootldrHuawei_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_Version>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_Version> for OptRc<AndroidBootldrHuawei_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_Version>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidBootldrHuawei_Version> for &OptRc<AndroidBootldrHuawei_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidBootldrHuawei_Version>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidBootldrHuawei_Version {
     type Root = AndroidBootldrHuawei;
@@ -392,5 +576,11 @@ impl AndroidBootldrHuawei_Version {
 impl AndroidBootldrHuawei_Version {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

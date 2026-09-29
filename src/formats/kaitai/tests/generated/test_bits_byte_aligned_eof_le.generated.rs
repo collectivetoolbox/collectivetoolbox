@@ -85,7 +85,7 @@ fn test_bits_byte_aligned_eof_le() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsByteAlignedEofLe> = BitsByteAlignedEofLe::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.prebuf(), vec![0x12u8, 0x34u8, 0x56u8, 0x78u8, 0x12u8, 0x34u8, 0x56u8, 0x78u8]);
-    assert_eq!(*r.bits(), 1446253056);
+    assert_eq!(*(r.prebuf()), vec![0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78]);
+    assert_eq!(*(r.bits()), 1446253056);
     Ok(())
 }

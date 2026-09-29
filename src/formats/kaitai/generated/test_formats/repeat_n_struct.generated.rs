@@ -65,6 +65,38 @@ pub struct RepeatNStruct {
     chunks: RefCell<Vec<OptRc<RepeatNStruct_Chunk>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RepeatNStruct> for OptRc<RepeatNStruct> {
+    type Error = KError;
+    fn try_from(v: &RepeatNStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatNStruct> for OptRc<RepeatNStruct> {
+    type Error = KError;
+    fn try_from(v: &&RepeatNStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct> for RepeatNStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct> for &RepeatNStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct> for OptRc<RepeatNStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatNStruct> for &OptRc<RepeatNStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatNStruct {
     type Root = RepeatNStruct;
     type Parent = RepeatNStruct;
@@ -108,6 +140,12 @@ impl RepeatNStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -118,6 +156,38 @@ pub struct RepeatNStruct_Chunk {
     offset: RefCell<u32>,
     len: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatNStruct_Chunk> for OptRc<RepeatNStruct_Chunk> {
+    type Error = KError;
+    fn try_from(v: &RepeatNStruct_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatNStruct_Chunk> for OptRc<RepeatNStruct_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&RepeatNStruct_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct_Chunk> for RepeatNStruct_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct_Chunk> for &RepeatNStruct_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatNStruct_Chunk> for OptRc<RepeatNStruct_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatNStruct_Chunk> for &OptRc<RepeatNStruct_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatNStruct_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatNStruct_Chunk {
     type Root = RepeatNStruct;
@@ -156,5 +226,11 @@ impl RepeatNStruct_Chunk {
 impl RepeatNStruct_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

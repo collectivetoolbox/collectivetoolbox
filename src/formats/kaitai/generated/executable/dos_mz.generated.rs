@@ -29,6 +29,38 @@ pub struct DosMz {
     f_relocations: Cell<bool>,
     relocations: RefCell<Vec<OptRc<DosMz_Relocation>>>,
 }
+impl TryFrom<&DosMz> for OptRc<DosMz> {
+    type Error = KError;
+    fn try_from(v: &DosMz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosMz> for OptRc<DosMz> {
+    type Error = KError;
+    fn try_from(v: &&DosMz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosMz> for DosMz {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosMz> for &DosMz {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosMz> for OptRc<DosMz> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosMz> for &OptRc<DosMz> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DosMz {
     type Root = DosMz;
     type Parent = DosMz;
@@ -91,6 +123,12 @@ impl DosMz {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DosMz {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -109,6 +147,38 @@ pub struct DosMz_ExeHeader {
     rest_of_header_raw: RefCell<Vec<u8>>,
     f_len_body: Cell<bool>,
     len_body: RefCell<i32>,
+}
+impl TryFrom<&DosMz_ExeHeader> for OptRc<DosMz_ExeHeader> {
+    type Error = KError;
+    fn try_from(v: &DosMz_ExeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosMz_ExeHeader> for OptRc<DosMz_ExeHeader> {
+    type Error = KError;
+    fn try_from(v: &&DosMz_ExeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_ExeHeader> for DosMz_ExeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_ExeHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosMz_ExeHeader> for &DosMz_ExeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_ExeHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_ExeHeader> for OptRc<DosMz_ExeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_ExeHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosMz_ExeHeader> for &OptRc<DosMz_ExeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_ExeHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DosMz_ExeHeader {
     type Root = DosMz;
@@ -161,6 +231,12 @@ impl DosMz_ExeHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DosMz_ExeHeader {
     pub fn rest_of_header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -191,6 +267,38 @@ pub struct DosMz_MzHeader {
     magic_raw: RefCell<Vec<u8>>,
     f_len_header: Cell<bool>,
     len_header: RefCell<i32>,
+}
+impl TryFrom<&DosMz_MzHeader> for OptRc<DosMz_MzHeader> {
+    type Error = KError;
+    fn try_from(v: &DosMz_MzHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosMz_MzHeader> for OptRc<DosMz_MzHeader> {
+    type Error = KError;
+    fn try_from(v: &&DosMz_MzHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_MzHeader> for DosMz_MzHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_MzHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosMz_MzHeader> for &DosMz_MzHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_MzHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_MzHeader> for OptRc<DosMz_MzHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_MzHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosMz_MzHeader> for &OptRc<DosMz_MzHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_MzHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DosMz_MzHeader {
     type Root = DosMz;
@@ -318,6 +426,12 @@ impl DosMz_MzHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DosMz_MzHeader {
     pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -333,6 +447,38 @@ pub struct DosMz_Relocation {
     ofs: RefCell<u16>,
     seg: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DosMz_Relocation> for OptRc<DosMz_Relocation> {
+    type Error = KError;
+    fn try_from(v: &DosMz_Relocation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DosMz_Relocation> for OptRc<DosMz_Relocation> {
+    type Error = KError;
+    fn try_from(v: &&DosMz_Relocation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_Relocation> for DosMz_Relocation {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_Relocation>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DosMz_Relocation> for &DosMz_Relocation {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_Relocation>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DosMz_Relocation> for OptRc<DosMz_Relocation> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_Relocation>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DosMz_Relocation> for &OptRc<DosMz_Relocation> {
+    fn downcast_optrc(&self) -> Result<OptRc<DosMz_Relocation>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DosMz_Relocation {
     type Root = DosMz;
@@ -371,5 +517,11 @@ impl DosMz_Relocation {
 impl DosMz_Relocation {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

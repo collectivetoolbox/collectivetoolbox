@@ -86,13 +86,13 @@ fn test_repeat_until_term_struct() -> KResult<()> {
     let r: OptRc<RepeatUntilTermStruct> = RepeatUntilTermStruct::read_into(&_io, None, None)?;
 
     assert_eq!(r.records1().len(), 2);
-    assert_eq!(*r.records1()[0].value(), vec![0xe8u8, 0xbau8]);
-    assert_eq!(*r.records1()[1].value(), Vec::<u8>::new());
+    assert_eq!(*(r.records1()[0].value()), vec![0xe8, 0xba]);
+    assert_eq!(*(r.records1()[1].value()), Vec::<u8>::new());
     assert_eq!(r.records2().len(), 2);
-    assert_eq!(*r.records2()[0].value(), vec![0xaau8]);
-    assert_eq!(*r.records2()[1].value(), vec![0xfau8, 0x9eu8, 0xb8u8, 0xaau8]);
+    assert_eq!(*(r.records2()[0].value()), vec![0xaa]);
+    assert_eq!(*(r.records2()[1].value()), vec![0xfa, 0x9e, 0xb8, 0xaa]);
     assert_eq!(r.records3().len(), 2);
-    assert_eq!(*r.records3()[0].value(), vec![0xaau8, 0xaau8]);
-    assert_eq!(*r.records3()[1].value(), Vec::<u8>::new());
+    assert_eq!(*(r.records3()[0].value()), vec![0xaa, 0xaa]);
+    assert_eq!(*(r.records3()[1].value()), Vec::<u8>::new());
     Ok(())
 }

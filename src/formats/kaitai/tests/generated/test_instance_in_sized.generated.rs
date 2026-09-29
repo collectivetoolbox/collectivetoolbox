@@ -85,15 +85,15 @@ fn test_instance_in_sized() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<InstanceInSized> = InstanceInSized::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.cont().seq_sized().seq_f(), 9);
-    assert_eq!(*r.cont().seq_sized().inst_invoked()?, 172);
-    assert_eq!(*r.cont().seq_sized().inst_unused_by_seq()?, vec![0x8du8, 0x8du8]);
-    assert_eq!(*r.cont().seq_in_stream().seq_f(), 237);
-    assert_eq!(*r.cont().seq_in_stream().inst()?, vec![0xbau8, 0x7bu8, 0x93u8]);
-    assert_eq!(*r.cont().inst_in_stream()?.seq_f(), 99);
-    assert_eq!(*r.cont().inst_in_stream()?.inst()?, vec![0x23u8, 0x01u8, 0x2au8]);
-    assert_eq!(*r.cont().inst_sized()?.seq_f(), 52);
-    assert_eq!(*r.cont().inst_sized()?.inst_invoked()?, 178);
-    assert_eq!(*r.cont().inst_sized()?.inst_unused_by_seq()?, vec![0x39u8, 0xb2u8]);
+    assert_eq!(*(r.cont().seq_sized().seq_f()), 9);
+    assert_eq!(*(r.cont().seq_sized().inst_invoked()?), 172);
+    assert_eq!(*(r.cont().seq_sized().inst_unused_by_seq()?), vec![0x8d, 0x8d]);
+    assert_eq!(*(r.cont().seq_in_stream().seq_f()), 237);
+    assert_eq!(*(r.cont().seq_in_stream().inst()?), vec![0xba, 0x7b, 0x93]);
+    assert_eq!(*(r.cont().inst_in_stream()?.seq_f()), 99);
+    assert_eq!(*(r.cont().inst_in_stream()?.inst()?), vec![0x23, 0x01, 0x2a]);
+    assert_eq!(*(r.cont().inst_sized()?.seq_f()), 52);
+    assert_eq!(*(r.cont().inst_sized()?.inst_invoked()?), 178);
+    assert_eq!(*(r.cont().inst_sized()?.inst_unused_by_seq()?), vec![0x39, 0xb2]);
     Ok(())
 }

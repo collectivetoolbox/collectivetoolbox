@@ -38,6 +38,38 @@ pub struct RubyMarshal {
     records: RefCell<OptRc<RubyMarshal_Record>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RubyMarshal> for OptRc<RubyMarshal> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal> for OptRc<RubyMarshal> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal> for RubyMarshal {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal> for &RubyMarshal {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal> for OptRc<RubyMarshal> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal> for &OptRc<RubyMarshal> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RubyMarshal {
     type Root = RubyMarshal;
     type Parent = RubyMarshal;
@@ -79,6 +111,12 @@ impl RubyMarshal {
 impl RubyMarshal {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -162,6 +200,38 @@ pub struct RubyMarshal_Bignum {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&RubyMarshal_Bignum> for OptRc<RubyMarshal_Bignum> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_Bignum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_Bignum> for OptRc<RubyMarshal_Bignum> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Bignum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for RubyMarshal_Bignum {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for &RubyMarshal_Bignum {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for OptRc<RubyMarshal_Bignum> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for &OptRc<RubyMarshal_Bignum> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RubyMarshal_Bignum {
     type Root = RubyMarshal;
     type Parent = RubyMarshal_Record;
@@ -219,6 +289,12 @@ impl RubyMarshal_Bignum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RubyMarshal_Bignum {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -239,6 +315,38 @@ pub struct RubyMarshal_InstanceVar {
     num_vars: RefCell<OptRc<RubyMarshal_PackedInt>>,
     vars: RefCell<Vec<OptRc<RubyMarshal_Pair>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RubyMarshal_InstanceVar> for OptRc<RubyMarshal_InstanceVar> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_InstanceVar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_InstanceVar> for OptRc<RubyMarshal_InstanceVar> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_InstanceVar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for RubyMarshal_InstanceVar {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for &RubyMarshal_InstanceVar {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for OptRc<RubyMarshal_InstanceVar> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for &OptRc<RubyMarshal_InstanceVar> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_InstanceVar {
     type Root = RubyMarshal;
@@ -290,6 +398,12 @@ impl RubyMarshal_InstanceVar {
 impl RubyMarshal_InstanceVar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -468,6 +582,38 @@ impl TryFrom<&RubyMarshal_PackedInt_Encoded2> for usize {
     }
 }
 
+impl TryFrom<&RubyMarshal_PackedInt> for OptRc<RubyMarshal_PackedInt> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_PackedInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_PackedInt> for OptRc<RubyMarshal_PackedInt> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_PackedInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for RubyMarshal_PackedInt {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for &RubyMarshal_PackedInt {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for OptRc<RubyMarshal_PackedInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for &OptRc<RubyMarshal_PackedInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RubyMarshal_PackedInt {
     type Root = RubyMarshal;
     type Parent = KStructUnit;
@@ -583,6 +729,12 @@ impl RubyMarshal_PackedInt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -593,6 +745,38 @@ pub struct RubyMarshal_Pair {
     key: RefCell<OptRc<RubyMarshal_Record>>,
     value: RefCell<OptRc<RubyMarshal_Record>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RubyMarshal_Pair> for OptRc<RubyMarshal_Pair> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_Pair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_Pair> for OptRc<RubyMarshal_Pair> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Pair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Pair> for RubyMarshal_Pair {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Pair>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Pair> for &RubyMarshal_Pair {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Pair>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Pair> for OptRc<RubyMarshal_Pair> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Pair>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_Pair> for &OptRc<RubyMarshal_Pair> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Pair>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_Pair {
     type Root = RubyMarshal;
@@ -634,6 +818,12 @@ impl RubyMarshal_Pair {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -671,6 +861,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_Bignum> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_Bignum> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        OptRc::<RubyMarshal_Bignum>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_Bignum> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Bignum>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RubyMarshal_Bignum>> for RubyMarshal_Record_Body {
     fn from(v: OptRc<RubyMarshal_Bignum>) -> Self {
         Self::RubyMarshal_Bignum(v)
@@ -683,6 +889,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_InstanceVar> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_InstanceVar> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        OptRc::<RubyMarshal_InstanceVar>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_InstanceVar> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_InstanceVar>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<RubyMarshal_InstanceVar>> for RubyMarshal_Record_Body {
@@ -699,6 +921,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_PackedInt> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_PackedInt> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        OptRc::<RubyMarshal_PackedInt>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_PackedInt> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_PackedInt>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RubyMarshal_PackedInt>> for RubyMarshal_Record_Body {
     fn from(v: OptRc<RubyMarshal_PackedInt>) -> Self {
         Self::RubyMarshal_PackedInt(v)
@@ -711,6 +949,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyArray> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyArray> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        OptRc::<RubyMarshal_RubyArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<RubyMarshal_RubyArray>> for RubyMarshal_Record_Body {
@@ -727,6 +981,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyHash> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyHash> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        OptRc::<RubyMarshal_RubyHash>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RubyMarshal_RubyHash>> for RubyMarshal_Record_Body {
     fn from(v: OptRc<RubyMarshal_RubyHash>) -> Self {
         Self::RubyMarshal_RubyHash(v)
@@ -739,6 +1009,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyString> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyString> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        OptRc::<RubyMarshal_RubyString>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<RubyMarshal_RubyString>> for RubyMarshal_Record_Body {
@@ -755,6 +1041,22 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyStruct> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubyStruct> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        OptRc::<RubyMarshal_RubyStruct>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RubyMarshal_RubyStruct>> for RubyMarshal_Record_Body {
     fn from(v: OptRc<RubyMarshal_RubyStruct>) -> Self {
         Self::RubyMarshal_RubyStruct(v)
@@ -769,9 +1071,57 @@ impl TryFrom<&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubySymbol> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RubyMarshal_Record_Body> for OptRc<RubyMarshal_RubySymbol> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        OptRc::<RubyMarshal_RubySymbol>::try_from(self)
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for &RubyMarshal_Record_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RubyMarshal_RubySymbol>> for RubyMarshal_Record_Body {
     fn from(v: OptRc<RubyMarshal_RubySymbol>) -> Self {
         Self::RubyMarshal_RubySymbol(v)
+    }
+}
+impl TryFrom<&RubyMarshal_Record> for OptRc<RubyMarshal_Record> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_Record> for OptRc<RubyMarshal_Record> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Record> for RubyMarshal_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Record> for &RubyMarshal_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_Record> for OptRc<RubyMarshal_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_Record> for &OptRc<RubyMarshal_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_Record>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RubyMarshal_Record {
@@ -854,6 +1204,12 @@ impl RubyMarshal_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -864,6 +1220,38 @@ pub struct RubyMarshal_RubyArray {
     num_elements: RefCell<OptRc<RubyMarshal_PackedInt>>,
     elements: RefCell<Vec<OptRc<RubyMarshal_Record>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RubyMarshal_RubyArray> for OptRc<RubyMarshal_RubyArray> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_RubyArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_RubyArray> for OptRc<RubyMarshal_RubyArray> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_RubyArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for RubyMarshal_RubyArray {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for &RubyMarshal_RubyArray {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for OptRc<RubyMarshal_RubyArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyArray> for &OptRc<RubyMarshal_RubyArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyArray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_RubyArray {
     type Root = RubyMarshal;
@@ -909,6 +1297,12 @@ impl RubyMarshal_RubyArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -923,6 +1317,38 @@ pub struct RubyMarshal_RubyHash {
     num_pairs: RefCell<OptRc<RubyMarshal_PackedInt>>,
     pairs: RefCell<Vec<OptRc<RubyMarshal_Pair>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RubyMarshal_RubyHash> for OptRc<RubyMarshal_RubyHash> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_RubyHash) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_RubyHash> for OptRc<RubyMarshal_RubyHash> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_RubyHash) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for RubyMarshal_RubyHash {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for &RubyMarshal_RubyHash {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for OptRc<RubyMarshal_RubyHash> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyHash> for &OptRc<RubyMarshal_RubyHash> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyHash>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_RubyHash {
     type Root = RubyMarshal;
@@ -968,6 +1394,12 @@ impl RubyMarshal_RubyHash {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -983,6 +1415,38 @@ pub struct RubyMarshal_RubyString {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&RubyMarshal_RubyString> for OptRc<RubyMarshal_RubyString> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_RubyString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_RubyString> for OptRc<RubyMarshal_RubyString> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_RubyString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for RubyMarshal_RubyString {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for &RubyMarshal_RubyString {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for OptRc<RubyMarshal_RubyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyString> for &OptRc<RubyMarshal_RubyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_RubyString {
     type Root = RubyMarshal;
@@ -1023,6 +1487,12 @@ impl RubyMarshal_RubyString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RubyMarshal_RubyString {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1043,6 +1513,38 @@ pub struct RubyMarshal_RubyStruct {
     num_members: RefCell<OptRc<RubyMarshal_PackedInt>>,
     members: RefCell<Vec<OptRc<RubyMarshal_Pair>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RubyMarshal_RubyStruct> for OptRc<RubyMarshal_RubyStruct> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_RubyStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_RubyStruct> for OptRc<RubyMarshal_RubyStruct> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_RubyStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for RubyMarshal_RubyStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for &RubyMarshal_RubyStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for OptRc<RubyMarshal_RubyStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubyStruct> for &OptRc<RubyMarshal_RubyStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubyStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_RubyStruct {
     type Root = RubyMarshal;
@@ -1103,6 +1605,12 @@ impl RubyMarshal_RubyStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1118,6 +1626,38 @@ pub struct RubyMarshal_RubySymbol {
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&RubyMarshal_RubySymbol> for OptRc<RubyMarshal_RubySymbol> {
+    type Error = KError;
+    fn try_from(v: &RubyMarshal_RubySymbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RubyMarshal_RubySymbol> for OptRc<RubyMarshal_RubySymbol> {
+    type Error = KError;
+    fn try_from(v: &&RubyMarshal_RubySymbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for RubyMarshal_RubySymbol {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for &RubyMarshal_RubySymbol {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for OptRc<RubyMarshal_RubySymbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RubyMarshal_RubySymbol> for &OptRc<RubyMarshal_RubySymbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<RubyMarshal_RubySymbol>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RubyMarshal_RubySymbol {
     type Root = RubyMarshal;
@@ -1157,6 +1697,12 @@ impl RubyMarshal_RubySymbol {
 impl RubyMarshal_RubySymbol {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl RubyMarshal_RubySymbol {

@@ -34,6 +34,38 @@ pub struct Pcx {
     f_palette_256: Cell<bool>,
     palette_256: RefCell<OptRc<Pcx_TPalette256>>,
 }
+impl TryFrom<&Pcx> for OptRc<Pcx> {
+    type Error = KError;
+    fn try_from(v: &Pcx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcx> for OptRc<Pcx> {
+    type Error = KError;
+    fn try_from(v: &&Pcx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcx> for Pcx {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcx> for &Pcx {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcx> for OptRc<Pcx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcx> for &OptRc<Pcx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Pcx {
     type Root = Pcx;
     type Parent = Pcx;
@@ -90,6 +122,12 @@ impl Pcx {
 impl Pcx {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Pcx {
@@ -196,6 +234,38 @@ pub struct Pcx_Header {
     v_screen_size: RefCell<u16>,
     _io: RefCell<BytesReader>,
     palette_16_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Pcx_Header> for OptRc<Pcx_Header> {
+    type Error = KError;
+    fn try_from(v: &Pcx_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcx_Header> for OptRc<Pcx_Header> {
+    type Error = KError;
+    fn try_from(v: &&Pcx_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Header> for Pcx_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Header> for &Pcx_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Header> for OptRc<Pcx_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcx_Header> for &OptRc<Pcx_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Pcx_Header {
     type Root = Pcx;
@@ -339,6 +409,12 @@ impl Pcx_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Pcx_Header {
     pub fn palette_16_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -355,6 +431,38 @@ pub struct Pcx_Rgb {
     g: RefCell<u8>,
     b: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Pcx_Rgb> for OptRc<Pcx_Rgb> {
+    type Error = KError;
+    fn try_from(v: &Pcx_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcx_Rgb> for OptRc<Pcx_Rgb> {
+    type Error = KError;
+    fn try_from(v: &&Pcx_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Rgb> for Pcx_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Rgb>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Rgb> for &Pcx_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Rgb>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_Rgb> for OptRc<Pcx_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Rgb>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcx_Rgb> for &OptRc<Pcx_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_Rgb>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Pcx_Rgb {
     type Root = Pcx;
@@ -400,6 +508,12 @@ impl Pcx_Rgb {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -410,6 +524,38 @@ pub struct Pcx_TPalette256 {
     magic: RefCell<Vec<u8>>,
     colors: RefCell<Vec<OptRc<Pcx_Rgb>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Pcx_TPalette256> for OptRc<Pcx_TPalette256> {
+    type Error = KError;
+    fn try_from(v: &Pcx_TPalette256) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Pcx_TPalette256> for OptRc<Pcx_TPalette256> {
+    type Error = KError;
+    fn try_from(v: &&Pcx_TPalette256) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_TPalette256> for Pcx_TPalette256 {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_TPalette256>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Pcx_TPalette256> for &Pcx_TPalette256 {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_TPalette256>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Pcx_TPalette256> for OptRc<Pcx_TPalette256> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_TPalette256>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Pcx_TPalette256> for &OptRc<Pcx_TPalette256> {
+    fn downcast_optrc(&self) -> Result<OptRc<Pcx_TPalette256>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Pcx_TPalette256 {
     type Root = Pcx;
@@ -456,5 +602,11 @@ impl Pcx_TPalette256 {
 impl Pcx_TPalette256 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

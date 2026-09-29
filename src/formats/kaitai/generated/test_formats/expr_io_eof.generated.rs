@@ -67,6 +67,38 @@ pub struct ExprIoEof {
     substream1_raw: RefCell<Vec<u8>>,
     substream2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ExprIoEof> for OptRc<ExprIoEof> {
+    type Error = KError;
+    fn try_from(v: &ExprIoEof) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoEof> for OptRc<ExprIoEof> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoEof) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof> for ExprIoEof {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof> for &ExprIoEof {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof> for OptRc<ExprIoEof> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoEof> for &OptRc<ExprIoEof> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIoEof {
     type Root = ExprIoEof;
     type Parent = ExprIoEof;
@@ -113,6 +145,12 @@ impl ExprIoEof {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ExprIoEof {
     pub fn substream1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -135,6 +173,38 @@ pub struct ExprIoEof_OneOrTwo {
     _io: RefCell<BytesReader>,
     f_reflect_eof: Cell<bool>,
     reflect_eof: RefCell<bool>,
+}
+impl TryFrom<&ExprIoEof_OneOrTwo> for OptRc<ExprIoEof_OneOrTwo> {
+    type Error = KError;
+    fn try_from(v: &ExprIoEof_OneOrTwo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoEof_OneOrTwo> for OptRc<ExprIoEof_OneOrTwo> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoEof_OneOrTwo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof_OneOrTwo> for ExprIoEof_OneOrTwo {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof_OneOrTwo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof_OneOrTwo> for &ExprIoEof_OneOrTwo {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof_OneOrTwo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoEof_OneOrTwo> for OptRc<ExprIoEof_OneOrTwo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof_OneOrTwo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoEof_OneOrTwo> for &OptRc<ExprIoEof_OneOrTwo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoEof_OneOrTwo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprIoEof_OneOrTwo {
     type Root = ExprIoEof;
@@ -187,5 +257,11 @@ impl ExprIoEof_OneOrTwo {
 impl ExprIoEof_OneOrTwo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

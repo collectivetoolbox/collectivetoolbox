@@ -64,6 +64,38 @@ pub struct DefaultEndianMod {
     main: RefCell<OptRc<DefaultEndianMod_MainObj>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DefaultEndianMod> for OptRc<DefaultEndianMod> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianMod) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianMod> for OptRc<DefaultEndianMod> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianMod) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod> for DefaultEndianMod {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod> for &DefaultEndianMod {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod> for OptRc<DefaultEndianMod> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianMod> for &OptRc<DefaultEndianMod> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DefaultEndianMod {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod;
@@ -97,6 +129,12 @@ impl DefaultEndianMod {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -108,6 +146,38 @@ pub struct DefaultEndianMod_MainObj {
     nest: RefCell<OptRc<DefaultEndianMod_MainObj_Subnest>>,
     nest_be: RefCell<OptRc<DefaultEndianMod_MainObj_SubnestBe>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DefaultEndianMod_MainObj> for OptRc<DefaultEndianMod_MainObj> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianMod_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianMod_MainObj> for OptRc<DefaultEndianMod_MainObj> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianMod_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj> for DefaultEndianMod_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj> for &DefaultEndianMod_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj> for OptRc<DefaultEndianMod_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj> for &OptRc<DefaultEndianMod_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianMod_MainObj {
     type Root = DefaultEndianMod;
@@ -155,6 +225,12 @@ impl DefaultEndianMod_MainObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -164,6 +240,38 @@ pub struct DefaultEndianMod_MainObj_Subnest {
     pub(crate) _self_shared: SharedType<Self>,
     two: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianMod_MainObj_Subnest) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianMod_MainObj_Subnest) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for DefaultEndianMod_MainObj_Subnest {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for &DefaultEndianMod_MainObj_Subnest {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for OptRc<DefaultEndianMod_MainObj_Subnest> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_Subnest> for &OptRc<DefaultEndianMod_MainObj_Subnest> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_Subnest>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianMod_MainObj_Subnest {
     type Root = DefaultEndianMod;
@@ -197,6 +305,12 @@ impl DefaultEndianMod_MainObj_Subnest {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -206,6 +320,38 @@ pub struct DefaultEndianMod_MainObj_SubnestBe {
     pub(crate) _self_shared: SharedType<Self>,
     two: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianMod_MainObj_SubnestBe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianMod_MainObj_SubnestBe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for DefaultEndianMod_MainObj_SubnestBe {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for &DefaultEndianMod_MainObj_SubnestBe {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianMod_MainObj_SubnestBe> for &OptRc<DefaultEndianMod_MainObj_SubnestBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianMod_MainObj_SubnestBe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianMod_MainObj_SubnestBe {
     type Root = DefaultEndianMod;
@@ -238,5 +384,11 @@ impl DefaultEndianMod_MainObj_SubnestBe {
 impl DefaultEndianMod_MainObj_SubnestBe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

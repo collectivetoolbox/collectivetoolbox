@@ -85,8 +85,8 @@ fn test_bits_enum() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsEnum> = BitsEnum::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one(), BitsEnum_Animal::Platypus);
-    assert_eq!(*r.two(), BitsEnum_Animal::Horse);
-    assert_eq!(*r.three(), BitsEnum_Animal::Cat);
+    assert_eq!(*(r.one()), BitsEnum_Animal::Platypus);
+    assert_eq!(*(r.two()), BitsEnum_Animal::Horse);
+    assert_eq!(*(r.three()), BitsEnum_Animal::Cat);
     Ok(())
 }

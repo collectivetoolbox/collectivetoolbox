@@ -85,7 +85,7 @@ fn test_enum_negative() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumNegative> = EnumNegative::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.f1(), EnumNegative_Constants::NegativeOne);
-    assert_eq!(*r.f2(), EnumNegative_Constants::PositiveOne);
+    assert_eq!(*(r.f1()), EnumNegative_Constants::NegativeOne);
+    assert_eq!(*(r.f2()), EnumNegative_Constants::PositiveOne);
     Ok(())
 }

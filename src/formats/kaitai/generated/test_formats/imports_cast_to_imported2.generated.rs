@@ -56,7 +56,9 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::cast_to_imported2::CastToImported2;
+use super::cast_to_imported2::*;
 use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsCastToImported2 {
@@ -66,6 +68,38 @@ pub struct ImportsCastToImported2 {
     hw: RefCell<OptRc<HelloWorld>>,
     two: RefCell<OptRc<CastToImported2>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ImportsCastToImported2> for OptRc<ImportsCastToImported2> {
+    type Error = KError;
+    fn try_from(v: &ImportsCastToImported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ImportsCastToImported2> for OptRc<ImportsCastToImported2> {
+    type Error = KError;
+    fn try_from(v: &&ImportsCastToImported2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ImportsCastToImported2> for ImportsCastToImported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCastToImported2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ImportsCastToImported2> for &ImportsCastToImported2 {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCastToImported2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ImportsCastToImported2> for OptRc<ImportsCastToImported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCastToImported2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ImportsCastToImported2> for &OptRc<ImportsCastToImported2> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCastToImported2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ImportsCastToImported2 {
     type Root = ImportsCastToImported2;
@@ -85,7 +119,7 @@ impl KStruct for ImportsCastToImported2 {
         let _io = io;
         let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
         *self_rc.hw.borrow_mut() = t;
-        let f = |t : &mut CastToImported2| Ok(t.set_params(self_rc.hw().clone()));
+        let f = |t : &mut CastToImported2| Ok(t.set_params(Struct::from_opt_rc(&(self_rc.hw()))));
         let t = Self::read_into_with_init::<_, CastToImported2>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -107,5 +141,11 @@ impl ImportsCastToImported2 {
 impl ImportsCastToImported2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

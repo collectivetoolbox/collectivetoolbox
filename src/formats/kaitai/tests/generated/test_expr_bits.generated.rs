@@ -85,15 +85,15 @@ fn test_expr_bits() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprBits> = ExprBits::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.a(), 2);
-    assert_eq!(*r.enum_seq(), ExprBits_Items::Foo);
-    assert_eq!(*r.byte_size(), vec![0x66u8, 0x6fu8]);
+    assert_eq!(*(r.a()), 2);
+    assert_eq!(*(r.enum_seq()), ExprBits_Items::Foo);
+    assert_eq!(*(r.byte_size()), vec![0x66, 0x6f]);
     assert_eq!(r.repeat_expr().len(), 2);
     assert_eq!(r.repeat_expr()[0], 111);
     assert_eq!(r.repeat_expr()[1], 98);
-    assert_eq!(*r.switch_on_type(), 97);
-    assert_eq!(*r.switch_on_endian().foo(), 29184);
-    assert_eq!(*r.enum_inst()?, ExprBits_Items::Bar);
-    assert_eq!(*r.inst_pos()?, 111);
+    assert_eq!(r.switch_on_type(), 97);
+    assert_eq!(*(r.switch_on_endian().foo()), 29184);
+    assert_eq!(*(r.enum_inst()?), ExprBits_Items::Bar);
+    assert_eq!(*(r.inst_pos()?), 111);
     Ok(())
 }

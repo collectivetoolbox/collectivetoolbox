@@ -66,6 +66,38 @@ pub struct InstanceInRepeatExpr {
     f_num_chunks: Cell<bool>,
     num_chunks: RefCell<u32>,
 }
+impl TryFrom<&InstanceInRepeatExpr> for OptRc<InstanceInRepeatExpr> {
+    type Error = KError;
+    fn try_from(v: &InstanceInRepeatExpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInRepeatExpr> for OptRc<InstanceInRepeatExpr> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInRepeatExpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr> for InstanceInRepeatExpr {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr> for &InstanceInRepeatExpr {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr> for OptRc<InstanceInRepeatExpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr> for &OptRc<InstanceInRepeatExpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for InstanceInRepeatExpr {
     type Root = InstanceInRepeatExpr;
     type Parent = InstanceInRepeatExpr;
@@ -118,6 +150,12 @@ impl InstanceInRepeatExpr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -128,6 +166,38 @@ pub struct InstanceInRepeatExpr_Chunk {
     offset: RefCell<u32>,
     len: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
+    type Error = KError;
+    fn try_from(v: &InstanceInRepeatExpr_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&InstanceInRepeatExpr_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for InstanceInRepeatExpr_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for &InstanceInRepeatExpr_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for OptRc<InstanceInRepeatExpr_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceInRepeatExpr_Chunk> for &OptRc<InstanceInRepeatExpr_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceInRepeatExpr_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceInRepeatExpr_Chunk {
     type Root = InstanceInRepeatExpr;
@@ -166,5 +236,11 @@ impl InstanceInRepeatExpr_Chunk {
 impl InstanceInRepeatExpr_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

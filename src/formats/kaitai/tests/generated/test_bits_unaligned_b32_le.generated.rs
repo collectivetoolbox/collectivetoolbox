@@ -85,8 +85,8 @@ fn test_bits_unaligned_b32_le() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsUnalignedB32Le> = BitsUnalignedB32Le::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.a(), false);
-    assert_eq!(*r.b(), 173137398);
-    assert_eq!(*r.c(), 69);
+    assert_eq!(*(r.a()), false);
+    assert_eq!(*(r.b()), 173137398);
+    assert_eq!(*(r.c()), 69);
     Ok(())
 }

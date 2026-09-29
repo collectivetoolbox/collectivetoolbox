@@ -67,11 +67,11 @@ pub struct ExprBytesCmp {
     one_raw: RefCell<Vec<u8>>,
     two_raw: RefCell<Vec<u8>>,
     f_ack: Cell<bool>,
-    ack: RefCell<Vec<i32>>,
+    ack: RefCell<Vec<u8>>,
     f_ack2: Cell<bool>,
-    ack2: RefCell<Vec<i32>>,
+    ack2: RefCell<Vec<u8>>,
     f_hi_val: Cell<bool>,
-    hi_val: RefCell<Vec<i32>>,
+    hi_val: RefCell<Vec<u8>>,
     f_is_eq: Cell<bool>,
     is_eq: RefCell<bool>,
     f_is_ge: Cell<bool>,
@@ -88,6 +88,38 @@ pub struct ExprBytesCmp {
     is_lt2: RefCell<bool>,
     f_is_ne: Cell<bool>,
     is_ne: RefCell<bool>,
+}
+impl TryFrom<&ExprBytesCmp> for OptRc<ExprBytesCmp> {
+    type Error = KError;
+    fn try_from(v: &ExprBytesCmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprBytesCmp> for OptRc<ExprBytesCmp> {
+    type Error = KError;
+    fn try_from(v: &&ExprBytesCmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesCmp> for ExprBytesCmp {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesCmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesCmp> for &ExprBytesCmp {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesCmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesCmp> for OptRc<ExprBytesCmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesCmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprBytesCmp> for &OptRc<ExprBytesCmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesCmp>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprBytesCmp {
     type Root = ExprBytesCmp;
@@ -115,37 +147,37 @@ impl ExprBytesCmp {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ack(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_ack.get() {
             return Ok(self.ack.borrow());
         }
         self.f_ack.set(true);
-        *self.ack.borrow_mut() = vec![65_i32, 67_i32, 75_i32];
+        *self.ack.borrow_mut() = vec![0x41u8, 0x43u8, 0x4bu8];
         Ok(self.ack.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ack2(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_ack2.get() {
             return Ok(self.ack2.borrow());
         }
         self.f_ack2.set(true);
-        *self.ack2.borrow_mut() = vec![65_i32, 67_i32, 75_i32, 50_i32];
+        *self.ack2.borrow_mut() = vec![0x41u8, 0x43u8, 0x4bu8, 0x32u8];
         Ok(self.ack2.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hi_val(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_hi_val.get() {
             return Ok(self.hi_val.borrow());
         }
         self.f_hi_val.set(true);
-        *self.hi_val.borrow_mut() = vec![144_i32, 67_i32];
+        *self.hi_val.borrow_mut() = vec![0x90u8, 0x43u8];
         Ok(self.hi_val.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -258,6 +290,12 @@ impl ExprBytesCmp {
 impl ExprBytesCmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprBytesCmp {

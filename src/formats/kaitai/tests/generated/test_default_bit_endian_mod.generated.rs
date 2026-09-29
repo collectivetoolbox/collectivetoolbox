@@ -85,9 +85,9 @@ fn test_default_bit_endian_mod() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DefaultBitEndianMod> = DefaultBitEndianMod::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.main().one(), 336);
-    assert_eq!(*r.main().two(), 8608);
-    assert_eq!(*r.main().nest().two(), 11595);
-    assert_eq!(*r.main().nest_be().two(), 12799);
+    assert_eq!(*(r.main().one()), 336);
+    assert_eq!(*(r.main().two()), 8608);
+    assert_eq!(*(r.main().nest().two()), 11595);
+    assert_eq!(*(r.main().nest_be().two()), 12799);
     Ok(())
 }

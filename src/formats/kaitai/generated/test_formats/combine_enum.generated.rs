@@ -67,6 +67,38 @@ pub struct CombineEnum {
     f_enum_u4_u2: Cell<bool>,
     enum_u4_u2: RefCell<CombineEnum_Animal>,
 }
+impl TryFrom<&CombineEnum> for OptRc<CombineEnum> {
+    type Error = KError;
+    fn try_from(v: &CombineEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CombineEnum> for OptRc<CombineEnum> {
+    type Error = KError;
+    fn try_from(v: &&CombineEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CombineEnum> for CombineEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineEnum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CombineEnum> for &CombineEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineEnum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CombineEnum> for OptRc<CombineEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineEnum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CombineEnum> for &OptRc<CombineEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<CombineEnum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for CombineEnum {
     type Root = CombineEnum;
     type Parent = CombineEnum;
@@ -116,6 +148,12 @@ impl CombineEnum {
 impl CombineEnum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

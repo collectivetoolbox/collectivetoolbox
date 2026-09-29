@@ -31,6 +31,38 @@ pub struct Riff {
     f_subchunks: Cell<bool>,
     subchunks: RefCell<Vec<OptRc<Riff_ChunkType>>>,
 }
+impl TryFrom<&Riff> for OptRc<Riff> {
+    type Error = KError;
+    fn try_from(v: &Riff) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff> for OptRc<Riff> {
+    type Error = KError;
+    fn try_from(v: &&Riff) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff> for Riff {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff> for &Riff {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff> for OptRc<Riff> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff> for &OptRc<Riff> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Riff {
     type Root = Riff;
     type Parent = Riff;
@@ -132,6 +164,12 @@ impl Riff {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Riff_Fourcc {
@@ -181,6 +219,38 @@ pub struct Riff_Chunk {
     _io: RefCell<BytesReader>,
     data_slot_raw: RefCell<Vec<u8>>,
     pad_byte_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Riff_Chunk> for OptRc<Riff_Chunk> {
+    type Error = KError;
+    fn try_from(v: &Riff_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_Chunk> for OptRc<Riff_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&Riff_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk> for Riff_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk> for &Riff_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk> for OptRc<Riff_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_Chunk> for &OptRc<Riff_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Riff_Chunk {
     type Root = Riff;
@@ -236,6 +306,12 @@ impl Riff_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Riff_Chunk {
     pub fn data_slot_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -254,6 +330,38 @@ pub struct Riff_Chunk_Slot {
     pub(crate) _parent: SharedType<Riff_Chunk>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Riff_Chunk_Slot> for OptRc<Riff_Chunk_Slot> {
+    type Error = KError;
+    fn try_from(v: &Riff_Chunk_Slot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_Chunk_Slot> for OptRc<Riff_Chunk_Slot> {
+    type Error = KError;
+    fn try_from(v: &&Riff_Chunk_Slot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk_Slot> for Riff_Chunk_Slot {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk_Slot>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk_Slot> for &Riff_Chunk_Slot {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk_Slot>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_Chunk_Slot> for OptRc<Riff_Chunk_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk_Slot>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_Chunk_Slot> for &OptRc<Riff_Chunk_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_Chunk_Slot>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Riff_Chunk_Slot {
     type Root = Riff;
@@ -280,6 +388,12 @@ impl Riff_Chunk_Slot {
 impl Riff_Chunk_Slot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -314,9 +428,57 @@ impl TryFrom<&Riff_ChunkType_ChunkData> for OptRc<Riff_ListChunkData> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Riff_ChunkType_ChunkData> for OptRc<Riff_ListChunkData> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ChunkType_ChunkData) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for Riff_ChunkType_ChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        OptRc::<Riff_ListChunkData>::try_from(self)
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for &Riff_ChunkType_ChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Riff_ListChunkData>> for Riff_ChunkType_ChunkData {
     fn from(v: OptRc<Riff_ListChunkData>) -> Self {
         Self::Riff_ListChunkData(v)
+    }
+}
+impl TryFrom<&Riff_ChunkType> for OptRc<Riff_ChunkType> {
+    type Error = KError;
+    fn try_from(v: &Riff_ChunkType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_ChunkType> for OptRc<Riff_ChunkType> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ChunkType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for Riff_ChunkType {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for &Riff_ChunkType {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for OptRc<Riff_ChunkType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for &OptRc<Riff_ChunkType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Riff_ChunkType {
@@ -421,6 +583,12 @@ impl Riff_ChunkType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Riff_ChunkType {
     pub fn save_chunk_ofs_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -471,9 +639,47 @@ impl TryFrom<&Riff_InfoSubchunk_ChunkData> for String {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Riff_InfoSubchunk_ChunkData> for String {
+    type Error = KError;
+    fn try_from(v: &&Riff_InfoSubchunk_ChunkData) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<String> for Riff_InfoSubchunk_ChunkData {
     fn from(v: String) -> Self {
         Self::String(v)
+    }
+}
+impl TryFrom<&Riff_InfoSubchunk> for OptRc<Riff_InfoSubchunk> {
+    type Error = KError;
+    fn try_from(v: &Riff_InfoSubchunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_InfoSubchunk> for OptRc<Riff_InfoSubchunk> {
+    type Error = KError;
+    fn try_from(v: &&Riff_InfoSubchunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for Riff_InfoSubchunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for &Riff_InfoSubchunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for OptRc<Riff_InfoSubchunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for &OptRc<Riff_InfoSubchunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Riff_InfoSubchunk {
@@ -592,6 +798,12 @@ impl Riff_InfoSubchunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Riff_InfoSubchunk {
     pub fn save_chunk_ofs_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -631,6 +843,22 @@ impl TryFrom<&Riff_ListChunkData_Subchunks> for OptRc<Riff_InfoSubchunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Riff_ListChunkData_Subchunks> for OptRc<Riff_InfoSubchunk> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ListChunkData_Subchunks) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for Riff_ListChunkData_Subchunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        OptRc::<Riff_InfoSubchunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Riff_InfoSubchunk> for &Riff_ListChunkData_Subchunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_InfoSubchunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Riff_InfoSubchunk>> for Riff_ListChunkData_Subchunks {
     fn from(v: OptRc<Riff_InfoSubchunk>) -> Self {
         Self::Riff_InfoSubchunk(v)
@@ -645,9 +873,57 @@ impl TryFrom<&Riff_ListChunkData_Subchunks> for OptRc<Riff_ChunkType> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Riff_ListChunkData_Subchunks> for OptRc<Riff_ChunkType> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ListChunkData_Subchunks) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for Riff_ListChunkData_Subchunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        OptRc::<Riff_ChunkType>::try_from(self)
+    }
+}
+impl DowncastOptRc<Riff_ChunkType> for &Riff_ListChunkData_Subchunks {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ChunkType>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Riff_ChunkType>> for Riff_ListChunkData_Subchunks {
     fn from(v: OptRc<Riff_ChunkType>) -> Self {
         Self::Riff_ChunkType(v)
+    }
+}
+impl TryFrom<&Riff_ListChunkData> for OptRc<Riff_ListChunkData> {
+    type Error = KError;
+    fn try_from(v: &Riff_ListChunkData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_ListChunkData> for OptRc<Riff_ListChunkData> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ListChunkData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for Riff_ListChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for &Riff_ListChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for OptRc<Riff_ListChunkData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_ListChunkData> for &OptRc<Riff_ListChunkData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ListChunkData>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Riff_ListChunkData {
@@ -762,6 +1038,12 @@ impl Riff_ListChunkData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Riff_ListChunkData {
     pub fn save_parent_chunk_data_ofs_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -778,6 +1060,38 @@ pub struct Riff_ParentChunkData {
     subchunks_slot: RefCell<OptRc<Riff_ParentChunkData_Slot>>,
     _io: RefCell<BytesReader>,
     subchunks_slot_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Riff_ParentChunkData> for OptRc<Riff_ParentChunkData> {
+    type Error = KError;
+    fn try_from(v: &Riff_ParentChunkData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_ParentChunkData> for OptRc<Riff_ParentChunkData> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ParentChunkData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData> for Riff_ParentChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData> for &Riff_ParentChunkData {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData> for OptRc<Riff_ParentChunkData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData> for &OptRc<Riff_ParentChunkData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Riff_ParentChunkData {
     type Root = Riff;
@@ -821,6 +1135,12 @@ impl Riff_ParentChunkData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Riff_ParentChunkData {
     pub fn subchunks_slot_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -834,6 +1154,38 @@ pub struct Riff_ParentChunkData_Slot {
     pub(crate) _parent: SharedType<Riff_ParentChunkData>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Riff_ParentChunkData_Slot> for OptRc<Riff_ParentChunkData_Slot> {
+    type Error = KError;
+    fn try_from(v: &Riff_ParentChunkData_Slot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Riff_ParentChunkData_Slot> for OptRc<Riff_ParentChunkData_Slot> {
+    type Error = KError;
+    fn try_from(v: &&Riff_ParentChunkData_Slot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for Riff_ParentChunkData_Slot {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for &Riff_ParentChunkData_Slot {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for OptRc<Riff_ParentChunkData_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Riff_ParentChunkData_Slot> for &OptRc<Riff_ParentChunkData_Slot> {
+    fn downcast_optrc(&self) -> Result<OptRc<Riff_ParentChunkData_Slot>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Riff_ParentChunkData_Slot {
     type Root = Riff;
@@ -860,5 +1212,11 @@ impl Riff_ParentChunkData_Slot {
 impl Riff_ParentChunkData_Slot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

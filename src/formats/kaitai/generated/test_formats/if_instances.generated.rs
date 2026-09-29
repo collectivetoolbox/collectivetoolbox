@@ -65,6 +65,38 @@ pub struct IfInstances {
     f_never_happens: Cell<bool>,
     never_happens: RefCell<u8>,
 }
+impl TryFrom<&IfInstances> for OptRc<IfInstances> {
+    type Error = KError;
+    fn try_from(v: &IfInstances) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IfInstances> for OptRc<IfInstances> {
+    type Error = KError;
+    fn try_from(v: &&IfInstances) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IfInstances> for IfInstances {
+    fn downcast_optrc(&self) -> Result<OptRc<IfInstances>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IfInstances> for &IfInstances {
+    fn downcast_optrc(&self) -> Result<OptRc<IfInstances>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IfInstances> for OptRc<IfInstances> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfInstances>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IfInstances> for &OptRc<IfInstances> {
+    fn downcast_optrc(&self) -> Result<OptRc<IfInstances>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IfInstances {
     type Root = IfInstances;
     type Parent = IfInstances;
@@ -107,5 +139,11 @@ impl IfInstances {
 impl IfInstances {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

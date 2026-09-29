@@ -85,6 +85,6 @@ fn test_zlib_surrounded() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ZlibSurrounded> = ZlibSurrounded::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.zlib().num(), -1);
+    assert_eq!(*(r.zlib().num()), -1);
     Ok(())
 }

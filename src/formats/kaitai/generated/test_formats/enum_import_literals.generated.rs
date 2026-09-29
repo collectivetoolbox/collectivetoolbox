@@ -56,7 +56,9 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
 use super::enum_0::Enum0;
+use super::enum_0::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumImportLiterals {
@@ -69,7 +71,39 @@ pub struct EnumImportLiterals {
     f_pet_1_to_i: Cell<bool>,
     pet_1_to_i: RefCell<i32>,
     f_pet_2: Cell<bool>,
-    pet_2: RefCell<i32>,
+    pet_2: RefCell<EnumDeep_Container1_Container2_Animal>,
+}
+impl TryFrom<&EnumImportLiterals> for OptRc<EnumImportLiterals> {
+    type Error = KError;
+    fn try_from(v: &EnumImportLiterals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumImportLiterals> for OptRc<EnumImportLiterals> {
+    type Error = KError;
+    fn try_from(v: &&EnumImportLiterals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumImportLiterals> for EnumImportLiterals {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportLiterals>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumImportLiterals> for &EnumImportLiterals {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportLiterals>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumImportLiterals> for OptRc<EnumImportLiterals> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportLiterals>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumImportLiterals> for &OptRc<EnumImportLiterals> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportLiterals>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumImportLiterals {
     type Root = EnumImportLiterals;
@@ -101,7 +135,7 @@ impl EnumImportLiterals {
             return Ok(self.pet_1_eq.borrow());
         }
         self.f_pet_1_eq.set(true);
-        *self.pet_1_eq.borrow_mut() = (if true { EnumImportLiterals_Animal::Chicken } else { EnumImportLiterals_Animal::Dog } == EnumImportLiterals_Animal::Chicken).try_into()?;
+        *self.pet_1_eq.borrow_mut() = (if true { Enum0_Animal::Chicken.clone() } else { Enum0_Animal::Dog.clone() } == Enum0_Animal::Chicken).try_into()?;
         Ok(self.pet_1_eq.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -113,24 +147,30 @@ impl EnumImportLiterals {
             return Ok(self.pet_1_to_i.borrow());
         }
         self.f_pet_1_to_i.set(true);
-        *self.pet_1_to_i.borrow_mut() = (EnumImportLiterals_Animal::Cat.parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
+        *self.pet_1_to_i.borrow_mut() = (i64::from(&Enum0_Animal::Cat)).try_into()?;
         Ok(self.pet_1_to_i.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_2(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, EnumDeep_Container1_Container2_Animal>> {
         let _io = self._io.borrow();
         if self.f_pet_2.get() {
             return Ok(self.pet_2.borrow());
         }
         self.f_pet_2.set(true);
-        *self.pet_2.borrow_mut() = (EnumImportLiterals_Animal::Hare).try_into()?;
+        *self.pet_2.borrow_mut() = EnumDeep_Container1_Container2_Animal::Hare;
         Ok(self.pet_2.borrow())
     }
 }
 impl EnumImportLiterals {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

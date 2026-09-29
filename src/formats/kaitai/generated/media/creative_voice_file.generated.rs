@@ -31,6 +31,38 @@ pub struct CreativeVoiceFile {
     blocks: RefCell<Vec<OptRc<CreativeVoiceFile_Block>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&CreativeVoiceFile> for OptRc<CreativeVoiceFile> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile> for OptRc<CreativeVoiceFile> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile> for CreativeVoiceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile> for &CreativeVoiceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile> for OptRc<CreativeVoiceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile> for &OptRc<CreativeVoiceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for CreativeVoiceFile {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile;
@@ -109,6 +141,12 @@ impl CreativeVoiceFile {
 impl CreativeVoiceFile {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -251,6 +289,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockExt
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        OptRc::<CreativeVoiceFile_BlockExtraInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<CreativeVoiceFile_BlockExtraInfo>> for CreativeVoiceFile_Block_Body {
     fn from(v: OptRc<CreativeVoiceFile_BlockExtraInfo>) -> Self {
         Self::CreativeVoiceFile_BlockExtraInfo(v)
@@ -263,6 +317,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockMar
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockMarker> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        OptRc::<CreativeVoiceFile_BlockMarker>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockMarker>> for CreativeVoiceFile_Block_Body {
@@ -279,6 +349,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockRep
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        OptRc::<CreativeVoiceFile_BlockRepeatStart>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<CreativeVoiceFile_BlockRepeatStart>> for CreativeVoiceFile_Block_Body {
     fn from(v: OptRc<CreativeVoiceFile_BlockRepeatStart>) -> Self {
         Self::CreativeVoiceFile_BlockRepeatStart(v)
@@ -291,6 +377,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSil
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSilence> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        OptRc::<CreativeVoiceFile_BlockSilence>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockSilence>> for CreativeVoiceFile_Block_Body {
@@ -307,6 +409,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSou
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        OptRc::<CreativeVoiceFile_BlockSoundData>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<CreativeVoiceFile_BlockSoundData>> for CreativeVoiceFile_Block_Body {
     fn from(v: OptRc<CreativeVoiceFile_BlockSoundData>) -> Self {
         Self::CreativeVoiceFile_BlockSoundData(v)
@@ -319,6 +437,22 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSou
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        OptRc::<CreativeVoiceFile_BlockSoundDataNew>::try_from(self)
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for &CreativeVoiceFile_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockSoundDataNew>> for CreativeVoiceFile_Block_Body {
@@ -335,9 +469,47 @@ impl TryFrom<&CreativeVoiceFile_Block_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CreativeVoiceFile_Block_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for CreativeVoiceFile_Block_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&CreativeVoiceFile_Block> for OptRc<CreativeVoiceFile_Block> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_Block> for OptRc<CreativeVoiceFile_Block> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_Block> for CreativeVoiceFile_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_Block> for &CreativeVoiceFile_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_Block> for OptRc<CreativeVoiceFile_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_Block> for &OptRc<CreativeVoiceFile_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_Block>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for CreativeVoiceFile_Block {
@@ -470,6 +642,12 @@ impl CreativeVoiceFile_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl CreativeVoiceFile_Block {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -494,6 +672,38 @@ pub struct CreativeVoiceFile_BlockExtraInfo {
     num_channels: RefCell<i32>,
     f_sample_rate: Cell<bool>,
     sample_rate: RefCell<f64>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockExtraInfo> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockExtraInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockExtraInfo> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockExtraInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for CreativeVoiceFile_BlockExtraInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for &CreativeVoiceFile_BlockExtraInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockExtraInfo> for &OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockExtraInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockExtraInfo {
     type Root = CreativeVoiceFile;
@@ -575,6 +785,12 @@ impl CreativeVoiceFile_BlockExtraInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -588,6 +804,38 @@ pub struct CreativeVoiceFile_BlockMarker {
     pub(crate) _self_shared: SharedType<Self>,
     marker_id: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockMarker> for OptRc<CreativeVoiceFile_BlockMarker> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockMarker) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockMarker> for OptRc<CreativeVoiceFile_BlockMarker> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockMarker) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for CreativeVoiceFile_BlockMarker {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for &CreativeVoiceFile_BlockMarker {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for OptRc<CreativeVoiceFile_BlockMarker> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockMarker> for &OptRc<CreativeVoiceFile_BlockMarker> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockMarker>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockMarker {
     type Root = CreativeVoiceFile;
@@ -625,6 +873,12 @@ impl CreativeVoiceFile_BlockMarker {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -638,6 +892,38 @@ pub struct CreativeVoiceFile_BlockRepeatStart {
     pub(crate) _self_shared: SharedType<Self>,
     repeat_count_1: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockRepeatStart> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockRepeatStart) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockRepeatStart> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockRepeatStart) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for CreativeVoiceFile_BlockRepeatStart {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for &CreativeVoiceFile_BlockRepeatStart {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockRepeatStart> for &OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockRepeatStart>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockRepeatStart {
     type Root = CreativeVoiceFile;
@@ -675,6 +961,12 @@ impl CreativeVoiceFile_BlockRepeatStart {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -693,6 +985,38 @@ pub struct CreativeVoiceFile_BlockSilence {
     duration_sec: RefCell<f64>,
     f_sample_rate: Cell<bool>,
     sample_rate: RefCell<f64>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockSilence> for OptRc<CreativeVoiceFile_BlockSilence> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockSilence) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockSilence> for OptRc<CreativeVoiceFile_BlockSilence> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockSilence) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for CreativeVoiceFile_BlockSilence {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for &CreativeVoiceFile_BlockSilence {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for OptRc<CreativeVoiceFile_BlockSilence> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSilence> for &OptRc<CreativeVoiceFile_BlockSilence> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSilence>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockSilence {
     type Root = CreativeVoiceFile;
@@ -768,6 +1092,12 @@ impl CreativeVoiceFile_BlockSilence {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -785,6 +1115,38 @@ pub struct CreativeVoiceFile_BlockSoundData {
     _io: RefCell<BytesReader>,
     f_sample_rate: Cell<bool>,
     sample_rate: RefCell<f64>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockSoundData> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockSoundData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockSoundData> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockSoundData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for CreativeVoiceFile_BlockSoundData {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for &CreativeVoiceFile_BlockSoundData {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundData> for &OptRc<CreativeVoiceFile_BlockSoundData> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockSoundData {
     type Root = CreativeVoiceFile;
@@ -846,6 +1208,12 @@ impl CreativeVoiceFile_BlockSoundData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -865,6 +1233,38 @@ pub struct CreativeVoiceFile_BlockSoundDataNew {
     wave: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&CreativeVoiceFile_BlockSoundDataNew> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_BlockSoundDataNew) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CreativeVoiceFile_BlockSoundDataNew> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    type Error = KError;
+    fn try_from(v: &&CreativeVoiceFile_BlockSoundDataNew) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for CreativeVoiceFile_BlockSoundDataNew {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for &CreativeVoiceFile_BlockSoundDataNew {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CreativeVoiceFile_BlockSoundDataNew> for &OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    fn downcast_optrc(&self) -> Result<OptRc<CreativeVoiceFile_BlockSoundDataNew>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
     type Root = CreativeVoiceFile;
@@ -927,6 +1327,12 @@ impl CreativeVoiceFile_BlockSoundDataNew {
 impl CreativeVoiceFile_BlockSoundDataNew {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl CreativeVoiceFile_BlockSoundDataNew {

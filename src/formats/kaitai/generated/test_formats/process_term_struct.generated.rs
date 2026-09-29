@@ -69,6 +69,38 @@ pub struct ProcessTermStruct {
     s2_raw: RefCell<Vec<u8>>,
     s3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessTermStruct> for OptRc<ProcessTermStruct> {
+    type Error = KError;
+    fn try_from(v: &ProcessTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessTermStruct> for OptRc<ProcessTermStruct> {
+    type Error = KError;
+    fn try_from(v: &&ProcessTermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct> for ProcessTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct> for &ProcessTermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct> for OptRc<ProcessTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessTermStruct> for &OptRc<ProcessTermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessTermStruct {
     type Root = ProcessTermStruct;
     type Parent = ProcessTermStruct;
@@ -128,6 +160,12 @@ impl ProcessTermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessTermStruct {
     pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -152,6 +190,38 @@ pub struct ProcessTermStruct_BytesWrapper {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &ProcessTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &&ProcessTermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for ProcessTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for &ProcessTermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for OptRc<ProcessTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessTermStruct_BytesWrapper> for &OptRc<ProcessTermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessTermStruct_BytesWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessTermStruct_BytesWrapper {
     type Root = ProcessTermStruct;
@@ -184,5 +254,11 @@ impl ProcessTermStruct_BytesWrapper {
 impl ProcessTermStruct_BytesWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

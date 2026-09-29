@@ -85,8 +85,8 @@ fn test_term_strz_utf16_v4() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TermStrzUtf16V4> = TermStrzUtf16V4::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1().value(), "aȀb");
-    assert_eq!(*r.s2().value(), "cȀd");
-    assert_eq!(*r.s3().value(), "eȀf");
+    assert_eq!(*(r.s1().value()), "aȀb");
+    assert_eq!(*(r.s2().value()), "cȀd");
+    assert_eq!(*(r.s3().value()), "eȀf");
     Ok(())
 }

@@ -85,8 +85,8 @@ fn test_expr_io_ternary() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoTernary> = ExprIoTernary::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one_or_two_io_size1()?, 8);
-    assert_eq!(*r.one_or_two_io_size2()?, 8);
-    assert_eq!(*r.one_or_two_io_size_add_3()?, 11);
+    assert_eq!(*(r.one_or_two_io_size1()?), 8);
+    assert_eq!(*(r.one_or_two_io_size2()?), 8);
+    assert_eq!(*(r.one_or_two_io_size_add_3()?), 11);
     Ok(())
 }

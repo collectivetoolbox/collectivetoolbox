@@ -35,6 +35,38 @@ pub struct Tga {
     f_footer: Cell<bool>,
     footer: RefCell<OptRc<Tga_TgaFooter>>,
 }
+impl TryFrom<&Tga> for OptRc<Tga> {
+    type Error = KError;
+    fn try_from(v: &Tga) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Tga> for OptRc<Tga> {
+    type Error = KError;
+    fn try_from(v: &&Tga) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Tga> for Tga {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Tga> for &Tga {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Tga> for OptRc<Tga> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Tga> for &OptRc<Tga> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Tga {
     type Root = Tga;
     type Parent = Tga;
@@ -191,6 +223,12 @@ impl Tga {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Tga {
     pub fn image_id_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -310,6 +348,38 @@ pub struct Tga_TgaExtArea {
     job_time_raw: RefCell<Vec<u8>>,
     software_id_raw: RefCell<Vec<u8>>,
     software_version_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Tga_TgaExtArea> for OptRc<Tga_TgaExtArea> {
+    type Error = KError;
+    fn try_from(v: &Tga_TgaExtArea) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Tga_TgaExtArea> for OptRc<Tga_TgaExtArea> {
+    type Error = KError;
+    fn try_from(v: &&Tga_TgaExtArea) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaExtArea> for Tga_TgaExtArea {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaExtArea>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaExtArea> for &Tga_TgaExtArea {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaExtArea>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaExtArea> for OptRc<Tga_TgaExtArea> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaExtArea>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Tga_TgaExtArea> for &OptRc<Tga_TgaExtArea> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaExtArea>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Tga_TgaExtArea {
     type Root = Tga;
@@ -471,6 +541,12 @@ impl Tga_TgaExtArea {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Tga_TgaExtArea {
     pub fn author_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -522,6 +598,38 @@ pub struct Tga_TgaFooter {
     ext_area: RefCell<OptRc<Tga_TgaExtArea>>,
     f_is_valid: Cell<bool>,
     is_valid: RefCell<bool>,
+}
+impl TryFrom<&Tga_TgaFooter> for OptRc<Tga_TgaFooter> {
+    type Error = KError;
+    fn try_from(v: &Tga_TgaFooter) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Tga_TgaFooter> for OptRc<Tga_TgaFooter> {
+    type Error = KError;
+    fn try_from(v: &&Tga_TgaFooter) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaFooter> for Tga_TgaFooter {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaFooter>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaFooter> for &Tga_TgaFooter {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaFooter>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Tga_TgaFooter> for OptRc<Tga_TgaFooter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaFooter>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Tga_TgaFooter> for &OptRc<Tga_TgaFooter> {
+    fn downcast_optrc(&self) -> Result<OptRc<Tga_TgaFooter>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Tga_TgaFooter {
     type Root = Tga;
@@ -603,6 +711,12 @@ impl Tga_TgaFooter {
 impl Tga_TgaFooter {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Tga_TgaFooter {

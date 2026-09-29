@@ -56,9 +56,13 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::enum_deep::EnumDeep;
+use super::enum_deep::*;
 use super::enum_0::Enum0_Animal;
+use super::enum_0::*;
 use super::enum_0::Enum0;
+use super::enum_0::*;
 use super::enum_deep::EnumDeep_Container1_Container2_Animal;
+use super::enum_deep::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct EnumImportSeq {
@@ -68,6 +72,38 @@ pub struct EnumImportSeq {
     pet_1: RefCell<Enum0_Animal>,
     pet_2: RefCell<EnumDeep_Container1_Container2_Animal>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EnumImportSeq> for OptRc<EnumImportSeq> {
+    type Error = KError;
+    fn try_from(v: &EnumImportSeq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumImportSeq> for OptRc<EnumImportSeq> {
+    type Error = KError;
+    fn try_from(v: &&EnumImportSeq) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumImportSeq> for EnumImportSeq {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportSeq>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumImportSeq> for &EnumImportSeq {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportSeq>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumImportSeq> for OptRc<EnumImportSeq> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportSeq>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumImportSeq> for &OptRc<EnumImportSeq> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumImportSeq>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumImportSeq {
     type Root = EnumImportSeq;
@@ -106,5 +142,11 @@ impl EnumImportSeq {
 impl EnumImportSeq {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

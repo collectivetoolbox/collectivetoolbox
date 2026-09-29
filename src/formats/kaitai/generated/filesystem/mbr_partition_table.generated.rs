@@ -28,6 +28,38 @@ pub struct MbrPartitionTable {
     _io: RefCell<BytesReader>,
     bootstrap_code_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&MbrPartitionTable> for OptRc<MbrPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &MbrPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MbrPartitionTable> for OptRc<MbrPartitionTable> {
+    type Error = KError;
+    fn try_from(v: &&MbrPartitionTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable> for MbrPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable> for &MbrPartitionTable {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable> for OptRc<MbrPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MbrPartitionTable> for &OptRc<MbrPartitionTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MbrPartitionTable {
     type Root = MbrPartitionTable;
     type Parent = MbrPartitionTable;
@@ -80,6 +112,12 @@ impl MbrPartitionTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MbrPartitionTable {
     pub fn bootstrap_code_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -100,6 +138,38 @@ pub struct MbrPartitionTable_Chs {
     cylinder: RefCell<i32>,
     f_sector: Cell<bool>,
     sector: RefCell<i32>,
+}
+impl TryFrom<&MbrPartitionTable_Chs> for OptRc<MbrPartitionTable_Chs> {
+    type Error = KError;
+    fn try_from(v: &MbrPartitionTable_Chs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MbrPartitionTable_Chs> for OptRc<MbrPartitionTable_Chs> {
+    type Error = KError;
+    fn try_from(v: &&MbrPartitionTable_Chs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_Chs> for MbrPartitionTable_Chs {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_Chs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_Chs> for &MbrPartitionTable_Chs {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_Chs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_Chs> for OptRc<MbrPartitionTable_Chs> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_Chs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_Chs> for &OptRc<MbrPartitionTable_Chs> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_Chs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MbrPartitionTable_Chs {
     type Root = MbrPartitionTable;
@@ -169,6 +239,12 @@ impl MbrPartitionTable_Chs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -183,6 +259,38 @@ pub struct MbrPartitionTable_PartitionEntry {
     lba_start: RefCell<u32>,
     num_sectors: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &MbrPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
+    type Error = KError;
+    fn try_from(v: &&MbrPartitionTable_PartitionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for MbrPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for &MbrPartitionTable_PartitionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for OptRc<MbrPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MbrPartitionTable_PartitionEntry> for &OptRc<MbrPartitionTable_PartitionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MbrPartitionTable_PartitionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MbrPartitionTable_PartitionEntry {
     type Root = MbrPartitionTable;
@@ -247,5 +355,11 @@ impl MbrPartitionTable_PartitionEntry {
 impl MbrPartitionTable_PartitionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

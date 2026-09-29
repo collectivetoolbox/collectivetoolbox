@@ -66,6 +66,38 @@ pub struct PositionAbs {
     f_index: Cell<bool>,
     index: RefCell<OptRc<PositionAbs_IndexObj>>,
 }
+impl TryFrom<&PositionAbs> for OptRc<PositionAbs> {
+    type Error = KError;
+    fn try_from(v: &PositionAbs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionAbs> for OptRc<PositionAbs> {
+    type Error = KError;
+    fn try_from(v: &&PositionAbs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs> for PositionAbs {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs> for &PositionAbs {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs> for OptRc<PositionAbs> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionAbs> for &OptRc<PositionAbs> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PositionAbs {
     type Root = PositionAbs;
     type Parent = PositionAbs;
@@ -113,6 +145,12 @@ impl PositionAbs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -122,6 +160,38 @@ pub struct PositionAbs_IndexObj {
     pub(crate) _self_shared: SharedType<Self>,
     entry: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PositionAbs_IndexObj> for OptRc<PositionAbs_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &PositionAbs_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PositionAbs_IndexObj> for OptRc<PositionAbs_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &&PositionAbs_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs_IndexObj> for PositionAbs_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs_IndexObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs_IndexObj> for &PositionAbs_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs_IndexObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PositionAbs_IndexObj> for OptRc<PositionAbs_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs_IndexObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PositionAbs_IndexObj> for &OptRc<PositionAbs_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<PositionAbs_IndexObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PositionAbs_IndexObj {
     type Root = PositionAbs;
@@ -154,5 +224,11 @@ impl PositionAbs_IndexObj {
 impl PositionAbs_IndexObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

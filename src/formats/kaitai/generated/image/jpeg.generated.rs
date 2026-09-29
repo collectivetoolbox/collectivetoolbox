@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::exif::Exif;
+use super::exif::*;
 
 /**
  * JPEG File Interchange Format, or JFIF, or, more colloquially known
@@ -32,6 +33,38 @@ pub struct Jpeg {
     pub(crate) _self_shared: SharedType<Self>,
     segments: RefCell<Vec<OptRc<Jpeg_Segment>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Jpeg> for OptRc<Jpeg> {
+    type Error = KError;
+    fn try_from(v: &Jpeg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg> for OptRc<Jpeg> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg> for Jpeg {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg> for &Jpeg {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg> for OptRc<Jpeg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg> for &OptRc<Jpeg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Jpeg {
     type Root = Jpeg;
@@ -72,6 +105,12 @@ impl Jpeg {
 impl Jpeg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -126,6 +165,38 @@ pub struct Jpeg_ExifInJpeg {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Jpeg_ExifInJpeg> for OptRc<Jpeg_ExifInJpeg> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_ExifInJpeg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_ExifInJpeg> for OptRc<Jpeg_ExifInJpeg> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_ExifInJpeg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for Jpeg_ExifInJpeg {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for &Jpeg_ExifInJpeg {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for OptRc<Jpeg_ExifInJpeg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for &OptRc<Jpeg_ExifInJpeg> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Jpeg_ExifInJpeg {
     type Root = Jpeg;
     type Parent = Jpeg_SegmentApp1;
@@ -171,6 +242,12 @@ impl Jpeg_ExifInJpeg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Jpeg_ExifInJpeg {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -208,6 +285,22 @@ impl TryFrom<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp0> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp0> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        OptRc::<Jpeg_SegmentApp0>::try_from(self)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for &Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Jpeg_SegmentApp0>> for Jpeg_Segment_Data {
     fn from(v: OptRc<Jpeg_SegmentApp0>) -> Self {
         Self::Jpeg_SegmentApp0(v)
@@ -220,6 +313,22 @@ impl TryFrom<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp1> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentApp1> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        OptRc::<Jpeg_SegmentApp1>::try_from(self)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for &Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Jpeg_SegmentApp1>> for Jpeg_Segment_Data {
@@ -236,6 +345,22 @@ impl TryFrom<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSof0> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSof0> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        OptRc::<Jpeg_SegmentSof0>::try_from(self)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for &Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Jpeg_SegmentSof0>> for Jpeg_Segment_Data {
     fn from(v: OptRc<Jpeg_SegmentSof0>) -> Self {
         Self::Jpeg_SegmentSof0(v)
@@ -248,6 +373,22 @@ impl TryFrom<&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSos> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Jpeg_Segment_Data> for OptRc<Jpeg_SegmentSos> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        OptRc::<Jpeg_SegmentSos>::try_from(self)
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for &Jpeg_Segment_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Jpeg_SegmentSos>> for Jpeg_Segment_Data {
@@ -264,9 +405,47 @@ impl TryFrom<&Jpeg_Segment_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Jpeg_Segment_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Jpeg_Segment_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Jpeg_Segment> for OptRc<Jpeg_Segment> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_Segment) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_Segment> for OptRc<Jpeg_Segment> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_Segment) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_Segment> for Jpeg_Segment {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_Segment>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_Segment> for &Jpeg_Segment {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_Segment>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_Segment> for OptRc<Jpeg_Segment> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_Segment>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_Segment> for &OptRc<Jpeg_Segment> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_Segment>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Jpeg_Segment {
@@ -365,6 +544,12 @@ impl Jpeg_Segment {
 impl Jpeg_Segment {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Jpeg_Segment {
@@ -516,6 +701,38 @@ pub struct Jpeg_SegmentApp0 {
     magic_raw: RefCell<Vec<u8>>,
     thumbnail_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Jpeg_SegmentApp0> for OptRc<Jpeg_SegmentApp0> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentApp0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentApp0> for OptRc<Jpeg_SegmentApp0> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentApp0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for Jpeg_SegmentApp0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for &Jpeg_SegmentApp0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for OptRc<Jpeg_SegmentApp0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp0> for &OptRc<Jpeg_SegmentApp0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp0>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Jpeg_SegmentApp0 {
     type Root = Jpeg;
     type Parent = Jpeg_Segment;
@@ -616,6 +833,12 @@ impl Jpeg_SegmentApp0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Jpeg_SegmentApp0 {
     pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -685,9 +908,57 @@ impl TryFrom<&Jpeg_SegmentApp1_Body> for OptRc<Jpeg_ExifInJpeg> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Jpeg_SegmentApp1_Body> for OptRc<Jpeg_ExifInJpeg> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentApp1_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for Jpeg_SegmentApp1_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        OptRc::<Jpeg_ExifInJpeg>::try_from(self)
+    }
+}
+impl DowncastOptRc<Jpeg_ExifInJpeg> for &Jpeg_SegmentApp1_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_ExifInJpeg>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Jpeg_ExifInJpeg>> for Jpeg_SegmentApp1_Body {
     fn from(v: OptRc<Jpeg_ExifInJpeg>) -> Self {
         Self::Jpeg_ExifInJpeg(v)
+    }
+}
+impl TryFrom<&Jpeg_SegmentApp1> for OptRc<Jpeg_SegmentApp1> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentApp1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentApp1> for OptRc<Jpeg_SegmentApp1> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentApp1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for Jpeg_SegmentApp1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for &Jpeg_SegmentApp1 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for OptRc<Jpeg_SegmentApp1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentApp1> for &OptRc<Jpeg_SegmentApp1> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentApp1>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Jpeg_SegmentApp1 {
@@ -734,6 +1005,12 @@ impl Jpeg_SegmentApp1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -747,6 +1024,38 @@ pub struct Jpeg_SegmentSof0 {
     num_components: RefCell<u8>,
     components: RefCell<Vec<OptRc<Jpeg_SegmentSof0_Component>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Jpeg_SegmentSof0> for OptRc<Jpeg_SegmentSof0> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentSof0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentSof0> for OptRc<Jpeg_SegmentSof0> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentSof0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for Jpeg_SegmentSof0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for &Jpeg_SegmentSof0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for OptRc<Jpeg_SegmentSof0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0> for &OptRc<Jpeg_SegmentSof0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Jpeg_SegmentSof0 {
     type Root = Jpeg;
@@ -809,6 +1118,12 @@ impl Jpeg_SegmentSof0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -824,6 +1139,38 @@ pub struct Jpeg_SegmentSof0_Component {
     sampling_x: RefCell<i32>,
     f_sampling_y: Cell<bool>,
     sampling_y: RefCell<i32>,
+}
+impl TryFrom<&Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentSof0_Component) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentSof0_Component) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0_Component> for Jpeg_SegmentSof0_Component {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0_Component> for &Jpeg_SegmentSof0_Component {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0_Component> for OptRc<Jpeg_SegmentSof0_Component> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSof0_Component> for &OptRc<Jpeg_SegmentSof0_Component> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSof0_Component>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Jpeg_SegmentSof0_Component {
     type Root = Jpeg;
@@ -897,6 +1244,12 @@ impl Jpeg_SegmentSof0_Component {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -910,6 +1263,38 @@ pub struct Jpeg_SegmentSos {
     end_spectral: RefCell<u8>,
     appr_bit_pos: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Jpeg_SegmentSos> for OptRc<Jpeg_SegmentSos> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentSos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentSos> for OptRc<Jpeg_SegmentSos> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentSos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for Jpeg_SegmentSos {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for &Jpeg_SegmentSos {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for OptRc<Jpeg_SegmentSos> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos> for &OptRc<Jpeg_SegmentSos> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Jpeg_SegmentSos {
     type Root = Jpeg;
@@ -992,6 +1377,12 @@ impl Jpeg_SegmentSos {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1002,6 +1393,38 @@ pub struct Jpeg_SegmentSos_Component {
     id: RefCell<Jpeg_ComponentId>,
     huffman_table: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Jpeg_SegmentSos_Component> for OptRc<Jpeg_SegmentSos_Component> {
+    type Error = KError;
+    fn try_from(v: &Jpeg_SegmentSos_Component) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Jpeg_SegmentSos_Component> for OptRc<Jpeg_SegmentSos_Component> {
+    type Error = KError;
+    fn try_from(v: &&Jpeg_SegmentSos_Component) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos_Component> for Jpeg_SegmentSos_Component {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos_Component> for &Jpeg_SegmentSos_Component {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos_Component> for OptRc<Jpeg_SegmentSos_Component> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Jpeg_SegmentSos_Component> for &OptRc<Jpeg_SegmentSos_Component> {
+    fn downcast_optrc(&self) -> Result<OptRc<Jpeg_SegmentSos_Component>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Jpeg_SegmentSos_Component {
     type Root = Jpeg;
@@ -1044,5 +1467,11 @@ impl Jpeg_SegmentSos_Component {
 impl Jpeg_SegmentSos_Component {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

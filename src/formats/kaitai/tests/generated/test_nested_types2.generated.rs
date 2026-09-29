@@ -85,12 +85,12 @@ fn test_nested_types2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NestedTypes2> = NestedTypes2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one().typed_at_root().value_b(), 80);
-    assert_eq!(*r.one().typed_here1().value_c(), 65);
-    assert_eq!(*r.one().typed_here1().typed_here().value_d(), 67);
-    assert_eq!(*r.one().typed_here1().typed_parent().value_cc(), 75);
-    assert_eq!(*r.one().typed_here1().typed_root().value_b(), 45);
-    assert_eq!(*r.one().typed_here2().value_cc(), 49);
-    assert_eq!(*r.two().value_b(), -1);
+    assert_eq!(*(r.one().typed_at_root().value_b()), 80);
+    assert_eq!(*(r.one().typed_here1().value_c()), 65);
+    assert_eq!(*(r.one().typed_here1().typed_here().value_d()), 67);
+    assert_eq!(*(r.one().typed_here1().typed_parent().value_cc()), 75);
+    assert_eq!(*(r.one().typed_here1().typed_root().value_b()), 45);
+    assert_eq!(*(r.one().typed_here2().value_cc()), 49);
+    assert_eq!(*(r.two().value_b()), -1);
     Ok(())
 }

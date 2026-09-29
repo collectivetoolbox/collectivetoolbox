@@ -86,9 +86,9 @@ fn test_switch_manual_enum_invalid() -> KResult<()> {
     let r: OptRc<SwitchManualEnumInvalid> = SwitchManualEnumInvalid::read_into(&_io, None, None)?;
 
     assert_eq!(r.opcodes().len(), 2);
-    assert_eq!(*r.opcodes()[0].code(), 255);
+    assert_eq!(i64::from(&*r.opcodes()[0].code()), 255);
     assert!(r.opcodes()[0].body().is_none());
-    assert_eq!(*r.opcodes()[1].code(), SwitchManualEnumInvalid_Opcode_CodeEnum::Foo);
+    assert_eq!(*(r.opcodes()[1].code()), SwitchManualEnumInvalid_Opcode_CodeEnum::Foo);
     assert!(r.opcodes()[1].body().is_none());
     Ok(())
 }

@@ -64,6 +64,38 @@ pub struct SwitchMultiBoolOps {
     opcodes: RefCell<Vec<OptRc<SwitchMultiBoolOps_Opcode>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchMultiBoolOps> for OptRc<SwitchMultiBoolOps> {
+    type Error = KError;
+    fn try_from(v: &SwitchMultiBoolOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchMultiBoolOps> for OptRc<SwitchMultiBoolOps> {
+    type Error = KError;
+    fn try_from(v: &&SwitchMultiBoolOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps> for SwitchMultiBoolOps {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps> for &SwitchMultiBoolOps {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps> for OptRc<SwitchMultiBoolOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps> for &OptRc<SwitchMultiBoolOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchMultiBoolOps {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
@@ -103,6 +135,12 @@ impl SwitchMultiBoolOps {
 impl SwitchMultiBoolOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -214,6 +252,38 @@ impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for usize {
     }
 }
 
+impl TryFrom<&SwitchMultiBoolOps_Opcode> for OptRc<SwitchMultiBoolOps_Opcode> {
+    type Error = KError;
+    fn try_from(v: &SwitchMultiBoolOps_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchMultiBoolOps_Opcode> for OptRc<SwitchMultiBoolOps_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&SwitchMultiBoolOps_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps_Opcode> for SwitchMultiBoolOps_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps_Opcode> for &SwitchMultiBoolOps_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps_Opcode> for OptRc<SwitchMultiBoolOps_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchMultiBoolOps_Opcode> for &OptRc<SwitchMultiBoolOps_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchMultiBoolOps_Opcode>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchMultiBoolOps_Opcode {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
@@ -269,5 +339,11 @@ impl SwitchMultiBoolOps_Opcode {
 impl SwitchMultiBoolOps_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

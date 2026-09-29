@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::protocol_body::ProtocolBody;
+use super::protocol_body::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct Ipv4Packet {
@@ -34,6 +35,38 @@ pub struct Ipv4Packet {
     ihl_bytes: RefCell<i32>,
     f_version: Cell<bool>,
     version: RefCell<i32>,
+}
+impl TryFrom<&Ipv4Packet> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &Ipv4Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ipv4Packet> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &&Ipv4Packet) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for Ipv4Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for &Ipv4Packet {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for OptRc<Ipv4Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ipv4Packet> for &OptRc<Ipv4Packet> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ipv4Packet {
     type Root = Ipv4Packet;
@@ -178,6 +211,12 @@ impl Ipv4Packet {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ipv4Packet {
     pub fn src_ip_addr_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -216,6 +255,38 @@ pub struct Ipv4Packet_Ipv4Option {
     number: RefCell<i32>,
     f_opt_class: Cell<bool>,
     opt_class: RefCell<i32>,
+}
+impl TryFrom<&Ipv4Packet_Ipv4Option> for OptRc<Ipv4Packet_Ipv4Option> {
+    type Error = KError;
+    fn try_from(v: &Ipv4Packet_Ipv4Option) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ipv4Packet_Ipv4Option> for OptRc<Ipv4Packet_Ipv4Option> {
+    type Error = KError;
+    fn try_from(v: &&Ipv4Packet_Ipv4Option) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Option> for Ipv4Packet_Ipv4Option {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Option>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Option> for &Ipv4Packet_Ipv4Option {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Option>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Option> for OptRc<Ipv4Packet_Ipv4Option> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Option>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Option> for &OptRc<Ipv4Packet_Ipv4Option> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Option>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ipv4Packet_Ipv4Option {
     type Root = Ipv4Packet;
@@ -297,6 +368,12 @@ impl Ipv4Packet_Ipv4Option {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ipv4Packet_Ipv4Option {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -311,6 +388,38 @@ pub struct Ipv4Packet_Ipv4Options {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Ipv4Packet_Ipv4Option>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Ipv4Packet_Ipv4Options> for OptRc<Ipv4Packet_Ipv4Options> {
+    type Error = KError;
+    fn try_from(v: &Ipv4Packet_Ipv4Options) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ipv4Packet_Ipv4Options> for OptRc<Ipv4Packet_Ipv4Options> {
+    type Error = KError;
+    fn try_from(v: &&Ipv4Packet_Ipv4Options) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Options> for Ipv4Packet_Ipv4Options {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Options>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Options> for &Ipv4Packet_Ipv4Options {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Options>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Options> for OptRc<Ipv4Packet_Ipv4Options> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Options>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ipv4Packet_Ipv4Options> for &OptRc<Ipv4Packet_Ipv4Options> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ipv4Packet_Ipv4Options>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ipv4Packet_Ipv4Options {
     type Root = Ipv4Packet;
@@ -351,5 +460,11 @@ impl Ipv4Packet_Ipv4Options {
 impl Ipv4Packet_Ipv4Options {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

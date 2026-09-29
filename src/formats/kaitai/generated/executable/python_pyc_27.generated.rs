@@ -26,6 +26,38 @@ pub struct PythonPyc27 {
     body: RefCell<OptRc<PythonPyc27_PyObject>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PythonPyc27> for OptRc<PythonPyc27> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27> for OptRc<PythonPyc27> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27> for PythonPyc27 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27> for &PythonPyc27 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27> for OptRc<PythonPyc27> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27> for &OptRc<PythonPyc27> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPyc27 {
     type Root = PythonPyc27;
     type Parent = PythonPyc27;
@@ -76,6 +108,12 @@ impl PythonPyc27 {
 impl PythonPyc27 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -191,6 +229,38 @@ pub struct PythonPyc27_Assembly {
     _io: RefCell<BytesReader>,
     items_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&PythonPyc27_Assembly> for OptRc<PythonPyc27_Assembly> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_Assembly) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_Assembly> for OptRc<PythonPyc27_Assembly> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_Assembly) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_Assembly> for PythonPyc27_Assembly {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_Assembly>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_Assembly> for &PythonPyc27_Assembly {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_Assembly>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_Assembly> for OptRc<PythonPyc27_Assembly> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_Assembly>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_Assembly> for &OptRc<PythonPyc27_Assembly> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_Assembly>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPyc27_Assembly {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_CodeObject;
@@ -242,6 +312,12 @@ impl PythonPyc27_Assembly {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPyc27_Assembly {
     pub fn items_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -269,6 +345,38 @@ pub struct PythonPyc27_CodeObject {
     first_line_no: RefCell<u32>,
     lnotab: RefCell<OptRc<PythonPyc27_PyObject>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_CodeObject> for OptRc<PythonPyc27_CodeObject> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_CodeObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_CodeObject> for OptRc<PythonPyc27_CodeObject> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_CodeObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for PythonPyc27_CodeObject {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for &PythonPyc27_CodeObject {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for OptRc<PythonPyc27_CodeObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for &OptRc<PythonPyc27_CodeObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_CodeObject {
     type Root = PythonPyc27;
@@ -389,6 +497,12 @@ impl PythonPyc27_CodeObject {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PythonPyc27_CodeObject_FlagsEnum {
@@ -435,6 +549,38 @@ pub struct PythonPyc27_OpArg {
     arg: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PythonPyc27_OpArg> for OptRc<PythonPyc27_OpArg> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_OpArg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_OpArg> for OptRc<PythonPyc27_OpArg> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_OpArg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArg> for PythonPyc27_OpArg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArg> for &PythonPyc27_OpArg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArg> for OptRc<PythonPyc27_OpArg> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArg> for &OptRc<PythonPyc27_OpArg> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArg>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPyc27_OpArg {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_OpArgs;
@@ -474,6 +620,12 @@ impl PythonPyc27_OpArg {
 impl PythonPyc27_OpArg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -868,6 +1020,38 @@ pub struct PythonPyc27_OpArgs {
     items: RefCell<Vec<OptRc<PythonPyc27_OpArg>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PythonPyc27_OpArgs> for OptRc<PythonPyc27_OpArgs> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_OpArgs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_OpArgs> for OptRc<PythonPyc27_OpArgs> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_OpArgs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArgs> for PythonPyc27_OpArgs {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArgs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArgs> for &PythonPyc27_OpArgs {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArgs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArgs> for OptRc<PythonPyc27_OpArgs> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArgs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_OpArgs> for &OptRc<PythonPyc27_OpArgs> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_OpArgs>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPyc27_OpArgs {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_Assembly;
@@ -908,6 +1092,12 @@ impl PythonPyc27_OpArgs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -940,6 +1130,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_CodeObject> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_CodeObject> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        OptRc::<PythonPyc27_CodeObject>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_CodeObject> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_CodeObject>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPyc27_CodeObject>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_CodeObject>) -> Self {
         Self::PythonPyc27_CodeObject(v)
@@ -952,6 +1158,12 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for u32 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_Value> for u32 {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<u32> for PythonPyc27_PyObject_Value {
@@ -968,6 +1180,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Interne
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_InternedString> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        OptRc::<PythonPyc27_PyObject_InternedString>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPyc27_PyObject_InternedString>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_InternedString>) -> Self {
         Self::PythonPyc27_PyObject_InternedString(v)
@@ -980,6 +1208,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyNone>
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyNone> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        OptRc::<PythonPyc27_PyObject_PyNone>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPyc27_PyObject_PyNone>> for PythonPyc27_PyObject_Value {
@@ -996,6 +1240,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyFalse
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        OptRc::<PythonPyc27_PyObject_PyFalse>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPyc27_PyObject_PyFalse>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_PyFalse>) -> Self {
         Self::PythonPyc27_PyObject_PyFalse(v)
@@ -1008,6 +1268,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyTrue>
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        OptRc::<PythonPyc27_PyObject_PyTrue>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPyc27_PyObject_PyTrue>> for PythonPyc27_PyObject_Value {
@@ -1024,6 +1300,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyStrin
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_PyString> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        OptRc::<PythonPyc27_PyObject_PyString>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPyc27_PyObject_PyString>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_PyString>) -> Self {
         Self::PythonPyc27_PyObject_PyString(v)
@@ -1036,6 +1328,22 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_StringR
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_StringRef> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        OptRc::<PythonPyc27_PyObject_StringRef>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPyc27_PyObject_StringRef>> for PythonPyc27_PyObject_Value {
@@ -1052,9 +1360,57 @@ impl TryFrom<&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Tuple> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPyc27_PyObject_Value> for OptRc<PythonPyc27_PyObject_Tuple> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Value) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        OptRc::<PythonPyc27_PyObject_Tuple>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &PythonPyc27_PyObject_Value {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPyc27_PyObject_Tuple>> for PythonPyc27_PyObject_Value {
     fn from(v: OptRc<PythonPyc27_PyObject_Tuple>) -> Self {
         Self::PythonPyc27_PyObject_Tuple(v)
+    }
+}
+impl TryFrom<&PythonPyc27_PyObject> for OptRc<PythonPyc27_PyObject> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject> for OptRc<PythonPyc27_PyObject> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject> for PythonPyc27_PyObject {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject> for &PythonPyc27_PyObject {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject> for OptRc<PythonPyc27_PyObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject> for &OptRc<PythonPyc27_PyObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for PythonPyc27_PyObject {
@@ -1132,6 +1488,12 @@ impl PythonPyc27_PyObject {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PythonPyc27_PyObject_ObjectType {
@@ -1200,6 +1562,38 @@ pub struct PythonPyc27_PyObject_InternedString {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_InternedString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_InternedString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for PythonPyc27_PyObject_InternedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &PythonPyc27_PyObject_InternedString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for OptRc<PythonPyc27_PyObject_InternedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_InternedString> for &OptRc<PythonPyc27_PyObject_InternedString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_InternedString>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPyc27_PyObject_InternedString {
     type Root = PythonPyc27;
     type Parent = PythonPyc27_PyObject;
@@ -1238,6 +1632,12 @@ impl PythonPyc27_PyObject_InternedString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPyc27_PyObject_InternedString {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1251,6 +1651,38 @@ pub struct PythonPyc27_PyObject_PyFalse {
     pub(crate) _parent: SharedType<PythonPyc27_PyObject>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_PyFalse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_PyFalse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for PythonPyc27_PyObject_PyFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &PythonPyc27_PyObject_PyFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for OptRc<PythonPyc27_PyObject_PyFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyFalse> for &OptRc<PythonPyc27_PyObject_PyFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyFalse>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_PyFalse {
     type Root = PythonPyc27;
@@ -1278,6 +1710,12 @@ impl PythonPyc27_PyObject_PyFalse {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1286,6 +1724,38 @@ pub struct PythonPyc27_PyObject_PyNone {
     pub(crate) _parent: SharedType<PythonPyc27_PyObject>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_PyNone) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_PyNone) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for PythonPyc27_PyObject_PyNone {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &PythonPyc27_PyObject_PyNone {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for OptRc<PythonPyc27_PyObject_PyNone> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyNone> for &OptRc<PythonPyc27_PyObject_PyNone> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyNone>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_PyNone {
     type Root = PythonPyc27;
@@ -1313,6 +1783,12 @@ impl PythonPyc27_PyObject_PyNone {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1324,6 +1800,38 @@ pub struct PythonPyc27_PyObject_PyString {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_PyString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_PyString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for PythonPyc27_PyObject_PyString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &PythonPyc27_PyObject_PyString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for OptRc<PythonPyc27_PyObject_PyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyString> for &OptRc<PythonPyc27_PyObject_PyString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_PyString {
     type Root = PythonPyc27;
@@ -1363,6 +1871,12 @@ impl PythonPyc27_PyObject_PyString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPyc27_PyObject_PyString {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1376,6 +1890,38 @@ pub struct PythonPyc27_PyObject_PyTrue {
     pub(crate) _parent: SharedType<PythonPyc27_PyObject>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_PyTrue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_PyTrue) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for PythonPyc27_PyObject_PyTrue {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &PythonPyc27_PyObject_PyTrue {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for OptRc<PythonPyc27_PyObject_PyTrue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_PyTrue> for &OptRc<PythonPyc27_PyObject_PyTrue> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_PyTrue>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_PyTrue {
     type Root = PythonPyc27;
@@ -1403,6 +1949,12 @@ impl PythonPyc27_PyObject_PyTrue {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1412,6 +1964,38 @@ pub struct PythonPyc27_PyObject_StringRef {
     pub(crate) _self_shared: SharedType<Self>,
     interned_list_index: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_StringRef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_StringRef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for PythonPyc27_PyObject_StringRef {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &PythonPyc27_PyObject_StringRef {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for OptRc<PythonPyc27_PyObject_StringRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_StringRef> for &OptRc<PythonPyc27_PyObject_StringRef> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_StringRef>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_StringRef {
     type Root = PythonPyc27;
@@ -1445,6 +2029,12 @@ impl PythonPyc27_PyObject_StringRef {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1455,6 +2045,38 @@ pub struct PythonPyc27_PyObject_Tuple {
     count: RefCell<u32>,
     items: RefCell<Vec<OptRc<PythonPyc27_PyObject>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_Tuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_Tuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for PythonPyc27_PyObject_Tuple {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &PythonPyc27_PyObject_Tuple {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for OptRc<PythonPyc27_PyObject_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_Tuple> for &OptRc<PythonPyc27_PyObject_Tuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_Tuple>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_Tuple {
     type Root = PythonPyc27;
@@ -1499,6 +2121,12 @@ impl PythonPyc27_PyObject_Tuple {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1510,6 +2138,38 @@ pub struct PythonPyc27_PyObject_UnicodeString {
     data: RefCell<String>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
+    type Error = KError;
+    fn try_from(v: &PythonPyc27_PyObject_UnicodeString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
+    type Error = KError;
+    fn try_from(v: &&PythonPyc27_PyObject_UnicodeString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for PythonPyc27_PyObject_UnicodeString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for &PythonPyc27_PyObject_UnicodeString {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for OptRc<PythonPyc27_PyObject_UnicodeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPyc27_PyObject_UnicodeString> for &OptRc<PythonPyc27_PyObject_UnicodeString> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPyc27_PyObject_UnicodeString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPyc27_PyObject_UnicodeString {
     type Root = PythonPyc27;
@@ -1548,6 +2208,12 @@ impl PythonPyc27_PyObject_UnicodeString {
 impl PythonPyc27_PyObject_UnicodeString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl PythonPyc27_PyObject_UnicodeString {

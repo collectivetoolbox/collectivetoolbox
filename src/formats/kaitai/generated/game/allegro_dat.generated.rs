@@ -31,6 +31,38 @@ pub struct AllegroDat {
     objects: RefCell<Vec<OptRc<AllegroDat_DatObject>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&AllegroDat> for OptRc<AllegroDat> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat> for OptRc<AllegroDat> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat> for AllegroDat {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat> for &AllegroDat {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat> for OptRc<AllegroDat> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat> for &OptRc<AllegroDat> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AllegroDat {
     type Root = AllegroDat;
     type Parent = AllegroDat;
@@ -89,6 +121,12 @@ impl AllegroDat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AllegroDat_PackEnum {
@@ -130,6 +168,38 @@ pub struct AllegroDat_DatBitmap {
     height: RefCell<u16>,
     image: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AllegroDat_DatBitmap> for OptRc<AllegroDat_DatBitmap> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatBitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatBitmap> for OptRc<AllegroDat_DatBitmap> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatBitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for AllegroDat_DatBitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for &AllegroDat_DatBitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for OptRc<AllegroDat_DatBitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for &OptRc<AllegroDat_DatBitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatBitmap {
     type Root = AllegroDat;
@@ -181,6 +251,12 @@ impl AllegroDat_DatBitmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -207,6 +283,22 @@ impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont39> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont39> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        OptRc::<AllegroDat_DatFont39>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for &AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AllegroDat_DatFont39>> for AllegroDat_DatFont_Body {
     fn from(v: OptRc<AllegroDat_DatFont39>) -> Self {
         Self::AllegroDat_DatFont39(v)
@@ -219,6 +311,22 @@ impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont16> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont16> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        OptRc::<AllegroDat_DatFont16>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for &AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<AllegroDat_DatFont16>> for AllegroDat_DatFont_Body {
@@ -235,9 +343,57 @@ impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont8> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        OptRc::<AllegroDat_DatFont8>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for &AllegroDat_DatFont_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AllegroDat_DatFont8>> for AllegroDat_DatFont_Body {
     fn from(v: OptRc<AllegroDat_DatFont8>) -> Self {
         Self::AllegroDat_DatFont8(v)
+    }
+}
+impl TryFrom<&AllegroDat_DatFont> for OptRc<AllegroDat_DatFont> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont> for OptRc<AllegroDat_DatFont> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for AllegroDat_DatFont {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for &AllegroDat_DatFont {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for OptRc<AllegroDat_DatFont> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for &OptRc<AllegroDat_DatFont> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for AllegroDat_DatFont {
@@ -292,6 +448,12 @@ impl AllegroDat_DatFont {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -307,6 +469,38 @@ pub struct AllegroDat_DatFont16 {
     chars: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
     chars_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AllegroDat_DatFont16> for OptRc<AllegroDat_DatFont16> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont16> for OptRc<AllegroDat_DatFont16> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for AllegroDat_DatFont16 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for &AllegroDat_DatFont16 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for OptRc<AllegroDat_DatFont16> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont16> for &OptRc<AllegroDat_DatFont16> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatFont16 {
     type Root = AllegroDat;
@@ -344,6 +538,12 @@ impl AllegroDat_DatFont16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AllegroDat_DatFont16 {
     pub fn chars_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -365,6 +565,38 @@ pub struct AllegroDat_DatFont39 {
     num_ranges: RefCell<i16>,
     ranges: RefCell<Vec<OptRc<AllegroDat_DatFont39_Range>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AllegroDat_DatFont39> for OptRc<AllegroDat_DatFont39> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont39) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont39> for OptRc<AllegroDat_DatFont39> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont39) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for AllegroDat_DatFont39 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for &AllegroDat_DatFont39 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for OptRc<AllegroDat_DatFont39> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39> for &OptRc<AllegroDat_DatFont39> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatFont39 {
     type Root = AllegroDat;
@@ -409,6 +641,12 @@ impl AllegroDat_DatFont39 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -421,6 +659,38 @@ pub struct AllegroDat_DatFont39_FontChar {
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AllegroDat_DatFont39_FontChar> for OptRc<AllegroDat_DatFont39_FontChar> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont39_FontChar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont39_FontChar> for OptRc<AllegroDat_DatFont39_FontChar> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont39_FontChar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_FontChar> for AllegroDat_DatFont39_FontChar {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_FontChar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_FontChar> for &AllegroDat_DatFont39_FontChar {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_FontChar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_FontChar> for OptRc<AllegroDat_DatFont39_FontChar> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_FontChar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_FontChar> for &OptRc<AllegroDat_DatFont39_FontChar> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_FontChar>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatFont39_FontChar {
     type Root = AllegroDat;
@@ -466,6 +736,12 @@ impl AllegroDat_DatFont39_FontChar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AllegroDat_DatFont39_FontChar {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -483,6 +759,38 @@ pub struct AllegroDat_DatFont39_Range {
     end_char: RefCell<u32>,
     chars: RefCell<Vec<OptRc<AllegroDat_DatFont39_FontChar>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AllegroDat_DatFont39_Range> for OptRc<AllegroDat_DatFont39_Range> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont39_Range) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont39_Range> for OptRc<AllegroDat_DatFont39_Range> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont39_Range) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_Range> for AllegroDat_DatFont39_Range {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_Range>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_Range> for &AllegroDat_DatFont39_Range {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_Range>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_Range> for OptRc<AllegroDat_DatFont39_Range> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_Range>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont39_Range> for &OptRc<AllegroDat_DatFont39_Range> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont39_Range>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatFont39_Range {
     type Root = AllegroDat;
@@ -547,6 +855,12 @@ impl AllegroDat_DatFont39_Range {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -562,6 +876,38 @@ pub struct AllegroDat_DatFont8 {
     chars: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
     chars_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AllegroDat_DatFont8> for OptRc<AllegroDat_DatFont8> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatFont8> for OptRc<AllegroDat_DatFont8> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatFont8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for AllegroDat_DatFont8 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for &AllegroDat_DatFont8 {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for OptRc<AllegroDat_DatFont8> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont8> for &OptRc<AllegroDat_DatFont8> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont8>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatFont8 {
     type Root = AllegroDat;
@@ -598,6 +944,12 @@ impl AllegroDat_DatFont8 {
 impl AllegroDat_DatFont8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AllegroDat_DatFont8 {
@@ -636,6 +988,22 @@ impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatBitmap> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatBitmap> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        OptRc::<AllegroDat_DatBitmap>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatBitmap> for &AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatBitmap>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AllegroDat_DatBitmap>> for AllegroDat_DatObject_Body {
     fn from(v: OptRc<AllegroDat_DatBitmap>) -> Self {
         Self::AllegroDat_DatBitmap(v)
@@ -648,6 +1016,22 @@ impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatFont> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatFont> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        OptRc::<AllegroDat_DatFont>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatFont> for &AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatFont>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<AllegroDat_DatFont>> for AllegroDat_DatObject_Body {
@@ -664,6 +1048,22 @@ impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatRleSprite> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatRleSprite> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        OptRc::<AllegroDat_DatRleSprite>::try_from(self)
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for &AllegroDat_DatObject_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AllegroDat_DatRleSprite>> for AllegroDat_DatObject_Body {
     fn from(v: OptRc<AllegroDat_DatRleSprite>) -> Self {
         Self::AllegroDat_DatRleSprite(v)
@@ -678,9 +1078,47 @@ impl TryFrom<&AllegroDat_DatObject_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AllegroDat_DatObject_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for AllegroDat_DatObject_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&AllegroDat_DatObject> for OptRc<AllegroDat_DatObject> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatObject> for OptRc<AllegroDat_DatObject> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatObject) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatObject> for AllegroDat_DatObject {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatObject>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatObject> for &AllegroDat_DatObject {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatObject>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatObject> for OptRc<AllegroDat_DatObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatObject>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatObject> for &OptRc<AllegroDat_DatObject> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatObject>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for AllegroDat_DatObject {
@@ -781,6 +1219,12 @@ impl AllegroDat_DatObject {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AllegroDat_DatObject {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -799,6 +1243,38 @@ pub struct AllegroDat_DatRleSprite {
     len_image: RefCell<u32>,
     image: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AllegroDat_DatRleSprite> for OptRc<AllegroDat_DatRleSprite> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatRleSprite) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_DatRleSprite> for OptRc<AllegroDat_DatRleSprite> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_DatRleSprite) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for AllegroDat_DatRleSprite {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for &AllegroDat_DatRleSprite {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for OptRc<AllegroDat_DatRleSprite> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_DatRleSprite> for &OptRc<AllegroDat_DatRleSprite> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_DatRleSprite>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_DatRleSprite {
     type Root = AllegroDat;
@@ -856,6 +1332,12 @@ impl AllegroDat_DatRleSprite {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -873,6 +1355,38 @@ pub struct AllegroDat_Property {
     body_raw: RefCell<Vec<u8>>,
     f_is_valid: Cell<bool>,
     is_valid: RefCell<bool>,
+}
+impl TryFrom<&AllegroDat_Property> for OptRc<AllegroDat_Property> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_Property) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AllegroDat_Property> for OptRc<AllegroDat_Property> {
+    type Error = KError;
+    fn try_from(v: &&AllegroDat_Property) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_Property> for AllegroDat_Property {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_Property>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_Property> for &AllegroDat_Property {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_Property>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AllegroDat_Property> for OptRc<AllegroDat_Property> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_Property>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AllegroDat_Property> for &OptRc<AllegroDat_Property> {
+    fn downcast_optrc(&self) -> Result<OptRc<AllegroDat_Property>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AllegroDat_Property {
     type Root = AllegroDat;
@@ -941,6 +1455,12 @@ impl AllegroDat_Property {
 impl AllegroDat_Property {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AllegroDat_Property {

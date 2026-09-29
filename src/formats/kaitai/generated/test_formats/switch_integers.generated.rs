@@ -64,6 +64,38 @@ pub struct SwitchIntegers {
     opcodes: RefCell<Vec<OptRc<SwitchIntegers_Opcode>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchIntegers> for OptRc<SwitchIntegers> {
+    type Error = KError;
+    fn try_from(v: &SwitchIntegers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchIntegers> for OptRc<SwitchIntegers> {
+    type Error = KError;
+    fn try_from(v: &&SwitchIntegers) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers> for SwitchIntegers {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers> for &SwitchIntegers {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers> for OptRc<SwitchIntegers> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchIntegers> for &OptRc<SwitchIntegers> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchIntegers {
     type Root = SwitchIntegers;
     type Parent = SwitchIntegers;
@@ -103,6 +135,12 @@ impl SwitchIntegers {
 impl SwitchIntegers {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -214,6 +252,38 @@ impl TryFrom<&SwitchIntegers_Opcode_Body> for usize {
     }
 }
 
+impl TryFrom<&SwitchIntegers_Opcode> for OptRc<SwitchIntegers_Opcode> {
+    type Error = KError;
+    fn try_from(v: &SwitchIntegers_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchIntegers_Opcode> for OptRc<SwitchIntegers_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&SwitchIntegers_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers_Opcode> for SwitchIntegers_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers_Opcode> for &SwitchIntegers_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchIntegers_Opcode> for OptRc<SwitchIntegers_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchIntegers_Opcode> for &OptRc<SwitchIntegers_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchIntegers_Opcode>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchIntegers_Opcode {
     type Root = SwitchIntegers;
     type Parent = SwitchIntegers;
@@ -269,5 +339,11 @@ impl SwitchIntegers_Opcode {
 impl SwitchIntegers_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

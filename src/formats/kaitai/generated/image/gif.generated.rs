@@ -37,6 +37,38 @@ pub struct Gif {
     _io: RefCell<BytesReader>,
     global_color_table_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Gif> for OptRc<Gif> {
+    type Error = KError;
+    fn try_from(v: &Gif) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif> for OptRc<Gif> {
+    type Error = KError;
+    fn try_from(v: &&Gif) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif> for Gif {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif> for &Gif {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif> for OptRc<Gif> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif> for &OptRc<Gif> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Gif {
     type Root = Gif;
     type Parent = Gif;
@@ -109,6 +141,12 @@ impl Gif {
 impl Gif {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Gif {
@@ -199,6 +237,38 @@ pub struct Gif_ApplicationId {
     application_identifier_raw: RefCell<Vec<u8>>,
     application_auth_code_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Gif_ApplicationId> for OptRc<Gif_ApplicationId> {
+    type Error = KError;
+    fn try_from(v: &Gif_ApplicationId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ApplicationId> for OptRc<Gif_ApplicationId> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ApplicationId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ApplicationId> for Gif_ApplicationId {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ApplicationId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ApplicationId> for &Gif_ApplicationId {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ApplicationId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ApplicationId> for OptRc<Gif_ApplicationId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ApplicationId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ApplicationId> for &OptRc<Gif_ApplicationId> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ApplicationId>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Gif_ApplicationId {
     type Root = Gif;
     type Parent = Gif_ExtApplication;
@@ -247,6 +317,12 @@ impl Gif_ApplicationId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gif_ApplicationId {
     pub fn application_identifier_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -282,6 +358,22 @@ impl TryFrom<&Gif_Block_Body> for OptRc<Gif_Extension> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Gif_Block_Body> for OptRc<Gif_Extension> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gif_Extension> for Gif_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        OptRc::<Gif_Extension>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gif_Extension> for &Gif_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Gif_Extension>> for Gif_Block_Body {
     fn from(v: OptRc<Gif_Extension>) -> Self {
         Self::Gif_Extension(v)
@@ -296,9 +388,57 @@ impl TryFrom<&Gif_Block_Body> for OptRc<Gif_LocalImageDescriptor> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Gif_Block_Body> for OptRc<Gif_LocalImageDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Block_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for Gif_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        OptRc::<Gif_LocalImageDescriptor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for &Gif_Block_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Gif_LocalImageDescriptor>> for Gif_Block_Body {
     fn from(v: OptRc<Gif_LocalImageDescriptor>) -> Self {
         Self::Gif_LocalImageDescriptor(v)
+    }
+}
+impl TryFrom<&Gif_Block> for OptRc<Gif_Block> {
+    type Error = KError;
+    fn try_from(v: &Gif_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_Block> for OptRc<Gif_Block> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Block> for Gif_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_Block> for &Gif_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Block> for OptRc<Gif_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_Block> for &OptRc<Gif_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Block>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Gif_Block {
@@ -349,6 +489,12 @@ impl Gif_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -362,6 +508,38 @@ pub struct Gif_ColorTable {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Gif_ColorTableEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gif_ColorTable> for OptRc<Gif_ColorTable> {
+    type Error = KError;
+    fn try_from(v: &Gif_ColorTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ColorTable> for OptRc<Gif_ColorTable> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ColorTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTable> for Gif_ColorTable {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTable> for &Gif_ColorTable {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTable> for OptRc<Gif_ColorTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ColorTable> for &OptRc<Gif_ColorTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTable>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_ColorTable {
     type Root = Gif;
@@ -403,6 +581,12 @@ impl Gif_ColorTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -414,6 +598,38 @@ pub struct Gif_ColorTableEntry {
     green: RefCell<u8>,
     blue: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gif_ColorTableEntry> for OptRc<Gif_ColorTableEntry> {
+    type Error = KError;
+    fn try_from(v: &Gif_ColorTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ColorTableEntry> for OptRc<Gif_ColorTableEntry> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ColorTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTableEntry> for Gif_ColorTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTableEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTableEntry> for &Gif_ColorTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTableEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ColorTableEntry> for OptRc<Gif_ColorTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTableEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ColorTableEntry> for &OptRc<Gif_ColorTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ColorTableEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_ColorTableEntry {
     type Root = Gif;
@@ -459,6 +675,12 @@ impl Gif_ColorTableEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -469,6 +691,38 @@ pub struct Gif_ExtApplication {
     application_id: RefCell<OptRc<Gif_ApplicationId>>,
     subblocks: RefCell<Vec<OptRc<Gif_Subblock>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gif_ExtApplication> for OptRc<Gif_ExtApplication> {
+    type Error = KError;
+    fn try_from(v: &Gif_ExtApplication) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ExtApplication> for OptRc<Gif_ExtApplication> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ExtApplication) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for Gif_ExtApplication {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for &Gif_ExtApplication {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for OptRc<Gif_ExtApplication> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for &OptRc<Gif_ExtApplication> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_ExtApplication {
     type Root = Gif;
@@ -520,6 +774,12 @@ impl Gif_ExtApplication {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -541,6 +801,38 @@ pub struct Gif_ExtGraphicControl {
     transparent_color_flag: RefCell<bool>,
     f_user_input_flag: Cell<bool>,
     user_input_flag: RefCell<bool>,
+}
+impl TryFrom<&Gif_ExtGraphicControl> for OptRc<Gif_ExtGraphicControl> {
+    type Error = KError;
+    fn try_from(v: &Gif_ExtGraphicControl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ExtGraphicControl> for OptRc<Gif_ExtGraphicControl> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ExtGraphicControl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for Gif_ExtGraphicControl {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for &Gif_ExtGraphicControl {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for OptRc<Gif_ExtGraphicControl> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for &OptRc<Gif_ExtGraphicControl> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_ExtGraphicControl {
     type Root = Gif;
@@ -628,6 +920,12 @@ impl Gif_ExtGraphicControl {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -654,6 +952,22 @@ impl TryFrom<&Gif_Extension_Body> for OptRc<Gif_ExtApplication> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Gif_Extension_Body> for OptRc<Gif_ExtApplication> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Extension_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        OptRc::<Gif_ExtApplication>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gif_ExtApplication> for &Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtApplication>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Gif_ExtApplication>> for Gif_Extension_Body {
     fn from(v: OptRc<Gif_ExtApplication>) -> Self {
         Self::Gif_ExtApplication(v)
@@ -666,6 +980,22 @@ impl TryFrom<&Gif_Extension_Body> for OptRc<Gif_Subblocks> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Gif_Extension_Body> for OptRc<Gif_Subblocks> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Extension_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        OptRc::<Gif_Subblocks>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for &Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Gif_Subblocks>> for Gif_Extension_Body {
@@ -682,9 +1012,57 @@ impl TryFrom<&Gif_Extension_Body> for OptRc<Gif_ExtGraphicControl> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Gif_Extension_Body> for OptRc<Gif_ExtGraphicControl> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Extension_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        OptRc::<Gif_ExtGraphicControl>::try_from(self)
+    }
+}
+impl DowncastOptRc<Gif_ExtGraphicControl> for &Gif_Extension_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ExtGraphicControl>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Gif_ExtGraphicControl>> for Gif_Extension_Body {
     fn from(v: OptRc<Gif_ExtGraphicControl>) -> Self {
         Self::Gif_ExtGraphicControl(v)
+    }
+}
+impl TryFrom<&Gif_Extension> for OptRc<Gif_Extension> {
+    type Error = KError;
+    fn try_from(v: &Gif_Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_Extension> for OptRc<Gif_Extension> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Extension> for Gif_Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_Extension> for &Gif_Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Extension> for OptRc<Gif_Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_Extension> for &OptRc<Gif_Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Extension>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Gif_Extension {
@@ -742,6 +1120,12 @@ impl Gif_Extension {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -757,6 +1141,38 @@ pub struct Gif_Header {
     version: RefCell<String>,
     _io: RefCell<BytesReader>,
     version_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Gif_Header> for OptRc<Gif_Header> {
+    type Error = KError;
+    fn try_from(v: &Gif_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_Header> for OptRc<Gif_Header> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Header> for Gif_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_Header> for &Gif_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Header> for OptRc<Gif_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_Header> for &OptRc<Gif_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_Header {
     type Root = Gif;
@@ -799,6 +1215,12 @@ impl Gif_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gif_Header {
     pub fn version_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -818,6 +1240,38 @@ pub struct Gif_ImageData {
     lzw_min_code_size: RefCell<u8>,
     subblocks: RefCell<OptRc<Gif_Subblocks>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gif_ImageData> for OptRc<Gif_ImageData> {
+    type Error = KError;
+    fn try_from(v: &Gif_ImageData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_ImageData> for OptRc<Gif_ImageData> {
+    type Error = KError;
+    fn try_from(v: &&Gif_ImageData) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ImageData> for Gif_ImageData {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ImageData>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_ImageData> for &Gif_ImageData {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ImageData>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_ImageData> for OptRc<Gif_ImageData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ImageData>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_ImageData> for &OptRc<Gif_ImageData> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_ImageData>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_ImageData {
     type Root = Gif;
@@ -858,6 +1312,12 @@ impl Gif_ImageData {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -882,6 +1342,38 @@ pub struct Gif_LocalImageDescriptor {
     has_interlace: RefCell<bool>,
     f_has_sorted_color_table: Cell<bool>,
     has_sorted_color_table: RefCell<bool>,
+}
+impl TryFrom<&Gif_LocalImageDescriptor> for OptRc<Gif_LocalImageDescriptor> {
+    type Error = KError;
+    fn try_from(v: &Gif_LocalImageDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_LocalImageDescriptor> for OptRc<Gif_LocalImageDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&Gif_LocalImageDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for Gif_LocalImageDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for &Gif_LocalImageDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for OptRc<Gif_LocalImageDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_LocalImageDescriptor> for &OptRc<Gif_LocalImageDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LocalImageDescriptor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_LocalImageDescriptor {
     type Root = Gif;
@@ -1006,6 +1498,12 @@ impl Gif_LocalImageDescriptor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gif_LocalImageDescriptor {
     pub fn local_color_table_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1032,6 +1530,38 @@ pub struct Gif_LogicalScreenDescriptorStruct {
     color_table_size: RefCell<i32>,
     f_has_color_table: Cell<bool>,
     has_color_table: RefCell<bool>,
+}
+impl TryFrom<&Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
+    type Error = KError;
+    fn try_from(v: &Gif_LogicalScreenDescriptorStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
+    type Error = KError;
+    fn try_from(v: &&Gif_LogicalScreenDescriptorStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for Gif_LogicalScreenDescriptorStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for &Gif_LogicalScreenDescriptorStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for OptRc<Gif_LogicalScreenDescriptorStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_LogicalScreenDescriptorStruct> for &OptRc<Gif_LogicalScreenDescriptorStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_LogicalScreenDescriptorStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_LogicalScreenDescriptorStruct {
     type Root = Gif;
@@ -1113,6 +1643,12 @@ impl Gif_LogicalScreenDescriptorStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1124,6 +1660,38 @@ pub struct Gif_Subblock {
     bytes: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     bytes_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Gif_Subblock> for OptRc<Gif_Subblock> {
+    type Error = KError;
+    fn try_from(v: &Gif_Subblock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_Subblock> for OptRc<Gif_Subblock> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Subblock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblock> for Gif_Subblock {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblock> for &Gif_Subblock {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblock> for OptRc<Gif_Subblock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_Subblock> for &OptRc<Gif_Subblock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_Subblock {
     type Root = Gif;
@@ -1163,6 +1731,12 @@ impl Gif_Subblock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Gif_Subblock {
     pub fn bytes_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1177,6 +1751,38 @@ pub struct Gif_Subblocks {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Gif_Subblock>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Gif_Subblocks> for OptRc<Gif_Subblocks> {
+    type Error = KError;
+    fn try_from(v: &Gif_Subblocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Gif_Subblocks> for OptRc<Gif_Subblocks> {
+    type Error = KError;
+    fn try_from(v: &&Gif_Subblocks) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for Gif_Subblocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for &Gif_Subblocks {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for OptRc<Gif_Subblocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Gif_Subblocks> for &OptRc<Gif_Subblocks> {
+    fn downcast_optrc(&self) -> Result<OptRc<Gif_Subblocks>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Gif_Subblocks {
     type Root = Gif;
@@ -1220,5 +1826,11 @@ impl Gif_Subblocks {
 impl Gif_Subblocks {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

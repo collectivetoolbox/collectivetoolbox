@@ -28,6 +28,38 @@ pub struct DimeMessage {
     records: RefCell<Vec<OptRc<DimeMessage_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DimeMessage> for OptRc<DimeMessage> {
+    type Error = KError;
+    fn try_from(v: &DimeMessage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DimeMessage> for OptRc<DimeMessage> {
+    type Error = KError;
+    fn try_from(v: &&DimeMessage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage> for DimeMessage {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage> for &DimeMessage {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage> for OptRc<DimeMessage> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DimeMessage> for &OptRc<DimeMessage> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DimeMessage {
     type Root = DimeMessage;
     type Parent = DimeMessage;
@@ -67,6 +99,12 @@ impl DimeMessage {
 impl DimeMessage {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -126,6 +164,38 @@ pub struct DimeMessage_OptionElement {
     _io: RefCell<BytesReader>,
     element_data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&DimeMessage_OptionElement> for OptRc<DimeMessage_OptionElement> {
+    type Error = KError;
+    fn try_from(v: &DimeMessage_OptionElement) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DimeMessage_OptionElement> for OptRc<DimeMessage_OptionElement> {
+    type Error = KError;
+    fn try_from(v: &&DimeMessage_OptionElement) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionElement> for DimeMessage_OptionElement {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionElement> for &DimeMessage_OptionElement {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionElement> for OptRc<DimeMessage_OptionElement> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionElement> for &OptRc<DimeMessage_OptionElement> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionElement>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DimeMessage_OptionElement {
     type Root = DimeMessage;
     type Parent = DimeMessage_OptionField;
@@ -170,6 +240,12 @@ impl DimeMessage_OptionElement {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DimeMessage_OptionElement {
     pub fn element_data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -188,6 +264,38 @@ pub struct DimeMessage_OptionField {
     pub(crate) _self_shared: SharedType<Self>,
     option_elements: RefCell<Vec<OptRc<DimeMessage_OptionElement>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DimeMessage_OptionField> for OptRc<DimeMessage_OptionField> {
+    type Error = KError;
+    fn try_from(v: &DimeMessage_OptionField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DimeMessage_OptionField> for OptRc<DimeMessage_OptionField> {
+    type Error = KError;
+    fn try_from(v: &&DimeMessage_OptionField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionField> for DimeMessage_OptionField {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionField>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionField> for &DimeMessage_OptionField {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionField>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionField> for OptRc<DimeMessage_OptionField> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionField>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DimeMessage_OptionField> for &OptRc<DimeMessage_OptionField> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_OptionField>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DimeMessage_OptionField {
     type Root = DimeMessage;
@@ -229,6 +337,12 @@ impl DimeMessage_OptionField {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -243,6 +357,38 @@ pub struct DimeMessage_Padding {
     boundary_padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     boundary_padding_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DimeMessage_Padding> for OptRc<DimeMessage_Padding> {
+    type Error = KError;
+    fn try_from(v: &DimeMessage_Padding) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DimeMessage_Padding> for OptRc<DimeMessage_Padding> {
+    type Error = KError;
+    fn try_from(v: &&DimeMessage_Padding) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Padding> for DimeMessage_Padding {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Padding>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Padding> for &DimeMessage_Padding {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Padding>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Padding> for OptRc<DimeMessage_Padding> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Padding>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DimeMessage_Padding> for &OptRc<DimeMessage_Padding> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Padding>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DimeMessage_Padding {
     type Root = DimeMessage;
@@ -275,6 +421,12 @@ impl DimeMessage_Padding {
 impl DimeMessage_Padding {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl DimeMessage_Padding {
@@ -316,6 +468,38 @@ pub struct DimeMessage_Record {
     type_raw: RefCell<Vec<u8>>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&DimeMessage_Record> for OptRc<DimeMessage_Record> {
+    type Error = KError;
+    fn try_from(v: &DimeMessage_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DimeMessage_Record> for OptRc<DimeMessage_Record> {
+    type Error = KError;
+    fn try_from(v: &&DimeMessage_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Record> for DimeMessage_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Record> for &DimeMessage_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DimeMessage_Record> for OptRc<DimeMessage_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DimeMessage_Record> for &OptRc<DimeMessage_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<DimeMessage_Record>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DimeMessage_Record {
     type Root = DimeMessage;
     type Parent = DimeMessage;
@@ -336,7 +520,7 @@ impl KStruct for DimeMessage_Record {
         *self_rc.is_first_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.is_last_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.is_chunk_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.type_format.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
+        *self_rc.type_format.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(4)?;
         io.align_to_byte()?;
         *self_rc.len_options.borrow_mut() = _io.read_u2be()?;
@@ -510,6 +694,12 @@ impl DimeMessage_Record {
 impl DimeMessage_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl DimeMessage_Record {

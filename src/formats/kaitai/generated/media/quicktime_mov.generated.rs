@@ -17,6 +17,38 @@ pub struct QuicktimeMov {
     atoms: RefCell<OptRc<QuicktimeMov_AtomList>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&QuicktimeMov> for OptRc<QuicktimeMov> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov> for OptRc<QuicktimeMov> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov> for QuicktimeMov {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov> for &QuicktimeMov {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov> for OptRc<QuicktimeMov> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov> for &OptRc<QuicktimeMov> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for QuicktimeMov {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov;
@@ -49,6 +81,12 @@ impl QuicktimeMov {
 impl QuicktimeMov {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -990,6 +1028,22 @@ impl TryFrom<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_AtomList> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_AtomList> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        OptRc::<QuicktimeMov_AtomList>::try_from(self)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for &QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<QuicktimeMov_AtomList>> for QuicktimeMov_Atom_Body {
     fn from(v: OptRc<QuicktimeMov_AtomList>) -> Self {
         Self::QuicktimeMov_AtomList(v)
@@ -1002,6 +1056,22 @@ impl TryFrom<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_FtypBody> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_FtypBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        OptRc::<QuicktimeMov_FtypBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for &QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<QuicktimeMov_FtypBody>> for QuicktimeMov_Atom_Body {
@@ -1018,6 +1088,22 @@ impl TryFrom<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_MvhdBody> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_MvhdBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        OptRc::<QuicktimeMov_MvhdBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for &QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<QuicktimeMov_MvhdBody>> for QuicktimeMov_Atom_Body {
     fn from(v: OptRc<QuicktimeMov_MvhdBody>) -> Self {
         Self::QuicktimeMov_MvhdBody(v)
@@ -1030,6 +1116,22 @@ impl TryFrom<&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_TkhdBody> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&QuicktimeMov_Atom_Body> for OptRc<QuicktimeMov_TkhdBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        OptRc::<QuicktimeMov_TkhdBody>::try_from(self)
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for &QuicktimeMov_Atom_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<QuicktimeMov_TkhdBody>> for QuicktimeMov_Atom_Body {
@@ -1046,9 +1148,47 @@ impl TryFrom<&QuicktimeMov_Atom_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&QuicktimeMov_Atom_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for QuicktimeMov_Atom_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&QuicktimeMov_Atom> for OptRc<QuicktimeMov_Atom> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_Atom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_Atom> for OptRc<QuicktimeMov_Atom> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Atom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Atom> for QuicktimeMov_Atom {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Atom>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Atom> for &QuicktimeMov_Atom {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Atom>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Atom> for OptRc<QuicktimeMov_Atom> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Atom>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Atom> for &OptRc<QuicktimeMov_Atom> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Atom>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for QuicktimeMov_Atom {
@@ -1196,6 +1336,12 @@ impl QuicktimeMov_Atom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl QuicktimeMov_Atom {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1210,6 +1356,38 @@ pub struct QuicktimeMov_AtomList {
     pub(crate) _self_shared: SharedType<Self>,
     items: RefCell<Vec<OptRc<QuicktimeMov_Atom>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&QuicktimeMov_AtomList> for OptRc<QuicktimeMov_AtomList> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_AtomList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_AtomList> for OptRc<QuicktimeMov_AtomList> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_AtomList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for QuicktimeMov_AtomList {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for &QuicktimeMov_AtomList {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for OptRc<QuicktimeMov_AtomList> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_AtomList> for &OptRc<QuicktimeMov_AtomList> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_AtomList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_AtomList {
     type Root = QuicktimeMov;
@@ -1251,6 +1429,12 @@ impl QuicktimeMov_AtomList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1265,6 +1449,38 @@ pub struct QuicktimeMov_Fixed16 {
     int_part: RefCell<i8>,
     frac_part: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&QuicktimeMov_Fixed16> for OptRc<QuicktimeMov_Fixed16> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_Fixed16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_Fixed16> for OptRc<QuicktimeMov_Fixed16> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Fixed16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed16> for QuicktimeMov_Fixed16 {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed16> for &QuicktimeMov_Fixed16 {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed16> for OptRc<QuicktimeMov_Fixed16> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed16> for &OptRc<QuicktimeMov_Fixed16> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_Fixed16 {
     type Root = QuicktimeMov;
@@ -1304,6 +1520,12 @@ impl QuicktimeMov_Fixed16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1318,6 +1540,38 @@ pub struct QuicktimeMov_Fixed32 {
     int_part: RefCell<i16>,
     frac_part: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&QuicktimeMov_Fixed32> for OptRc<QuicktimeMov_Fixed32> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_Fixed32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_Fixed32> for OptRc<QuicktimeMov_Fixed32> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_Fixed32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed32> for QuicktimeMov_Fixed32 {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed32>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed32> for &QuicktimeMov_Fixed32 {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed32>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed32> for OptRc<QuicktimeMov_Fixed32> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed32>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_Fixed32> for &OptRc<QuicktimeMov_Fixed32> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_Fixed32>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_Fixed32 {
     type Root = QuicktimeMov;
@@ -1357,6 +1611,12 @@ impl QuicktimeMov_Fixed32 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1373,6 +1633,38 @@ pub struct QuicktimeMov_FtypBody {
     compatible_brands: RefCell<Vec<QuicktimeMov_Brand>>,
     _io: RefCell<BytesReader>,
     minor_version_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&QuicktimeMov_FtypBody> for OptRc<QuicktimeMov_FtypBody> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_FtypBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_FtypBody> for OptRc<QuicktimeMov_FtypBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_FtypBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for QuicktimeMov_FtypBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for &QuicktimeMov_FtypBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for OptRc<QuicktimeMov_FtypBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_FtypBody> for &OptRc<QuicktimeMov_FtypBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_FtypBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_FtypBody {
     type Root = QuicktimeMov;
@@ -1425,6 +1717,12 @@ impl QuicktimeMov_FtypBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl QuicktimeMov_FtypBody {
     pub fn minor_version_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1462,6 +1760,38 @@ pub struct QuicktimeMov_MvhdBody {
     flags_raw: RefCell<Vec<u8>>,
     reserved1_raw: RefCell<Vec<u8>>,
     matrix_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&QuicktimeMov_MvhdBody> for OptRc<QuicktimeMov_MvhdBody> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_MvhdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_MvhdBody> for OptRc<QuicktimeMov_MvhdBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_MvhdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for QuicktimeMov_MvhdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for &QuicktimeMov_MvhdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for OptRc<QuicktimeMov_MvhdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_MvhdBody> for &OptRc<QuicktimeMov_MvhdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_MvhdBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_MvhdBody {
     type Root = QuicktimeMov;
@@ -1654,6 +1984,12 @@ impl QuicktimeMov_MvhdBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl QuicktimeMov_MvhdBody {
     pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1700,6 +2036,38 @@ pub struct QuicktimeMov_TkhdBody {
     reserved1_raw: RefCell<Vec<u8>>,
     reserved2_raw: RefCell<Vec<u8>>,
     matrix_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&QuicktimeMov_TkhdBody> for OptRc<QuicktimeMov_TkhdBody> {
+    type Error = KError;
+    fn try_from(v: &QuicktimeMov_TkhdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&QuicktimeMov_TkhdBody> for OptRc<QuicktimeMov_TkhdBody> {
+    type Error = KError;
+    fn try_from(v: &&QuicktimeMov_TkhdBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for QuicktimeMov_TkhdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for &QuicktimeMov_TkhdBody {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for OptRc<QuicktimeMov_TkhdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<QuicktimeMov_TkhdBody> for &OptRc<QuicktimeMov_TkhdBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<QuicktimeMov_TkhdBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for QuicktimeMov_TkhdBody {
     type Root = QuicktimeMov;
@@ -1822,6 +2190,12 @@ impl QuicktimeMov_TkhdBody {
 impl QuicktimeMov_TkhdBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl QuicktimeMov_TkhdBody {

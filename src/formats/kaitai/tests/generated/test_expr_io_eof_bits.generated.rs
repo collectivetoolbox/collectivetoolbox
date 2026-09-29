@@ -85,10 +85,10 @@ fn test_expr_io_eof_bits() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoEofBits> = ExprIoEofBits::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.foo(), 5167);
-    assert_eq!(*r.bar(), 15);
-    assert!(r.baz().is_none());
-    assert_eq!(*r.align(), Vec::<u8>::new());
-    assert!(r.qux().is_none());
+    assert_eq!(*(r.foo()), 5167);
+    assert_eq!(*(r.bar()), 15);
+    assert_eq!(*r.baz(), 0);
+    assert_eq!(*(r.align()), Vec::<u8>::new());
+    assert_eq!(*r.qux(), 0);
     Ok(())
 }

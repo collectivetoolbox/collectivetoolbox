@@ -85,7 +85,7 @@ fn test_repeat_until_s4() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<RepeatUntilS4> = RepeatUntilS4::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.entries(), vec![0x42u8, 0x1337u8, -251658241, -1]);
-    assert_eq!(*r.afterall(), "foobar");
+    assert_eq!(*(r.entries()), vec![0x42, 0x1337, -251658241, -1]);
+    assert_eq!(*(r.afterall()), "foobar");
     Ok(())
 }

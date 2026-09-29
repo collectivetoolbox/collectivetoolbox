@@ -77,6 +77,38 @@ pub struct TsPacketHeader {
     _io: RefCell<BytesReader>,
     ts_packet_remain_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&TsPacketHeader> for OptRc<TsPacketHeader> {
+    type Error = KError;
+    fn try_from(v: &TsPacketHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TsPacketHeader> for OptRc<TsPacketHeader> {
+    type Error = KError;
+    fn try_from(v: &&TsPacketHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TsPacketHeader> for TsPacketHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<TsPacketHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TsPacketHeader> for &TsPacketHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<TsPacketHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TsPacketHeader> for OptRc<TsPacketHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<TsPacketHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TsPacketHeader> for &OptRc<TsPacketHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<TsPacketHeader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TsPacketHeader {
     type Root = TsPacketHeader;
     type Parent = TsPacketHeader;
@@ -99,7 +131,7 @@ impl KStruct for TsPacketHeader {
         *self_rc.transport_priority.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.pid.borrow_mut() = _io.read_bits_int_be(13)?;
         *self_rc.transport_scrambling_control.borrow_mut() = _io.read_bits_int_be(2)?;
-        *self_rc.adaptation_field_control.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.adaptation_field_control.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         *self_rc.continuity_counter.borrow_mut() = _io.read_bits_int_be(4)?;
         io.align_to_byte()?;
         *self_rc.ts_packet_remain.borrow_mut() = _io.read_bytes(184_usize)?;
@@ -157,6 +189,12 @@ impl TsPacketHeader {
 impl TsPacketHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl TsPacketHeader {

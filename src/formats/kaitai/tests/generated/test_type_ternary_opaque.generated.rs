@@ -85,6 +85,6 @@ fn test_type_ternary_opaque() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TypeTernaryOpaque> = TypeTernaryOpaque::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.dif()?.one().as_ref().context("Missing optional field")?, 102);
+    assert_eq!(*(r.dif()?.one()), 102);
     Ok(())
 }

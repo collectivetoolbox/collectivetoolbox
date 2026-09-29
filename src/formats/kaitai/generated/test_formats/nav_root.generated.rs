@@ -65,6 +65,38 @@ pub struct NavRoot {
     index: RefCell<OptRc<NavRoot_IndexObj>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NavRoot> for OptRc<NavRoot> {
+    type Error = KError;
+    fn try_from(v: &NavRoot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavRoot> for OptRc<NavRoot> {
+    type Error = KError;
+    fn try_from(v: &&NavRoot) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot> for NavRoot {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavRoot> for &NavRoot {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot> for OptRc<NavRoot> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavRoot> for &OptRc<NavRoot> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavRoot {
     type Root = NavRoot;
     type Parent = NavRoot;
@@ -105,6 +137,12 @@ impl NavRoot {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -115,6 +153,38 @@ pub struct NavRoot_Entry {
     filename: RefCell<String>,
     _io: RefCell<BytesReader>,
     filename_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NavRoot_Entry> for OptRc<NavRoot_Entry> {
+    type Error = KError;
+    fn try_from(v: &NavRoot_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavRoot_Entry> for OptRc<NavRoot_Entry> {
+    type Error = KError;
+    fn try_from(v: &&NavRoot_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_Entry> for NavRoot_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_Entry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_Entry> for &NavRoot_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_Entry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_Entry> for OptRc<NavRoot_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_Entry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavRoot_Entry> for &OptRc<NavRoot_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_Entry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavRoot_Entry {
     type Root = NavRoot;
@@ -148,6 +218,12 @@ impl NavRoot_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NavRoot_Entry {
     pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -163,6 +239,38 @@ pub struct NavRoot_HeaderObj {
     qty_entries: RefCell<u32>,
     filename_len: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavRoot_HeaderObj> for OptRc<NavRoot_HeaderObj> {
+    type Error = KError;
+    fn try_from(v: &NavRoot_HeaderObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavRoot_HeaderObj> for OptRc<NavRoot_HeaderObj> {
+    type Error = KError;
+    fn try_from(v: &&NavRoot_HeaderObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_HeaderObj> for NavRoot_HeaderObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_HeaderObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_HeaderObj> for &NavRoot_HeaderObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_HeaderObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_HeaderObj> for OptRc<NavRoot_HeaderObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_HeaderObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavRoot_HeaderObj> for &OptRc<NavRoot_HeaderObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_HeaderObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavRoot_HeaderObj {
     type Root = NavRoot;
@@ -202,6 +310,12 @@ impl NavRoot_HeaderObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -213,6 +327,38 @@ pub struct NavRoot_IndexObj {
     entries: RefCell<Vec<OptRc<NavRoot_Entry>>>,
     _io: RefCell<BytesReader>,
     magic_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NavRoot_IndexObj> for OptRc<NavRoot_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &NavRoot_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavRoot_IndexObj> for OptRc<NavRoot_IndexObj> {
+    type Error = KError;
+    fn try_from(v: &&NavRoot_IndexObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_IndexObj> for NavRoot_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_IndexObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_IndexObj> for &NavRoot_IndexObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_IndexObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavRoot_IndexObj> for OptRc<NavRoot_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_IndexObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavRoot_IndexObj> for &OptRc<NavRoot_IndexObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavRoot_IndexObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavRoot_IndexObj {
     type Root = NavRoot;
@@ -256,6 +402,12 @@ impl NavRoot_IndexObj {
 impl NavRoot_IndexObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl NavRoot_IndexObj {

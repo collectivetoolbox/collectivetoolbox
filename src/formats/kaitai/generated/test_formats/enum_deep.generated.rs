@@ -65,6 +65,38 @@ pub struct EnumDeep {
     pet_2: RefCell<EnumDeep_Container1_Container2_Animal>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumDeep> for OptRc<EnumDeep> {
+    type Error = KError;
+    fn try_from(v: &EnumDeep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumDeep> for OptRc<EnumDeep> {
+    type Error = KError;
+    fn try_from(v: &&EnumDeep) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep> for EnumDeep {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep> for &EnumDeep {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep> for OptRc<EnumDeep> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumDeep> for &OptRc<EnumDeep> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumDeep {
     type Root = EnumDeep;
     type Parent = EnumDeep;
@@ -103,6 +135,12 @@ impl EnumDeep {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -111,6 +149,38 @@ pub struct EnumDeep_Container1 {
     pub(crate) _parent: SharedType<KStructUnit>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EnumDeep_Container1> for OptRc<EnumDeep_Container1> {
+    type Error = KError;
+    fn try_from(v: &EnumDeep_Container1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumDeep_Container1> for OptRc<EnumDeep_Container1> {
+    type Error = KError;
+    fn try_from(v: &&EnumDeep_Container1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1> for EnumDeep_Container1 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1> for &EnumDeep_Container1 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1> for OptRc<EnumDeep_Container1> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1> for &OptRc<EnumDeep_Container1> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumDeep_Container1 {
     type Root = EnumDeep;
@@ -137,6 +207,12 @@ impl EnumDeep_Container1 {
 impl EnumDeep_Container1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -182,6 +258,38 @@ pub struct EnumDeep_Container1_Container2 {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
+    type Error = KError;
+    fn try_from(v: &EnumDeep_Container1_Container2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
+    type Error = KError;
+    fn try_from(v: &&EnumDeep_Container1_Container2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1_Container2> for EnumDeep_Container1_Container2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1_Container2> for &EnumDeep_Container1_Container2 {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1_Container2> for OptRc<EnumDeep_Container1_Container2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumDeep_Container1_Container2> for &OptRc<EnumDeep_Container1_Container2> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumDeep_Container1_Container2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumDeep_Container1_Container2 {
     type Root = EnumDeep;
     type Parent = KStructUnit;
@@ -207,6 +315,12 @@ impl EnumDeep_Container1_Container2 {
 impl EnumDeep_Container1_Container2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

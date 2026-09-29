@@ -237,6 +237,42 @@ impl<T> From<T> for OptRc<T> {
     }
 }
 
+impl<T: Clone> From<&OptRc<T>> for OptRc<T> {
+    fn from(v: &OptRc<T>) -> Self {
+        v.clone()
+    }
+}
+
+impl<T> From<&Rc<T>> for OptRc<T> {
+    fn from(v: &Rc<T>) -> Self {
+        OptRc(Some(v.clone()))
+    }
+}
+
+impl<T> From<&&Rc<T>> for OptRc<T> {
+    fn from(v: &&Rc<T>) -> Self {
+        OptRc(Some((*v).clone()))
+    }
+}
+
+impl<T: Clone> From<&&OptRc<T>> for OptRc<T> {
+    fn from(v: &&OptRc<T>) -> Self {
+        (*v).clone()
+    }
+}
+
+impl<T: Clone> From<&Ref<'_, OptRc<T>>> for OptRc<T> {
+    fn from(v: &Ref<'_, OptRc<T>>) -> Self {
+        (**v).clone()
+    }
+}
+
+impl<T> From<&Ref<'_, Rc<T>>> for OptRc<T> {
+    fn from(v: &Ref<'_, Rc<T>>) -> Self {
+        OptRc(Some((**v).clone()))
+    }
+}
+
 impl<T> Deref for OptRc<T> {
     type Target = T;
 
@@ -361,6 +397,18 @@ impl Struct {
     pub fn downcast<T: 'static>(&self) -> Option<&T> {
         self.inner.as_ref()?.downcast_ref::<T>()
     }
+
+    pub fn from_opt_rc<T: 'static + Clone>(val: &OptRc<T>) -> OptRc<Self> {
+        if let Some(s) = (val as &dyn Any).downcast_ref::<OptRc<Self>>() {
+            return s.clone();
+        }
+        match val.get_value() {
+            Some(rc) => OptRc::from(Self {
+                inner: Some(rc.clone()),
+            }),
+            None => OptRc::default(),
+        }
+    }
 }
 
 impl Struct {
@@ -368,9 +416,17 @@ impl Struct {
         self.inner
             .as_ref()
             .and_then(|a| {
-                a.downcast_ref::<OptRc<T>>()
+                if let Some(inner_struct) = a.downcast_ref::<Self>() {
+                    return inner_struct.downcast_optrc::<T>().ok();
+                }
+                if let Some(inner_opt) = a.downcast_ref::<OptRc<Self>>() {
+                    return inner_opt.downcast_optrc::<T>().ok();
+                }
+                a.downcast_ref::<T>()
                     .cloned()
-                    .or_else(|| a.downcast_ref::<T>().cloned().map(OptRc::from))
+                    .map(OptRc::from)
+                    .or_else(|| a.downcast_ref::<OptRc<T>>().cloned())
+                    .or_else(|| a.downcast_ref::<Rc<T>>().cloned().map(OptRc::from))
             })
             .ok_or(KError::CastError)
     }
@@ -382,6 +438,58 @@ impl OptRc<Struct> {
         inner_struct.downcast_optrc()
     }
 }
+
+pub trait DowncastOptRc<T> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError>;
+}
+
+
+impl<T: 'static + Clone> DowncastOptRc<T> for Struct {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        self.downcast_optrc::<T>()
+    }
+}
+
+impl<T: 'static + Clone> DowncastOptRc<T> for OptRc<Struct> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        let inner_struct = self.as_ref().ok_or(KError::CastError)?;
+        inner_struct.downcast_optrc()
+    }
+}
+
+impl<T: 'static + Clone> DowncastOptRc<T> for &OptRc<Struct> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        let inner_struct = self.as_ref().ok_or(KError::CastError)?;
+        inner_struct.downcast_optrc()
+    }
+}
+
+impl<T: 'static + Clone, E: DowncastOptRc<T>> DowncastOptRc<T> for Option<E> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        let val = self.as_ref().ok_or(KError::CastError)?;
+        val.downcast_optrc()
+    }
+}
+
+impl<T: 'static + Clone, E: DowncastOptRc<T>> DowncastOptRc<T> for &Option<E> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        let val = self.as_ref().ok_or(KError::CastError)?;
+        val.downcast_optrc()
+    }
+}
+
+impl<T: 'static + Clone, E: DowncastOptRc<T>> DowncastOptRc<T> for Ref<'_, E> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        (**self).downcast_optrc()
+    }
+}
+
+impl<T: 'static + Clone, E: DowncastOptRc<T>> DowncastOptRc<T> for &Ref<'_, E> {
+    fn downcast_optrc(&self) -> Result<OptRc<T>, KError> {
+        (*self).downcast_optrc()
+    }
+}
+
 
 impl KStruct for Struct {
     type Root = Struct;
@@ -416,6 +524,14 @@ impl From<std::num::TryFromIntError> for KError {
 impl From<std::convert::Infallible> for KError {
     fn from(_: std::convert::Infallible) -> Self {
         Self::CastError
+    }
+}
+
+impl From<anyhow::Error> for KError {
+    fn from(err: anyhow::Error) -> Self {
+        Self::IoError {
+            msg: err.to_string(),
+        }
     }
 }
 
@@ -740,6 +856,16 @@ impl From<&[u8]> for BytesReader {
 }
 
 impl BytesReader {
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.size()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
     pub fn open<T: AsRef<Path>>(filename: T) -> KResult<Self> {
         let f = std::fs::File::open(filename)?;
         let file_size = f.metadata()?.len();

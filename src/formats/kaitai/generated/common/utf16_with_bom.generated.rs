@@ -35,6 +35,38 @@ pub struct Utf16WithBom {
     f_value: Cell<bool>,
     value: RefCell<String>,
 }
+impl TryFrom<&Utf16WithBom> for OptRc<Utf16WithBom> {
+    type Error = KError;
+    fn try_from(v: &Utf16WithBom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Utf16WithBom> for OptRc<Utf16WithBom> {
+    type Error = KError;
+    fn try_from(v: &&Utf16WithBom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Utf16WithBom> for Utf16WithBom {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf16WithBom>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Utf16WithBom> for &Utf16WithBom {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf16WithBom>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Utf16WithBom> for OptRc<Utf16WithBom> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf16WithBom>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Utf16WithBom> for &OptRc<Utf16WithBom> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf16WithBom>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Utf16WithBom {
     type Root = Utf16WithBom;
     type Parent = Utf16WithBom;
@@ -147,6 +179,12 @@ impl Utf16WithBom {
 impl Utf16WithBom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Utf16WithBom {

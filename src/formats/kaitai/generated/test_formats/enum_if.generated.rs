@@ -66,6 +66,38 @@ pub struct EnumIf {
     op3: RefCell<OptRc<EnumIf_Operation>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumIf> for OptRc<EnumIf> {
+    type Error = KError;
+    fn try_from(v: &EnumIf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumIf> for OptRc<EnumIf> {
+    type Error = KError;
+    fn try_from(v: &&EnumIf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf> for EnumIf {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumIf> for &EnumIf {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf> for OptRc<EnumIf> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumIf> for &OptRc<EnumIf> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumIf {
     type Root = EnumIf;
     type Parent = EnumIf;
@@ -113,6 +145,12 @@ impl EnumIf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EnumIf_Opcodes {
@@ -157,6 +195,38 @@ pub struct EnumIf_ArgStr {
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&EnumIf_ArgStr> for OptRc<EnumIf_ArgStr> {
+    type Error = KError;
+    fn try_from(v: &EnumIf_ArgStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumIf_ArgStr> for OptRc<EnumIf_ArgStr> {
+    type Error = KError;
+    fn try_from(v: &&EnumIf_ArgStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgStr> for EnumIf_ArgStr {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgStr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgStr> for &EnumIf_ArgStr {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgStr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgStr> for OptRc<EnumIf_ArgStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgStr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumIf_ArgStr> for &OptRc<EnumIf_ArgStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgStr>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumIf_ArgStr {
     type Root = EnumIf;
     type Parent = EnumIf_Operation;
@@ -195,6 +265,12 @@ impl EnumIf_ArgStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl EnumIf_ArgStr {
     pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -210,6 +286,38 @@ pub struct EnumIf_ArgTuple {
     num1: RefCell<u8>,
     num2: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EnumIf_ArgTuple> for OptRc<EnumIf_ArgTuple> {
+    type Error = KError;
+    fn try_from(v: &EnumIf_ArgTuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumIf_ArgTuple> for OptRc<EnumIf_ArgTuple> {
+    type Error = KError;
+    fn try_from(v: &&EnumIf_ArgTuple) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgTuple> for EnumIf_ArgTuple {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgTuple>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgTuple> for &EnumIf_ArgTuple {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgTuple>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_ArgTuple> for OptRc<EnumIf_ArgTuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgTuple>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumIf_ArgTuple> for &OptRc<EnumIf_ArgTuple> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_ArgTuple>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumIf_ArgTuple {
     type Root = EnumIf;
@@ -249,6 +357,12 @@ impl EnumIf_ArgTuple {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -260,6 +374,38 @@ pub struct EnumIf_Operation {
     arg_tuple: RefCell<OptRc<EnumIf_ArgTuple>>,
     arg_str: RefCell<OptRc<EnumIf_ArgStr>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&EnumIf_Operation> for OptRc<EnumIf_Operation> {
+    type Error = KError;
+    fn try_from(v: &EnumIf_Operation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumIf_Operation> for OptRc<EnumIf_Operation> {
+    type Error = KError;
+    fn try_from(v: &&EnumIf_Operation) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_Operation> for EnumIf_Operation {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_Operation>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_Operation> for &EnumIf_Operation {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_Operation>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumIf_Operation> for OptRc<EnumIf_Operation> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_Operation>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumIf_Operation> for &OptRc<EnumIf_Operation> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumIf_Operation>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for EnumIf_Operation {
     type Root = EnumIf;
@@ -310,5 +456,11 @@ impl EnumIf_Operation {
 impl EnumIf_Operation {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

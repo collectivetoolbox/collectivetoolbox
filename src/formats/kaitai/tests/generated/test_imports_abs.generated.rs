@@ -85,7 +85,7 @@ fn test_imports_abs() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ImportsAbs> = ImportsAbs::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.len().value(), 80);
+    assert_eq!(*(r.len().value()?), 80);
     assert_eq!(r.body().len(), 80);
     Ok(())
 }

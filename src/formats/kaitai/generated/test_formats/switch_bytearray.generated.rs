@@ -64,6 +64,38 @@ pub struct SwitchBytearray {
     opcodes: RefCell<Vec<OptRc<SwitchBytearray_Opcode>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchBytearray> for OptRc<SwitchBytearray> {
+    type Error = KError;
+    fn try_from(v: &SwitchBytearray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchBytearray> for OptRc<SwitchBytearray> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray> for SwitchBytearray {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray> for &SwitchBytearray {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray> for OptRc<SwitchBytearray> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchBytearray> for &OptRc<SwitchBytearray> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchBytearray {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray;
@@ -104,6 +136,12 @@ impl SwitchBytearray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -130,6 +168,22 @@ impl TryFrom<&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Intv
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for SwitchBytearray_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        OptRc::<SwitchBytearray_Opcode_Intval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &SwitchBytearray_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchBytearray_Opcode_Intval>> for SwitchBytearray_Opcode_Body {
     fn from(v: OptRc<SwitchBytearray_Opcode_Intval>) -> Self {
         Self::SwitchBytearray_Opcode_Intval(v)
@@ -144,9 +198,57 @@ impl TryFrom<&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Strv
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchBytearray_Opcode_Body> for OptRc<SwitchBytearray_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for SwitchBytearray_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        OptRc::<SwitchBytearray_Opcode_Strval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &SwitchBytearray_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchBytearray_Opcode_Strval>> for SwitchBytearray_Opcode_Body {
     fn from(v: OptRc<SwitchBytearray_Opcode_Strval>) -> Self {
         Self::SwitchBytearray_Opcode_Strval(v)
+    }
+}
+impl TryFrom<&SwitchBytearray_Opcode> for OptRc<SwitchBytearray_Opcode> {
+    type Error = KError;
+    fn try_from(v: &SwitchBytearray_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchBytearray_Opcode> for OptRc<SwitchBytearray_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode> for SwitchBytearray_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode> for &SwitchBytearray_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode> for OptRc<SwitchBytearray_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode> for &OptRc<SwitchBytearray_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchBytearray_Opcode {
@@ -197,6 +299,12 @@ impl SwitchBytearray_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchBytearray_Opcode {
     pub fn code_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -211,6 +319,38 @@ pub struct SwitchBytearray_Opcode_Intval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &SwitchBytearray_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for SwitchBytearray_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &SwitchBytearray_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for OptRc<SwitchBytearray_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Intval> for &OptRc<SwitchBytearray_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Intval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchBytearray_Opcode_Intval {
     type Root = SwitchBytearray;
@@ -244,6 +384,12 @@ impl SwitchBytearray_Opcode_Intval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -253,6 +399,38 @@ pub struct SwitchBytearray_Opcode_Strval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &SwitchBytearray_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchBytearray_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for SwitchBytearray_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &SwitchBytearray_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for OptRc<SwitchBytearray_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchBytearray_Opcode_Strval> for &OptRc<SwitchBytearray_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchBytearray_Opcode_Strval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchBytearray_Opcode_Strval {
     type Root = SwitchBytearray;
@@ -285,5 +463,11 @@ impl SwitchBytearray_Opcode_Strval {
 impl SwitchBytearray_Opcode_Strval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

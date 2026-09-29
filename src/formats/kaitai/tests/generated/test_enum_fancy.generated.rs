@@ -85,7 +85,7 @@ fn test_enum_fancy() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumFancy> = EnumFancy::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1(), EnumFancy_Animal::Cat);
-    assert_eq!(*r.pet_2(), EnumFancy_Animal::Chicken);
+    assert_eq!(*(r.pet_1()), EnumFancy_Animal::Cat);
+    assert_eq!(*(r.pet_2()), EnumFancy_Animal::Chicken);
     Ok(())
 }

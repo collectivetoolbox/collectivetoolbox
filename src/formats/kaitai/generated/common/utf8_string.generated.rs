@@ -34,6 +34,38 @@ pub struct Utf8String {
     codepoints: RefCell<Vec<OptRc<Utf8String_Utf8Codepoint>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Utf8String> for OptRc<Utf8String> {
+    type Error = KError;
+    fn try_from(v: &Utf8String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Utf8String> for OptRc<Utf8String> {
+    type Error = KError;
+    fn try_from(v: &&Utf8String) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Utf8String> for Utf8String {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Utf8String> for &Utf8String {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Utf8String> for OptRc<Utf8String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Utf8String> for &OptRc<Utf8String> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Utf8String {
     type Root = Utf8String;
     type Parent = Utf8String;
@@ -75,6 +107,12 @@ impl Utf8String {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -100,6 +138,38 @@ pub struct Utf8String_Utf8Codepoint {
     raw3: RefCell<i32>,
     f_value_as_int: Cell<bool>,
     value_as_int: RefCell<i32>,
+}
+impl TryFrom<&Utf8String_Utf8Codepoint> for OptRc<Utf8String_Utf8Codepoint> {
+    type Error = KError;
+    fn try_from(v: &Utf8String_Utf8Codepoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Utf8String_Utf8Codepoint> for OptRc<Utf8String_Utf8Codepoint> {
+    type Error = KError;
+    fn try_from(v: &&Utf8String_Utf8Codepoint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for Utf8String_Utf8Codepoint {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for &Utf8String_Utf8Codepoint {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for OptRc<Utf8String_Utf8Codepoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Utf8String_Utf8Codepoint> for &OptRc<Utf8String_Utf8Codepoint> {
+    fn downcast_optrc(&self) -> Result<OptRc<Utf8String_Utf8Codepoint>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Utf8String_Utf8Codepoint {
     type Root = Utf8String;
@@ -235,6 +305,12 @@ impl Utf8String_Utf8Codepoint {
 impl Utf8String_Utf8Codepoint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Utf8String_Utf8Codepoint {

@@ -32,6 +32,38 @@ pub struct TcpSegment {
     _io: RefCell<BytesReader>,
     options_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&TcpSegment> for OptRc<TcpSegment> {
+    type Error = KError;
+    fn try_from(v: &TcpSegment) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TcpSegment> for OptRc<TcpSegment> {
+    type Error = KError;
+    fn try_from(v: &&TcpSegment) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment> for TcpSegment {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment> for &TcpSegment {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment> for OptRc<TcpSegment> {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TcpSegment> for &OptRc<TcpSegment> {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TcpSegment {
     type Root = TcpSegment;
     type Parent = TcpSegment;
@@ -154,6 +186,12 @@ impl TcpSegment {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl TcpSegment {
     pub fn options_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -179,6 +217,38 @@ pub struct TcpSegment_Flags {
     syn: RefCell<bool>,
     fin: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TcpSegment_Flags> for OptRc<TcpSegment_Flags> {
+    type Error = KError;
+    fn try_from(v: &TcpSegment_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TcpSegment_Flags> for OptRc<TcpSegment_Flags> {
+    type Error = KError;
+    fn try_from(v: &&TcpSegment_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment_Flags> for TcpSegment_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment_Flags> for &TcpSegment_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TcpSegment_Flags> for OptRc<TcpSegment_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TcpSegment_Flags> for &OptRc<TcpSegment_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<TcpSegment_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TcpSegment_Flags {
     type Root = TcpSegment;
@@ -285,6 +355,12 @@ impl TcpSegment_Flags {
 impl TcpSegment_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl std::fmt::Display for TcpSegment_Flags {

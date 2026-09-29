@@ -89,8 +89,8 @@ fn test_switch_repeat_expr_invalid() -> KResult<()> {
     assert_eq!(r.codes()[0], 1);
     assert_eq!(r.codes()[1], 7);
     assert_eq!(r.codes()[2], 2);
-    assert_eq!(*r.body()[0].as_ref().context("Missing optional field")?.first(), vec![0x40u8, 0x40u8, 0x04u8, 0x37u8]);
-    assert_eq!(*r.body()[1].as_ref().context("Missing optional field")?, vec![0x13u8, 0x00u8, 0x00u8, 0x08u8]);
-    assert_eq!(*r.body()[2].as_ref().context("Missing optional field")?.second(), vec![0x37u8, 0x13u8, 0x00u8, 0x00u8]);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchRepeatExprInvalid_One>::downcast_optrc(&r.body()[0])?.first()), vec![0x40, 0x40, 0x04, 0x37]);
+    assert_eq!(Vec::<u8>::try_from(&r.body()[1])?, vec![0x13, 0x00, 0x00, 0x08]);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchRepeatExprInvalid_Two>::downcast_optrc(&r.body()[2])?.second()), vec![0x37, 0x13, 0x00, 0x00]);
     Ok(())
 }

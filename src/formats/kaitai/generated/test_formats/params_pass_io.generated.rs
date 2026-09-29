@@ -66,6 +66,38 @@ pub struct ParamsPassIo {
     _io: RefCell<BytesReader>,
     first_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ParamsPassIo> for OptRc<ParamsPassIo> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassIo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassIo> for OptRc<ParamsPassIo> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassIo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo> for ParamsPassIo {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo> for &ParamsPassIo {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo> for OptRc<ParamsPassIo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassIo> for &OptRc<ParamsPassIo> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsPassIo {
     type Root = ParamsPassIo;
     type Parent = ParamsPassIo;
@@ -87,7 +119,7 @@ impl KStruct for ParamsPassIo {
         let _io_first = BytesReader::from(_raw_first);
         let t = Self::read_into::<BytesReader, ParamsPassIo_Block>(&_io_first, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first.borrow_mut() = t;
-        let f = |t : &mut ParamsPassIo_ParamType| Ok(t.set_params(if ((to_i128(*self_rc.first().foo())) == (to_i128(255))) { KStream::clone(&*self_rc.first()._io()) } else { KStream::clone(&*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io()) }));
+        let f = |t : &mut ParamsPassIo_ParamType| Ok(t.set_params(Clone::clone(&(if ((to_i128(*self_rc.first().foo())) == (to_i128(255))) { Clone::clone(&*(self_rc.first()._io())) } else { Clone::clone(&*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io())) }))));
         let t = Self::read_into_with_init::<_, ParamsPassIo_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.one.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -110,6 +142,12 @@ impl ParamsPassIo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ParamsPassIo {
     pub fn first_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -124,6 +162,38 @@ pub struct ParamsPassIo_Block {
     pub(crate) _self_shared: SharedType<Self>,
     foo: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassIo_Block> for OptRc<ParamsPassIo_Block> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassIo_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassIo_Block> for OptRc<ParamsPassIo_Block> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassIo_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_Block> for ParamsPassIo_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_Block> for &ParamsPassIo_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_Block> for OptRc<ParamsPassIo_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassIo_Block> for &OptRc<ParamsPassIo_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassIo_Block {
     type Root = ParamsPassIo;
@@ -157,6 +227,12 @@ impl ParamsPassIo_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -168,6 +244,38 @@ pub struct ParamsPassIo_ParamType {
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ParamsPassIo_ParamType> for OptRc<ParamsPassIo_ParamType> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassIo_ParamType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassIo_ParamType> for OptRc<ParamsPassIo_ParamType> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassIo_ParamType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_ParamType> for ParamsPassIo_ParamType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_ParamType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_ParamType> for &ParamsPassIo_ParamType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_ParamType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassIo_ParamType> for OptRc<ParamsPassIo_ParamType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_ParamType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassIo_ParamType> for &OptRc<ParamsPassIo_ParamType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassIo_ParamType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassIo_ParamType {
     type Root = ParamsPassIo;
@@ -210,6 +318,12 @@ impl ParamsPassIo_ParamType {
 impl ParamsPassIo_ParamType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ParamsPassIo_ParamType {

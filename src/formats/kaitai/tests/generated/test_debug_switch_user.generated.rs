@@ -85,7 +85,7 @@ fn test_debug_switch_user() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<DebugSwitchUser> = DebugSwitchUser::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.code(), 1);
-    assert_eq!(*r.data().as_ref().context("Missing optional field")?.val(), -190);
+    assert_eq!(*(r.code()), 1);
+    assert_eq!(*(kaitai::DowncastOptRc::<DebugSwitchUser_One>::downcast_optrc(&r.data())?.val()), -190);
     Ok(())
 }

@@ -13,6 +13,38 @@ pub struct CpioOldLe {
     files: RefCell<Vec<OptRc<CpioOldLe_File>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&CpioOldLe> for OptRc<CpioOldLe> {
+    type Error = KError;
+    fn try_from(v: &CpioOldLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CpioOldLe> for OptRc<CpioOldLe> {
+    type Error = KError;
+    fn try_from(v: &&CpioOldLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe> for CpioOldLe {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe> for &CpioOldLe {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe> for OptRc<CpioOldLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CpioOldLe> for &OptRc<CpioOldLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for CpioOldLe {
     type Root = CpioOldLe;
     type Parent = CpioOldLe;
@@ -53,6 +85,12 @@ impl CpioOldLe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -70,6 +108,38 @@ pub struct CpioOldLe_File {
     _io: RefCell<BytesReader>,
     path_name_raw: RefCell<Vec<u8>>,
     file_data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&CpioOldLe_File> for OptRc<CpioOldLe_File> {
+    type Error = KError;
+    fn try_from(v: &CpioOldLe_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CpioOldLe_File> for OptRc<CpioOldLe_File> {
+    type Error = KError;
+    fn try_from(v: &&CpioOldLe_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_File> for CpioOldLe_File {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_File>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_File> for &CpioOldLe_File {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_File>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_File> for OptRc<CpioOldLe_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_File>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CpioOldLe_File> for &OptRc<CpioOldLe_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_File>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CpioOldLe_File {
     type Root = CpioOldLe;
@@ -155,6 +225,12 @@ impl CpioOldLe_File {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl CpioOldLe_File {
     pub fn path_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -184,6 +260,38 @@ pub struct CpioOldLe_FileHeader {
     path_name_size: RefCell<u16>,
     file_size: RefCell<OptRc<CpioOldLe_FourByteUnsignedInteger>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&CpioOldLe_FileHeader> for OptRc<CpioOldLe_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &CpioOldLe_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CpioOldLe_FileHeader> for OptRc<CpioOldLe_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&CpioOldLe_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FileHeader> for CpioOldLe_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FileHeader> for &CpioOldLe_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FileHeader> for OptRc<CpioOldLe_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CpioOldLe_FileHeader> for &OptRc<CpioOldLe_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CpioOldLe_FileHeader {
     type Root = CpioOldLe;
@@ -282,6 +390,12 @@ impl CpioOldLe_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -294,6 +408,38 @@ pub struct CpioOldLe_FourByteUnsignedInteger {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<i32>,
+}
+impl TryFrom<&CpioOldLe_FourByteUnsignedInteger> for OptRc<CpioOldLe_FourByteUnsignedInteger> {
+    type Error = KError;
+    fn try_from(v: &CpioOldLe_FourByteUnsignedInteger) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CpioOldLe_FourByteUnsignedInteger> for OptRc<CpioOldLe_FourByteUnsignedInteger> {
+    type Error = KError;
+    fn try_from(v: &&CpioOldLe_FourByteUnsignedInteger) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FourByteUnsignedInteger> for CpioOldLe_FourByteUnsignedInteger {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FourByteUnsignedInteger>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FourByteUnsignedInteger> for &CpioOldLe_FourByteUnsignedInteger {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FourByteUnsignedInteger>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CpioOldLe_FourByteUnsignedInteger> for OptRc<CpioOldLe_FourByteUnsignedInteger> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FourByteUnsignedInteger>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CpioOldLe_FourByteUnsignedInteger> for &OptRc<CpioOldLe_FourByteUnsignedInteger> {
+    fn downcast_optrc(&self) -> Result<OptRc<CpioOldLe_FourByteUnsignedInteger>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CpioOldLe_FourByteUnsignedInteger {
     type Root = CpioOldLe;
@@ -344,5 +490,11 @@ impl CpioOldLe_FourByteUnsignedInteger {
 impl CpioOldLe_FourByteUnsignedInteger {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -65,6 +65,38 @@ pub struct ProcessRepeatUsertype {
     _io: RefCell<BytesReader>,
     blocks_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessRepeatUsertype> for OptRc<ProcessRepeatUsertype> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertype> for OptRc<ProcessRepeatUsertype> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype> for ProcessRepeatUsertype {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype> for &ProcessRepeatUsertype {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype> for OptRc<ProcessRepeatUsertype> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype> for &OptRc<ProcessRepeatUsertype> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessRepeatUsertype {
     type Root = ProcessRepeatUsertype;
     type Parent = ProcessRepeatUsertype;
@@ -105,6 +137,12 @@ impl ProcessRepeatUsertype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessRepeatUsertype {
     pub fn blocks_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -120,6 +158,38 @@ pub struct ProcessRepeatUsertype_Block {
     a: RefCell<i32>,
     b: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertype_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertype_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype_Block> for ProcessRepeatUsertype_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype_Block> for &ProcessRepeatUsertype_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype_Block> for OptRc<ProcessRepeatUsertype_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertype_Block> for &OptRc<ProcessRepeatUsertype_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertype_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessRepeatUsertype_Block {
     type Root = ProcessRepeatUsertype;
@@ -158,5 +228,11 @@ impl ProcessRepeatUsertype_Block {
 impl ProcessRepeatUsertype_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

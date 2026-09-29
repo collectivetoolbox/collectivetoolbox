@@ -40,6 +40,38 @@ pub struct WindowsResourceFile {
     resources: RefCell<Vec<OptRc<WindowsResourceFile_Resource>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&WindowsResourceFile> for OptRc<WindowsResourceFile> {
+    type Error = KError;
+    fn try_from(v: &WindowsResourceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsResourceFile> for OptRc<WindowsResourceFile> {
+    type Error = KError;
+    fn try_from(v: &&WindowsResourceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile> for WindowsResourceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile> for &WindowsResourceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile> for OptRc<WindowsResourceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsResourceFile> for &OptRc<WindowsResourceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for WindowsResourceFile {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
@@ -80,6 +112,12 @@ impl WindowsResourceFile {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -112,6 +150,38 @@ pub struct WindowsResourceFile_Resource {
     padding2_raw: RefCell<Vec<u8>>,
     f_type_as_predef: Cell<bool>,
     type_as_predef: RefCell<WindowsResourceFile_Resource_PredefTypes>,
+}
+impl TryFrom<&WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
+    type Error = KError;
+    fn try_from(v: &WindowsResourceFile_Resource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
+    type Error = KError;
+    fn try_from(v: &&WindowsResourceFile_Resource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_Resource> for WindowsResourceFile_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_Resource> for &WindowsResourceFile_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_Resource> for OptRc<WindowsResourceFile_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_Resource> for &OptRc<WindowsResourceFile_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_Resource>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsResourceFile_Resource {
     type Root = WindowsResourceFile;
@@ -251,6 +321,12 @@ impl WindowsResourceFile_Resource {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsResourceFile_Resource {
     pub fn padding1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -385,6 +461,38 @@ pub struct WindowsResourceFile_UnicodeOrId {
     f_save_pos2: Cell<bool>,
     save_pos2: RefCell<i32>,
 }
+impl TryFrom<&WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
+    type Error = KError;
+    fn try_from(v: &WindowsResourceFile_UnicodeOrId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
+    type Error = KError;
+    fn try_from(v: &&WindowsResourceFile_UnicodeOrId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for WindowsResourceFile_UnicodeOrId {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for &WindowsResourceFile_UnicodeOrId {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for OptRc<WindowsResourceFile_UnicodeOrId> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsResourceFile_UnicodeOrId> for &OptRc<WindowsResourceFile_UnicodeOrId> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsResourceFile_UnicodeOrId>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for WindowsResourceFile_UnicodeOrId {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile_Resource;
@@ -506,6 +614,12 @@ impl WindowsResourceFile_UnicodeOrId {
 impl WindowsResourceFile_UnicodeOrId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl WindowsResourceFile_UnicodeOrId {

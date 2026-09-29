@@ -22,6 +22,38 @@ pub struct Uimage {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Uimage> for OptRc<Uimage> {
+    type Error = KError;
+    fn try_from(v: &Uimage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uimage> for OptRc<Uimage> {
+    type Error = KError;
+    fn try_from(v: &&Uimage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uimage> for Uimage {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uimage> for &Uimage {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uimage> for OptRc<Uimage> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uimage> for &OptRc<Uimage> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Uimage {
     type Root = Uimage;
     type Parent = Uimage;
@@ -60,6 +92,12 @@ impl Uimage {
 impl Uimage {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Uimage {
@@ -952,6 +990,38 @@ pub struct Uimage_Uheader {
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Uimage_Uheader> for OptRc<Uimage_Uheader> {
+    type Error = KError;
+    fn try_from(v: &Uimage_Uheader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Uimage_Uheader> for OptRc<Uimage_Uheader> {
+    type Error = KError;
+    fn try_from(v: &&Uimage_Uheader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Uimage_Uheader> for Uimage_Uheader {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage_Uheader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Uimage_Uheader> for &Uimage_Uheader {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage_Uheader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Uimage_Uheader> for OptRc<Uimage_Uheader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage_Uheader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Uimage_Uheader> for &OptRc<Uimage_Uheader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Uimage_Uheader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Uimage_Uheader {
     type Root = Uimage;
     type Parent = Uimage;
@@ -1052,6 +1122,12 @@ impl Uimage_Uheader {
 impl Uimage_Uheader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Uimage_Uheader {

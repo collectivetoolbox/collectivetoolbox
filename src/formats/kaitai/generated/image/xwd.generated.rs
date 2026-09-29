@@ -29,6 +29,38 @@ pub struct Xwd {
     hdr_raw: RefCell<Vec<u8>>,
     color_map_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Xwd> for OptRc<Xwd> {
+    type Error = KError;
+    fn try_from(v: &Xwd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xwd> for OptRc<Xwd> {
+    type Error = KError;
+    fn try_from(v: &&Xwd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xwd> for Xwd {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xwd> for &Xwd {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xwd> for OptRc<Xwd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xwd> for &OptRc<Xwd> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Xwd {
     type Root = Xwd;
     type Parent = Xwd;
@@ -87,6 +119,12 @@ impl Xwd {
 impl Xwd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Xwd {
@@ -224,6 +262,38 @@ pub struct Xwd_ColorMapEntry {
     padding: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Xwd_ColorMapEntry> for OptRc<Xwd_ColorMapEntry> {
+    type Error = KError;
+    fn try_from(v: &Xwd_ColorMapEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xwd_ColorMapEntry> for OptRc<Xwd_ColorMapEntry> {
+    type Error = KError;
+    fn try_from(v: &&Xwd_ColorMapEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xwd_ColorMapEntry> for Xwd_ColorMapEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_ColorMapEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xwd_ColorMapEntry> for &Xwd_ColorMapEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_ColorMapEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xwd_ColorMapEntry> for OptRc<Xwd_ColorMapEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_ColorMapEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xwd_ColorMapEntry> for &OptRc<Xwd_ColorMapEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_ColorMapEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Xwd_ColorMapEntry {
     type Root = Xwd;
     type Parent = Xwd;
@@ -290,6 +360,12 @@ impl Xwd_ColorMapEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -323,6 +399,38 @@ pub struct Xwd_Header {
     window_border_width: RefCell<u32>,
     creator: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Xwd_Header> for OptRc<Xwd_Header> {
+    type Error = KError;
+    fn try_from(v: &Xwd_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xwd_Header> for OptRc<Xwd_Header> {
+    type Error = KError;
+    fn try_from(v: &&Xwd_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xwd_Header> for Xwd_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xwd_Header> for &Xwd_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xwd_Header> for OptRc<Xwd_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xwd_Header> for &OptRc<Xwd_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xwd_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Xwd_Header {
     type Root = Xwd;
@@ -599,5 +707,11 @@ impl Xwd_Header {
 impl Xwd_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -65,6 +65,38 @@ pub struct ValidFailEqStr {
     _io: RefCell<BytesReader>,
     foo_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ValidFailEqStr> for OptRc<ValidFailEqStr> {
+    type Error = KError;
+    fn try_from(v: &ValidFailEqStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidFailEqStr> for OptRc<ValidFailEqStr> {
+    type Error = KError;
+    fn try_from(v: &&ValidFailEqStr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailEqStr> for ValidFailEqStr {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailEqStr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidFailEqStr> for &ValidFailEqStr {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailEqStr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailEqStr> for OptRc<ValidFailEqStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailEqStr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidFailEqStr> for &OptRc<ValidFailEqStr> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailEqStr>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidFailEqStr {
     type Root = ValidFailEqStr;
     type Parent = ValidFailEqStr;
@@ -99,6 +131,12 @@ impl ValidFailEqStr {
 impl ValidFailEqStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ValidFailEqStr {

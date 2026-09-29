@@ -65,6 +65,38 @@ pub struct ParamsPassArrayUsertype {
     pass_blocks: RefCell<OptRc<ParamsPassArrayUsertype_ParamType>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ParamsPassArrayUsertype> for OptRc<ParamsPassArrayUsertype> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayUsertype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayUsertype> for OptRc<ParamsPassArrayUsertype> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayUsertype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype> for ParamsPassArrayUsertype {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype> for &ParamsPassArrayUsertype {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype> for OptRc<ParamsPassArrayUsertype> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype> for &OptRc<ParamsPassArrayUsertype> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsPassArrayUsertype {
     type Root = ParamsPassArrayUsertype;
     type Parent = ParamsPassArrayUsertype;
@@ -87,7 +119,7 @@ impl KStruct for ParamsPassArrayUsertype {
             let t = Self::read_into::<_, ParamsPassArrayUsertype_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
-        let f = |t : &mut ParamsPassArrayUsertype_ParamType| Ok(t.set_params(self_rc.blocks().clone()));
+        let f = |t : &mut ParamsPassArrayUsertype_ParamType| Ok(t.set_params((self_rc.blocks()).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayUsertype_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_blocks.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -110,6 +142,12 @@ impl ParamsPassArrayUsertype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -119,6 +157,38 @@ pub struct ParamsPassArrayUsertype_Block {
     pub(crate) _self_shared: SharedType<Self>,
     foo: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassArrayUsertype_Block> for OptRc<ParamsPassArrayUsertype_Block> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayUsertype_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayUsertype_Block> for OptRc<ParamsPassArrayUsertype_Block> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayUsertype_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_Block> for ParamsPassArrayUsertype_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_Block> for &ParamsPassArrayUsertype_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_Block> for OptRc<ParamsPassArrayUsertype_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_Block> for &OptRc<ParamsPassArrayUsertype_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayUsertype_Block {
     type Root = ParamsPassArrayUsertype;
@@ -152,6 +222,12 @@ impl ParamsPassArrayUsertype_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -159,12 +235,44 @@ pub struct ParamsPassArrayUsertype_ParamType {
     pub(crate) _root: SharedType<ParamsPassArrayUsertype>,
     pub(crate) _parent: SharedType<ParamsPassArrayUsertype>,
     pub(crate) _self_shared: SharedType<Self>,
-    bar: RefCell<OptRc<ParamsPassArrayUsertype_Block>>,
+    bar: RefCell<Vec<OptRc<ParamsPassArrayUsertype_Block>>>,
     one: RefCell<Vec<u8>>,
     two: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     one_raw: RefCell<Vec<u8>>,
     two_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ParamsPassArrayUsertype_ParamType> for OptRc<ParamsPassArrayUsertype_ParamType> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayUsertype_ParamType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayUsertype_ParamType> for OptRc<ParamsPassArrayUsertype_ParamType> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayUsertype_ParamType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_ParamType> for ParamsPassArrayUsertype_ParamType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_ParamType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_ParamType> for &ParamsPassArrayUsertype_ParamType {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_ParamType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_ParamType> for OptRc<ParamsPassArrayUsertype_ParamType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_ParamType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayUsertype_ParamType> for &OptRc<ParamsPassArrayUsertype_ParamType> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayUsertype_ParamType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayUsertype_ParamType {
     type Root = ParamsPassArrayUsertype;
@@ -182,19 +290,19 @@ impl KStruct for ParamsPassArrayUsertype_ParamType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.one.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.bar().get(0_usize).ok_or(KError::CastError)?.foo())?)?;
-        *self_rc.two.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.bar().get(1_usize).ok_or(KError::CastError)?.foo())?)?;
+        *self_rc.one.borrow_mut() = _io.read_bytes(usize::from(*self_rc.bar().get(0_usize).ok_or(KError::CastError)?.foo()))?;
+        *self_rc.two.borrow_mut() = _io.read_bytes(usize::from(*self_rc.bar().get(1_usize).ok_or(KError::CastError)?.foo()))?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl ParamsPassArrayUsertype_ParamType {
-    pub fn bar(&self) -> Ref<'_, OptRc<ParamsPassArrayUsertype_Block>> {
+    pub fn bar(&self) -> Ref<'_, Vec<OptRc<ParamsPassArrayUsertype_Block>>> {
         self.bar.borrow()
     }
 }
 impl ParamsPassArrayUsertype_ParamType {
-    pub fn set_params(&mut self, bar: OptRc<ParamsPassArrayUsertype_Block>) {
+    pub fn set_params(&mut self, bar: Vec<OptRc<ParamsPassArrayUsertype_Block>>) {
         *self.bar.borrow_mut() = bar;
     }
 }
@@ -213,6 +321,12 @@ impl ParamsPassArrayUsertype_ParamType {
 impl ParamsPassArrayUsertype_ParamType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ParamsPassArrayUsertype_ParamType {

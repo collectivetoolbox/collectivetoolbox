@@ -68,6 +68,38 @@ pub struct Expr0 {
     f_must_be_f7: Cell<bool>,
     must_be_f7: RefCell<i32>,
 }
+impl TryFrom<&Expr0> for OptRc<Expr0> {
+    type Error = KError;
+    fn try_from(v: &Expr0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Expr0> for OptRc<Expr0> {
+    type Error = KError;
+    fn try_from(v: &&Expr0) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Expr0> for Expr0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr0>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Expr0> for &Expr0 {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr0>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Expr0> for OptRc<Expr0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr0>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Expr0> for &OptRc<Expr0> {
+    fn downcast_optrc(&self) -> Result<OptRc<Expr0>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Expr0 {
     type Root = Expr0;
     type Parent = Expr0;
@@ -123,5 +155,11 @@ impl Expr0 {
 impl Expr0 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

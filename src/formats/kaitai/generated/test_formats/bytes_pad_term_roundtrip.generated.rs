@@ -71,6 +71,38 @@ pub struct BytesPadTermRoundtrip {
     str_term_and_pad_raw: RefCell<Vec<u8>>,
     str_term_include_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&BytesPadTermRoundtrip> for OptRc<BytesPadTermRoundtrip> {
+    type Error = KError;
+    fn try_from(v: &BytesPadTermRoundtrip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BytesPadTermRoundtrip> for OptRc<BytesPadTermRoundtrip> {
+    type Error = KError;
+    fn try_from(v: &&BytesPadTermRoundtrip) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BytesPadTermRoundtrip> for BytesPadTermRoundtrip {
+    fn downcast_optrc(&self) -> Result<OptRc<BytesPadTermRoundtrip>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BytesPadTermRoundtrip> for &BytesPadTermRoundtrip {
+    fn downcast_optrc(&self) -> Result<OptRc<BytesPadTermRoundtrip>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BytesPadTermRoundtrip> for OptRc<BytesPadTermRoundtrip> {
+    fn downcast_optrc(&self) -> Result<OptRc<BytesPadTermRoundtrip>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BytesPadTermRoundtrip> for &OptRc<BytesPadTermRoundtrip> {
+    fn downcast_optrc(&self) -> Result<OptRc<BytesPadTermRoundtrip>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BytesPadTermRoundtrip {
     type Root = BytesPadTermRoundtrip;
     type Parent = BytesPadTermRoundtrip;
@@ -120,6 +152,12 @@ impl BytesPadTermRoundtrip {
 impl BytesPadTermRoundtrip {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl BytesPadTermRoundtrip {

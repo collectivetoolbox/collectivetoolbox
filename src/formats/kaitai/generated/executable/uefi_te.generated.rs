@@ -37,6 +37,38 @@ pub struct UefiTe {
     _io: RefCell<BytesReader>,
     te_hdr_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&UefiTe> for OptRc<UefiTe> {
+    type Error = KError;
+    fn try_from(v: &UefiTe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UefiTe> for OptRc<UefiTe> {
+    type Error = KError;
+    fn try_from(v: &&UefiTe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe> for UefiTe {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UefiTe> for &UefiTe {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe> for OptRc<UefiTe> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UefiTe> for &OptRc<UefiTe> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for UefiTe {
     type Root = UefiTe;
     type Parent = UefiTe;
@@ -84,6 +116,12 @@ impl UefiTe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl UefiTe {
     pub fn te_hdr_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -99,6 +137,38 @@ pub struct UefiTe_DataDir {
     virtual_address: RefCell<u32>,
     size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&UefiTe_DataDir> for OptRc<UefiTe_DataDir> {
+    type Error = KError;
+    fn try_from(v: &UefiTe_DataDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UefiTe_DataDir> for OptRc<UefiTe_DataDir> {
+    type Error = KError;
+    fn try_from(v: &&UefiTe_DataDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_DataDir> for UefiTe_DataDir {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_DataDir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_DataDir> for &UefiTe_DataDir {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_DataDir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_DataDir> for OptRc<UefiTe_DataDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_DataDir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UefiTe_DataDir> for &OptRc<UefiTe_DataDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_DataDir>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for UefiTe_DataDir {
     type Root = UefiTe;
@@ -138,6 +208,12 @@ impl UefiTe_DataDir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -148,6 +224,38 @@ pub struct UefiTe_HeaderDataDirs {
     base_relocation_table: RefCell<OptRc<UefiTe_DataDir>>,
     debug: RefCell<OptRc<UefiTe_DataDir>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&UefiTe_HeaderDataDirs> for OptRc<UefiTe_HeaderDataDirs> {
+    type Error = KError;
+    fn try_from(v: &UefiTe_HeaderDataDirs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UefiTe_HeaderDataDirs> for OptRc<UefiTe_HeaderDataDirs> {
+    type Error = KError;
+    fn try_from(v: &&UefiTe_HeaderDataDirs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_HeaderDataDirs> for UefiTe_HeaderDataDirs {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_HeaderDataDirs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_HeaderDataDirs> for &UefiTe_HeaderDataDirs {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_HeaderDataDirs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_HeaderDataDirs> for OptRc<UefiTe_HeaderDataDirs> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_HeaderDataDirs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UefiTe_HeaderDataDirs> for &OptRc<UefiTe_HeaderDataDirs> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_HeaderDataDirs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for UefiTe_HeaderDataDirs {
     type Root = UefiTe;
@@ -189,6 +297,12 @@ impl UefiTe_HeaderDataDirs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -210,6 +324,38 @@ pub struct UefiTe_Section {
     name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&UefiTe_Section> for OptRc<UefiTe_Section> {
+    type Error = KError;
+    fn try_from(v: &UefiTe_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UefiTe_Section> for OptRc<UefiTe_Section> {
+    type Error = KError;
+    fn try_from(v: &&UefiTe_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_Section> for UefiTe_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_Section>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_Section> for &UefiTe_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_Section>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_Section> for OptRc<UefiTe_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_Section>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UefiTe_Section> for &OptRc<UefiTe_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_Section>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for UefiTe_Section {
     type Root = UefiTe;
@@ -312,6 +458,12 @@ impl UefiTe_Section {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl UefiTe_Section {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -334,6 +486,38 @@ pub struct UefiTe_TeHeader {
     image_base: RefCell<u64>,
     data_dirs: RefCell<OptRc<UefiTe_HeaderDataDirs>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&UefiTe_TeHeader> for OptRc<UefiTe_TeHeader> {
+    type Error = KError;
+    fn try_from(v: &UefiTe_TeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UefiTe_TeHeader> for OptRc<UefiTe_TeHeader> {
+    type Error = KError;
+    fn try_from(v: &&UefiTe_TeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_TeHeader> for UefiTe_TeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_TeHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_TeHeader> for &UefiTe_TeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_TeHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UefiTe_TeHeader> for OptRc<UefiTe_TeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_TeHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UefiTe_TeHeader> for &OptRc<UefiTe_TeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<UefiTe_TeHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for UefiTe_TeHeader {
     type Root = UefiTe;
@@ -418,6 +602,12 @@ impl UefiTe_TeHeader {
 impl UefiTe_TeHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

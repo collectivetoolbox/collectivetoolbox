@@ -85,9 +85,9 @@ fn test_expr_1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<Expr1> = Expr1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.len_of_1(), 10);
-    assert_eq!(*r.len_of_1_mod()?, 8);
-    assert_eq!(*r.str1(), "Some ASC");
-    assert_eq!(*r.str1_len()?, 8);
+    assert_eq!(*(r.len_of_1()), 10);
+    assert_eq!(*(r.len_of_1_mod()?), 8);
+    assert_eq!(*(r.str1()), "Some ASC");
+    assert_eq!(*(r.str1_len()?), 8);
     Ok(())
 }

@@ -65,6 +65,38 @@ pub struct ProcessCustomNoArgs {
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessCustomNoArgs> for OptRc<ProcessCustomNoArgs> {
+    type Error = KError;
+    fn try_from(v: &ProcessCustomNoArgs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCustomNoArgs> for OptRc<ProcessCustomNoArgs> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCustomNoArgs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustomNoArgs> for ProcessCustomNoArgs {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustomNoArgs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustomNoArgs> for &ProcessCustomNoArgs {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustomNoArgs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustomNoArgs> for OptRc<ProcessCustomNoArgs> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustomNoArgs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCustomNoArgs> for &OptRc<ProcessCustomNoArgs> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustomNoArgs>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessCustomNoArgs {
     type Root = ProcessCustomNoArgs;
     type Parent = ProcessCustomNoArgs;
@@ -96,6 +128,12 @@ impl ProcessCustomNoArgs {
 impl ProcessCustomNoArgs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProcessCustomNoArgs {

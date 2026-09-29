@@ -5,6 +5,7 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::some_ip_sd::SomeIpSd;
+use super::some_ip_sd::*;
 
 /**
  * SOME/IP (Scalable service-Oriented MiddlewarE over IP) is an automotive/embedded
@@ -37,6 +38,22 @@ impl TryFrom<&SomeIp_Payload> for OptRc<SomeIpSd> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIp_Payload> for OptRc<SomeIpSd> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSd> for SomeIp_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        OptRc::<SomeIpSd>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSd> for &SomeIp_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSd>> for SomeIp_Payload {
     fn from(v: OptRc<SomeIpSd>) -> Self {
         Self::SomeIpSd(v)
@@ -51,9 +68,47 @@ impl TryFrom<&SomeIp_Payload> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIp_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for SomeIp_Payload {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&SomeIp> for OptRc<SomeIp> {
+    type Error = KError;
+    fn try_from(v: &SomeIp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIp> for OptRc<SomeIp> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp> for SomeIp {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIp> for &SomeIp {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp> for OptRc<SomeIp> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIp> for &OptRc<SomeIp> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SomeIp {
@@ -106,6 +161,12 @@ impl SomeIp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIp {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -130,6 +191,38 @@ pub struct SomeIp_Header {
     request_id_raw: RefCell<Vec<u8>>,
     f_is_valid_service_discovery: Cell<bool>,
     is_valid_service_discovery: RefCell<bool>,
+}
+impl TryFrom<&SomeIp_Header> for OptRc<SomeIp_Header> {
+    type Error = KError;
+    fn try_from(v: &SomeIp_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIp_Header> for OptRc<SomeIp_Header> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header> for SomeIp_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header> for &SomeIp_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header> for OptRc<SomeIp_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIp_Header> for &OptRc<SomeIp_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIp_Header {
     type Root = SomeIp;
@@ -260,6 +353,12 @@ impl SomeIp_Header {
 impl SomeIp_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl SomeIp_Header {
@@ -411,6 +510,38 @@ pub struct SomeIp_Header_MessageId {
     f_value: Cell<bool>,
     value: RefCell<u32>,
 }
+impl TryFrom<&SomeIp_Header_MessageId> for OptRc<SomeIp_Header_MessageId> {
+    type Error = KError;
+    fn try_from(v: &SomeIp_Header_MessageId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIp_Header_MessageId> for OptRc<SomeIp_Header_MessageId> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp_Header_MessageId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_MessageId> for SomeIp_Header_MessageId {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_MessageId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_MessageId> for &SomeIp_Header_MessageId {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_MessageId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_MessageId> for OptRc<SomeIp_Header_MessageId> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_MessageId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIp_Header_MessageId> for &OptRc<SomeIp_Header_MessageId> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_MessageId>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SomeIp_Header_MessageId {
     type Root = SomeIp;
     type Parent = SomeIp_Header;
@@ -502,6 +633,12 @@ impl SomeIp_Header_MessageId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -520,6 +657,38 @@ pub struct SomeIp_Header_RequestId {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<u32>,
+}
+impl TryFrom<&SomeIp_Header_RequestId> for OptRc<SomeIp_Header_RequestId> {
+    type Error = KError;
+    fn try_from(v: &SomeIp_Header_RequestId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIp_Header_RequestId> for OptRc<SomeIp_Header_RequestId> {
+    type Error = KError;
+    fn try_from(v: &&SomeIp_Header_RequestId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_RequestId> for SomeIp_Header_RequestId {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_RequestId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_RequestId> for &SomeIp_Header_RequestId {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_RequestId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIp_Header_RequestId> for OptRc<SomeIp_Header_RequestId> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_RequestId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIp_Header_RequestId> for &OptRc<SomeIp_Header_RequestId> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIp_Header_RequestId>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIp_Header_RequestId {
     type Root = SomeIp;
@@ -577,5 +746,11 @@ impl SomeIp_Header_RequestId {
 impl SomeIp_Header_RequestId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

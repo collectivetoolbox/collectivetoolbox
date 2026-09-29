@@ -85,9 +85,9 @@ fn test_process_coerce_bytes() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessCoerceBytes> = ProcessCoerceBytes::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.records()[0].flag(), 0);
-    assert_eq!(*r.records()[0].buf()?, vec![0x41u8, 0x41u8, 0x41u8, 0x41u8]);
-    assert_eq!(*r.records()[1].flag(), 1);
-    assert_eq!(*r.records()[1].buf()?, vec![0x42u8, 0x42u8, 0x42u8, 0x42u8]);
+    assert_eq!(*(r.records()[0].flag()), 0);
+    assert_eq!(*(r.records()[0].buf()?), vec![0x41, 0x41, 0x41, 0x41]);
+    assert_eq!(*(r.records()[1].flag()), 1);
+    assert_eq!(*(r.records()[1].buf()?), vec![0x42, 0x42, 0x42, 0x42]);
     Ok(())
 }

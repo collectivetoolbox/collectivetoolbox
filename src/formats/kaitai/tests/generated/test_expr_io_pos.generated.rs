@@ -85,11 +85,11 @@ fn test_expr_io_pos() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoPos> = ExprIoPos::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.substream1().my_str(), "CURIOSITY");
-    assert_eq!(r.substream1().body(), vec![0x11u8, 0x22u8, 0x33u8, 0x44u8]);
-    assert_eq!(*r.substream1().number(), 66);
-    assert_eq!(*r.substream2().my_str(), "KILLED");
-    assert_eq!(r.substream2().body(), vec![0x61u8, 0x20u8, 0x63u8, 0x61u8, 0x74u8]);
-    assert_eq!(*r.substream2().number(), 103);
+    assert_eq!(*(r.substream1().my_str()), "CURIOSITY");
+    assert_eq!(*(r.substream1().body()), vec![0x11, 0x22, 0x33, 0x44]);
+    assert_eq!(*(r.substream1().number()), 66);
+    assert_eq!(*(r.substream2().my_str()), "KILLED");
+    assert_eq!(*(r.substream2().body()), vec![0x61, 0x20, 0x63, 0x61, 0x74]);
+    assert_eq!(*(r.substream2().number()), 103);
     Ok(())
 }

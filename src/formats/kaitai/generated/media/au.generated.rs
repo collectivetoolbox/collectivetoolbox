@@ -35,6 +35,38 @@ pub struct Au {
     f_len_data: Cell<bool>,
     len_data: RefCell<i32>,
 }
+impl TryFrom<&Au> for OptRc<Au> {
+    type Error = KError;
+    fn try_from(v: &Au) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Au> for OptRc<Au> {
+    type Error = KError;
+    fn try_from(v: &&Au) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Au> for Au {
+    fn downcast_optrc(&self) -> Result<OptRc<Au>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Au> for &Au {
+    fn downcast_optrc(&self) -> Result<OptRc<Au>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Au> for OptRc<Au> {
+    fn downcast_optrc(&self) -> Result<OptRc<Au>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Au> for &OptRc<Au> {
+    fn downcast_optrc(&self) -> Result<OptRc<Au>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Au {
     type Root = Au;
     type Parent = Au;
@@ -97,6 +129,12 @@ impl Au {
 impl Au {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Au {
@@ -315,6 +353,38 @@ pub struct Au_Header {
     comment: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Au_Header> for OptRc<Au_Header> {
+    type Error = KError;
+    fn try_from(v: &Au_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Au_Header> for OptRc<Au_Header> {
+    type Error = KError;
+    fn try_from(v: &&Au_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Au_Header> for Au_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Au_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Au_Header> for &Au_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Au_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Au_Header> for OptRc<Au_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Au_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Au_Header> for &OptRc<Au_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Au_Header>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Au_Header {
     type Root = Au;
     type Parent = Au;
@@ -402,5 +472,11 @@ impl Au_Header {
 impl Au_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,8 +85,8 @@ fn test_term_strz3() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TermStrz3> = TermStrz3::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1(), "foo");
-    assert_eq!(*r.s2(), "|bar|baz");
-    assert_eq!(*r.s3(), "");
+    assert_eq!(*(r.s1()), "foo");
+    assert_eq!(*(r.s2()), "|bar|baz");
+    assert_eq!(*(r.s3()), "");
     Ok(())
 }

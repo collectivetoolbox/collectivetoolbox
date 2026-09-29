@@ -65,6 +65,38 @@ pub struct NestedTypes2 {
     two: RefCell<OptRc<NestedTypes2_SubtypeB>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NestedTypes2> for OptRc<NestedTypes2> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2> for OptRc<NestedTypes2> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2> for NestedTypes2 {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2> for &NestedTypes2 {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2> for OptRc<NestedTypes2> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2> for &OptRc<NestedTypes2> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NestedTypes2 {
     type Root = NestedTypes2;
     type Parent = NestedTypes2;
@@ -105,6 +137,12 @@ impl NestedTypes2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -116,6 +154,38 @@ pub struct NestedTypes2_SubtypeA {
     typed_here1: RefCell<OptRc<NestedTypes2_SubtypeA_SubtypeC>>,
     typed_here2: RefCell<OptRc<NestedTypes2_SubtypeA_SubtypeCc>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypes2_SubtypeA> for OptRc<NestedTypes2_SubtypeA> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2_SubtypeA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2_SubtypeA> for OptRc<NestedTypes2_SubtypeA> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2_SubtypeA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA> for NestedTypes2_SubtypeA {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA> for &NestedTypes2_SubtypeA {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA> for OptRc<NestedTypes2_SubtypeA> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA> for &OptRc<NestedTypes2_SubtypeA> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypes2_SubtypeA {
     type Root = NestedTypes2;
@@ -164,6 +234,12 @@ impl NestedTypes2_SubtypeA {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -176,6 +252,38 @@ pub struct NestedTypes2_SubtypeA_SubtypeC {
     typed_parent: RefCell<OptRc<NestedTypes2_SubtypeA_SubtypeCc>>,
     typed_root: RefCell<OptRc<NestedTypes2_SubtypeB>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeC) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeC) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for NestedTypes2_SubtypeA_SubtypeC {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for &NestedTypes2_SubtypeA_SubtypeC {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC> for &OptRc<NestedTypes2_SubtypeA_SubtypeC> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypes2_SubtypeA_SubtypeC {
     type Root = NestedTypes2;
@@ -230,6 +338,12 @@ impl NestedTypes2_SubtypeA_SubtypeC {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -239,6 +353,38 @@ pub struct NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     pub(crate) _self_shared: SharedType<Self>,
     value_d: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeC_SubtypeD) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeC_SubtypeD) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for &NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> for &OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeC_SubtypeD>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     type Root = NestedTypes2;
@@ -272,6 +418,12 @@ impl NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -281,6 +433,38 @@ pub struct NestedTypes2_SubtypeA_SubtypeCc {
     pub(crate) _self_shared: SharedType<Self>,
     value_cc: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2_SubtypeA_SubtypeCc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2_SubtypeA_SubtypeCc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for NestedTypes2_SubtypeA_SubtypeCc {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for &NestedTypes2_SubtypeA_SubtypeCc {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeA_SubtypeCc> for &OptRc<NestedTypes2_SubtypeA_SubtypeCc> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeA_SubtypeCc>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypes2_SubtypeA_SubtypeCc {
     type Root = NestedTypes2;
@@ -314,6 +498,12 @@ impl NestedTypes2_SubtypeA_SubtypeCc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -323,6 +513,38 @@ pub struct NestedTypes2_SubtypeB {
     pub(crate) _self_shared: SharedType<Self>,
     value_b: RefCell<i8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypes2_SubtypeB> for OptRc<NestedTypes2_SubtypeB> {
+    type Error = KError;
+    fn try_from(v: &NestedTypes2_SubtypeB) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypes2_SubtypeB> for OptRc<NestedTypes2_SubtypeB> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypes2_SubtypeB) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeB> for NestedTypes2_SubtypeB {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeB>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeB> for &NestedTypes2_SubtypeB {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeB>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeB> for OptRc<NestedTypes2_SubtypeB> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeB>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypes2_SubtypeB> for &OptRc<NestedTypes2_SubtypeB> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypes2_SubtypeB>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypes2_SubtypeB {
     type Root = NestedTypes2;
@@ -355,5 +577,11 @@ impl NestedTypes2_SubtypeB {
 impl NestedTypes2_SubtypeB {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

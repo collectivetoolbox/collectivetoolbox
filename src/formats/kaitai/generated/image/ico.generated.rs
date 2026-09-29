@@ -23,6 +23,38 @@ pub struct Ico {
     images: RefCell<Vec<OptRc<Ico_IconDirEntry>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Ico> for OptRc<Ico> {
+    type Error = KError;
+    fn try_from(v: &Ico) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ico> for OptRc<Ico> {
+    type Error = KError;
+    fn try_from(v: &&Ico) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ico> for Ico {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ico> for &Ico {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ico> for OptRc<Ico> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ico> for &OptRc<Ico> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ico {
     type Root = Ico;
     type Parent = Ico;
@@ -79,6 +111,12 @@ impl Ico {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -101,6 +139,38 @@ pub struct Ico_IconDirEntry {
     is_png: RefCell<bool>,
     f_png_header: Cell<bool>,
     png_header: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ico_IconDirEntry> for OptRc<Ico_IconDirEntry> {
+    type Error = KError;
+    fn try_from(v: &Ico_IconDirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ico_IconDirEntry> for OptRc<Ico_IconDirEntry> {
+    type Error = KError;
+    fn try_from(v: &&Ico_IconDirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ico_IconDirEntry> for Ico_IconDirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico_IconDirEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ico_IconDirEntry> for &Ico_IconDirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico_IconDirEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ico_IconDirEntry> for OptRc<Ico_IconDirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico_IconDirEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ico_IconDirEntry> for &OptRc<Ico_IconDirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ico_IconDirEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ico_IconDirEntry {
     type Root = Ico;
@@ -264,5 +334,11 @@ impl Ico_IconDirEntry {
 impl Ico_IconDirEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -18,6 +18,38 @@ pub struct RtcpPayload {
     rtcp_packets: RefCell<Vec<OptRc<RtcpPayload_RtcpPacket>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RtcpPayload> for OptRc<RtcpPayload> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload> for OptRc<RtcpPayload> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload> for RtcpPayload {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload> for &RtcpPayload {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload> for OptRc<RtcpPayload> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload> for &OptRc<RtcpPayload> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RtcpPayload {
     type Root = RtcpPayload;
     type Parent = RtcpPayload;
@@ -57,6 +89,12 @@ impl RtcpPayload {
 impl RtcpPayload {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -283,6 +321,38 @@ pub struct RtcpPayload_PacketStatusChunk {
     f_s: Cell<bool>,
     s: RefCell<u64>,
 }
+impl TryFrom<&RtcpPayload_PacketStatusChunk> for OptRc<RtcpPayload_PacketStatusChunk> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PacketStatusChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_PacketStatusChunk> for OptRc<RtcpPayload_PacketStatusChunk> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PacketStatusChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PacketStatusChunk> for RtcpPayload_PacketStatusChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PacketStatusChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PacketStatusChunk> for &RtcpPayload_PacketStatusChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PacketStatusChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PacketStatusChunk> for OptRc<RtcpPayload_PacketStatusChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PacketStatusChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_PacketStatusChunk> for &OptRc<RtcpPayload_PacketStatusChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PacketStatusChunk>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RtcpPayload_PacketStatusChunk {
     type Root = RtcpPayload;
     type Parent = KStructUnit;
@@ -359,6 +429,12 @@ impl RtcpPayload_PacketStatusChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -385,6 +461,22 @@ impl TryFrom<&RtcpPayload_PsfbAfbPacket_Contents> for OptRc<RtcpPayload_PsfbAfbR
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_PsfbAfbPacket_Contents> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbAfbPacket_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for RtcpPayload_PsfbAfbPacket_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        OptRc::<RtcpPayload_PsfbAfbRembPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for &RtcpPayload_PsfbAfbPacket_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_PsfbAfbRembPacket>> for RtcpPayload_PsfbAfbPacket_Contents {
     fn from(v: OptRc<RtcpPayload_PsfbAfbRembPacket>) -> Self {
         Self::RtcpPayload_PsfbAfbRembPacket(v)
@@ -399,9 +491,47 @@ impl TryFrom<&RtcpPayload_PsfbAfbPacket_Contents> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_PsfbAfbPacket_Contents> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbAfbPacket_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for RtcpPayload_PsfbAfbPacket_Contents {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&RtcpPayload_PsfbAfbPacket> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbAfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_PsfbAfbPacket> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbAfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for RtcpPayload_PsfbAfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for &RtcpPayload_PsfbAfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for &OptRc<RtcpPayload_PsfbAfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RtcpPayload_PsfbAfbPacket {
@@ -453,6 +583,12 @@ impl RtcpPayload_PsfbAfbPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RtcpPayload_PsfbAfbPacket {
     pub fn contents_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -472,6 +608,38 @@ pub struct RtcpPayload_PsfbAfbRembPacket {
     _io: RefCell<BytesReader>,
     f_max_total_bitrate: Cell<bool>,
     max_total_bitrate: RefCell<u64>,
+}
+impl TryFrom<&RtcpPayload_PsfbAfbRembPacket> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbAfbRembPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_PsfbAfbRembPacket> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbAfbRembPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for RtcpPayload_PsfbAfbRembPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for &RtcpPayload_PsfbAfbRembPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbRembPacket> for &OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbRembPacket>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_PsfbAfbRembPacket {
     type Root = RtcpPayload;
@@ -540,6 +708,12 @@ impl RtcpPayload_PsfbAfbRembPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -569,6 +743,22 @@ impl TryFrom<&RtcpPayload_PsfbPacket_FciBlock> for OptRc<RtcpPayload_PsfbAfbPack
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_PsfbPacket_FciBlock> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbPacket_FciBlock) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for RtcpPayload_PsfbPacket_FciBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        OptRc::<RtcpPayload_PsfbAfbPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbAfbPacket> for &RtcpPayload_PsfbPacket_FciBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbAfbPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_PsfbAfbPacket>> for RtcpPayload_PsfbPacket_FciBlock {
     fn from(v: OptRc<RtcpPayload_PsfbAfbPacket>) -> Self {
         Self::RtcpPayload_PsfbAfbPacket(v)
@@ -583,9 +773,47 @@ impl TryFrom<&RtcpPayload_PsfbPacket_FciBlock> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_PsfbPacket_FciBlock> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbPacket_FciBlock) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for RtcpPayload_PsfbPacket_FciBlock {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&RtcpPayload_PsfbPacket> for OptRc<RtcpPayload_PsfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_PsfbPacket> for OptRc<RtcpPayload_PsfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_PsfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for RtcpPayload_PsfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for &RtcpPayload_PsfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for OptRc<RtcpPayload_PsfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for &OptRc<RtcpPayload_PsfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RtcpPayload_PsfbPacket {
@@ -632,7 +860,7 @@ impl RtcpPayload_PsfbPacket {
             return Ok(self.fmt.borrow());
         }
         self.f_fmt.set(true);
-        *self.fmt.borrow_mut() = i64::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?.try_into()?;
+        *self.fmt.borrow_mut() = i64::from_ne_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_ne_bytes()).try_into()?;
         Ok(self.fmt.borrow())
     }
 }
@@ -654,6 +882,12 @@ impl RtcpPayload_PsfbPacket {
 impl RtcpPayload_PsfbPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl RtcpPayload_PsfbPacket {
@@ -678,6 +912,38 @@ pub struct RtcpPayload_ReportBlock {
     cumulative_packets_lost: RefCell<i32>,
     f_fraction_lost: Cell<bool>,
     fraction_lost: RefCell<i32>,
+}
+impl TryFrom<&RtcpPayload_ReportBlock> for OptRc<RtcpPayload_ReportBlock> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_ReportBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_ReportBlock> for OptRc<RtcpPayload_ReportBlock> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_ReportBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_ReportBlock> for RtcpPayload_ReportBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_ReportBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_ReportBlock> for &RtcpPayload_ReportBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_ReportBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_ReportBlock> for OptRc<RtcpPayload_ReportBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_ReportBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_ReportBlock> for &OptRc<RtcpPayload_ReportBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_ReportBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_ReportBlock {
     type Root = RtcpPayload;
@@ -765,6 +1031,12 @@ impl RtcpPayload_ReportBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -775,6 +1047,38 @@ pub struct RtcpPayload_RrPacket {
     ssrc: RefCell<u32>,
     report_block: RefCell<Vec<OptRc<RtcpPayload_ReportBlock>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RtcpPayload_RrPacket> for OptRc<RtcpPayload_RrPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RrPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_RrPacket> for OptRc<RtcpPayload_RrPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RrPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for RtcpPayload_RrPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for &RtcpPayload_RrPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for OptRc<RtcpPayload_RrPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for &OptRc<RtcpPayload_RrPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_RrPacket {
     type Root = RtcpPayload;
@@ -819,6 +1123,12 @@ impl RtcpPayload_RrPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -853,6 +1163,22 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_PsfbPacket> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_PsfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        OptRc::<RtcpPayload_PsfbPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_PsfbPacket> for &RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_PsfbPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_PsfbPacket>> for RtcpPayload_RtcpPacket_Body {
     fn from(v: OptRc<RtcpPayload_PsfbPacket>) -> Self {
         Self::RtcpPayload_PsfbPacket(v)
@@ -865,6 +1191,22 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RrPacket> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RrPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        OptRc::<RtcpPayload_RrPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RrPacket> for &RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RrPacket>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<RtcpPayload_RrPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -881,6 +1223,22 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RtpfbPacket> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RtpfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        OptRc::<RtcpPayload_RtpfbPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for &RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_RtpfbPacket>> for RtcpPayload_RtcpPacket_Body {
     fn from(v: OptRc<RtcpPayload_RtpfbPacket>) -> Self {
         Self::RtcpPayload_RtpfbPacket(v)
@@ -893,6 +1251,22 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SdesPacket> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SdesPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        OptRc::<RtcpPayload_SdesPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for &RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<RtcpPayload_SdesPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -909,6 +1283,22 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SrPacket> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SrPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        OptRc::<RtcpPayload_SrPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for &RtcpPayload_RtcpPacket_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_SrPacket>> for RtcpPayload_RtcpPacket_Body {
     fn from(v: OptRc<RtcpPayload_SrPacket>) -> Self {
         Self::RtcpPayload_SrPacket(v)
@@ -923,9 +1313,47 @@ impl TryFrom<&RtcpPayload_RtcpPacket_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtcpPacket_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for RtcpPayload_RtcpPacket_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&RtcpPayload_RtcpPacket> for OptRc<RtcpPayload_RtcpPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_RtcpPacket> for OptRc<RtcpPayload_RtcpPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtcpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtcpPacket> for RtcpPayload_RtcpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtcpPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtcpPacket> for &RtcpPayload_RtcpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtcpPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtcpPacket> for OptRc<RtcpPayload_RtcpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtcpPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtcpPacket> for &OptRc<RtcpPayload_RtcpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtcpPacket>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RtcpPayload_RtcpPacket {
@@ -1030,6 +1458,12 @@ impl RtcpPayload_RtcpPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RtcpPayload_RtcpPacket {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1064,6 +1498,22 @@ impl TryFrom<&RtcpPayload_RtpfbPacket_FciBlock> for OptRc<RtcpPayload_RtpfbTrans
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtpfbPacket_FciBlock> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtpfbPacket_FciBlock) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for RtcpPayload_RtpfbPacket_FciBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        OptRc::<RtcpPayload_RtpfbTransportFeedbackPacket>::try_from(self)
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for &RtcpPayload_RtpfbPacket_FciBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>> for RtcpPayload_RtpfbPacket_FciBlock {
     fn from(v: OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>) -> Self {
         Self::RtcpPayload_RtpfbTransportFeedbackPacket(v)
@@ -1078,9 +1528,47 @@ impl TryFrom<&RtcpPayload_RtpfbPacket_FciBlock> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&RtcpPayload_RtpfbPacket_FciBlock> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtpfbPacket_FciBlock) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for RtcpPayload_RtpfbPacket_FciBlock {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&RtcpPayload_RtpfbPacket> for OptRc<RtcpPayload_RtpfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtpfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_RtpfbPacket> for OptRc<RtcpPayload_RtpfbPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtpfbPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for RtcpPayload_RtpfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for &RtcpPayload_RtpfbPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for OptRc<RtcpPayload_RtpfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbPacket> for &OptRc<RtcpPayload_RtpfbPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbPacket>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for RtcpPayload_RtpfbPacket {
@@ -1127,7 +1615,7 @@ impl RtcpPayload_RtpfbPacket {
             return Ok(self.fmt.borrow());
         }
         self.f_fmt.set(true);
-        *self.fmt.borrow_mut() = i64::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?.try_into()?;
+        *self.fmt.borrow_mut() = i64::from_ne_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_ne_bytes()).try_into()?;
         Ok(self.fmt.borrow())
     }
 }
@@ -1149,6 +1637,12 @@ impl RtcpPayload_RtpfbPacket {
 impl RtcpPayload_RtpfbPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl RtcpPayload_RtpfbPacket {
@@ -1175,6 +1669,38 @@ pub struct RtcpPayload_RtpfbTransportFeedbackPacket {
     recv_delta: RefCell<Vec<u8>>,
     f_reference_time: Cell<bool>,
     reference_time: RefCell<i32>,
+}
+impl TryFrom<&RtcpPayload_RtpfbTransportFeedbackPacket> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtpfbTransportFeedbackPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_RtpfbTransportFeedbackPacket> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_RtpfbTransportFeedbackPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for RtcpPayload_RtpfbTransportFeedbackPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for &RtcpPayload_RtpfbTransportFeedbackPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_RtpfbTransportFeedbackPacket> for &OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_RtpfbTransportFeedbackPacket {
     type Root = RtcpPayload;
@@ -1274,6 +1800,12 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1285,6 +1817,38 @@ pub struct RtcpPayload_SdesPacket {
     _io: RefCell<BytesReader>,
     f_source_count: Cell<bool>,
     source_count: RefCell<u64>,
+}
+impl TryFrom<&RtcpPayload_SdesPacket> for OptRc<RtcpPayload_SdesPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_SdesPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_SdesPacket> for OptRc<RtcpPayload_SdesPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_SdesPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for RtcpPayload_SdesPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for &RtcpPayload_SdesPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for OptRc<RtcpPayload_SdesPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesPacket> for &OptRc<RtcpPayload_SdesPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesPacket>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_SdesPacket {
     type Root = RtcpPayload;
@@ -1335,6 +1899,12 @@ impl RtcpPayload_SdesPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1347,6 +1917,38 @@ pub struct RtcpPayload_SdesTlv {
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     value_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&RtcpPayload_SdesTlv> for OptRc<RtcpPayload_SdesTlv> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_SdesTlv) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_SdesTlv> for OptRc<RtcpPayload_SdesTlv> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_SdesTlv) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesTlv> for RtcpPayload_SdesTlv {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesTlv>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesTlv> for &RtcpPayload_SdesTlv {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesTlv>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesTlv> for OptRc<RtcpPayload_SdesTlv> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesTlv>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_SdesTlv> for &OptRc<RtcpPayload_SdesTlv> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SdesTlv>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_SdesTlv {
     type Root = RtcpPayload;
@@ -1396,6 +1998,12 @@ impl RtcpPayload_SdesTlv {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RtcpPayload_SdesTlv {
     pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1411,6 +2019,38 @@ pub struct RtcpPayload_SourceChunk {
     ssrc: RefCell<u32>,
     sdes_tlv: RefCell<Vec<OptRc<RtcpPayload_SdesTlv>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RtcpPayload_SourceChunk> for OptRc<RtcpPayload_SourceChunk> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_SourceChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_SourceChunk> for OptRc<RtcpPayload_SourceChunk> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_SourceChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SourceChunk> for RtcpPayload_SourceChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SourceChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SourceChunk> for &RtcpPayload_SourceChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SourceChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SourceChunk> for OptRc<RtcpPayload_SourceChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SourceChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_SourceChunk> for &OptRc<RtcpPayload_SourceChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SourceChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_SourceChunk {
     type Root = RtcpPayload;
@@ -1458,6 +2098,12 @@ impl RtcpPayload_SourceChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1475,6 +2121,38 @@ pub struct RtcpPayload_SrPacket {
     _io: RefCell<BytesReader>,
     f_ntp: Cell<bool>,
     ntp: RefCell<i32>,
+}
+impl TryFrom<&RtcpPayload_SrPacket> for OptRc<RtcpPayload_SrPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_SrPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtcpPayload_SrPacket> for OptRc<RtcpPayload_SrPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtcpPayload_SrPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for RtcpPayload_SrPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for &RtcpPayload_SrPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for OptRc<RtcpPayload_SrPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtcpPayload_SrPacket> for &OptRc<RtcpPayload_SrPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtcpPayload_SrPacket>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RtcpPayload_SrPacket {
     type Root = RtcpPayload;
@@ -1560,5 +2238,11 @@ impl RtcpPayload_SrPacket {
 impl RtcpPayload_SrPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

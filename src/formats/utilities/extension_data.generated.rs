@@ -232,6 +232,26 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("lzma2"),
     },
     ExtensionEntry {
+        format_id: FormatId::Szip,
+        rule: ExtensionRule::insensitive("sz"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Szip100,
+        rule: ExtensionRule::insensitive("sz"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Szip105,
+        rule: ExtensionRule::insensitive("sz"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Szip110,
+        rule: ExtensionRule::insensitive("sz"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Szip111,
+        rule: ExtensionRule::insensitive("sz"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Tar,
         rule: ExtensionRule::insensitive("tar"),
     },

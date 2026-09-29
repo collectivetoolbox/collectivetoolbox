@@ -85,10 +85,10 @@ fn test_nav_parent() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParent> = NavParent::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.header().qty_entries(), 2);
-    assert_eq!(*r.header().filename_len(), 8);
+    assert_eq!(*(r.header().qty_entries()), 2);
+    assert_eq!(*(r.header().filename_len()), 8);
     assert_eq!(r.index().entries().len(), 2);
-    assert_eq!(*r.index().entries()[0].filename(), "FIRST___");
-    assert_eq!(*r.index().entries()[1].filename(), "SECOND__");
+    assert_eq!(*(r.index().entries()[0].filename()), "FIRST___");
+    assert_eq!(*(r.index().entries()[1].filename()), "SECOND__");
     Ok(())
 }

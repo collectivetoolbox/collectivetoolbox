@@ -25,6 +25,38 @@ pub struct UdpDatagram {
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&UdpDatagram> for OptRc<UdpDatagram> {
+    type Error = KError;
+    fn try_from(v: &UdpDatagram) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UdpDatagram> for OptRc<UdpDatagram> {
+    type Error = KError;
+    fn try_from(v: &&UdpDatagram) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UdpDatagram> for UdpDatagram {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UdpDatagram> for &UdpDatagram {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UdpDatagram> for OptRc<UdpDatagram> {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UdpDatagram> for &OptRc<UdpDatagram> {
+    fn downcast_optrc(&self) -> Result<OptRc<UdpDatagram>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for UdpDatagram {
     type Root = UdpDatagram;
     type Parent = UdpDatagram;
@@ -80,6 +112,12 @@ impl UdpDatagram {
 impl UdpDatagram {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl UdpDatagram {

@@ -36,6 +36,38 @@ pub struct JavaClass {
     attributes: RefCell<Vec<OptRc<JavaClass_AttributeInfo>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&JavaClass> for OptRc<JavaClass> {
+    type Error = KError;
+    fn try_from(v: &JavaClass) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass> for OptRc<JavaClass> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass> for JavaClass {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass> for &JavaClass {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass> for OptRc<JavaClass> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass> for &OptRc<JavaClass> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for JavaClass {
     type Root = JavaClass;
     type Parent = JavaClass;
@@ -190,6 +222,12 @@ impl JavaClass {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -226,6 +264,22 @@ impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_At
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        OptRc::<JavaClass_AttributeInfo_AttrBodyCode>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for &JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyCode>> for JavaClass_AttributeInfo_Info {
     fn from(v: OptRc<JavaClass_AttributeInfo_AttrBodyCode>) -> Self {
         Self::JavaClass_AttributeInfo_AttrBodyCode(v)
@@ -238,6 +292,22 @@ impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_At
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        OptRc::<JavaClass_AttributeInfo_AttrBodyExceptions>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for &JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>> for JavaClass_AttributeInfo_Info {
@@ -254,6 +324,22 @@ impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_At
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        OptRc::<JavaClass_AttributeInfo_AttrBodyLineNumberTable>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for &JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>> for JavaClass_AttributeInfo_Info {
     fn from(v: OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>) -> Self {
         Self::JavaClass_AttributeInfo_AttrBodyLineNumberTable(v)
@@ -266,6 +352,22 @@ impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_At
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        OptRc::<JavaClass_AttributeInfo_AttrBodySourceFile>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for &JavaClass_AttributeInfo_Info {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>> for JavaClass_AttributeInfo_Info {
@@ -282,9 +384,47 @@ impl TryFrom<&JavaClass_AttributeInfo_Info> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_AttributeInfo_Info> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for JavaClass_AttributeInfo_Info {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&JavaClass_AttributeInfo> for OptRc<JavaClass_AttributeInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo> for OptRc<JavaClass_AttributeInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo> for JavaClass_AttributeInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo> for &JavaClass_AttributeInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo> for OptRc<JavaClass_AttributeInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo> for &OptRc<JavaClass_AttributeInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for JavaClass_AttributeInfo {
@@ -352,7 +492,7 @@ impl JavaClass_AttributeInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -374,6 +514,12 @@ impl JavaClass_AttributeInfo {
 impl JavaClass_AttributeInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl JavaClass_AttributeInfo {
@@ -401,6 +547,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyCode {
     attributes: RefCell<Vec<OptRc<JavaClass_AttributeInfo>>>,
     _io: RefCell<BytesReader>,
     code_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyCode> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyCode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyCode> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyCode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for JavaClass_AttributeInfo_AttrBodyCode {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for &JavaClass_AttributeInfo_AttrBodyCode {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode> for &OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
     type Root = JavaClass;
@@ -486,6 +664,12 @@ impl JavaClass_AttributeInfo_AttrBodyCode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl JavaClass_AttributeInfo_AttrBodyCode {
     pub fn code_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -509,6 +693,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
     _io: RefCell<BytesReader>,
     f_catch_exception: Cell<bool>,
     catch_exception: RefCell<OptRc<JavaClass_ConstantPoolEntry>>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for &JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> for &OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
     type Root = JavaClass;
@@ -593,6 +809,12 @@ impl JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -607,6 +829,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyExceptions {
     number_of_exceptions: RefCell<u16>,
     exceptions: RefCell<Vec<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyExceptions> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyExceptions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyExceptions> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyExceptions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for JavaClass_AttributeInfo_AttrBodyExceptions {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for &JavaClass_AttributeInfo_AttrBodyExceptions {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions> for &OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
     type Root = JavaClass;
@@ -651,6 +905,12 @@ impl JavaClass_AttributeInfo_AttrBodyExceptions {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -664,6 +924,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
     as_info: RefCell<OptRc<JavaClass_ClassCpInfo>>,
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for &JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> for &OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
     type Root = JavaClass;
@@ -695,7 +987,7 @@ impl JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
         if self.f_as_info.get() {
             return Ok(self.as_info.borrow());
         }
-        *self.as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -720,6 +1012,12 @@ impl JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -734,6 +1032,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyLineNumberTable {
     line_number_table_length: RefCell<u16>,
     line_number_table: RefCell<Vec<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyLineNumberTable> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyLineNumberTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyLineNumberTable> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyLineNumberTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for &JavaClass_AttributeInfo_AttrBodyLineNumberTable {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> for &OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
     type Root = JavaClass;
@@ -778,6 +1108,12 @@ impl JavaClass_AttributeInfo_AttrBodyLineNumberTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -788,6 +1124,38 @@ pub struct JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry 
     start_pc: RefCell<u16>,
     line_number: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for &JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> for &OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry {
     type Root = JavaClass;
@@ -827,6 +1195,12 @@ impl JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -842,6 +1216,38 @@ pub struct JavaClass_AttributeInfo_AttrBodySourceFile {
     _io: RefCell<BytesReader>,
     f_sourcefile_as_str: Cell<bool>,
     sourcefile_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_AttributeInfo_AttrBodySourceFile> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_AttrBodySourceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_AttributeInfo_AttrBodySourceFile> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_AttributeInfo_AttrBodySourceFile) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for JavaClass_AttributeInfo_AttrBodySourceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for &JavaClass_AttributeInfo_AttrBodySourceFile {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_AttributeInfo_AttrBodySourceFile> for &OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodySourceFile {
     type Root = JavaClass;
@@ -874,7 +1280,7 @@ impl JavaClass_AttributeInfo_AttrBodySourceFile {
             return Ok(self.sourcefile_as_str.borrow());
         }
         self.f_sourcefile_as_str.set(true);
-        *self.sourcefile_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.sourcefile_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
+        *self.sourcefile_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.sourcefile_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
         Ok(self.sourcefile_as_str.borrow())
     }
 }
@@ -886,6 +1292,12 @@ impl JavaClass_AttributeInfo_AttrBodySourceFile {
 impl JavaClass_AttributeInfo_AttrBodySourceFile {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -904,6 +1316,38 @@ pub struct JavaClass_ClassCpInfo {
     name_as_info: RefCell<OptRc<JavaClass_Utf8CpInfo>>,
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_ClassCpInfo> for OptRc<JavaClass_ClassCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ClassCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_ClassCpInfo> for OptRc<JavaClass_ClassCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ClassCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for JavaClass_ClassCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for &JavaClass_ClassCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for OptRc<JavaClass_ClassCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for &OptRc<JavaClass_ClassCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_ClassCpInfo {
     type Root = JavaClass;
@@ -935,7 +1379,7 @@ impl JavaClass_ClassCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -959,6 +1403,12 @@ impl JavaClass_ClassCpInfo {
 impl JavaClass_ClassCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -1006,6 +1456,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ClassCpInf
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ClassCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        OptRc::<JavaClass_ClassCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_ClassCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ClassCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_ClassCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_ClassCpInfo>) -> Self {
         Self::JavaClass_ClassCpInfo(v)
@@ -1018,6 +1484,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DoubleCpIn
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DoubleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        OptRc::<JavaClass_DoubleCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_DoubleCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1034,6 +1516,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DynamicCpI
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        OptRc::<JavaClass_DynamicCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_DynamicCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_DynamicCpInfo>) -> Self {
         Self::JavaClass_DynamicCpInfo(v)
@@ -1046,6 +1544,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FieldRefCp
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        OptRc::<JavaClass_FieldRefCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_FieldRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1062,6 +1576,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FloatCpInf
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FloatCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        OptRc::<JavaClass_FloatCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_FloatCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_FloatCpInfo>) -> Self {
         Self::JavaClass_FloatCpInfo(v)
@@ -1074,6 +1604,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_IntegerCpI
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_IntegerCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        OptRc::<JavaClass_IntegerCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_IntegerCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1090,6 +1636,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InterfaceM
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        OptRc::<JavaClass_InterfaceMethodRefCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_InterfaceMethodRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_InterfaceMethodRefCpInfo>) -> Self {
         Self::JavaClass_InterfaceMethodRefCpInfo(v)
@@ -1102,6 +1664,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InvokeDyna
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        OptRc::<JavaClass_InvokeDynamicCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_InvokeDynamicCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1118,6 +1696,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_LongCpInfo
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_LongCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        OptRc::<JavaClass_LongCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_LongCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_LongCpInfo>) -> Self {
         Self::JavaClass_LongCpInfo(v)
@@ -1130,6 +1724,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodHand
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        OptRc::<JavaClass_MethodHandleCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_MethodHandleCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1146,6 +1756,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodRefC
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        OptRc::<JavaClass_MethodRefCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_MethodRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_MethodRefCpInfo>) -> Self {
         Self::JavaClass_MethodRefCpInfo(v)
@@ -1158,6 +1784,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodType
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        OptRc::<JavaClass_MethodTypeCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_MethodTypeCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1174,6 +1816,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ModulePack
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        OptRc::<JavaClass_ModulePackageCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_ModulePackageCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_ModulePackageCpInfo>) -> Self {
         Self::JavaClass_ModulePackageCpInfo(v)
@@ -1186,6 +1844,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_NameAndTyp
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<JavaClass_NameAndTypeCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1202,6 +1876,22 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_StringCpIn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_StringCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        OptRc::<JavaClass_StringCpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_StringCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_StringCpInfo>) -> Self {
         Self::JavaClass_StringCpInfo(v)
@@ -1216,9 +1906,57 @@ impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_Utf8CpInfo
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        OptRc::<JavaClass_Utf8CpInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for &JavaClass_ConstantPoolEntry_CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<JavaClass_Utf8CpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
     fn from(v: OptRc<JavaClass_Utf8CpInfo>) -> Self {
         Self::JavaClass_Utf8CpInfo(v)
+    }
+}
+impl TryFrom<&JavaClass_ConstantPoolEntry> for OptRc<JavaClass_ConstantPoolEntry> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_ConstantPoolEntry> for OptRc<JavaClass_ConstantPoolEntry> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ConstantPoolEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ConstantPoolEntry> for JavaClass_ConstantPoolEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ConstantPoolEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ConstantPoolEntry> for &JavaClass_ConstantPoolEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ConstantPoolEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ConstantPoolEntry> for OptRc<JavaClass_ConstantPoolEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ConstantPoolEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_ConstantPoolEntry> for &OptRc<JavaClass_ConstantPoolEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ConstantPoolEntry>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for JavaClass_ConstantPoolEntry {
@@ -1355,6 +2093,12 @@ impl JavaClass_ConstantPoolEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum JavaClass_ConstantPoolEntry_TagEnum {
@@ -1446,6 +2190,38 @@ pub struct JavaClass_DoubleCpInfo {
     value: RefCell<f64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&JavaClass_DoubleCpInfo> for OptRc<JavaClass_DoubleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_DoubleCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_DoubleCpInfo> for OptRc<JavaClass_DoubleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_DoubleCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for JavaClass_DoubleCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for &JavaClass_DoubleCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for OptRc<JavaClass_DoubleCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_DoubleCpInfo> for &OptRc<JavaClass_DoubleCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DoubleCpInfo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for JavaClass_DoubleCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
@@ -1478,6 +2254,12 @@ impl JavaClass_DoubleCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1493,6 +2275,38 @@ pub struct JavaClass_DynamicCpInfo {
     bootstrap_method_attr_index: RefCell<u16>,
     name_and_type_index: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_DynamicCpInfo> for OptRc<JavaClass_DynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_DynamicCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_DynamicCpInfo> for OptRc<JavaClass_DynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_DynamicCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for JavaClass_DynamicCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for &JavaClass_DynamicCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for OptRc<JavaClass_DynamicCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_DynamicCpInfo> for &OptRc<JavaClass_DynamicCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_DynamicCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_DynamicCpInfo {
     type Root = JavaClass;
@@ -1540,6 +2354,12 @@ impl JavaClass_DynamicCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1559,6 +2379,38 @@ pub struct JavaClass_FieldInfo {
     _io: RefCell<BytesReader>,
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_FieldInfo> for OptRc<JavaClass_FieldInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_FieldInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_FieldInfo> for OptRc<JavaClass_FieldInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_FieldInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldInfo> for JavaClass_FieldInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldInfo> for &JavaClass_FieldInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldInfo> for OptRc<JavaClass_FieldInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_FieldInfo> for &OptRc<JavaClass_FieldInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_FieldInfo {
     type Root = JavaClass;
@@ -1600,7 +2452,7 @@ impl JavaClass_FieldInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -1633,6 +2485,12 @@ impl JavaClass_FieldInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1651,6 +2509,38 @@ pub struct JavaClass_FieldRefCpInfo {
     class_as_info: RefCell<OptRc<JavaClass_ClassCpInfo>>,
     f_name_and_type_as_info: Cell<bool>,
     name_and_type_as_info: RefCell<OptRc<JavaClass_NameAndTypeCpInfo>>,
+}
+impl TryFrom<&JavaClass_FieldRefCpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_FieldRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_FieldRefCpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_FieldRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for JavaClass_FieldRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for &JavaClass_FieldRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_FieldRefCpInfo> for &OptRc<JavaClass_FieldRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FieldRefCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_FieldRefCpInfo {
     type Root = JavaClass;
@@ -1683,7 +2573,7 @@ impl JavaClass_FieldRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.class_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1694,7 +2584,7 @@ impl JavaClass_FieldRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -1712,6 +2602,12 @@ impl JavaClass_FieldRefCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1725,6 +2621,38 @@ pub struct JavaClass_FloatCpInfo {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<f32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_FloatCpInfo> for OptRc<JavaClass_FloatCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_FloatCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_FloatCpInfo> for OptRc<JavaClass_FloatCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_FloatCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for JavaClass_FloatCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for &JavaClass_FloatCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for OptRc<JavaClass_FloatCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_FloatCpInfo> for &OptRc<JavaClass_FloatCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_FloatCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_FloatCpInfo {
     type Root = JavaClass;
@@ -1758,6 +2686,12 @@ impl JavaClass_FloatCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1771,6 +2705,38 @@ pub struct JavaClass_IntegerCpInfo {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_IntegerCpInfo> for OptRc<JavaClass_IntegerCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_IntegerCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_IntegerCpInfo> for OptRc<JavaClass_IntegerCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_IntegerCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for JavaClass_IntegerCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for &JavaClass_IntegerCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for OptRc<JavaClass_IntegerCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_IntegerCpInfo> for &OptRc<JavaClass_IntegerCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_IntegerCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_IntegerCpInfo {
     type Root = JavaClass;
@@ -1804,6 +2770,12 @@ impl JavaClass_IntegerCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1822,6 +2794,38 @@ pub struct JavaClass_InterfaceMethodRefCpInfo {
     class_as_info: RefCell<OptRc<JavaClass_ClassCpInfo>>,
     f_name_and_type_as_info: Cell<bool>,
     name_and_type_as_info: RefCell<OptRc<JavaClass_NameAndTypeCpInfo>>,
+}
+impl TryFrom<&JavaClass_InterfaceMethodRefCpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_InterfaceMethodRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_InterfaceMethodRefCpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_InterfaceMethodRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for JavaClass_InterfaceMethodRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for &JavaClass_InterfaceMethodRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_InterfaceMethodRefCpInfo> for &OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InterfaceMethodRefCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_InterfaceMethodRefCpInfo {
     type Root = JavaClass;
@@ -1854,7 +2858,7 @@ impl JavaClass_InterfaceMethodRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.class_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -1865,7 +2869,7 @@ impl JavaClass_InterfaceMethodRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -1883,6 +2887,12 @@ impl JavaClass_InterfaceMethodRefCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1898,6 +2908,38 @@ pub struct JavaClass_InvokeDynamicCpInfo {
     bootstrap_method_attr_index: RefCell<u16>,
     name_and_type_index: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_InvokeDynamicCpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_InvokeDynamicCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_InvokeDynamicCpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_InvokeDynamicCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for JavaClass_InvokeDynamicCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for &JavaClass_InvokeDynamicCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_InvokeDynamicCpInfo> for &OptRc<JavaClass_InvokeDynamicCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_InvokeDynamicCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_InvokeDynamicCpInfo {
     type Root = JavaClass;
@@ -1945,6 +2987,12 @@ impl JavaClass_InvokeDynamicCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1958,6 +3006,38 @@ pub struct JavaClass_LongCpInfo {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_LongCpInfo> for OptRc<JavaClass_LongCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_LongCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_LongCpInfo> for OptRc<JavaClass_LongCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_LongCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for JavaClass_LongCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for &JavaClass_LongCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for OptRc<JavaClass_LongCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_LongCpInfo> for &OptRc<JavaClass_LongCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_LongCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_LongCpInfo {
     type Root = JavaClass;
@@ -1991,6 +3071,12 @@ impl JavaClass_LongCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2006,6 +3092,38 @@ pub struct JavaClass_MethodHandleCpInfo {
     reference_kind: RefCell<JavaClass_MethodHandleCpInfo_ReferenceKindEnum>,
     reference_index: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_MethodHandleCpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_MethodHandleCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_MethodHandleCpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_MethodHandleCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for JavaClass_MethodHandleCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for &JavaClass_MethodHandleCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_MethodHandleCpInfo> for &OptRc<JavaClass_MethodHandleCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodHandleCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_MethodHandleCpInfo {
     type Root = JavaClass;
@@ -2052,6 +3170,12 @@ impl JavaClass_MethodHandleCpInfo {
 impl JavaClass_MethodHandleCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -2126,6 +3250,38 @@ pub struct JavaClass_MethodInfo {
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
 }
+impl TryFrom<&JavaClass_MethodInfo> for OptRc<JavaClass_MethodInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_MethodInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_MethodInfo> for OptRc<JavaClass_MethodInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_MethodInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodInfo> for JavaClass_MethodInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodInfo> for &JavaClass_MethodInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodInfo> for OptRc<JavaClass_MethodInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_MethodInfo> for &OptRc<JavaClass_MethodInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodInfo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for JavaClass_MethodInfo {
     type Root = JavaClass;
     type Parent = JavaClass;
@@ -2166,7 +3322,7 @@ impl JavaClass_MethodInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -2199,6 +3355,12 @@ impl JavaClass_MethodInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2217,6 +3379,38 @@ pub struct JavaClass_MethodRefCpInfo {
     class_as_info: RefCell<OptRc<JavaClass_ClassCpInfo>>,
     f_name_and_type_as_info: Cell<bool>,
     name_and_type_as_info: RefCell<OptRc<JavaClass_NameAndTypeCpInfo>>,
+}
+impl TryFrom<&JavaClass_MethodRefCpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_MethodRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_MethodRefCpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_MethodRefCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for JavaClass_MethodRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for &JavaClass_MethodRefCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_MethodRefCpInfo> for &OptRc<JavaClass_MethodRefCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodRefCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_MethodRefCpInfo {
     type Root = JavaClass;
@@ -2249,7 +3443,7 @@ impl JavaClass_MethodRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.class_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -2260,7 +3454,7 @@ impl JavaClass_MethodRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -2278,6 +3472,12 @@ impl JavaClass_MethodRefCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2292,6 +3492,38 @@ pub struct JavaClass_MethodTypeCpInfo {
     unnamed0: RefCell<OptRc<JavaClass_VersionGuard>>,
     descriptor_index: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_MethodTypeCpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_MethodTypeCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_MethodTypeCpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_MethodTypeCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for JavaClass_MethodTypeCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for &JavaClass_MethodTypeCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_MethodTypeCpInfo> for &OptRc<JavaClass_MethodTypeCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_MethodTypeCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_MethodTypeCpInfo {
     type Root = JavaClass;
@@ -2333,6 +3565,12 @@ impl JavaClass_MethodTypeCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2354,6 +3592,38 @@ pub struct JavaClass_ModulePackageCpInfo {
     name_as_info: RefCell<OptRc<JavaClass_Utf8CpInfo>>,
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_ModulePackageCpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ModulePackageCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_ModulePackageCpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_ModulePackageCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for JavaClass_ModulePackageCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for &JavaClass_ModulePackageCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_ModulePackageCpInfo> for &OptRc<JavaClass_ModulePackageCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_ModulePackageCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_ModulePackageCpInfo {
     type Root = JavaClass;
@@ -2388,7 +3658,7 @@ impl JavaClass_ModulePackageCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -2418,6 +3688,12 @@ impl JavaClass_ModulePackageCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2440,6 +3716,38 @@ pub struct JavaClass_NameAndTypeCpInfo {
     name_as_info: RefCell<OptRc<JavaClass_Utf8CpInfo>>,
     f_name_as_str: Cell<bool>,
     name_as_str: RefCell<String>,
+}
+impl TryFrom<&JavaClass_NameAndTypeCpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_NameAndTypeCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_NameAndTypeCpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_NameAndTypeCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for JavaClass_NameAndTypeCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for &JavaClass_NameAndTypeCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_NameAndTypeCpInfo> for &OptRc<JavaClass_NameAndTypeCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_NameAndTypeCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_NameAndTypeCpInfo {
     type Root = JavaClass;
@@ -2472,7 +3780,7 @@ impl JavaClass_NameAndTypeCpInfo {
         if self.f_descriptor_as_info.get() {
             return Ok(self.descriptor_as_info.borrow());
         }
-        *self.descriptor_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.descriptor_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.descriptor_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.descriptor_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.descriptor_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -2495,7 +3803,7 @@ impl JavaClass_NameAndTypeCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*((self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.name_as_info.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -2525,6 +3833,12 @@ impl JavaClass_NameAndTypeCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2538,6 +3852,38 @@ pub struct JavaClass_StringCpInfo {
     pub(crate) _self_shared: SharedType<Self>,
     string_index: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&JavaClass_StringCpInfo> for OptRc<JavaClass_StringCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_StringCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_StringCpInfo> for OptRc<JavaClass_StringCpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_StringCpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for JavaClass_StringCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for &JavaClass_StringCpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for OptRc<JavaClass_StringCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_StringCpInfo> for &OptRc<JavaClass_StringCpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_StringCpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_StringCpInfo {
     type Root = JavaClass;
@@ -2571,6 +3917,12 @@ impl JavaClass_StringCpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2586,6 +3938,38 @@ pub struct JavaClass_Utf8CpInfo {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
     value_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&JavaClass_Utf8CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_Utf8CpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_Utf8CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_Utf8CpInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for JavaClass_Utf8CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for &JavaClass_Utf8CpInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_Utf8CpInfo> for &OptRc<JavaClass_Utf8CpInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_Utf8CpInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_Utf8CpInfo {
     type Root = JavaClass;
@@ -2625,6 +4009,12 @@ impl JavaClass_Utf8CpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl JavaClass_Utf8CpInfo {
     pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2652,6 +4042,38 @@ pub struct JavaClass_VersionGuard {
     unnamed0: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     unnamed0_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&JavaClass_VersionGuard> for OptRc<JavaClass_VersionGuard> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_VersionGuard) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JavaClass_VersionGuard> for OptRc<JavaClass_VersionGuard> {
+    type Error = KError;
+    fn try_from(v: &&JavaClass_VersionGuard) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_VersionGuard> for JavaClass_VersionGuard {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_VersionGuard>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_VersionGuard> for &JavaClass_VersionGuard {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_VersionGuard>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JavaClass_VersionGuard> for OptRc<JavaClass_VersionGuard> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_VersionGuard>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JavaClass_VersionGuard> for &OptRc<JavaClass_VersionGuard> {
+    fn downcast_optrc(&self) -> Result<OptRc<JavaClass_VersionGuard>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for JavaClass_VersionGuard {
     type Root = JavaClass;
@@ -2699,6 +4121,12 @@ impl JavaClass_VersionGuard {
 impl JavaClass_VersionGuard {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl JavaClass_VersionGuard {

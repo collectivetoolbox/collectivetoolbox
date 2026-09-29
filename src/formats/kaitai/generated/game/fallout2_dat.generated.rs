@@ -16,6 +16,38 @@ pub struct Fallout2Dat {
     f_index: Cell<bool>,
     index: RefCell<OptRc<Fallout2Dat_Index>>,
 }
+impl TryFrom<&Fallout2Dat> for OptRc<Fallout2Dat> {
+    type Error = KError;
+    fn try_from(v: &Fallout2Dat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Fallout2Dat> for OptRc<Fallout2Dat> {
+    type Error = KError;
+    fn try_from(v: &&Fallout2Dat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat> for Fallout2Dat {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat> for &Fallout2Dat {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat> for OptRc<Fallout2Dat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Fallout2Dat> for &OptRc<Fallout2Dat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Fallout2Dat {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat;
@@ -72,6 +104,12 @@ impl Fallout2Dat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Fallout2Dat_Compression {
@@ -123,6 +161,38 @@ pub struct Fallout2Dat_File {
     contents_raw: RefCell<Vec<u8>>,
     f_contents_zlib: Cell<bool>,
     contents_zlib: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Fallout2Dat_File> for OptRc<Fallout2Dat_File> {
+    type Error = KError;
+    fn try_from(v: &Fallout2Dat_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Fallout2Dat_File> for OptRc<Fallout2Dat_File> {
+    type Error = KError;
+    fn try_from(v: &&Fallout2Dat_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_File> for Fallout2Dat_File {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_File>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_File> for &Fallout2Dat_File {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_File>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_File> for OptRc<Fallout2Dat_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_File>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Fallout2Dat_File> for &OptRc<Fallout2Dat_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_File>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Fallout2Dat_File {
     type Root = Fallout2Dat;
@@ -231,6 +301,12 @@ impl Fallout2Dat_File {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -241,6 +317,38 @@ pub struct Fallout2Dat_Footer {
     index_size: RefCell<u32>,
     file_size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Fallout2Dat_Footer> for OptRc<Fallout2Dat_Footer> {
+    type Error = KError;
+    fn try_from(v: &Fallout2Dat_Footer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Fallout2Dat_Footer> for OptRc<Fallout2Dat_Footer> {
+    type Error = KError;
+    fn try_from(v: &&Fallout2Dat_Footer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Footer> for Fallout2Dat_Footer {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Footer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Footer> for &Fallout2Dat_Footer {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Footer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Footer> for OptRc<Fallout2Dat_Footer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Footer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Footer> for &OptRc<Fallout2Dat_Footer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Footer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Fallout2Dat_Footer {
     type Root = Fallout2Dat;
@@ -280,6 +388,12 @@ impl Fallout2Dat_Footer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -290,6 +404,38 @@ pub struct Fallout2Dat_Index {
     file_count: RefCell<u32>,
     files: RefCell<Vec<OptRc<Fallout2Dat_File>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Fallout2Dat_Index> for OptRc<Fallout2Dat_Index> {
+    type Error = KError;
+    fn try_from(v: &Fallout2Dat_Index) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Fallout2Dat_Index> for OptRc<Fallout2Dat_Index> {
+    type Error = KError;
+    fn try_from(v: &&Fallout2Dat_Index) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Index> for Fallout2Dat_Index {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Index>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Index> for &Fallout2Dat_Index {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Index>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Index> for OptRc<Fallout2Dat_Index> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Index>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Index> for &OptRc<Fallout2Dat_Index> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Index>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Fallout2Dat_Index {
     type Root = Fallout2Dat;
@@ -334,6 +480,12 @@ impl Fallout2Dat_Index {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -345,6 +497,38 @@ pub struct Fallout2Dat_Pstr {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Fallout2Dat_Pstr> for OptRc<Fallout2Dat_Pstr> {
+    type Error = KError;
+    fn try_from(v: &Fallout2Dat_Pstr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Fallout2Dat_Pstr> for OptRc<Fallout2Dat_Pstr> {
+    type Error = KError;
+    fn try_from(v: &&Fallout2Dat_Pstr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Pstr> for Fallout2Dat_Pstr {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Pstr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Pstr> for &Fallout2Dat_Pstr {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Pstr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Pstr> for OptRc<Fallout2Dat_Pstr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Pstr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Fallout2Dat_Pstr> for &OptRc<Fallout2Dat_Pstr> {
+    fn downcast_optrc(&self) -> Result<OptRc<Fallout2Dat_Pstr>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Fallout2Dat_Pstr {
     type Root = Fallout2Dat;
@@ -383,6 +567,12 @@ impl Fallout2Dat_Pstr {
 impl Fallout2Dat_Pstr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Fallout2Dat_Pstr {

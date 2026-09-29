@@ -18,6 +18,38 @@ pub struct Id3v24 {
     tag: RefCell<OptRc<Id3v24_Tag>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Id3v24> for OptRc<Id3v24> {
+    type Error = KError;
+    fn try_from(v: &Id3v24) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24> for OptRc<Id3v24> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24> for Id3v24 {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24> for &Id3v24 {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24> for OptRc<Id3v24> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24> for &OptRc<Id3v24> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Id3v24 {
     type Root = Id3v24;
     type Parent = Id3v24;
@@ -51,6 +83,12 @@ impl Id3v24 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -64,6 +102,38 @@ pub struct Id3v24_Footer {
     flags: RefCell<OptRc<Id3v24_Footer_Flags>>,
     size: RefCell<OptRc<Id3v24_U4beSynchsafe>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Footer> for OptRc<Id3v24_Footer> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Footer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Footer> for OptRc<Id3v24_Footer> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Footer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer> for Id3v24_Footer {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer> for &Id3v24_Footer {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer> for OptRc<Id3v24_Footer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Footer> for &OptRc<Id3v24_Footer> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Footer {
     type Root = Id3v24;
@@ -126,6 +196,12 @@ impl Id3v24_Footer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -139,6 +215,38 @@ pub struct Id3v24_Footer_Flags {
     flag_footer: RefCell<bool>,
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Footer_Flags> for OptRc<Id3v24_Footer_Flags> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Footer_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Footer_Flags> for OptRc<Id3v24_Footer_Flags> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Footer_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer_Flags> for Id3v24_Footer_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer_Flags> for &Id3v24_Footer_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Footer_Flags> for OptRc<Id3v24_Footer_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Footer_Flags> for &OptRc<Id3v24_Footer_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Footer_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Footer_Flags {
     type Root = Id3v24;
@@ -196,6 +304,12 @@ impl Id3v24_Footer_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -213,6 +327,38 @@ pub struct Id3v24_Frame {
     data_raw: RefCell<Vec<u8>>,
     f_is_invalid: Cell<bool>,
     is_invalid: RefCell<bool>,
+}
+impl TryFrom<&Id3v24_Frame> for OptRc<Id3v24_Frame> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Frame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Frame> for OptRc<Id3v24_Frame> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Frame) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame> for Id3v24_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame> for &Id3v24_Frame {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame> for OptRc<Id3v24_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Frame> for &OptRc<Id3v24_Frame> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Frame {
     type Root = Id3v24;
@@ -285,6 +431,12 @@ impl Id3v24_Frame {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Id3v24_Frame {
     pub fn id_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -310,6 +462,38 @@ pub struct Id3v24_Frame_FlagsFormat {
     flag_unsynchronisated: RefCell<bool>,
     flag_indicator: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Frame_FlagsFormat> for OptRc<Id3v24_Frame_FlagsFormat> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Frame_FlagsFormat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Frame_FlagsFormat> for OptRc<Id3v24_Frame_FlagsFormat> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Frame_FlagsFormat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for Id3v24_Frame_FlagsFormat {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for &Id3v24_Frame_FlagsFormat {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for OptRc<Id3v24_Frame_FlagsFormat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsFormat> for &OptRc<Id3v24_Frame_FlagsFormat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsFormat>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Frame_FlagsFormat {
     type Root = Id3v24;
@@ -379,6 +563,12 @@ impl Id3v24_Frame_FlagsFormat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -392,6 +582,38 @@ pub struct Id3v24_Frame_FlagsStatus {
     flag_read_only: RefCell<bool>,
     reserved2: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Frame_FlagsStatus> for OptRc<Id3v24_Frame_FlagsStatus> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Frame_FlagsStatus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Frame_FlagsStatus> for OptRc<Id3v24_Frame_FlagsStatus> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Frame_FlagsStatus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for Id3v24_Frame_FlagsStatus {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for &Id3v24_Frame_FlagsStatus {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for OptRc<Id3v24_Frame_FlagsStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Frame_FlagsStatus> for &OptRc<Id3v24_Frame_FlagsStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Frame_FlagsStatus>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Frame_FlagsStatus {
     type Root = Id3v24;
@@ -449,6 +671,12 @@ impl Id3v24_Frame_FlagsStatus {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -462,6 +690,38 @@ pub struct Id3v24_Header {
     flags: RefCell<OptRc<Id3v24_Header_Flags>>,
     size: RefCell<OptRc<Id3v24_U4beSynchsafe>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Header> for OptRc<Id3v24_Header> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Header> for OptRc<Id3v24_Header> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header> for Id3v24_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header> for &Id3v24_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header> for OptRc<Id3v24_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Header> for &OptRc<Id3v24_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Header {
     type Root = Id3v24;
@@ -524,6 +784,12 @@ impl Id3v24_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -537,6 +803,38 @@ pub struct Id3v24_Header_Flags {
     flag_footer: RefCell<bool>,
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Header_Flags> for OptRc<Id3v24_Header_Flags> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Header_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Header_Flags> for OptRc<Id3v24_Header_Flags> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Header_Flags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header_Flags> for Id3v24_Header_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header_Flags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header_Flags> for &Id3v24_Header_Flags {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header_Flags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Header_Flags> for OptRc<Id3v24_Header_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header_Flags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Header_Flags> for &OptRc<Id3v24_Header_Flags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Header_Flags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Header_Flags {
     type Root = Id3v24;
@@ -594,6 +892,12 @@ impl Id3v24_Header_Flags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -606,6 +910,38 @@ pub struct Id3v24_HeaderEx {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Id3v24_HeaderEx> for OptRc<Id3v24_HeaderEx> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_HeaderEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_HeaderEx> for OptRc<Id3v24_HeaderEx> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_HeaderEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx> for Id3v24_HeaderEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx> for &Id3v24_HeaderEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx> for OptRc<Id3v24_HeaderEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx> for &OptRc<Id3v24_HeaderEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_HeaderEx {
     type Root = Id3v24;
@@ -653,6 +989,12 @@ impl Id3v24_HeaderEx {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Id3v24_HeaderEx {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -671,6 +1013,38 @@ pub struct Id3v24_HeaderEx_FlagsEx {
     flag_restrictions: RefCell<bool>,
     reserved2: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_HeaderEx_FlagsEx> for OptRc<Id3v24_HeaderEx_FlagsEx> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_HeaderEx_FlagsEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_HeaderEx_FlagsEx> for OptRc<Id3v24_HeaderEx_FlagsEx> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_HeaderEx_FlagsEx) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for Id3v24_HeaderEx_FlagsEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx_FlagsEx>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for &Id3v24_HeaderEx_FlagsEx {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx_FlagsEx>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for OptRc<Id3v24_HeaderEx_FlagsEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx_FlagsEx>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_HeaderEx_FlagsEx> for &OptRc<Id3v24_HeaderEx_FlagsEx> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_HeaderEx_FlagsEx>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_HeaderEx_FlagsEx {
     type Root = Id3v24;
@@ -728,6 +1102,12 @@ impl Id3v24_HeaderEx_FlagsEx {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -738,6 +1118,38 @@ pub struct Id3v24_Padding {
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     padding_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Id3v24_Padding> for OptRc<Id3v24_Padding> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Padding) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Padding> for OptRc<Id3v24_Padding> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Padding) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Padding> for Id3v24_Padding {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Padding>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Padding> for &Id3v24_Padding {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Padding>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Padding> for OptRc<Id3v24_Padding> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Padding>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Padding> for &OptRc<Id3v24_Padding> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Padding>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Padding {
     type Root = Id3v24;
@@ -771,6 +1183,12 @@ impl Id3v24_Padding {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Id3v24_Padding {
     pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -789,6 +1207,38 @@ pub struct Id3v24_Tag {
     padding: RefCell<OptRc<Id3v24_Padding>>,
     footer: RefCell<OptRc<Id3v24_Footer>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_Tag> for OptRc<Id3v24_Tag> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_Tag> for OptRc<Id3v24_Tag> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Tag> for Id3v24_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Tag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Tag> for &Id3v24_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Tag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_Tag> for OptRc<Id3v24_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Tag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_Tag> for &OptRc<Id3v24_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_Tag>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_Tag {
     type Root = Id3v24;
@@ -867,6 +1317,12 @@ impl Id3v24_Tag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -877,6 +1333,38 @@ pub struct Id3v24_U1beSynchsafe {
     padding: RefCell<bool>,
     value: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Id3v24_U1beSynchsafe> for OptRc<Id3v24_U1beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_U1beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_U1beSynchsafe> for OptRc<Id3v24_U1beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_U1beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U1beSynchsafe> for Id3v24_U1beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U1beSynchsafe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U1beSynchsafe> for &Id3v24_U1beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U1beSynchsafe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U1beSynchsafe> for OptRc<Id3v24_U1beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U1beSynchsafe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_U1beSynchsafe> for &OptRc<Id3v24_U1beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U1beSynchsafe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_U1beSynchsafe {
     type Root = Id3v24;
@@ -916,6 +1404,12 @@ impl Id3v24_U1beSynchsafe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -928,6 +1422,38 @@ pub struct Id3v24_U2beSynchsafe {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<u64>,
+}
+impl TryFrom<&Id3v24_U2beSynchsafe> for OptRc<Id3v24_U2beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_U2beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_U2beSynchsafe> for OptRc<Id3v24_U2beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_U2beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U2beSynchsafe> for Id3v24_U2beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U2beSynchsafe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U2beSynchsafe> for &Id3v24_U2beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U2beSynchsafe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U2beSynchsafe> for OptRc<Id3v24_U2beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U2beSynchsafe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_U2beSynchsafe> for &OptRc<Id3v24_U2beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U2beSynchsafe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_U2beSynchsafe {
     type Root = Id3v24;
@@ -981,6 +1507,12 @@ impl Id3v24_U2beSynchsafe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -993,6 +1525,38 @@ pub struct Id3v24_U4beSynchsafe {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<u64>,
+}
+impl TryFrom<&Id3v24_U4beSynchsafe> for OptRc<Id3v24_U4beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &Id3v24_U4beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v24_U4beSynchsafe> for OptRc<Id3v24_U4beSynchsafe> {
+    type Error = KError;
+    fn try_from(v: &&Id3v24_U4beSynchsafe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U4beSynchsafe> for Id3v24_U4beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U4beSynchsafe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U4beSynchsafe> for &Id3v24_U4beSynchsafe {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U4beSynchsafe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v24_U4beSynchsafe> for OptRc<Id3v24_U4beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U4beSynchsafe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v24_U4beSynchsafe> for &OptRc<Id3v24_U4beSynchsafe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v24_U4beSynchsafe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v24_U4beSynchsafe {
     type Root = Id3v24;
@@ -1045,5 +1609,11 @@ impl Id3v24_U4beSynchsafe {
 impl Id3v24_U4beSynchsafe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

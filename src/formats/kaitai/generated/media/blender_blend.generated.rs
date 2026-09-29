@@ -31,6 +31,38 @@ pub struct BlenderBlend {
     f_sdna_structs: Cell<bool>,
     sdna_structs: RefCell<Vec<OptRc<BlenderBlend_DnaStruct>>>,
 }
+impl TryFrom<&BlenderBlend> for OptRc<BlenderBlend> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend> for OptRc<BlenderBlend> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend> for BlenderBlend {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend> for &BlenderBlend {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend> for OptRc<BlenderBlend> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend> for &OptRc<BlenderBlend> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BlenderBlend {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
@@ -72,7 +104,7 @@ impl BlenderBlend {
             return Ok(self.sdna_structs.borrow());
         }
         self.f_sdna_structs.set(true);
-        *self.sdna_structs.borrow_mut() = OptRc::<BlenderBlend_Dna1Body>::try_from(&*(self.blocks().get((self.blocks().len()).saturating_sub(2_usize)).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.structs().to_vec();
+        *self.sdna_structs.borrow_mut() = OptRc::<BlenderBlend_Dna1Body>::try_from(&*((self.blocks().get((self.blocks().len()).saturating_sub(2_usize)).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.structs().to_vec();
         Ok(self.sdna_structs.borrow())
     }
 }
@@ -89,6 +121,12 @@ impl BlenderBlend {
 impl BlenderBlend {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -195,6 +233,38 @@ pub struct BlenderBlend_Dna1Body {
     padding_1_raw: RefCell<Vec<u8>>,
     padding_2_raw: RefCell<Vec<u8>>,
     padding_3_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&BlenderBlend_Dna1Body> for OptRc<BlenderBlend_Dna1Body> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend_Dna1Body) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend_Dna1Body> for OptRc<BlenderBlend_Dna1Body> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_Dna1Body) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for BlenderBlend_Dna1Body {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for &BlenderBlend_Dna1Body {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for OptRc<BlenderBlend_Dna1Body> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for &OptRc<BlenderBlend_Dna1Body> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BlenderBlend_Dna1Body {
     type Root = BlenderBlend;
@@ -344,6 +414,12 @@ impl BlenderBlend_Dna1Body {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl BlenderBlend_Dna1Body {
     pub fn padding_1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -373,6 +449,38 @@ pub struct BlenderBlend_DnaField {
     name: RefCell<String>,
     f_type: Cell<bool>,
     r#type: RefCell<String>,
+}
+impl TryFrom<&BlenderBlend_DnaField> for OptRc<BlenderBlend_DnaField> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend_DnaField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend_DnaField> for OptRc<BlenderBlend_DnaField> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_DnaField) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaField> for BlenderBlend_DnaField {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaField>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaField> for &BlenderBlend_DnaField {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaField>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaField> for OptRc<BlenderBlend_DnaField> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaField>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaField> for &OptRc<BlenderBlend_DnaField> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaField>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BlenderBlend_DnaField {
     type Root = BlenderBlend;
@@ -436,6 +544,12 @@ impl BlenderBlend_DnaField {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -454,6 +568,38 @@ pub struct BlenderBlend_DnaStruct {
     _io: RefCell<BytesReader>,
     f_type: Cell<bool>,
     r#type: RefCell<String>,
+}
+impl TryFrom<&BlenderBlend_DnaStruct> for OptRc<BlenderBlend_DnaStruct> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend_DnaStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend_DnaStruct> for OptRc<BlenderBlend_DnaStruct> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_DnaStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaStruct> for BlenderBlend_DnaStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaStruct> for &BlenderBlend_DnaStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaStruct> for OptRc<BlenderBlend_DnaStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend_DnaStruct> for &OptRc<BlenderBlend_DnaStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_DnaStruct>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BlenderBlend_DnaStruct {
     type Root = BlenderBlend;
@@ -516,6 +662,12 @@ impl BlenderBlend_DnaStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -550,6 +702,22 @@ impl TryFrom<&BlenderBlend_FileBlock_Body> for OptRc<BlenderBlend_Dna1Body> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&BlenderBlend_FileBlock_Body> for OptRc<BlenderBlend_Dna1Body> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_FileBlock_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for BlenderBlend_FileBlock_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        OptRc::<BlenderBlend_Dna1Body>::try_from(self)
+    }
+}
+impl DowncastOptRc<BlenderBlend_Dna1Body> for &BlenderBlend_FileBlock_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Dna1Body>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<BlenderBlend_Dna1Body>> for BlenderBlend_FileBlock_Body {
     fn from(v: OptRc<BlenderBlend_Dna1Body>) -> Self {
         Self::BlenderBlend_Dna1Body(v)
@@ -564,9 +732,47 @@ impl TryFrom<&BlenderBlend_FileBlock_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&BlenderBlend_FileBlock_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_FileBlock_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for BlenderBlend_FileBlock_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&BlenderBlend_FileBlock> for OptRc<BlenderBlend_FileBlock> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend_FileBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend_FileBlock> for OptRc<BlenderBlend_FileBlock> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_FileBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_FileBlock> for BlenderBlend_FileBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_FileBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_FileBlock> for &BlenderBlend_FileBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_FileBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_FileBlock> for OptRc<BlenderBlend_FileBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_FileBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend_FileBlock> for &OptRc<BlenderBlend_FileBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_FileBlock>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for BlenderBlend_FileBlock {
@@ -675,6 +881,12 @@ impl BlenderBlend_FileBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl BlenderBlend_FileBlock {
     pub fn code_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -705,6 +917,38 @@ pub struct BlenderBlend_Header {
     version_raw: RefCell<Vec<u8>>,
     f_psize: Cell<bool>,
     psize: RefCell<i32>,
+}
+impl TryFrom<&BlenderBlend_Header> for OptRc<BlenderBlend_Header> {
+    type Error = KError;
+    fn try_from(v: &BlenderBlend_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BlenderBlend_Header> for OptRc<BlenderBlend_Header> {
+    type Error = KError;
+    fn try_from(v: &&BlenderBlend_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Header> for BlenderBlend_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Header> for &BlenderBlend_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BlenderBlend_Header> for OptRc<BlenderBlend_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BlenderBlend_Header> for &OptRc<BlenderBlend_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<BlenderBlend_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BlenderBlend_Header {
     type Root = BlenderBlend;
@@ -786,6 +1030,12 @@ impl BlenderBlend_Header {
 impl BlenderBlend_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl BlenderBlend_Header {

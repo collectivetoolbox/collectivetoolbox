@@ -28,6 +28,38 @@ pub struct Iso9660 {
     f_sector_size: Cell<bool>,
     sector_size: RefCell<i32>,
 }
+impl TryFrom<&Iso9660> for OptRc<Iso9660> {
+    type Error = KError;
+    fn try_from(v: &Iso9660) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660> for OptRc<Iso9660> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660> for Iso9660 {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660> for &Iso9660 {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660> for OptRc<Iso9660> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660> for &OptRc<Iso9660> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Iso9660 {
     type Root = Iso9660;
     type Parent = Iso9660;
@@ -81,6 +113,12 @@ impl Iso9660 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -96,6 +134,38 @@ pub struct Iso9660_Datetime {
     sec: RefCell<u8>,
     timezone: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Iso9660_Datetime> for OptRc<Iso9660_Datetime> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_Datetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_Datetime> for OptRc<Iso9660_Datetime> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_Datetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_Datetime> for Iso9660_Datetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_Datetime>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_Datetime> for &Iso9660_Datetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_Datetime>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_Datetime> for OptRc<Iso9660_Datetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_Datetime>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_Datetime> for &OptRc<Iso9660_Datetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_Datetime>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_Datetime {
     type Root = Iso9660;
@@ -165,6 +235,12 @@ impl Iso9660_Datetime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -192,6 +268,38 @@ pub struct Iso9660_DecDatetime {
     minute_raw: RefCell<Vec<u8>>,
     sec_raw: RefCell<Vec<u8>>,
     sec_hundreds_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Iso9660_DecDatetime> for OptRc<Iso9660_DecDatetime> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_DecDatetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_DecDatetime> for OptRc<Iso9660_DecDatetime> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_DecDatetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DecDatetime> for Iso9660_DecDatetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DecDatetime>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DecDatetime> for &Iso9660_DecDatetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DecDatetime>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DecDatetime> for OptRc<Iso9660_DecDatetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DecDatetime>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_DecDatetime> for &OptRc<Iso9660_DecDatetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DecDatetime>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_DecDatetime {
     type Root = Iso9660;
@@ -267,6 +375,12 @@ impl Iso9660_DecDatetime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Iso9660_DecDatetime {
     pub fn year_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -312,6 +426,38 @@ pub struct Iso9660_DirEntries {
     entries: RefCell<Vec<OptRc<Iso9660_DirEntry>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Iso9660_DirEntries> for OptRc<Iso9660_DirEntries> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_DirEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_DirEntries> for OptRc<Iso9660_DirEntries> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_DirEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntries> for Iso9660_DirEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntries>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntries> for &Iso9660_DirEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntries>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntries> for OptRc<Iso9660_DirEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntries>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntries> for &OptRc<Iso9660_DirEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntries>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Iso9660_DirEntries {
     type Root = Iso9660;
     type Parent = Iso9660_DirEntryBody;
@@ -355,6 +501,12 @@ impl Iso9660_DirEntries {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -366,6 +518,38 @@ pub struct Iso9660_DirEntry {
     body: RefCell<OptRc<Iso9660_DirEntryBody>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Iso9660_DirEntry> for OptRc<Iso9660_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_DirEntry> for OptRc<Iso9660_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntry> for Iso9660_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntry> for &Iso9660_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntry> for OptRc<Iso9660_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntry> for &OptRc<Iso9660_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_DirEntry {
     type Root = Iso9660;
@@ -411,6 +595,12 @@ impl Iso9660_DirEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Iso9660_DirEntry {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -442,6 +632,38 @@ pub struct Iso9660_DirEntryBody {
     extent_as_dir: RefCell<OptRc<Iso9660_DirEntries>>,
     f_extent_as_file: Cell<bool>,
     extent_as_file: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Iso9660_DirEntryBody> for OptRc<Iso9660_DirEntryBody> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_DirEntryBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_DirEntryBody> for OptRc<Iso9660_DirEntryBody> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_DirEntryBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntryBody> for Iso9660_DirEntryBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntryBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntryBody> for &Iso9660_DirEntryBody {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntryBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntryBody> for OptRc<Iso9660_DirEntryBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntryBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_DirEntryBody> for &OptRc<Iso9660_DirEntryBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_DirEntryBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_DirEntryBody {
     type Root = Iso9660;
@@ -494,7 +716,7 @@ impl Iso9660_DirEntryBody {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((*self.lba_extent().le()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
-            *self.extent_as_dir_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.size_extent().le())?)?.into();
+            *self.extent_as_dir_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.size_extent().le())?)?.into();
             let extent_as_dir_raw = self.extent_as_dir_raw.borrow();
             let _t_extent_as_dir_raw_io = BytesReader::from(extent_as_dir_raw.clone());
             let t = Self::read_into::<BytesReader, Iso9660_DirEntries>(&_t_extent_as_dir_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -586,6 +808,12 @@ impl Iso9660_DirEntryBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Iso9660_DirEntryBody {
     pub fn file_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -611,6 +839,38 @@ pub struct Iso9660_PathTableEntryLe {
     padding: RefCell<u8>,
     _io: RefCell<BytesReader>,
     dir_name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Iso9660_PathTableEntryLe> for OptRc<Iso9660_PathTableEntryLe> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_PathTableEntryLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_PathTableEntryLe> for OptRc<Iso9660_PathTableEntryLe> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_PathTableEntryLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableEntryLe> for Iso9660_PathTableEntryLe {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableEntryLe> for &Iso9660_PathTableEntryLe {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableEntryLe> for OptRc<Iso9660_PathTableEntryLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableEntryLe> for &OptRc<Iso9660_PathTableEntryLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableEntryLe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_PathTableEntryLe {
     type Root = Iso9660;
@@ -676,6 +936,12 @@ impl Iso9660_PathTableEntryLe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Iso9660_PathTableEntryLe {
     pub fn dir_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -694,6 +960,38 @@ pub struct Iso9660_PathTableLe {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Iso9660_PathTableEntryLe>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Iso9660_PathTableLe> for OptRc<Iso9660_PathTableLe> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_PathTableLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_PathTableLe> for OptRc<Iso9660_PathTableLe> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_PathTableLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableLe> for Iso9660_PathTableLe {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableLe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableLe> for &Iso9660_PathTableLe {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableLe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableLe> for OptRc<Iso9660_PathTableLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableLe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_PathTableLe> for &OptRc<Iso9660_PathTableLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_PathTableLe>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_PathTableLe {
     type Root = Iso9660;
@@ -735,6 +1033,12 @@ impl Iso9660_PathTableLe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -745,6 +1049,38 @@ pub struct Iso9660_U2bi {
     le: RefCell<u16>,
     be: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Iso9660_U2bi> for OptRc<Iso9660_U2bi> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_U2bi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_U2bi> for OptRc<Iso9660_U2bi> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_U2bi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U2bi> for Iso9660_U2bi {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U2bi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U2bi> for &Iso9660_U2bi {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U2bi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U2bi> for OptRc<Iso9660_U2bi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U2bi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_U2bi> for &OptRc<Iso9660_U2bi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U2bi>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_U2bi {
     type Root = Iso9660;
@@ -784,6 +1120,12 @@ impl Iso9660_U2bi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -794,6 +1136,38 @@ pub struct Iso9660_U4bi {
     le: RefCell<u32>,
     be: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Iso9660_U4bi> for OptRc<Iso9660_U4bi> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_U4bi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_U4bi> for OptRc<Iso9660_U4bi> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_U4bi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U4bi> for Iso9660_U4bi {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U4bi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U4bi> for &Iso9660_U4bi {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U4bi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_U4bi> for OptRc<Iso9660_U4bi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U4bi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_U4bi> for &OptRc<Iso9660_U4bi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_U4bi>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_U4bi {
     type Root = Iso9660;
@@ -833,6 +1207,12 @@ impl Iso9660_U4bi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -846,6 +1226,38 @@ pub struct Iso9660_VolDesc {
     vol_desc_boot_record: RefCell<OptRc<Iso9660_VolDescBootRecord>>,
     vol_desc_primary: RefCell<OptRc<Iso9660_VolDescPrimary>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Iso9660_VolDesc> for OptRc<Iso9660_VolDesc> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_VolDesc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_VolDesc> for OptRc<Iso9660_VolDesc> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_VolDesc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDesc> for Iso9660_VolDesc {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDesc>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDesc> for &Iso9660_VolDesc {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDesc>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDesc> for OptRc<Iso9660_VolDesc> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDesc>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_VolDesc> for &OptRc<Iso9660_VolDesc> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDesc>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_VolDesc {
     type Root = Iso9660;
@@ -912,6 +1324,12 @@ impl Iso9660_VolDesc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -924,6 +1342,38 @@ pub struct Iso9660_VolDescBootRecord {
     _io: RefCell<BytesReader>,
     boot_system_id_raw: RefCell<Vec<u8>>,
     boot_id_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Iso9660_VolDescBootRecord> for OptRc<Iso9660_VolDescBootRecord> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_VolDescBootRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_VolDescBootRecord> for OptRc<Iso9660_VolDescBootRecord> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_VolDescBootRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescBootRecord> for Iso9660_VolDescBootRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescBootRecord> for &Iso9660_VolDescBootRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescBootRecord> for OptRc<Iso9660_VolDescBootRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescBootRecord> for &OptRc<Iso9660_VolDescBootRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescBootRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_VolDescBootRecord {
     type Root = Iso9660;
@@ -962,6 +1412,12 @@ impl Iso9660_VolDescBootRecord {
 impl Iso9660_VolDescBootRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Iso9660_VolDescBootRecord {
@@ -1028,6 +1484,38 @@ pub struct Iso9660_VolDescPrimary {
     path_table_raw: RefCell<Vec<u8>>,
     f_path_table: Cell<bool>,
     path_table: RefCell<OptRc<Iso9660_PathTableLe>>,
+}
+impl TryFrom<&Iso9660_VolDescPrimary> for OptRc<Iso9660_VolDescPrimary> {
+    type Error = KError;
+    fn try_from(v: &Iso9660_VolDescPrimary) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Iso9660_VolDescPrimary> for OptRc<Iso9660_VolDescPrimary> {
+    type Error = KError;
+    fn try_from(v: &&Iso9660_VolDescPrimary) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescPrimary> for Iso9660_VolDescPrimary {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescPrimary>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescPrimary> for &Iso9660_VolDescPrimary {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescPrimary>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescPrimary> for OptRc<Iso9660_VolDescPrimary> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescPrimary>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Iso9660_VolDescPrimary> for &OptRc<Iso9660_VolDescPrimary> {
+    fn downcast_optrc(&self) -> Result<OptRc<Iso9660_VolDescPrimary>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Iso9660_VolDescPrimary {
     type Root = Iso9660;
@@ -1268,6 +1756,12 @@ impl Iso9660_VolDescPrimary {
 impl Iso9660_VolDescPrimary {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Iso9660_VolDescPrimary {

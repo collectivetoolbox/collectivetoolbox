@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct TypeTernaryOpaque {
@@ -71,6 +72,38 @@ pub struct TypeTernaryOpaque {
     dif: RefCell<OptRc<HelloWorld>>,
     f_is_hack: Cell<bool>,
     is_hack: RefCell<bool>,
+}
+impl TryFrom<&TypeTernaryOpaque> for OptRc<TypeTernaryOpaque> {
+    type Error = KError;
+    fn try_from(v: &TypeTernaryOpaque) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TypeTernaryOpaque> for OptRc<TypeTernaryOpaque> {
+    type Error = KError;
+    fn try_from(v: &&TypeTernaryOpaque) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernaryOpaque> for TypeTernaryOpaque {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernaryOpaque>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TypeTernaryOpaque> for &TypeTernaryOpaque {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernaryOpaque>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TypeTernaryOpaque> for OptRc<TypeTernaryOpaque> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernaryOpaque>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TypeTernaryOpaque> for &OptRc<TypeTernaryOpaque> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeTernaryOpaque>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TypeTernaryOpaque {
     type Root = TypeTernaryOpaque;
@@ -145,6 +178,12 @@ impl TypeTernaryOpaque {
 impl TypeTernaryOpaque {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl TypeTernaryOpaque {

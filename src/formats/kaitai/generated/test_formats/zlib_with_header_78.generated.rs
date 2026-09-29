@@ -65,6 +65,38 @@ pub struct ZlibWithHeader78 {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ZlibWithHeader78> for OptRc<ZlibWithHeader78> {
+    type Error = KError;
+    fn try_from(v: &ZlibWithHeader78) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ZlibWithHeader78> for OptRc<ZlibWithHeader78> {
+    type Error = KError;
+    fn try_from(v: &&ZlibWithHeader78) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ZlibWithHeader78> for ZlibWithHeader78 {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibWithHeader78>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ZlibWithHeader78> for &ZlibWithHeader78 {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibWithHeader78>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ZlibWithHeader78> for OptRc<ZlibWithHeader78> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibWithHeader78>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ZlibWithHeader78> for &OptRc<ZlibWithHeader78> {
+    fn downcast_optrc(&self) -> Result<OptRc<ZlibWithHeader78>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ZlibWithHeader78 {
     type Root = ZlibWithHeader78;
     type Parent = ZlibWithHeader78;
@@ -96,6 +128,12 @@ impl ZlibWithHeader78 {
 impl ZlibWithHeader78 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ZlibWithHeader78 {

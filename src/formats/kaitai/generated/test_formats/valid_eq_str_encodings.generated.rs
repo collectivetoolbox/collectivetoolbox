@@ -75,6 +75,38 @@ pub struct ValidEqStrEncodings {
     str3_raw: RefCell<Vec<u8>>,
     str4_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ValidEqStrEncodings> for OptRc<ValidEqStrEncodings> {
+    type Error = KError;
+    fn try_from(v: &ValidEqStrEncodings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidEqStrEncodings> for OptRc<ValidEqStrEncodings> {
+    type Error = KError;
+    fn try_from(v: &&ValidEqStrEncodings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidEqStrEncodings> for ValidEqStrEncodings {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidEqStrEncodings>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidEqStrEncodings> for &ValidEqStrEncodings {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidEqStrEncodings>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidEqStrEncodings> for OptRc<ValidEqStrEncodings> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidEqStrEncodings>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidEqStrEncodings> for &OptRc<ValidEqStrEncodings> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidEqStrEncodings>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidEqStrEncodings {
     type Root = ValidEqStrEncodings;
     type Parent = ValidEqStrEncodings;
@@ -160,6 +192,12 @@ impl ValidEqStrEncodings {
 impl ValidEqStrEncodings {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ValidEqStrEncodings {

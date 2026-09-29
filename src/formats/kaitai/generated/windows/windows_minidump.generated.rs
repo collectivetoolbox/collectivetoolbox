@@ -34,6 +34,38 @@ pub struct WindowsMinidump {
     f_streams: Cell<bool>,
     streams: RefCell<Vec<OptRc<WindowsMinidump_Dir>>>,
 }
+impl TryFrom<&WindowsMinidump> for OptRc<WindowsMinidump> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump> for OptRc<WindowsMinidump> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump> for WindowsMinidump {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump> for &WindowsMinidump {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump> for OptRc<WindowsMinidump> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump> for &OptRc<WindowsMinidump> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for WindowsMinidump {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump;
@@ -133,6 +165,12 @@ impl WindowsMinidump {
 impl WindowsMinidump {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -345,6 +383,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ExceptionStrea
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ExceptionStream> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        OptRc::<WindowsMinidump_ExceptionStream>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<WindowsMinidump_ExceptionStream>> for WindowsMinidump_Dir_Data {
     fn from(v: OptRc<WindowsMinidump_ExceptionStream>) -> Self {
         Self::WindowsMinidump_ExceptionStream(v)
@@ -357,6 +411,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> 
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_Memory64List> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        OptRc::<WindowsMinidump_Memory64List>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<WindowsMinidump_Memory64List>> for WindowsMinidump_Dir_Data {
@@ -373,6 +443,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MemoryList> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MemoryList> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        OptRc::<WindowsMinidump_MemoryList>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<WindowsMinidump_MemoryList>> for WindowsMinidump_Dir_Data {
     fn from(v: OptRc<WindowsMinidump_MemoryList>) -> Self {
         Self::WindowsMinidump_MemoryList(v)
@@ -385,6 +471,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MiscInfo> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_MiscInfo> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        OptRc::<WindowsMinidump_MiscInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<WindowsMinidump_MiscInfo>> for WindowsMinidump_Dir_Data {
@@ -401,6 +503,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_SystemInfo> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_SystemInfo> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        OptRc::<WindowsMinidump_SystemInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<WindowsMinidump_SystemInfo>> for WindowsMinidump_Dir_Data {
     fn from(v: OptRc<WindowsMinidump_SystemInfo>) -> Self {
         Self::WindowsMinidump_SystemInfo(v)
@@ -413,6 +531,22 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ThreadList> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&WindowsMinidump_Dir_Data> for OptRc<WindowsMinidump_ThreadList> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        OptRc::<WindowsMinidump_ThreadList>::try_from(self)
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for &WindowsMinidump_Dir_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<WindowsMinidump_ThreadList>> for WindowsMinidump_Dir_Data {
@@ -429,9 +563,47 @@ impl TryFrom<&WindowsMinidump_Dir_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&WindowsMinidump_Dir_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for WindowsMinidump_Dir_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&WindowsMinidump_Dir> for OptRc<WindowsMinidump_Dir> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_Dir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_Dir> for OptRc<WindowsMinidump_Dir> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Dir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Dir> for WindowsMinidump_Dir {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Dir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Dir> for &WindowsMinidump_Dir {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Dir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Dir> for OptRc<WindowsMinidump_Dir> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Dir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Dir> for &OptRc<WindowsMinidump_Dir> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Dir>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for WindowsMinidump_Dir {
@@ -543,6 +715,12 @@ impl WindowsMinidump_Dir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsMinidump_Dir {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -567,6 +745,38 @@ pub struct WindowsMinidump_ExceptionRecord {
     reserved: RefCell<u32>,
     params: RefCell<Vec<u64>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_ExceptionRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_ExceptionRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for WindowsMinidump_ExceptionRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for &WindowsMinidump_ExceptionRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for OptRc<WindowsMinidump_ExceptionRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionRecord> for &OptRc<WindowsMinidump_ExceptionRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_ExceptionRecord {
     type Root = WindowsMinidump;
@@ -653,6 +863,12 @@ impl WindowsMinidump_ExceptionRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -669,6 +885,38 @@ pub struct WindowsMinidump_ExceptionStream {
     exception_rec: RefCell<OptRc<WindowsMinidump_ExceptionRecord>>,
     thread_context: RefCell<OptRc<WindowsMinidump_LocationDescriptor>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_ExceptionStream) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_ExceptionStream) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for WindowsMinidump_ExceptionStream {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &WindowsMinidump_ExceptionStream {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for OptRc<WindowsMinidump_ExceptionStream> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ExceptionStream> for &OptRc<WindowsMinidump_ExceptionStream> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ExceptionStream>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_ExceptionStream {
     type Root = WindowsMinidump;
@@ -722,6 +970,12 @@ impl WindowsMinidump_ExceptionStream {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -738,6 +992,38 @@ pub struct WindowsMinidump_LocationDescriptor {
     _io: RefCell<BytesReader>,
     f_data: Cell<bool>,
     data: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_LocationDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_LocationDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for WindowsMinidump_LocationDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for &WindowsMinidump_LocationDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for OptRc<WindowsMinidump_LocationDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_LocationDescriptor> for &OptRc<WindowsMinidump_LocationDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_LocationDescriptor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_LocationDescriptor {
     type Root = WindowsMinidump;
@@ -793,6 +1079,12 @@ impl WindowsMinidump_LocationDescriptor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -808,6 +1100,38 @@ pub struct WindowsMinidump_Memory64List {
     ofs_base: RefCell<u64>,
     mem_ranges: RefCell<Vec<OptRc<WindowsMinidump_MemoryDescriptor64>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_Memory64List) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Memory64List) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for WindowsMinidump_Memory64List {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for &WindowsMinidump_Memory64List {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for OptRc<WindowsMinidump_Memory64List> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Memory64List> for &OptRc<WindowsMinidump_Memory64List> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Memory64List>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_Memory64List {
     type Root = WindowsMinidump;
@@ -858,6 +1182,12 @@ impl WindowsMinidump_Memory64List {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -872,6 +1202,38 @@ pub struct WindowsMinidump_MemoryDescriptor {
     addr_memory_range: RefCell<u64>,
     memory: RefCell<OptRc<WindowsMinidump_LocationDescriptor>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_MemoryDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_MemoryDescriptor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for WindowsMinidump_MemoryDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for &WindowsMinidump_MemoryDescriptor {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for OptRc<WindowsMinidump_MemoryDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor> for &OptRc<WindowsMinidump_MemoryDescriptor> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_MemoryDescriptor {
     type Root = WindowsMinidump;
@@ -912,6 +1274,12 @@ impl WindowsMinidump_MemoryDescriptor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -926,6 +1294,38 @@ pub struct WindowsMinidump_MemoryDescriptor64 {
     addr_memory_range: RefCell<u64>,
     len_data: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_MemoryDescriptor64) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_MemoryDescriptor64) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for WindowsMinidump_MemoryDescriptor64 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for &WindowsMinidump_MemoryDescriptor64 {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for OptRc<WindowsMinidump_MemoryDescriptor64> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryDescriptor64> for &OptRc<WindowsMinidump_MemoryDescriptor64> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryDescriptor64>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_MemoryDescriptor64 {
     type Root = WindowsMinidump;
@@ -965,6 +1365,12 @@ impl WindowsMinidump_MemoryDescriptor64 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -979,6 +1385,38 @@ pub struct WindowsMinidump_MemoryList {
     num_mem_ranges: RefCell<u32>,
     mem_ranges: RefCell<Vec<OptRc<WindowsMinidump_MemoryDescriptor>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_MemoryList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_MemoryList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for WindowsMinidump_MemoryList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for &WindowsMinidump_MemoryList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for OptRc<WindowsMinidump_MemoryList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MemoryList> for &OptRc<WindowsMinidump_MemoryList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MemoryList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_MemoryList {
     type Root = WindowsMinidump;
@@ -1023,6 +1461,12 @@ impl WindowsMinidump_MemoryList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1040,6 +1484,38 @@ pub struct WindowsMinidump_MinidumpString {
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
     str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_MinidumpString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_MinidumpString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MinidumpString> for WindowsMinidump_MinidumpString {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MinidumpString> for &WindowsMinidump_MinidumpString {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MinidumpString> for OptRc<WindowsMinidump_MinidumpString> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MinidumpString> for &OptRc<WindowsMinidump_MinidumpString> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MinidumpString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_MinidumpString {
     type Root = WindowsMinidump;
@@ -1079,6 +1555,12 @@ impl WindowsMinidump_MinidumpString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl WindowsMinidump_MinidumpString {
     pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1107,6 +1589,38 @@ pub struct WindowsMinidump_MiscInfo {
     cpu_max_idle_state: RefCell<u32>,
     cpu_cur_idle_state: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_MiscInfo> for OptRc<WindowsMinidump_MiscInfo> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_MiscInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_MiscInfo> for OptRc<WindowsMinidump_MiscInfo> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_MiscInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for WindowsMinidump_MiscInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for &WindowsMinidump_MiscInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for OptRc<WindowsMinidump_MiscInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_MiscInfo> for &OptRc<WindowsMinidump_MiscInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_MiscInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_MiscInfo {
     type Root = WindowsMinidump;
@@ -1200,6 +1714,12 @@ impl WindowsMinidump_MiscInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1228,6 +1748,38 @@ pub struct WindowsMinidump_SystemInfo {
     _io: RefCell<BytesReader>,
     f_service_pack: Cell<bool>,
     service_pack: RefCell<OptRc<WindowsMinidump_MinidumpString>>,
+}
+impl TryFrom<&WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_SystemInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_SystemInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for WindowsMinidump_SystemInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for &WindowsMinidump_SystemInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for OptRc<WindowsMinidump_SystemInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_SystemInfo> for &OptRc<WindowsMinidump_SystemInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_SystemInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_SystemInfo {
     type Root = WindowsMinidump;
@@ -1345,6 +1897,12 @@ impl WindowsMinidump_SystemInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum WindowsMinidump_SystemInfo_CpuArchs {
@@ -1405,6 +1963,38 @@ pub struct WindowsMinidump_Thread {
     stack: RefCell<OptRc<WindowsMinidump_MemoryDescriptor>>,
     thread_context: RefCell<OptRc<WindowsMinidump_LocationDescriptor>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_Thread> for OptRc<WindowsMinidump_Thread> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_Thread) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_Thread> for OptRc<WindowsMinidump_Thread> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_Thread) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Thread> for WindowsMinidump_Thread {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Thread>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Thread> for &WindowsMinidump_Thread {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Thread>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Thread> for OptRc<WindowsMinidump_Thread> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Thread>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_Thread> for &OptRc<WindowsMinidump_Thread> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_Thread>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_Thread {
     type Root = WindowsMinidump;
@@ -1480,6 +2070,12 @@ impl WindowsMinidump_Thread {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1494,6 +2090,38 @@ pub struct WindowsMinidump_ThreadList {
     num_threads: RefCell<u32>,
     threads: RefCell<Vec<OptRc<WindowsMinidump_Thread>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
+    type Error = KError;
+    fn try_from(v: &WindowsMinidump_ThreadList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
+    type Error = KError;
+    fn try_from(v: &&WindowsMinidump_ThreadList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for WindowsMinidump_ThreadList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for &WindowsMinidump_ThreadList {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for OptRc<WindowsMinidump_ThreadList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<WindowsMinidump_ThreadList> for &OptRc<WindowsMinidump_ThreadList> {
+    fn downcast_optrc(&self) -> Result<OptRc<WindowsMinidump_ThreadList>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for WindowsMinidump_ThreadList {
     type Root = WindowsMinidump;
@@ -1537,5 +2165,11 @@ impl WindowsMinidump_ThreadList {
 impl WindowsMinidump_ThreadList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

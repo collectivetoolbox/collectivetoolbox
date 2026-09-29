@@ -73,6 +73,38 @@ pub struct StrLiterals {
     f_octal_eatup2: Cell<bool>,
     octal_eatup2: RefCell<String>,
 }
+impl TryFrom<&StrLiterals> for OptRc<StrLiterals> {
+    type Error = KError;
+    fn try_from(v: &StrLiterals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrLiterals> for OptRc<StrLiterals> {
+    type Error = KError;
+    fn try_from(v: &&StrLiterals) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrLiterals> for StrLiterals {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiterals>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrLiterals> for &StrLiterals {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiterals>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrLiterals> for OptRc<StrLiterals> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiterals>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrLiterals> for &OptRc<StrLiterals> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrLiterals>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrLiterals {
     type Root = StrLiterals;
     type Parent = StrLiterals;
@@ -158,5 +190,11 @@ impl StrLiterals {
 impl StrLiterals {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

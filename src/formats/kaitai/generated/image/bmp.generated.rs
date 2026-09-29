@@ -91,6 +91,38 @@ pub struct Bmp {
     dib_info_raw: RefCell<Vec<u8>>,
     bitmap_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Bmp> for OptRc<Bmp> {
+    type Error = KError;
+    fn try_from(v: &Bmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp> for OptRc<Bmp> {
+    type Error = KError;
+    fn try_from(v: &&Bmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp> for Bmp {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp> for &Bmp {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp> for OptRc<Bmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp> for &OptRc<Bmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bmp {
     type Root = Bmp;
     type Parent = Bmp;
@@ -143,6 +175,12 @@ impl Bmp {
 impl Bmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Bmp {
@@ -503,6 +541,38 @@ pub struct Bmp_Bitmap {
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Bmp_Bitmap> for OptRc<Bmp_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &Bmp_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_Bitmap> for OptRc<Bmp_Bitmap> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_Bitmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Bitmap> for Bmp_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Bitmap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Bitmap> for &Bmp_Bitmap {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Bitmap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Bitmap> for OptRc<Bmp_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Bitmap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_Bitmap> for &OptRc<Bmp_Bitmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Bitmap>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bmp_Bitmap {
     type Root = Bmp;
     type Parent = Bmp;
@@ -528,6 +598,12 @@ impl Bmp_Bitmap {
 impl Bmp_Bitmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -701,6 +777,38 @@ impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for usize {
     }
 }
 
+impl TryFrom<&Bmp_BitmapHeader> for OptRc<Bmp_BitmapHeader> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_BitmapHeader> for OptRc<Bmp_BitmapHeader> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapHeader> for Bmp_BitmapHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapHeader> for &Bmp_BitmapHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapHeader> for OptRc<Bmp_BitmapHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_BitmapHeader> for &OptRc<Bmp_BitmapHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapHeader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Bmp_BitmapHeader {
     type Root = Bmp;
     type Parent = Bmp_BitmapInfo;
@@ -953,6 +1061,12 @@ impl Bmp_BitmapHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -985,6 +1099,38 @@ pub struct Bmp_BitmapInfo {
     is_color_mask_given: RefCell<bool>,
     f_is_color_mask_here: Cell<bool>,
     is_color_mask_here: RefCell<bool>,
+}
+impl TryFrom<&Bmp_BitmapInfo> for OptRc<Bmp_BitmapInfo> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_BitmapInfo> for OptRc<Bmp_BitmapInfo> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfo> for Bmp_BitmapInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfo> for &Bmp_BitmapInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfo> for OptRc<Bmp_BitmapInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfo> for &OptRc<Bmp_BitmapInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_BitmapInfo {
     type Root = Bmp;
@@ -1141,6 +1287,12 @@ impl Bmp_BitmapInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Bmp_BitmapInfo {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1170,6 +1322,38 @@ pub struct Bmp_BitmapInfoExtension {
     num_colors_used: RefCell<u32>,
     num_colors_important: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_BitmapInfoExtension> for OptRc<Bmp_BitmapInfoExtension> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapInfoExtension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_BitmapInfoExtension> for OptRc<Bmp_BitmapInfoExtension> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapInfoExtension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfoExtension> for Bmp_BitmapInfoExtension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfoExtension>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfoExtension> for &Bmp_BitmapInfoExtension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfoExtension>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfoExtension> for OptRc<Bmp_BitmapInfoExtension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfoExtension>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_BitmapInfoExtension> for &OptRc<Bmp_BitmapInfoExtension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapInfoExtension>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_BitmapInfoExtension {
     type Root = Bmp;
@@ -1248,6 +1432,12 @@ impl Bmp_BitmapInfoExtension {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1267,6 +1457,38 @@ pub struct Bmp_BitmapV4Extension {
     gamma_blue: RefCell<OptRc<Bmp_FixedPoint16Dot16>>,
     gamma_green: RefCell<OptRc<Bmp_FixedPoint16Dot16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_BitmapV4Extension> for OptRc<Bmp_BitmapV4Extension> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapV4Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_BitmapV4Extension> for OptRc<Bmp_BitmapV4Extension> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapV4Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV4Extension> for Bmp_BitmapV4Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV4Extension>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV4Extension> for &Bmp_BitmapV4Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV4Extension>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV4Extension> for OptRc<Bmp_BitmapV4Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV4Extension>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV4Extension> for &OptRc<Bmp_BitmapV4Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV4Extension>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_BitmapV4Extension {
     type Root = Bmp;
@@ -1342,6 +1564,12 @@ impl Bmp_BitmapV4Extension {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1378,6 +1606,12 @@ impl TryFrom<&Bmp_BitmapV5Extension_ProfileData> for String {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bmp_BitmapV5Extension_ProfileData> for String {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapV5Extension_ProfileData) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<String> for Bmp_BitmapV5Extension_ProfileData {
     fn from(v: String) -> Self {
         Self::String(v)
@@ -1392,9 +1626,47 @@ impl TryFrom<&Bmp_BitmapV5Extension_ProfileData> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Bmp_BitmapV5Extension_ProfileData> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapV5Extension_ProfileData) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Bmp_BitmapV5Extension_ProfileData {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Bmp_BitmapV5Extension> for OptRc<Bmp_BitmapV5Extension> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapV5Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_BitmapV5Extension> for OptRc<Bmp_BitmapV5Extension> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_BitmapV5Extension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV5Extension> for Bmp_BitmapV5Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV5Extension>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV5Extension> for &Bmp_BitmapV5Extension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV5Extension>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV5Extension> for OptRc<Bmp_BitmapV5Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV5Extension>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_BitmapV5Extension> for &OptRc<Bmp_BitmapV5Extension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_BitmapV5Extension>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Bmp_BitmapV5Extension {
@@ -1494,6 +1766,12 @@ impl Bmp_BitmapV5Extension {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Bmp_BitmapV5Extension {
     pub fn profile_data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1514,6 +1792,38 @@ pub struct Bmp_CieXyz {
     y: RefCell<OptRc<Bmp_FixedPoint2Dot30>>,
     z: RefCell<OptRc<Bmp_FixedPoint2Dot30>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_CieXyz> for OptRc<Bmp_CieXyz> {
+    type Error = KError;
+    fn try_from(v: &Bmp_CieXyz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_CieXyz> for OptRc<Bmp_CieXyz> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_CieXyz) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_CieXyz> for Bmp_CieXyz {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_CieXyz>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_CieXyz> for &Bmp_CieXyz {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_CieXyz>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_CieXyz> for OptRc<Bmp_CieXyz> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_CieXyz>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_CieXyz> for &OptRc<Bmp_CieXyz> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_CieXyz>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_CieXyz {
     type Root = Bmp;
@@ -1562,6 +1872,12 @@ impl Bmp_CieXyz {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1575,6 +1891,38 @@ pub struct Bmp_ColorMask {
     blue_mask: RefCell<u32>,
     alpha_mask: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_ColorMask> for OptRc<Bmp_ColorMask> {
+    type Error = KError;
+    fn try_from(v: &Bmp_ColorMask) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_ColorMask> for OptRc<Bmp_ColorMask> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_ColorMask) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorMask> for Bmp_ColorMask {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorMask>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorMask> for &Bmp_ColorMask {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorMask>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorMask> for OptRc<Bmp_ColorMask> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorMask>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_ColorMask> for &OptRc<Bmp_ColorMask> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorMask>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_ColorMask {
     type Root = Bmp;
@@ -1638,6 +1986,12 @@ impl Bmp_ColorMask {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1651,6 +2005,38 @@ pub struct Bmp_ColorTable {
     _io: RefCell<BytesReader>,
     f_num_colors_present: Cell<bool>,
     num_colors_present: RefCell<i32>,
+}
+impl TryFrom<&Bmp_ColorTable> for OptRc<Bmp_ColorTable> {
+    type Error = KError;
+    fn try_from(v: &Bmp_ColorTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_ColorTable> for OptRc<Bmp_ColorTable> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_ColorTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorTable> for Bmp_ColorTable {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorTable> for &Bmp_ColorTable {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_ColorTable> for OptRc<Bmp_ColorTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_ColorTable> for &OptRc<Bmp_ColorTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_ColorTable>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_ColorTable {
     type Root = Bmp;
@@ -1718,6 +2104,12 @@ impl Bmp_ColorTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1735,6 +2127,38 @@ pub struct Bmp_FileHeader {
     reserved2: RefCell<u16>,
     ofs_bitmap: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_FileHeader> for OptRc<Bmp_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &Bmp_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_FileHeader> for OptRc<Bmp_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FileHeader> for Bmp_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FileHeader> for &Bmp_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FileHeader> for OptRc<Bmp_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_FileHeader> for &OptRc<Bmp_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_FileHeader {
     type Root = Bmp;
@@ -1803,6 +2227,12 @@ impl Bmp_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1814,6 +2244,38 @@ pub struct Bmp_FixedPoint16Dot16 {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<f64>,
+}
+impl TryFrom<&Bmp_FixedPoint16Dot16> for OptRc<Bmp_FixedPoint16Dot16> {
+    type Error = KError;
+    fn try_from(v: &Bmp_FixedPoint16Dot16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_FixedPoint16Dot16> for OptRc<Bmp_FixedPoint16Dot16> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_FixedPoint16Dot16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint16Dot16> for Bmp_FixedPoint16Dot16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint16Dot16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint16Dot16> for &Bmp_FixedPoint16Dot16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint16Dot16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint16Dot16> for OptRc<Bmp_FixedPoint16Dot16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint16Dot16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint16Dot16> for &OptRc<Bmp_FixedPoint16Dot16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint16Dot16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_FixedPoint16Dot16 {
     type Root = Bmp;
@@ -1859,6 +2321,12 @@ impl Bmp_FixedPoint16Dot16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1870,6 +2338,38 @@ pub struct Bmp_FixedPoint2Dot30 {
     _io: RefCell<BytesReader>,
     f_value: Cell<bool>,
     value: RefCell<f64>,
+}
+impl TryFrom<&Bmp_FixedPoint2Dot30> for OptRc<Bmp_FixedPoint2Dot30> {
+    type Error = KError;
+    fn try_from(v: &Bmp_FixedPoint2Dot30) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_FixedPoint2Dot30> for OptRc<Bmp_FixedPoint2Dot30> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_FixedPoint2Dot30) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint2Dot30> for Bmp_FixedPoint2Dot30 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint2Dot30>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint2Dot30> for &Bmp_FixedPoint2Dot30 {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint2Dot30>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint2Dot30> for OptRc<Bmp_FixedPoint2Dot30> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint2Dot30>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_FixedPoint2Dot30> for &OptRc<Bmp_FixedPoint2Dot30> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_FixedPoint2Dot30>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_FixedPoint2Dot30 {
     type Root = Bmp;
@@ -1915,6 +2415,12 @@ impl Bmp_FixedPoint2Dot30 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1935,6 +2441,38 @@ pub struct Bmp_Os22xBitmapExtension {
     color_encoding: RefCell<u32>,
     identifier: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_Os22xBitmapExtension> for OptRc<Bmp_Os22xBitmapExtension> {
+    type Error = KError;
+    fn try_from(v: &Bmp_Os22xBitmapExtension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_Os22xBitmapExtension> for OptRc<Bmp_Os22xBitmapExtension> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_Os22xBitmapExtension) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Os22xBitmapExtension> for Bmp_Os22xBitmapExtension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Os22xBitmapExtension>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Os22xBitmapExtension> for &Bmp_Os22xBitmapExtension {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Os22xBitmapExtension>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_Os22xBitmapExtension> for OptRc<Bmp_Os22xBitmapExtension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Os22xBitmapExtension>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_Os22xBitmapExtension> for &OptRc<Bmp_Os22xBitmapExtension> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_Os22xBitmapExtension>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_Os22xBitmapExtension {
     type Root = Bmp;
@@ -2043,6 +2581,12 @@ impl Bmp_Os22xBitmapExtension {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2056,6 +2600,38 @@ pub struct Bmp_RgbRecord {
     red: RefCell<u8>,
     reserved: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Bmp_RgbRecord> for OptRc<Bmp_RgbRecord> {
+    type Error = KError;
+    fn try_from(v: &Bmp_RgbRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Bmp_RgbRecord> for OptRc<Bmp_RgbRecord> {
+    type Error = KError;
+    fn try_from(v: &&Bmp_RgbRecord) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_RgbRecord> for Bmp_RgbRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_RgbRecord>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Bmp_RgbRecord> for &Bmp_RgbRecord {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_RgbRecord>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Bmp_RgbRecord> for OptRc<Bmp_RgbRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_RgbRecord>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Bmp_RgbRecord> for &OptRc<Bmp_RgbRecord> {
+    fn downcast_optrc(&self) -> Result<OptRc<Bmp_RgbRecord>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Bmp_RgbRecord {
     type Root = Bmp;
@@ -2118,5 +2694,11 @@ impl Bmp_RgbRecord {
 impl Bmp_RgbRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

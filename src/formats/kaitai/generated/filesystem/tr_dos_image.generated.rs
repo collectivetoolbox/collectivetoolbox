@@ -36,6 +36,38 @@ pub struct TrDosImage {
     f_volume_info: Cell<bool>,
     volume_info: RefCell<OptRc<TrDosImage_VolumeInfo>>,
 }
+impl TryFrom<&TrDosImage> for OptRc<TrDosImage> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage> for OptRc<TrDosImage> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage> for TrDosImage {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage> for &TrDosImage {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage> for OptRc<TrDosImage> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage> for &OptRc<TrDosImage> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TrDosImage {
     type Root = TrDosImage;
     type Parent = TrDosImage;
@@ -93,6 +125,12 @@ impl TrDosImage {
 impl TrDosImage {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -170,6 +208,22 @@ impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        OptRc::<TrDosImage_PositionAndLengthPrint>::try_from(self)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<TrDosImage_PositionAndLengthPrint>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthPrint>) -> Self {
         Self::TrDosImage_PositionAndLengthPrint(v)
@@ -182,6 +236,22 @@ impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAn
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        OptRc::<TrDosImage_PositionAndLengthBasic>::try_from(self)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<TrDosImage_PositionAndLengthBasic>> for TrDosImage_File_PositionAndLength {
@@ -198,6 +268,22 @@ impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        OptRc::<TrDosImage_PositionAndLengthCode>::try_from(self)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<TrDosImage_PositionAndLengthCode>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthCode>) -> Self {
         Self::TrDosImage_PositionAndLengthCode(v)
@@ -212,9 +298,57 @@ impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        OptRc::<TrDosImage_PositionAndLengthGeneric>::try_from(self)
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &TrDosImage_File_PositionAndLength {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<TrDosImage_PositionAndLengthGeneric>> for TrDosImage_File_PositionAndLength {
     fn from(v: OptRc<TrDosImage_PositionAndLengthGeneric>) -> Self {
         Self::TrDosImage_PositionAndLengthGeneric(v)
+    }
+}
+impl TryFrom<&TrDosImage_File> for OptRc<TrDosImage_File> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_File> for OptRc<TrDosImage_File> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_File) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_File> for TrDosImage_File {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_File>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_File> for &TrDosImage_File {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_File>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_File> for OptRc<TrDosImage_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_File>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_File> for &OptRc<TrDosImage_File> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_File>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for TrDosImage_File {
@@ -339,6 +473,12 @@ impl TrDosImage_File {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl TrDosImage_File {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -356,6 +496,38 @@ pub struct TrDosImage_Filename {
     name_raw: RefCell<Vec<u8>>,
     f_first_byte: Cell<bool>,
     first_byte: RefCell<u8>,
+}
+impl TryFrom<&TrDosImage_Filename> for OptRc<TrDosImage_Filename> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_Filename) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_Filename> for OptRc<TrDosImage_Filename> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_Filename) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_Filename> for TrDosImage_Filename {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_Filename>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_Filename> for &TrDosImage_Filename {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_Filename>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_Filename> for OptRc<TrDosImage_Filename> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_Filename>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_Filename> for &OptRc<TrDosImage_Filename> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_Filename>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_Filename {
     type Root = TrDosImage;
@@ -404,6 +576,12 @@ impl TrDosImage_Filename {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl TrDosImage_Filename {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -419,6 +597,38 @@ pub struct TrDosImage_PositionAndLengthBasic {
     program_and_data_length: RefCell<u16>,
     program_length: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_PositionAndLengthBasic) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_PositionAndLengthBasic) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for TrDosImage_PositionAndLengthBasic {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &TrDosImage_PositionAndLengthBasic {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthBasic> for &OptRc<TrDosImage_PositionAndLengthBasic> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthBasic>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_PositionAndLengthBasic {
     type Root = TrDosImage;
@@ -458,6 +668,12 @@ impl TrDosImage_PositionAndLengthBasic {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -468,6 +684,38 @@ pub struct TrDosImage_PositionAndLengthCode {
     start_address: RefCell<u16>,
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_PositionAndLengthCode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_PositionAndLengthCode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for TrDosImage_PositionAndLengthCode {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &TrDosImage_PositionAndLengthCode {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for OptRc<TrDosImage_PositionAndLengthCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthCode> for &OptRc<TrDosImage_PositionAndLengthCode> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthCode>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_PositionAndLengthCode {
     type Root = TrDosImage;
@@ -511,6 +759,12 @@ impl TrDosImage_PositionAndLengthCode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -521,6 +775,38 @@ pub struct TrDosImage_PositionAndLengthGeneric {
     reserved: RefCell<u16>,
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_PositionAndLengthGeneric) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_PositionAndLengthGeneric) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for TrDosImage_PositionAndLengthGeneric {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &TrDosImage_PositionAndLengthGeneric {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthGeneric> for &OptRc<TrDosImage_PositionAndLengthGeneric> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthGeneric>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_PositionAndLengthGeneric {
     type Root = TrDosImage;
@@ -560,6 +846,12 @@ impl TrDosImage_PositionAndLengthGeneric {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -571,6 +863,38 @@ pub struct TrDosImage_PositionAndLengthPrint {
     reserved: RefCell<u8>,
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_PositionAndLengthPrint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_PositionAndLengthPrint) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for TrDosImage_PositionAndLengthPrint {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &TrDosImage_PositionAndLengthPrint {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_PositionAndLengthPrint> for &OptRc<TrDosImage_PositionAndLengthPrint> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_PositionAndLengthPrint>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_PositionAndLengthPrint {
     type Root = TrDosImage;
@@ -616,6 +940,12 @@ impl TrDosImage_PositionAndLengthPrint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -648,6 +978,38 @@ pub struct TrDosImage_VolumeInfo {
     num_sides: RefCell<i32>,
     f_num_tracks: Cell<bool>,
     num_tracks: RefCell<i32>,
+}
+impl TryFrom<&TrDosImage_VolumeInfo> for OptRc<TrDosImage_VolumeInfo> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_VolumeInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TrDosImage_VolumeInfo> for OptRc<TrDosImage_VolumeInfo> {
+    type Error = KError;
+    fn try_from(v: &&TrDosImage_VolumeInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_VolumeInfo> for TrDosImage_VolumeInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_VolumeInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_VolumeInfo> for &TrDosImage_VolumeInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_VolumeInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TrDosImage_VolumeInfo> for OptRc<TrDosImage_VolumeInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_VolumeInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TrDosImage_VolumeInfo> for &OptRc<TrDosImage_VolumeInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<TrDosImage_VolumeInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TrDosImage_VolumeInfo {
     type Root = TrDosImage;
@@ -799,6 +1161,12 @@ impl TrDosImage_VolumeInfo {
 impl TrDosImage_VolumeInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl TrDosImage_VolumeInfo {

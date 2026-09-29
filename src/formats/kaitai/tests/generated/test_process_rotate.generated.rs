@@ -85,8 +85,8 @@ fn test_process_rotate() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRotate> = ProcessRotate::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf1(), vec![0x48u8, 0x65u8, 0x6cu8, 0x6cu8, 0x6fu8]);
-    assert_eq!(*r.buf2(), vec![0x57u8, 0x6fu8, 0x72u8, 0x6cu8, 0x64u8]);
-    assert_eq!(*r.buf3(), vec![0x54u8, 0x68u8, 0x65u8, 0x72u8, 0x65u8]);
+    assert_eq!(*(r.buf1()), vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]);
+    assert_eq!(*(r.buf2()), vec![0x57, 0x6f, 0x72, 0x6c, 0x64]);
+    assert_eq!(*(r.buf3()), vec![0x54, 0x68, 0x65, 0x72, 0x65]);
     Ok(())
 }

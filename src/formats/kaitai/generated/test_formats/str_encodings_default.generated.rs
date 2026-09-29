@@ -67,6 +67,38 @@ pub struct StrEncodingsDefault {
     _io: RefCell<BytesReader>,
     str1_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&StrEncodingsDefault> for OptRc<StrEncodingsDefault> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsDefault) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsDefault> for OptRc<StrEncodingsDefault> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsDefault) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault> for StrEncodingsDefault {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault> for &StrEncodingsDefault {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault> for OptRc<StrEncodingsDefault> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault> for &OptRc<StrEncodingsDefault> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for StrEncodingsDefault {
     type Root = StrEncodingsDefault;
     type Parent = StrEncodingsDefault;
@@ -112,6 +144,12 @@ impl StrEncodingsDefault {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl StrEncodingsDefault {
     pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -134,6 +172,38 @@ pub struct StrEncodingsDefault_Subtype {
     str2_raw: RefCell<Vec<u8>>,
     str3_raw: RefCell<Vec<u8>>,
     str4_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
+    type Error = KError;
+    fn try_from(v: &StrEncodingsDefault_Subtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
+    type Error = KError;
+    fn try_from(v: &&StrEncodingsDefault_Subtype) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault_Subtype> for StrEncodingsDefault_Subtype {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault_Subtype> for &StrEncodingsDefault_Subtype {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault_Subtype> for OptRc<StrEncodingsDefault_Subtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<StrEncodingsDefault_Subtype> for &OptRc<StrEncodingsDefault_Subtype> {
+    fn downcast_optrc(&self) -> Result<OptRc<StrEncodingsDefault_Subtype>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for StrEncodingsDefault_Subtype {
     type Root = StrEncodingsDefault;
@@ -196,6 +266,12 @@ impl StrEncodingsDefault_Subtype {
 impl StrEncodingsDefault_Subtype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl StrEncodingsDefault_Subtype {

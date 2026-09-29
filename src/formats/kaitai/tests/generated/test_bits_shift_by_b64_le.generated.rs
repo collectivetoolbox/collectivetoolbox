@@ -85,7 +85,7 @@ fn test_bits_shift_by_b64_le() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<BitsShiftByB64Le> = BitsShiftByB64Le::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.a(), 18446744073709551615_u64);
-    assert_eq!(*r.b(), 0);
+    assert_eq!(*(r.a()), 18446744073709551615_u64);
+    assert_eq!(*(r.b()), 0);
     Ok(())
 }

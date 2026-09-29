@@ -85,9 +85,9 @@ fn test_process_repeat_usertype() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessRepeatUsertype> = ProcessRepeatUsertype::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.blocks()[0].a(), -1975704206);
-    assert_eq!(*r.blocks()[0].b(), 20);
-    assert_eq!(*r.blocks()[1].a(), 279597642);
-    assert_eq!(*r.blocks()[1].b(), 68);
+    assert_eq!(*(r.blocks()[0].a()), -1975704206);
+    assert_eq!(*(r.blocks()[0].b()), 20);
+    assert_eq!(*(r.blocks()[1].a()), 279597642);
+    assert_eq!(*(r.blocks()[1].b()), 68);
     Ok(())
 }

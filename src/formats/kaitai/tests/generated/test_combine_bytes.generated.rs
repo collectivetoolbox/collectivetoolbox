@@ -85,15 +85,15 @@ fn test_combine_bytes() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CombineBytes> = CombineBytes::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.bytes_term(), vec![0x66u8, 0x6fu8, 0x6fu8]);
-    assert_eq!(*r.bytes_limit(), vec![0x62u8, 0x61u8, 0x72u8, 0x7cu8]);
-    assert_eq!(*r.bytes_eos(), vec![0x62u8, 0x61u8, 0x7au8, 0x40u8]);
-    assert_eq!(*r.bytes_calc()?, vec![0x52u8, 0x6eu8, 0x44u8]);
-    assert_eq!(*r.term_or_limit()?, vec![0x66u8, 0x6fu8, 0x6fu8]);
-    assert_eq!(*r.term_or_eos()?, vec![0x62u8, 0x61u8, 0x7au8, 0x40u8]);
-    assert_eq!(*r.term_or_calc()?, vec![0x66u8, 0x6fu8, 0x6fu8]);
-    assert_eq!(*r.limit_or_eos()?, vec![0x62u8, 0x61u8, 0x72u8, 0x7cu8]);
-    assert_eq!(*r.limit_or_calc()?, vec![0x52u8, 0x6eu8, 0x44u8]);
-    assert_eq!(*r.eos_or_calc()?, vec![0x62u8, 0x61u8, 0x7au8, 0x40u8]);
+    assert_eq!(*(r.bytes_term()), vec![0x66, 0x6f, 0x6f]);
+    assert_eq!(*(r.bytes_limit()), vec![0x62, 0x61, 0x72, 0x7c]);
+    assert_eq!(*(r.bytes_eos()), vec![0x62, 0x61, 0x7a, 0x40]);
+    assert_eq!(*(r.bytes_calc()?), vec![0x52, 0x6e, 0x44]);
+    assert_eq!(*(r.term_or_limit()?), vec![0x66, 0x6f, 0x6f]);
+    assert_eq!(*(r.term_or_eos()?), vec![0x62, 0x61, 0x7a, 0x40]);
+    assert_eq!(*(r.term_or_calc()?), vec![0x66, 0x6f, 0x6f]);
+    assert_eq!(*(r.limit_or_eos()?), vec![0x62, 0x61, 0x72, 0x7c]);
+    assert_eq!(*(r.limit_or_calc()?), vec![0x52, 0x6e, 0x44]);
+    assert_eq!(*(r.eos_or_calc()?), vec![0x62, 0x61, 0x7a, 0x40]);
     Ok(())
 }

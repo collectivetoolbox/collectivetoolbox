@@ -85,8 +85,8 @@ fn test_term_bytes3() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<TermBytes3> = TermBytes3::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.s1(), vec![0x66u8, 0x6fu8, 0x6fu8]);
-    assert_eq!(*r.s2(), vec![0x7cu8, 0x62u8, 0x61u8, 0x72u8, 0x7cu8, 0x62u8, 0x61u8, 0x7au8]);
-    assert_eq!(*r.s3(), Vec::<u8>::new());
+    assert_eq!(*(r.s1()), vec![0x66, 0x6f, 0x6f]);
+    assert_eq!(*(r.s2()), vec![0x7c, 0x62, 0x61, 0x72, 0x7c, 0x62, 0x61, 0x7a]);
+    assert_eq!(*(r.s3()), Vec::<u8>::new());
     Ok(())
 }

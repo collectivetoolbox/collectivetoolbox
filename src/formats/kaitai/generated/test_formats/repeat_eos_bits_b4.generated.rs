@@ -64,6 +64,38 @@ pub struct RepeatEosBitsB4 {
     nibbles: RefCell<Vec<u64>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RepeatEosBitsB4> for OptRc<RepeatEosBitsB4> {
+    type Error = KError;
+    fn try_from(v: &RepeatEosBitsB4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatEosBitsB4> for OptRc<RepeatEosBitsB4> {
+    type Error = KError;
+    fn try_from(v: &&RepeatEosBitsB4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosBitsB4> for RepeatEosBitsB4 {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosBitsB4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosBitsB4> for &RepeatEosBitsB4 {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosBitsB4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatEosBitsB4> for OptRc<RepeatEosBitsB4> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosBitsB4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatEosBitsB4> for &OptRc<RepeatEosBitsB4> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatEosBitsB4>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatEosBitsB4 {
     type Root = RepeatEosBitsB4;
     type Parent = RepeatEosBitsB4;
@@ -102,5 +134,11 @@ impl RepeatEosBitsB4 {
 impl RepeatEosBitsB4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

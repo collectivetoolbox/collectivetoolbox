@@ -91,6 +91,38 @@ pub struct MinecraftNbt {
     f_root_type: Cell<bool>,
     root_type: RefCell<MinecraftNbt_Tag>,
 }
+impl TryFrom<&MinecraftNbt> for OptRc<MinecraftNbt> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt> for OptRc<MinecraftNbt> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt> for MinecraftNbt {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt> for &MinecraftNbt {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt> for OptRc<MinecraftNbt> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt> for &OptRc<MinecraftNbt> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MinecraftNbt {
     type Root = MinecraftNbt;
     type Parent = MinecraftNbt;
@@ -149,6 +181,12 @@ impl MinecraftNbt {
 impl MinecraftNbt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MinecraftNbt {
@@ -264,6 +302,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i8 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i8 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i8> for MinecraftNbt_NamedTag_Payload {
     fn from(v: i8) -> Self {
         Self::S1(v)
@@ -276,6 +320,22 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagByteArray
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagByteArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        OptRc::<MinecraftNbt_TagByteArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagByteArray>> for MinecraftNbt_NamedTag_Payload {
@@ -292,6 +352,22 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagCompound>
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagCompound> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        OptRc::<MinecraftNbt_TagCompound>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagCompound>> for MinecraftNbt_NamedTag_Payload {
     fn from(v: OptRc<MinecraftNbt_TagCompound>) -> Self {
         Self::MinecraftNbt_TagCompound(v)
@@ -304,6 +380,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for f64 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<f64> for MinecraftNbt_NamedTag_Payload {
@@ -320,6 +402,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for f32 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for f32 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<f32> for MinecraftNbt_NamedTag_Payload {
     fn from(v: f32) -> Self {
         Self::F4(v)
@@ -332,6 +420,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i32 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i32 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<i32> for MinecraftNbt_NamedTag_Payload {
@@ -348,6 +442,22 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagIntArray>
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagIntArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        OptRc::<MinecraftNbt_TagIntArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagIntArray>> for MinecraftNbt_NamedTag_Payload {
     fn from(v: OptRc<MinecraftNbt_TagIntArray>) -> Self {
         Self::MinecraftNbt_TagIntArray(v)
@@ -360,6 +470,22 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagList> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        OptRc::<MinecraftNbt_TagList>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagList>> for MinecraftNbt_NamedTag_Payload {
@@ -376,6 +502,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i64 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i64 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i64> for MinecraftNbt_NamedTag_Payload {
     fn from(v: i64) -> Self {
         Self::S8(v)
@@ -388,6 +520,22 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagLongArray
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagLongArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        OptRc::<MinecraftNbt_TagLongArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagLongArray>> for MinecraftNbt_NamedTag_Payload {
@@ -404,6 +552,12 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for i16 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for i16 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i16> for MinecraftNbt_NamedTag_Payload {
     fn from(v: i16) -> Self {
         Self::S2(v)
@@ -418,9 +572,57 @@ impl TryFrom<&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagString> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_NamedTag_Payload> for OptRc<MinecraftNbt_TagString> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        OptRc::<MinecraftNbt_TagString>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for &MinecraftNbt_NamedTag_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagString>> for MinecraftNbt_NamedTag_Payload {
     fn from(v: OptRc<MinecraftNbt_TagString>) -> Self {
         Self::MinecraftNbt_TagString(v)
+    }
+}
+impl TryFrom<&MinecraftNbt_NamedTag> for OptRc<MinecraftNbt_NamedTag> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_NamedTag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_NamedTag> for OptRc<MinecraftNbt_NamedTag> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_NamedTag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_NamedTag> for MinecraftNbt_NamedTag {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_NamedTag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_NamedTag> for &MinecraftNbt_NamedTag {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_NamedTag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_NamedTag> for OptRc<MinecraftNbt_NamedTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_NamedTag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_NamedTag> for &OptRc<MinecraftNbt_NamedTag> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_NamedTag>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for MinecraftNbt_NamedTag {
@@ -528,6 +730,12 @@ impl MinecraftNbt_NamedTag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -539,6 +747,38 @@ pub struct MinecraftNbt_TagByteArray {
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MinecraftNbt_TagByteArray> for OptRc<MinecraftNbt_TagByteArray> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagByteArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagByteArray> for OptRc<MinecraftNbt_TagByteArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagByteArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_TagByteArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_TagByteArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for OptRc<MinecraftNbt_TagByteArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for &OptRc<MinecraftNbt_TagByteArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MinecraftNbt_TagByteArray {
     type Root = MinecraftNbt;
@@ -578,6 +818,12 @@ impl MinecraftNbt_TagByteArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MinecraftNbt_TagByteArray {
     pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -594,6 +840,38 @@ pub struct MinecraftNbt_TagCompound {
     _io: RefCell<BytesReader>,
     f_dump_num_tags: Cell<bool>,
     dump_num_tags: RefCell<i32>,
+}
+impl TryFrom<&MinecraftNbt_TagCompound> for OptRc<MinecraftNbt_TagCompound> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagCompound) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagCompound> for OptRc<MinecraftNbt_TagCompound> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagCompound) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_TagCompound {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_TagCompound {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for OptRc<MinecraftNbt_TagCompound> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for &OptRc<MinecraftNbt_TagCompound> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MinecraftNbt_TagCompound {
     type Root = MinecraftNbt;
@@ -650,6 +928,12 @@ impl MinecraftNbt_TagCompound {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -662,6 +946,38 @@ pub struct MinecraftNbt_TagIntArray {
     _io: RefCell<BytesReader>,
     f_tags_type: Cell<bool>,
     tags_type: RefCell<MinecraftNbt_Tag>,
+}
+impl TryFrom<&MinecraftNbt_TagIntArray> for OptRc<MinecraftNbt_TagIntArray> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagIntArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagIntArray> for OptRc<MinecraftNbt_TagIntArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagIntArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_TagIntArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_TagIntArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for OptRc<MinecraftNbt_TagIntArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for &OptRc<MinecraftNbt_TagIntArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MinecraftNbt_TagIntArray {
     type Root = MinecraftNbt;
@@ -717,6 +1033,12 @@ impl MinecraftNbt_TagIntArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -753,6 +1075,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for i8 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for i8 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i8> for MinecraftNbt_TagList_Tags {
     fn from(v: i8) -> Self {
         Self::S1(v)
@@ -765,6 +1093,22 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagByteArray> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagByteArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        OptRc::<MinecraftNbt_TagByteArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagByteArray> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagByteArray>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagByteArray>> for MinecraftNbt_TagList_Tags {
@@ -781,6 +1125,22 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagCompound> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagCompound> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        OptRc::<MinecraftNbt_TagCompound>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagCompound> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagCompound>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagCompound>> for MinecraftNbt_TagList_Tags {
     fn from(v: OptRc<MinecraftNbt_TagCompound>) -> Self {
         Self::MinecraftNbt_TagCompound(v)
@@ -793,6 +1153,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for f64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for f64 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<f64> for MinecraftNbt_TagList_Tags {
@@ -809,6 +1175,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for f32 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for f32 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<f32> for MinecraftNbt_TagList_Tags {
     fn from(v: f32) -> Self {
         Self::F4(v)
@@ -821,6 +1193,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for i32 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for i32 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<i32> for MinecraftNbt_TagList_Tags {
@@ -837,6 +1215,22 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagIntArray> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagIntArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        OptRc::<MinecraftNbt_TagIntArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagIntArray> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagIntArray>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagIntArray>> for MinecraftNbt_TagList_Tags {
     fn from(v: OptRc<MinecraftNbt_TagIntArray>) -> Self {
         Self::MinecraftNbt_TagIntArray(v)
@@ -849,6 +1243,22 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagList> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagList> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        OptRc::<MinecraftNbt_TagList>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagList>> for MinecraftNbt_TagList_Tags {
@@ -865,6 +1275,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for i64 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for i64 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i64> for MinecraftNbt_TagList_Tags {
     fn from(v: i64) -> Self {
         Self::S8(v)
@@ -877,6 +1293,22 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagLongArray> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagLongArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        OptRc::<MinecraftNbt_TagLongArray>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<MinecraftNbt_TagLongArray>> for MinecraftNbt_TagList_Tags {
@@ -893,6 +1325,12 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for i16 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for i16 {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<i16> for MinecraftNbt_TagList_Tags {
     fn from(v: i16) -> Self {
         Self::S2(v)
@@ -907,9 +1345,57 @@ impl TryFrom<&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagString> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&MinecraftNbt_TagList_Tags> for OptRc<MinecraftNbt_TagString> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList_Tags) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        OptRc::<MinecraftNbt_TagString>::try_from(self)
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for &MinecraftNbt_TagList_Tags {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<MinecraftNbt_TagString>> for MinecraftNbt_TagList_Tags {
     fn from(v: OptRc<MinecraftNbt_TagString>) -> Self {
         Self::MinecraftNbt_TagString(v)
+    }
+}
+impl TryFrom<&MinecraftNbt_TagList> for OptRc<MinecraftNbt_TagList> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagList> for OptRc<MinecraftNbt_TagList> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagList) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for MinecraftNbt_TagList {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for &MinecraftNbt_TagList {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for OptRc<MinecraftNbt_TagList> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagList> for &OptRc<MinecraftNbt_TagList> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagList>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for MinecraftNbt_TagList {
@@ -1004,6 +1490,12 @@ impl MinecraftNbt_TagList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1016,6 +1508,38 @@ pub struct MinecraftNbt_TagLongArray {
     _io: RefCell<BytesReader>,
     f_tags_type: Cell<bool>,
     tags_type: RefCell<MinecraftNbt_Tag>,
+}
+impl TryFrom<&MinecraftNbt_TagLongArray> for OptRc<MinecraftNbt_TagLongArray> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagLongArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagLongArray> for OptRc<MinecraftNbt_TagLongArray> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagLongArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for MinecraftNbt_TagLongArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for &MinecraftNbt_TagLongArray {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for OptRc<MinecraftNbt_TagLongArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagLongArray> for &OptRc<MinecraftNbt_TagLongArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagLongArray>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MinecraftNbt_TagLongArray {
     type Root = MinecraftNbt;
@@ -1071,6 +1595,12 @@ impl MinecraftNbt_TagLongArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1082,6 +1612,38 @@ pub struct MinecraftNbt_TagString {
     data: RefCell<String>,
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MinecraftNbt_TagString> for OptRc<MinecraftNbt_TagString> {
+    type Error = KError;
+    fn try_from(v: &MinecraftNbt_TagString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MinecraftNbt_TagString> for OptRc<MinecraftNbt_TagString> {
+    type Error = KError;
+    fn try_from(v: &&MinecraftNbt_TagString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for MinecraftNbt_TagString {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for &MinecraftNbt_TagString {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for OptRc<MinecraftNbt_TagString> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MinecraftNbt_TagString> for &OptRc<MinecraftNbt_TagString> {
+    fn downcast_optrc(&self) -> Result<OptRc<MinecraftNbt_TagString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MinecraftNbt_TagString {
     type Root = MinecraftNbt;
@@ -1124,6 +1686,12 @@ impl MinecraftNbt_TagString {
 impl MinecraftNbt_TagString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MinecraftNbt_TagString {

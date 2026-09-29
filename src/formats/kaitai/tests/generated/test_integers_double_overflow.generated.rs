@@ -85,10 +85,10 @@ fn test_integers_double_overflow() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<IntegersDoubleOverflow> = IntegersDoubleOverflow::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.signed_safe_min_be(), -9007199254740991);
-    assert_eq!(*r.signed_safe_min_le(), -9007199254740991);
-    assert_eq!(*r.signed_safe_max_be(), 9007199254740991);
-    assert_eq!(*r.signed_safe_max_le(), 9007199254740991);
+    assert_eq!(*(r.signed_safe_min_be()), -9007199254740991);
+    assert_eq!(*(r.signed_safe_min_le()), -9007199254740991);
+    assert_eq!(*(r.signed_safe_max_be()), 9007199254740991);
+    assert_eq!(*(r.signed_safe_max_le()), 9007199254740991);
     assert_eq!(r.signed_unsafe_neg_be().to_string(), "-9007199254740993");
     assert_eq!(r.signed_unsafe_neg_le().to_string(), "-9007199254740993");
     assert_eq!(r.signed_unsafe_pos_be().to_string(), "9007199254740993");

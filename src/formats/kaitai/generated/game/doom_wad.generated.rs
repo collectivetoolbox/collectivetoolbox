@@ -18,6 +18,38 @@ pub struct DoomWad {
     f_index: Cell<bool>,
     index: RefCell<Vec<OptRc<DoomWad_IndexEntry>>>,
 }
+impl TryFrom<&DoomWad> for OptRc<DoomWad> {
+    type Error = KError;
+    fn try_from(v: &DoomWad) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad> for OptRc<DoomWad> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad> for DoomWad {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad> for &DoomWad {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad> for OptRc<DoomWad> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad> for &OptRc<DoomWad> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DoomWad {
     type Root = DoomWad;
     type Parent = DoomWad;
@@ -90,6 +122,12 @@ impl DoomWad {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DoomWad {
     pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -108,6 +146,38 @@ pub struct DoomWad_Blockmap {
     num_rows: RefCell<i16>,
     linedefs_in_block: RefCell<Vec<OptRc<DoomWad_Blockmap_Blocklist>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Blockmap> for OptRc<DoomWad_Blockmap> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Blockmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Blockmap> for OptRc<DoomWad_Blockmap> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Blockmap) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for DoomWad_Blockmap {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for &DoomWad_Blockmap {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for OptRc<DoomWad_Blockmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for &OptRc<DoomWad_Blockmap> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Blockmap {
     type Root = DoomWad;
@@ -190,6 +260,12 @@ impl DoomWad_Blockmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -201,6 +277,38 @@ pub struct DoomWad_Blockmap_Blocklist {
     _io: RefCell<BytesReader>,
     f_linedefs: Cell<bool>,
     linedefs: RefCell<Vec<i16>>,
+}
+impl TryFrom<&DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Blockmap_Blocklist) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Blockmap_Blocklist) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for DoomWad_Blockmap_Blocklist {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for &DoomWad_Blockmap_Blocklist {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for OptRc<DoomWad_Blockmap_Blocklist> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap_Blocklist> for &OptRc<DoomWad_Blockmap_Blocklist> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap_Blocklist>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Blockmap_Blocklist {
     type Root = DoomWad;
@@ -268,6 +376,12 @@ impl DoomWad_Blockmap_Blocklist {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -305,6 +419,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Blockmap> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Blockmap> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        OptRc::<DoomWad_Blockmap>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Blockmap> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Blockmap>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DoomWad_Blockmap>> for DoomWad_IndexEntry_Contents {
     fn from(v: OptRc<DoomWad_Blockmap>) -> Self {
         Self::DoomWad_Blockmap(v)
@@ -317,6 +447,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Linedefs> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Linedefs> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        OptRc::<DoomWad_Linedefs>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DoomWad_Linedefs>> for DoomWad_IndexEntry_Contents {
@@ -333,6 +479,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Pnames> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Pnames> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        OptRc::<DoomWad_Pnames>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DoomWad_Pnames>> for DoomWad_IndexEntry_Contents {
     fn from(v: OptRc<DoomWad_Pnames>) -> Self {
         Self::DoomWad_Pnames(v)
@@ -345,6 +507,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sectors> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sectors> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        OptRc::<DoomWad_Sectors>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DoomWad_Sectors>> for DoomWad_IndexEntry_Contents {
@@ -361,6 +539,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sidedefs> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sidedefs> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        OptRc::<DoomWad_Sidedefs>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DoomWad_Sidedefs>> for DoomWad_IndexEntry_Contents {
     fn from(v: OptRc<DoomWad_Sidedefs>) -> Self {
         Self::DoomWad_Sidedefs(v)
@@ -373,6 +567,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Texture12> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Texture12> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        OptRc::<DoomWad_Texture12>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DoomWad_Texture12>> for DoomWad_IndexEntry_Contents {
@@ -389,6 +599,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Things> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Things> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        OptRc::<DoomWad_Things>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<DoomWad_Things>> for DoomWad_IndexEntry_Contents {
     fn from(v: OptRc<DoomWad_Things>) -> Self {
         Self::DoomWad_Things(v)
@@ -401,6 +627,22 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Vertexes> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Vertexes> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        OptRc::<DoomWad_Vertexes>::try_from(self)
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for &DoomWad_IndexEntry_Contents {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<DoomWad_Vertexes>> for DoomWad_IndexEntry_Contents {
@@ -417,9 +659,47 @@ impl TryFrom<&DoomWad_IndexEntry_Contents> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&DoomWad_IndexEntry_Contents> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for DoomWad_IndexEntry_Contents {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&DoomWad_IndexEntry> for OptRc<DoomWad_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_IndexEntry> for OptRc<DoomWad_IndexEntry> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_IndexEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_IndexEntry> for DoomWad_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_IndexEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_IndexEntry> for &DoomWad_IndexEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_IndexEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_IndexEntry> for OptRc<DoomWad_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_IndexEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_IndexEntry> for &OptRc<DoomWad_IndexEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_IndexEntry>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for DoomWad_IndexEntry {
@@ -549,6 +829,12 @@ impl DoomWad_IndexEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DoomWad_IndexEntry {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -574,6 +860,38 @@ pub struct DoomWad_Linedef {
     sidedef_right_idx: RefCell<u16>,
     sidedef_left_idx: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Linedef> for OptRc<DoomWad_Linedef> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Linedef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Linedef> for OptRc<DoomWad_Linedef> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Linedef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedef> for DoomWad_Linedef {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedef>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedef> for &DoomWad_Linedef {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedef>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedef> for OptRc<DoomWad_Linedef> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedef>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Linedef> for &OptRc<DoomWad_Linedef> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedef>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Linedef {
     type Root = DoomWad;
@@ -643,6 +961,12 @@ impl DoomWad_Linedef {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -652,6 +976,38 @@ pub struct DoomWad_Linedefs {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<DoomWad_Linedef>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Linedefs> for OptRc<DoomWad_Linedefs> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Linedefs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Linedefs> for OptRc<DoomWad_Linedefs> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Linedefs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for DoomWad_Linedefs {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for &DoomWad_Linedefs {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for OptRc<DoomWad_Linedefs> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Linedefs> for &OptRc<DoomWad_Linedefs> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Linedefs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Linedefs {
     type Root = DoomWad;
@@ -693,6 +1049,12 @@ impl DoomWad_Linedefs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -708,6 +1070,38 @@ pub struct DoomWad_Pnames {
     names: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
     names_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DoomWad_Pnames> for OptRc<DoomWad_Pnames> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Pnames) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Pnames> for OptRc<DoomWad_Pnames> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Pnames) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for DoomWad_Pnames {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for &DoomWad_Pnames {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for OptRc<DoomWad_Pnames> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Pnames> for &OptRc<DoomWad_Pnames> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Pnames>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Pnames {
     type Root = DoomWad;
@@ -755,6 +1149,12 @@ impl DoomWad_Pnames {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DoomWad_Pnames {
     pub fn names_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -777,6 +1177,38 @@ pub struct DoomWad_Sector {
     _io: RefCell<BytesReader>,
     floor_flat_raw: RefCell<Vec<u8>>,
     ceil_flat_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DoomWad_Sector> for OptRc<DoomWad_Sector> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Sector) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Sector> for OptRc<DoomWad_Sector> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Sector) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sector> for DoomWad_Sector {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sector>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sector> for &DoomWad_Sector {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sector>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sector> for OptRc<DoomWad_Sector> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sector>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Sector> for &OptRc<DoomWad_Sector> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sector>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Sector {
     type Root = DoomWad;
@@ -856,6 +1288,12 @@ impl DoomWad_Sector {
 impl DoomWad_Sector {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl DoomWad_Sector {
@@ -975,6 +1413,38 @@ pub struct DoomWad_Sectors {
     entries: RefCell<Vec<OptRc<DoomWad_Sector>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DoomWad_Sectors> for OptRc<DoomWad_Sectors> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Sectors) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Sectors> for OptRc<DoomWad_Sectors> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Sectors) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for DoomWad_Sectors {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for &DoomWad_Sectors {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for OptRc<DoomWad_Sectors> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Sectors> for &OptRc<DoomWad_Sectors> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sectors>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DoomWad_Sectors {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
@@ -1015,6 +1485,12 @@ impl DoomWad_Sectors {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1032,6 +1508,38 @@ pub struct DoomWad_Sidedef {
     upper_texture_name_raw: RefCell<Vec<u8>>,
     lower_texture_name_raw: RefCell<Vec<u8>>,
     normal_texture_name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DoomWad_Sidedef> for OptRc<DoomWad_Sidedef> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Sidedef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Sidedef> for OptRc<DoomWad_Sidedef> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Sidedef) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedef> for DoomWad_Sidedef {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedef>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedef> for &DoomWad_Sidedef {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedef>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedef> for OptRc<DoomWad_Sidedef> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedef>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedef> for &OptRc<DoomWad_Sidedef> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedef>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Sidedef {
     type Root = DoomWad;
@@ -1095,6 +1603,12 @@ impl DoomWad_Sidedef {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DoomWad_Sidedef {
     pub fn upper_texture_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1119,6 +1633,38 @@ pub struct DoomWad_Sidedefs {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<DoomWad_Sidedef>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Sidedefs> for OptRc<DoomWad_Sidedefs> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Sidedefs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Sidedefs> for OptRc<DoomWad_Sidedefs> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Sidedefs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for DoomWad_Sidedefs {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for &DoomWad_Sidedefs {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for OptRc<DoomWad_Sidedefs> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Sidedefs> for &OptRc<DoomWad_Sidedefs> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Sidedefs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Sidedefs {
     type Root = DoomWad;
@@ -1160,6 +1706,12 @@ impl DoomWad_Sidedefs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1179,6 +1731,38 @@ pub struct DoomWad_Texture12 {
     num_textures: RefCell<i32>,
     textures: RefCell<Vec<OptRc<DoomWad_Texture12_TextureIndex>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Texture12> for OptRc<DoomWad_Texture12> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Texture12) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Texture12> for OptRc<DoomWad_Texture12> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Texture12) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for DoomWad_Texture12 {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for &DoomWad_Texture12 {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for OptRc<DoomWad_Texture12> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12> for &OptRc<DoomWad_Texture12> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Texture12 {
     type Root = DoomWad;
@@ -1227,6 +1811,12 @@ impl DoomWad_Texture12 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1240,6 +1830,38 @@ pub struct DoomWad_Texture12_Patch {
     step_dir: RefCell<u16>,
     colormap: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Texture12_Patch> for OptRc<DoomWad_Texture12_Patch> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Texture12_Patch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Texture12_Patch> for OptRc<DoomWad_Texture12_Patch> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Texture12_Patch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_Patch> for DoomWad_Texture12_Patch {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_Patch>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_Patch> for &DoomWad_Texture12_Patch {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_Patch>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_Patch> for OptRc<DoomWad_Texture12_Patch> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_Patch>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_Patch> for &OptRc<DoomWad_Texture12_Patch> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_Patch>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Texture12_Patch {
     type Root = DoomWad;
@@ -1309,6 +1931,12 @@ impl DoomWad_Texture12_Patch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1325,6 +1953,38 @@ pub struct DoomWad_Texture12_TextureBody {
     patches: RefCell<Vec<OptRc<DoomWad_Texture12_Patch>>>,
     _io: RefCell<BytesReader>,
     name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Texture12_TextureBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Texture12_TextureBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for DoomWad_Texture12_TextureBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for &DoomWad_Texture12_TextureBody {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for OptRc<DoomWad_Texture12_TextureBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureBody> for &OptRc<DoomWad_Texture12_TextureBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureBody>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Texture12_TextureBody {
     type Root = DoomWad;
@@ -1411,6 +2071,12 @@ impl DoomWad_Texture12_TextureBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DoomWad_Texture12_TextureBody {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1427,6 +2093,38 @@ pub struct DoomWad_Texture12_TextureIndex {
     _io: RefCell<BytesReader>,
     f_body: Cell<bool>,
     body: RefCell<OptRc<DoomWad_Texture12_TextureBody>>,
+}
+impl TryFrom<&DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Texture12_TextureIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Texture12_TextureIndex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for DoomWad_Texture12_TextureIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for &DoomWad_Texture12_TextureIndex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for OptRc<DoomWad_Texture12_TextureIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Texture12_TextureIndex> for &OptRc<DoomWad_Texture12_TextureIndex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Texture12_TextureIndex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Texture12_TextureIndex {
     type Root = DoomWad;
@@ -1475,6 +2173,12 @@ impl DoomWad_Texture12_TextureIndex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1488,6 +2192,38 @@ pub struct DoomWad_Thing {
     r#type: RefCell<u16>,
     flags: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Thing> for OptRc<DoomWad_Thing> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Thing) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Thing> for OptRc<DoomWad_Thing> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Thing) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Thing> for DoomWad_Thing {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Thing>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Thing> for &DoomWad_Thing {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Thing>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Thing> for OptRc<DoomWad_Thing> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Thing>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Thing> for &OptRc<DoomWad_Thing> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Thing>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Thing {
     type Root = DoomWad;
@@ -1545,6 +2281,12 @@ impl DoomWad_Thing {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1554,6 +2296,38 @@ pub struct DoomWad_Things {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<DoomWad_Thing>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Things> for OptRc<DoomWad_Things> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Things) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Things> for OptRc<DoomWad_Things> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Things) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for DoomWad_Things {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for &DoomWad_Things {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for OptRc<DoomWad_Things> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Things> for &OptRc<DoomWad_Things> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Things>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Things {
     type Root = DoomWad;
@@ -1595,6 +2369,12 @@ impl DoomWad_Things {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1605,6 +2385,38 @@ pub struct DoomWad_Vertex {
     x: RefCell<i16>,
     y: RefCell<i16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Vertex> for OptRc<DoomWad_Vertex> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Vertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Vertex> for OptRc<DoomWad_Vertex> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Vertex) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertex> for DoomWad_Vertex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertex>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertex> for &DoomWad_Vertex {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertex>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertex> for OptRc<DoomWad_Vertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertex>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Vertex> for &OptRc<DoomWad_Vertex> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertex>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Vertex {
     type Root = DoomWad;
@@ -1644,6 +2456,12 @@ impl DoomWad_Vertex {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1653,6 +2471,38 @@ pub struct DoomWad_Vertexes {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<DoomWad_Vertex>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&DoomWad_Vertexes> for OptRc<DoomWad_Vertexes> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_Vertexes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DoomWad_Vertexes> for OptRc<DoomWad_Vertexes> {
+    type Error = KError;
+    fn try_from(v: &&DoomWad_Vertexes) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for DoomWad_Vertexes {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for &DoomWad_Vertexes {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for OptRc<DoomWad_Vertexes> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DoomWad_Vertexes> for &OptRc<DoomWad_Vertexes> {
+    fn downcast_optrc(&self) -> Result<OptRc<DoomWad_Vertexes>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DoomWad_Vertexes {
     type Root = DoomWad;
@@ -1693,5 +2543,11 @@ impl DoomWad_Vertexes {
 impl DoomWad_Vertexes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

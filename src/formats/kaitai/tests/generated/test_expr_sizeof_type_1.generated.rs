@@ -85,7 +85,7 @@ fn test_expr_sizeof_type_1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprSizeofType1> = ExprSizeofType1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.sizeof_block()?, 11);
-    assert_eq!(*r.sizeof_subblock()?, 4);
+    assert_eq!(*(r.sizeof_block()?), 11);
+    assert_eq!(*(r.sizeof_subblock()?), 4);
     Ok(())
 }

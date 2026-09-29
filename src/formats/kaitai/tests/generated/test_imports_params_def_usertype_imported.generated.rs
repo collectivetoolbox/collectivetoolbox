@@ -85,7 +85,7 @@ fn test_imports_params_def_usertype_imported() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ImportsParamsDefUsertypeImported> = ImportsParamsDefUsertypeImported::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.hw().one(), 236);
-    assert_eq!(*r.two().hw_one(), 236);
+    assert_eq!(*(r.hw().one()), 236);
+    assert_eq!(*(r.two().hw_one()?), 236);
     Ok(())
 }

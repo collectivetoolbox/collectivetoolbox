@@ -67,6 +67,38 @@ pub struct ExprIoPos {
     substream1_raw: RefCell<Vec<u8>>,
     substream2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ExprIoPos> for OptRc<ExprIoPos> {
+    type Error = KError;
+    fn try_from(v: &ExprIoPos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoPos> for OptRc<ExprIoPos> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoPos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos> for ExprIoPos {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos> for &ExprIoPos {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos> for OptRc<ExprIoPos> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoPos> for &OptRc<ExprIoPos> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIoPos {
     type Root = ExprIoPos;
     type Parent = ExprIoPos;
@@ -113,6 +145,12 @@ impl ExprIoPos {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ExprIoPos {
     pub fn substream1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -135,6 +173,38 @@ pub struct ExprIoPos_AllPlusNumber {
     number: RefCell<u16>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ExprIoPos_AllPlusNumber> for OptRc<ExprIoPos_AllPlusNumber> {
+    type Error = KError;
+    fn try_from(v: &ExprIoPos_AllPlusNumber) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIoPos_AllPlusNumber> for OptRc<ExprIoPos_AllPlusNumber> {
+    type Error = KError;
+    fn try_from(v: &&ExprIoPos_AllPlusNumber) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos_AllPlusNumber> for ExprIoPos_AllPlusNumber {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos_AllPlusNumber>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos_AllPlusNumber> for &ExprIoPos_AllPlusNumber {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos_AllPlusNumber>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIoPos_AllPlusNumber> for OptRc<ExprIoPos_AllPlusNumber> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos_AllPlusNumber>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIoPos_AllPlusNumber> for &OptRc<ExprIoPos_AllPlusNumber> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIoPos_AllPlusNumber>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprIoPos_AllPlusNumber {
     type Root = ExprIoPos;
@@ -179,6 +249,12 @@ impl ExprIoPos_AllPlusNumber {
 impl ExprIoPos_AllPlusNumber {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprIoPos_AllPlusNumber {

@@ -42,6 +42,38 @@ pub struct PythonPickle {
     ops: RefCell<Vec<OptRc<PythonPickle_Op>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&PythonPickle> for OptRc<PythonPickle> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle> for OptRc<PythonPickle> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle> for PythonPickle {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle> for &PythonPickle {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle> for OptRc<PythonPickle> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle> for &OptRc<PythonPickle> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPickle {
     type Root = PythonPickle;
     type Parent = PythonPickle;
@@ -84,6 +116,12 @@ impl PythonPickle {
 impl PythonPickle {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -608,6 +646,38 @@ pub struct PythonPickle_Bytearray8 {
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&PythonPickle_Bytearray8> for OptRc<PythonPickle_Bytearray8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Bytearray8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Bytearray8> for OptRc<PythonPickle_Bytearray8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Bytearray8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for PythonPickle_Bytearray8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for &PythonPickle_Bytearray8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for OptRc<PythonPickle_Bytearray8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for &OptRc<PythonPickle_Bytearray8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for PythonPickle_Bytearray8 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
@@ -646,6 +716,12 @@ impl PythonPickle_Bytearray8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Bytearray8 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -666,6 +742,38 @@ pub struct PythonPickle_Bytes1 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Bytes1> for OptRc<PythonPickle_Bytes1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Bytes1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Bytes1> for OptRc<PythonPickle_Bytes1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Bytes1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for PythonPickle_Bytes1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for &PythonPickle_Bytes1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for OptRc<PythonPickle_Bytes1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for &OptRc<PythonPickle_Bytes1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Bytes1 {
     type Root = PythonPickle;
@@ -705,6 +813,12 @@ impl PythonPickle_Bytes1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Bytes1 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -725,6 +839,38 @@ pub struct PythonPickle_Bytes4 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Bytes4> for OptRc<PythonPickle_Bytes4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Bytes4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Bytes4> for OptRc<PythonPickle_Bytes4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Bytes4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for PythonPickle_Bytes4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for &PythonPickle_Bytes4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for OptRc<PythonPickle_Bytes4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for &OptRc<PythonPickle_Bytes4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Bytes4 {
     type Root = PythonPickle;
@@ -764,6 +910,12 @@ impl PythonPickle_Bytes4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Bytes4 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -789,6 +941,38 @@ pub struct PythonPickle_Bytes8 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Bytes8> for OptRc<PythonPickle_Bytes8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Bytes8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Bytes8> for OptRc<PythonPickle_Bytes8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Bytes8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for PythonPickle_Bytes8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for &PythonPickle_Bytes8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for OptRc<PythonPickle_Bytes8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for &OptRc<PythonPickle_Bytes8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Bytes8 {
     type Root = PythonPickle;
@@ -828,6 +1012,12 @@ impl PythonPickle_Bytes8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Bytes8 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -846,6 +1036,38 @@ pub struct PythonPickle_DecimalnlLong {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_DecimalnlLong> for OptRc<PythonPickle_DecimalnlLong> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_DecimalnlLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_DecimalnlLong> for OptRc<PythonPickle_DecimalnlLong> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_DecimalnlLong) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for PythonPickle_DecimalnlLong {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for &PythonPickle_DecimalnlLong {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for OptRc<PythonPickle_DecimalnlLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for &OptRc<PythonPickle_DecimalnlLong> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_DecimalnlLong {
     type Root = PythonPickle;
@@ -879,6 +1101,12 @@ impl PythonPickle_DecimalnlLong {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -895,6 +1123,38 @@ pub struct PythonPickle_DecimalnlShort {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_DecimalnlShort> for OptRc<PythonPickle_DecimalnlShort> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_DecimalnlShort) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_DecimalnlShort> for OptRc<PythonPickle_DecimalnlShort> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_DecimalnlShort) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for PythonPickle_DecimalnlShort {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for &PythonPickle_DecimalnlShort {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for OptRc<PythonPickle_DecimalnlShort> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for &OptRc<PythonPickle_DecimalnlShort> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_DecimalnlShort {
     type Root = PythonPickle;
@@ -928,6 +1188,12 @@ impl PythonPickle_DecimalnlShort {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -942,6 +1208,38 @@ pub struct PythonPickle_Floatnl {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_Floatnl> for OptRc<PythonPickle_Floatnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Floatnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Floatnl> for OptRc<PythonPickle_Floatnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Floatnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for PythonPickle_Floatnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for &PythonPickle_Floatnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for OptRc<PythonPickle_Floatnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for &OptRc<PythonPickle_Floatnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Floatnl {
     type Root = PythonPickle;
@@ -975,6 +1273,12 @@ impl PythonPickle_Floatnl {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -991,6 +1295,38 @@ pub struct PythonPickle_Long1 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Long1> for OptRc<PythonPickle_Long1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Long1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Long1> for OptRc<PythonPickle_Long1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Long1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for PythonPickle_Long1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for &PythonPickle_Long1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for OptRc<PythonPickle_Long1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for &OptRc<PythonPickle_Long1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Long1 {
     type Root = PythonPickle;
@@ -1030,6 +1366,12 @@ impl PythonPickle_Long1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Long1 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1051,6 +1393,38 @@ pub struct PythonPickle_Long4 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Long4> for OptRc<PythonPickle_Long4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Long4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Long4> for OptRc<PythonPickle_Long4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Long4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for PythonPickle_Long4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for &PythonPickle_Long4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for OptRc<PythonPickle_Long4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for &OptRc<PythonPickle_Long4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Long4 {
     type Root = PythonPickle;
@@ -1090,6 +1464,12 @@ impl PythonPickle_Long4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Long4 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1107,6 +1487,38 @@ pub struct PythonPickle_NoArg {
     pub(crate) _parent: SharedType<PythonPickle_Op>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_NoArg> for OptRc<PythonPickle_NoArg> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_NoArg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_NoArg> for OptRc<PythonPickle_NoArg> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_NoArg) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for PythonPickle_NoArg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for &PythonPickle_NoArg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for OptRc<PythonPickle_NoArg> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for &OptRc<PythonPickle_NoArg> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_NoArg {
     type Root = PythonPickle;
@@ -1133,6 +1545,12 @@ impl PythonPickle_NoArg {
 impl PythonPickle_NoArg {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -1182,6 +1600,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_NoArg> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_NoArg> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        OptRc::<PythonPickle_NoArg>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_NoArg> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_NoArg>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_NoArg>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_NoArg>) -> Self {
         Self::PythonPickle_NoArg(v)
@@ -1194,6 +1628,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes4> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        OptRc::<PythonPickle_Bytes4>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes4> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes4>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_Bytes4>> for PythonPickle_Op_Arg {
@@ -1210,6 +1660,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        OptRc::<PythonPickle_Bytes8>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes8> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes8>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Bytes8>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Bytes8>) -> Self {
         Self::PythonPickle_Bytes8(v)
@@ -1222,6 +1688,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for f64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for f64 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<f64> for PythonPickle_Op_Arg {
@@ -1238,6 +1710,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for u8 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for u8 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<u8> for PythonPickle_Op_Arg {
     fn from(v: u8) -> Self {
         Self::U1(v)
@@ -1250,6 +1728,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for i32 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for i32 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<i32> for PythonPickle_Op_Arg {
@@ -1266,6 +1750,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for u16 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for u16 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<u16> for PythonPickle_Op_Arg {
     fn from(v: u16) -> Self {
         Self::U2(v)
@@ -1278,6 +1768,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String4> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_String4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        OptRc::<PythonPickle_String4>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_String4>> for PythonPickle_Op_Arg {
@@ -1294,6 +1800,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring4> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        OptRc::<PythonPickle_Unicodestring4>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Unicodestring4>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Unicodestring4>) -> Self {
         Self::PythonPickle_Unicodestring4(v)
@@ -1306,6 +1828,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring8> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        OptRc::<PythonPickle_Unicodestring8>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_Unicodestring8>> for PythonPickle_Op_Arg {
@@ -1322,6 +1860,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytearray8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytearray8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        OptRc::<PythonPickle_Bytearray8>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytearray8> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytearray8>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Bytearray8>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Bytearray8>) -> Self {
         Self::PythonPickle_Bytearray8(v)
@@ -1334,6 +1888,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for u32 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for u32 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<u32> for PythonPickle_Op_Arg {
@@ -1350,6 +1910,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Floatnl> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Floatnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        OptRc::<PythonPickle_Floatnl>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Floatnl> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Floatnl>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Floatnl>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Floatnl>) -> Self {
         Self::PythonPickle_Floatnl(v)
@@ -1362,6 +1938,12 @@ impl TryFrom<&PythonPickle_Op_Arg> for u64 {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for u64 {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
     }
 }
 impl From<u64> for PythonPickle_Op_Arg {
@@ -1378,6 +1960,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlShort> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlShort> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        OptRc::<PythonPickle_DecimalnlShort>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlShort> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlShort>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_DecimalnlShort>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_DecimalnlShort>) -> Self {
         Self::PythonPickle_DecimalnlShort(v)
@@ -1390,6 +1988,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescapePair> 
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescapePair> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        OptRc::<PythonPickle_StringnlNoescapePair>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_StringnlNoescapePair>> for PythonPickle_Op_Arg {
@@ -1406,6 +2020,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlLong> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlLong> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        OptRc::<PythonPickle_DecimalnlLong>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_DecimalnlLong> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_DecimalnlLong>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_DecimalnlLong>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_DecimalnlLong>) -> Self {
         Self::PythonPickle_DecimalnlLong(v)
@@ -1418,6 +2048,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long1> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        OptRc::<PythonPickle_Long1>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Long1> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long1>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_Long1>> for PythonPickle_Op_Arg {
@@ -1434,6 +2080,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long4> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        OptRc::<PythonPickle_Long4>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Long4> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Long4>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Long4>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Long4>) -> Self {
         Self::PythonPickle_Long4(v)
@@ -1446,6 +2108,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescape> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescape> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        OptRc::<PythonPickle_StringnlNoescape>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_StringnlNoescape>> for PythonPickle_Op_Arg {
@@ -1462,6 +2140,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes1> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        OptRc::<PythonPickle_Bytes1>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Bytes1> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Bytes1>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Bytes1>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Bytes1>) -> Self {
         Self::PythonPickle_Bytes1(v)
@@ -1474,6 +2168,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String1> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_String1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        OptRc::<PythonPickle_String1>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_String1>> for PythonPickle_Op_Arg {
@@ -1490,6 +2200,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring1> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        OptRc::<PythonPickle_Unicodestring1>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Unicodestring1>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Unicodestring1>) -> Self {
         Self::PythonPickle_Unicodestring1(v)
@@ -1502,6 +2228,22 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Stringnl> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Stringnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        OptRc::<PythonPickle_Stringnl>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<PythonPickle_Stringnl>> for PythonPickle_Op_Arg {
@@ -1518,9 +2260,57 @@ impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestringnl> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestringnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        OptRc::<PythonPickle_Unicodestringnl>::try_from(self)
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for &PythonPickle_Op_Arg {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<PythonPickle_Unicodestringnl>> for PythonPickle_Op_Arg {
     fn from(v: OptRc<PythonPickle_Unicodestringnl>) -> Self {
         Self::PythonPickle_Unicodestringnl(v)
+    }
+}
+impl TryFrom<&PythonPickle_Op> for OptRc<PythonPickle_Op> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Op> for OptRc<PythonPickle_Op> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Op) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Op> for PythonPickle_Op {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Op>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Op> for &PythonPickle_Op {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Op>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Op> for OptRc<PythonPickle_Op> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Op>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Op> for &OptRc<PythonPickle_Op> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Op>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for PythonPickle_Op {
@@ -1833,6 +2623,12 @@ impl PythonPickle_Op {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1861,6 +2657,38 @@ pub struct PythonPickle_String1 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_String1> for OptRc<PythonPickle_String1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_String1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_String1> for OptRc<PythonPickle_String1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_String1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for PythonPickle_String1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for &PythonPickle_String1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for OptRc<PythonPickle_String1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_String1> for &OptRc<PythonPickle_String1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_String1 {
     type Root = PythonPickle;
@@ -1900,6 +2728,12 @@ impl PythonPickle_String1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_String1 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1927,6 +2761,38 @@ pub struct PythonPickle_String4 {
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_String4> for OptRc<PythonPickle_String4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_String4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_String4> for OptRc<PythonPickle_String4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_String4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for PythonPickle_String4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for &PythonPickle_String4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for OptRc<PythonPickle_String4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_String4> for &OptRc<PythonPickle_String4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_String4>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_String4 {
     type Root = PythonPickle;
@@ -1966,6 +2832,12 @@ impl PythonPickle_String4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_String4 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1984,6 +2856,38 @@ pub struct PythonPickle_Stringnl {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_Stringnl> for OptRc<PythonPickle_Stringnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Stringnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Stringnl> for OptRc<PythonPickle_Stringnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Stringnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for PythonPickle_Stringnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for &PythonPickle_Stringnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for OptRc<PythonPickle_Stringnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Stringnl> for &OptRc<PythonPickle_Stringnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Stringnl>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Stringnl {
     type Root = PythonPickle;
@@ -2017,6 +2921,12 @@ impl PythonPickle_Stringnl {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2030,6 +2940,38 @@ pub struct PythonPickle_StringnlNoescape {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_StringnlNoescape> for OptRc<PythonPickle_StringnlNoescape> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_StringnlNoescape) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_StringnlNoescape> for OptRc<PythonPickle_StringnlNoescape> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_StringnlNoescape) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for PythonPickle_StringnlNoescape {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for &PythonPickle_StringnlNoescape {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for OptRc<PythonPickle_StringnlNoescape> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescape> for &OptRc<PythonPickle_StringnlNoescape> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescape>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_StringnlNoescape {
     type Root = PythonPickle;
@@ -2063,6 +3005,12 @@ impl PythonPickle_StringnlNoescape {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2077,6 +3025,38 @@ pub struct PythonPickle_StringnlNoescapePair {
     val1: RefCell<OptRc<PythonPickle_StringnlNoescape>>,
     val2: RefCell<OptRc<PythonPickle_StringnlNoescape>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_StringnlNoescapePair> for OptRc<PythonPickle_StringnlNoescapePair> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_StringnlNoescapePair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_StringnlNoescapePair> for OptRc<PythonPickle_StringnlNoescapePair> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_StringnlNoescapePair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for PythonPickle_StringnlNoescapePair {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for &PythonPickle_StringnlNoescapePair {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for OptRc<PythonPickle_StringnlNoescapePair> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_StringnlNoescapePair> for &OptRc<PythonPickle_StringnlNoescapePair> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_StringnlNoescapePair>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_StringnlNoescapePair {
     type Root = PythonPickle;
@@ -2118,6 +3098,12 @@ impl PythonPickle_StringnlNoescapePair {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2133,6 +3119,38 @@ pub struct PythonPickle_Unicodestring1 {
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Unicodestring1> for OptRc<PythonPickle_Unicodestring1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Unicodestring1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Unicodestring1> for OptRc<PythonPickle_Unicodestring1> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Unicodestring1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for PythonPickle_Unicodestring1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for &PythonPickle_Unicodestring1 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for OptRc<PythonPickle_Unicodestring1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring1> for &OptRc<PythonPickle_Unicodestring1> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Unicodestring1 {
     type Root = PythonPickle;
@@ -2172,6 +3190,12 @@ impl PythonPickle_Unicodestring1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Unicodestring1 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2192,6 +3216,38 @@ pub struct PythonPickle_Unicodestring4 {
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Unicodestring4> for OptRc<PythonPickle_Unicodestring4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Unicodestring4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Unicodestring4> for OptRc<PythonPickle_Unicodestring4> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Unicodestring4) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for PythonPickle_Unicodestring4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for &PythonPickle_Unicodestring4 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for OptRc<PythonPickle_Unicodestring4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring4> for &OptRc<PythonPickle_Unicodestring4> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring4>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Unicodestring4 {
     type Root = PythonPickle;
@@ -2231,6 +3287,12 @@ impl PythonPickle_Unicodestring4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Unicodestring4 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2256,6 +3318,38 @@ pub struct PythonPickle_Unicodestring8 {
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
     val_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&PythonPickle_Unicodestring8> for OptRc<PythonPickle_Unicodestring8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Unicodestring8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Unicodestring8> for OptRc<PythonPickle_Unicodestring8> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Unicodestring8) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for PythonPickle_Unicodestring8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for &PythonPickle_Unicodestring8 {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for OptRc<PythonPickle_Unicodestring8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestring8> for &OptRc<PythonPickle_Unicodestring8> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestring8>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Unicodestring8 {
     type Root = PythonPickle;
@@ -2295,6 +3389,12 @@ impl PythonPickle_Unicodestring8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl PythonPickle_Unicodestring8 {
     pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2313,6 +3413,38 @@ pub struct PythonPickle_Unicodestringnl {
     pub(crate) _self_shared: SharedType<Self>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&PythonPickle_Unicodestringnl> for OptRc<PythonPickle_Unicodestringnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Unicodestringnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&PythonPickle_Unicodestringnl> for OptRc<PythonPickle_Unicodestringnl> {
+    type Error = KError;
+    fn try_from(v: &&PythonPickle_Unicodestringnl) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for PythonPickle_Unicodestringnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for &PythonPickle_Unicodestringnl {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for OptRc<PythonPickle_Unicodestringnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<PythonPickle_Unicodestringnl> for &OptRc<PythonPickle_Unicodestringnl> {
+    fn downcast_optrc(&self) -> Result<OptRc<PythonPickle_Unicodestringnl>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for PythonPickle_Unicodestringnl {
     type Root = PythonPickle;
@@ -2345,5 +3477,11 @@ impl PythonPickle_Unicodestringnl {
 impl PythonPickle_Unicodestringnl {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

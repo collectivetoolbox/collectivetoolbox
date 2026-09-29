@@ -21,6 +21,38 @@ pub struct SomeIpSdOptions {
     entries: RefCell<Vec<OptRc<SomeIpSdOptions_SdOption>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SomeIpSdOptions> for OptRc<SomeIpSdOptions> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions> for OptRc<SomeIpSdOptions> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions> for SomeIpSdOptions {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions> for &SomeIpSdOptions {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions> for OptRc<SomeIpSdOptions> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions> for &OptRc<SomeIpSdOptions> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SomeIpSdOptions {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions;
@@ -61,6 +93,12 @@ impl SomeIpSdOptions {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -92,6 +130,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdConfigurationOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>> for SomeIpSdOptions_SdOption_Content {
     fn from(v: OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>) -> Self {
         Self::SomeIpSdOptions_SdOption_SdConfigurationOption(v)
@@ -104,6 +158,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>> for SomeIpSdOptions_SdOption_Content {
@@ -120,6 +190,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>> for SomeIpSdOptions_SdOption_Content {
     fn from(v: OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>) -> Self {
         Self::SomeIpSdOptions_SdOption_SdIpv4MulticastOption(v)
@@ -132,6 +218,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>> for SomeIpSdOptions_SdOption_Content {
@@ -148,6 +250,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>> for SomeIpSdOptions_SdOption_Content {
     fn from(v: OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>) -> Self {
         Self::SomeIpSdOptions_SdOption_SdIpv6EndpointOption(v)
@@ -160,6 +278,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>> for SomeIpSdOptions_SdOption_Content {
@@ -176,6 +310,22 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>> for SomeIpSdOptions_SdOption_Content {
     fn from(v: OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>) -> Self {
         Self::SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption(v)
@@ -190,9 +340,57 @@ impl TryFrom<&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOpti
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SomeIpSdOptions_SdOption_Content> for OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        OptRc::<SomeIpSdOptions_SdOption_SdLoadBalancingOption>::try_from(self)
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for &SomeIpSdOptions_SdOption_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>> for SomeIpSdOptions_SdOption_Content {
     fn from(v: OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>) -> Self {
         Self::SomeIpSdOptions_SdOption_SdLoadBalancingOption(v)
+    }
+}
+impl TryFrom<&SomeIpSdOptions_SdOption> for OptRc<SomeIpSdOptions_SdOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption> for OptRc<SomeIpSdOptions_SdOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption> for SomeIpSdOptions_SdOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption> for &SomeIpSdOptions_SdOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption> for OptRc<SomeIpSdOptions_SdOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption> for &OptRc<SomeIpSdOptions_SdOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SomeIpSdOptions_SdOption {
@@ -268,6 +466,12 @@ impl SomeIpSdOptions_SdOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SomeIpSdOptions_SdOption_OptionTypes {
@@ -329,6 +533,38 @@ pub struct SomeIpSdOptions_SdOption_SdConfigKvPair {
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SomeIpSdOptions_SdOption_SdConfigKvPair> for OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdConfigKvPair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdConfigKvPair> for OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdConfigKvPair) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> for SomeIpSdOptions_SdOption_SdConfigKvPair {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> for &SomeIpSdOptions_SdOption_SdConfigKvPair {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> for OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> for &OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SomeIpSdOptions_SdOption_SdConfigKvPair {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption_SdConfigString;
@@ -367,6 +603,12 @@ impl SomeIpSdOptions_SdOption_SdConfigKvPair {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -378,6 +620,38 @@ pub struct SomeIpSdOptions_SdOption_SdConfigString {
     config: RefCell<OptRc<SomeIpSdOptions_SdOption_SdConfigKvPair>>,
     _io: RefCell<BytesReader>,
     config_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdConfigString> for OptRc<SomeIpSdOptions_SdOption_SdConfigString> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdConfigString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdConfigString> for OptRc<SomeIpSdOptions_SdOption_SdConfigString> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdConfigString) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigString> for SomeIpSdOptions_SdOption_SdConfigString {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigString>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigString> for &SomeIpSdOptions_SdOption_SdConfigString {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigString>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigString> for OptRc<SomeIpSdOptions_SdOption_SdConfigString> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigString>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigString> for &OptRc<SomeIpSdOptions_SdOption_SdConfigString> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigString>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdConfigString {
     type Root = SomeIpSdOptions;
@@ -423,6 +697,12 @@ impl SomeIpSdOptions_SdOption_SdConfigString {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdConfigString {
     pub fn config_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -437,6 +717,38 @@ pub struct SomeIpSdOptions_SdOption_SdConfigStringsContainer {
     pub(crate) _self_shared: SharedType<Self>,
     config_strings: RefCell<Vec<OptRc<SomeIpSdOptions_SdOption_SdConfigString>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdConfigStringsContainer> for OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdConfigStringsContainer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdConfigStringsContainer> for OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdConfigStringsContainer) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> for SomeIpSdOptions_SdOption_SdConfigStringsContainer {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> for &SomeIpSdOptions_SdOption_SdConfigStringsContainer {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> for OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> for &OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdConfigStringsContainer {
     type Root = SomeIpSdOptions;
@@ -478,6 +790,12 @@ impl SomeIpSdOptions_SdOption_SdConfigStringsContainer {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -489,6 +807,38 @@ pub struct SomeIpSdOptions_SdOption_SdConfigurationOption {
     configurations: RefCell<OptRc<SomeIpSdOptions_SdOption_SdConfigStringsContainer>>,
     _io: RefCell<BytesReader>,
     configurations_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdConfigurationOption> for OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdConfigurationOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdConfigurationOption> for OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdConfigurationOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for SomeIpSdOptions_SdOption_SdConfigurationOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for &SomeIpSdOptions_SdOption_SdConfigurationOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> for &OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdConfigurationOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdConfigurationOption {
     type Root = SomeIpSdOptions;
@@ -532,6 +882,12 @@ impl SomeIpSdOptions_SdOption_SdConfigurationOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdConfigurationOption {
     pub fn configurations_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -551,6 +907,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv4EndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv4EndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for &SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4EndpointOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
     type Root = SomeIpSdOptions;
@@ -608,6 +996,12 @@ impl SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -627,6 +1021,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv4MulticastOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv4MulticastOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for &SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4MulticastOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
     type Root = SomeIpSdOptions;
@@ -684,6 +1110,12 @@ impl SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -703,6 +1135,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for &SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
     type Root = SomeIpSdOptions;
@@ -760,6 +1224,12 @@ impl SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -779,6 +1249,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv6EndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv6EndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for &SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6EndpointOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
     type Root = SomeIpSdOptions;
@@ -836,6 +1338,12 @@ impl SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -855,6 +1363,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv6MulticastOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv6MulticastOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for &SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6MulticastOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
     type Root = SomeIpSdOptions;
@@ -912,6 +1452,12 @@ impl SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -931,6 +1477,38 @@ pub struct SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
     port: RefCell<u16>,
     _io: RefCell<BytesReader>,
     address_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for &SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> for &OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
     type Root = SomeIpSdOptions;
@@ -988,6 +1566,12 @@ impl SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
     pub fn address_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1004,6 +1588,38 @@ pub struct SomeIpSdOptions_SdOption_SdLoadBalancingOption {
     priority: RefCell<u16>,
     weight: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdLoadBalancingOption> for OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdLoadBalancingOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdLoadBalancingOption> for OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdLoadBalancingOption) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for SomeIpSdOptions_SdOption_SdLoadBalancingOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for &SomeIpSdOptions_SdOption_SdLoadBalancingOption {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> for &OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdLoadBalancingOption>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdLoadBalancingOption {
     type Root = SomeIpSdOptions;
@@ -1049,6 +1665,12 @@ impl SomeIpSdOptions_SdOption_SdLoadBalancingOption {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1059,6 +1681,38 @@ pub struct SomeIpSdOptions_SdOption_SdOptionHeader {
     length: RefCell<u16>,
     r#type: RefCell<SomeIpSdOptions_SdOption_OptionTypes>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SomeIpSdOptions_SdOption_SdOptionHeader> for OptRc<SomeIpSdOptions_SdOption_SdOptionHeader> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdOptions_SdOption_SdOptionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSdOptions_SdOption_SdOptionHeader> for OptRc<SomeIpSdOptions_SdOption_SdOptionHeader> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSdOptions_SdOption_SdOptionHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdOptionHeader> for SomeIpSdOptions_SdOption_SdOptionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdOptionHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdOptionHeader> for &SomeIpSdOptions_SdOption_SdOptionHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdOptionHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdOptionHeader> for OptRc<SomeIpSdOptions_SdOption_SdOptionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdOptionHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSdOptions_SdOption_SdOptionHeader> for &OptRc<SomeIpSdOptions_SdOption_SdOptionHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSdOptions_SdOption_SdOptionHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSdOptions_SdOption_SdOptionHeader {
     type Root = SomeIpSdOptions;
@@ -1097,5 +1751,11 @@ impl SomeIpSdOptions_SdOption_SdOptionHeader {
 impl SomeIpSdOptions_SdOption_SdOptionHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

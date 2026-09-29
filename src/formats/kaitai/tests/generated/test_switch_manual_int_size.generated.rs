@@ -86,14 +86,14 @@ fn test_switch_manual_int_size() -> KResult<()> {
     let r: OptRc<SwitchManualIntSize> = SwitchManualIntSize::read_into(&_io, None, None)?;
 
     assert_eq!(r.chunks().len(), 4);
-    assert_eq!(*r.chunks()[0].code(), 17);
-    assert_eq!(*r.chunks()[0].body().as_ref().context("Missing optional field")?.title(), "Stuff");
-    assert_eq!(*r.chunks()[0].body().as_ref().context("Missing optional field")?.author(), "Me");
-    assert_eq!(*r.chunks()[1].code(), 34);
-    assert_eq!(*r.chunks()[1].body().as_ref().context("Missing optional field")?.entries(), vec!["AAAA", "BBBB", "CCCC"]);
-    assert_eq!(*r.chunks()[2].code(), 51);
-    assert_eq!(*r.chunks()[2].body().as_ref().context("Missing optional field")?, vec![0x10u8, 0x20u8, 0x30u8, 0x40u8, 0x50u8, 0x60u8, 0x70u8, 0x80u8]);
-    assert_eq!(*r.chunks()[3].code(), 255);
-    assert_eq!(*r.chunks()[3].body().as_ref().context("Missing optional field")?, Vec::<u8>::new());
+    assert_eq!(*(r.chunks()[0].code()), 17);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualIntSize_Chunk_ChunkMeta>::downcast_optrc(&r.chunks()[0].body())?.title()), "Stuff");
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualIntSize_Chunk_ChunkMeta>::downcast_optrc(&r.chunks()[0].body())?.author()), "Me");
+    assert_eq!(*(r.chunks()[1].code()), 34);
+    assert_eq!(*(kaitai::DowncastOptRc::<SwitchManualIntSize_Chunk_ChunkDir>::downcast_optrc(&r.chunks()[1].body())?.entries()), vec!["AAAA", "BBBB", "CCCC"]);
+    assert_eq!(*(r.chunks()[2].code()), 51);
+    assert_eq!(Vec::<u8>::try_from(&*r.chunks()[2].body().as_ref().ok_or(KError::CastError)?)?, vec![0x10u8, 0x20u8, 0x30u8, 0x40u8, 0x50u8, 0x60u8, 0x70u8, 0x80u8]);
+    assert_eq!(*(r.chunks()[3].code()), 255);
+    assert_eq!(Vec::<u8>::try_from(&*r.chunks()[3].body().as_ref().ok_or(KError::CastError)?)?, Vec::<u8>::new());
     Ok(())
 }

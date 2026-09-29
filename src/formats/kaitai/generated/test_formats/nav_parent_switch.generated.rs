@@ -78,9 +78,57 @@ impl TryFrom<&NavParentSwitch_Content> for OptRc<NavParentSwitch_Element1> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&NavParentSwitch_Content> for OptRc<NavParentSwitch_Element1> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitch_Content) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for NavParentSwitch_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        OptRc::<NavParentSwitch_Element1>::try_from(self)
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for &NavParentSwitch_Content {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<NavParentSwitch_Element1>> for NavParentSwitch_Content {
     fn from(v: OptRc<NavParentSwitch_Element1>) -> Self {
         Self::NavParentSwitch_Element1(v)
+    }
+}
+impl TryFrom<&NavParentSwitch> for OptRc<NavParentSwitch> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitch> for OptRc<NavParentSwitch> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitch) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch> for NavParentSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch> for &NavParentSwitch {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch> for OptRc<NavParentSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitch> for &OptRc<NavParentSwitch> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for NavParentSwitch {
@@ -127,6 +175,12 @@ impl NavParentSwitch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -137,6 +191,38 @@ pub struct NavParentSwitch_Element1 {
     foo: RefCell<u8>,
     subelement: RefCell<OptRc<NavParentSwitch_Subelement1>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentSwitch_Element1> for OptRc<NavParentSwitch_Element1> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitch_Element1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitch_Element1> for OptRc<NavParentSwitch_Element1> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitch_Element1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for NavParentSwitch_Element1 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for &NavParentSwitch_Element1 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for OptRc<NavParentSwitch_Element1> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Element1> for &OptRc<NavParentSwitch_Element1> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Element1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentSwitch_Element1 {
     type Root = NavParentSwitch;
@@ -177,6 +263,12 @@ impl NavParentSwitch_Element1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -186,6 +278,38 @@ pub struct NavParentSwitch_Subelement1 {
     pub(crate) _self_shared: SharedType<Self>,
     bar: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentSwitch_Subelement1> for OptRc<NavParentSwitch_Subelement1> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitch_Subelement1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitch_Subelement1> for OptRc<NavParentSwitch_Subelement1> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitch_Subelement1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Subelement1> for NavParentSwitch_Subelement1 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Subelement1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Subelement1> for &NavParentSwitch_Subelement1 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Subelement1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Subelement1> for OptRc<NavParentSwitch_Subelement1> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Subelement1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitch_Subelement1> for &OptRc<NavParentSwitch_Subelement1> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitch_Subelement1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentSwitch_Subelement1 {
     type Root = NavParentSwitch;
@@ -220,5 +344,11 @@ impl NavParentSwitch_Subelement1 {
 impl NavParentSwitch_Subelement1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -41,6 +41,38 @@ pub struct AppleSingleDouble {
     _io: RefCell<BytesReader>,
     reserved_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AppleSingleDouble> for OptRc<AppleSingleDouble> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AppleSingleDouble> for OptRc<AppleSingleDouble> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble> for AppleSingleDouble {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble> for &AppleSingleDouble {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble> for OptRc<AppleSingleDouble> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AppleSingleDouble> for &OptRc<AppleSingleDouble> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AppleSingleDouble {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
@@ -105,6 +137,12 @@ impl AppleSingleDouble {
 impl AppleSingleDouble {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AppleSingleDouble {
@@ -172,6 +210,22 @@ impl TryFrom<&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderIn
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for AppleSingleDouble_Entry_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        OptRc::<AppleSingleDouble_FinderInfo>::try_from(self)
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &AppleSingleDouble_Entry_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<AppleSingleDouble_FinderInfo>> for AppleSingleDouble_Entry_Body {
     fn from(v: OptRc<AppleSingleDouble_FinderInfo>) -> Self {
         Self::AppleSingleDouble_FinderInfo(v)
@@ -186,9 +240,47 @@ impl TryFrom<&AppleSingleDouble_Entry_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AppleSingleDouble_Entry_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for AppleSingleDouble_Entry_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&AppleSingleDouble_Entry> for OptRc<AppleSingleDouble_Entry> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AppleSingleDouble_Entry> for OptRc<AppleSingleDouble_Entry> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Entry> for AppleSingleDouble_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Entry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Entry> for &AppleSingleDouble_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Entry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Entry> for OptRc<AppleSingleDouble_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Entry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Entry> for &OptRc<AppleSingleDouble_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Entry>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for AppleSingleDouble_Entry {
@@ -260,6 +352,12 @@ impl AppleSingleDouble_Entry {
 impl AppleSingleDouble_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AppleSingleDouble_Entry {
@@ -363,6 +461,38 @@ pub struct AppleSingleDouble_FinderInfo {
     file_type_raw: RefCell<Vec<u8>>,
     file_creator_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble_FinderInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble_FinderInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for AppleSingleDouble_FinderInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &AppleSingleDouble_FinderInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for OptRc<AppleSingleDouble_FinderInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_FinderInfo> for &OptRc<AppleSingleDouble_FinderInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_FinderInfo>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AppleSingleDouble_FinderInfo {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_Entry;
@@ -428,6 +558,12 @@ impl AppleSingleDouble_FinderInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AppleSingleDouble_FinderInfo {
     pub fn file_type_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -452,6 +588,38 @@ pub struct AppleSingleDouble_Point {
     x: RefCell<u16>,
     y: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AppleSingleDouble_Point> for OptRc<AppleSingleDouble_Point> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble_Point) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AppleSingleDouble_Point> for OptRc<AppleSingleDouble_Point> {
+    type Error = KError;
+    fn try_from(v: &&AppleSingleDouble_Point) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Point> for AppleSingleDouble_Point {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Point>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Point> for &AppleSingleDouble_Point {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Point>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Point> for OptRc<AppleSingleDouble_Point> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Point>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AppleSingleDouble_Point> for &OptRc<AppleSingleDouble_Point> {
+    fn downcast_optrc(&self) -> Result<OptRc<AppleSingleDouble_Point>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AppleSingleDouble_Point {
     type Root = AppleSingleDouble;
@@ -490,5 +658,11 @@ impl AppleSingleDouble_Point {
 impl AppleSingleDouble_Point {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

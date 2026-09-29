@@ -30,6 +30,38 @@ pub struct ChromePak {
     f_num_resources: Cell<bool>,
     num_resources: RefCell<u32>,
 }
+impl TryFrom<&ChromePak> for OptRc<ChromePak> {
+    type Error = KError;
+    fn try_from(v: &ChromePak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ChromePak> for OptRc<ChromePak> {
+    type Error = KError;
+    fn try_from(v: &&ChromePak) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak> for ChromePak {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ChromePak> for &ChromePak {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak> for OptRc<ChromePak> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ChromePak> for &OptRc<ChromePak> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ChromePak {
     type Root = ChromePak;
     type Parent = ChromePak;
@@ -160,6 +192,12 @@ impl ChromePak {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ChromePak_Encodings {
@@ -220,6 +258,38 @@ pub struct ChromePak_Alias {
     f_resource: Cell<bool>,
     resource: RefCell<OptRc<ChromePak_Resource>>,
 }
+impl TryFrom<&ChromePak_Alias> for OptRc<ChromePak_Alias> {
+    type Error = KError;
+    fn try_from(v: &ChromePak_Alias) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ChromePak_Alias> for OptRc<ChromePak_Alias> {
+    type Error = KError;
+    fn try_from(v: &&ChromePak_Alias) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Alias> for ChromePak_Alias {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Alias>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Alias> for &ChromePak_Alias {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Alias>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Alias> for OptRc<ChromePak_Alias> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Alias>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ChromePak_Alias> for &OptRc<ChromePak_Alias> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Alias>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ChromePak_Alias {
     type Root = ChromePak;
     type Parent = ChromePak;
@@ -273,6 +343,12 @@ impl ChromePak_Alias {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -285,6 +361,38 @@ pub struct ChromePak_HeaderV5Part {
     num_aliases: RefCell<u16>,
     _io: RefCell<BytesReader>,
     encoding_padding_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ChromePak_HeaderV5Part> for OptRc<ChromePak_HeaderV5Part> {
+    type Error = KError;
+    fn try_from(v: &ChromePak_HeaderV5Part) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ChromePak_HeaderV5Part> for OptRc<ChromePak_HeaderV5Part> {
+    type Error = KError;
+    fn try_from(v: &&ChromePak_HeaderV5Part) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_HeaderV5Part> for ChromePak_HeaderV5Part {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_HeaderV5Part>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_HeaderV5Part> for &ChromePak_HeaderV5Part {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_HeaderV5Part>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_HeaderV5Part> for OptRc<ChromePak_HeaderV5Part> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_HeaderV5Part>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ChromePak_HeaderV5Part> for &OptRc<ChromePak_HeaderV5Part> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_HeaderV5Part>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ChromePak_HeaderV5Part {
     type Root = ChromePak;
@@ -330,6 +438,12 @@ impl ChromePak_HeaderV5Part {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ChromePak_HeaderV5Part {
     pub fn encoding_padding_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -351,6 +465,38 @@ pub struct ChromePak_Resource {
     body: RefCell<Vec<u8>>,
     f_len_body: Cell<bool>,
     len_body: RefCell<u32>,
+}
+impl TryFrom<&ChromePak_Resource> for OptRc<ChromePak_Resource> {
+    type Error = KError;
+    fn try_from(v: &ChromePak_Resource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ChromePak_Resource> for OptRc<ChromePak_Resource> {
+    type Error = KError;
+    fn try_from(v: &&ChromePak_Resource) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Resource> for ChromePak_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Resource>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Resource> for &ChromePak_Resource {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Resource>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ChromePak_Resource> for OptRc<ChromePak_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Resource>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ChromePak_Resource> for &OptRc<ChromePak_Resource> {
+    fn downcast_optrc(&self) -> Result<OptRc<ChromePak_Resource>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ChromePak_Resource {
     type Root = ChromePak;
@@ -444,5 +590,11 @@ impl ChromePak_Resource {
 impl ChromePak_Resource {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

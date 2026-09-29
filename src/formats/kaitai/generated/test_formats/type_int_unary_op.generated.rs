@@ -69,6 +69,38 @@ pub struct TypeIntUnaryOp {
     f_unary_s8: Cell<bool>,
     unary_s8: RefCell<i64>,
 }
+impl TryFrom<&TypeIntUnaryOp> for OptRc<TypeIntUnaryOp> {
+    type Error = KError;
+    fn try_from(v: &TypeIntUnaryOp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TypeIntUnaryOp> for OptRc<TypeIntUnaryOp> {
+    type Error = KError;
+    fn try_from(v: &&TypeIntUnaryOp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TypeIntUnaryOp> for TypeIntUnaryOp {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeIntUnaryOp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TypeIntUnaryOp> for &TypeIntUnaryOp {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeIntUnaryOp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TypeIntUnaryOp> for OptRc<TypeIntUnaryOp> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeIntUnaryOp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TypeIntUnaryOp> for &OptRc<TypeIntUnaryOp> {
+    fn downcast_optrc(&self) -> Result<OptRc<TypeIntUnaryOp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TypeIntUnaryOp {
     type Root = TypeIntUnaryOp;
     type Parent = TypeIntUnaryOp;
@@ -130,5 +162,11 @@ impl TypeIntUnaryOp {
 impl TypeIntUnaryOp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

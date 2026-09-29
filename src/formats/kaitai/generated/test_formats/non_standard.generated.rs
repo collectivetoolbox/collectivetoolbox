@@ -134,6 +134,38 @@ impl TryFrom<&NonStandard_Bar> for usize {
     }
 }
 
+impl TryFrom<&NonStandard> for OptRc<NonStandard> {
+    type Error = KError;
+    fn try_from(v: &NonStandard) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NonStandard> for OptRc<NonStandard> {
+    type Error = KError;
+    fn try_from(v: &&NonStandard) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NonStandard> for NonStandard {
+    fn downcast_optrc(&self) -> Result<OptRc<NonStandard>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NonStandard> for &NonStandard {
+    fn downcast_optrc(&self) -> Result<OptRc<NonStandard>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NonStandard> for OptRc<NonStandard> {
+    fn downcast_optrc(&self) -> Result<OptRc<NonStandard>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NonStandard> for &OptRc<NonStandard> {
+    fn downcast_optrc(&self) -> Result<OptRc<NonStandard>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NonStandard {
     type Root = NonStandard;
     type Parent = NonStandard;
@@ -210,5 +242,11 @@ impl NonStandard {
 impl NonStandard {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

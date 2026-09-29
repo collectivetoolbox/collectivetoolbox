@@ -65,6 +65,38 @@ pub struct ParamsEnum {
     invoke_with_param: RefCell<OptRc<ParamsEnum_WithParam>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ParamsEnum> for OptRc<ParamsEnum> {
+    type Error = KError;
+    fn try_from(v: &ParamsEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsEnum> for OptRc<ParamsEnum> {
+    type Error = KError;
+    fn try_from(v: &&ParamsEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum> for ParamsEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum> for &ParamsEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum> for OptRc<ParamsEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsEnum> for &OptRc<ParamsEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsEnum {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
@@ -104,6 +136,12 @@ impl ParamsEnum {
 impl ParamsEnum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -152,6 +190,38 @@ pub struct ParamsEnum_WithParam {
     f_is_cat: Cell<bool>,
     is_cat: RefCell<bool>,
 }
+impl TryFrom<&ParamsEnum_WithParam> for OptRc<ParamsEnum_WithParam> {
+    type Error = KError;
+    fn try_from(v: &ParamsEnum_WithParam) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsEnum_WithParam> for OptRc<ParamsEnum_WithParam> {
+    type Error = KError;
+    fn try_from(v: &&ParamsEnum_WithParam) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum_WithParam> for ParamsEnum_WithParam {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum_WithParam>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum_WithParam> for &ParamsEnum_WithParam {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum_WithParam>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsEnum_WithParam> for OptRc<ParamsEnum_WithParam> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum_WithParam>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsEnum_WithParam> for &OptRc<ParamsEnum_WithParam> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsEnum_WithParam>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsEnum_WithParam {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
@@ -199,5 +269,11 @@ impl ParamsEnum_WithParam {
 impl ParamsEnum_WithParam {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -65,6 +65,38 @@ pub struct MultipleUse {
     t2: RefCell<OptRc<MultipleUse_Type2>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&MultipleUse> for OptRc<MultipleUse> {
+    type Error = KError;
+    fn try_from(v: &MultipleUse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MultipleUse> for OptRc<MultipleUse> {
+    type Error = KError;
+    fn try_from(v: &&MultipleUse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse> for MultipleUse {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse> for &MultipleUse {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse> for OptRc<MultipleUse> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MultipleUse> for &OptRc<MultipleUse> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MultipleUse {
     type Root = MultipleUse;
     type Parent = MultipleUse;
@@ -105,6 +137,12 @@ impl MultipleUse {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -114,6 +152,38 @@ pub struct MultipleUse_Multi {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<i32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MultipleUse_Multi> for OptRc<MultipleUse_Multi> {
+    type Error = KError;
+    fn try_from(v: &MultipleUse_Multi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MultipleUse_Multi> for OptRc<MultipleUse_Multi> {
+    type Error = KError;
+    fn try_from(v: &&MultipleUse_Multi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Multi> for MultipleUse_Multi {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Multi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Multi> for &MultipleUse_Multi {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Multi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Multi> for OptRc<MultipleUse_Multi> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Multi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MultipleUse_Multi> for &OptRc<MultipleUse_Multi> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Multi>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MultipleUse_Multi {
     type Root = MultipleUse;
@@ -147,6 +217,12 @@ impl MultipleUse_Multi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -156,6 +232,38 @@ pub struct MultipleUse_Type1 {
     pub(crate) _self_shared: SharedType<Self>,
     first_use: RefCell<OptRc<MultipleUse_Multi>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MultipleUse_Type1> for OptRc<MultipleUse_Type1> {
+    type Error = KError;
+    fn try_from(v: &MultipleUse_Type1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MultipleUse_Type1> for OptRc<MultipleUse_Type1> {
+    type Error = KError;
+    fn try_from(v: &&MultipleUse_Type1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type1> for MultipleUse_Type1 {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type1> for &MultipleUse_Type1 {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type1> for OptRc<MultipleUse_Type1> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MultipleUse_Type1> for &OptRc<MultipleUse_Type1> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MultipleUse_Type1 {
     type Root = MultipleUse;
@@ -190,6 +298,12 @@ impl MultipleUse_Type1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -200,6 +314,38 @@ pub struct MultipleUse_Type2 {
     _io: RefCell<BytesReader>,
     f_second_use: Cell<bool>,
     second_use: RefCell<OptRc<MultipleUse_Multi>>,
+}
+impl TryFrom<&MultipleUse_Type2> for OptRc<MultipleUse_Type2> {
+    type Error = KError;
+    fn try_from(v: &MultipleUse_Type2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MultipleUse_Type2> for OptRc<MultipleUse_Type2> {
+    type Error = KError;
+    fn try_from(v: &&MultipleUse_Type2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type2> for MultipleUse_Type2 {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type2> for &MultipleUse_Type2 {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MultipleUse_Type2> for OptRc<MultipleUse_Type2> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MultipleUse_Type2> for &OptRc<MultipleUse_Type2> {
+    fn downcast_optrc(&self) -> Result<OptRc<MultipleUse_Type2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MultipleUse_Type2 {
     type Root = MultipleUse;
@@ -241,5 +387,11 @@ impl MultipleUse_Type2 {
 impl MultipleUse_Type2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -5,7 +5,9 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::some_ip_sd_entries::SomeIpSdEntries;
+use super::some_ip_sd_entries::*;
 use super::some_ip_sd_options::SomeIpSdOptions;
+use super::some_ip_sd_options::*;
 
 /**
  * The main tasks of the Service Discovery Protocol are communicating the
@@ -32,6 +34,38 @@ pub struct SomeIpSd {
     reserved_raw: RefCell<Vec<u8>>,
     entries_raw: RefCell<Vec<u8>>,
     options_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SomeIpSd> for OptRc<SomeIpSd> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSd> for OptRc<SomeIpSd> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd> for SomeIpSd {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd> for &SomeIpSd {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd> for OptRc<SomeIpSd> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSd> for &OptRc<SomeIpSd> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSd {
     type Root = SomeIpSd;
@@ -108,6 +142,12 @@ impl SomeIpSd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SomeIpSd {
     pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -139,6 +179,38 @@ pub struct SomeIpSd_SdFlags {
     initial_data: RefCell<bool>,
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SomeIpSd_SdFlags> for OptRc<SomeIpSd_SdFlags> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSd_SdFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SomeIpSd_SdFlags> for OptRc<SomeIpSd_SdFlags> {
+    type Error = KError;
+    fn try_from(v: &&SomeIpSd_SdFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd_SdFlags> for SomeIpSd_SdFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd_SdFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd_SdFlags> for &SomeIpSd_SdFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd_SdFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SomeIpSd_SdFlags> for OptRc<SomeIpSd_SdFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd_SdFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SomeIpSd_SdFlags> for &OptRc<SomeIpSd_SdFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<SomeIpSd_SdFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SomeIpSd_SdFlags {
     type Root = SomeIpSd;
@@ -189,5 +261,11 @@ impl SomeIpSd_SdFlags {
 impl SomeIpSd_SdFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

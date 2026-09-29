@@ -77,7 +77,7 @@ pub struct ExprBytesOps {
     f_one_size: Cell<bool>,
     one_size: RefCell<i32>,
     f_two: Cell<bool>,
-    two: RefCell<Vec<i32>>,
+    two: RefCell<Vec<u8>>,
     f_two_first: Cell<bool>,
     two_first: RefCell<i32>,
     f_two_last: Cell<bool>,
@@ -90,6 +90,38 @@ pub struct ExprBytesOps {
     two_min: RefCell<i32>,
     f_two_size: Cell<bool>,
     two_size: RefCell<i32>,
+}
+impl TryFrom<&ExprBytesOps> for OptRc<ExprBytesOps> {
+    type Error = KError;
+    fn try_from(v: &ExprBytesOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprBytesOps> for OptRc<ExprBytesOps> {
+    type Error = KError;
+    fn try_from(v: &&ExprBytesOps) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesOps> for ExprBytesOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesOps>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesOps> for &ExprBytesOps {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesOps>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesOps> for OptRc<ExprBytesOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesOps>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprBytesOps> for &OptRc<ExprBytesOps> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesOps>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ExprBytesOps {
     type Root = ExprBytesOps;
@@ -188,13 +220,13 @@ impl ExprBytesOps {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two(
         &self
-    ) -> KResult<Ref<'_, Vec<i32>>> {
+    ) -> KResult<Ref<'_, Vec<u8>>> {
         let _io = self._io.borrow();
         if self.f_two.get() {
             return Ok(self.two.borrow());
         }
         self.f_two.set(true);
-        *self.two.borrow_mut() = vec![65_i32, 255_i32, 75_i32];
+        *self.two.borrow_mut() = vec![0x41u8, 0xffu8, 0x4bu8];
         Ok(self.two.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -278,6 +310,12 @@ impl ExprBytesOps {
 impl ExprBytesOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ExprBytesOps {

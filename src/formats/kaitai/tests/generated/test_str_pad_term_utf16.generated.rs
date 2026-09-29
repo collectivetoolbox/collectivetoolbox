@@ -85,8 +85,8 @@ fn test_str_pad_term_utf16() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrPadTermUtf16> = StrPadTermUtf16::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str_term(), "aȀb");
-    assert_eq!(*r.str_term_include(), "cȀd\0");
-    assert_eq!(*r.str_term_and_pad(), "eȀf");
+    assert_eq!(*(r.str_term()), "aȀb");
+    assert_eq!(*(r.str_term_include()), "cȀd\0");
+    assert_eq!(*(r.str_term_and_pad()), "eȀf");
     Ok(())
 }

@@ -64,6 +64,38 @@ pub struct DebugArrayUserCurrentExcluded {
     array_of_cats: RefCell<Vec<OptRc<DebugArrayUserCurrentExcluded_Cat>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
+    type Error = KError;
+    fn try_from(v: &DebugArrayUserCurrentExcluded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
+    type Error = KError;
+    fn try_from(v: &&DebugArrayUserCurrentExcluded) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded> for DebugArrayUserCurrentExcluded {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded> for &DebugArrayUserCurrentExcluded {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded> for OptRc<DebugArrayUserCurrentExcluded> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded> for &OptRc<DebugArrayUserCurrentExcluded> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DebugArrayUserCurrentExcluded {
     type Root = DebugArrayUserCurrentExcluded;
     type Parent = DebugArrayUserCurrentExcluded;
@@ -106,6 +138,12 @@ impl DebugArrayUserCurrentExcluded {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -116,6 +154,38 @@ pub struct DebugArrayUserCurrentExcluded_Cat {
     meow: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     meow_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
+    type Error = KError;
+    fn try_from(v: &DebugArrayUserCurrentExcluded_Cat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
+    type Error = KError;
+    fn try_from(v: &&DebugArrayUserCurrentExcluded_Cat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for DebugArrayUserCurrentExcluded_Cat {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for &DebugArrayUserCurrentExcluded_Cat {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for OptRc<DebugArrayUserCurrentExcluded_Cat> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DebugArrayUserCurrentExcluded_Cat> for &OptRc<DebugArrayUserCurrentExcluded_Cat> {
+    fn downcast_optrc(&self) -> Result<OptRc<DebugArrayUserCurrentExcluded_Cat>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DebugArrayUserCurrentExcluded_Cat {
     type Root = DebugArrayUserCurrentExcluded;
@@ -148,6 +218,12 @@ impl DebugArrayUserCurrentExcluded_Cat {
 impl DebugArrayUserCurrentExcluded_Cat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl DebugArrayUserCurrentExcluded_Cat {

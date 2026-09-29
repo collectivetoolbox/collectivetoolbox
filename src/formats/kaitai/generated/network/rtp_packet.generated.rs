@@ -37,6 +37,38 @@ pub struct RtpPacket {
     f_len_padding_if_exists: Cell<bool>,
     len_padding_if_exists: RefCell<u8>,
 }
+impl TryFrom<&RtpPacket> for OptRc<RtpPacket> {
+    type Error = KError;
+    fn try_from(v: &RtpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtpPacket> for OptRc<RtpPacket> {
+    type Error = KError;
+    fn try_from(v: &&RtpPacket) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket> for RtpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket> for &RtpPacket {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket> for OptRc<RtpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtpPacket> for &OptRc<RtpPacket> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RtpPacket {
     type Root = RtpPacket;
     type Parent = RtpPacket;
@@ -58,7 +90,7 @@ impl KStruct for RtpPacket {
         *self_rc.has_extension.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.csrc_count.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc.marker.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.payload_type.borrow_mut() = i64::try_from(_io.read_bits_int_be(7)?)?.try_into()?;
+        *self_rc.payload_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(7)?).to_ne_bytes()).try_into()?;
         io.align_to_byte()?;
         *self_rc.sequence_number.borrow_mut() = _io.read_u2be()?;
         *self_rc.timestamp.borrow_mut() = _io.read_u4be()?;
@@ -180,6 +212,12 @@ impl RtpPacket {
 impl RtpPacket {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl RtpPacket {
@@ -336,6 +374,38 @@ pub struct RtpPacket_HeaderExtention {
     length: RefCell<u16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&RtpPacket_HeaderExtention> for OptRc<RtpPacket_HeaderExtention> {
+    type Error = KError;
+    fn try_from(v: &RtpPacket_HeaderExtention) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RtpPacket_HeaderExtention> for OptRc<RtpPacket_HeaderExtention> {
+    type Error = KError;
+    fn try_from(v: &&RtpPacket_HeaderExtention) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket_HeaderExtention> for RtpPacket_HeaderExtention {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket_HeaderExtention> for &RtpPacket_HeaderExtention {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RtpPacket_HeaderExtention> for OptRc<RtpPacket_HeaderExtention> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RtpPacket_HeaderExtention> for &OptRc<RtpPacket_HeaderExtention> {
+    fn downcast_optrc(&self) -> Result<OptRc<RtpPacket_HeaderExtention>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RtpPacket_HeaderExtention {
     type Root = RtpPacket;
     type Parent = RtpPacket;
@@ -373,5 +443,11 @@ impl RtpPacket_HeaderExtention {
 impl RtpPacket_HeaderExtention {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

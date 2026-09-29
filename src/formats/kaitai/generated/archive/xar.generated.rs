@@ -29,6 +29,38 @@ pub struct Xar {
     f_checksum_algorithm_other: Cell<bool>,
     checksum_algorithm_other: RefCell<i32>,
 }
+impl TryFrom<&Xar> for OptRc<Xar> {
+    type Error = KError;
+    fn try_from(v: &Xar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xar> for OptRc<Xar> {
+    type Error = KError;
+    fn try_from(v: &&Xar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xar> for Xar {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xar> for &Xar {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xar> for OptRc<Xar> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xar> for &OptRc<Xar> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Xar {
     type Root = Xar;
     type Parent = Xar;
@@ -107,6 +139,12 @@ impl Xar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Xar {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -177,6 +215,38 @@ pub struct Xar_FileHeader {
     has_checksum_alg_name: RefCell<bool>,
     f_len_header: Cell<bool>,
     len_header: RefCell<u16>,
+}
+impl TryFrom<&Xar_FileHeader> for OptRc<Xar_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &Xar_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xar_FileHeader> for OptRc<Xar_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&Xar_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeader> for Xar_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeader> for &Xar_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeader> for OptRc<Xar_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xar_FileHeader> for &OptRc<Xar_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Xar_FileHeader {
     type Root = Xar;
@@ -312,6 +382,12 @@ impl Xar_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -322,6 +398,38 @@ pub struct Xar_FileHeaderPrefix {
     magic: RefCell<Vec<u8>>,
     len_header: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Xar_FileHeaderPrefix> for OptRc<Xar_FileHeaderPrefix> {
+    type Error = KError;
+    fn try_from(v: &Xar_FileHeaderPrefix) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xar_FileHeaderPrefix> for OptRc<Xar_FileHeaderPrefix> {
+    type Error = KError;
+    fn try_from(v: &&Xar_FileHeaderPrefix) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeaderPrefix> for Xar_FileHeaderPrefix {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeaderPrefix>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeaderPrefix> for &Xar_FileHeaderPrefix {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeaderPrefix>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xar_FileHeaderPrefix> for OptRc<Xar_FileHeaderPrefix> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeaderPrefix>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xar_FileHeaderPrefix> for &OptRc<Xar_FileHeaderPrefix> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_FileHeaderPrefix>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Xar_FileHeaderPrefix {
     type Root = Xar;
@@ -368,6 +476,12 @@ impl Xar_FileHeaderPrefix {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -377,6 +491,38 @@ pub struct Xar_TocType {
     pub(crate) _self_shared: SharedType<Self>,
     xml_string: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Xar_TocType> for OptRc<Xar_TocType> {
+    type Error = KError;
+    fn try_from(v: &Xar_TocType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Xar_TocType> for OptRc<Xar_TocType> {
+    type Error = KError;
+    fn try_from(v: &&Xar_TocType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Xar_TocType> for Xar_TocType {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_TocType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Xar_TocType> for &Xar_TocType {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_TocType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Xar_TocType> for OptRc<Xar_TocType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_TocType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Xar_TocType> for &OptRc<Xar_TocType> {
+    fn downcast_optrc(&self) -> Result<OptRc<Xar_TocType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Xar_TocType {
     type Root = Xar;
@@ -409,5 +555,11 @@ impl Xar_TocType {
 impl Xar_TocType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

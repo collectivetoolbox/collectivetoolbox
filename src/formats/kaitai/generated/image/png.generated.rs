@@ -5,7 +5,9 @@
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::exif::Exif;
+use super::exif::*;
 use super::icc_4::Icc4;
+use super::icc_4::*;
 
 /**
  * NOTICE: Many of the documentation comments (or docstrings) in this file were
@@ -83,6 +85,38 @@ pub struct Png {
     ihdr_crc: RefCell<u32>,
     chunks: RefCell<Vec<OptRc<Png_Chunk>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png> for OptRc<Png> {
+    type Error = KError;
+    fn try_from(v: &Png) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png> for OptRc<Png> {
+    type Error = KError;
+    fn try_from(v: &&Png) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png> for Png {
+    fn downcast_optrc(&self) -> Result<OptRc<Png>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png> for &Png {
+    fn downcast_optrc(&self) -> Result<OptRc<Png>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png> for OptRc<Png> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png> for &OptRc<Png> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png {
     type Root = Png;
@@ -167,6 +201,12 @@ impl Png {
 impl Png {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -450,6 +490,38 @@ pub struct Png_AdobeFireworksChunk {
     _io: RefCell<BytesReader>,
     preview_data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Png_AdobeFireworksChunk> for OptRc<Png_AdobeFireworksChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_AdobeFireworksChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_AdobeFireworksChunk> for OptRc<Png_AdobeFireworksChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_AdobeFireworksChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for Png_AdobeFireworksChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for &Png_AdobeFireworksChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for OptRc<Png_AdobeFireworksChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for &OptRc<Png_AdobeFireworksChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Png_AdobeFireworksChunk {
     type Root = Png;
     type Parent = Png_Chunk;
@@ -482,6 +554,12 @@ impl Png_AdobeFireworksChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_AdobeFireworksChunk {
     pub fn preview_data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -501,6 +579,38 @@ pub struct Png_AnimationControlChunk {
     num_frames: RefCell<u32>,
     num_plays: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_AnimationControlChunk> for OptRc<Png_AnimationControlChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_AnimationControlChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_AnimationControlChunk> for OptRc<Png_AnimationControlChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_AnimationControlChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for Png_AnimationControlChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for &Png_AnimationControlChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for OptRc<Png_AnimationControlChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for &OptRc<Png_AnimationControlChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_AnimationControlChunk {
     type Root = Png;
@@ -549,6 +659,12 @@ impl Png_AnimationControlChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -569,6 +685,38 @@ pub struct Png_AtchChunk {
     data_zlib_raw: RefCell<Vec<u8>>,
     f_data: Cell<bool>,
     data: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Png_AtchChunk> for OptRc<Png_AtchChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_AtchChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_AtchChunk> for OptRc<Png_AtchChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_AtchChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for Png_AtchChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for &Png_AtchChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for OptRc<Png_AtchChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for &OptRc<Png_AtchChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_AtchChunk {
     type Root = Png;
@@ -662,6 +810,12 @@ impl Png_AtchChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_AtchChunk {
     pub fn data_zlib_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -730,6 +884,22 @@ impl TryFrom<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdGreyscale> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdGreyscale> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdChunk_Bkgd) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        OptRc::<Png_BkgdGreyscale>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for &Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_BkgdGreyscale>> for Png_BkgdChunk_Bkgd {
     fn from(v: OptRc<Png_BkgdGreyscale>) -> Self {
         Self::Png_BkgdGreyscale(v)
@@ -742,6 +912,22 @@ impl TryFrom<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdIndexed> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdIndexed> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdChunk_Bkgd) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        OptRc::<Png_BkgdIndexed>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for &Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_BkgdIndexed>> for Png_BkgdChunk_Bkgd {
@@ -758,9 +944,57 @@ impl TryFrom<&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdTruecolor> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_BkgdChunk_Bkgd> for OptRc<Png_BkgdTruecolor> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdChunk_Bkgd) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        OptRc::<Png_BkgdTruecolor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for &Png_BkgdChunk_Bkgd {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_BkgdTruecolor>> for Png_BkgdChunk_Bkgd {
     fn from(v: OptRc<Png_BkgdTruecolor>) -> Self {
         Self::Png_BkgdTruecolor(v)
+    }
+}
+impl TryFrom<&Png_BkgdChunk> for OptRc<Png_BkgdChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_BkgdChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_BkgdChunk> for OptRc<Png_BkgdChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for Png_BkgdChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for &Png_BkgdChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for OptRc<Png_BkgdChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for &OptRc<Png_BkgdChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Png_BkgdChunk {
@@ -817,6 +1051,12 @@ impl Png_BkgdChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -830,6 +1070,38 @@ pub struct Png_BkgdGreyscale {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_BkgdGreyscale> for OptRc<Png_BkgdGreyscale> {
+    type Error = KError;
+    fn try_from(v: &Png_BkgdGreyscale) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_BkgdGreyscale> for OptRc<Png_BkgdGreyscale> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdGreyscale) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for Png_BkgdGreyscale {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for &Png_BkgdGreyscale {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for OptRc<Png_BkgdGreyscale> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_BkgdGreyscale> for &OptRc<Png_BkgdGreyscale> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdGreyscale>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_BkgdGreyscale {
     type Root = Png;
@@ -863,6 +1135,12 @@ impl Png_BkgdGreyscale {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -876,6 +1154,38 @@ pub struct Png_BkgdIndexed {
     pub(crate) _self_shared: SharedType<Self>,
     palette_index: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_BkgdIndexed> for OptRc<Png_BkgdIndexed> {
+    type Error = KError;
+    fn try_from(v: &Png_BkgdIndexed) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_BkgdIndexed> for OptRc<Png_BkgdIndexed> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdIndexed) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for Png_BkgdIndexed {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for &Png_BkgdIndexed {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for OptRc<Png_BkgdIndexed> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_BkgdIndexed> for &OptRc<Png_BkgdIndexed> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdIndexed>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_BkgdIndexed {
     type Root = Png;
@@ -909,6 +1219,12 @@ impl Png_BkgdIndexed {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -924,6 +1240,38 @@ pub struct Png_BkgdTruecolor {
     green: RefCell<u16>,
     blue: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_BkgdTruecolor> for OptRc<Png_BkgdTruecolor> {
+    type Error = KError;
+    fn try_from(v: &Png_BkgdTruecolor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_BkgdTruecolor> for OptRc<Png_BkgdTruecolor> {
+    type Error = KError;
+    fn try_from(v: &&Png_BkgdTruecolor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for Png_BkgdTruecolor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for &Png_BkgdTruecolor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for OptRc<Png_BkgdTruecolor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_BkgdTruecolor> for &OptRc<Png_BkgdTruecolor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdTruecolor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_BkgdTruecolor {
     type Root = Png;
@@ -969,6 +1317,12 @@ impl Png_BkgdTruecolor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -983,6 +1337,38 @@ pub struct Png_ChrmChromaticity {
     x: RefCell<f64>,
     f_y: Cell<bool>,
     y: RefCell<f64>,
+}
+impl TryFrom<&Png_ChrmChromaticity> for OptRc<Png_ChrmChromaticity> {
+    type Error = KError;
+    fn try_from(v: &Png_ChrmChromaticity) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_ChrmChromaticity> for OptRc<Png_ChrmChromaticity> {
+    type Error = KError;
+    fn try_from(v: &&Png_ChrmChromaticity) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChromaticity> for Png_ChrmChromaticity {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChromaticity>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChromaticity> for &Png_ChrmChromaticity {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChromaticity>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChromaticity> for OptRc<Png_ChrmChromaticity> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChromaticity>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_ChrmChromaticity> for &OptRc<Png_ChrmChromaticity> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChromaticity>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_ChrmChromaticity {
     type Root = Png;
@@ -1046,6 +1432,12 @@ impl Png_ChrmChromaticity {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -1062,6 +1454,38 @@ pub struct Png_ChrmChunk {
     green: RefCell<OptRc<Png_ChrmChromaticity>>,
     blue: RefCell<OptRc<Png_ChrmChromaticity>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_ChrmChunk> for OptRc<Png_ChrmChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_ChrmChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_ChrmChunk> for OptRc<Png_ChrmChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_ChrmChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for Png_ChrmChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for &Png_ChrmChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for OptRc<Png_ChrmChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for &OptRc<Png_ChrmChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_ChrmChunk {
     type Root = Png;
@@ -1116,6 +1540,12 @@ impl Png_ChrmChunk {
 impl Png_ChrmChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -1181,6 +1611,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_PlteChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_PlteChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        OptRc::<Png_PlteChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_PlteChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_PlteChunk>) -> Self {
         Self::Png_PlteChunk(v)
@@ -1193,6 +1639,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_AnimationControlChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_AnimationControlChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        OptRc::<Png_AnimationControlChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_AnimationControlChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AnimationControlChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_AnimationControlChunk>> for Png_Chunk_Body {
@@ -1209,6 +1671,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_AtchChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_AtchChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        OptRc::<Png_AtchChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_AtchChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AtchChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_AtchChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_AtchChunk>) -> Self {
         Self::Png_AtchChunk(v)
@@ -1221,6 +1699,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_BkgdChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_BkgdChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        OptRc::<Png_BkgdChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_BkgdChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_BkgdChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_BkgdChunk>> for Png_Chunk_Body {
@@ -1237,6 +1731,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_ChrmChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_ChrmChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        OptRc::<Png_ChrmChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_ChrmChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ChrmChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_ChrmChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_ChrmChunk>) -> Self {
         Self::Png_ChrmChunk(v)
@@ -1249,6 +1759,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_CicpChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_CicpChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        OptRc::<Png_CicpChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_CicpChunk>> for Png_Chunk_Body {
@@ -1265,6 +1791,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_ClliChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_ClliChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        OptRc::<Png_ClliChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_ClliChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_ClliChunk>) -> Self {
         Self::Png_ClliChunk(v)
@@ -1277,6 +1819,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_ExifChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_ExifChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        OptRc::<Png_ExifChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_ExifChunk>> for Png_Chunk_Body {
@@ -1293,6 +1851,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_FrameControlChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_FrameControlChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        OptRc::<Png_FrameControlChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_FrameControlChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_FrameControlChunk>) -> Self {
         Self::Png_FrameControlChunk(v)
@@ -1305,6 +1879,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_FrameDataChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_FrameDataChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        OptRc::<Png_FrameDataChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_FrameDataChunk>> for Png_Chunk_Body {
@@ -1321,6 +1911,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_GamaChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_GamaChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        OptRc::<Png_GamaChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_GamaChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_GamaChunk>) -> Self {
         Self::Png_GamaChunk(v)
@@ -1333,6 +1939,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_HistChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_HistChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        OptRc::<Png_HistChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_HistChunk>> for Png_Chunk_Body {
@@ -1349,6 +1971,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_IccpChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_IccpChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        OptRc::<Png_IccpChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_IccpChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_IccpChunk>) -> Self {
         Self::Png_IccpChunk(v)
@@ -1361,6 +1999,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_InternationalTextChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_InternationalTextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        OptRc::<Png_InternationalTextChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_InternationalTextChunk>> for Png_Chunk_Body {
@@ -1377,6 +2031,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_MdcvChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_MdcvChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        OptRc::<Png_MdcvChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_MdcvChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_MdcvChunk>) -> Self {
         Self::Png_MdcvChunk(v)
@@ -1389,6 +2059,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_AdobeFireworksChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_AdobeFireworksChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        OptRc::<Png_AdobeFireworksChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_AdobeFireworksChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_AdobeFireworksChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_AdobeFireworksChunk>> for Png_Chunk_Body {
@@ -1405,6 +2091,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_PhysChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_PhysChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        OptRc::<Png_PhysChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_PhysChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_PhysChunk>) -> Self {
         Self::Png_PhysChunk(v)
@@ -1417,6 +2119,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_SbitChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_SbitChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        OptRc::<Png_SbitChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_SbitChunk>> for Png_Chunk_Body {
@@ -1433,6 +2151,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_SpltChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_SpltChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        OptRc::<Png_SpltChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_SpltChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_SpltChunk>) -> Self {
         Self::Png_SpltChunk(v)
@@ -1445,6 +2179,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_SrgbChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_SrgbChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        OptRc::<Png_SrgbChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_SrgbChunk>> for Png_Chunk_Body {
@@ -1461,6 +2211,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_EvernoteSkmfChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_EvernoteSkmfChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        OptRc::<Png_EvernoteSkmfChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_EvernoteSkmfChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_EvernoteSkmfChunk>) -> Self {
         Self::Png_EvernoteSkmfChunk(v)
@@ -1473,6 +2239,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_EvernoteSkrfChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_EvernoteSkrfChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        OptRc::<Png_EvernoteSkrfChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_EvernoteSkrfChunk>> for Png_Chunk_Body {
@@ -1489,6 +2271,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_TextChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_TextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        OptRc::<Png_TextChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_TextChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_TextChunk>) -> Self {
         Self::Png_TextChunk(v)
@@ -1501,6 +2299,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_TimeChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_TimeChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        OptRc::<Png_TimeChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_TimeChunk>> for Png_Chunk_Body {
@@ -1517,6 +2331,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_TrnsChunk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_TrnsChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        OptRc::<Png_TrnsChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_TrnsChunk>> for Png_Chunk_Body {
     fn from(v: OptRc<Png_TrnsChunk>) -> Self {
         Self::Png_TrnsChunk(v)
@@ -1529,6 +2359,22 @@ impl TryFrom<&Png_Chunk_Body> for OptRc<Png_CompressedTextChunk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Png_Chunk_Body> for OptRc<Png_CompressedTextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        OptRc::<Png_CompressedTextChunk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for &Png_Chunk_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Png_CompressedTextChunk>> for Png_Chunk_Body {
@@ -1545,9 +2391,47 @@ impl TryFrom<&Png_Chunk_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_Chunk_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Png_Chunk_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Png_Chunk> for OptRc<Png_Chunk> {
+    type Error = KError;
+    fn try_from(v: &Png_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_Chunk> for OptRc<Png_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_Chunk> for Png_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_Chunk> for &Png_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_Chunk> for OptRc<Png_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_Chunk> for &OptRc<Png_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Chunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Png_Chunk {
@@ -1895,6 +2779,12 @@ impl Png_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_Chunk {
     pub fn type_raw_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1922,6 +2812,38 @@ pub struct Png_CicpChunk {
     matrix_coefficients: RefCell<u8>,
     video_full_range_flag: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_CicpChunk> for OptRc<Png_CicpChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_CicpChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_CicpChunk> for OptRc<Png_CicpChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_CicpChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for Png_CicpChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for &Png_CicpChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for OptRc<Png_CicpChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_CicpChunk> for &OptRc<Png_CicpChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CicpChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_CicpChunk {
     type Root = Png;
@@ -2015,6 +2937,12 @@ impl Png_CicpChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2034,6 +2962,38 @@ pub struct Png_ClliChunk {
     max_content_light_level: RefCell<f64>,
     f_max_frame_average_light_level: Cell<bool>,
     max_frame_average_light_level: RefCell<f64>,
+}
+impl TryFrom<&Png_ClliChunk> for OptRc<Png_ClliChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_ClliChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_ClliChunk> for OptRc<Png_ClliChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_ClliChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for Png_ClliChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for &Png_ClliChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for OptRc<Png_ClliChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_ClliChunk> for &OptRc<Png_ClliChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ClliChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_ClliChunk {
     type Root = Png;
@@ -2105,6 +3065,12 @@ impl Png_ClliChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -2114,6 +3080,38 @@ pub struct Png_CompressedText {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_CompressedText> for OptRc<Png_CompressedText> {
+    type Error = KError;
+    fn try_from(v: &Png_CompressedText) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_CompressedText> for OptRc<Png_CompressedText> {
+    type Error = KError;
+    fn try_from(v: &&Png_CompressedText) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedText> for Png_CompressedText {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedText>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedText> for &Png_CompressedText {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedText>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedText> for OptRc<Png_CompressedText> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedText>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_CompressedText> for &OptRc<Png_CompressedText> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedText>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_CompressedText {
     type Root = Png;
@@ -2157,6 +3155,12 @@ impl Png_CompressedText {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2179,6 +3183,38 @@ pub struct Png_CompressedTextChunk {
     text: RefCell<OptRc<Png_CompressedText>>,
     _io: RefCell<BytesReader>,
     text_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Png_CompressedTextChunk> for OptRc<Png_CompressedTextChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_CompressedTextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_CompressedTextChunk> for OptRc<Png_CompressedTextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_CompressedTextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for Png_CompressedTextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for &Png_CompressedTextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for OptRc<Png_CompressedTextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_CompressedTextChunk> for &OptRc<Png_CompressedTextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_CompressedTextChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_CompressedTextChunk {
     type Root = Png;
@@ -2243,6 +3279,12 @@ impl Png_CompressedTextChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_CompressedTextChunk {
     pub fn text_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2261,6 +3303,38 @@ pub struct Png_EvernoteSkmfChunk {
     pub(crate) _self_shared: SharedType<Self>,
     json: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_EvernoteSkmfChunk> for OptRc<Png_EvernoteSkmfChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_EvernoteSkmfChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_EvernoteSkmfChunk> for OptRc<Png_EvernoteSkmfChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_EvernoteSkmfChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for Png_EvernoteSkmfChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for &Png_EvernoteSkmfChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for OptRc<Png_EvernoteSkmfChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkmfChunk> for &OptRc<Png_EvernoteSkmfChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkmfChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_EvernoteSkmfChunk {
     type Root = Png;
@@ -2306,6 +3380,12 @@ impl Png_EvernoteSkmfChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2321,6 +3401,38 @@ pub struct Png_EvernoteSkrfChunk {
     orig_img: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     uuid_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Png_EvernoteSkrfChunk> for OptRc<Png_EvernoteSkrfChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_EvernoteSkrfChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_EvernoteSkrfChunk> for OptRc<Png_EvernoteSkrfChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_EvernoteSkrfChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for Png_EvernoteSkrfChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for &Png_EvernoteSkrfChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for OptRc<Png_EvernoteSkrfChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_EvernoteSkrfChunk> for &OptRc<Png_EvernoteSkrfChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_EvernoteSkrfChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_EvernoteSkrfChunk {
     type Root = Png;
@@ -2371,6 +3483,12 @@ impl Png_EvernoteSkrfChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_EvernoteSkrfChunk {
     pub fn uuid_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -2396,6 +3514,38 @@ pub struct Png_ExifChunk {
     pub(crate) _self_shared: SharedType<Self>,
     exif: RefCell<OptRc<Exif>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_ExifChunk> for OptRc<Png_ExifChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_ExifChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_ExifChunk> for OptRc<Png_ExifChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_ExifChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for Png_ExifChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for &Png_ExifChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for OptRc<Png_ExifChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_ExifChunk> for &OptRc<Png_ExifChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_ExifChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_ExifChunk {
     type Root = Png;
@@ -2430,6 +3580,12 @@ impl Png_ExifChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2453,6 +3609,38 @@ pub struct Png_FrameControlChunk {
     _io: RefCell<BytesReader>,
     f_delay: Cell<bool>,
     delay: RefCell<f64>,
+}
+impl TryFrom<&Png_FrameControlChunk> for OptRc<Png_FrameControlChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_FrameControlChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_FrameControlChunk> for OptRc<Png_FrameControlChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_FrameControlChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for Png_FrameControlChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for &Png_FrameControlChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for OptRc<Png_FrameControlChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_FrameControlChunk> for &OptRc<Png_FrameControlChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameControlChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_FrameControlChunk {
     type Root = Png;
@@ -2628,6 +3816,12 @@ impl Png_FrameControlChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2642,6 +3836,38 @@ pub struct Png_FrameDataChunk {
     sequence_number: RefCell<u32>,
     frame_data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_FrameDataChunk> for OptRc<Png_FrameDataChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_FrameDataChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_FrameDataChunk> for OptRc<Png_FrameDataChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_FrameDataChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for Png_FrameDataChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for &Png_FrameDataChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for OptRc<Png_FrameDataChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_FrameDataChunk> for &OptRc<Png_FrameDataChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_FrameDataChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_FrameDataChunk {
     type Root = Png;
@@ -2705,6 +3931,12 @@ impl Png_FrameDataChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2722,6 +3954,38 @@ pub struct Png_GamaChunk {
     gamma: RefCell<f64>,
     f_inv_gamma: Cell<bool>,
     inv_gamma: RefCell<f64>,
+}
+impl TryFrom<&Png_GamaChunk> for OptRc<Png_GamaChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_GamaChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_GamaChunk> for OptRc<Png_GamaChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_GamaChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for Png_GamaChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for &Png_GamaChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for OptRc<Png_GamaChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_GamaChunk> for &OptRc<Png_GamaChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_GamaChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_GamaChunk {
     type Root = Png;
@@ -2798,6 +4062,12 @@ impl Png_GamaChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2814,6 +4084,38 @@ pub struct Png_HistChunk {
     pub(crate) _self_shared: SharedType<Self>,
     usage_freqs: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_HistChunk> for OptRc<Png_HistChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_HistChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_HistChunk> for OptRc<Png_HistChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_HistChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for Png_HistChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for &Png_HistChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for OptRc<Png_HistChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_HistChunk> for &OptRc<Png_HistChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_HistChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_HistChunk {
     type Root = Png;
@@ -2867,6 +4169,12 @@ impl Png_HistChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -2897,6 +4205,38 @@ pub struct Png_IccpChunk {
     profile: RefCell<OptRc<Icc4>>,
     _io: RefCell<BytesReader>,
     profile_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Png_IccpChunk> for OptRc<Png_IccpChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_IccpChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_IccpChunk> for OptRc<Png_IccpChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_IccpChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for Png_IccpChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for &Png_IccpChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for OptRc<Png_IccpChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_IccpChunk> for &OptRc<Png_IccpChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IccpChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_IccpChunk {
     type Root = Png;
@@ -2981,6 +4321,12 @@ impl Png_IccpChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_IccpChunk {
     pub fn profile_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -3005,6 +4351,38 @@ pub struct Png_IhdrChunk {
     filter_method: RefCell<Png_FilterMethod>,
     interlace_method: RefCell<Png_InterlaceMethod>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_IhdrChunk> for OptRc<Png_IhdrChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_IhdrChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_IhdrChunk> for OptRc<Png_IhdrChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_IhdrChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_IhdrChunk> for Png_IhdrChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IhdrChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_IhdrChunk> for &Png_IhdrChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IhdrChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_IhdrChunk> for OptRc<Png_IhdrChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IhdrChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_IhdrChunk> for &OptRc<Png_IhdrChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_IhdrChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_IhdrChunk {
     type Root = Png;
@@ -3103,6 +4481,12 @@ impl Png_IhdrChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3112,6 +4496,38 @@ pub struct Png_InternationalText {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_InternationalText> for OptRc<Png_InternationalText> {
+    type Error = KError;
+    fn try_from(v: &Png_InternationalText) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_InternationalText> for OptRc<Png_InternationalText> {
+    type Error = KError;
+    fn try_from(v: &&Png_InternationalText) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalText> for Png_InternationalText {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalText>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalText> for &Png_InternationalText {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalText>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalText> for OptRc<Png_InternationalText> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalText>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_InternationalText> for &OptRc<Png_InternationalText> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalText>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_InternationalText {
     type Root = Png;
@@ -3157,6 +4573,12 @@ impl Png_InternationalText {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3187,6 +4609,38 @@ pub struct Png_InternationalTextChunk {
     text_zlib_raw: RefCell<Vec<u8>>,
     f_text: Cell<bool>,
     text: RefCell<String>,
+}
+impl TryFrom<&Png_InternationalTextChunk> for OptRc<Png_InternationalTextChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_InternationalTextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_InternationalTextChunk> for OptRc<Png_InternationalTextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_InternationalTextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for Png_InternationalTextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for &Png_InternationalTextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for OptRc<Png_InternationalTextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_InternationalTextChunk> for &OptRc<Png_InternationalTextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_InternationalTextChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_InternationalTextChunk {
     type Root = Png;
@@ -3259,7 +4713,7 @@ impl Png_InternationalTextChunk {
             return Ok(self.text.borrow());
         }
         self.f_text.set(true);
-        *self.text.borrow_mut() = if ((to_i128(*self.compression_flag())) == (to_i128(0))) { self.text_plain().clone() } else { self.text_zlib().clone() }.value().to_string();
+        *self.text.borrow_mut() = if ((to_i128(*self.compression_flag())) == (to_i128(0))) { self.text_plain().value().to_string() } else { self.text_zlib().value().to_string() }.to_string();
         Ok(self.text.borrow())
     }
 }
@@ -3344,6 +4798,12 @@ impl Png_InternationalTextChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Png_InternationalTextChunk {
     pub fn text_plain_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -3368,6 +4828,38 @@ pub struct Png_MdcvChromaticity {
     x: RefCell<f64>,
     f_y: Cell<bool>,
     y: RefCell<f64>,
+}
+impl TryFrom<&Png_MdcvChromaticity> for OptRc<Png_MdcvChromaticity> {
+    type Error = KError;
+    fn try_from(v: &Png_MdcvChromaticity) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_MdcvChromaticity> for OptRc<Png_MdcvChromaticity> {
+    type Error = KError;
+    fn try_from(v: &&Png_MdcvChromaticity) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChromaticity> for Png_MdcvChromaticity {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChromaticity>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChromaticity> for &Png_MdcvChromaticity {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChromaticity>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChromaticity> for OptRc<Png_MdcvChromaticity> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChromaticity>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_MdcvChromaticity> for &OptRc<Png_MdcvChromaticity> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChromaticity>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_MdcvChromaticity {
     type Root = Png;
@@ -3431,6 +4923,12 @@ impl Png_MdcvChromaticity {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3454,6 +4952,38 @@ pub struct Png_MdcvChunk {
     max_luminance: RefCell<f64>,
     f_min_luminance: Cell<bool>,
     min_luminance: RefCell<f64>,
+}
+impl TryFrom<&Png_MdcvChunk> for OptRc<Png_MdcvChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_MdcvChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_MdcvChunk> for OptRc<Png_MdcvChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_MdcvChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for Png_MdcvChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for &Png_MdcvChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for OptRc<Png_MdcvChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_MdcvChunk> for &OptRc<Png_MdcvChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_MdcvChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_MdcvChunk {
     type Root = Png;
@@ -3553,6 +5083,12 @@ impl Png_MdcvChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3575,6 +5111,38 @@ pub struct Png_PhysChunk {
     dots_per_inch_x: RefCell<f64>,
     f_dots_per_inch_y: Cell<bool>,
     dots_per_inch_y: RefCell<f64>,
+}
+impl TryFrom<&Png_PhysChunk> for OptRc<Png_PhysChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_PhysChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_PhysChunk> for OptRc<Png_PhysChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_PhysChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for Png_PhysChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for &Png_PhysChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for OptRc<Png_PhysChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_PhysChunk> for &OptRc<Png_PhysChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PhysChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_PhysChunk {
     type Root = Png;
@@ -3669,6 +5237,12 @@ impl Png_PhysChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3682,6 +5256,38 @@ pub struct Png_PlteChunk {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Png_Rgb>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_PlteChunk> for OptRc<Png_PlteChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_PlteChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_PlteChunk> for OptRc<Png_PlteChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_PlteChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for Png_PlteChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for &Png_PlteChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for OptRc<Png_PlteChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_PlteChunk> for &OptRc<Png_PlteChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_PlteChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_PlteChunk {
     type Root = Png;
@@ -3723,6 +5329,12 @@ impl Png_PlteChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3734,6 +5346,38 @@ pub struct Png_Rgb {
     g: RefCell<u8>,
     b: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_Rgb> for OptRc<Png_Rgb> {
+    type Error = KError;
+    fn try_from(v: &Png_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_Rgb> for OptRc<Png_Rgb> {
+    type Error = KError;
+    fn try_from(v: &&Png_Rgb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_Rgb> for Png_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Rgb>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_Rgb> for &Png_Rgb {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Rgb>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_Rgb> for OptRc<Png_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Rgb>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_Rgb> for &OptRc<Png_Rgb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_Rgb>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_Rgb {
     type Root = Png;
@@ -3779,6 +5423,12 @@ impl Png_Rgb {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -3813,6 +5463,22 @@ impl TryFrom<&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitGreyscale> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitGreyscale> {
+    type Error = KError;
+    fn try_from(v: &&Png_SbitChunk_SignificantBits) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for Png_SbitChunk_SignificantBits {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        OptRc::<Png_SbitGreyscale>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for &Png_SbitChunk_SignificantBits {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_SbitGreyscale>> for Png_SbitChunk_SignificantBits {
     fn from(v: OptRc<Png_SbitGreyscale>) -> Self {
         Self::Png_SbitGreyscale(v)
@@ -3827,9 +5493,57 @@ impl TryFrom<&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitTruecolor> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_SbitChunk_SignificantBits> for OptRc<Png_SbitTruecolor> {
+    type Error = KError;
+    fn try_from(v: &&Png_SbitChunk_SignificantBits) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for Png_SbitChunk_SignificantBits {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        OptRc::<Png_SbitTruecolor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for &Png_SbitChunk_SignificantBits {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_SbitTruecolor>> for Png_SbitChunk_SignificantBits {
     fn from(v: OptRc<Png_SbitTruecolor>) -> Self {
         Self::Png_SbitTruecolor(v)
+    }
+}
+impl TryFrom<&Png_SbitChunk> for OptRc<Png_SbitChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_SbitChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SbitChunk> for OptRc<Png_SbitChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_SbitChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for Png_SbitChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for &Png_SbitChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for OptRc<Png_SbitChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SbitChunk> for &OptRc<Png_SbitChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitChunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Png_SbitChunk {
@@ -3903,6 +5617,12 @@ impl Png_SbitChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3914,6 +5634,38 @@ pub struct Png_SbitGreyscale {
     grey: RefCell<u8>,
     alpha: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_SbitGreyscale> for OptRc<Png_SbitGreyscale> {
+    type Error = KError;
+    fn try_from(v: &Png_SbitGreyscale) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SbitGreyscale> for OptRc<Png_SbitGreyscale> {
+    type Error = KError;
+    fn try_from(v: &&Png_SbitGreyscale) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for Png_SbitGreyscale {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for &Png_SbitGreyscale {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for OptRc<Png_SbitGreyscale> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SbitGreyscale> for &OptRc<Png_SbitGreyscale> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitGreyscale>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_SbitGreyscale {
     type Root = Png;
@@ -3981,6 +5733,12 @@ impl Png_SbitGreyscale {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -3994,6 +5752,38 @@ pub struct Png_SbitTruecolor {
     blue: RefCell<u8>,
     alpha: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_SbitTruecolor> for OptRc<Png_SbitTruecolor> {
+    type Error = KError;
+    fn try_from(v: &Png_SbitTruecolor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SbitTruecolor> for OptRc<Png_SbitTruecolor> {
+    type Error = KError;
+    fn try_from(v: &&Png_SbitTruecolor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for Png_SbitTruecolor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for &Png_SbitTruecolor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for OptRc<Png_SbitTruecolor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SbitTruecolor> for &OptRc<Png_SbitTruecolor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SbitTruecolor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_SbitTruecolor {
     type Root = Png;
@@ -4089,6 +5879,12 @@ impl Png_SbitTruecolor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -4109,6 +5905,38 @@ pub struct Png_SpltChunk {
     sample_depth: RefCell<u8>,
     entries: RefCell<Vec<OptRc<Png_SpltEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_SpltChunk> for OptRc<Png_SpltChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_SpltChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SpltChunk> for OptRc<Png_SpltChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_SpltChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for Png_SpltChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for &Png_SpltChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for OptRc<Png_SpltChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SpltChunk> for &OptRc<Png_SpltChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_SpltChunk {
     type Root = Png;
@@ -4197,6 +6025,12 @@ impl Png_SpltChunk {
 impl Png_SpltChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -4472,6 +6306,38 @@ impl TryFrom<&Png_SpltEntry_Alpha> for usize {
     }
 }
 
+impl TryFrom<&Png_SpltEntry> for OptRc<Png_SpltEntry> {
+    type Error = KError;
+    fn try_from(v: &Png_SpltEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SpltEntry> for OptRc<Png_SpltEntry> {
+    type Error = KError;
+    fn try_from(v: &&Png_SpltEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltEntry> for Png_SpltEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltEntry> for &Png_SpltEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SpltEntry> for OptRc<Png_SpltEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SpltEntry> for &OptRc<Png_SpltEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SpltEntry>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Png_SpltEntry {
     type Root = Png;
     type Parent = Png_SpltChunk;
@@ -4528,27 +6394,27 @@ impl KStruct for Png_SpltEntry {
 impl Png_SpltEntry {
 }
 impl Png_SpltEntry {
-    pub fn red(&self) -> u16 {
+    pub fn red(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.red.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.red.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
     }
     pub fn red_enum(&self) -> Ref<'_, Option<Png_SpltEntry_Red>> {
         self.red.borrow()
     }
 }
 impl Png_SpltEntry {
-    pub fn green(&self) -> u16 {
+    pub fn green(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.green.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.green.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
     }
     pub fn green_enum(&self) -> Ref<'_, Option<Png_SpltEntry_Green>> {
         self.green.borrow()
     }
 }
 impl Png_SpltEntry {
-    pub fn blue(&self) -> u16 {
+    pub fn blue(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.blue.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.blue.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
     }
     pub fn blue_enum(&self) -> Ref<'_, Option<Png_SpltEntry_Blue>> {
         self.blue.borrow()
@@ -4561,9 +6427,9 @@ impl Png_SpltEntry {
  * `_parent.sample_depth` is 16) means fully opaque.
  */
 impl Png_SpltEntry {
-    pub fn alpha(&self) -> u16 {
+    pub fn alpha(&self) -> u8 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.alpha.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
+        self.alpha.borrow().as_ref().and_then(|v| u8::try_from(v).ok()).unwrap_or(0)
     }
     pub fn alpha_enum(&self) -> Ref<'_, Option<Png_SpltEntry_Alpha>> {
         self.alpha.borrow()
@@ -4594,6 +6460,12 @@ impl Png_SpltEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -4607,6 +6479,38 @@ pub struct Png_SrgbChunk {
     pub(crate) _self_shared: SharedType<Self>,
     render_intent: RefCell<Png_SrgbChunk_Intent>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_SrgbChunk> for OptRc<Png_SrgbChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_SrgbChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_SrgbChunk> for OptRc<Png_SrgbChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_SrgbChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for Png_SrgbChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for &Png_SrgbChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for OptRc<Png_SrgbChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_SrgbChunk> for &OptRc<Png_SrgbChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_SrgbChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_SrgbChunk {
     type Root = Png;
@@ -4642,6 +6546,12 @@ impl Png_SrgbChunk {
 impl Png_SrgbChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -4703,6 +6613,38 @@ pub struct Png_TextChunk {
     text: RefCell<String>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Png_TextChunk> for OptRc<Png_TextChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_TextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_TextChunk> for OptRc<Png_TextChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_TextChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for Png_TextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for &Png_TextChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for OptRc<Png_TextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_TextChunk> for &OptRc<Png_TextChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TextChunk>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Png_TextChunk {
     type Root = Png;
     type Parent = Png_Chunk;
@@ -4762,6 +6704,12 @@ impl Png_TextChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -4782,6 +6730,38 @@ pub struct Png_TimeChunk {
     minute: RefCell<u8>,
     second: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Png_TimeChunk> for OptRc<Png_TimeChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_TimeChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_TimeChunk> for OptRc<Png_TimeChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_TimeChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for Png_TimeChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for &Png_TimeChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for OptRc<Png_TimeChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_TimeChunk> for &OptRc<Png_TimeChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TimeChunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_TimeChunk {
     type Root = Png;
@@ -4845,6 +6825,12 @@ impl Png_TimeChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -4883,6 +6869,22 @@ impl TryFrom<&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsGreyscaleColor> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsGreyscaleColor> {
+    type Error = KError;
+    fn try_from(v: &&Png_TrnsChunk_TransparentColor) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for Png_TrnsChunk_TransparentColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        OptRc::<Png_TrnsGreyscaleColor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for &Png_TrnsChunk_TransparentColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_TrnsGreyscaleColor>> for Png_TrnsChunk_TransparentColor {
     fn from(v: OptRc<Png_TrnsGreyscaleColor>) -> Self {
         Self::Png_TrnsGreyscaleColor(v)
@@ -4897,9 +6899,57 @@ impl TryFrom<&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsTruecolorColor> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Png_TrnsChunk_TransparentColor> for OptRc<Png_TrnsTruecolorColor> {
+    type Error = KError;
+    fn try_from(v: &&Png_TrnsChunk_TransparentColor) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for Png_TrnsChunk_TransparentColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        OptRc::<Png_TrnsTruecolorColor>::try_from(self)
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for &Png_TrnsChunk_TransparentColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Png_TrnsTruecolorColor>> for Png_TrnsChunk_TransparentColor {
     fn from(v: OptRc<Png_TrnsTruecolorColor>) -> Self {
         Self::Png_TrnsTruecolorColor(v)
+    }
+}
+impl TryFrom<&Png_TrnsChunk> for OptRc<Png_TrnsChunk> {
+    type Error = KError;
+    fn try_from(v: &Png_TrnsChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_TrnsChunk> for OptRc<Png_TrnsChunk> {
+    type Error = KError;
+    fn try_from(v: &&Png_TrnsChunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for Png_TrnsChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for &Png_TrnsChunk {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for OptRc<Png_TrnsChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_TrnsChunk> for &OptRc<Png_TrnsChunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsChunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Png_TrnsChunk {
@@ -4999,6 +7049,12 @@ impl Png_TrnsChunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -5010,6 +7066,38 @@ pub struct Png_TrnsGreyscaleColor {
     _io: RefCell<BytesReader>,
     f_grey: Cell<bool>,
     grey: RefCell<u16>,
+}
+impl TryFrom<&Png_TrnsGreyscaleColor> for OptRc<Png_TrnsGreyscaleColor> {
+    type Error = KError;
+    fn try_from(v: &Png_TrnsGreyscaleColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_TrnsGreyscaleColor> for OptRc<Png_TrnsGreyscaleColor> {
+    type Error = KError;
+    fn try_from(v: &&Png_TrnsGreyscaleColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for Png_TrnsGreyscaleColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for &Png_TrnsGreyscaleColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for OptRc<Png_TrnsGreyscaleColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_TrnsGreyscaleColor> for &OptRc<Png_TrnsGreyscaleColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsGreyscaleColor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_TrnsGreyscaleColor {
     type Root = Png;
@@ -5055,6 +7143,12 @@ impl Png_TrnsGreyscaleColor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -5072,6 +7166,38 @@ pub struct Png_TrnsTruecolorColor {
     green: RefCell<u16>,
     f_red: Cell<bool>,
     red: RefCell<u16>,
+}
+impl TryFrom<&Png_TrnsTruecolorColor> for OptRc<Png_TrnsTruecolorColor> {
+    type Error = KError;
+    fn try_from(v: &Png_TrnsTruecolorColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Png_TrnsTruecolorColor> for OptRc<Png_TrnsTruecolorColor> {
+    type Error = KError;
+    fn try_from(v: &&Png_TrnsTruecolorColor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for Png_TrnsTruecolorColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for &Png_TrnsTruecolorColor {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for OptRc<Png_TrnsTruecolorColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Png_TrnsTruecolorColor> for &OptRc<Png_TrnsTruecolorColor> {
+    fn downcast_optrc(&self) -> Result<OptRc<Png_TrnsTruecolorColor>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Png_TrnsTruecolorColor {
     type Root = Png;
@@ -5152,5 +7278,11 @@ impl Png_TrnsTruecolorColor {
 impl Png_TrnsTruecolorColor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

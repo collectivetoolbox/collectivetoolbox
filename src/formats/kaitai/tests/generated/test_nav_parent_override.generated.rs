@@ -85,8 +85,8 @@ fn test_nav_parent_override() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<NavParentOverride> = NavParentOverride::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.child_size(), 3);
-    assert_eq!(*r.child_1().data(), vec![0x49u8, 0x31u8, 0x32u8]);
-    assert_eq!(*r.mediator_2().child_2().data(), vec![0x33u8, 0x42u8, 0x62u8]);
+    assert_eq!(*(r.child_size()), 3);
+    assert_eq!(*(r.child_1().data()), vec![0x49, 0x31, 0x32]);
+    assert_eq!(*(r.mediator_2().child_2().data()), vec![0x33, 0x42, 0x62]);
     Ok(())
 }

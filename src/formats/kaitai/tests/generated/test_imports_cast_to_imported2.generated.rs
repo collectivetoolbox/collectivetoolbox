@@ -85,7 +85,7 @@ fn test_imports_cast_to_imported2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ImportsCastToImported2> = ImportsCastToImported2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.hw().one(), 236);
-    assert_eq!(*r.two().hw().one(), 236);
+    assert_eq!(*(r.hw().one()), 236);
+    assert_eq!(*(r.two().hw()?.one()), 236);
     Ok(())
 }

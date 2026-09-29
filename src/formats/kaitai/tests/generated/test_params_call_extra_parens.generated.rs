@@ -85,6 +85,6 @@ fn test_params_call_extra_parens() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ParamsCallExtraParens> = ParamsCallExtraParens::read_into(&_io, None, None)?;
 
-    assert_eq!(r.buf1().body(), "foo|b");
+    assert_eq!(*(r.buf1().body()), "foo|b");
     Ok(())
 }

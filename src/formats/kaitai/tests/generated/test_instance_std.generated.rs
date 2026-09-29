@@ -85,6 +85,6 @@ fn test_instance_std() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<InstanceStd> = InstanceStd::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.header()?, "Some ");
+    assert_eq!(*(r.header()?), "Some ");
     Ok(())
 }

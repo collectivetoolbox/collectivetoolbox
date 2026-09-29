@@ -64,6 +64,38 @@ pub struct NavParentSwitchCast {
     main: RefCell<OptRc<NavParentSwitchCast_Foo>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NavParentSwitchCast> for OptRc<NavParentSwitchCast> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitchCast) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitchCast> for OptRc<NavParentSwitchCast> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast> for NavParentSwitchCast {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast> for &NavParentSwitchCast {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast> for OptRc<NavParentSwitchCast> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast> for &OptRc<NavParentSwitchCast> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParentSwitchCast {
     type Root = NavParentSwitchCast;
     type Parent = NavParentSwitchCast;
@@ -97,6 +129,12 @@ impl NavParentSwitchCast {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -125,6 +163,22 @@ impl TryFrom<&NavParentSwitchCast_Foo_Buf> for OptRc<NavParentSwitchCast_Foo_Zer
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&NavParentSwitchCast_Foo_Buf> for OptRc<NavParentSwitchCast_Foo_Zero> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_Buf) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for NavParentSwitchCast_Foo_Buf {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        OptRc::<NavParentSwitchCast_Foo_Zero>::try_from(self)
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for &NavParentSwitchCast_Foo_Buf {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<NavParentSwitchCast_Foo_Zero>> for NavParentSwitchCast_Foo_Buf {
     fn from(v: OptRc<NavParentSwitchCast_Foo_Zero>) -> Self {
         Self::NavParentSwitchCast_Foo_Zero(v)
@@ -137,6 +191,22 @@ impl TryFrom<&NavParentSwitchCast_Foo_Buf> for OptRc<NavParentSwitchCast_Foo_One
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&NavParentSwitchCast_Foo_Buf> for OptRc<NavParentSwitchCast_Foo_One> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_Buf) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for NavParentSwitchCast_Foo_Buf {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        OptRc::<NavParentSwitchCast_Foo_One>::try_from(self)
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for &NavParentSwitchCast_Foo_Buf {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<NavParentSwitchCast_Foo_One>> for NavParentSwitchCast_Foo_Buf {
@@ -153,9 +223,47 @@ impl TryFrom<&NavParentSwitchCast_Foo_Buf> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&NavParentSwitchCast_Foo_Buf> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_Buf) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for NavParentSwitchCast_Foo_Buf {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&NavParentSwitchCast_Foo> for OptRc<NavParentSwitchCast_Foo> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitchCast_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitchCast_Foo> for OptRc<NavParentSwitchCast_Foo> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo> for NavParentSwitchCast_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo> for &NavParentSwitchCast_Foo {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo> for OptRc<NavParentSwitchCast_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo> for &OptRc<NavParentSwitchCast_Foo> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for NavParentSwitchCast_Foo {
@@ -220,6 +328,12 @@ impl NavParentSwitchCast_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NavParentSwitchCast_Foo {
     pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -235,6 +349,38 @@ pub struct NavParentSwitchCast_Foo_Common {
     _io: RefCell<BytesReader>,
     f_flag: Cell<bool>,
     flag: RefCell<u8>,
+}
+impl TryFrom<&NavParentSwitchCast_Foo_Common> for OptRc<NavParentSwitchCast_Foo_Common> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitchCast_Foo_Common) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitchCast_Foo_Common> for OptRc<NavParentSwitchCast_Foo_Common> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_Common) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Common> for NavParentSwitchCast_Foo_Common {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Common>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Common> for &NavParentSwitchCast_Foo_Common {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Common>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Common> for OptRc<NavParentSwitchCast_Foo_Common> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Common>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Common> for &OptRc<NavParentSwitchCast_Foo_Common> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Common>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentSwitchCast_Foo_Common {
     type Root = NavParentSwitchCast;
@@ -266,13 +412,19 @@ impl NavParentSwitchCast_Foo_Common {
             return Ok(self.flag.borrow());
         }
         self.f_flag.set(true);
-        *self.flag.borrow_mut() = (*OptRc::<NavParentSwitchCast_Foo>::try_from(&self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?)?.flag()).try_into()?;
+        *self.flag.borrow_mut() = (*(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.main()).clone().flag()).try_into()?;
         Ok(self.flag.borrow())
     }
 }
 impl NavParentSwitchCast_Foo_Common {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -283,6 +435,38 @@ pub struct NavParentSwitchCast_Foo_One {
     pub(crate) _self_shared: SharedType<Self>,
     branch: RefCell<OptRc<NavParentSwitchCast_Foo_Common>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentSwitchCast_Foo_One> for OptRc<NavParentSwitchCast_Foo_One> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitchCast_Foo_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitchCast_Foo_One> for OptRc<NavParentSwitchCast_Foo_One> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for NavParentSwitchCast_Foo_One {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for &NavParentSwitchCast_Foo_One {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for OptRc<NavParentSwitchCast_Foo_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_One> for &OptRc<NavParentSwitchCast_Foo_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_One>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentSwitchCast_Foo_One {
     type Root = NavParentSwitchCast;
@@ -317,6 +501,12 @@ impl NavParentSwitchCast_Foo_One {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -326,6 +516,38 @@ pub struct NavParentSwitchCast_Foo_Zero {
     pub(crate) _self_shared: SharedType<Self>,
     branch: RefCell<OptRc<NavParentSwitchCast_Foo_Common>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentSwitchCast_Foo_Zero> for OptRc<NavParentSwitchCast_Foo_Zero> {
+    type Error = KError;
+    fn try_from(v: &NavParentSwitchCast_Foo_Zero) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentSwitchCast_Foo_Zero> for OptRc<NavParentSwitchCast_Foo_Zero> {
+    type Error = KError;
+    fn try_from(v: &&NavParentSwitchCast_Foo_Zero) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for NavParentSwitchCast_Foo_Zero {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for &NavParentSwitchCast_Foo_Zero {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for OptRc<NavParentSwitchCast_Foo_Zero> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentSwitchCast_Foo_Zero> for &OptRc<NavParentSwitchCast_Foo_Zero> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentSwitchCast_Foo_Zero>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentSwitchCast_Foo_Zero {
     type Root = NavParentSwitchCast;
@@ -359,5 +581,11 @@ impl NavParentSwitchCast_Foo_Zero {
 impl NavParentSwitchCast_Foo_Zero {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

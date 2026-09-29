@@ -41,6 +41,38 @@ pub struct Edid {
     f_mfg_year: Cell<bool>,
     mfg_year: RefCell<i32>,
 }
+impl TryFrom<&Edid> for OptRc<Edid> {
+    type Error = KError;
+    fn try_from(v: &Edid) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Edid> for OptRc<Edid> {
+    type Error = KError;
+    fn try_from(v: &&Edid) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Edid> for Edid {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Edid> for &Edid {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Edid> for OptRc<Edid> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Edid> for &OptRc<Edid> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Edid {
     type Root = Edid;
     type Parent = Edid;
@@ -303,6 +335,12 @@ impl Edid {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Edid {
     pub fn std_timings_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -370,6 +408,38 @@ pub struct Edid_ChromacityInfo {
     white_y: RefCell<f64>,
     f_white_y_int: Cell<bool>,
     white_y_int: RefCell<i32>,
+}
+impl TryFrom<&Edid_ChromacityInfo> for OptRc<Edid_ChromacityInfo> {
+    type Error = KError;
+    fn try_from(v: &Edid_ChromacityInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Edid_ChromacityInfo> for OptRc<Edid_ChromacityInfo> {
+    type Error = KError;
+    fn try_from(v: &&Edid_ChromacityInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Edid_ChromacityInfo> for Edid_ChromacityInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_ChromacityInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Edid_ChromacityInfo> for &Edid_ChromacityInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_ChromacityInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Edid_ChromacityInfo> for OptRc<Edid_ChromacityInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_ChromacityInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Edid_ChromacityInfo> for &OptRc<Edid_ChromacityInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_ChromacityInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Edid_ChromacityInfo {
     type Root = Edid;
@@ -782,6 +852,12 @@ impl Edid_ChromacityInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -808,6 +884,38 @@ pub struct Edid_EstTimingsInfo {
     can_1152x870px_75hz: RefCell<bool>,
     reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Edid_EstTimingsInfo> for OptRc<Edid_EstTimingsInfo> {
+    type Error = KError;
+    fn try_from(v: &Edid_EstTimingsInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Edid_EstTimingsInfo> for OptRc<Edid_EstTimingsInfo> {
+    type Error = KError;
+    fn try_from(v: &&Edid_EstTimingsInfo) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Edid_EstTimingsInfo> for Edid_EstTimingsInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_EstTimingsInfo>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Edid_EstTimingsInfo> for &Edid_EstTimingsInfo {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_EstTimingsInfo>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Edid_EstTimingsInfo> for OptRc<Edid_EstTimingsInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_EstTimingsInfo>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Edid_EstTimingsInfo> for &OptRc<Edid_EstTimingsInfo> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_EstTimingsInfo>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Edid_EstTimingsInfo {
     type Root = Edid;
@@ -1011,6 +1119,12 @@ impl Edid_EstTimingsInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1031,6 +1145,38 @@ pub struct Edid_StdTiming {
     f_refresh_rate: Cell<bool>,
     refresh_rate: RefCell<u64>,
 }
+impl TryFrom<&Edid_StdTiming> for OptRc<Edid_StdTiming> {
+    type Error = KError;
+    fn try_from(v: &Edid_StdTiming) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Edid_StdTiming> for OptRc<Edid_StdTiming> {
+    type Error = KError;
+    fn try_from(v: &&Edid_StdTiming) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Edid_StdTiming> for Edid_StdTiming {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_StdTiming>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Edid_StdTiming> for &Edid_StdTiming {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_StdTiming>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Edid_StdTiming> for OptRc<Edid_StdTiming> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_StdTiming>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Edid_StdTiming> for &OptRc<Edid_StdTiming> {
+    fn downcast_optrc(&self) -> Result<OptRc<Edid_StdTiming>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Edid_StdTiming {
     type Root = Edid;
     type Parent = Edid;
@@ -1048,7 +1194,7 @@ impl KStruct for Edid_StdTiming {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.horiz_active_pixels_mod.borrow_mut() = _io.read_u1()?;
-        *self_rc.aspect_ratio.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.aspect_ratio.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         *self_rc.refresh_rate_mod.borrow_mut() = _io.read_bits_int_be(6)?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1153,6 +1299,12 @@ impl Edid_StdTiming {
 impl Edid_StdTiming {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

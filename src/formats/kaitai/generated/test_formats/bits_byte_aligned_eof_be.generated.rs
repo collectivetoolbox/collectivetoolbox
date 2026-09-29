@@ -66,6 +66,38 @@ pub struct BitsByteAlignedEofBe {
     _io: RefCell<BytesReader>,
     prebuf_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&BitsByteAlignedEofBe> for OptRc<BitsByteAlignedEofBe> {
+    type Error = KError;
+    fn try_from(v: &BitsByteAlignedEofBe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsByteAlignedEofBe> for OptRc<BitsByteAlignedEofBe> {
+    type Error = KError;
+    fn try_from(v: &&BitsByteAlignedEofBe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAlignedEofBe> for BitsByteAlignedEofBe {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAlignedEofBe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAlignedEofBe> for &BitsByteAlignedEofBe {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAlignedEofBe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsByteAlignedEofBe> for OptRc<BitsByteAlignedEofBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAlignedEofBe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsByteAlignedEofBe> for &OptRc<BitsByteAlignedEofBe> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsByteAlignedEofBe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsByteAlignedEofBe {
     type Root = BitsByteAlignedEofBe;
     type Parent = BitsByteAlignedEofBe;
@@ -103,6 +135,12 @@ impl BitsByteAlignedEofBe {
 impl BitsByteAlignedEofBe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl BitsByteAlignedEofBe {

@@ -84,6 +84,22 @@ impl TryFrom<&IoLocalVar_MessUp> for OptRc<IoLocalVar_Dummy> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&IoLocalVar_MessUp> for OptRc<IoLocalVar_Dummy> {
+    type Error = KError;
+    fn try_from(v: &&IoLocalVar_MessUp) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for IoLocalVar_MessUp {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        OptRc::<IoLocalVar_Dummy>::try_from(self)
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for &IoLocalVar_MessUp {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<IoLocalVar_Dummy>> for IoLocalVar_MessUp {
     fn from(v: OptRc<IoLocalVar_Dummy>) -> Self {
         Self::IoLocalVar_Dummy(v)
@@ -98,9 +114,47 @@ impl TryFrom<&IoLocalVar_MessUp> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&IoLocalVar_MessUp> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&IoLocalVar_MessUp) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for IoLocalVar_MessUp {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&IoLocalVar> for OptRc<IoLocalVar> {
+    type Error = KError;
+    fn try_from(v: &IoLocalVar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IoLocalVar> for OptRc<IoLocalVar> {
+    type Error = KError;
+    fn try_from(v: &&IoLocalVar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar> for IoLocalVar {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar> for &IoLocalVar {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar> for OptRc<IoLocalVar> {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IoLocalVar> for &OptRc<IoLocalVar> {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for IoLocalVar {
@@ -120,7 +174,7 @@ impl KStruct for IoLocalVar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.skip.borrow_mut() = _io.read_bytes(20_usize)?;
-        if OptRc::<IoLocalVar_Dummy>::try_from(&*(self_rc.mess_up()?).as_ref().ok_or(KError::CastError)?)?._io().pos() < 0 {
+        if OptRc::<IoLocalVar_Dummy>::try_from(&*((self_rc.mess_up()?).as_ref().ok_or(KError::CastError)?))?._io().pos() < 0 {
             *self_rc.always_null.borrow_mut() = _io.read_u1()?;
         }
         *self_rc.followup.borrow_mut() = _io.read_u1()?;
@@ -183,6 +237,12 @@ impl IoLocalVar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl IoLocalVar {
     pub fn skip_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -201,6 +261,38 @@ pub struct IoLocalVar_Dummy {
     pub(crate) _parent: SharedType<IoLocalVar>,
     pub(crate) _self_shared: SharedType<Self>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&IoLocalVar_Dummy> for OptRc<IoLocalVar_Dummy> {
+    type Error = KError;
+    fn try_from(v: &IoLocalVar_Dummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IoLocalVar_Dummy> for OptRc<IoLocalVar_Dummy> {
+    type Error = KError;
+    fn try_from(v: &&IoLocalVar_Dummy) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for IoLocalVar_Dummy {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for &IoLocalVar_Dummy {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for OptRc<IoLocalVar_Dummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IoLocalVar_Dummy> for &OptRc<IoLocalVar_Dummy> {
+    fn downcast_optrc(&self) -> Result<OptRc<IoLocalVar_Dummy>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IoLocalVar_Dummy {
     type Root = IoLocalVar;
@@ -227,5 +319,11 @@ impl IoLocalVar_Dummy {
 impl IoLocalVar_Dummy {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

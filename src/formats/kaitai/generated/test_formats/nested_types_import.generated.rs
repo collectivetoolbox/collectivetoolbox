@@ -56,9 +56,13 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::nested_types3::NestedTypes3;
+use super::nested_types3::*;
 use super::nested_types3::NestedTypes3_SubtypeA_SubtypeCc;
+use super::nested_types3::*;
 use super::nested_types3::NestedTypes3_SubtypeB;
+use super::nested_types3::*;
 use super::nested_types3::NestedTypes3_SubtypeA_SubtypeC_SubtypeD;
+use super::nested_types3::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct NestedTypesImport {
@@ -69,6 +73,38 @@ pub struct NestedTypesImport {
     a_c_d: RefCell<OptRc<NestedTypes3_SubtypeA_SubtypeC_SubtypeD>>,
     b: RefCell<OptRc<NestedTypes3_SubtypeB>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedTypesImport> for OptRc<NestedTypesImport> {
+    type Error = KError;
+    fn try_from(v: &NestedTypesImport) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedTypesImport> for OptRc<NestedTypesImport> {
+    type Error = KError;
+    fn try_from(v: &&NestedTypesImport) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypesImport> for NestedTypesImport {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypesImport>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedTypesImport> for &NestedTypesImport {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypesImport>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedTypesImport> for OptRc<NestedTypesImport> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypesImport>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedTypesImport> for &OptRc<NestedTypesImport> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedTypesImport>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedTypesImport {
     type Root = NestedTypesImport;
@@ -116,5 +152,11 @@ impl NestedTypesImport {
 impl NestedTypesImport {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

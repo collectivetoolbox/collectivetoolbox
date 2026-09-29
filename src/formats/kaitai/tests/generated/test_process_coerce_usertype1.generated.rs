@@ -85,9 +85,9 @@ fn test_process_coerce_usertype1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessCoerceUsertype1> = ProcessCoerceUsertype1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.records()[0].flag(), 0);
-    assert_eq!(*r.records()[0].buf()?.value(), 1094795585);
-    assert_eq!(*r.records()[1].flag(), 1);
-    assert_eq!(*r.records()[1].buf()?.value(), 1111638594);
+    assert_eq!(*(r.records()[0].flag()), 0);
+    assert_eq!(*(r.records()[0].buf()?.value()), 1094795585);
+    assert_eq!(*(r.records()[1].flag()), 1);
+    assert_eq!(*(r.records()[1].buf()?.value()), 1111638594);
     Ok(())
 }

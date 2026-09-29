@@ -18,6 +18,38 @@ pub struct AixUtmp {
     records: RefCell<Vec<OptRc<AixUtmp_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&AixUtmp> for OptRc<AixUtmp> {
+    type Error = KError;
+    fn try_from(v: &AixUtmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AixUtmp> for OptRc<AixUtmp> {
+    type Error = KError;
+    fn try_from(v: &&AixUtmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp> for AixUtmp {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp> for &AixUtmp {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp> for OptRc<AixUtmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AixUtmp> for &OptRc<AixUtmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AixUtmp {
     type Root = AixUtmp;
     type Parent = AixUtmp;
@@ -57,6 +89,12 @@ impl AixUtmp {
 impl AixUtmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -125,6 +163,38 @@ pub struct AixUtmp_ExitStatus {
     exit_code: RefCell<i16>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&AixUtmp_ExitStatus> for OptRc<AixUtmp_ExitStatus> {
+    type Error = KError;
+    fn try_from(v: &AixUtmp_ExitStatus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AixUtmp_ExitStatus> for OptRc<AixUtmp_ExitStatus> {
+    type Error = KError;
+    fn try_from(v: &&AixUtmp_ExitStatus) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_ExitStatus> for AixUtmp_ExitStatus {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_ExitStatus>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_ExitStatus> for &AixUtmp_ExitStatus {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_ExitStatus>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_ExitStatus> for OptRc<AixUtmp_ExitStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_ExitStatus>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AixUtmp_ExitStatus> for &OptRc<AixUtmp_ExitStatus> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_ExitStatus>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AixUtmp_ExitStatus {
     type Root = AixUtmp;
     type Parent = AixUtmp_Record;
@@ -171,6 +241,12 @@ impl AixUtmp_ExitStatus {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -196,6 +272,38 @@ pub struct AixUtmp_Record {
     hostname_raw: RefCell<Vec<u8>>,
     reserved_a_raw: RefCell<Vec<u8>>,
     reserved_v_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&AixUtmp_Record> for OptRc<AixUtmp_Record> {
+    type Error = KError;
+    fn try_from(v: &AixUtmp_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AixUtmp_Record> for OptRc<AixUtmp_Record> {
+    type Error = KError;
+    fn try_from(v: &&AixUtmp_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_Record> for AixUtmp_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_Record> for &AixUtmp_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AixUtmp_Record> for OptRc<AixUtmp_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AixUtmp_Record> for &OptRc<AixUtmp_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<AixUtmp_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AixUtmp_Record {
     type Root = AixUtmp;
@@ -321,6 +429,12 @@ impl AixUtmp_Record {
 impl AixUtmp_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AixUtmp_Record {

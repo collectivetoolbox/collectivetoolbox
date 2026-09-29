@@ -56,7 +56,9 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::params_def_array_usertype_imported::ParamsDefArrayUsertypeImported;
+use super::params_def_array_usertype_imported::*;
 use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsParamsDefArrayUsertypeImported {
@@ -66,6 +68,38 @@ pub struct ImportsParamsDefArrayUsertypeImported {
     hws: RefCell<Vec<OptRc<HelloWorld>>>,
     two: RefCell<OptRc<ParamsDefArrayUsertypeImported>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
+    type Error = KError;
+    fn try_from(v: &ImportsParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
+    type Error = KError;
+    fn try_from(v: &&ImportsParamsDefArrayUsertypeImported) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for ImportsParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for &ImportsParamsDefArrayUsertypeImported {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for OptRc<ImportsParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ImportsParamsDefArrayUsertypeImported> for &OptRc<ImportsParamsDefArrayUsertypeImported> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsParamsDefArrayUsertypeImported>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ImportsParamsDefArrayUsertypeImported {
     type Root = ImportsParamsDefArrayUsertypeImported;
@@ -89,7 +123,7 @@ impl KStruct for ImportsParamsDefArrayUsertypeImported {
             let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
             self_rc.hws.borrow_mut().push(t);
         }
-        let f = |t : &mut ParamsDefArrayUsertypeImported| Ok(t.set_params(self_rc.hws().clone()));
+        let f = |t : &mut ParamsDefArrayUsertypeImported| Ok(t.set_params((self_rc.hws()).clone()));
         let t = Self::read_into_with_init::<_, ParamsDefArrayUsertypeImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -111,5 +145,11 @@ impl ImportsParamsDefArrayUsertypeImported {
 impl ImportsParamsDefArrayUsertypeImported {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

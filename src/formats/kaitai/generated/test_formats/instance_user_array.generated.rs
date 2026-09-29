@@ -69,6 +69,38 @@ pub struct InstanceUserArray {
     f_user_entries: Cell<bool>,
     user_entries: RefCell<Vec<OptRc<InstanceUserArray_Entry>>>,
 }
+impl TryFrom<&InstanceUserArray> for OptRc<InstanceUserArray> {
+    type Error = KError;
+    fn try_from(v: &InstanceUserArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceUserArray> for OptRc<InstanceUserArray> {
+    type Error = KError;
+    fn try_from(v: &&InstanceUserArray) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray> for InstanceUserArray {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray> for &InstanceUserArray {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray> for OptRc<InstanceUserArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceUserArray> for &OptRc<InstanceUserArray> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for InstanceUserArray {
     type Root = InstanceUserArray;
     type Parent = InstanceUserArray;
@@ -139,6 +171,12 @@ impl InstanceUserArray {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl InstanceUserArray {
     pub fn user_entries_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
@@ -154,6 +192,38 @@ pub struct InstanceUserArray_Entry {
     word1: RefCell<u16>,
     word2: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&InstanceUserArray_Entry> for OptRc<InstanceUserArray_Entry> {
+    type Error = KError;
+    fn try_from(v: &InstanceUserArray_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceUserArray_Entry> for OptRc<InstanceUserArray_Entry> {
+    type Error = KError;
+    fn try_from(v: &&InstanceUserArray_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray_Entry> for InstanceUserArray_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray_Entry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray_Entry> for &InstanceUserArray_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray_Entry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceUserArray_Entry> for OptRc<InstanceUserArray_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray_Entry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceUserArray_Entry> for &OptRc<InstanceUserArray_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceUserArray_Entry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceUserArray_Entry {
     type Root = InstanceUserArray;
@@ -192,5 +262,11 @@ impl InstanceUserArray_Entry {
 impl InstanceUserArray_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

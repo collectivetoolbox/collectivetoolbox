@@ -64,6 +64,38 @@ pub struct DefaultEndianExprInherited {
     docs: RefCell<Vec<OptRc<DefaultEndianExprInherited_Doc>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&DefaultEndianExprInherited> for OptRc<DefaultEndianExprInherited> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprInherited) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprInherited> for OptRc<DefaultEndianExprInherited> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprInherited) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited> for DefaultEndianExprInherited {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited> for &DefaultEndianExprInherited {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited> for OptRc<DefaultEndianExprInherited> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited> for &OptRc<DefaultEndianExprInherited> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for DefaultEndianExprInherited {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited;
@@ -104,6 +136,12 @@ impl DefaultEndianExprInherited {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -115,6 +153,38 @@ pub struct DefaultEndianExprInherited_Doc {
     main: RefCell<OptRc<DefaultEndianExprInherited_Doc_MainObj>>,
     _io: RefCell<BytesReader>,
     indicator_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&DefaultEndianExprInherited_Doc> for OptRc<DefaultEndianExprInherited_Doc> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprInherited_Doc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprInherited_Doc> for OptRc<DefaultEndianExprInherited_Doc> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprInherited_Doc) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc> for DefaultEndianExprInherited_Doc {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc> for &DefaultEndianExprInherited_Doc {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc> for OptRc<DefaultEndianExprInherited_Doc> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc> for &OptRc<DefaultEndianExprInherited_Doc> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianExprInherited_Doc {
     type Root = DefaultEndianExprInherited;
@@ -155,6 +225,12 @@ impl DefaultEndianExprInherited_Doc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl DefaultEndianExprInherited_Doc {
     pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -170,6 +246,38 @@ pub struct DefaultEndianExprInherited_Doc_MainObj {
     insides: RefCell<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&DefaultEndianExprInherited_Doc_MainObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprInherited_Doc_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprInherited_Doc_MainObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprInherited_Doc_MainObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj> for DefaultEndianExprInherited_Doc_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj> for &DefaultEndianExprInherited_Doc_MainObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj> for &OptRc<DefaultEndianExprInherited_Doc_MainObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianExprInherited_Doc_MainObj {
     type Root = DefaultEndianExprInherited;
@@ -187,7 +295,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.indicator() {
+        match self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.indicator().as_slice() {
             [0x49, 0x49] => {
                 *self_rc._is_le.borrow_mut() = 1_i32;
             }
@@ -222,6 +330,12 @@ impl DefaultEndianExprInherited_Doc_MainObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -233,6 +347,38 @@ pub struct DefaultEndianExprInherited_Doc_MainObj_SubObj {
     more: RefCell<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>>,
     _io: RefCell<BytesReader>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&DefaultEndianExprInherited_Doc_MainObj_SubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprInherited_Doc_MainObj_SubObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprInherited_Doc_MainObj_SubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprInherited_Doc_MainObj_SubObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> for DefaultEndianExprInherited_Doc_MainObj_SubObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> for &DefaultEndianExprInherited_Doc_MainObj_SubObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> for &OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj {
     type Root = DefaultEndianExprInherited;
@@ -279,6 +425,12 @@ impl DefaultEndianExprInherited_Doc_MainObj_SubObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -292,6 +444,38 @@ pub struct DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
     f_some_inst: Cell<bool>,
     some_inst: RefCell<u32>,
     _is_le: RefCell<i32>,
+}
+impl TryFrom<&DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> {
+    type Error = KError;
+    fn try_from(v: &DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> {
+    type Error = KError;
+    fn try_from(v: &&DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for &DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> for &OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
     type Root = DefaultEndianExprInherited;
@@ -350,5 +534,11 @@ impl DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
 impl DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

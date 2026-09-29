@@ -66,6 +66,38 @@ pub struct NestedSameName2 {
     dummy: RefCell<OptRc<NestedSameName2_DummyObj>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NestedSameName2> for OptRc<NestedSameName2> {
+    type Error = KError;
+    fn try_from(v: &NestedSameName2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedSameName2> for OptRc<NestedSameName2> {
+    type Error = KError;
+    fn try_from(v: &&NestedSameName2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2> for NestedSameName2 {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2> for &NestedSameName2 {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2> for OptRc<NestedSameName2> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedSameName2> for &OptRc<NestedSameName2> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NestedSameName2 {
     type Root = NestedSameName2;
     type Parent = NestedSameName2;
@@ -112,6 +144,12 @@ impl NestedSameName2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -122,6 +160,38 @@ pub struct NestedSameName2_DummyObj {
     dummy_size: RefCell<i32>,
     foo: RefCell<OptRc<NestedSameName2_DummyObj_FooObj>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedSameName2_DummyObj> for OptRc<NestedSameName2_DummyObj> {
+    type Error = KError;
+    fn try_from(v: &NestedSameName2_DummyObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedSameName2_DummyObj> for OptRc<NestedSameName2_DummyObj> {
+    type Error = KError;
+    fn try_from(v: &&NestedSameName2_DummyObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj> for NestedSameName2_DummyObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj> for &NestedSameName2_DummyObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj> for OptRc<NestedSameName2_DummyObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj> for &OptRc<NestedSameName2_DummyObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedSameName2_DummyObj {
     type Root = NestedSameName2;
@@ -162,6 +232,12 @@ impl NestedSameName2_DummyObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -172,6 +248,38 @@ pub struct NestedSameName2_DummyObj_FooObj {
     data2: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data2_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
+    type Error = KError;
+    fn try_from(v: &NestedSameName2_DummyObj_FooObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
+    type Error = KError;
+    fn try_from(v: &&NestedSameName2_DummyObj_FooObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for NestedSameName2_DummyObj_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for &NestedSameName2_DummyObj_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for OptRc<NestedSameName2_DummyObj_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedSameName2_DummyObj_FooObj> for &OptRc<NestedSameName2_DummyObj_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_DummyObj_FooObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedSameName2_DummyObj_FooObj {
     type Root = NestedSameName2;
@@ -205,6 +313,12 @@ impl NestedSameName2_DummyObj_FooObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NestedSameName2_DummyObj_FooObj {
     pub fn data2_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -220,6 +334,38 @@ pub struct NestedSameName2_Main {
     main_size: RefCell<i32>,
     foo: RefCell<OptRc<NestedSameName2_Main_FooObj>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NestedSameName2_Main> for OptRc<NestedSameName2_Main> {
+    type Error = KError;
+    fn try_from(v: &NestedSameName2_Main) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedSameName2_Main> for OptRc<NestedSameName2_Main> {
+    type Error = KError;
+    fn try_from(v: &&NestedSameName2_Main) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main> for NestedSameName2_Main {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main> for &NestedSameName2_Main {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main> for OptRc<NestedSameName2_Main> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main> for &OptRc<NestedSameName2_Main> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedSameName2_Main {
     type Root = NestedSameName2;
@@ -260,6 +406,12 @@ impl NestedSameName2_Main {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -270,6 +422,38 @@ pub struct NestedSameName2_Main_FooObj {
     data1: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     data1_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
+    type Error = KError;
+    fn try_from(v: &NestedSameName2_Main_FooObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
+    type Error = KError;
+    fn try_from(v: &&NestedSameName2_Main_FooObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for NestedSameName2_Main_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for &NestedSameName2_Main_FooObj {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for OptRc<NestedSameName2_Main_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NestedSameName2_Main_FooObj> for &OptRc<NestedSameName2_Main_FooObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<NestedSameName2_Main_FooObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NestedSameName2_Main_FooObj {
     type Root = NestedSameName2;
@@ -302,6 +486,12 @@ impl NestedSameName2_Main_FooObj {
 impl NestedSameName2_Main_FooObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl NestedSameName2_Main_FooObj {

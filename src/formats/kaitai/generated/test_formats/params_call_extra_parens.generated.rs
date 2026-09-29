@@ -64,6 +64,38 @@ pub struct ParamsCallExtraParens {
     buf1: RefCell<OptRc<ParamsCallExtraParens_MyStr1>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ParamsCallExtraParens> for OptRc<ParamsCallExtraParens> {
+    type Error = KError;
+    fn try_from(v: &ParamsCallExtraParens) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsCallExtraParens> for OptRc<ParamsCallExtraParens> {
+    type Error = KError;
+    fn try_from(v: &&ParamsCallExtraParens) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens> for ParamsCallExtraParens {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens> for &ParamsCallExtraParens {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens> for OptRc<ParamsCallExtraParens> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens> for &OptRc<ParamsCallExtraParens> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsCallExtraParens {
     type Root = ParamsCallExtraParens;
     type Parent = ParamsCallExtraParens;
@@ -98,6 +130,12 @@ impl ParamsCallExtraParens {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -109,6 +147,38 @@ pub struct ParamsCallExtraParens_MyStr1 {
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
+    type Error = KError;
+    fn try_from(v: &ParamsCallExtraParens_MyStr1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
+    type Error = KError;
+    fn try_from(v: &&ParamsCallExtraParens_MyStr1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for ParamsCallExtraParens_MyStr1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for &ParamsCallExtraParens_MyStr1 {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for OptRc<ParamsCallExtraParens_MyStr1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsCallExtraParens_MyStr1> for &OptRc<ParamsCallExtraParens_MyStr1> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsCallExtraParens_MyStr1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsCallExtraParens_MyStr1 {
     type Root = ParamsCallExtraParens;
@@ -151,6 +221,12 @@ impl ParamsCallExtraParens_MyStr1 {
 impl ParamsCallExtraParens_MyStr1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ParamsCallExtraParens_MyStr1 {

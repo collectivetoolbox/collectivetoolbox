@@ -68,6 +68,38 @@ pub struct CastToTop {
     f_header_casted: Cell<bool>,
     header_casted: RefCell<OptRc<CastToTop>>,
 }
+impl TryFrom<&CastToTop> for OptRc<CastToTop> {
+    type Error = KError;
+    fn try_from(v: &CastToTop) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastToTop> for OptRc<CastToTop> {
+    type Error = KError;
+    fn try_from(v: &&CastToTop) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastToTop> for CastToTop {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToTop>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastToTop> for &CastToTop {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToTop>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastToTop> for OptRc<CastToTop> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToTop>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastToTop> for &OptRc<CastToTop> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastToTop>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for CastToTop {
     type Root = CastToTop;
     type Parent = CastToTop;
@@ -113,7 +145,7 @@ impl CastToTop {
         if self.f_header_casted.get() {
             return Ok(self.header_casted.borrow());
         }
-        *self.header_casted.borrow_mut() = OptRc::<CastToTop>::try_from(&*self.header()?)?.clone();
+        *self.header_casted.borrow_mut() = OptRc::<CastToTop>::try_from(&*(self.header()?))?.clone();
         Ok(self.header_casted.borrow())
     }
 }
@@ -125,5 +157,11 @@ impl CastToTop {
 impl CastToTop {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

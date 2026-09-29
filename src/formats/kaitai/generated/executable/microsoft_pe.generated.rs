@@ -19,6 +19,38 @@ pub struct MicrosoftPe {
     f_pe: Cell<bool>,
     pe: RefCell<OptRc<MicrosoftPe_PeHeader>>,
 }
+impl TryFrom<&MicrosoftPe> for OptRc<MicrosoftPe> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe> for OptRc<MicrosoftPe> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe> for MicrosoftPe {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe> for &MicrosoftPe {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe> for OptRc<MicrosoftPe> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe> for &OptRc<MicrosoftPe> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MicrosoftPe {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
@@ -66,6 +98,12 @@ impl MicrosoftPe {
 impl MicrosoftPe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -120,6 +158,38 @@ pub struct MicrosoftPe_Annoyingstring {
     name_offset: RefCell<u32>,
     f_name_zeroes: Cell<bool>,
     name_zeroes: RefCell<u32>,
+}
+impl TryFrom<&MicrosoftPe_Annoyingstring> for OptRc<MicrosoftPe_Annoyingstring> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_Annoyingstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_Annoyingstring> for OptRc<MicrosoftPe_Annoyingstring> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_Annoyingstring) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Annoyingstring> for MicrosoftPe_Annoyingstring {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Annoyingstring>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Annoyingstring> for &MicrosoftPe_Annoyingstring {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Annoyingstring>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Annoyingstring> for OptRc<MicrosoftPe_Annoyingstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Annoyingstring>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Annoyingstring> for &OptRc<MicrosoftPe_Annoyingstring> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Annoyingstring>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_Annoyingstring {
     type Root = MicrosoftPe;
@@ -224,6 +294,12 @@ impl MicrosoftPe_Annoyingstring {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -241,6 +317,38 @@ pub struct MicrosoftPe_CertificateEntry {
     certificate_bytes: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     certificate_bytes_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MicrosoftPe_CertificateEntry> for OptRc<MicrosoftPe_CertificateEntry> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_CertificateEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_CertificateEntry> for OptRc<MicrosoftPe_CertificateEntry> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_CertificateEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateEntry> for MicrosoftPe_CertificateEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateEntry> for &MicrosoftPe_CertificateEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateEntry> for OptRc<MicrosoftPe_CertificateEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateEntry> for &OptRc<MicrosoftPe_CertificateEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_CertificateEntry {
     type Root = MicrosoftPe;
@@ -307,6 +415,12 @@ impl MicrosoftPe_CertificateEntry {
 impl MicrosoftPe_CertificateEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MicrosoftPe_CertificateEntry {
@@ -420,6 +534,38 @@ pub struct MicrosoftPe_CertificateTable {
     items: RefCell<Vec<OptRc<MicrosoftPe_CertificateEntry>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&MicrosoftPe_CertificateTable> for OptRc<MicrosoftPe_CertificateTable> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_CertificateTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_CertificateTable> for OptRc<MicrosoftPe_CertificateTable> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_CertificateTable) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateTable> for MicrosoftPe_CertificateTable {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateTable>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateTable> for &MicrosoftPe_CertificateTable {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateTable>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateTable> for OptRc<MicrosoftPe_CertificateTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateTable>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CertificateTable> for &OptRc<MicrosoftPe_CertificateTable> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CertificateTable>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MicrosoftPe_CertificateTable {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
@@ -460,6 +606,12 @@ impl MicrosoftPe_CertificateTable {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -487,6 +639,38 @@ pub struct MicrosoftPe_CoffHeader {
     symbol_table: RefCell<Vec<OptRc<MicrosoftPe_CoffSymbol>>>,
     f_symbol_table_size: Cell<bool>,
     symbol_table_size: RefCell<i32>,
+}
+impl TryFrom<&MicrosoftPe_CoffHeader> for OptRc<MicrosoftPe_CoffHeader> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_CoffHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_CoffHeader> for OptRc<MicrosoftPe_CoffHeader> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_CoffHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffHeader> for MicrosoftPe_CoffHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffHeader> for &MicrosoftPe_CoffHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffHeader> for OptRc<MicrosoftPe_CoffHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffHeader> for &OptRc<MicrosoftPe_CoffHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_CoffHeader {
     type Root = MicrosoftPe;
@@ -614,6 +798,12 @@ impl MicrosoftPe_CoffHeader {
 impl MicrosoftPe_CoffHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -866,6 +1056,38 @@ pub struct MicrosoftPe_CoffSymbol {
     f_section: Cell<bool>,
     section: RefCell<OptRc<MicrosoftPe_Section>>,
 }
+impl TryFrom<&MicrosoftPe_CoffSymbol> for OptRc<MicrosoftPe_CoffSymbol> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_CoffSymbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_CoffSymbol> for OptRc<MicrosoftPe_CoffSymbol> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_CoffSymbol) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffSymbol> for MicrosoftPe_CoffSymbol {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffSymbol>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffSymbol> for &MicrosoftPe_CoffSymbol {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffSymbol>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffSymbol> for OptRc<MicrosoftPe_CoffSymbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffSymbol>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_CoffSymbol> for &OptRc<MicrosoftPe_CoffSymbol> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_CoffSymbol>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MicrosoftPe_CoffSymbol {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CoffHeader;
@@ -958,6 +1180,12 @@ impl MicrosoftPe_CoffSymbol {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftPe_CoffSymbol {
     pub fn name_annoying_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -973,6 +1201,38 @@ pub struct MicrosoftPe_DataDir {
     virtual_address: RefCell<u32>,
     size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MicrosoftPe_DataDir> for OptRc<MicrosoftPe_DataDir> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_DataDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_DataDir> for OptRc<MicrosoftPe_DataDir> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_DataDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_DataDir> for MicrosoftPe_DataDir {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_DataDir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_DataDir> for &MicrosoftPe_DataDir {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_DataDir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_DataDir> for OptRc<MicrosoftPe_DataDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_DataDir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_DataDir> for &OptRc<MicrosoftPe_DataDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_DataDir>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_DataDir {
     type Root = MicrosoftPe;
@@ -1012,6 +1272,12 @@ impl MicrosoftPe_DataDir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1024,6 +1290,38 @@ pub struct MicrosoftPe_MzPlaceholder {
     ofs_pe: RefCell<u32>,
     _io: RefCell<BytesReader>,
     data1_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MicrosoftPe_MzPlaceholder> for OptRc<MicrosoftPe_MzPlaceholder> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_MzPlaceholder) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_MzPlaceholder> for OptRc<MicrosoftPe_MzPlaceholder> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_MzPlaceholder) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_MzPlaceholder> for MicrosoftPe_MzPlaceholder {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_MzPlaceholder>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_MzPlaceholder> for &MicrosoftPe_MzPlaceholder {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_MzPlaceholder>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_MzPlaceholder> for OptRc<MicrosoftPe_MzPlaceholder> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_MzPlaceholder>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_MzPlaceholder> for &OptRc<MicrosoftPe_MzPlaceholder> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_MzPlaceholder>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_MzPlaceholder {
     type Root = MicrosoftPe;
@@ -1076,6 +1374,12 @@ impl MicrosoftPe_MzPlaceholder {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftPe_MzPlaceholder {
     pub fn data1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1092,6 +1396,38 @@ pub struct MicrosoftPe_OptionalHeader {
     windows: RefCell<OptRc<MicrosoftPe_OptionalHeaderWindows>>,
     data_dirs: RefCell<OptRc<MicrosoftPe_OptionalHeaderDataDirs>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MicrosoftPe_OptionalHeader> for OptRc<MicrosoftPe_OptionalHeader> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_OptionalHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_OptionalHeader> for OptRc<MicrosoftPe_OptionalHeader> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_OptionalHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeader> for MicrosoftPe_OptionalHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeader> for &MicrosoftPe_OptionalHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeader> for OptRc<MicrosoftPe_OptionalHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeader> for &OptRc<MicrosoftPe_OptionalHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_OptionalHeader {
     type Root = MicrosoftPe;
@@ -1140,6 +1476,12 @@ impl MicrosoftPe_OptionalHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1163,6 +1505,38 @@ pub struct MicrosoftPe_OptionalHeaderDataDirs {
     delay_import_descriptor: RefCell<OptRc<MicrosoftPe_DataDir>>,
     clr_runtime_header: RefCell<OptRc<MicrosoftPe_DataDir>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MicrosoftPe_OptionalHeaderDataDirs> for OptRc<MicrosoftPe_OptionalHeaderDataDirs> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_OptionalHeaderDataDirs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_OptionalHeaderDataDirs> for OptRc<MicrosoftPe_OptionalHeaderDataDirs> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_OptionalHeaderDataDirs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderDataDirs> for MicrosoftPe_OptionalHeaderDataDirs {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderDataDirs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderDataDirs> for &MicrosoftPe_OptionalHeaderDataDirs {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderDataDirs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderDataDirs> for OptRc<MicrosoftPe_OptionalHeaderDataDirs> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderDataDirs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderDataDirs> for &OptRc<MicrosoftPe_OptionalHeaderDataDirs> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderDataDirs>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_OptionalHeaderDataDirs {
     type Root = MicrosoftPe;
@@ -1295,6 +1669,12 @@ impl MicrosoftPe_OptionalHeaderDataDirs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1312,6 +1692,38 @@ pub struct MicrosoftPe_OptionalHeaderStd {
     base_of_code: RefCell<u32>,
     base_of_data: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MicrosoftPe_OptionalHeaderStd> for OptRc<MicrosoftPe_OptionalHeaderStd> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_OptionalHeaderStd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_OptionalHeaderStd> for OptRc<MicrosoftPe_OptionalHeaderStd> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_OptionalHeaderStd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderStd> for MicrosoftPe_OptionalHeaderStd {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderStd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderStd> for &MicrosoftPe_OptionalHeaderStd {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderStd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderStd> for OptRc<MicrosoftPe_OptionalHeaderStd> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderStd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderStd> for &OptRc<MicrosoftPe_OptionalHeaderStd> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderStd>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_OptionalHeaderStd {
     type Root = MicrosoftPe;
@@ -1395,6 +1807,12 @@ impl MicrosoftPe_OptionalHeaderStd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1429,6 +1847,38 @@ pub struct MicrosoftPe_OptionalHeaderWindows {
     loader_flags: RefCell<u32>,
     number_of_rva_and_sizes: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&MicrosoftPe_OptionalHeaderWindows> for OptRc<MicrosoftPe_OptionalHeaderWindows> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_OptionalHeaderWindows) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_OptionalHeaderWindows> for OptRc<MicrosoftPe_OptionalHeaderWindows> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_OptionalHeaderWindows) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderWindows> for MicrosoftPe_OptionalHeaderWindows {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderWindows>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderWindows> for &MicrosoftPe_OptionalHeaderWindows {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderWindows>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderWindows> for OptRc<MicrosoftPe_OptionalHeaderWindows> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderWindows>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_OptionalHeaderWindows> for &OptRc<MicrosoftPe_OptionalHeaderWindows> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_OptionalHeaderWindows>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_OptionalHeaderWindows {
     type Root = MicrosoftPe;
@@ -1632,6 +2082,12 @@ impl MicrosoftPe_OptionalHeaderWindows {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_OptionalHeaderWindows_SubsystemEnum {
@@ -1710,6 +2166,38 @@ pub struct MicrosoftPe_PeHeader {
     certificate_table_raw: RefCell<Vec<u8>>,
     f_certificate_table: Cell<bool>,
     certificate_table: RefCell<OptRc<MicrosoftPe_CertificateTable>>,
+}
+impl TryFrom<&MicrosoftPe_PeHeader> for OptRc<MicrosoftPe_PeHeader> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_PeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_PeHeader> for OptRc<MicrosoftPe_PeHeader> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_PeHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_PeHeader> for MicrosoftPe_PeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_PeHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_PeHeader> for &MicrosoftPe_PeHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_PeHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_PeHeader> for OptRc<MicrosoftPe_PeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_PeHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_PeHeader> for &OptRc<MicrosoftPe_PeHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_PeHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_PeHeader {
     type Root = MicrosoftPe;
@@ -1794,6 +2282,12 @@ impl MicrosoftPe_PeHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftPe_PeHeader {
     pub fn optional_hdr_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1825,6 +2319,38 @@ pub struct MicrosoftPe_Section {
     name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MicrosoftPe_Section> for OptRc<MicrosoftPe_Section> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftPe_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftPe_Section> for OptRc<MicrosoftPe_Section> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftPe_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Section> for MicrosoftPe_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Section>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Section> for &MicrosoftPe_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Section>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Section> for OptRc<MicrosoftPe_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Section>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftPe_Section> for &OptRc<MicrosoftPe_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftPe_Section>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftPe_Section {
     type Root = MicrosoftPe;
@@ -1926,6 +2452,12 @@ impl MicrosoftPe_Section {
 impl MicrosoftPe_Section {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl MicrosoftPe_Section {

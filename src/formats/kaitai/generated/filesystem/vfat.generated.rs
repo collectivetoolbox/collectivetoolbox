@@ -4,7 +4,8 @@
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::DosDatetime;
+use crate::generated::common::dos_datetime::*;
 
 /**
  * \sa <https://download.microsoft.com/download/0/8/4/084c452b-b772-4fe5-89bb-a0cbf082286a/fatgen103.doc> Source
@@ -23,6 +24,38 @@ pub struct Vfat {
     fats: RefCell<Vec<Vec<u8>>>,
     f_root_dir: Cell<bool>,
     root_dir: RefCell<OptRc<Vfat_RootDirectory>>,
+}
+impl TryFrom<&Vfat> for OptRc<Vfat> {
+    type Error = KError;
+    fn try_from(v: &Vfat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat> for OptRc<Vfat> {
+    type Error = KError;
+    fn try_from(v: &&Vfat) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat> for Vfat {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat> for &Vfat {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat> for OptRc<Vfat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat> for &OptRc<Vfat> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat {
     type Root = Vfat;
@@ -98,6 +131,12 @@ impl Vfat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vfat {
     pub fn fats_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
@@ -128,6 +167,38 @@ pub struct Vfat_BiosParamBlock {
     num_hidden_sectors: RefCell<u32>,
     total_ls_4: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Vfat_BiosParamBlock> for OptRc<Vfat_BiosParamBlock> {
+    type Error = KError;
+    fn try_from(v: &Vfat_BiosParamBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_BiosParamBlock> for OptRc<Vfat_BiosParamBlock> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_BiosParamBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BiosParamBlock> for Vfat_BiosParamBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BiosParamBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BiosParamBlock> for &Vfat_BiosParamBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BiosParamBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BiosParamBlock> for OptRc<Vfat_BiosParamBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BiosParamBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_BiosParamBlock> for &OptRc<Vfat_BiosParamBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BiosParamBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_BiosParamBlock {
     type Root = Vfat;
@@ -291,6 +362,12 @@ impl Vfat_BiosParamBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -320,6 +397,38 @@ pub struct Vfat_BootSector {
     size_fat: RefCell<u32>,
     f_size_root_dir: Cell<bool>,
     size_root_dir: RefCell<i32>,
+}
+impl TryFrom<&Vfat_BootSector> for OptRc<Vfat_BootSector> {
+    type Error = KError;
+    fn try_from(v: &Vfat_BootSector) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_BootSector> for OptRc<Vfat_BootSector> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_BootSector) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BootSector> for Vfat_BootSector {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BootSector>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BootSector> for &Vfat_BootSector {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BootSector>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_BootSector> for OptRc<Vfat_BootSector> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BootSector>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_BootSector> for &OptRc<Vfat_BootSector> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_BootSector>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_BootSector {
     type Root = Vfat;
@@ -508,6 +617,12 @@ impl Vfat_BootSector {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vfat_BootSector {
     pub fn jmp_instruction_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -540,6 +655,38 @@ pub struct Vfat_ExtBiosParamBlockFat16 {
     volume_id_raw: RefCell<Vec<u8>>,
     partition_volume_label_raw: RefCell<Vec<u8>>,
     fs_type_str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Vfat_ExtBiosParamBlockFat16> for OptRc<Vfat_ExtBiosParamBlockFat16> {
+    type Error = KError;
+    fn try_from(v: &Vfat_ExtBiosParamBlockFat16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_ExtBiosParamBlockFat16> for OptRc<Vfat_ExtBiosParamBlockFat16> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_ExtBiosParamBlockFat16) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat16> for Vfat_ExtBiosParamBlockFat16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat16>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat16> for &Vfat_ExtBiosParamBlockFat16 {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat16>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat16> for OptRc<Vfat_ExtBiosParamBlockFat16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat16>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat16> for &OptRc<Vfat_ExtBiosParamBlockFat16> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat16>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_ExtBiosParamBlockFat16 {
     type Root = Vfat;
@@ -627,6 +774,12 @@ impl Vfat_ExtBiosParamBlockFat16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vfat_ExtBiosParamBlockFat16 {
     pub fn volume_id_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -674,6 +827,38 @@ pub struct Vfat_ExtBiosParamBlockFat32 {
     volume_id_raw: RefCell<Vec<u8>>,
     partition_volume_label_raw: RefCell<Vec<u8>>,
     fs_type_str_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Vfat_ExtBiosParamBlockFat32> for OptRc<Vfat_ExtBiosParamBlockFat32> {
+    type Error = KError;
+    fn try_from(v: &Vfat_ExtBiosParamBlockFat32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_ExtBiosParamBlockFat32> for OptRc<Vfat_ExtBiosParamBlockFat32> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_ExtBiosParamBlockFat32) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat32> for Vfat_ExtBiosParamBlockFat32 {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat32>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat32> for &Vfat_ExtBiosParamBlockFat32 {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat32>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat32> for OptRc<Vfat_ExtBiosParamBlockFat32> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat32>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_ExtBiosParamBlockFat32> for &OptRc<Vfat_ExtBiosParamBlockFat32> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_ExtBiosParamBlockFat32>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_ExtBiosParamBlockFat32 {
     type Root = Vfat;
@@ -860,6 +1045,12 @@ impl Vfat_ExtBiosParamBlockFat32 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vfat_ExtBiosParamBlockFat32 {
     pub fn reserved3_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -889,6 +1080,38 @@ pub struct Vfat_RootDirectory {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<OptRc<Vfat_RootDirectoryRec>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Vfat_RootDirectory> for OptRc<Vfat_RootDirectory> {
+    type Error = KError;
+    fn try_from(v: &Vfat_RootDirectory) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_RootDirectory> for OptRc<Vfat_RootDirectory> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_RootDirectory) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectory> for Vfat_RootDirectory {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectory>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectory> for &Vfat_RootDirectory {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectory>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectory> for OptRc<Vfat_RootDirectory> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectory>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectory> for &OptRc<Vfat_RootDirectory> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectory>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_RootDirectory {
     type Root = Vfat;
@@ -927,6 +1150,12 @@ impl Vfat_RootDirectory {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -945,6 +1174,38 @@ pub struct Vfat_RootDirectoryRec {
     attrs_raw: RefCell<Vec<u8>>,
     reserved_raw: RefCell<Vec<u8>>,
     last_write_time_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Vfat_RootDirectoryRec> for OptRc<Vfat_RootDirectoryRec> {
+    type Error = KError;
+    fn try_from(v: &Vfat_RootDirectoryRec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_RootDirectoryRec> for OptRc<Vfat_RootDirectoryRec> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_RootDirectoryRec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec> for Vfat_RootDirectoryRec {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec> for &Vfat_RootDirectoryRec {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec> for OptRc<Vfat_RootDirectoryRec> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec> for &OptRc<Vfat_RootDirectoryRec> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_RootDirectoryRec {
     type Root = Vfat;
@@ -1016,6 +1277,12 @@ impl Vfat_RootDirectoryRec {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Vfat_RootDirectoryRec {
     pub fn file_name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -1053,6 +1320,38 @@ pub struct Vfat_RootDirectoryRec_AttrFlags {
     _io: RefCell<BytesReader>,
     f_long_name: Cell<bool>,
     long_name: RefCell<bool>,
+}
+impl TryFrom<&Vfat_RootDirectoryRec_AttrFlags> for OptRc<Vfat_RootDirectoryRec_AttrFlags> {
+    type Error = KError;
+    fn try_from(v: &Vfat_RootDirectoryRec_AttrFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Vfat_RootDirectoryRec_AttrFlags> for OptRc<Vfat_RootDirectoryRec_AttrFlags> {
+    type Error = KError;
+    fn try_from(v: &&Vfat_RootDirectoryRec_AttrFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec_AttrFlags> for Vfat_RootDirectoryRec_AttrFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec_AttrFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec_AttrFlags> for &Vfat_RootDirectoryRec_AttrFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec_AttrFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec_AttrFlags> for OptRc<Vfat_RootDirectoryRec_AttrFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec_AttrFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Vfat_RootDirectoryRec_AttrFlags> for &OptRc<Vfat_RootDirectoryRec_AttrFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<Vfat_RootDirectoryRec_AttrFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Vfat_RootDirectoryRec_AttrFlags {
     type Root = Vfat;
@@ -1133,5 +1432,11 @@ impl Vfat_RootDirectoryRec_AttrFlags {
 impl Vfat_RootDirectoryRec_AttrFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

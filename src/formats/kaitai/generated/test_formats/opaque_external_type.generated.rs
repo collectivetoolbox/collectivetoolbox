@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::hello_world::HelloWorld;
+use super::hello_world::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct OpaqueExternalType {
@@ -64,6 +65,38 @@ pub struct OpaqueExternalType {
     pub(crate) _self_shared: SharedType<Self>,
     hw: RefCell<OptRc<HelloWorld>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&OpaqueExternalType> for OptRc<OpaqueExternalType> {
+    type Error = KError;
+    fn try_from(v: &OpaqueExternalType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&OpaqueExternalType> for OptRc<OpaqueExternalType> {
+    type Error = KError;
+    fn try_from(v: &&OpaqueExternalType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType> for OpaqueExternalType {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType> for &OpaqueExternalType {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<OpaqueExternalType> for OptRc<OpaqueExternalType> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<OpaqueExternalType> for &OptRc<OpaqueExternalType> {
+    fn downcast_optrc(&self) -> Result<OptRc<OpaqueExternalType>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for OpaqueExternalType {
     type Root = OpaqueExternalType;
@@ -97,5 +130,11 @@ impl OpaqueExternalType {
 impl OpaqueExternalType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

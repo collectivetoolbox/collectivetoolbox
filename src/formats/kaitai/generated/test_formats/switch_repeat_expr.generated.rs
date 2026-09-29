@@ -81,6 +81,22 @@ impl TryFrom<&SwitchRepeatExpr_Body> for OptRc<SwitchRepeatExpr_One> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchRepeatExpr_Body> for OptRc<SwitchRepeatExpr_One> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for SwitchRepeatExpr_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        OptRc::<SwitchRepeatExpr_One>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for &SwitchRepeatExpr_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchRepeatExpr_One>> for SwitchRepeatExpr_Body {
     fn from(v: OptRc<SwitchRepeatExpr_One>) -> Self {
         Self::SwitchRepeatExpr_One(v)
@@ -93,6 +109,22 @@ impl TryFrom<&SwitchRepeatExpr_Body> for OptRc<SwitchRepeatExpr_Two> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SwitchRepeatExpr_Body> for OptRc<SwitchRepeatExpr_Two> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for SwitchRepeatExpr_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        OptRc::<SwitchRepeatExpr_Two>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for &SwitchRepeatExpr_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SwitchRepeatExpr_Two>> for SwitchRepeatExpr_Body {
@@ -109,9 +141,47 @@ impl TryFrom<&SwitchRepeatExpr_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchRepeatExpr_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for SwitchRepeatExpr_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&SwitchRepeatExpr> for OptRc<SwitchRepeatExpr> {
+    type Error = KError;
+    fn try_from(v: &SwitchRepeatExpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchRepeatExpr> for OptRc<SwitchRepeatExpr> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr> for SwitchRepeatExpr {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr> for &SwitchRepeatExpr {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr> for OptRc<SwitchRepeatExpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr> for &OptRc<SwitchRepeatExpr> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchRepeatExpr {
@@ -138,21 +208,23 @@ impl KStruct for SwitchRepeatExpr {
         *self_rc.body.borrow_mut() = Vec::new();
         let l_body = 3_usize;
         for _i in 0_usize..l_body {
+            let _raw_body = _io.read_bytes(4_usize)?;
+            let _io_body = BytesReader::from(_raw_body);
             match *(self_rc.codes().get(_i).ok_or(KError::CastError)?) {
                 1 => {
-                    let t = Self::read_into::<_, SwitchRepeatExpr_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 2 => {
-                    let t = Self::read_into::<_, SwitchRepeatExpr_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 7 => {
-                    let t = Self::read_into::<_, SwitchRepeatExpr_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_Two>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 _ => {
-                    self_rc.body.borrow_mut().push(_io.read_bytes_full()?.into());
+                    self_rc.body.borrow_mut().push(_io_body.read_bytes_full()?.into());
                 }
             }
         }
@@ -176,6 +248,12 @@ impl SwitchRepeatExpr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchRepeatExpr {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -190,6 +268,38 @@ pub struct SwitchRepeatExpr_One {
     pub(crate) _self_shared: SharedType<Self>,
     first: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchRepeatExpr_One> for OptRc<SwitchRepeatExpr_One> {
+    type Error = KError;
+    fn try_from(v: &SwitchRepeatExpr_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchRepeatExpr_One> for OptRc<SwitchRepeatExpr_One> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr_One) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for SwitchRepeatExpr_One {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for &SwitchRepeatExpr_One {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for OptRc<SwitchRepeatExpr_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_One> for &OptRc<SwitchRepeatExpr_One> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_One>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchRepeatExpr_One {
     type Root = SwitchRepeatExpr;
@@ -223,6 +333,12 @@ impl SwitchRepeatExpr_One {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -232,6 +348,38 @@ pub struct SwitchRepeatExpr_Two {
     pub(crate) _self_shared: SharedType<Self>,
     second: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchRepeatExpr_Two> for OptRc<SwitchRepeatExpr_Two> {
+    type Error = KError;
+    fn try_from(v: &SwitchRepeatExpr_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchRepeatExpr_Two> for OptRc<SwitchRepeatExpr_Two> {
+    type Error = KError;
+    fn try_from(v: &&SwitchRepeatExpr_Two) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for SwitchRepeatExpr_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for &SwitchRepeatExpr_Two {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for OptRc<SwitchRepeatExpr_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchRepeatExpr_Two> for &OptRc<SwitchRepeatExpr_Two> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchRepeatExpr_Two>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchRepeatExpr_Two {
     type Root = SwitchRepeatExpr;
@@ -264,5 +412,11 @@ impl SwitchRepeatExpr_Two {
 impl SwitchRepeatExpr_Two {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

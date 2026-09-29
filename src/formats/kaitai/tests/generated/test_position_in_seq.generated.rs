@@ -85,6 +85,6 @@ fn test_position_in_seq() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<PositionInSeq> = PositionInSeq::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.numbers(), vec![0 + 1, 2u8, 3u8]);
+    assert_eq!(*(r.numbers()), vec![0 + 1, 2, 3]);
     Ok(())
 }

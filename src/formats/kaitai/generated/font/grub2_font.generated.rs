@@ -20,6 +20,38 @@ pub struct Grub2Font {
     _io: RefCell<BytesReader>,
     magic_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Grub2Font> for OptRc<Grub2Font> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font> for OptRc<Grub2Font> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font> for Grub2Font {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font> for &Grub2Font {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font> for OptRc<Grub2Font> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font> for &OptRc<Grub2Font> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Grub2Font {
     type Root = Grub2Font;
     type Parent = Grub2Font;
@@ -79,6 +111,12 @@ impl Grub2Font {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Grub2Font {
     pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -93,6 +131,38 @@ pub struct Grub2Font_AsceSection {
     pub(crate) _self_shared: SharedType<Self>,
     ascent_in_pixels: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_AsceSection> for OptRc<Grub2Font_AsceSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_AsceSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_AsceSection> for OptRc<Grub2Font_AsceSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_AsceSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for Grub2Font_AsceSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for &Grub2Font_AsceSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for OptRc<Grub2Font_AsceSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for &OptRc<Grub2Font_AsceSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_AsceSection {
     type Root = Grub2Font;
@@ -126,6 +196,12 @@ impl Grub2Font_AsceSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -135,6 +211,38 @@ pub struct Grub2Font_ChixSection {
     pub(crate) _self_shared: SharedType<Self>,
     characters: RefCell<Vec<OptRc<Grub2Font_ChixSection_Character>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_ChixSection> for OptRc<Grub2Font_ChixSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_ChixSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_ChixSection> for OptRc<Grub2Font_ChixSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_ChixSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for Grub2Font_ChixSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for &Grub2Font_ChixSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for OptRc<Grub2Font_ChixSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for &OptRc<Grub2Font_ChixSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_ChixSection {
     type Root = Grub2Font;
@@ -176,6 +284,12 @@ impl Grub2Font_ChixSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -189,6 +303,38 @@ pub struct Grub2Font_ChixSection_Character {
     _io: RefCell<BytesReader>,
     f_definition: Cell<bool>,
     definition: RefCell<OptRc<Grub2Font_ChixSection_CharacterDefinition>>,
+}
+impl TryFrom<&Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_ChixSection_Character) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_ChixSection_Character) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_Character> for Grub2Font_ChixSection_Character {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_Character> for &Grub2Font_ChixSection_Character {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_Character> for OptRc<Grub2Font_ChixSection_Character> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_Character> for &OptRc<Grub2Font_ChixSection_Character> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_Character>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_ChixSection_Character {
     type Root = Grub2Font;
@@ -254,6 +400,12 @@ impl Grub2Font_ChixSection_Character {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -269,6 +421,38 @@ pub struct Grub2Font_ChixSection_CharacterDefinition {
     bitmap_data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     bitmap_data_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_ChixSection_CharacterDefinition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_ChixSection_CharacterDefinition) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for Grub2Font_ChixSection_CharacterDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for &Grub2Font_ChixSection_CharacterDefinition {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection_CharacterDefinition> for &OptRc<Grub2Font_ChixSection_CharacterDefinition> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection_CharacterDefinition>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
     type Root = Grub2Font;
@@ -347,6 +531,12 @@ impl Grub2Font_ChixSection_CharacterDefinition {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Grub2Font_ChixSection_CharacterDefinition {
     pub fn bitmap_data_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -361,6 +551,38 @@ pub struct Grub2Font_DescSection {
     pub(crate) _self_shared: SharedType<Self>,
     descent_in_pixels: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_DescSection> for OptRc<Grub2Font_DescSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_DescSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_DescSection> for OptRc<Grub2Font_DescSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_DescSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for Grub2Font_DescSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for &Grub2Font_DescSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for OptRc<Grub2Font_DescSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for &OptRc<Grub2Font_DescSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_DescSection {
     type Root = Grub2Font;
@@ -394,6 +616,12 @@ impl Grub2Font_DescSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -403,6 +631,38 @@ pub struct Grub2Font_FamiSection {
     pub(crate) _self_shared: SharedType<Self>,
     font_family_name: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_FamiSection> for OptRc<Grub2Font_FamiSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_FamiSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_FamiSection> for OptRc<Grub2Font_FamiSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_FamiSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for Grub2Font_FamiSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for &Grub2Font_FamiSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for OptRc<Grub2Font_FamiSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for &OptRc<Grub2Font_FamiSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_FamiSection {
     type Root = Grub2Font;
@@ -436,6 +696,12 @@ impl Grub2Font_FamiSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -445,6 +711,38 @@ pub struct Grub2Font_MaxhSection {
     pub(crate) _self_shared: SharedType<Self>,
     maximum_character_height: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_MaxhSection> for OptRc<Grub2Font_MaxhSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_MaxhSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_MaxhSection> for OptRc<Grub2Font_MaxhSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_MaxhSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for Grub2Font_MaxhSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for &Grub2Font_MaxhSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for OptRc<Grub2Font_MaxhSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for &OptRc<Grub2Font_MaxhSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_MaxhSection {
     type Root = Grub2Font;
@@ -478,6 +776,12 @@ impl Grub2Font_MaxhSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -487,6 +791,38 @@ pub struct Grub2Font_MaxwSection {
     pub(crate) _self_shared: SharedType<Self>,
     maximum_character_width: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_MaxwSection> for OptRc<Grub2Font_MaxwSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_MaxwSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_MaxwSection> for OptRc<Grub2Font_MaxwSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_MaxwSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for Grub2Font_MaxwSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for &Grub2Font_MaxwSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for OptRc<Grub2Font_MaxwSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for &OptRc<Grub2Font_MaxwSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_MaxwSection {
     type Root = Grub2Font;
@@ -520,6 +856,12 @@ impl Grub2Font_MaxwSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -529,6 +871,38 @@ pub struct Grub2Font_NameSection {
     pub(crate) _self_shared: SharedType<Self>,
     font_name: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_NameSection> for OptRc<Grub2Font_NameSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_NameSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_NameSection> for OptRc<Grub2Font_NameSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_NameSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for Grub2Font_NameSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for &Grub2Font_NameSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for OptRc<Grub2Font_NameSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for &OptRc<Grub2Font_NameSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_NameSection {
     type Root = Grub2Font;
@@ -562,6 +936,12 @@ impl Grub2Font_NameSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -571,6 +951,38 @@ pub struct Grub2Font_PtszSection {
     pub(crate) _self_shared: SharedType<Self>,
     font_point_size: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_PtszSection> for OptRc<Grub2Font_PtszSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_PtszSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_PtszSection> for OptRc<Grub2Font_PtszSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_PtszSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for Grub2Font_PtszSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for &Grub2Font_PtszSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for OptRc<Grub2Font_PtszSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for &OptRc<Grub2Font_PtszSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_PtszSection {
     type Root = Grub2Font;
@@ -603,6 +1015,12 @@ impl Grub2Font_PtszSection {
 impl Grub2Font_PtszSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -641,6 +1059,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_AsceSection> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_AsceSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        OptRc::<Grub2Font_AsceSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_AsceSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_AsceSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Grub2Font_AsceSection>> for Grub2Font_Section_Body {
     fn from(v: OptRc<Grub2Font_AsceSection>) -> Self {
         Self::Grub2Font_AsceSection(v)
@@ -653,6 +1087,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_ChixSection> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_ChixSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        OptRc::<Grub2Font_ChixSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_ChixSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_ChixSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Grub2Font_ChixSection>> for Grub2Font_Section_Body {
@@ -669,6 +1119,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_DescSection> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_DescSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        OptRc::<Grub2Font_DescSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_DescSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_DescSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Grub2Font_DescSection>> for Grub2Font_Section_Body {
     fn from(v: OptRc<Grub2Font_DescSection>) -> Self {
         Self::Grub2Font_DescSection(v)
@@ -681,6 +1147,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_FamiSection> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_FamiSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        OptRc::<Grub2Font_FamiSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_FamiSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_FamiSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Grub2Font_FamiSection>> for Grub2Font_Section_Body {
@@ -697,6 +1179,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxhSection> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxhSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        OptRc::<Grub2Font_MaxhSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxhSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxhSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Grub2Font_MaxhSection>> for Grub2Font_Section_Body {
     fn from(v: OptRc<Grub2Font_MaxhSection>) -> Self {
         Self::Grub2Font_MaxhSection(v)
@@ -709,6 +1207,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxwSection> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_MaxwSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        OptRc::<Grub2Font_MaxwSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_MaxwSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_MaxwSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Grub2Font_MaxwSection>> for Grub2Font_Section_Body {
@@ -725,6 +1239,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_NameSection> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_NameSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        OptRc::<Grub2Font_NameSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_NameSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_NameSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Grub2Font_NameSection>> for Grub2Font_Section_Body {
     fn from(v: OptRc<Grub2Font_NameSection>) -> Self {
         Self::Grub2Font_NameSection(v)
@@ -737,6 +1267,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_PtszSection> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_PtszSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        OptRc::<Grub2Font_PtszSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_PtszSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_PtszSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Grub2Font_PtszSection>> for Grub2Font_Section_Body {
@@ -753,6 +1299,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_SlanSection> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_SlanSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        OptRc::<Grub2Font_SlanSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Grub2Font_SlanSection>> for Grub2Font_Section_Body {
     fn from(v: OptRc<Grub2Font_SlanSection>) -> Self {
         Self::Grub2Font_SlanSection(v)
@@ -765,6 +1327,22 @@ impl TryFrom<&Grub2Font_Section_Body> for OptRc<Grub2Font_WeigSection> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Grub2Font_Section_Body> for OptRc<Grub2Font_WeigSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        OptRc::<Grub2Font_WeigSection>::try_from(self)
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for &Grub2Font_Section_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Grub2Font_WeigSection>> for Grub2Font_Section_Body {
@@ -781,9 +1359,47 @@ impl TryFrom<&Grub2Font_Section_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Grub2Font_Section_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Grub2Font_Section_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Grub2Font_Section> for OptRc<Grub2Font_Section> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_Section> for OptRc<Grub2Font_Section> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_Section) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_Section> for Grub2Font_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_Section>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_Section> for &Grub2Font_Section {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_Section>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_Section> for OptRc<Grub2Font_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_Section>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_Section> for &OptRc<Grub2Font_Section> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_Section>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Grub2Font_Section {
@@ -910,6 +1526,12 @@ impl Grub2Font_Section {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Grub2Font_Section {
     pub fn section_type_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -929,6 +1551,38 @@ pub struct Grub2Font_SlanSection {
     pub(crate) _self_shared: SharedType<Self>,
     font_slant: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_SlanSection> for OptRc<Grub2Font_SlanSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_SlanSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_SlanSection> for OptRc<Grub2Font_SlanSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_SlanSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for Grub2Font_SlanSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for &Grub2Font_SlanSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for OptRc<Grub2Font_SlanSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_SlanSection> for &OptRc<Grub2Font_SlanSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_SlanSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_SlanSection {
     type Root = Grub2Font;
@@ -962,6 +1616,12 @@ impl Grub2Font_SlanSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -971,6 +1631,38 @@ pub struct Grub2Font_WeigSection {
     pub(crate) _self_shared: SharedType<Self>,
     font_weight: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Grub2Font_WeigSection> for OptRc<Grub2Font_WeigSection> {
+    type Error = KError;
+    fn try_from(v: &Grub2Font_WeigSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Grub2Font_WeigSection> for OptRc<Grub2Font_WeigSection> {
+    type Error = KError;
+    fn try_from(v: &&Grub2Font_WeigSection) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for Grub2Font_WeigSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for &Grub2Font_WeigSection {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for OptRc<Grub2Font_WeigSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Grub2Font_WeigSection> for &OptRc<Grub2Font_WeigSection> {
+    fn downcast_optrc(&self) -> Result<OptRc<Grub2Font_WeigSection>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Grub2Font_WeigSection {
     type Root = Grub2Font;
@@ -1003,5 +1695,11 @@ impl Grub2Font_WeigSection {
 impl Grub2Font_WeigSection {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

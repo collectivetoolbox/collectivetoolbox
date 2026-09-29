@@ -70,6 +70,38 @@ pub struct SwitchCast {
     f_second_val: Cell<bool>,
     second_val: RefCell<u8>,
 }
+impl TryFrom<&SwitchCast> for OptRc<SwitchCast> {
+    type Error = KError;
+    fn try_from(v: &SwitchCast) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchCast> for OptRc<SwitchCast> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast> for SwitchCast {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast> for &SwitchCast {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast> for OptRc<SwitchCast> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchCast> for &OptRc<SwitchCast> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchCast {
     type Root = SwitchCast;
     type Parent = SwitchCast;
@@ -108,7 +140,7 @@ impl SwitchCast {
         if self.f_err_cast.get() {
             return Ok(self.err_cast.borrow());
         }
-        *self.err_cast.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*(self.opcodes().get(2_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.err_cast.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*((self.opcodes().get(2_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.err_cast.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -119,7 +151,7 @@ impl SwitchCast {
         if self.f_first_obj.get() {
             return Ok(self.first_obj.borrow());
         }
-        *self.first_obj.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.clone();
+        *self.first_obj.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.first_obj.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -131,7 +163,7 @@ impl SwitchCast {
             return Ok(self.second_val.borrow());
         }
         self.f_second_val.set(true);
-        *self.second_val.borrow_mut() = (*OptRc::<SwitchCast_Intval>::try_from(&*(self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.value()).try_into()?;
+        *self.second_val.borrow_mut() = (*OptRc::<SwitchCast_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value()).try_into()?;
         Ok(self.second_val.borrow())
     }
 }
@@ -144,6 +176,12 @@ impl SwitchCast {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -153,6 +191,38 @@ pub struct SwitchCast_Intval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchCast_Intval> for OptRc<SwitchCast_Intval> {
+    type Error = KError;
+    fn try_from(v: &SwitchCast_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchCast_Intval> for OptRc<SwitchCast_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for SwitchCast_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for &SwitchCast_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for OptRc<SwitchCast_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for &OptRc<SwitchCast_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchCast_Intval {
     type Root = SwitchCast;
@@ -186,6 +256,12 @@ impl SwitchCast_Intval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -211,6 +287,22 @@ impl TryFrom<&SwitchCast_Opcode_Body> for OptRc<SwitchCast_Intval> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchCast_Opcode_Body> for OptRc<SwitchCast_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for SwitchCast_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        OptRc::<SwitchCast_Intval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchCast_Intval> for &SwitchCast_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Intval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchCast_Intval>> for SwitchCast_Opcode_Body {
     fn from(v: OptRc<SwitchCast_Intval>) -> Self {
         Self::SwitchCast_Intval(v)
@@ -225,9 +317,57 @@ impl TryFrom<&SwitchCast_Opcode_Body> for OptRc<SwitchCast_Strval> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchCast_Opcode_Body> for OptRc<SwitchCast_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for SwitchCast_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        OptRc::<SwitchCast_Strval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for &SwitchCast_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchCast_Strval>> for SwitchCast_Opcode_Body {
     fn from(v: OptRc<SwitchCast_Strval>) -> Self {
         Self::SwitchCast_Strval(v)
+    }
+}
+impl TryFrom<&SwitchCast_Opcode> for OptRc<SwitchCast_Opcode> {
+    type Error = KError;
+    fn try_from(v: &SwitchCast_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchCast_Opcode> for OptRc<SwitchCast_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Opcode> for SwitchCast_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Opcode> for &SwitchCast_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Opcode> for OptRc<SwitchCast_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchCast_Opcode> for &OptRc<SwitchCast_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Opcode>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchCast_Opcode {
@@ -278,6 +418,12 @@ impl SwitchCast_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -287,6 +433,38 @@ pub struct SwitchCast_Strval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchCast_Strval> for OptRc<SwitchCast_Strval> {
+    type Error = KError;
+    fn try_from(v: &SwitchCast_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchCast_Strval> for OptRc<SwitchCast_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchCast_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for SwitchCast_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for &SwitchCast_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for OptRc<SwitchCast_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchCast_Strval> for &OptRc<SwitchCast_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchCast_Strval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchCast_Strval {
     type Root = SwitchCast;
@@ -319,5 +497,11 @@ impl SwitchCast_Strval {
 impl SwitchCast_Strval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,9 +85,9 @@ fn test_expr_io_eof() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprIoEof> = ExprIoEof::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.substream1().one(), 1262698832);
-    assert!(r.substream1().two().is_none());
-    assert_eq!(*r.substream2().one(), 4294914349);
-    assert_eq!(*r.substream2().two(), 1262698832);
+    assert_eq!(*(r.substream1().one()), 1262698832);
+    assert_eq!(*r.substream1().two(), 0);
+    assert_eq!(*(r.substream2().one()), 4294914349);
+    assert_eq!(*(r.substream2().two()), 1262698832);
     Ok(())
 }

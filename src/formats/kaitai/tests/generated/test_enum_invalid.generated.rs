@@ -85,7 +85,7 @@ fn test_enum_invalid() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumInvalid> = EnumInvalid::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1(), EnumInvalid_Animal::Dog);
-    assert_eq!(*r.pet_2(), 111);
+    assert_eq!(*(r.pet_1()), EnumInvalid_Animal::Dog);
+    assert_eq!(i64::from(&*r.pet_2()), 111);
     Ok(())
 }

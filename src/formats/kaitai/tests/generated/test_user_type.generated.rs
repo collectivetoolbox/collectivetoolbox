@@ -85,7 +85,7 @@ fn test_user_type() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<UserType> = UserType::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.one().width(), 66);
-    assert_eq!(*r.one().height(), 4919);
+    assert_eq!(*(r.one().width()), 66);
+    assert_eq!(*(r.one().height()), 4919);
     Ok(())
 }

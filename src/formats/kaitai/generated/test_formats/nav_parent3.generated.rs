@@ -67,6 +67,38 @@ pub struct NavParent3 {
     f_tags: Cell<bool>,
     tags: RefCell<Vec<OptRc<NavParent3_Tag>>>,
 }
+impl TryFrom<&NavParent3> for OptRc<NavParent3> {
+    type Error = KError;
+    fn try_from(v: &NavParent3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParent3> for OptRc<NavParent3> {
+    type Error = KError;
+    fn try_from(v: &&NavParent3) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3> for NavParent3 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParent3> for &NavParent3 {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3> for OptRc<NavParent3> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParent3> for &OptRc<NavParent3> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParent3 {
     type Root = NavParent3;
     type Parent = NavParent3;
@@ -125,6 +157,12 @@ impl NavParent3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -153,9 +191,57 @@ impl TryFrom<&NavParent3_Tag_TagContent> for OptRc<NavParent3_Tag_TagChar> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&NavParent3_Tag_TagContent> for OptRc<NavParent3_Tag_TagChar> {
+    type Error = KError;
+    fn try_from(v: &&NavParent3_Tag_TagContent) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for NavParent3_Tag_TagContent {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        OptRc::<NavParent3_Tag_TagChar>::try_from(self)
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for &NavParent3_Tag_TagContent {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<NavParent3_Tag_TagChar>> for NavParent3_Tag_TagContent {
     fn from(v: OptRc<NavParent3_Tag_TagChar>) -> Self {
         Self::NavParent3_Tag_TagChar(v)
+    }
+}
+impl TryFrom<&NavParent3_Tag> for OptRc<NavParent3_Tag> {
+    type Error = KError;
+    fn try_from(v: &NavParent3_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParent3_Tag> for OptRc<NavParent3_Tag> {
+    type Error = KError;
+    fn try_from(v: &&NavParent3_Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag> for NavParent3_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag> for &NavParent3_Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag> for OptRc<NavParent3_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParent3_Tag> for &OptRc<NavParent3_Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for NavParent3_Tag {
@@ -224,6 +310,12 @@ impl NavParent3_Tag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NavParent3_Tag {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -239,6 +331,38 @@ pub struct NavParent3_Tag_TagChar {
     content: RefCell<String>,
     _io: RefCell<BytesReader>,
     content_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&NavParent3_Tag_TagChar> for OptRc<NavParent3_Tag_TagChar> {
+    type Error = KError;
+    fn try_from(v: &NavParent3_Tag_TagChar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParent3_Tag_TagChar> for OptRc<NavParent3_Tag_TagChar> {
+    type Error = KError;
+    fn try_from(v: &&NavParent3_Tag_TagChar) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for NavParent3_Tag_TagChar {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for &NavParent3_Tag_TagChar {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for OptRc<NavParent3_Tag_TagChar> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParent3_Tag_TagChar> for &OptRc<NavParent3_Tag_TagChar> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParent3_Tag_TagChar>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParent3_Tag_TagChar {
     type Root = NavParent3;
@@ -271,6 +395,12 @@ impl NavParent3_Tag_TagChar {
 impl NavParent3_Tag_TagChar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl NavParent3_Tag_TagChar {

@@ -67,6 +67,38 @@ pub struct IntegersMinMax {
     signed_max: RefCell<OptRc<IntegersMinMax_Signed>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IntegersMinMax> for OptRc<IntegersMinMax> {
+    type Error = KError;
+    fn try_from(v: &IntegersMinMax) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IntegersMinMax> for OptRc<IntegersMinMax> {
+    type Error = KError;
+    fn try_from(v: &&IntegersMinMax) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax> for IntegersMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax> for &IntegersMinMax {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax> for OptRc<IntegersMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IntegersMinMax> for &OptRc<IntegersMinMax> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IntegersMinMax {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
@@ -121,6 +153,12 @@ impl IntegersMinMax {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -136,6 +174,38 @@ pub struct IntegersMinMax_Signed {
     s4be: RefCell<i32>,
     s8be: RefCell<i64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&IntegersMinMax_Signed> for OptRc<IntegersMinMax_Signed> {
+    type Error = KError;
+    fn try_from(v: &IntegersMinMax_Signed) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IntegersMinMax_Signed> for OptRc<IntegersMinMax_Signed> {
+    type Error = KError;
+    fn try_from(v: &&IntegersMinMax_Signed) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Signed> for IntegersMinMax_Signed {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Signed>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Signed> for &IntegersMinMax_Signed {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Signed>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Signed> for OptRc<IntegersMinMax_Signed> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Signed>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Signed> for &OptRc<IntegersMinMax_Signed> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Signed>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IntegersMinMax_Signed {
     type Root = IntegersMinMax;
@@ -205,6 +275,12 @@ impl IntegersMinMax_Signed {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -220,6 +296,38 @@ pub struct IntegersMinMax_Unsigned {
     u4be: RefCell<u32>,
     u8be: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&IntegersMinMax_Unsigned> for OptRc<IntegersMinMax_Unsigned> {
+    type Error = KError;
+    fn try_from(v: &IntegersMinMax_Unsigned) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IntegersMinMax_Unsigned> for OptRc<IntegersMinMax_Unsigned> {
+    type Error = KError;
+    fn try_from(v: &&IntegersMinMax_Unsigned) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Unsigned> for IntegersMinMax_Unsigned {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Unsigned>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Unsigned> for &IntegersMinMax_Unsigned {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Unsigned>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Unsigned> for OptRc<IntegersMinMax_Unsigned> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Unsigned>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IntegersMinMax_Unsigned> for &OptRc<IntegersMinMax_Unsigned> {
+    fn downcast_optrc(&self) -> Result<OptRc<IntegersMinMax_Unsigned>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IntegersMinMax_Unsigned {
     type Root = IntegersMinMax;
@@ -288,5 +396,11 @@ impl IntegersMinMax_Unsigned {
 impl IntegersMinMax_Unsigned {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

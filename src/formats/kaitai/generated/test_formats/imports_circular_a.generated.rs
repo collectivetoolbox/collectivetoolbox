@@ -56,6 +56,7 @@ SOFTWARE.
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
 use super::imports_circular_b::ImportsCircularB;
+use super::imports_circular_b::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct ImportsCircularA {
@@ -65,6 +66,38 @@ pub struct ImportsCircularA {
     code: RefCell<u8>,
     two: RefCell<OptRc<ImportsCircularB>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ImportsCircularA> for OptRc<ImportsCircularA> {
+    type Error = KError;
+    fn try_from(v: &ImportsCircularA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ImportsCircularA> for OptRc<ImportsCircularA> {
+    type Error = KError;
+    fn try_from(v: &&ImportsCircularA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ImportsCircularA> for ImportsCircularA {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCircularA>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ImportsCircularA> for &ImportsCircularA {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCircularA>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ImportsCircularA> for OptRc<ImportsCircularA> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCircularA>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ImportsCircularA> for &OptRc<ImportsCircularA> {
+    fn downcast_optrc(&self) -> Result<OptRc<ImportsCircularA>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ImportsCircularA {
     type Root = ImportsCircularA;
@@ -104,5 +137,11 @@ impl ImportsCircularA {
 impl ImportsCircularA {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

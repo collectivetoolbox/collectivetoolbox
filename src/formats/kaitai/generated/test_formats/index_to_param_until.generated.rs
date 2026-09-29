@@ -66,6 +66,38 @@ pub struct IndexToParamUntil {
     blocks: RefCell<Vec<OptRc<IndexToParamUntil_Block>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&IndexToParamUntil> for OptRc<IndexToParamUntil> {
+    type Error = KError;
+    fn try_from(v: &IndexToParamUntil) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IndexToParamUntil> for OptRc<IndexToParamUntil> {
+    type Error = KError;
+    fn try_from(v: &&IndexToParamUntil) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil> for IndexToParamUntil {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil> for &IndexToParamUntil {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil> for OptRc<IndexToParamUntil> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IndexToParamUntil> for &OptRc<IndexToParamUntil> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for IndexToParamUntil {
     type Root = IndexToParamUntil;
     type Parent = IndexToParamUntil;
@@ -126,6 +158,12 @@ impl IndexToParamUntil {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -137,6 +175,38 @@ pub struct IndexToParamUntil_Block {
     buf: RefCell<String>,
     _io: RefCell<BytesReader>,
     buf_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&IndexToParamUntil_Block> for OptRc<IndexToParamUntil_Block> {
+    type Error = KError;
+    fn try_from(v: &IndexToParamUntil_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&IndexToParamUntil_Block> for OptRc<IndexToParamUntil_Block> {
+    type Error = KError;
+    fn try_from(v: &&IndexToParamUntil_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil_Block> for IndexToParamUntil_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil_Block> for &IndexToParamUntil_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<IndexToParamUntil_Block> for OptRc<IndexToParamUntil_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<IndexToParamUntil_Block> for &OptRc<IndexToParamUntil_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<IndexToParamUntil_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for IndexToParamUntil_Block {
     type Root = IndexToParamUntil;
@@ -179,6 +249,12 @@ impl IndexToParamUntil_Block {
 impl IndexToParamUntil_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl IndexToParamUntil_Block {

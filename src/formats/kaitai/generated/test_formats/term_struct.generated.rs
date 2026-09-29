@@ -69,6 +69,38 @@ pub struct TermStruct {
     s2_raw: RefCell<Vec<u8>>,
     s3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&TermStruct> for OptRc<TermStruct> {
+    type Error = KError;
+    fn try_from(v: &TermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStruct> for OptRc<TermStruct> {
+    type Error = KError;
+    fn try_from(v: &&TermStruct) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStruct> for TermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStruct> for &TermStruct {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStruct> for OptRc<TermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStruct> for &OptRc<TermStruct> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for TermStruct {
     type Root = TermStruct;
     type Parent = TermStruct;
@@ -125,6 +157,12 @@ impl TermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl TermStruct {
     pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -149,6 +187,38 @@ pub struct TermStruct_BytesWrapper {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&TermStruct_BytesWrapper> for OptRc<TermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &TermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&TermStruct_BytesWrapper> for OptRc<TermStruct_BytesWrapper> {
+    type Error = KError;
+    fn try_from(v: &&TermStruct_BytesWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<TermStruct_BytesWrapper> for TermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<TermStruct_BytesWrapper> for &TermStruct_BytesWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct_BytesWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<TermStruct_BytesWrapper> for OptRc<TermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct_BytesWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<TermStruct_BytesWrapper> for &OptRc<TermStruct_BytesWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<TermStruct_BytesWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for TermStruct_BytesWrapper {
     type Root = TermStruct;
@@ -181,5 +251,11 @@ impl TermStruct_BytesWrapper {
 impl TermStruct_BytesWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

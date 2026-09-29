@@ -85,6 +85,6 @@ fn test_process_custom_no_args() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ProcessCustomNoArgs> = ProcessCustomNoArgs::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.buf(), vec![0x5fu8, 0x09u8, 0xacu8, 0x8du8, 0x8du8, 0xedu8, 0x5fu8]);
+    assert_eq!(*(r.buf()), vec![0x5f, 0x09, 0xac, 0x8d, 0x8d, 0xed, 0x5f]);
     Ok(())
 }

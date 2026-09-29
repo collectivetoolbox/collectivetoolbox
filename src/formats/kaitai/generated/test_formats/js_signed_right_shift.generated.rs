@@ -67,6 +67,38 @@ pub struct JsSignedRightShift {
     f_should_be_a00000: Cell<bool>,
     should_be_a00000: RefCell<i32>,
 }
+impl TryFrom<&JsSignedRightShift> for OptRc<JsSignedRightShift> {
+    type Error = KError;
+    fn try_from(v: &JsSignedRightShift) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&JsSignedRightShift> for OptRc<JsSignedRightShift> {
+    type Error = KError;
+    fn try_from(v: &&JsSignedRightShift) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<JsSignedRightShift> for JsSignedRightShift {
+    fn downcast_optrc(&self) -> Result<OptRc<JsSignedRightShift>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<JsSignedRightShift> for &JsSignedRightShift {
+    fn downcast_optrc(&self) -> Result<OptRc<JsSignedRightShift>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<JsSignedRightShift> for OptRc<JsSignedRightShift> {
+    fn downcast_optrc(&self) -> Result<OptRc<JsSignedRightShift>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<JsSignedRightShift> for &OptRc<JsSignedRightShift> {
+    fn downcast_optrc(&self) -> Result<OptRc<JsSignedRightShift>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for JsSignedRightShift {
     type Root = JsSignedRightShift;
     type Parent = JsSignedRightShift;
@@ -116,5 +148,11 @@ impl JsSignedRightShift {
 impl JsSignedRightShift {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

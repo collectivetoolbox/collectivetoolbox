@@ -85,12 +85,12 @@ fn test_expr_str_encodings() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<ExprStrEncodings> = ExprStrEncodings::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.str1_eq()?, true);
-    assert_eq!(*r.str2_eq()?, true);
-    assert_eq!(*r.str3_eq()?, true);
-    assert_eq!(*r.str3_eq_str2()?, true);
-    assert_eq!(*r.str4_eq()?, true);
-    assert_eq!(*r.str4_gt_str_calc()?, true);
-    assert_eq!(*r.str4_gt_str_from_bytes()?, true);
+    assert_eq!(*(r.str1_eq()?), true);
+    assert_eq!(*(r.str2_eq()?), true);
+    assert_eq!(*(r.str3_eq()?), true);
+    assert_eq!(*(r.str3_eq_str2()?), true);
+    assert_eq!(*(r.str4_eq()?), true);
+    assert_eq!(*(r.str4_gt_str_calc()?), true);
+    assert_eq!(*(r.str4_gt_str_from_bytes()?), true);
     Ok(())
 }

@@ -85,9 +85,9 @@ fn test_str_literals2() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<StrLiterals2> = StrLiterals2::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.dollar1()?, "$foo");
-    assert_eq!(*r.dollar2()?, "${foo}");
-    assert_eq!(*r.hash()?, "#{foo}");
-    assert_eq!(*r.at_sign()?, "@foo");
+    assert_eq!(*(r.dollar1()?), "$foo");
+    assert_eq!(*(r.dollar2()?), "${foo}");
+    assert_eq!(*(r.hash()?), "#{foo}");
+    assert_eq!(*(r.at_sign()?), "@foo");
     Ok(())
 }

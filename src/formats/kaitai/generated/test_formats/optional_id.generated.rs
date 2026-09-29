@@ -67,6 +67,38 @@ pub struct OptionalId {
     _io: RefCell<BytesReader>,
     unnamed2_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&OptionalId> for OptRc<OptionalId> {
+    type Error = KError;
+    fn try_from(v: &OptionalId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&OptionalId> for OptRc<OptionalId> {
+    type Error = KError;
+    fn try_from(v: &&OptionalId) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<OptionalId> for OptionalId {
+    fn downcast_optrc(&self) -> Result<OptRc<OptionalId>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<OptionalId> for &OptionalId {
+    fn downcast_optrc(&self) -> Result<OptRc<OptionalId>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<OptionalId> for OptRc<OptionalId> {
+    fn downcast_optrc(&self) -> Result<OptRc<OptionalId>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<OptionalId> for &OptRc<OptionalId> {
+    fn downcast_optrc(&self) -> Result<OptRc<OptionalId>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for OptionalId {
     type Root = OptionalId;
     type Parent = OptionalId;
@@ -110,6 +142,12 @@ impl OptionalId {
 impl OptionalId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl OptionalId {

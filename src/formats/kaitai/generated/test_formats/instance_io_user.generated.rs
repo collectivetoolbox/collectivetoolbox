@@ -67,6 +67,38 @@ pub struct InstanceIoUser {
     _io: RefCell<BytesReader>,
     strings_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&InstanceIoUser> for OptRc<InstanceIoUser> {
+    type Error = KError;
+    fn try_from(v: &InstanceIoUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceIoUser> for OptRc<InstanceIoUser> {
+    type Error = KError;
+    fn try_from(v: &&InstanceIoUser) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser> for InstanceIoUser {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser> for &InstanceIoUser {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser> for OptRc<InstanceIoUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceIoUser> for &OptRc<InstanceIoUser> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for InstanceIoUser {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
@@ -120,6 +152,12 @@ impl InstanceIoUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl InstanceIoUser {
     pub fn strings_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -137,6 +175,38 @@ pub struct InstanceIoUser_Entry {
     _io: RefCell<BytesReader>,
     f_name: Cell<bool>,
     name: RefCell<String>,
+}
+impl TryFrom<&InstanceIoUser_Entry> for OptRc<InstanceIoUser_Entry> {
+    type Error = KError;
+    fn try_from(v: &InstanceIoUser_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceIoUser_Entry> for OptRc<InstanceIoUser_Entry> {
+    type Error = KError;
+    fn try_from(v: &&InstanceIoUser_Entry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_Entry> for InstanceIoUser_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_Entry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_Entry> for &InstanceIoUser_Entry {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_Entry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_Entry> for OptRc<InstanceIoUser_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_Entry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceIoUser_Entry> for &OptRc<InstanceIoUser_Entry> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_Entry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceIoUser_Entry {
     type Root = InstanceIoUser;
@@ -192,6 +262,12 @@ impl InstanceIoUser_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -201,6 +277,38 @@ pub struct InstanceIoUser_StringsObj {
     pub(crate) _self_shared: SharedType<Self>,
     str: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&InstanceIoUser_StringsObj> for OptRc<InstanceIoUser_StringsObj> {
+    type Error = KError;
+    fn try_from(v: &InstanceIoUser_StringsObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceIoUser_StringsObj> for OptRc<InstanceIoUser_StringsObj> {
+    type Error = KError;
+    fn try_from(v: &&InstanceIoUser_StringsObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_StringsObj> for InstanceIoUser_StringsObj {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_StringsObj> for &InstanceIoUser_StringsObj {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceIoUser_StringsObj> for OptRc<InstanceIoUser_StringsObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceIoUser_StringsObj> for &OptRc<InstanceIoUser_StringsObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceIoUser_StringsObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for InstanceIoUser_StringsObj {
     type Root = InstanceIoUser;
@@ -240,5 +348,11 @@ impl InstanceIoUser_StringsObj {
 impl InstanceIoUser_StringsObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

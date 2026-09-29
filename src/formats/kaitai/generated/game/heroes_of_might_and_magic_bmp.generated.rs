@@ -17,6 +17,38 @@ pub struct HeroesOfMightAndMagicBmp {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&HeroesOfMightAndMagicBmp> for OptRc<HeroesOfMightAndMagicBmp> {
+    type Error = KError;
+    fn try_from(v: &HeroesOfMightAndMagicBmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&HeroesOfMightAndMagicBmp> for OptRc<HeroesOfMightAndMagicBmp> {
+    type Error = KError;
+    fn try_from(v: &&HeroesOfMightAndMagicBmp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for HeroesOfMightAndMagicBmp {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for &HeroesOfMightAndMagicBmp {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for OptRc<HeroesOfMightAndMagicBmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<HeroesOfMightAndMagicBmp> for &OptRc<HeroesOfMightAndMagicBmp> {
+    fn downcast_optrc(&self) -> Result<OptRc<HeroesOfMightAndMagicBmp>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for HeroesOfMightAndMagicBmp {
     type Root = HeroesOfMightAndMagicBmp;
     type Parent = HeroesOfMightAndMagicBmp;
@@ -66,6 +98,12 @@ impl HeroesOfMightAndMagicBmp {
 impl HeroesOfMightAndMagicBmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl HeroesOfMightAndMagicBmp {

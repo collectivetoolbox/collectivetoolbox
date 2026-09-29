@@ -68,6 +68,38 @@ pub struct ProcessRepeatUsertypeDynargRotate {
     blocks_rol_raw: RefCell<Vec<u8>>,
     blocks_ror_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessRepeatUsertypeDynargRotate> for OptRc<ProcessRepeatUsertypeDynargRotate> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargRotate) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargRotate> for OptRc<ProcessRepeatUsertypeDynargRotate> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargRotate) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate> for ProcessRepeatUsertypeDynargRotate {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate> for &ProcessRepeatUsertypeDynargRotate {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate> for OptRc<ProcessRepeatUsertypeDynargRotate> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate> for &OptRc<ProcessRepeatUsertypeDynargRotate> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessRepeatUsertypeDynargRotate {
     type Root = ProcessRepeatUsertypeDynargRotate;
     type Parent = ProcessRepeatUsertypeDynargRotate;
@@ -129,6 +161,12 @@ impl ProcessRepeatUsertypeDynargRotate {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessRepeatUsertypeDynargRotate {
     pub fn blocks_rol_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -148,6 +186,38 @@ pub struct ProcessRepeatUsertypeDynargRotate_Block {
     pub(crate) _self_shared: SharedType<Self>,
     a: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessRepeatUsertypeDynargRotate_Block> for OptRc<ProcessRepeatUsertypeDynargRotate_Block> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargRotate_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargRotate_Block> for OptRc<ProcessRepeatUsertypeDynargRotate_Block> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargRotate_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_Block> for ProcessRepeatUsertypeDynargRotate_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_Block> for &ProcessRepeatUsertypeDynargRotate_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_Block> for OptRc<ProcessRepeatUsertypeDynargRotate_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_Block> for &OptRc<ProcessRepeatUsertypeDynargRotate_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessRepeatUsertypeDynargRotate_Block {
     type Root = ProcessRepeatUsertypeDynargRotate;
@@ -181,6 +251,12 @@ impl ProcessRepeatUsertypeDynargRotate_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -200,6 +276,38 @@ pub struct ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
     blocks_ror_1_b: RefCell<u8>,
     f_blocks_ror_2_b: Cell<bool>,
     blocks_ror_2_b: RefCell<u8>,
+}
+impl TryFrom<&ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargRotate_BlocksBWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargRotate_BlocksBWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for &ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> for &OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
     type Root = ProcessRepeatUsertypeDynargRotate;
@@ -312,5 +420,11 @@ impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
 impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

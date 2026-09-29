@@ -66,6 +66,38 @@ pub struct NavParentFalse {
     element_b: RefCell<OptRc<NavParentFalse_ParentB>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&NavParentFalse> for OptRc<NavParentFalse> {
+    type Error = KError;
+    fn try_from(v: &NavParentFalse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentFalse> for OptRc<NavParentFalse> {
+    type Error = KError;
+    fn try_from(v: &&NavParentFalse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse> for NavParentFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse> for &NavParentFalse {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse> for OptRc<NavParentFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentFalse> for &OptRc<NavParentFalse> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParentFalse {
     type Root = NavParentFalse;
     type Parent = NavParentFalse;
@@ -112,21 +144,59 @@ impl NavParentFalse {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct NavParentFalse_Child {
     pub(crate) _root: SharedType<NavParentFalse>,
-    pub(crate) _parent: SharedType<KStructUnit>,
+    pub(crate) _parent: SharedType<NavParentFalse_ParentA>,
     pub(crate) _self_shared: SharedType<Self>,
     code: RefCell<u8>,
     more: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
     more_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&NavParentFalse_Child> for OptRc<NavParentFalse_Child> {
+    type Error = KError;
+    fn try_from(v: &NavParentFalse_Child) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentFalse_Child> for OptRc<NavParentFalse_Child> {
+    type Error = KError;
+    fn try_from(v: &&NavParentFalse_Child) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_Child> for NavParentFalse_Child {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_Child>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_Child> for &NavParentFalse_Child {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_Child>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_Child> for OptRc<NavParentFalse_Child> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_Child>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentFalse_Child> for &OptRc<NavParentFalse_Child> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_Child>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for NavParentFalse_Child {
     type Root = NavParentFalse;
-    type Parent = KStructUnit;
+    type Parent = NavParentFalse_ParentA;
 
     #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
@@ -142,7 +212,7 @@ impl KStruct for NavParentFalse_Child {
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         if ((to_i128(*self_rc.code())) == (to_i128(73))) {
-            *self_rc.more.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.child_size())?)?;
+            *self_rc.more.borrow_mut() = _io.read_bytes(usize::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.child_size()))?;
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -164,6 +234,12 @@ impl NavParentFalse_Child {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl NavParentFalse_Child {
     pub fn more_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -179,6 +255,38 @@ pub struct NavParentFalse_ParentA {
     foo: RefCell<OptRc<NavParentFalse_Child>>,
     bar: RefCell<OptRc<NavParentFalse_ParentB>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentFalse_ParentA> for OptRc<NavParentFalse_ParentA> {
+    type Error = KError;
+    fn try_from(v: &NavParentFalse_ParentA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentFalse_ParentA> for OptRc<NavParentFalse_ParentA> {
+    type Error = KError;
+    fn try_from(v: &&NavParentFalse_ParentA) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentA> for NavParentFalse_ParentA {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentA>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentA> for &NavParentFalse_ParentA {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentA>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentA> for OptRc<NavParentFalse_ParentA> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentA>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentA> for &OptRc<NavParentFalse_ParentA> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentA>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentFalse_ParentA {
     type Root = NavParentFalse;
@@ -196,7 +304,7 @@ impl KStruct for NavParentFalse_ParentA {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, NavParentFalse_Child>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let t = Self::read_into::<_, NavParentFalse_Child>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.foo.borrow_mut() = t;
         let t = Self::read_into::<_, NavParentFalse_ParentB>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bar.borrow_mut() = t;
@@ -220,6 +328,12 @@ impl NavParentFalse_ParentA {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -229,6 +343,38 @@ pub struct NavParentFalse_ParentB {
     pub(crate) _self_shared: SharedType<Self>,
     foo: RefCell<OptRc<NavParentFalse_Child>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&NavParentFalse_ParentB> for OptRc<NavParentFalse_ParentB> {
+    type Error = KError;
+    fn try_from(v: &NavParentFalse_ParentB) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&NavParentFalse_ParentB> for OptRc<NavParentFalse_ParentB> {
+    type Error = KError;
+    fn try_from(v: &&NavParentFalse_ParentB) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentB> for NavParentFalse_ParentB {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentB>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentB> for &NavParentFalse_ParentB {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentB>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentB> for OptRc<NavParentFalse_ParentB> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentB>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<NavParentFalse_ParentB> for &OptRc<NavParentFalse_ParentB> {
+    fn downcast_optrc(&self) -> Result<OptRc<NavParentFalse_ParentB>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for NavParentFalse_ParentB {
     type Root = NavParentFalse;
@@ -262,5 +408,11 @@ impl NavParentFalse_ParentB {
 impl NavParentFalse_ParentB {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

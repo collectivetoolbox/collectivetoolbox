@@ -67,6 +67,38 @@ pub struct ExprBytesNonLiteral {
     f_calc_bytes: Cell<bool>,
     calc_bytes: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ExprBytesNonLiteral> for OptRc<ExprBytesNonLiteral> {
+    type Error = KError;
+    fn try_from(v: &ExprBytesNonLiteral) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprBytesNonLiteral> for OptRc<ExprBytesNonLiteral> {
+    type Error = KError;
+    fn try_from(v: &&ExprBytesNonLiteral) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesNonLiteral> for ExprBytesNonLiteral {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesNonLiteral>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesNonLiteral> for &ExprBytesNonLiteral {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesNonLiteral>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprBytesNonLiteral> for OptRc<ExprBytesNonLiteral> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesNonLiteral>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprBytesNonLiteral> for &OptRc<ExprBytesNonLiteral> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprBytesNonLiteral>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprBytesNonLiteral {
     type Root = ExprBytesNonLiteral;
     type Parent = ExprBytesNonLiteral;
@@ -116,5 +148,11 @@ impl ExprBytesNonLiteral {
 impl ExprBytesNonLiteral {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

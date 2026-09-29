@@ -86,7 +86,7 @@ fn test_expr_to_i_trailing() -> KResult<()> {
     let r: OptRc<ExprToITrailing> = ExprToITrailing::read_into(&_io, None, None)?;
 
     // Exception expected on to_i_r10: ConversionError
-    assert_eq!(*r.to_i_r16()?, 152517308);
+    assert_eq!(*(r.to_i_r16()?), 152517308);
     // Exception expected on to_i_garbage: ConversionError
     Ok(())
 }

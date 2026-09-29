@@ -234,6 +234,9 @@ pub struct ClassSpec {
     pub meta_imports: Vec<String>,
     /// External user types referenced by this class that require imports.
     pub external_types: Vec<Vec<String>>,
+    /// External class specifications imported by this root class.
+    #[serde(default)]
+    pub imported_classes: IndexMap<String, ClassSpec>,
     /// Whether debug mode is enabled (ks-debug: true).
     pub ks_debug: bool,
     /// Custom string representation expression.

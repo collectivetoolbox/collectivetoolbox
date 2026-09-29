@@ -68,6 +68,38 @@ pub struct ParamsPassArrayInt {
     f_ints_calc: Cell<bool>,
     ints_calc: RefCell<Vec<u16>>,
 }
+impl TryFrom<&ParamsPassArrayInt> for OptRc<ParamsPassArrayInt> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayInt> for OptRc<ParamsPassArrayInt> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt> for ParamsPassArrayInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt> for &ParamsPassArrayInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt> for OptRc<ParamsPassArrayInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt> for &OptRc<ParamsPassArrayInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ParamsPassArrayInt {
     type Root = ParamsPassArrayInt;
     type Parent = ParamsPassArrayInt;
@@ -89,10 +121,10 @@ impl KStruct for ParamsPassArrayInt {
         for _i in 0_usize..l_ints {
             self_rc.ints.borrow_mut().push(_io.read_u2le()?);
         }
-        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params(self_rc.ints().clone()));
+        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((self_rc.ints()).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints.borrow_mut() = t;
-        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params(*self_rc.ints_calc()?.clone()));
+        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((*self_rc.ints_calc()?).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints_calc.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -132,6 +164,12 @@ impl ParamsPassArrayInt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -139,8 +177,40 @@ pub struct ParamsPassArrayInt_WantsInts {
     pub(crate) _root: SharedType<ParamsPassArrayInt>,
     pub(crate) _parent: SharedType<ParamsPassArrayInt>,
     pub(crate) _self_shared: SharedType<Self>,
-    nums: RefCell<u16>,
+    nums: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
+    type Error = KError;
+    fn try_from(v: &ParamsPassArrayInt_WantsInts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
+    type Error = KError;
+    fn try_from(v: &&ParamsPassArrayInt_WantsInts) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for ParamsPassArrayInt_WantsInts {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for &ParamsPassArrayInt_WantsInts {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for OptRc<ParamsPassArrayInt_WantsInts> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ParamsPassArrayInt_WantsInts> for &OptRc<ParamsPassArrayInt_WantsInts> {
+    fn downcast_optrc(&self) -> Result<OptRc<ParamsPassArrayInt_WantsInts>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ParamsPassArrayInt_WantsInts {
     type Root = ParamsPassArrayInt;
@@ -163,12 +233,12 @@ impl KStruct for ParamsPassArrayInt_WantsInts {
     }
 }
 impl ParamsPassArrayInt_WantsInts {
-    pub fn nums(&self) -> Ref<'_, u16> {
+    pub fn nums(&self) -> Ref<'_, Vec<u16>> {
         self.nums.borrow()
     }
 }
 impl ParamsPassArrayInt_WantsInts {
-    pub fn set_params(&mut self, nums: u16) {
+    pub fn set_params(&mut self, nums: Vec<u16>) {
         *self.nums.borrow_mut() = nums;
     }
 }
@@ -177,5 +247,11 @@ impl ParamsPassArrayInt_WantsInts {
 impl ParamsPassArrayInt_WantsInts {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -85,8 +85,8 @@ fn test_cast_to_top() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<CastToTop> = CastToTop::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.code(), 80);
-    assert_eq!(*r.header()?.code(), 65);
-    assert_eq!(*r.header_casted()?.code(), 65);
+    assert_eq!(*(r.code()), 80);
+    assert_eq!(*(r.header()?.code()), 65);
+    assert_eq!(*(r.header_casted()?.code()), 65);
     Ok(())
 }

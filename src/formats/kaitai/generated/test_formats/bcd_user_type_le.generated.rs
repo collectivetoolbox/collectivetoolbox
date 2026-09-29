@@ -69,6 +69,38 @@ pub struct BcdUserTypeLe {
     rtl_raw: RefCell<Vec<u8>>,
     leading_zero_ltr_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&BcdUserTypeLe> for OptRc<BcdUserTypeLe> {
+    type Error = KError;
+    fn try_from(v: &BcdUserTypeLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BcdUserTypeLe> for OptRc<BcdUserTypeLe> {
+    type Error = KError;
+    fn try_from(v: &&BcdUserTypeLe) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe> for BcdUserTypeLe {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe> for &BcdUserTypeLe {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe> for OptRc<BcdUserTypeLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe> for &OptRc<BcdUserTypeLe> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BcdUserTypeLe {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
@@ -125,6 +157,12 @@ impl BcdUserTypeLe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl BcdUserTypeLe {
     pub fn ltr_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -172,6 +210,38 @@ pub struct BcdUserTypeLe_LeadingZeroLtrObj {
     digit7: RefCell<i32>,
     f_digit8: Cell<bool>,
     digit8: RefCell<i32>,
+}
+impl TryFrom<&BcdUserTypeLe_LeadingZeroLtrObj> for OptRc<BcdUserTypeLe_LeadingZeroLtrObj> {
+    type Error = KError;
+    fn try_from(v: &BcdUserTypeLe_LeadingZeroLtrObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BcdUserTypeLe_LeadingZeroLtrObj> for OptRc<BcdUserTypeLe_LeadingZeroLtrObj> {
+    type Error = KError;
+    fn try_from(v: &&BcdUserTypeLe_LeadingZeroLtrObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LeadingZeroLtrObj> for BcdUserTypeLe_LeadingZeroLtrObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LeadingZeroLtrObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LeadingZeroLtrObj> for &BcdUserTypeLe_LeadingZeroLtrObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LeadingZeroLtrObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LeadingZeroLtrObj> for OptRc<BcdUserTypeLe_LeadingZeroLtrObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LeadingZeroLtrObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LeadingZeroLtrObj> for &OptRc<BcdUserTypeLe_LeadingZeroLtrObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LeadingZeroLtrObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BcdUserTypeLe_LeadingZeroLtrObj {
     type Root = BcdUserTypeLe;
@@ -343,6 +413,12 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -375,6 +451,38 @@ pub struct BcdUserTypeLe_LtrObj {
     digit7: RefCell<i32>,
     f_digit8: Cell<bool>,
     digit8: RefCell<i32>,
+}
+impl TryFrom<&BcdUserTypeLe_LtrObj> for OptRc<BcdUserTypeLe_LtrObj> {
+    type Error = KError;
+    fn try_from(v: &BcdUserTypeLe_LtrObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BcdUserTypeLe_LtrObj> for OptRc<BcdUserTypeLe_LtrObj> {
+    type Error = KError;
+    fn try_from(v: &&BcdUserTypeLe_LtrObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LtrObj> for BcdUserTypeLe_LtrObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LtrObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LtrObj> for &BcdUserTypeLe_LtrObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LtrObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LtrObj> for OptRc<BcdUserTypeLe_LtrObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LtrObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_LtrObj> for &OptRc<BcdUserTypeLe_LtrObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_LtrObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BcdUserTypeLe_LtrObj {
     type Root = BcdUserTypeLe;
@@ -546,6 +654,12 @@ impl BcdUserTypeLe_LtrObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -578,6 +692,38 @@ pub struct BcdUserTypeLe_RtlObj {
     digit7: RefCell<i32>,
     f_digit8: Cell<bool>,
     digit8: RefCell<i32>,
+}
+impl TryFrom<&BcdUserTypeLe_RtlObj> for OptRc<BcdUserTypeLe_RtlObj> {
+    type Error = KError;
+    fn try_from(v: &BcdUserTypeLe_RtlObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BcdUserTypeLe_RtlObj> for OptRc<BcdUserTypeLe_RtlObj> {
+    type Error = KError;
+    fn try_from(v: &&BcdUserTypeLe_RtlObj) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_RtlObj> for BcdUserTypeLe_RtlObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_RtlObj>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_RtlObj> for &BcdUserTypeLe_RtlObj {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_RtlObj>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_RtlObj> for OptRc<BcdUserTypeLe_RtlObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_RtlObj>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BcdUserTypeLe_RtlObj> for &OptRc<BcdUserTypeLe_RtlObj> {
+    fn downcast_optrc(&self) -> Result<OptRc<BcdUserTypeLe_RtlObj>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for BcdUserTypeLe_RtlObj {
     type Root = BcdUserTypeLe;
@@ -748,5 +894,11 @@ impl BcdUserTypeLe_RtlObj {
 impl BcdUserTypeLe_RtlObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

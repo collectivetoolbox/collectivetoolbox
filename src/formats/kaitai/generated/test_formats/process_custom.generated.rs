@@ -70,6 +70,38 @@ pub struct ProcessCustom {
     buf2_raw: RefCell<Vec<u8>>,
     buf3_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessCustom> for OptRc<ProcessCustom> {
+    type Error = KError;
+    fn try_from(v: &ProcessCustom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessCustom> for OptRc<ProcessCustom> {
+    type Error = KError;
+    fn try_from(v: &&ProcessCustom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustom> for ProcessCustom {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustom>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustom> for &ProcessCustom {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustom>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessCustom> for OptRc<ProcessCustom> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustom>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessCustom> for &OptRc<ProcessCustom> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessCustom>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessCustom {
     type Root = ProcessCustom;
     type Parent = ProcessCustom;
@@ -119,6 +151,12 @@ impl ProcessCustom {
 impl ProcessCustom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl ProcessCustom {

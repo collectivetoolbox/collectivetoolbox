@@ -57,6 +57,38 @@ pub struct Dtb {
     f_structure_block: Cell<bool>,
     structure_block: RefCell<OptRc<Dtb_FdtBlock>>,
 }
+impl TryFrom<&Dtb> for OptRc<Dtb> {
+    type Error = KError;
+    fn try_from(v: &Dtb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb> for OptRc<Dtb> {
+    type Error = KError;
+    fn try_from(v: &&Dtb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb> for Dtb {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb> for &Dtb {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb> for OptRc<Dtb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb> for &OptRc<Dtb> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Dtb {
     type Root = Dtb;
     type Parent = Dtb;
@@ -204,6 +236,12 @@ impl Dtb {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dtb {
     pub fn memory_reservation_block_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -272,6 +310,38 @@ pub struct Dtb_FdtBeginNode {
     _io: RefCell<BytesReader>,
     padding_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Dtb_FdtBeginNode> for OptRc<Dtb_FdtBeginNode> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtBeginNode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_FdtBeginNode> for OptRc<Dtb_FdtBeginNode> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtBeginNode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for Dtb_FdtBeginNode {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for &Dtb_FdtBeginNode {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for OptRc<Dtb_FdtBeginNode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for &OptRc<Dtb_FdtBeginNode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Dtb_FdtBeginNode {
     type Root = Dtb;
     type Parent = Dtb_FdtNode;
@@ -310,6 +380,12 @@ impl Dtb_FdtBeginNode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dtb_FdtBeginNode {
     pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -324,6 +400,38 @@ pub struct Dtb_FdtBlock {
     pub(crate) _self_shared: SharedType<Self>,
     nodes: RefCell<Vec<OptRc<Dtb_FdtNode>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dtb_FdtBlock> for OptRc<Dtb_FdtBlock> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_FdtBlock> for OptRc<Dtb_FdtBlock> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBlock> for Dtb_FdtBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBlock> for &Dtb_FdtBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtBlock> for OptRc<Dtb_FdtBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_FdtBlock> for &OptRc<Dtb_FdtBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dtb_FdtBlock {
     type Root = Dtb;
@@ -368,6 +476,12 @@ impl Dtb_FdtBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -393,6 +507,22 @@ impl TryFrom<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtBeginNode> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Dtb_FdtNode_Body> for OptRc<Dtb_FdtBeginNode> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtNode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for Dtb_FdtNode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        OptRc::<Dtb_FdtBeginNode>::try_from(self)
+    }
+}
+impl DowncastOptRc<Dtb_FdtBeginNode> for &Dtb_FdtNode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtBeginNode>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Dtb_FdtBeginNode>> for Dtb_FdtNode_Body {
     fn from(v: OptRc<Dtb_FdtBeginNode>) -> Self {
         Self::Dtb_FdtBeginNode(v)
@@ -407,9 +537,57 @@ impl TryFrom<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtProp> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Dtb_FdtNode_Body> for OptRc<Dtb_FdtProp> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtNode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for Dtb_FdtNode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        OptRc::<Dtb_FdtProp>::try_from(self)
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for &Dtb_FdtNode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Dtb_FdtProp>> for Dtb_FdtNode_Body {
     fn from(v: OptRc<Dtb_FdtProp>) -> Self {
         Self::Dtb_FdtProp(v)
+    }
+}
+impl TryFrom<&Dtb_FdtNode> for OptRc<Dtb_FdtNode> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtNode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_FdtNode> for OptRc<Dtb_FdtNode> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtNode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtNode> for Dtb_FdtNode {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtNode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtNode> for &Dtb_FdtNode {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtNode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtNode> for OptRc<Dtb_FdtNode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtNode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_FdtNode> for &OptRc<Dtb_FdtNode> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtNode>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Dtb_FdtNode {
@@ -460,6 +638,12 @@ impl Dtb_FdtNode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -476,6 +660,38 @@ pub struct Dtb_FdtProp {
     padding_raw: RefCell<Vec<u8>>,
     f_name: Cell<bool>,
     name: RefCell<String>,
+}
+impl TryFrom<&Dtb_FdtProp> for OptRc<Dtb_FdtProp> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtProp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_FdtProp> for OptRc<Dtb_FdtProp> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_FdtProp) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for Dtb_FdtProp {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for &Dtb_FdtProp {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for OptRc<Dtb_FdtProp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_FdtProp> for &OptRc<Dtb_FdtProp> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_FdtProp>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dtb_FdtProp {
     type Root = Dtb;
@@ -543,6 +759,12 @@ impl Dtb_FdtProp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Dtb_FdtProp {
     pub fn property_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -562,6 +784,38 @@ pub struct Dtb_MemoryBlock {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<OptRc<Dtb_MemoryBlockEntry>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dtb_MemoryBlock> for OptRc<Dtb_MemoryBlock> {
+    type Error = KError;
+    fn try_from(v: &Dtb_MemoryBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_MemoryBlock> for OptRc<Dtb_MemoryBlock> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_MemoryBlock) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlock> for Dtb_MemoryBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlock>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlock> for &Dtb_MemoryBlock {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlock>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlock> for OptRc<Dtb_MemoryBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlock>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlock> for &OptRc<Dtb_MemoryBlock> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlock>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dtb_MemoryBlock {
     type Root = Dtb;
@@ -603,6 +857,12 @@ impl Dtb_MemoryBlock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -613,6 +873,38 @@ pub struct Dtb_MemoryBlockEntry {
     address: RefCell<u64>,
     size: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dtb_MemoryBlockEntry> for OptRc<Dtb_MemoryBlockEntry> {
+    type Error = KError;
+    fn try_from(v: &Dtb_MemoryBlockEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_MemoryBlockEntry> for OptRc<Dtb_MemoryBlockEntry> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_MemoryBlockEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlockEntry> for Dtb_MemoryBlockEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlockEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlockEntry> for &Dtb_MemoryBlockEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlockEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlockEntry> for OptRc<Dtb_MemoryBlockEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlockEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_MemoryBlockEntry> for &OptRc<Dtb_MemoryBlockEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_MemoryBlockEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dtb_MemoryBlockEntry {
     type Root = Dtb;
@@ -660,6 +952,12 @@ impl Dtb_MemoryBlockEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -669,6 +967,38 @@ pub struct Dtb_Strings {
     pub(crate) _self_shared: SharedType<Self>,
     strings: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Dtb_Strings> for OptRc<Dtb_Strings> {
+    type Error = KError;
+    fn try_from(v: &Dtb_Strings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Dtb_Strings> for OptRc<Dtb_Strings> {
+    type Error = KError;
+    fn try_from(v: &&Dtb_Strings) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_Strings> for Dtb_Strings {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_Strings>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Dtb_Strings> for &Dtb_Strings {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_Strings>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Dtb_Strings> for OptRc<Dtb_Strings> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_Strings>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Dtb_Strings> for &OptRc<Dtb_Strings> {
+    fn downcast_optrc(&self) -> Result<OptRc<Dtb_Strings>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Dtb_Strings {
     type Root = Dtb;
@@ -708,5 +1038,11 @@ impl Dtb_Strings {
 impl Dtb_Strings {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

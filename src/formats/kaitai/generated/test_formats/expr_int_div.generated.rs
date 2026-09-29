@@ -73,6 +73,38 @@ pub struct ExprIntDiv {
     f_div_pos_seq: Cell<bool>,
     div_pos_seq: RefCell<i32>,
 }
+impl TryFrom<&ExprIntDiv> for OptRc<ExprIntDiv> {
+    type Error = KError;
+    fn try_from(v: &ExprIntDiv) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprIntDiv> for OptRc<ExprIntDiv> {
+    type Error = KError;
+    fn try_from(v: &&ExprIntDiv) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprIntDiv> for ExprIntDiv {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIntDiv>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprIntDiv> for &ExprIntDiv {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIntDiv>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprIntDiv> for OptRc<ExprIntDiv> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIntDiv>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprIntDiv> for &OptRc<ExprIntDiv> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprIntDiv>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprIntDiv {
     type Root = ExprIntDiv;
     type Parent = ExprIntDiv;
@@ -158,5 +190,11 @@ impl ExprIntDiv {
 impl ExprIntDiv {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

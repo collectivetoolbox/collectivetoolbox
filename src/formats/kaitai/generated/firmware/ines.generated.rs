@@ -26,6 +26,38 @@ pub struct Ines {
     prg_rom_raw: RefCell<Vec<u8>>,
     chr_rom_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Ines> for OptRc<Ines> {
+    type Error = KError;
+    fn try_from(v: &Ines) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines> for OptRc<Ines> {
+    type Error = KError;
+    fn try_from(v: &&Ines) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines> for Ines {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines> for &Ines {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines> for OptRc<Ines> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines> for &OptRc<Ines> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ines {
     type Root = Ines;
     type Parent = Ines;
@@ -99,6 +131,12 @@ impl Ines {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ines {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -142,6 +180,38 @@ pub struct Ines_Header {
     f10_raw: RefCell<Vec<u8>>,
     f_mapper: Cell<bool>,
     mapper: RefCell<u64>,
+}
+impl TryFrom<&Ines_Header> for OptRc<Ines_Header> {
+    type Error = KError;
+    fn try_from(v: &Ines_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Header> for OptRc<Ines_Header> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header> for Ines_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header> for &Ines_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header> for OptRc<Ines_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Header> for &OptRc<Ines_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ines_Header {
     type Root = Ines;
@@ -277,6 +347,12 @@ impl Ines_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ines_Header {
     pub fn f6_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -315,6 +391,38 @@ pub struct Ines_Header_F10 {
     tv_system: RefCell<Ines_Header_F10_TvSystem>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Ines_Header_F10> for OptRc<Ines_Header_F10> {
+    type Error = KError;
+    fn try_from(v: &Ines_Header_F10) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Header_F10> for OptRc<Ines_Header_F10> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Header_F10) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F10> for Ines_Header_F10 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F10>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F10> for &Ines_Header_F10 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F10>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F10> for OptRc<Ines_Header_F10> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F10>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Header_F10> for &OptRc<Ines_Header_F10> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F10>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ines_Header_F10 {
     type Root = Ines;
     type Parent = Ines_Header;
@@ -335,7 +443,7 @@ impl KStruct for Ines_Header_F10 {
         *self_rc.bus_conflict.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.prg_ram.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(2)?;
-        *self_rc.tv_system.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc.tv_system.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -382,6 +490,12 @@ impl Ines_Header_F10 {
 impl Ines_Header_F10 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -439,6 +553,38 @@ pub struct Ines_Header_F6 {
     mirroring: RefCell<Ines_Header_F6_Mirroring>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Ines_Header_F6> for OptRc<Ines_Header_F6> {
+    type Error = KError;
+    fn try_from(v: &Ines_Header_F6) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Header_F6> for OptRc<Ines_Header_F6> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Header_F6) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F6> for Ines_Header_F6 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F6>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F6> for &Ines_Header_F6 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F6>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F6> for OptRc<Ines_Header_F6> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F6>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Header_F6> for &OptRc<Ines_Header_F6> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F6>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ines_Header_F6 {
     type Root = Ines;
     type Parent = Ines_Header;
@@ -459,7 +605,7 @@ impl KStruct for Ines_Header_F6 {
         *self_rc.four_screen.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.trainer.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.has_battery_ram.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.mirroring.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc.mirroring.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -515,6 +661,12 @@ impl Ines_Header_F6 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Ines_Header_F6_Mirroring {
@@ -563,6 +715,38 @@ pub struct Ines_Header_F7 {
     playchoice10: RefCell<bool>,
     vs_unisystem: RefCell<bool>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Ines_Header_F7> for OptRc<Ines_Header_F7> {
+    type Error = KError;
+    fn try_from(v: &Ines_Header_F7) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Header_F7> for OptRc<Ines_Header_F7> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Header_F7) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F7> for Ines_Header_F7 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F7>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F7> for &Ines_Header_F7 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F7>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F7> for OptRc<Ines_Header_F7> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F7>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Header_F7> for &OptRc<Ines_Header_F7> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F7>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ines_Header_F7 {
     type Root = Ines;
@@ -630,6 +814,12 @@ impl Ines_Header_F7 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -644,6 +834,38 @@ pub struct Ines_Header_F9 {
     reserved: RefCell<u64>,
     tv_system: RefCell<Ines_Header_F9_TvSystem>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Ines_Header_F9> for OptRc<Ines_Header_F9> {
+    type Error = KError;
+    fn try_from(v: &Ines_Header_F9) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Header_F9> for OptRc<Ines_Header_F9> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Header_F9) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F9> for Ines_Header_F9 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F9>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F9> for &Ines_Header_F9 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F9>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Header_F9> for OptRc<Ines_Header_F9> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F9>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Header_F9> for &OptRc<Ines_Header_F9> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Header_F9>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ines_Header_F9 {
     type Root = Ines;
@@ -662,7 +884,7 @@ impl KStruct for Ines_Header_F9 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
-        *self_rc.tv_system.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc.tv_system.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -686,6 +908,12 @@ impl Ines_Header_F9 {
 impl Ines_Header_F9 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -735,6 +963,38 @@ pub struct Ines_Playchoice10 {
     _io: RefCell<BytesReader>,
     inst_rom_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Ines_Playchoice10> for OptRc<Ines_Playchoice10> {
+    type Error = KError;
+    fn try_from(v: &Ines_Playchoice10) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Playchoice10> for OptRc<Ines_Playchoice10> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Playchoice10) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10> for Ines_Playchoice10 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10> for &Ines_Playchoice10 {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10> for OptRc<Ines_Playchoice10> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10> for &OptRc<Ines_Playchoice10> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Ines_Playchoice10 {
     type Root = Ines;
     type Parent = Ines;
@@ -774,6 +1034,12 @@ impl Ines_Playchoice10 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Ines_Playchoice10 {
     pub fn inst_rom_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -791,6 +1057,38 @@ pub struct Ines_Playchoice10_Prom {
     _io: RefCell<BytesReader>,
     data_raw: RefCell<Vec<u8>>,
     counter_out_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Ines_Playchoice10_Prom> for OptRc<Ines_Playchoice10_Prom> {
+    type Error = KError;
+    fn try_from(v: &Ines_Playchoice10_Prom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Ines_Playchoice10_Prom> for OptRc<Ines_Playchoice10_Prom> {
+    type Error = KError;
+    fn try_from(v: &&Ines_Playchoice10_Prom) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10_Prom> for Ines_Playchoice10_Prom {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10_Prom>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10_Prom> for &Ines_Playchoice10_Prom {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10_Prom>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10_Prom> for OptRc<Ines_Playchoice10_Prom> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10_Prom>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Ines_Playchoice10_Prom> for &OptRc<Ines_Playchoice10_Prom> {
+    fn downcast_optrc(&self) -> Result<OptRc<Ines_Playchoice10_Prom>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Ines_Playchoice10_Prom {
     type Root = Ines;
@@ -829,6 +1127,12 @@ impl Ines_Playchoice10_Prom {
 impl Ines_Playchoice10_Prom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Ines_Playchoice10_Prom {

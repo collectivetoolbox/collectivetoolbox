@@ -85,8 +85,8 @@ fn test_enum_to_i_class_border_1() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumToIClassBorder1> = EnumToIClassBorder1::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1(), EnumToIClassBorder1_Animal::Cat);
-    assert_eq!(*r.pet_2(), EnumToIClassBorder1_Animal::Chicken);
-    assert_eq!(*r.checker()?.is_dog(), true);
+    assert_eq!(*(r.pet_1()), EnumToIClassBorder1_Animal::Cat);
+    assert_eq!(*(r.pet_2()), EnumToIClassBorder1_Animal::Chicken);
+    assert_eq!(*(r.checker()?.is_dog()?), true);
     Ok(())
 }

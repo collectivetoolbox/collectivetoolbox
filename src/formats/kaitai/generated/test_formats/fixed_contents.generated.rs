@@ -65,6 +65,38 @@ pub struct FixedContents {
     high_bit_8: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&FixedContents> for OptRc<FixedContents> {
+    type Error = KError;
+    fn try_from(v: &FixedContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&FixedContents> for OptRc<FixedContents> {
+    type Error = KError;
+    fn try_from(v: &&FixedContents) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<FixedContents> for FixedContents {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedContents>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<FixedContents> for &FixedContents {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedContents>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<FixedContents> for OptRc<FixedContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedContents>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<FixedContents> for &OptRc<FixedContents> {
+    fn downcast_optrc(&self) -> Result<OptRc<FixedContents>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for FixedContents {
     type Root = FixedContents;
     type Parent = FixedContents;
@@ -108,5 +140,11 @@ impl FixedContents {
 impl FixedContents {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

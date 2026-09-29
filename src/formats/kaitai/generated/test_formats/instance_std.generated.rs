@@ -65,6 +65,38 @@ pub struct InstanceStd {
     f_header: Cell<bool>,
     header: RefCell<String>,
 }
+impl TryFrom<&InstanceStd> for OptRc<InstanceStd> {
+    type Error = KError;
+    fn try_from(v: &InstanceStd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&InstanceStd> for OptRc<InstanceStd> {
+    type Error = KError;
+    fn try_from(v: &&InstanceStd) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<InstanceStd> for InstanceStd {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceStd>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<InstanceStd> for &InstanceStd {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceStd>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<InstanceStd> for OptRc<InstanceStd> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceStd>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<InstanceStd> for &OptRc<InstanceStd> {
+    fn downcast_optrc(&self) -> Result<OptRc<InstanceStd>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for InstanceStd {
     type Root = InstanceStd;
     type Parent = InstanceStd;
@@ -105,5 +137,11 @@ impl InstanceStd {
 impl InstanceStd {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -66,6 +66,38 @@ pub struct BitsEnum {
     three: RefCell<BitsEnum_Animal>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&BitsEnum> for OptRc<BitsEnum> {
+    type Error = KError;
+    fn try_from(v: &BitsEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&BitsEnum> for OptRc<BitsEnum> {
+    type Error = KError;
+    fn try_from(v: &&BitsEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<BitsEnum> for BitsEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsEnum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<BitsEnum> for &BitsEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsEnum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<BitsEnum> for OptRc<BitsEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsEnum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<BitsEnum> for &OptRc<BitsEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<BitsEnum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for BitsEnum {
     type Root = BitsEnum;
     type Parent = BitsEnum;
@@ -82,9 +114,9 @@ impl KStruct for BitsEnum {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.one.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
-        *self_rc.two.borrow_mut() = i64::try_from(_io.read_bits_int_be(8)?)?.try_into()?;
-        *self_rc.three.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc.one.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc.two.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(8)?).to_ne_bytes()).try_into()?;
+        *self_rc.three.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -109,6 +141,12 @@ impl BitsEnum {
 impl BitsEnum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

@@ -34,6 +34,38 @@ pub struct Regf {
     _io: RefCell<BytesReader>,
     hive_bins_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&Regf> for OptRc<Regf> {
+    type Error = KError;
+    fn try_from(v: &Regf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf> for OptRc<Regf> {
+    type Error = KError;
+    fn try_from(v: &&Regf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf> for Regf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf> for &Regf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf> for OptRc<Regf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf> for &OptRc<Regf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Regf {
     type Root = Regf;
     type Parent = Regf;
@@ -83,6 +115,12 @@ impl Regf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Regf {
     pub fn hive_bins_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -116,6 +154,38 @@ pub struct Regf_FileHeader {
     unknown1_raw: RefCell<Vec<u8>>,
     unknown2_raw: RefCell<Vec<u8>>,
     reserved_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Regf_FileHeader> for OptRc<Regf_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &Regf_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_FileHeader> for OptRc<Regf_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&Regf_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_FileHeader> for Regf_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_FileHeader> for &Regf_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_FileHeader> for OptRc<Regf_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_FileHeader> for &OptRc<Regf_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_FileHeader {
     type Root = Regf;
@@ -249,6 +319,12 @@ impl Regf_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Regf_FileHeader {
     pub fn unknown1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -335,6 +411,38 @@ pub struct Regf_Filetime {
     value: RefCell<u64>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Regf_Filetime> for OptRc<Regf_Filetime> {
+    type Error = KError;
+    fn try_from(v: &Regf_Filetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_Filetime> for OptRc<Regf_Filetime> {
+    type Error = KError;
+    fn try_from(v: &&Regf_Filetime) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_Filetime> for Regf_Filetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_Filetime>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_Filetime> for &Regf_Filetime {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_Filetime>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_Filetime> for OptRc<Regf_Filetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_Filetime>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_Filetime> for &OptRc<Regf_Filetime> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_Filetime>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Regf_Filetime {
     type Root = Regf;
     type Parent = KStructUnit;
@@ -367,6 +475,12 @@ impl Regf_Filetime {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -377,6 +491,38 @@ pub struct Regf_HiveBin {
     header: RefCell<OptRc<Regf_HiveBinHeader>>,
     cells: RefCell<Vec<OptRc<Regf_HiveBinCell>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBin> for OptRc<Regf_HiveBin> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBin) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBin> for OptRc<Regf_HiveBin> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBin) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBin> for Regf_HiveBin {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBin>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBin> for &Regf_HiveBin {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBin>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBin> for OptRc<Regf_HiveBin> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBin>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBin> for &OptRc<Regf_HiveBin> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBin>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBin {
     type Root = Regf;
@@ -425,6 +571,12 @@ impl Regf_HiveBin {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -462,6 +614,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> 
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        OptRc::<Regf_HiveBinCell_SubKeyListLhLf>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Regf_HiveBinCell_SubKeyListLhLf>> for Regf_HiveBinCell_Data {
     fn from(v: OptRc<Regf_HiveBinCell_SubKeyListLhLf>) -> Self {
         Self::Regf_HiveBinCell_SubKeyListLhLf(v)
@@ -474,6 +642,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        OptRc::<Regf_HiveBinCell_SubKeyListLi>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListLi>> for Regf_HiveBinCell_Data {
@@ -490,6 +674,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        OptRc::<Regf_HiveBinCell_NamedKey>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Regf_HiveBinCell_NamedKey>> for Regf_HiveBinCell_Data {
     fn from(v: OptRc<Regf_HiveBinCell_NamedKey>) -> Self {
         Self::Regf_HiveBinCell_NamedKey(v)
@@ -502,6 +702,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        OptRc::<Regf_HiveBinCell_SubKeyListRi>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListRi>> for Regf_HiveBinCell_Data {
@@ -518,6 +734,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        OptRc::<Regf_HiveBinCell_SubKeyListSk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<Regf_HiveBinCell_SubKeyListSk>> for Regf_HiveBinCell_Data {
     fn from(v: OptRc<Regf_HiveBinCell_SubKeyListSk>) -> Self {
         Self::Regf_HiveBinCell_SubKeyListSk(v)
@@ -530,6 +762,22 @@ impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        OptRc::<Regf_HiveBinCell_SubKeyListVk>::try_from(self)
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &Regf_HiveBinCell_Data {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListVk>> for Regf_HiveBinCell_Data {
@@ -546,9 +794,47 @@ impl TryFrom<&Regf_HiveBinCell_Data> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&Regf_HiveBinCell_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for Regf_HiveBinCell_Data {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&Regf_HiveBinCell> for OptRc<Regf_HiveBinCell> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell> for OptRc<Regf_HiveBinCell> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell> for Regf_HiveBinCell {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell> for &Regf_HiveBinCell {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell> for OptRc<Regf_HiveBinCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell> for &OptRc<Regf_HiveBinCell> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for Regf_HiveBinCell {
@@ -672,6 +958,12 @@ impl Regf_HiveBinCell {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Regf_HiveBinCell {
     pub fn identifier_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -711,6 +1003,38 @@ pub struct Regf_HiveBinCell_NamedKey {
     unknown_string: RefCell<String>,
     _io: RefCell<BytesReader>,
     unknown_string_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Regf_HiveBinCell_NamedKey> for OptRc<Regf_HiveBinCell_NamedKey> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_NamedKey) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_NamedKey> for OptRc<Regf_HiveBinCell_NamedKey> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_NamedKey) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for Regf_HiveBinCell_NamedKey {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &Regf_HiveBinCell_NamedKey {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for OptRc<Regf_HiveBinCell_NamedKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_NamedKey> for &OptRc<Regf_HiveBinCell_NamedKey> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_NamedKey>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_NamedKey {
     type Root = Regf;
@@ -859,6 +1183,12 @@ impl Regf_HiveBinCell_NamedKey {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl Regf_HiveBinCell_NamedKey {
     pub fn unknown_string_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -937,6 +1267,38 @@ pub struct Regf_HiveBinCell_SubKeyListLhLf {
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLhLf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLhLf) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for Regf_HiveBinCell_SubKeyListLhLf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &Regf_HiveBinCell_SubKeyListLhLf {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf> for &OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
@@ -980,6 +1342,12 @@ impl Regf_HiveBinCell_SubKeyListLhLf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -990,6 +1358,38 @@ pub struct Regf_HiveBinCell_SubKeyListLhLf_Item {
     named_key_offset: RefCell<u32>,
     hash_value: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLhLf_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLhLf_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for Regf_HiveBinCell_SubKeyListLhLf_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for &Regf_HiveBinCell_SubKeyListLhLf_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> for &OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLhLf_Item>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
     type Root = Regf;
@@ -1029,6 +1429,12 @@ impl Regf_HiveBinCell_SubKeyListLhLf_Item {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1039,6 +1445,38 @@ pub struct Regf_HiveBinCell_SubKeyListLi {
     count: RefCell<u16>,
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for Regf_HiveBinCell_SubKeyListLi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &Regf_HiveBinCell_SubKeyListLi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi> for &OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListLi {
     type Root = Regf;
@@ -1083,6 +1521,12 @@ impl Regf_HiveBinCell_SubKeyListLi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1092,6 +1536,38 @@ pub struct Regf_HiveBinCell_SubKeyListLi_Item {
     pub(crate) _self_shared: SharedType<Self>,
     named_key_offset: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListLi_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListLi_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for Regf_HiveBinCell_SubKeyListLi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for &Regf_HiveBinCell_SubKeyListLi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListLi_Item> for &OptRc<Regf_HiveBinCell_SubKeyListLi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListLi_Item>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
     type Root = Regf;
@@ -1125,6 +1601,12 @@ impl Regf_HiveBinCell_SubKeyListLi_Item {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1135,6 +1617,38 @@ pub struct Regf_HiveBinCell_SubKeyListRi {
     count: RefCell<u16>,
     items: RefCell<Vec<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>>>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListRi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListRi) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for Regf_HiveBinCell_SubKeyListRi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &Regf_HiveBinCell_SubKeyListRi {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi> for &OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListRi {
     type Root = Regf;
@@ -1179,6 +1693,12 @@ impl Regf_HiveBinCell_SubKeyListRi {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1188,6 +1708,38 @@ pub struct Regf_HiveBinCell_SubKeyListRi_Item {
     pub(crate) _self_shared: SharedType<Self>,
     sub_key_list_offset: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListRi_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListRi_Item) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for Regf_HiveBinCell_SubKeyListRi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for &Regf_HiveBinCell_SubKeyListRi_Item {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListRi_Item> for &OptRc<Regf_HiveBinCell_SubKeyListRi_Item> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListRi_Item>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
     type Root = Regf;
@@ -1221,6 +1773,12 @@ impl Regf_HiveBinCell_SubKeyListRi_Item {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1233,6 +1791,38 @@ pub struct Regf_HiveBinCell_SubKeyListSk {
     next_security_key_offset: RefCell<u32>,
     reference_count: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListSk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListSk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for Regf_HiveBinCell_SubKeyListSk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &Regf_HiveBinCell_SubKeyListSk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListSk> for &OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListSk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListSk {
     type Root = Regf;
@@ -1284,6 +1874,12 @@ impl Regf_HiveBinCell_SubKeyListSk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1300,6 +1896,38 @@ pub struct Regf_HiveBinCell_SubKeyListVk {
     value_name: RefCell<String>,
     _io: RefCell<BytesReader>,
     value_name_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_SubKeyListVk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinCell_SubKeyListVk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for Regf_HiveBinCell_SubKeyListVk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &Regf_HiveBinCell_SubKeyListVk {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinCell_SubKeyListVk> for &OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinCell_SubKeyListVk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListVk {
     type Root = Regf;
@@ -1370,6 +1998,12 @@ impl Regf_HiveBinCell_SubKeyListVk {
 impl Regf_HiveBinCell_SubKeyListVk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Regf_HiveBinCell_SubKeyListVk {
@@ -1483,6 +2117,38 @@ pub struct Regf_HiveBinHeader {
     unknown4: RefCell<u32>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&Regf_HiveBinHeader> for OptRc<Regf_HiveBinHeader> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Regf_HiveBinHeader> for OptRc<Regf_HiveBinHeader> {
+    type Error = KError;
+    fn try_from(v: &&Regf_HiveBinHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinHeader> for Regf_HiveBinHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinHeader> for &Regf_HiveBinHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Regf_HiveBinHeader> for OptRc<Regf_HiveBinHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Regf_HiveBinHeader> for &OptRc<Regf_HiveBinHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<Regf_HiveBinHeader>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Regf_HiveBinHeader {
     type Root = Regf;
     type Parent = Regf_HiveBin;
@@ -1579,5 +2245,11 @@ impl Regf_HiveBinHeader {
 impl Regf_HiveBinHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

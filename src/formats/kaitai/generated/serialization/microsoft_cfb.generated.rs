@@ -20,6 +20,38 @@ pub struct MicrosoftCfb {
     f_sector_size: Cell<bool>,
     sector_size: RefCell<i32>,
 }
+impl TryFrom<&MicrosoftCfb> for OptRc<MicrosoftCfb> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftCfb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftCfb> for OptRc<MicrosoftCfb> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftCfb) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb> for MicrosoftCfb {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb> for &MicrosoftCfb {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb> for OptRc<MicrosoftCfb> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftCfb> for &OptRc<MicrosoftCfb> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MicrosoftCfb {
     type Root = MicrosoftCfb;
     type Parent = MicrosoftCfb;
@@ -98,6 +130,12 @@ impl MicrosoftCfb {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftCfb {
     pub fn fat_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -130,6 +168,38 @@ pub struct MicrosoftCfb_CfbHeader {
     difat: RefCell<Vec<i32>>,
     _io: RefCell<BytesReader>,
     reserved1_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&MicrosoftCfb_CfbHeader> for OptRc<MicrosoftCfb_CfbHeader> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftCfb_CfbHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftCfb_CfbHeader> for OptRc<MicrosoftCfb_CfbHeader> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftCfb_CfbHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_CfbHeader> for MicrosoftCfb_CfbHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_CfbHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_CfbHeader> for &MicrosoftCfb_CfbHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_CfbHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_CfbHeader> for OptRc<MicrosoftCfb_CfbHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_CfbHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_CfbHeader> for &OptRc<MicrosoftCfb_CfbHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_CfbHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftCfb_CfbHeader {
     type Root = MicrosoftCfb;
@@ -326,6 +396,12 @@ impl MicrosoftCfb_CfbHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftCfb_CfbHeader {
     pub fn reserved1_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -362,6 +438,38 @@ pub struct MicrosoftCfb_DirEntry {
     mini_stream: RefCell<Vec<u8>>,
     f_right_sibling: Cell<bool>,
     right_sibling: RefCell<OptRc<MicrosoftCfb_DirEntry>>,
+}
+impl TryFrom<&MicrosoftCfb_DirEntry> for OptRc<MicrosoftCfb_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftCfb_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftCfb_DirEntry> for OptRc<MicrosoftCfb_DirEntry> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftCfb_DirEntry) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_DirEntry> for MicrosoftCfb_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_DirEntry>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_DirEntry> for &MicrosoftCfb_DirEntry {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_DirEntry>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_DirEntry> for OptRc<MicrosoftCfb_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_DirEntry>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_DirEntry> for &OptRc<MicrosoftCfb_DirEntry> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_DirEntry>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for MicrosoftCfb_DirEntry {
     type Root = MicrosoftCfb;
@@ -559,6 +667,12 @@ impl MicrosoftCfb_DirEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl MicrosoftCfb_DirEntry {
     pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -649,6 +763,38 @@ pub struct MicrosoftCfb_FatEntries {
     entries: RefCell<Vec<i32>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&MicrosoftCfb_FatEntries> for OptRc<MicrosoftCfb_FatEntries> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftCfb_FatEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&MicrosoftCfb_FatEntries> for OptRc<MicrosoftCfb_FatEntries> {
+    type Error = KError;
+    fn try_from(v: &&MicrosoftCfb_FatEntries) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_FatEntries> for MicrosoftCfb_FatEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_FatEntries>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_FatEntries> for &MicrosoftCfb_FatEntries {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_FatEntries>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_FatEntries> for OptRc<MicrosoftCfb_FatEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_FatEntries>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<MicrosoftCfb_FatEntries> for &OptRc<MicrosoftCfb_FatEntries> {
+    fn downcast_optrc(&self) -> Result<OptRc<MicrosoftCfb_FatEntries>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for MicrosoftCfb_FatEntries {
     type Root = MicrosoftCfb;
     type Parent = MicrosoftCfb;
@@ -687,5 +833,11 @@ impl MicrosoftCfb_FatEntries {
 impl MicrosoftCfb_FatEntries {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

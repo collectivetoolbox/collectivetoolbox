@@ -240,28 +240,203 @@ pub fn transform_test_content(src_name: &str, content: &str) -> Result<String> {
     Ok(out)
 }
 
-fn find_child_type<'a>(k: &'a KsyFile, field: &str) -> Option<&'a KsyFile> {
+fn find_child_type<'a>(
+    k: &'a KsyFile,
+    field: &str,
+    root: Option<&'a KsyFile>,
+    imported: Option<&'a HashMap<String, KsyFile>>,
+) -> Option<&'a KsyFile> {
     if let Some(child) = k.types.get(field) {
         return Some(child);
     }
+    if let Some(root_ksy) = root {
+        if let Some(child) = root_ksy.types.get(field) {
+            return Some(child);
+        }
+    }
+    if let Some(imp) = imported.and_then(|m| m.get(field)) {
+        return Some(imp);
+    }
+
+    let check_type_name = |tname: &str| -> Option<&'a KsyFile> {
+        let tname = tname.split('(').next().unwrap_or(tname).trim();
+        if let Some(child) = k.types.get(tname) {
+            return Some(child);
+        }
+        if let Some(root_ksy) = root {
+            if let Some(child) = root_ksy.types.get(tname) {
+                return Some(child);
+            }
+            if let Some(child) = find_nested_ksy(tname, root_ksy) {
+                return Some(child);
+            }
+        }
+        if let Some(imp) = imported.and_then(|m| m.get(tname)) {
+            return Some(imp);
+        }
+        None
+    };
+
     if let Some(attr) = k.seq.iter().find(|a| a.id.as_deref() == Some(field)) {
         if let Some(crate::spec::TypeSpec::Simple(tname)) = &attr.type_spec {
-            if let Some(child) = k.types.get(tname) {
+            if let Some(child) = check_type_name(tname) {
                 return Some(child);
+            }
+        }
+        if let Some(crate::spec::TypeSpec::Switch(sw)) = &attr.type_spec {
+            if let Some(first_case) = sw.cases.values().find_map(|v| v.as_str()) {
+                if let Some(child) = check_type_name(first_case) {
+                    return Some(child);
+                }
             }
         }
     }
     if let Some(inst) = k.instances.get(field) {
         if let Some(crate::spec::TypeSpec::Simple(tname)) = &inst.type_spec {
-            if let Some(child) = k.types.get(tname) {
+            if let Some(child) = check_type_name(tname) {
                 return Some(child);
+            }
+        }
+        if let Some(crate::spec::TypeSpec::Switch(sw)) = &inst.type_spec {
+            if let Some(first_case) = sw.cases.values().find_map(|v| v.as_str()) {
+                if let Some(child) = check_type_name(first_case) {
+                    return Some(child);
+                }
             }
         }
     }
     None
 }
 
-fn is_instance_field(k: Option<&KsyFile>, field: &str, root_ksy: Option<&KsyFile>) -> bool {
+fn is_numeric_switch_field(k: Option<&KsyFile>, field: &str) -> bool {
+    let Some(root) = k else { return false; };
+    if let Some(attr) = root.seq.iter().find(|a| a.id.as_deref() == Some(field)) {
+        if let Some(crate::spec::TypeSpec::Switch(sw)) = &attr.type_spec {
+            if !sw.cases.is_empty()
+                && sw.cases.values().all(|t| {
+                    t.as_str().is_some_and(|s| {
+                        matches!(
+                            s,
+                            "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8" | "b1"
+                        )
+                    })
+                })
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_numeric_field(
+    ksy: Option<&KsyFile>,
+    actual: &str,
+    imported: Option<&HashMap<String, KsyFile>>,
+) -> bool {
+    let parts: Vec<&str> = actual.split('.').collect();
+    let mut current_ksy = ksy;
+    for (idx, part) in parts.iter().enumerate() {
+        let field_name = if let Some((f, _)) = part.split_once('[') {
+            f
+        } else {
+            *part
+        };
+        let Some(curr) = current_ksy else { return false; };
+        if idx == parts.len().saturating_sub(1) {
+            if let Some(attr) = curr.seq.iter().find(|a| a.id.as_deref() == Some(field_name)) {
+                if attr.enum_name.is_some() {
+                    return false;
+                }
+                if let Some(crate::spec::TypeSpec::Simple(t)) = &attr.type_spec {
+                    return matches!(
+                        t.as_str(),
+                        "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8"
+                    ) || (t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit()));
+                }
+            }
+            if let Some(inst) = curr.instances.get(field_name) {
+                if inst.enum_name.is_some() {
+                    return false;
+                }
+                if let Some(crate::spec::TypeSpec::Simple(t)) = &inst.type_spec {
+                    return matches!(
+                        t.as_str(),
+                        "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8"
+                    ) || (t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit()));
+                }
+                match &inst.value {
+                    Some(crate::spec::ValueOrExpr::Expr(val_str)) => {
+                        let val_str = val_str.trim();
+                        if val_str.contains("null") || val_str.ends_with("_ut") || val_str.ends_with("_struct") {
+                            return false;
+                        }
+                        return true;
+                    }
+                    Some(crate::spec::ValueOrExpr::Int(_) | crate::spec::ValueOrExpr::Float(_)) => {
+                        return true;
+                    }
+                    _ => {}
+                }
+            }
+            return false;
+        }
+        current_ksy = find_child_type(curr, field_name, ksy, imported);
+    }
+    false
+}
+
+fn is_enum_field(
+    ksy: Option<&KsyFile>,
+    actual: &str,
+    imported: Option<&HashMap<String, KsyFile>>,
+) -> bool {
+    let parts: Vec<&str> = actual.split('.').collect();
+    let mut current_ksy = ksy;
+    for (idx, part) in parts.iter().enumerate() {
+        let field_name = if let Some((f, _)) = part.split_once('[') {
+            f
+        } else {
+            *part
+        };
+        let Some(curr) = current_ksy else { return false; };
+        if idx == parts.len().saturating_sub(1) {
+            if let Some(attr) = curr.seq.iter().find(|a| a.id.as_deref() == Some(field_name)) {
+                return attr.enum_name.is_some();
+            }
+            if let Some(inst) = curr.instances.get(field_name) {
+                return inst.enum_name.is_some();
+            }
+            return false;
+        }
+        current_ksy = find_child_type(curr, field_name, ksy, imported);
+    }
+    false
+}
+
+fn is_integer_expected(expected: &serde_yaml::Value) -> bool {
+    match expected {
+        serde_yaml::Value::Number(n) => n.is_i64() || n.is_u64(),
+        serde_yaml::Value::String(s) => {
+            let clean = s.trim().replace('_', "");
+            if let Some(hex) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+                u128::from_str_radix(hex, 16).is_ok()
+            } else if let Some(hex) = clean.strip_prefix("-0x").or_else(|| clean.strip_prefix("-0X")) {
+                i128::from_str_radix(hex, 16).is_ok()
+            } else {
+                clean.parse::<i64>().is_ok()
+            }
+        }
+        _ => false,
+    }
+}
+
+fn is_instance_field(
+    k: Option<&KsyFile>,
+    field: &str,
+    root_ksy: Option<&KsyFile>,
+    imported: Option<&HashMap<String, KsyFile>>,
+) -> bool {
     if let Some(curr) = k {
         if curr.instances.contains_key(field) {
             return true;
@@ -307,6 +482,7 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
         }
         serde_yaml::Value::String(s) => {
             let mut trimmed = s.trim();
+            let is_explicit_bytes = trimmed.ends_with(".as<bytes>");
             if trimmed == "[].as<bytes>" {
                 return "Vec::<u8>::new()".to_string();
             }
@@ -376,10 +552,14 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                         .split(',')
                         .map(|item| {
                             let item = item.trim();
-                            if item.starts_with("0x") || item.starts_with("0X") {
-                                format!("{item}u8")
-                            } else if let Ok(num) = item.parse::<u8>() {
-                                format!("{num}u8")
+                            if is_explicit_bytes {
+                                if item.starts_with("0x") || item.starts_with("0X") {
+                                    format!("{item}u8")
+                                } else if let Ok(num) = item.parse::<u8>() {
+                                    format!("{num}u8")
+                                } else {
+                                    item.to_string()
+                                }
                             } else if let Some(unquoted) = item
                                 .strip_prefix('\'')
                                 .and_then(|t| t.strip_suffix('\''))
@@ -449,74 +629,231 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
     }
 }
 
+fn find_type_path<'a>(comp: &str, ksy: &'a KsyFile, prefix: &mut Vec<&'a str>) -> bool {
+    if let Some((name, _)) = ksy.types.get_key_value(comp) {
+        prefix.push(name.as_str());
+        return true;
+    }
+    for (name, sub) in &ksy.types {
+        prefix.push(name.as_str());
+        if find_type_path(comp, sub, prefix) {
+            return true;
+        }
+        prefix.pop();
+    }
+    false
+}
+
+fn resolve_target_class(raw_target: &str, ksy: Option<&KsyFile>, mod_name: Option<&str>) -> String {
+    let components: Vec<&str> = raw_target.split("::").collect();
+    let root_id = if let Some(root) = ksy {
+        root.meta
+            .as_ref()
+            .and_then(|m| m.id.as_deref())
+            .or(mod_name)
+            .unwrap_or("")
+    } else {
+        mod_name.unwrap_or("")
+    };
+
+    if let Some(root) = ksy {
+        let mut path = if root_id.is_empty() {
+            Vec::new()
+        } else {
+            vec![root_id]
+        };
+        let mut curr = root;
+
+        for comp in &components {
+            if !root_id.is_empty() && *comp == root_id {
+                continue;
+            }
+            if let Some(next) = curr.types.get(*comp) {
+                path.push(comp);
+                curr = next;
+            } else if let Some(next) = root.types.get(*comp) {
+                if root_id.is_empty() {
+                    path = vec![comp];
+                } else {
+                    path = vec![root_id, comp];
+                }
+                curr = next;
+            } else {
+                let mut nested_path = Vec::new();
+                if find_type_path(comp, root, &mut nested_path) {
+                    if root_id.is_empty() {
+                        path = nested_path;
+                    } else {
+                        path = vec![root_id];
+                        path.extend(nested_path);
+                    }
+                } else {
+                    path.push(comp);
+                }
+            }
+        }
+        path.into_iter().map(to_upper_camel_case).collect::<Vec<_>>().join("_")
+    } else {
+        components.into_iter().map(to_upper_camel_case).collect::<Vec<_>>().join("_")
+    }
+}
+
+fn find_nested_ksy<'a>(comp: &str, ksy: &'a KsyFile) -> Option<&'a KsyFile> {
+    if let Some(next) = ksy.types.get(comp) {
+        return Some(next);
+    }
+    for sub in ksy.types.values() {
+        if let Some(next) = find_nested_ksy(comp, sub) {
+            return Some(next);
+        }
+    }
+    None
+}
+
+fn resolve_target_ksy<'a>(raw_target: &str, ksy: Option<&'a KsyFile>) -> Option<&'a KsyFile> {
+    let components: Vec<&str> = raw_target.split("::").collect();
+    let root = ksy?;
+    let root_id = root.meta.as_ref().and_then(|m| m.id.as_deref()).unwrap_or("");
+    let mut curr = root;
+    for comp in &components {
+        if !root_id.is_empty() && *comp == root_id {
+            continue;
+        }
+        if let Some(next) = curr.types.get(*comp) {
+            curr = next;
+        } else if let Some(next) = root.types.get(*comp) {
+            curr = next;
+        } else if let Some(next) = find_nested_ksy(comp, root) {
+            curr = next;
+        }
+    }
+    Some(curr)
+}
+
 /// Formats a `.kst` actual path expression into a Rust method chain on root `r`.
 #[must_use]
-pub fn format_actual_expr(actual: &str, ksy: Option<&KsyFile>) -> String {
+pub fn format_actual_expr(
+    actual: &str,
+    ksy: Option<&KsyFile>,
+    mod_name: Option<&str>,
+    imported: Option<&HashMap<String, KsyFile>>,
+) -> String {
     let parts: Vec<&str> = actual.split('.').collect();
     if parts.is_empty() {
         return "r".to_string();
     }
 
     let is_len = parts.last().is_some_and(|p| *p == "size" || *p == "length");
-    let mut call_chain = String::new();
+    let mut expr = "r".to_string();
     let mut current_ksy = ksy;
+    let mut last_parent_ksy = current_ksy;
 
-    for part in &parts {
+    for (idx, part) in parts.iter().enumerate() {
+        last_parent_ksy = current_ksy;
+
         if *part == "size" || *part == "length" {
-            call_chain.push_str(".len()");
+            expr.push_str(".len()");
             continue;
         }
 
         if *part == "to_s" {
-            call_chain.push_str(".to_string()");
+            expr.push_str(".to_string()");
             continue;
         }
 
         if let Some((field_name, rest)) = part.split_once('[') {
             if let Some((index_str, _)) = rest.split_once(']') {
-                let is_inst = is_instance_field(current_ksy, field_name, ksy);
+                let is_inst = is_instance_field(current_ksy, field_name, ksy, imported);
 
                 if is_inst {
-                    call_chain.push_str(&format!(".{field_name}()?[{index_str}]"));
+                    expr.push_str(&format!(".{field_name}()?[{index_str}]"));
                 } else {
-                    call_chain.push_str(&format!(".{field_name}()[{index_str}]"));
+                    expr.push_str(&format!(".{field_name}()[{index_str}]"));
                 }
 
                 if let Some(k) = current_ksy {
-                    current_ksy = find_child_type(k, field_name)
-                        .or_else(|| ksy.and_then(|r| find_child_type(r, field_name)));
+                    current_ksy = find_child_type(k, field_name, ksy, imported);
                 }
                 continue;
             }
         }
 
         if part.starts_with("as<") && part.ends_with('>') {
-            call_chain.push_str(".as_ref().context(\"Missing optional field\")?");
+            let raw_target = &part[3..part.len().saturating_sub(1)];
+            if matches!(
+                raw_target,
+                "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8" | "b1" | "str"
+            ) {
+                continue;
+            }
+            if raw_target == "bytes" {
+                if expr.ends_with(']') {
+                    expr = format!("Vec::<u8>::try_from(&{expr})?");
+                } else {
+                    expr = format!("Vec::<u8>::try_from(&*{expr}.as_ref().ok_or(KError::CastError)?)?");
+                }
+                continue;
+            }
+            current_ksy = resolve_target_ksy(raw_target, ksy);
+            let target_class = resolve_target_class(raw_target, ksy, mod_name);
+            expr = format!("kaitai::DowncastOptRc::<{target_class}>::downcast_optrc(&{expr})?");
             continue;
         }
 
-        let is_inst = is_instance_field(current_ksy, part, ksy);
+        let is_inst = is_instance_field(current_ksy, part, ksy, imported);
 
         if is_inst {
-            call_chain.push_str(&format!(".{part}()?"));
+            expr.push_str(&format!(".{part}()?"));
         } else {
-            call_chain.push_str(&format!(".{part}()"));
+            expr.push_str(&format!(".{part}()"));
+        }
+
+        if let Some(curr) = current_ksy {
+            let sw_spec = curr
+                .seq
+                .iter()
+                .find(|a| a.id.as_deref() == Some(*part))
+                .and_then(|a| a.type_spec.as_ref())
+                .or_else(|| curr.instances.get(*part).and_then(|i| i.type_spec.as_ref()));
+            if let Some(crate::spec::TypeSpec::Switch(sw)) = sw_spec {
+                let next_part = parts.get(idx.saturating_add(1));
+                let is_next_cast = next_part.is_some_and(|p| p.starts_with("as<"));
+                if !is_next_cast && next_part.is_some() {
+                    if let Some(case_type) = sw.cases.values().find_map(|v| v.as_str()) {
+                        if curr.types.contains_key(case_type)
+                            || ksy.is_some_and(|r| r.types.contains_key(case_type))
+                        {
+                            let target_class = resolve_target_class(case_type, ksy, mod_name);
+                            expr = format!("kaitai::DowncastOptRc::<{target_class}>::downcast_optrc(&{expr})?");
+                            current_ksy = resolve_target_ksy(case_type, ksy);
+                        }
+                    }
+                }
+            }
         }
 
         if let Some(k) = current_ksy {
-            current_ksy = find_child_type(k, part)
-                .or_else(|| ksy.and_then(|r| find_child_type(r, part)));
+            current_ksy = find_child_type(k, part, ksy, imported);
         }
     }
 
-    let ends_with_index = call_chain.ends_with(']');
-    let is_body_value = actual.ends_with(".body") || actual == "body";
-    let is_to_string = call_chain.ends_with(".to_string()");
-
-    if is_len || ends_with_index || is_body_value || is_to_string {
-        format!("r{call_chain}")
+    let ends_with_index = expr.ends_with(']');
+    let is_to_string = expr.ends_with(".to_string()");
+    let is_cast_bytes = actual.ends_with(".as<bytes>") || actual.ends_with("as<bytes>");
+    let last_part = parts.last().copied().unwrap_or("");
+    let last_field = if let Some((f, _)) = last_part.split_once('[') {
+        f
     } else {
-        format!("*r{call_chain}")
+        last_part
+    };
+    let is_num_switch = is_numeric_switch_field(last_parent_ksy, last_field)
+        || is_numeric_switch_field(current_ksy, last_field)
+        || is_numeric_switch_field(ksy, last_field);
+
+    if is_len || ends_with_index || is_to_string || is_cast_bytes || is_num_switch {
+        expr
+    } else {
+        format!("*({expr})")
     }
 }
 
@@ -599,11 +936,34 @@ pub fn synthesize_test_from_kst(
             "    let r: OptRc<{root_type}> = {root_type}::read_into(&_io, None, None)?;\n\n"
         ));
 
+        let mut imported_ksys: HashMap<String, KsyFile> = HashMap::new();
         let ksy = if let Some(dir) = formats_dir {
             let ksy_path = dir.join(format!("{mod_name}.ksy"));
             if ksy_path.exists() {
                 if let Ok(content) = fs::read_to_string(&ksy_path) {
-                    crate::parser::parse_ksy_str(&content).ok()
+                    if let Ok(file) = crate::parser::parse_ksy_str(&content) {
+                        if let Some(meta) = &file.meta {
+                            for imp in &meta.imports {
+                                let clean_imp = imp.trim_start_matches('/');
+                                let imp_path = dir.join(format!("{clean_imp}.ksy"));
+                                let content = fs::read_to_string(&imp_path).or_else(|_| {
+                                    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+                                    fs::read_to_string(manifest_dir.join(format!("data/definitions/{clean_imp}.ksy")))
+                                });
+                                if let Ok(imp_content) = content {
+                                    if let Ok(imp_file) = crate::parser::parse_ksy_str(&imp_content) {
+                                        let base_name = clean_imp.rsplit('/').next().unwrap_or(clean_imp);
+                                        imported_ksys.insert(imp.clone(), imp_file.clone());
+                                        imported_ksys.insert(clean_imp.to_string(), imp_file.clone());
+                                        imported_ksys.insert(base_name.to_string(), imp_file);
+                                    }
+                                }
+                            }
+                        }
+                        Some(file)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -626,12 +986,34 @@ pub fn synthesize_test_from_kst(
             }
 
             if let Some(expected_val) = &assert.expected {
-                let actual_expr = format_actual_expr(&actual_str, ksy.as_ref());
+                let actual_expr = format_actual_expr(
+                    &actual_str,
+                    ksy.as_ref(),
+                    Some(mod_name),
+                    Some(&imported_ksys),
+                );
                 let expected_expr = format_expected_expr(expected_val, mod_name);
                 if expected_expr == "None" {
                     // Reason for fallback: expressions without dereference prefix remain unchanged
                     let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
-                    out.push_str(&format!("    assert!({actual}.is_none());\n"));
+                    let actual = actual
+                        .strip_prefix('(')
+                        .and_then(|s| s.strip_suffix(')'))
+                        .unwrap_or(actual);
+                    if is_numeric_field(ksy.as_ref(), &actual_str, Some(&imported_ksys)) {
+                        out.push_str(&format!("    assert_eq!(*{actual}, 0);\n"));
+                    } else {
+                        out.push_str(&format!("    assert!({actual}.is_none());\n"));
+                    }
+                } else if is_enum_field(ksy.as_ref(), &actual_str, Some(&imported_ksys))
+                    && is_integer_expected(expected_val)
+                {
+                    let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
+                    let actual = actual
+                        .strip_prefix('(')
+                        .and_then(|s| s.strip_suffix(')'))
+                        .unwrap_or(actual);
+                    out.push_str(&format!("    assert_eq!(i64::from(&*{actual}), {expected_expr});\n"));
                 } else {
                     out.push_str(&format!("    assert_eq!({actual_expr}, {expected_expr});\n"));
                 }

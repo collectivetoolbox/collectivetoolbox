@@ -85,7 +85,7 @@ fn test_index_sizes() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<IndexSizes> = IndexSizes::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.qty(), 3);
+    assert_eq!(*(r.qty()), 3);
     assert_eq!(r.sizes()[0], 1);
     assert_eq!(r.sizes()[1], 8);
     assert_eq!(r.sizes()[2], 4);

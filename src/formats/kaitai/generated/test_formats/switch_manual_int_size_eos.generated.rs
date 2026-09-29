@@ -64,6 +64,38 @@ pub struct SwitchManualIntSizeEos {
     chunks: RefCell<Vec<OptRc<SwitchManualIntSizeEos_Chunk>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchManualIntSizeEos> for OptRc<SwitchManualIntSizeEos> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualIntSizeEos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos> for OptRc<SwitchManualIntSizeEos> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos> for SwitchManualIntSizeEos {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos> for &SwitchManualIntSizeEos {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos> for OptRc<SwitchManualIntSizeEos> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos> for &OptRc<SwitchManualIntSizeEos> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchManualIntSizeEos {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos;
@@ -104,6 +136,12 @@ impl SwitchManualIntSizeEos {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -116,6 +154,38 @@ pub struct SwitchManualIntSizeEos_Chunk {
     body: RefCell<OptRc<SwitchManualIntSizeEos_ChunkBody>>,
     _io: RefCell<BytesReader>,
     body_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SwitchManualIntSizeEos_Chunk> for OptRc<SwitchManualIntSizeEos_Chunk> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualIntSizeEos_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos_Chunk> for OptRc<SwitchManualIntSizeEos_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_Chunk> for SwitchManualIntSizeEos_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_Chunk> for &SwitchManualIntSizeEos_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_Chunk> for OptRc<SwitchManualIntSizeEos_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_Chunk> for &OptRc<SwitchManualIntSizeEos_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_Chunk>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchManualIntSizeEos_Chunk {
     type Root = SwitchManualIntSizeEos;
@@ -165,6 +235,12 @@ impl SwitchManualIntSizeEos_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchManualIntSizeEos_Chunk {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -196,6 +272,22 @@ impl TryFrom<&SwitchManualIntSizeEos_ChunkBody_Body> for OptRc<SwitchManualIntSi
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody_Body> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for SwitchManualIntSizeEos_ChunkBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        OptRc::<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for &SwitchManualIntSizeEos_ChunkBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>> for SwitchManualIntSizeEos_ChunkBody_Body {
     fn from(v: OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>) -> Self {
         Self::SwitchManualIntSizeEos_ChunkBody_ChunkMeta(v)
@@ -208,6 +300,22 @@ impl TryFrom<&SwitchManualIntSizeEos_ChunkBody_Body> for OptRc<SwitchManualIntSi
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody_Body> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for SwitchManualIntSizeEos_ChunkBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        OptRc::<SwitchManualIntSizeEos_ChunkBody_ChunkDir>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for &SwitchManualIntSizeEos_ChunkBody_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>> for SwitchManualIntSizeEos_ChunkBody_Body {
@@ -224,9 +332,47 @@ impl TryFrom<&SwitchManualIntSizeEos_ChunkBody_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for SwitchManualIntSizeEos_ChunkBody_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&SwitchManualIntSizeEos_ChunkBody> for OptRc<SwitchManualIntSizeEos_ChunkBody> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualIntSizeEos_ChunkBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody> for OptRc<SwitchManualIntSizeEos_ChunkBody> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody> for SwitchManualIntSizeEos_ChunkBody {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody> for &SwitchManualIntSizeEos_ChunkBody {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody> for OptRc<SwitchManualIntSizeEos_ChunkBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody> for &OptRc<SwitchManualIntSizeEos_ChunkBody> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchManualIntSizeEos_ChunkBody {
@@ -279,6 +425,12 @@ impl SwitchManualIntSizeEos_ChunkBody {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchManualIntSizeEos_ChunkBody {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -294,6 +446,38 @@ pub struct SwitchManualIntSizeEos_ChunkBody_ChunkDir {
     entries: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
     entries_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&SwitchManualIntSizeEos_ChunkBody_ChunkDir> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualIntSizeEos_ChunkBody_ChunkDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody_ChunkDir> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody_ChunkDir) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for SwitchManualIntSizeEos_ChunkBody_ChunkDir {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for &SwitchManualIntSizeEos_ChunkBody_ChunkDir {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> for &OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkDir>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchManualIntSizeEos_ChunkBody_ChunkDir {
     type Root = SwitchManualIntSizeEos;
@@ -334,6 +518,12 @@ impl SwitchManualIntSizeEos_ChunkBody_ChunkDir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SwitchManualIntSizeEos_ChunkBody_ChunkDir {
     pub fn entries_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -349,6 +539,38 @@ pub struct SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
     title: RefCell<String>,
     author: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualIntSizeEos_ChunkBody_ChunkMeta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualIntSizeEos_ChunkBody_ChunkMeta) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for &SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> for &OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualIntSizeEos_ChunkBody_ChunkMeta>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
     type Root = SwitchManualIntSizeEos;
@@ -387,5 +609,11 @@ impl SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
 impl SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

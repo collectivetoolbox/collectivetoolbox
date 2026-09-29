@@ -85,9 +85,9 @@ fn test_yaml_ints() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<YamlInts> = YamlInts::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.test_u4_dec()?, 4294967295);
-    assert_eq!(*r.test_u4_hex()?, 4294967295);
-    assert_eq!(*r.test_u8_dec()?, 18446744073709551615_u64);
-    assert_eq!(*r.test_u8_hex()?, 18446744073709551615_u64);
+    assert_eq!(*(r.test_u4_dec()?), 4294967295);
+    assert_eq!(*(r.test_u4_hex()?), 4294967295);
+    assert_eq!(*(r.test_u8_dec()?), 18446744073709551615_u64);
+    assert_eq!(*(r.test_u8_hex()?), 18446744073709551615_u64);
     Ok(())
 }

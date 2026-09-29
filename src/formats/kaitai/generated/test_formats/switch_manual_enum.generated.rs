@@ -64,6 +64,38 @@ pub struct SwitchManualEnum {
     opcodes: RefCell<Vec<OptRc<SwitchManualEnum_Opcode>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchManualEnum> for OptRc<SwitchManualEnum> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualEnum> for OptRc<SwitchManualEnum> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum> for SwitchManualEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum> for &SwitchManualEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum> for OptRc<SwitchManualEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualEnum> for &OptRc<SwitchManualEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchManualEnum {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum;
@@ -104,6 +136,12 @@ impl SwitchManualEnum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -129,6 +167,22 @@ impl TryFrom<&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_In
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for SwitchManualEnum_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        OptRc::<SwitchManualEnum_Opcode_Intval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &SwitchManualEnum_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchManualEnum_Opcode_Intval>> for SwitchManualEnum_Opcode_Body {
     fn from(v: OptRc<SwitchManualEnum_Opcode_Intval>) -> Self {
         Self::SwitchManualEnum_Opcode_Intval(v)
@@ -143,9 +197,57 @@ impl TryFrom<&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_St
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SwitchManualEnum_Opcode_Body> for OptRc<SwitchManualEnum_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for SwitchManualEnum_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        OptRc::<SwitchManualEnum_Opcode_Strval>::try_from(self)
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &SwitchManualEnum_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SwitchManualEnum_Opcode_Strval>> for SwitchManualEnum_Opcode_Body {
     fn from(v: OptRc<SwitchManualEnum_Opcode_Strval>) -> Self {
         Self::SwitchManualEnum_Opcode_Strval(v)
+    }
+}
+impl TryFrom<&SwitchManualEnum_Opcode> for OptRc<SwitchManualEnum_Opcode> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualEnum_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualEnum_Opcode> for OptRc<SwitchManualEnum_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode> for SwitchManualEnum_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode> for &SwitchManualEnum_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode> for OptRc<SwitchManualEnum_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode> for &OptRc<SwitchManualEnum_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SwitchManualEnum_Opcode {
@@ -196,6 +298,12 @@ impl SwitchManualEnum_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SwitchManualEnum_Opcode_CodeEnum {
@@ -238,6 +346,38 @@ pub struct SwitchManualEnum_Opcode_Intval {
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualEnum_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for SwitchManualEnum_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &SwitchManualEnum_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for OptRc<SwitchManualEnum_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Intval> for &OptRc<SwitchManualEnum_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Intval>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SwitchManualEnum_Opcode_Intval {
     type Root = SwitchManualEnum;
     type Parent = SwitchManualEnum_Opcode;
@@ -270,6 +410,12 @@ impl SwitchManualEnum_Opcode_Intval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -279,6 +425,38 @@ pub struct SwitchManualEnum_Opcode_Strval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &SwitchManualEnum_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&SwitchManualEnum_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for SwitchManualEnum_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &SwitchManualEnum_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for OptRc<SwitchManualEnum_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SwitchManualEnum_Opcode_Strval> for &OptRc<SwitchManualEnum_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<SwitchManualEnum_Opcode_Strval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SwitchManualEnum_Opcode_Strval {
     type Root = SwitchManualEnum;
@@ -311,5 +489,11 @@ impl SwitchManualEnum_Opcode_Strval {
 impl SwitchManualEnum_Opcode_Strval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

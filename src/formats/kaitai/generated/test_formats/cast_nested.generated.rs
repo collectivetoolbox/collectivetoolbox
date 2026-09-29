@@ -64,13 +64,45 @@ pub struct CastNested {
     opcodes: RefCell<Vec<OptRc<CastNested_Opcode>>>,
     _io: RefCell<BytesReader>,
     f_opcodes_0_str: Cell<bool>,
-    opcodes_0_str: RefCell<i32>,
+    opcodes_0_str: RefCell<OptRc<CastNested_Opcode_Strval>>,
     f_opcodes_0_str_value: Cell<bool>,
-    opcodes_0_str_value: RefCell<i32>,
+    opcodes_0_str_value: RefCell<String>,
     f_opcodes_1_int: Cell<bool>,
-    opcodes_1_int: RefCell<i32>,
+    opcodes_1_int: RefCell<OptRc<CastNested_Opcode_Intval>>,
     f_opcodes_1_int_value: Cell<bool>,
-    opcodes_1_int_value: RefCell<i32>,
+    opcodes_1_int_value: RefCell<u8>,
+}
+impl TryFrom<&CastNested> for OptRc<CastNested> {
+    type Error = KError;
+    fn try_from(v: &CastNested) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastNested> for OptRc<CastNested> {
+    type Error = KError;
+    fn try_from(v: &&CastNested) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastNested> for CastNested {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastNested> for &CastNested {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastNested> for OptRc<CastNested> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastNested> for &OptRc<CastNested> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CastNested {
     type Root = CastNested;
@@ -105,49 +137,47 @@ impl CastNested {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_0_str(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, OptRc<CastNested_Opcode_Strval>>> {
         let _io = self._io.borrow();
         if self.f_opcodes_0_str.get() {
             return Ok(self.opcodes_0_str.borrow());
         }
-        self.f_opcodes_0_str.set(true);
-        *self.opcodes_0_str.borrow_mut() = (OptRc::<CastNested_Opcode_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?).try_into()?;
+        *self.opcodes_0_str.borrow_mut() = OptRc::<CastNested_Opcode_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.opcodes_0_str.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_0_str_value(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, String>> {
         let _io = self._io.borrow();
         if self.f_opcodes_0_str_value.get() {
             return Ok(self.opcodes_0_str_value.borrow());
         }
         self.f_opcodes_0_str_value.set(true);
-        *self.opcodes_0_str_value.borrow_mut() = (*OptRc::<CastNested_Opcode_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.value()).try_into()?;
+        *self.opcodes_0_str_value.borrow_mut() = OptRc::<CastNested_Opcode_Strval>::try_from(&*((self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value().to_string();
         Ok(self.opcodes_0_str_value.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_1_int(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, OptRc<CastNested_Opcode_Intval>>> {
         let _io = self._io.borrow();
         if self.f_opcodes_1_int.get() {
             return Ok(self.opcodes_1_int.borrow());
         }
-        self.f_opcodes_1_int.set(true);
-        *self.opcodes_1_int.borrow_mut() = (OptRc::<CastNested_Opcode_Intval>::try_from(&*(self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?).try_into()?;
+        *self.opcodes_1_int.borrow_mut() = OptRc::<CastNested_Opcode_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.clone();
         Ok(self.opcodes_1_int.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_1_int_value(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, u8>> {
         let _io = self._io.borrow();
         if self.f_opcodes_1_int_value.get() {
             return Ok(self.opcodes_1_int_value.borrow());
         }
         self.f_opcodes_1_int_value.set(true);
-        *self.opcodes_1_int_value.borrow_mut() = (*OptRc::<CastNested_Opcode_Intval>::try_from(&*(self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.value()).try_into()?;
+        *self.opcodes_1_int_value.borrow_mut() = (*OptRc::<CastNested_Opcode_Intval>::try_from(&*((self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?))?.value()).try_into()?;
         Ok(self.opcodes_1_int_value.borrow())
     }
 }
@@ -159,6 +189,12 @@ impl CastNested {
 impl CastNested {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 
@@ -185,6 +221,22 @@ impl TryFrom<&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Intval> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&CastNested_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for CastNested_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        OptRc::<CastNested_Opcode_Intval>::try_from(self)
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for &CastNested_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<CastNested_Opcode_Intval>> for CastNested_Opcode_Body {
     fn from(v: OptRc<CastNested_Opcode_Intval>) -> Self {
         Self::CastNested_Opcode_Intval(v)
@@ -199,9 +251,57 @@ impl TryFrom<&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Strval> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&CastNested_Opcode_Body> for OptRc<CastNested_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&CastNested_Opcode_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for CastNested_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        OptRc::<CastNested_Opcode_Strval>::try_from(self)
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for &CastNested_Opcode_Body {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<CastNested_Opcode_Strval>> for CastNested_Opcode_Body {
     fn from(v: OptRc<CastNested_Opcode_Strval>) -> Self {
         Self::CastNested_Opcode_Strval(v)
+    }
+}
+impl TryFrom<&CastNested_Opcode> for OptRc<CastNested_Opcode> {
+    type Error = KError;
+    fn try_from(v: &CastNested_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastNested_Opcode> for OptRc<CastNested_Opcode> {
+    type Error = KError;
+    fn try_from(v: &&CastNested_Opcode) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode> for CastNested_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode> for &CastNested_Opcode {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode> for OptRc<CastNested_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastNested_Opcode> for &OptRc<CastNested_Opcode> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for CastNested_Opcode {
@@ -252,6 +352,12 @@ impl CastNested_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -261,6 +367,38 @@ pub struct CastNested_Opcode_Intval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&CastNested_Opcode_Intval> for OptRc<CastNested_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &CastNested_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastNested_Opcode_Intval> for OptRc<CastNested_Opcode_Intval> {
+    type Error = KError;
+    fn try_from(v: &&CastNested_Opcode_Intval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for CastNested_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for &CastNested_Opcode_Intval {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for OptRc<CastNested_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Intval> for &OptRc<CastNested_Opcode_Intval> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Intval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CastNested_Opcode_Intval {
     type Root = CastNested;
@@ -294,6 +432,12 @@ impl CastNested_Opcode_Intval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -303,6 +447,38 @@ pub struct CastNested_Opcode_Strval {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&CastNested_Opcode_Strval> for OptRc<CastNested_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &CastNested_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&CastNested_Opcode_Strval> for OptRc<CastNested_Opcode_Strval> {
+    type Error = KError;
+    fn try_from(v: &&CastNested_Opcode_Strval) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for CastNested_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for &CastNested_Opcode_Strval {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for OptRc<CastNested_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<CastNested_Opcode_Strval> for &OptRc<CastNested_Opcode_Strval> {
+    fn downcast_optrc(&self) -> Result<OptRc<CastNested_Opcode_Strval>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for CastNested_Opcode_Strval {
     type Root = CastNested;
@@ -335,5 +511,11 @@ impl CastNested_Opcode_Strval {
 impl CastNested_Opcode_Strval {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

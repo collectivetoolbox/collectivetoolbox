@@ -24,6 +24,38 @@ pub struct Id3v11 {
     f_id3v1_tag: Cell<bool>,
     id3v1_tag: RefCell<OptRc<Id3v11_Id3V11Tag>>,
 }
+impl TryFrom<&Id3v11> for OptRc<Id3v11> {
+    type Error = KError;
+    fn try_from(v: &Id3v11) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v11> for OptRc<Id3v11> {
+    type Error = KError;
+    fn try_from(v: &&Id3v11) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v11> for Id3v11 {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v11> for &Id3v11 {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v11> for OptRc<Id3v11> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v11> for &OptRc<Id3v11> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for Id3v11 {
     type Root = Id3v11;
     type Parent = Id3v11;
@@ -65,6 +97,12 @@ impl Id3v11 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 /**
@@ -97,6 +135,38 @@ pub struct Id3v11_Id3V11Tag {
     album_raw: RefCell<Vec<u8>>,
     year_raw: RefCell<Vec<u8>>,
     comment_raw: RefCell<Vec<u8>>,
+}
+impl TryFrom<&Id3v11_Id3V11Tag> for OptRc<Id3v11_Id3V11Tag> {
+    type Error = KError;
+    fn try_from(v: &Id3v11_Id3V11Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&Id3v11_Id3V11Tag> for OptRc<Id3v11_Id3V11Tag> {
+    type Error = KError;
+    fn try_from(v: &&Id3v11_Id3V11Tag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<Id3v11_Id3V11Tag> for Id3v11_Id3V11Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11_Id3V11Tag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<Id3v11_Id3V11Tag> for &Id3v11_Id3V11Tag {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11_Id3V11Tag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<Id3v11_Id3V11Tag> for OptRc<Id3v11_Id3V11Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11_Id3V11Tag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<Id3v11_Id3V11Tag> for &OptRc<Id3v11_Id3V11Tag> {
+    fn downcast_optrc(&self) -> Result<OptRc<Id3v11_Id3V11Tag>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for Id3v11_Id3V11Tag {
     type Root = Id3v11;
@@ -188,6 +258,12 @@ impl Id3v11_Id3V11Tag {
 impl Id3v11_Id3V11Tag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl Id3v11_Id3V11Tag {

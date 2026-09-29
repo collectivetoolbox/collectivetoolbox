@@ -30,6 +30,38 @@ pub struct AndroidSparse {
     _io: RefCell<BytesReader>,
     header_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&AndroidSparse> for OptRc<AndroidSparse> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse> for OptRc<AndroidSparse> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse> for AndroidSparse {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse> for &AndroidSparse {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse> for OptRc<AndroidSparse> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse> for &OptRc<AndroidSparse> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for AndroidSparse {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
@@ -87,6 +119,12 @@ impl AndroidSparse {
 impl AndroidSparse {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 impl AndroidSparse {
@@ -158,6 +196,12 @@ impl TryFrom<&AndroidSparse_Chunk_Body> for u32 {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AndroidSparse_Chunk_Body> for u32 {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<u32> for AndroidSparse_Chunk_Body {
     fn from(v: u32) -> Self {
         Self::U4(v)
@@ -172,9 +216,47 @@ impl TryFrom<&AndroidSparse_Chunk_Body> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&AndroidSparse_Chunk_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_Chunk_Body) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for AndroidSparse_Chunk_Body {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&AndroidSparse_Chunk> for OptRc<AndroidSparse_Chunk> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse_Chunk> for OptRc<AndroidSparse_Chunk> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_Chunk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk> for AndroidSparse_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk> for &AndroidSparse_Chunk {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk> for OptRc<AndroidSparse_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk> for &OptRc<AndroidSparse_Chunk> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for AndroidSparse_Chunk {
@@ -226,6 +308,12 @@ impl AndroidSparse_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl AndroidSparse_Chunk {
     pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -252,6 +340,38 @@ pub struct AndroidSparse_Chunk_ChunkHeader {
     len_body: RefCell<u32>,
     f_len_body_expected: Cell<bool>,
     len_body_expected: RefCell<i32>,
+}
+impl TryFrom<&AndroidSparse_Chunk_ChunkHeader> for OptRc<AndroidSparse_Chunk_ChunkHeader> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_Chunk_ChunkHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse_Chunk_ChunkHeader> for OptRc<AndroidSparse_Chunk_ChunkHeader> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_Chunk_ChunkHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk_ChunkHeader> for AndroidSparse_Chunk_ChunkHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk_ChunkHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk_ChunkHeader> for &AndroidSparse_Chunk_ChunkHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk_ChunkHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk_ChunkHeader> for OptRc<AndroidSparse_Chunk_ChunkHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk_ChunkHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse_Chunk_ChunkHeader> for &OptRc<AndroidSparse_Chunk_ChunkHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Chunk_ChunkHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSparse_Chunk_ChunkHeader {
     type Root = AndroidSparse;
@@ -346,6 +466,12 @@ impl AndroidSparse_Chunk_ChunkHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -363,6 +489,38 @@ pub struct AndroidSparse_FileHeader {
     len_header: RefCell<u16>,
     f_version: Cell<bool>,
     version: RefCell<OptRc<AndroidSparse_Version>>,
+}
+impl TryFrom<&AndroidSparse_FileHeader> for OptRc<AndroidSparse_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse_FileHeader> for OptRc<AndroidSparse_FileHeader> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_FileHeader) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeader> for AndroidSparse_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeader>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeader> for &AndroidSparse_FileHeader {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeader>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeader> for OptRc<AndroidSparse_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeader>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeader> for &OptRc<AndroidSparse_FileHeader> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeader>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSparse_FileHeader {
     type Root = AndroidSparse;
@@ -473,6 +631,12 @@ impl AndroidSparse_FileHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -484,6 +648,38 @@ pub struct AndroidSparse_FileHeaderPrefix {
     version: RefCell<OptRc<AndroidSparse_Version>>,
     len_header: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidSparse_FileHeaderPrefix> for OptRc<AndroidSparse_FileHeaderPrefix> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_FileHeaderPrefix) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse_FileHeaderPrefix> for OptRc<AndroidSparse_FileHeaderPrefix> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_FileHeaderPrefix) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeaderPrefix> for AndroidSparse_FileHeaderPrefix {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeaderPrefix>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeaderPrefix> for &AndroidSparse_FileHeaderPrefix {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeaderPrefix>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeaderPrefix> for OptRc<AndroidSparse_FileHeaderPrefix> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeaderPrefix>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse_FileHeaderPrefix> for &OptRc<AndroidSparse_FileHeaderPrefix> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_FileHeaderPrefix>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSparse_FileHeaderPrefix {
     type Root = AndroidSparse;
@@ -541,6 +737,12 @@ impl AndroidSparse_FileHeaderPrefix {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -551,6 +753,38 @@ pub struct AndroidSparse_Version {
     major: RefCell<u16>,
     minor: RefCell<u16>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&AndroidSparse_Version> for OptRc<AndroidSparse_Version> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&AndroidSparse_Version> for OptRc<AndroidSparse_Version> {
+    type Error = KError;
+    fn try_from(v: &&AndroidSparse_Version) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Version> for AndroidSparse_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Version>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Version> for &AndroidSparse_Version {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Version>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<AndroidSparse_Version> for OptRc<AndroidSparse_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Version>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<AndroidSparse_Version> for &OptRc<AndroidSparse_Version> {
+    fn downcast_optrc(&self) -> Result<OptRc<AndroidSparse_Version>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for AndroidSparse_Version {
     type Root = AndroidSparse;
@@ -593,5 +827,11 @@ impl AndroidSparse_Version {
 impl AndroidSparse_Version {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

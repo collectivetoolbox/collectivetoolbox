@@ -85,8 +85,8 @@ fn test_enum_import_literals() -> KResult<()> {
     let _io = BytesReader::from(bytes);
     let r: OptRc<EnumImportLiterals> = EnumImportLiterals::read_into(&_io, None, None)?;
 
-    assert_eq!(*r.pet_1_to_i()?, 7);
-    assert_eq!(*r.pet_1_eq()?, true);
-    assert_eq!(*r.pet_2()?, EnumDeep_Container1_Container2_Animal::Hare);
+    assert_eq!(*(r.pet_1_to_i()?), 7);
+    assert_eq!(*(r.pet_1_eq()?), true);
+    assert_eq!(*(r.pet_2()?), EnumDeep_Container1_Container2_Animal::Hare);
     Ok(())
 }

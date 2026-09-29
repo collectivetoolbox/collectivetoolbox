@@ -19,6 +19,38 @@ pub struct SudoersTs {
     records: RefCell<Vec<OptRc<SudoersTs_Record>>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&SudoersTs> for OptRc<SudoersTs> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs> for OptRc<SudoersTs> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs> for SudoersTs {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs> for &SudoersTs {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs> for OptRc<SudoersTs> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs> for &OptRc<SudoersTs> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for SudoersTs {
     type Root = SudoersTs;
     type Parent = SudoersTs;
@@ -58,6 +90,12 @@ impl SudoersTs {
 impl SudoersTs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -125,6 +163,22 @@ impl TryFrom<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV1> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV1> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for SudoersTs_Record_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        OptRc::<SudoersTs_RecordV1>::try_from(self)
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for &SudoersTs_Record_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        (*self).downcast_optrc()
+    }
+}
 impl From<OptRc<SudoersTs_RecordV1>> for SudoersTs_Record_Payload {
     fn from(v: OptRc<SudoersTs_RecordV1>) -> Self {
         Self::SudoersTs_RecordV1(v)
@@ -137,6 +191,22 @@ impl TryFrom<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV2> {
             return Ok(x.clone());
         }
         Err(KError::CastError)
+    }
+}
+impl TryFrom<&&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV2> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for SudoersTs_Record_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        OptRc::<SudoersTs_RecordV2>::try_from(self)
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for &SudoersTs_Record_Payload {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        (*self).downcast_optrc()
     }
 }
 impl From<OptRc<SudoersTs_RecordV2>> for SudoersTs_Record_Payload {
@@ -153,9 +223,47 @@ impl TryFrom<&SudoersTs_Record_Payload> for Vec<u8> {
         Err(KError::CastError)
     }
 }
+impl TryFrom<&&SudoersTs_Record_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
+        Self::try_from(*v)
+    }
+}
 impl From<Vec<u8>> for SudoersTs_Record_Payload {
     fn from(v: Vec<u8>) -> Self {
         Self::Bytes(v)
+    }
+}
+impl TryFrom<&SudoersTs_Record> for OptRc<SudoersTs_Record> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs_Record> for OptRc<SudoersTs_Record> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Record> for SudoersTs_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Record> for &SudoersTs_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Record> for OptRc<SudoersTs_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs_Record> for &OptRc<SudoersTs_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Record>, KError> {
+        Ok((*self).clone())
     }
 }
 impl KStruct for SudoersTs_Record {
@@ -228,6 +336,12 @@ impl SudoersTs_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl SudoersTs_Record {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -248,6 +362,38 @@ pub struct SudoersTs_RecordV1 {
     ttydev: RefCell<u32>,
     ppid: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SudoersTs_RecordV1> for OptRc<SudoersTs_RecordV1> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_RecordV1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs_RecordV1> for OptRc<SudoersTs_RecordV1> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_RecordV1) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for SudoersTs_RecordV1 {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for &SudoersTs_RecordV1 {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for OptRc<SudoersTs_RecordV1> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV1> for &OptRc<SudoersTs_RecordV1> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV1>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SudoersTs_RecordV1 {
     type Root = SudoersTs;
@@ -351,6 +497,12 @@ impl SudoersTs_RecordV1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -367,6 +519,38 @@ pub struct SudoersTs_RecordV2 {
     ttydev: RefCell<u32>,
     ppid: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SudoersTs_RecordV2> for OptRc<SudoersTs_RecordV2> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_RecordV2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs_RecordV2> for OptRc<SudoersTs_RecordV2> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_RecordV2) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for SudoersTs_RecordV2 {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for &SudoersTs_RecordV2 {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for OptRc<SudoersTs_RecordV2> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs_RecordV2> for &OptRc<SudoersTs_RecordV2> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_RecordV2>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SudoersTs_RecordV2 {
     type Root = SudoersTs;
@@ -481,6 +665,12 @@ impl SudoersTs_RecordV2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -491,6 +681,38 @@ pub struct SudoersTs_Timespec {
     sec: RefCell<i64>,
     nsec: RefCell<i64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SudoersTs_Timespec> for OptRc<SudoersTs_Timespec> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_Timespec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs_Timespec> for OptRc<SudoersTs_Timespec> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_Timespec) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Timespec> for SudoersTs_Timespec {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Timespec>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Timespec> for &SudoersTs_Timespec {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Timespec>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_Timespec> for OptRc<SudoersTs_Timespec> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Timespec>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs_Timespec> for &OptRc<SudoersTs_Timespec> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_Timespec>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SudoersTs_Timespec {
     type Root = SudoersTs;
@@ -538,6 +760,12 @@ impl SudoersTs_Timespec {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -550,6 +778,38 @@ pub struct SudoersTs_TsFlag {
     disabled: RefCell<bool>,
     reserved1: RefCell<u64>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&SudoersTs_TsFlag> for OptRc<SudoersTs_TsFlag> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_TsFlag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&SudoersTs_TsFlag> for OptRc<SudoersTs_TsFlag> {
+    type Error = KError;
+    fn try_from(v: &&SudoersTs_TsFlag) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_TsFlag> for SudoersTs_TsFlag {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_TsFlag>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_TsFlag> for &SudoersTs_TsFlag {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_TsFlag>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<SudoersTs_TsFlag> for OptRc<SudoersTs_TsFlag> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_TsFlag>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<SudoersTs_TsFlag> for &OptRc<SudoersTs_TsFlag> {
+    fn downcast_optrc(&self) -> Result<OptRc<SudoersTs_TsFlag>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for SudoersTs_TsFlag {
     type Root = SudoersTs;
@@ -616,5 +876,11 @@ impl SudoersTs_TsFlag {
 impl SudoersTs_TsFlag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -64,6 +64,38 @@ pub struct ValidFailMaxInt {
     foo: RefCell<u8>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&ValidFailMaxInt> for OptRc<ValidFailMaxInt> {
+    type Error = KError;
+    fn try_from(v: &ValidFailMaxInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ValidFailMaxInt> for OptRc<ValidFailMaxInt> {
+    type Error = KError;
+    fn try_from(v: &&ValidFailMaxInt) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailMaxInt> for ValidFailMaxInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailMaxInt>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ValidFailMaxInt> for &ValidFailMaxInt {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailMaxInt>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ValidFailMaxInt> for OptRc<ValidFailMaxInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailMaxInt>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ValidFailMaxInt> for &OptRc<ValidFailMaxInt> {
+    fn downcast_optrc(&self) -> Result<OptRc<ValidFailMaxInt>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ValidFailMaxInt {
     type Root = ValidFailMaxInt;
     type Parent = ValidFailMaxInt;
@@ -99,5 +131,11 @@ impl ValidFailMaxInt {
 impl ValidFailMaxInt {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

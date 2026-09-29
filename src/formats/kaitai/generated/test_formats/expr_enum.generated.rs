@@ -70,6 +70,38 @@ pub struct ExprEnum {
     f_derived_dog: Cell<bool>,
     derived_dog: RefCell<ExprEnum_Animal>,
 }
+impl TryFrom<&ExprEnum> for OptRc<ExprEnum> {
+    type Error = KError;
+    fn try_from(v: &ExprEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ExprEnum> for OptRc<ExprEnum> {
+    type Error = KError;
+    fn try_from(v: &&ExprEnum) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ExprEnum> for ExprEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprEnum>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ExprEnum> for &ExprEnum {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprEnum>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ExprEnum> for OptRc<ExprEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprEnum>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ExprEnum> for &OptRc<ExprEnum> {
+    fn downcast_optrc(&self) -> Result<OptRc<ExprEnum>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ExprEnum {
     type Root = ExprEnum;
     type Parent = ExprEnum;
@@ -137,6 +169,12 @@ impl ExprEnum {
 impl ExprEnum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

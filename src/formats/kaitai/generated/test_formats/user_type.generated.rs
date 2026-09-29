@@ -64,6 +64,38 @@ pub struct UserType {
     one: RefCell<OptRc<UserType_Header>>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&UserType> for OptRc<UserType> {
+    type Error = KError;
+    fn try_from(v: &UserType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UserType> for OptRc<UserType> {
+    type Error = KError;
+    fn try_from(v: &&UserType) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UserType> for UserType {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UserType> for &UserType {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UserType> for OptRc<UserType> {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UserType> for &OptRc<UserType> {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for UserType {
     type Root = UserType;
     type Parent = UserType;
@@ -97,6 +129,12 @@ impl UserType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -107,6 +145,38 @@ pub struct UserType_Header {
     width: RefCell<u32>,
     height: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&UserType_Header> for OptRc<UserType_Header> {
+    type Error = KError;
+    fn try_from(v: &UserType_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&UserType_Header> for OptRc<UserType_Header> {
+    type Error = KError;
+    fn try_from(v: &&UserType_Header) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<UserType_Header> for UserType_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType_Header>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<UserType_Header> for &UserType_Header {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType_Header>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<UserType_Header> for OptRc<UserType_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType_Header>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<UserType_Header> for &OptRc<UserType_Header> {
+    fn downcast_optrc(&self) -> Result<OptRc<UserType_Header>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for UserType_Header {
     type Root = UserType;
@@ -145,5 +215,11 @@ impl UserType_Header {
 impl UserType_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

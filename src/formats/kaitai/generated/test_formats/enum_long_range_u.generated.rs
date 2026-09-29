@@ -67,6 +67,38 @@ pub struct EnumLongRangeU {
     f4: RefCell<EnumLongRangeU_Constants>,
     _io: RefCell<BytesReader>,
 }
+impl TryFrom<&EnumLongRangeU> for OptRc<EnumLongRangeU> {
+    type Error = KError;
+    fn try_from(v: &EnumLongRangeU) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&EnumLongRangeU> for OptRc<EnumLongRangeU> {
+    type Error = KError;
+    fn try_from(v: &&EnumLongRangeU) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeU> for EnumLongRangeU {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeU>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeU> for &EnumLongRangeU {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeU>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<EnumLongRangeU> for OptRc<EnumLongRangeU> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeU>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<EnumLongRangeU> for &OptRc<EnumLongRangeU> {
+    fn downcast_optrc(&self) -> Result<OptRc<EnumLongRangeU>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for EnumLongRangeU {
     type Root = EnumLongRangeU;
     type Parent = EnumLongRangeU;
@@ -83,10 +115,10 @@ impl KStruct for EnumLongRangeU {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.f1.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
-        *self_rc.f2.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
-        *self_rc.f3.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
-        *self_rc.f4.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
+        *self_rc.f1.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc.f2.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc.f3.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc.f4.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -117,10 +149,17 @@ impl EnumLongRangeU {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EnumLongRangeU_Constants {
     LongMax,
+    Zero,
     IntMax,
     IntOverMax,
     Unknown(i64),
@@ -130,7 +169,8 @@ impl TryFrom<i64> for EnumLongRangeU_Constants {
     type Error = KError;
     fn try_from(flag: i64) -> KResult<EnumLongRangeU_Constants> {
         match flag {
-            0 => Ok(EnumLongRangeU_Constants::LongMax),
+            -1 => Ok(EnumLongRangeU_Constants::LongMax),
+            0 => Ok(EnumLongRangeU_Constants::Zero),
             4294967295 => Ok(EnumLongRangeU_Constants::IntMax),
             4294967296 => Ok(EnumLongRangeU_Constants::IntOverMax),
             _ => Ok(EnumLongRangeU_Constants::Unknown(flag)),
@@ -141,7 +181,8 @@ impl TryFrom<i64> for EnumLongRangeU_Constants {
 impl From<&EnumLongRangeU_Constants> for i64 {
     fn from(v: &EnumLongRangeU_Constants) -> Self {
         match *v {
-            EnumLongRangeU_Constants::LongMax => 0,
+            EnumLongRangeU_Constants::LongMax => -1,
+            EnumLongRangeU_Constants::Zero => 0,
             EnumLongRangeU_Constants::IntMax => 4294967295,
             EnumLongRangeU_Constants::IntOverMax => 4294967296,
             EnumLongRangeU_Constants::Unknown(v) => v

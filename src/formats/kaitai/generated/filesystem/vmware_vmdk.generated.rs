@@ -39,6 +39,38 @@ pub struct VmwareVmdk {
     f_len_sector: Cell<bool>,
     len_sector: RefCell<i32>,
 }
+impl TryFrom<&VmwareVmdk> for OptRc<VmwareVmdk> {
+    type Error = KError;
+    fn try_from(v: &VmwareVmdk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&VmwareVmdk> for OptRc<VmwareVmdk> {
+    type Error = KError;
+    fn try_from(v: &&VmwareVmdk) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk> for VmwareVmdk {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk> for &VmwareVmdk {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk> for OptRc<VmwareVmdk> {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<VmwareVmdk> for &OptRc<VmwareVmdk> {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for VmwareVmdk {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
@@ -234,6 +266,12 @@ impl VmwareVmdk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl VmwareVmdk {
     pub fn stuff_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -292,6 +330,38 @@ pub struct VmwareVmdk_HeaderFlags {
     has_compressed_grain: RefCell<bool>,
     reserved4: RefCell<u8>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&VmwareVmdk_HeaderFlags> for OptRc<VmwareVmdk_HeaderFlags> {
+    type Error = KError;
+    fn try_from(v: &VmwareVmdk_HeaderFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&VmwareVmdk_HeaderFlags> for OptRc<VmwareVmdk_HeaderFlags> {
+    type Error = KError;
+    fn try_from(v: &&VmwareVmdk_HeaderFlags) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk_HeaderFlags> for VmwareVmdk_HeaderFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk_HeaderFlags>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk_HeaderFlags> for &VmwareVmdk_HeaderFlags {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk_HeaderFlags>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<VmwareVmdk_HeaderFlags> for OptRc<VmwareVmdk_HeaderFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk_HeaderFlags>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<VmwareVmdk_HeaderFlags> for &OptRc<VmwareVmdk_HeaderFlags> {
+    fn downcast_optrc(&self) -> Result<OptRc<VmwareVmdk_HeaderFlags>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for VmwareVmdk_HeaderFlags {
     type Root = VmwareVmdk;
@@ -374,5 +444,11 @@ impl VmwareVmdk_HeaderFlags {
 impl VmwareVmdk_HeaderFlags {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

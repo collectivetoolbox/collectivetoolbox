@@ -66,6 +66,38 @@ pub struct ProcessRepeatUsertypeDynargXor {
     _io: RefCell<BytesReader>,
     blocks_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for ProcessRepeatUsertypeDynargXor {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for &ProcessRepeatUsertypeDynargXor {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for OptRc<ProcessRepeatUsertypeDynargXor> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor> for &OptRc<ProcessRepeatUsertypeDynargXor> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for ProcessRepeatUsertypeDynargXor {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
@@ -113,6 +145,12 @@ impl ProcessRepeatUsertypeDynargXor {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl ProcessRepeatUsertypeDynargXor {
     pub fn blocks_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -127,6 +165,38 @@ pub struct ProcessRepeatUsertypeDynargXor_Block {
     pub(crate) _self_shared: SharedType<Self>,
     a: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor_Block) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for ProcessRepeatUsertypeDynargXor_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for &ProcessRepeatUsertypeDynargXor_Block {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_Block> for &OptRc<ProcessRepeatUsertypeDynargXor_Block> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_Block>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessRepeatUsertypeDynargXor_Block {
     type Root = ProcessRepeatUsertypeDynargXor;
@@ -160,6 +230,12 @@ impl ProcessRepeatUsertypeDynargXor_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -173,6 +249,38 @@ pub struct ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     blocks_0_b: RefCell<u8>,
     f_blocks_1_b: Cell<bool>,
     blocks_1_b: RefCell<u8>,
+}
+impl TryFrom<&ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    type Error = KError;
+    fn try_from(v: &ProcessRepeatUsertypeDynargXor_BlocksBWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    type Error = KError;
+    fn try_from(v: &&ProcessRepeatUsertypeDynargXor_BlocksBWrapper) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for &ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> for &OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper> {
+    fn downcast_optrc(&self) -> Result<OptRc<ProcessRepeatUsertypeDynargXor_BlocksBWrapper>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     type Root = ProcessRepeatUsertypeDynargXor;
@@ -237,5 +345,11 @@ impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
 impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }

@@ -65,6 +65,38 @@ pub struct RepeatUntilSized {
     _io: RefCell<BytesReader>,
     records_raw: RefCell<Vec<u8>>,
 }
+impl TryFrom<&RepeatUntilSized> for OptRc<RepeatUntilSized> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilSized> for OptRc<RepeatUntilSized> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilSized) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized> for RepeatUntilSized {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized> for &RepeatUntilSized {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized> for OptRc<RepeatUntilSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilSized> for &OptRc<RepeatUntilSized> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized>, KError> {
+        Ok((*self).clone())
+    }
+}
 impl KStruct for RepeatUntilSized {
     type Root = RepeatUntilSized;
     type Parent = RepeatUntilSized;
@@ -110,6 +142,12 @@ impl RepeatUntilSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
     }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
+    }
 }
 impl RepeatUntilSized {
     pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
@@ -125,6 +163,38 @@ pub struct RepeatUntilSized_Record {
     marker: RefCell<u8>,
     body: RefCell<u32>,
     _io: RefCell<BytesReader>,
+}
+impl TryFrom<&RepeatUntilSized_Record> for OptRc<RepeatUntilSized_Record> {
+    type Error = KError;
+    fn try_from(v: &RepeatUntilSized_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from(v.clone()))
+    }
+}
+impl TryFrom<&&RepeatUntilSized_Record> for OptRc<RepeatUntilSized_Record> {
+    type Error = KError;
+    fn try_from(v: &&RepeatUntilSized_Record) -> Result<Self, Self::Error> {
+        Ok(OptRc::from((*v).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized_Record> for RepeatUntilSized_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized_Record>, KError> {
+        Ok(OptRc::from(self.clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized_Record> for &RepeatUntilSized_Record {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized_Record>, KError> {
+        Ok(OptRc::from((*self).clone()))
+    }
+}
+impl DowncastOptRc<RepeatUntilSized_Record> for OptRc<RepeatUntilSized_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized_Record>, KError> {
+        Ok(self.clone())
+    }
+}
+impl DowncastOptRc<RepeatUntilSized_Record> for &OptRc<RepeatUntilSized_Record> {
+    fn downcast_optrc(&self) -> Result<OptRc<RepeatUntilSized_Record>, KError> {
+        Ok((*self).clone())
+    }
 }
 impl KStruct for RepeatUntilSized_Record {
     type Root = RepeatUntilSized;
@@ -163,5 +233,11 @@ impl RepeatUntilSized_Record {
 impl RepeatUntilSized_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+    pub fn _parent(&self) -> Option<OptRc<<Self as KStruct>::Parent>> {
+        self._parent.get().ok()
+    }
+    pub fn _root(&self) -> Option<OptRc<<Self as KStruct>::Root>> {
+        self._root.get().ok()
     }
 }
