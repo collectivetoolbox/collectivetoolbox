@@ -44,6 +44,8 @@ pub const SUPPORTED: &'static [FormatId] = &[
     FormatId::Lzo,
     FormatId::Lzma,
     FormatId::Lzma2,
+    FormatId::Szip,
+    FormatId::Szip111,
 ];
 
 /// Returns true if the given `FormatId` is supported for compression/decompression by this crate.
@@ -75,5 +77,7 @@ pub const fn is_supported(format: FormatId) -> bool {
             | FormatId::Lzo
             | FormatId::Lzma
             | FormatId::Lzma2
+            | FormatId::Szip
+            | FormatId::Szip111
     )
 }

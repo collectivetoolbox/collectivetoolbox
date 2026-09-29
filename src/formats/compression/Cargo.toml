@@ -15,6 +15,7 @@ ctb-formats-compression-pack = { path = "./pack" }
 ctb-formats-compression-sco-compress = { path = "./sco_compress" }
 ctb-formats-compression-freeze = { path = "./freeze" }
 ctb-formats-compression-rzip = { path = "./rzip" }
+ctb-formats-compression-szip = { path = "./szip" }
 ctb-formats-compression-libraries = { path = "./libraries" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-detection = { path = "../detection" }

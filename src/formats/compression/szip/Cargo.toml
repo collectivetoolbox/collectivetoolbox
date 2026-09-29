@@ -1,0 +1,14 @@
+[package]
+name = "ctb-formats-compression-szip"
+edition = "2024"
+
+[lib]
+path = "szip.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../../utilities" }
+anyhow = "1.0.100"
+
+[lints]
+workspace = true

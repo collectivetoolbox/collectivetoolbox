@@ -97,6 +97,7 @@ ctb-formats-compression-pack = { path = "src/formats/compression/pack" }
 ctb-formats-compression-sco-compress = { path = "src/formats/compression/sco_compress" }
 ctb-formats-compression-freeze = { path = "src/formats/compression/freeze" }
 ctb-formats-compression-rzip = { path = "src/formats/compression/rzip" }
+ctb-formats-compression-szip = { path = "src/formats/compression/szip" }
 ctb-formats-compression-libraries = { path = "src/formats/compression/libraries" }
 ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
 ctb-formats-dcdata = { path = "src/formats/dcdata" }

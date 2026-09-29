@@ -2027,7 +2027,7 @@ impl FormatId {
             "scocompress" | "sco_compress" | "sco-compress" | "compress-sco" | "compress-h" => Some(Self::ScoCompress),
             "compresslzw" | "compress_lzw" | "compress" => Some(Self::CompressLzw),
             "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1" => Some(Self::CompressLzw1),
-            "compresslzw16" | "compress_lzw16" | "compress16" | "compress1.6" | "compress-1.6" | "lzw-sorted-chain" => Some(Self::CompressLzw16),
+            "compresslzw16" | "compress_lzw16" | "compress16" | "compress1.6" | "compress-1.6" => Some(Self::CompressLzw16),
             "compresslzw2" | "compress_lzw2" | "compress2" | "compress-2" => Some(Self::CompressLzw2),
             "pack" => Some(Self::Pack),
             "oldpack" | "old_pack" | "old-pack" | "early-pack" => Some(Self::OldPack),
@@ -2608,7 +2608,7 @@ impl FormatId {
             "szip100" => Some(Self::Szip100),
             "szip105" => Some(Self::Szip105),
             "szip110" => Some(Self::Szip110),
-            "szip111" => Some(Self::Szip111),
+            "szip111" | "szip-1.11" => Some(Self::Szip111),
             _ => None,
         }
     }
