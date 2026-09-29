@@ -62,8 +62,7 @@ fn get_bit(flags: &[u8], bit: usize) -> bool {
     let bit_idx = bit & 7;
     flags
         .get(byte_idx)
-        .map(|&b| ((b >> bit_idx) & 1) != 0)
-        .unwrap_or(false)
+        .is_some_and(|&b| ((b >> bit_idx) & 1) != 0)
 }
 
 // -----------------------------------------------------------------------------
@@ -118,7 +117,7 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
     }
 
     let mut counts = [0usize; 256];
-    for &b in inout.iter() {
+    for &b in &*inout {
         if let Some(slot) = counts.get_mut(usize::from(b)) {
             *slot = slot.saturating_add(1);
         }
@@ -154,7 +153,7 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
         let cnt = counts.get(i).copied().unwrap_or(0);
         if cnt > 0 {
             let i_u8 = u8::try_from(i).unwrap_or(0);
-            let minmatch = if i_u8 == first_byte { 0 } else { 1 };
+            let minmatch = usize::from(i_u8 != first_byte);
             let end = start.saturating_add(cnt);
             if let Some(slice) = contextp.get_mut(start..end) {
                 slice.sort_by(|&a, &b| qscompare(a, b, inout, minmatch));
@@ -199,7 +198,7 @@ pub fn unsort_bwt(input: &[u8], output: &mut [u8], indexfirst: u32) -> Result<()
     }
 
     let mut counts = [0usize; 256];
-    for &b in input.iter() {
+    for &b in input {
         if let Some(slot) = counts.get_mut(usize::from(b)) {
             *slot = slot.saturating_add(1);
         }
@@ -268,7 +267,7 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
 
     let mut counters = vec![0usize; 0x10000];
     let mut ctx_u16 = usize::from(inout.last().copied().unwrap_or(0)) << 8;
-    for &b in inout.iter() {
+    for &b in &*inout {
         ctx_u16 = (ctx_u16 >> 8) | (usize::from(b) << 8);
         if let Some(slot) = counters.get_mut(ctx_u16) {
             *slot = slot.saturating_add(1);
@@ -309,7 +308,7 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
         << 8
         | usize::from(b_len4);
 
-    for &b in inout.iter() {
+    for &b in &*inout {
         let low_ctx = full_ctx & 0xFFFF;
         let x = counters.get(low_ctx).copied().unwrap_or(0);
         if let Some(slot) = counters.get_mut(low_ctx) {
@@ -360,50 +359,12 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
 // General Order N (N >= 3)
 // -----------------------------------------------------------------------------
 
-/// Sorts block using general context order N (order >= 3).
-pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
-    let length = inout.len();
-    if length <= order {
-        return Ok(0);
-    }
-
-    let mut in_ext = vec![0u8; length.saturating_add(order)];
-    in_ext[..length].copy_from_slice(inout);
-
-    let mut counts = [0usize; 256];
-    let mut o2counts = vec![0usize; 0x10000];
-
-    let last_byte = inout.last().copied().unwrap_or(0);
-    let mut context = usize::from(last_byte) << 8;
-
-    for &b in inout.iter() {
-        context = (context >> 8) | (usize::from(b) << 8);
-        if let Some(slot) = counts.get_mut(usize::from(b)) {
-            *slot = slot.saturating_add(1);
-        }
-        if let Some(slot) = o2counts.get_mut(context) {
-            *slot = slot.saturating_add(1);
-        }
-    }
-
-    let mut sum = length;
-    for i in (0..0x10000).rev() {
-        let cnt = o2counts.get(i).copied().unwrap_or(0);
-        sum = sum.saturating_sub(cnt);
-        if let Some(slot) = o2counts.get_mut(i) {
-            *slot = sum;
-        }
-    }
-
-    sum = length;
-    for i in (0..256).rev() {
-        let cnt = counts.get(i).copied().unwrap_or(0);
-        sum = sum.saturating_sub(cnt);
-        if let Some(slot) = counts.get_mut(i) {
-            *slot = sum;
-        }
-    }
-
+fn sort_order2(
+    in_ext: &mut [u8],
+    length: usize,
+    order: usize,
+    mut o2counts: Vec<usize>,
+) -> Result<(usize, Vec<u32>)> {
     let b_len_off = in_ext.get(length.saturating_sub(order)).copied().unwrap_or(0);
     let b_len_off_minus_1 = in_ext
         .get(length.saturating_sub(order).saturating_sub(1))
@@ -411,7 +372,7 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
         .unwrap_or(0);
     let init_ctx = (usize::from(b_len_off) << 8) | usize::from(b_len_off_minus_1);
 
-    let mut indexlast = if init_ctx == 0xFFFF {
+    let indexlast = if init_ctx == 0xFFFF {
         length.saturating_sub(1)
     } else {
         o2counts
@@ -421,8 +382,7 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
             .saturating_sub(1)
     };
 
-    context = init_ctx;
-
+    let mut context = init_ctx;
     let offset = order.saturating_sub(1);
     let mut ptrs = vec![0u32; length];
 
@@ -461,58 +421,72 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
         }
     }
 
-    if order > 3 {
-        for off in (2..=(order.saturating_sub(2))).rev() {
-            let mut ct = counts;
-            let mut next_ptrs = vec![0u32; length];
-            let old_idxlast = indexlast;
-            let mut last_ch = 0u8;
+    Ok((indexlast, ptrs))
+}
 
-            for i in 0..=old_idxlast {
-                let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-                    .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-                let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
-                last_ch = ch;
-                let ch_idx = usize::from(ch);
-                let pos = ct.get(ch_idx).copied().unwrap_or(0);
-                if let Some(slot) = ct.get_mut(ch_idx) {
-                    *slot = slot.saturating_add(1);
-                }
-                let tmp_u32 = u32::try_from(tmp)
-                    .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-                if let Some(slot) = next_ptrs.get_mut(pos) {
-                    *slot = tmp_u32;
-                }
-            }
+fn inc_sort_order(
+    in_ext: &[u8],
+    length: usize,
+    counts: &[usize; 256],
+    off: usize,
+    old_idxlast: usize,
+    ptrs: &[u32],
+) -> Result<(usize, Vec<u32>)> {
+    let mut ct = *counts;
+    let mut next_ptrs = vec![0u32; length];
+    let mut last_ch = 0u8;
 
-            indexlast = ct
-                .get(usize::from(last_ch))
-                .copied()
-                .unwrap_or(0)
-                .saturating_sub(1);
-
-            for i in (old_idxlast.saturating_add(1))..length {
-                let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-                    .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-                let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
-                let ch_idx = usize::from(ch);
-                let pos = ct.get(ch_idx).copied().unwrap_or(0);
-                if let Some(slot) = ct.get_mut(ch_idx) {
-                    *slot = slot.saturating_add(1);
-                }
-                let tmp_u32 = u32::try_from(tmp)
-                    .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-                if let Some(slot) = next_ptrs.get_mut(pos) {
-                    *slot = tmp_u32;
-                }
-            }
-
-            ptrs = next_ptrs;
+    for i in 0..=old_idxlast {
+        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
+            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
+        last_ch = ch;
+        let ch_idx = usize::from(ch);
+        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        if let Some(slot) = ct.get_mut(ch_idx) {
+            *slot = slot.saturating_add(1);
+        }
+        let tmp_u32 = u32::try_from(tmp)
+            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        if let Some(slot) = next_ptrs.get_mut(pos) {
+            *slot = tmp_u32;
         }
     }
 
-    let mut ct = counts;
-    let old_idxlast = indexlast;
+    let new_idxlast = ct
+        .get(usize::from(last_ch))
+        .copied()
+        .unwrap_or(0)
+        .saturating_sub(1);
+
+    for i in (old_idxlast.saturating_add(1))..length {
+        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
+            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
+        let ch_idx = usize::from(ch);
+        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        if let Some(slot) = ct.get_mut(ch_idx) {
+            *slot = slot.saturating_add(1);
+        }
+        let tmp_u32 = u32::try_from(tmp)
+            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        if let Some(slot) = next_ptrs.get_mut(pos) {
+            *slot = tmp_u32;
+        }
+    }
+
+    Ok((new_idxlast, next_ptrs))
+}
+
+fn finish_sort(
+    in_ext: &[u8],
+    length: usize,
+    counts: &[usize; 256],
+    old_idxlast: usize,
+    ptrs: &[u32],
+    inout: &mut [u8],
+) -> Result<u32> {
+    let mut ct = *counts;
     let mut last_ch = 0u8;
     let mut out_bytes = vec![0u8; length];
 
@@ -532,7 +506,7 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
         }
     }
 
-    indexlast = ct
+    let final_idxlast = ct
         .get(usize::from(last_ch))
         .copied()
         .unwrap_or(0)
@@ -554,48 +528,74 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
     }
 
     inout.copy_from_slice(&out_bytes);
-    u32::try_from(indexlast).map_err(|e| anyhow!("Indexlast conversion: {e}"))
+    u32::try_from(final_idxlast).map_err(|e| anyhow!("Indexlast conversion: {e}"))
 }
 
-/// Unsorts general context order block (order >= 3).
-pub fn unsort_general(
-    input: &[u8],
-    output: &mut [u8],
-    indexlast: u32,
-    order: usize,
-) -> Result<()> {
-    let length = input.len();
+/// Sorts block using general context order N (order >= 3).
+pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
+    let length = inout.len();
     if length <= order {
-        output.copy_from_slice(input);
-        return Ok(());
-    }
-    if output.len() < length {
-        bail!("Output buffer smaller than input buffer for unsort_general");
+        return Ok(0);
     }
 
+    let mut in_ext = vec![0u8; length.saturating_add(order)];
+    let Some(dest) = in_ext.get_mut(..length) else {
+        bail!("Failed to slice extended buffer");
+    };
+    dest.copy_from_slice(inout);
+
     let mut counts = [0usize; 256];
-    for &b in input.iter() {
+    let mut o2counts = vec![0usize; 0x10000];
+
+    let last_byte = inout.last().copied().unwrap_or(0);
+    let mut context = usize::from(last_byte) << 8;
+
+    for &b in &*inout {
+        context = (context >> 8) | (usize::from(b) << 8);
         if let Some(slot) = counts.get_mut(usize::from(b)) {
+            *slot = slot.saturating_add(1);
+        }
+        if let Some(slot) = o2counts.get_mut(context) {
             *slot = slot.saturating_add(1);
         }
     }
 
-    let mut j = length;
-    for i in (0..256).rev() {
-        let cnt = counts.get(i).copied().unwrap_or(0);
-        j = j.saturating_sub(cnt);
-        if let Some(slot) = counts.get_mut(i) {
-            *slot = j;
+    let mut sum = length;
+    for i in (0..0x10000).rev() {
+        let cnt = o2counts.get(i).copied().unwrap_or(0);
+        sum = sum.saturating_sub(cnt);
+        if let Some(slot) = o2counts.get_mut(i) {
+            *slot = sum;
         }
     }
 
-    let flags_size = (length.saturating_add(8)) >> 3;
-    let mut flags1 = vec![0u8; flags_size];
+    sum = length;
+    for i in (0..256).rev() {
+        let cnt = counts.get(i).copied().unwrap_or(0);
+        sum = sum.saturating_sub(cnt);
+        if let Some(slot) = counts.get_mut(i) {
+            *slot = sum;
+        }
+    }
 
-    // makeorder2:
-    let mut ct = counts;
+    let (mut indexlast, mut ptrs) = sort_order2(&mut in_ext, length, order, o2counts)?;
+
+    if order > 3 {
+        for off in (2..=(order.saturating_sub(2))).rev() {
+            let (next_idx, next_ptrs) =
+                inc_sort_order(&in_ext, length, &counts, off, indexlast, &ptrs)?;
+            indexlast = next_idx;
+            ptrs = next_ptrs;
+        }
+    }
+
+    finish_sort(&in_ext, length, &counts, indexlast, &ptrs, inout)
+}
+
+fn make_order2(flags: &mut [u8], input: &[u8], counts: &[usize; 256]) {
+    let mut ct = *counts;
     for i in 0..256 {
-        set_bit(&mut flags1, ct[i]);
+        set_bit(flags, ct.get(i).copied().unwrap_or(0));
     }
     let mut j_pos = 0usize;
     for i in 0usize..255 {
@@ -608,49 +608,57 @@ pub fn unsort_general(
             j_pos = j_pos.saturating_add(1);
         }
         for k in 0..256 {
-            set_bit(&mut flags1, ct[k]);
+            set_bit(flags, ct.get(k).copied().unwrap_or(0));
         }
     }
+}
 
-    // increase order up to order - 1:
-    let mut flags2 = vec![0u8; flags_size];
-    for _ in 2..(order.saturating_sub(1)) {
-        flags2.fill(0);
-        let mut ct_inc = counts;
-        let mut context_start = 0usize;
-        let mut last_seen = [usize::MAX; 256];
-        for (i, &b_val) in input.iter().enumerate() {
-            if get_bit(&flags1, i) {
-                context_start = i;
-            }
-            let b = usize::from(b_val);
-            if last_seen.get(b) != Some(&context_start) {
-                if let Some(ls_slot) = last_seen.get_mut(b) {
-                    *ls_slot = context_start;
-                }
-                set_bit(&mut flags2, ct_inc[b]);
-            }
-            if let Some(slot) = ct_inc.get_mut(b) {
-                *slot = slot.saturating_add(1);
-            }
+fn increase_order(
+    flags_in: &[u8],
+    flags_out: &mut [u8],
+    input: &[u8],
+    counts: &[usize; 256],
+) {
+    flags_out.fill(0);
+    let mut ct_inc = *counts;
+    let mut context_start = 0usize;
+    let mut last_seen = [usize::MAX; 256];
+    for (i, &b_val) in input.iter().enumerate() {
+        if get_bit(flags_in, i) {
+            context_start = i;
         }
-        std::mem::swap(&mut flags1, &mut flags2);
+        let b = usize::from(b_val);
+        if last_seen.get(b) != Some(&context_start) {
+            if let Some(ls_slot) = last_seen.get_mut(b) {
+                *ls_slot = context_start;
+            }
+            set_bit(flags_out, ct_inc.get(b).copied().unwrap_or(0));
+        }
+        if let Some(slot) = ct_inc.get_mut(b) {
+            *slot = slot.saturating_add(1);
+        }
     }
+}
 
-    // maketable:
-    let mut table = vec![0u32; length.saturating_add(1)];
-    let mut ct_tbl = counts;
+fn make_table(
+    flags: &[u8],
+    table: &mut [u32],
+    input: &[u8],
+    counts: &[usize; 256],
+    length: usize,
+) {
+    let mut ct_tbl = *counts;
     let mut context_start = 0usize;
     let mut first_seen = [0usize; 256];
     for (i, &b_val) in input.iter().enumerate() {
-        if get_bit(&flags1, i) {
+        if get_bit(flags, i) {
             context_start = i;
         }
         let b = usize::from(b_val);
         let first = first_seen.get(b).copied().unwrap_or(0);
         if first <= context_start {
             if let Some(slot) = table.get_mut(i) {
-                *slot = u32::try_from(ct_tbl[b]).unwrap_or(0);
+                *slot = u32::try_from(ct_tbl.get(b).copied().unwrap_or(0)).unwrap_or(0);
             }
             if let Some(slot) = first_seen.get_mut(b) {
                 *slot = i.saturating_add(1);
@@ -666,12 +674,19 @@ pub fn unsort_general(
     if let Some(slot) = table.get_mut(length) {
         *slot = INDIRECT;
     }
+}
 
-    // Traverse permutation table:
+fn unsort_traverse(
+    input: &[u8],
+    output: &mut [u8],
+    table: &mut [u32],
+    indexlast: u32,
+    length: usize,
+) -> Result<()> {
     let mut j_idx = usize::try_from(indexlast)
         .map_err(|e| anyhow!("Indexlast conversion: {e}"))?;
     for slot in output.iter_mut().take(length) {
-        let mut tmp = table.get(j_idx).copied().unwrap_or(0);
+        let tmp = table.get(j_idx).copied().unwrap_or(0);
         if (tmp & INDIRECT) != 0 {
             let target_idx = usize::try_from(tmp & !INDIRECT).unwrap_or(0);
             let next_j = usize::try_from(table.get(target_idx).copied().unwrap_or(0)).unwrap_or(0);
@@ -693,6 +708,54 @@ pub fn unsort_general(
     }
 
     Ok(())
+}
+
+/// Unsorts general context order block (order >= 3).
+pub fn unsort_general(
+    input: &[u8],
+    output: &mut [u8],
+    indexlast: u32,
+    order: usize,
+) -> Result<()> {
+    let length = input.len();
+    if length <= order {
+        output.copy_from_slice(input);
+        return Ok(());
+    }
+    if output.len() < length {
+        bail!("Output buffer smaller than input buffer for unsort_general");
+    }
+
+    let mut counts = [0usize; 256];
+    for &b in input {
+        if let Some(slot) = counts.get_mut(usize::from(b)) {
+            *slot = slot.saturating_add(1);
+        }
+    }
+
+    let mut j = length;
+    for i in (0..256).rev() {
+        let cnt = counts.get(i).copied().unwrap_or(0);
+        j = j.saturating_sub(cnt);
+        if let Some(slot) = counts.get_mut(i) {
+            *slot = j;
+        }
+    }
+
+    let flags_size = (length.saturating_add(8)) >> 3;
+    let mut flags1 = vec![0u8; flags_size];
+    make_order2(&mut flags1, input, &counts);
+
+    let mut flags2 = vec![0u8; flags_size];
+    for _ in 2..(order.saturating_sub(1)) {
+        increase_order(&flags1, &mut flags2, input, &counts);
+        std::mem::swap(&mut flags1, &mut flags2);
+    }
+
+    let mut table = vec![0u32; length.saturating_add(1)];
+    make_table(&flags1, &mut table, input, &counts, length);
+
+    unsort_traverse(input, output, &mut table, indexlast, length)
 }
 
 #[cfg(test)]

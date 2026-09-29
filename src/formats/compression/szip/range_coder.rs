@@ -225,9 +225,8 @@ impl<R: Read> RangeDecoder<R> {
         if n1 == 0 {
             return Ok(None);
         }
-        let first_byte = match first_buf.first() {
-            Some(&b) => b,
-            None => return Ok(None),
+        let Some(&first_byte) = first_buf.first() else {
+            return Ok(None);
         };
 
         let mut second_buf = [0u8; 1];
@@ -237,10 +236,7 @@ impl<R: Read> RangeDecoder<R> {
         let buffer_byte = if n2 == 0 {
             0
         } else {
-            match second_buf.first() {
-                Some(&b) => b,
-                None => 0,
-            }
+            second_buf.first().copied().unwrap_or_default()
         };
 
         let low = u32::from(buffer_byte >> 1); // 8 - EXTRA_BITS = 1
@@ -261,11 +257,8 @@ impl<R: Read> RangeDecoder<R> {
     /// Renormalizes decoder state, reading incoming bytes into code registers.
     pub fn normalize(&mut self) -> Result<()> {
         while self.range <= BOTTOM_VALUE {
-            let next_byte = match self.read_byte_opt()? {
-                Some(b) => b,
-                None => 0,
-            };
-            self.low = ((self.low << 8) | u32::from((self.buffer << EXTRA_BITS) & 0xFF))
+            let next_byte = self.read_byte_opt()?.unwrap_or_default();
+            self.low = ((self.low << 8) | u32::from(self.buffer << EXTRA_BITS))
                 | u32::from(next_byte >> 1);
             self.buffer = next_byte;
             self.range <<= 8;

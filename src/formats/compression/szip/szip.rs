@@ -152,7 +152,10 @@ pub fn compress_stream_options(
     loop {
         let mut bytes_read = 0usize;
         while bytes_read < options.block_size {
-            let n = reader.read(&mut block_buf[bytes_read..])?;
+            let Some(slice) = block_buf.get_mut(bytes_read..) else {
+                break;
+            };
+            let n = reader.read(slice)?;
             if n == 0 {
                 break;
             }
@@ -166,7 +169,9 @@ pub fn compress_stream_options(
             u64::try_from(bytes_read).map_err(|e| anyhow!("Length conversion: {e}"))?,
         );
 
-        let cur_slice = &mut block_buf[..bytes_read];
+        let Some(cur_slice) = block_buf.get_mut(..bytes_read) else {
+            continue;
+        };
         let buflen_u32 = u32::try_from(bytes_read)
             .map_err(|e| anyhow!("Block length conversion: {e}"))?;
 
@@ -240,6 +245,98 @@ pub fn compress_stream_options(
     Ok(total_uncompressed)
 }
 
+fn decompress_stored_block(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    buflen: usize,
+    dir_size: u32,
+    buflen_u32: u32,
+) -> Result<u64> {
+    let mut buf = vec![0u8; buflen];
+    reader
+        .read_exact(&mut buf)
+        .context("Failed reading stored block payload")?;
+    let stored_trailer = read_u24(reader)?;
+    let expected_trailer = dir_size.saturating_add(4).saturating_add(buflen_u32);
+    if stored_trailer != expected_trailer {
+        bail!("Stored block trailer size mismatch");
+    }
+    writer.write_all(&buf)?;
+    u64::try_from(buflen).map_err(|e| anyhow!("Length conversion: {e}"))
+}
+
+fn decompress_szip_block(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    buflen: usize,
+) -> Result<u64> {
+    let indexlast = read_u24(reader)?;
+    let mut order_buf = [0u8; 1];
+    reader
+        .read_exact(&mut order_buf)
+        .context("Failed reading block order")?;
+    let order = order_buf.first().copied().unwrap_or(0);
+
+    let Some((mut range_dec, record_byte)) = RangeDecoder::new(reader.by_ref())? else {
+        bail!("Unexpected EOF in range coder stream");
+    };
+
+    let incremental = (record_byte & 0x80) != 0;
+    let rec_size = usize::from(record_byte & 0x7F);
+
+    let mut model = SzModel::new(false)?;
+    let mut decoded_buf = vec![0u8; buflen];
+
+    let mut bytes_left = buflen;
+    let mut out_idx = 0usize;
+    let mut is_first_run = true;
+
+    while bytes_left > 0 {
+        let (sym, run_len_u32) = model.decode(&mut range_dec)?;
+        let run_len = usize::try_from(run_len_u32)
+            .map_err(|e| anyhow!("Run length conversion: {e}"))?;
+        if run_len > bytes_left {
+            bail!("Corrupted szip block: run length exceeds block size");
+        }
+        for _ in 0..run_len {
+            if let Some(slot) = decoded_buf.get_mut(out_idx) {
+                *slot = sym;
+            }
+            out_idx = out_idx.saturating_add(1);
+        }
+        bytes_left = bytes_left.saturating_sub(run_len);
+        if is_first_run {
+            model.fix_after_first();
+            is_first_run = false;
+        }
+    }
+
+    range_dec.finish()?;
+
+    let mut transformed = vec![0u8; buflen];
+    if order == 0 {
+        unsort_bwt(&decoded_buf, &mut transformed, indexlast)?;
+    } else if order >= 3 {
+        unsort_general(&decoded_buf, &mut transformed, indexlast, usize::from(order))?;
+    } else {
+        bail!("Unsupported context order in block: {order}");
+    }
+
+    if incremental {
+        inverse_delta(&mut transformed);
+    }
+
+    if rec_size > 1 {
+        let mut unreordered = vec![0u8; buflen];
+        unreorder(&transformed, &mut unreordered, rec_size)?;
+        writer.write_all(&unreordered)?;
+    } else {
+        writer.write_all(&transformed)?;
+    }
+
+    u64::try_from(buflen).map_err(|e| anyhow!("Length conversion: {e}"))
+}
+
 /// Decompresses an szip 1.11+ stream from `reader` into `writer`.
 pub fn decompress_stream(
     reader: &mut impl Read,
@@ -253,10 +350,10 @@ pub fn decompress_stream(
         if n == 0 {
             break;
         }
-        let mut ch = match first_byte_buf.first() {
-            Some(&b) => b,
-            None => break,
+        let Some(&first_byte) = first_byte_buf.first() else {
+            break;
         };
+        let mut ch = first_byte;
 
         // Check for optional global header: "SZ\n\x04"
         if ch == SZIP_GLOBAL_MAGIC[0] {
@@ -320,89 +417,11 @@ pub fn decompress_stream(
         let block_type = type_buf.first().copied().unwrap_or(0xFF);
 
         if block_type == 0 {
-            // Stored uncompressed block
-            let mut buf = vec![0u8; buflen];
-            reader
-                .read_exact(&mut buf)
-                .context("Failed reading stored block payload")?;
-            let stored_trailer = read_u24(reader)?;
-            let expected_trailer = dir_size.saturating_add(4).saturating_add(buflen_u32);
-            if stored_trailer != expected_trailer {
-                bail!("Stored block trailer size mismatch");
-            }
-            writer.write_all(&buf)?;
-            total_decompressed = total_decompressed.saturating_add(
-                u64::try_from(buflen).map_err(|e| anyhow!("Length conversion: {e}"))?,
-            );
+            let n = decompress_stored_block(reader, writer, buflen, dir_size, buflen_u32)?;
+            total_decompressed = total_decompressed.saturating_add(n);
         } else if block_type == 1 {
-            // Szip compressed block
-            let indexlast = read_u24(reader)?;
-            let mut order_buf = [0u8; 1];
-            reader
-                .read_exact(&mut order_buf)
-                .context("Failed reading block order")?;
-            let order = order_buf.first().copied().unwrap_or(0);
-
-            let Some((mut range_dec, record_byte)) = RangeDecoder::new(reader.by_ref())? else {
-                bail!("Unexpected EOF in range coder stream");
-            };
-
-            let incremental = (record_byte & 0x80) != 0;
-            let rec_size = usize::from(record_byte & 0x7F);
-
-            let mut model = SzModel::new(false)?;
-            let mut decoded_buf = vec![0u8; buflen];
-
-            let mut bytes_left = buflen;
-            let mut out_idx = 0usize;
-            let mut is_first_run = true;
-
-            while bytes_left > 0 {
-                let (sym, run_len_u32) = model.decode(&mut range_dec)?;
-                let run_len = usize::try_from(run_len_u32)
-                    .map_err(|e| anyhow!("Run length conversion: {e}"))?;
-                if run_len > bytes_left {
-                    bail!("Corrupted szip block: run length exceeds block size");
-                }
-                for _ in 0..run_len {
-                    if let Some(slot) = decoded_buf.get_mut(out_idx) {
-                        *slot = sym;
-                    }
-                    out_idx = out_idx.saturating_add(1);
-                }
-                bytes_left = bytes_left.saturating_sub(run_len);
-                if is_first_run {
-                    model.fix_after_first();
-                    is_first_run = false;
-                }
-            }
-
-            range_dec.finish()?;
-
-            let mut transformed = vec![0u8; buflen];
-            if order == 0 {
-                unsort_bwt(&decoded_buf, &mut transformed, indexlast)?;
-            } else if order >= 3 {
-                unsort_general(&decoded_buf, &mut transformed, indexlast, usize::from(order))?;
-            } else {
-                bail!("Unsupported context order in block: {order}");
-            }
-
-            if incremental {
-                inverse_delta(&mut transformed);
-            }
-
-            if rec_size > 1 {
-                let mut unreordered = vec![0u8; buflen];
-                unreorder(&transformed, &mut unreordered, rec_size)?;
-                writer.write_all(&unreordered)?;
-            } else {
-                writer.write_all(&transformed)?;
-            }
-
-            total_decompressed = total_decompressed.saturating_add(
-                u64::try_from(buflen).map_err(|e| anyhow!("Length conversion: {e}"))?,
-            );
+            let n = decompress_szip_block(reader, writer, buflen)?;
+            total_decompressed = total_decompressed.saturating_add(n);
         } else {
             bail!("Unknown szip block type: {block_type}");
         }

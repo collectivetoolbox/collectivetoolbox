@@ -128,7 +128,7 @@ impl QsModel {
             bail!("Symbol count cannot be zero");
         }
         let init_val = tot.checked_div(n).unwrap_or(0);
-        let end = usize::from(tot % n);
+        let end = usize::from(tot.checked_rem(n).unwrap_or(0));
 
         for i in 0..end {
             if let Some(slot) = self.new_f.get_mut(i) {
@@ -188,7 +188,7 @@ impl QsModel {
 
         if self.rescale > 0 {
             self.incr = missing.checked_div(self.rescale).unwrap_or(0);
-            self.next_left = missing % self.rescale;
+            self.next_left = missing.checked_rem(self.rescale).unwrap_or(0);
             self.left = self.rescale.saturating_sub(self.next_left);
         } else {
             self.incr = 1;
