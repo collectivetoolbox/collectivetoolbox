@@ -500,7 +500,10 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 || parent_candidate.mime.as_deref() == Some("application/zip")
                 || parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
                 || parent_candidate.description.starts_with("OLE 2 Compound Document")
-                || parent_candidate.description.starts_with("Composite Document File");
+                || parent_candidate.description.starts_with("Composite Document File")
+                || parent_candidate.format_id.map_or(false, |fid| {
+                    fid.category() == ctb_utilities::FormatCategory::Compression
+                });
 
             let is_child_of_container = is_container_parent
                 && child_candidate.evidence.iter().any(|e| match e {
@@ -517,6 +520,11 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                                     || detail.contains("Word")
                                     || detail.contains("Excel")
                                     || detail.contains("PowerPoint"))
+                            || (parent_candidate.format_id.map_or(false, |fid| {
+                                fid.category() == ctb_utilities::FormatCategory::Compression
+                            }) && (detail.contains("compound format")
+                                || detail.contains("Decompressed payload")
+                                || detail.contains("format chain")))
                     }
                     _ => false,
                 });
@@ -578,18 +586,26 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     }
 
     // 4. Detect true non-hierarchical conflicts:
-    // Partition candidates into encoding formats and content formats so character encodings
-    // do not conflict with document/identifier/data content formats.
+    // Partition candidates into encoding formats, format chains, and content formats so character encodings
+    // and format chain directives do not conflict with document/identifier/data content formats.
     let is_encoding = |c: &DetectionCandidate| {
         // Reason for fallback: candidates without a format_id are not encoding formats
         c.format_id
             .map(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
             .unwrap_or(false)
     };
+    let is_chain = |c: &DetectionCandidate| {
+        c.description.starts_with("@chain(")
+    };
     let non_subsumed_content_count = candidates
         .iter()
         .enumerate()
-        .filter(|(idx, c)| !subsumed_indices.contains(idx) && c.score >= 70 && !is_encoding(c))
+        .filter(|(idx, c)| {
+            !subsumed_indices.contains(idx)
+                && c.score >= 70
+                && !is_encoding(c)
+                && !is_chain(c)
+        })
         .count();
     let non_subsumed_encoding_count = candidates
         .iter()
@@ -603,7 +619,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 if non_subsumed_encoding_count > 1 {
                     c.confidence = ConfidenceTier::Conflicted;
                 }
-            } else if non_subsumed_content_count > 1 {
+            } else if !is_chain(c) && non_subsumed_content_count > 1 {
                 c.confidence = ConfidenceTier::Conflicted;
             }
         }

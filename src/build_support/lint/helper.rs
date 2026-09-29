@@ -176,20 +176,29 @@ pub fn check_file_ast(
 }
 
 pub fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+    find_rs_files_internal(dir, dir, files)
+}
+
+fn find_rs_files_internal(
+    root: &Path,
+    dir: &Path,
+    files: &mut Vec<PathBuf>,
+) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        let name = path.file_name().and_then(|n| n.to_str());
         if path.is_dir() {
-            if name == Some("target")
-                || name == Some("vendor")
-                || name == Some(".git")
-                || name == Some("old")
-                || name == Some("built")
+            let rel_path = path.strip_prefix(root).unwrap_or(&path);
+            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+            if rel_str == "target"
+                || rel_str == "vendor"
+                || rel_str == ".git"
+                || rel_str == "old"
+                || rel_str == "built"
             {
                 continue;
             }
-            find_rs_files(&path, files)?;
+            find_rs_files_internal(root, &path, files)?;
         } else if path.extension().and_then(|s| s.to_str()) == Some("rs") {
             files.push(path);
         }

@@ -236,6 +236,14 @@ pub fn fix_file(file_path: &Path, violations: &[BoilerplateViolation]) -> Result
 }
 
 pub fn find_rs_files(dir: &Path, rs_files: &mut Vec<PathBuf>) -> Result<()> {
+    find_rs_files_internal(dir, dir, rs_files)
+}
+
+fn find_rs_files_internal(
+    root: &Path,
+    dir: &Path,
+    rs_files: &mut Vec<PathBuf>,
+) -> Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
@@ -243,11 +251,16 @@ pub fn find_rs_files(dir: &Path, rs_files: &mut Vec<PathBuf>) -> Result<()> {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
-            let name = entry.file_name();
-            if name == "vendor" || name == "target" || name == ".git" || name == "built" {
+            let rel_path = path.strip_prefix(root).unwrap_or(&path);
+            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+            if rel_str == "vendor"
+                || rel_str == "target"
+                || rel_str == ".git"
+                || rel_str == "built"
+            {
                 continue;
             }
-            find_rs_files(&path, rs_files)?;
+            find_rs_files_internal(root, &path, rs_files)?;
         } else if path.extension().is_some_and(|ext| ext == "rs") {
             rs_files.push(path);
         }

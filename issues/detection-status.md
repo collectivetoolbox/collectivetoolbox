@@ -92,9 +92,13 @@ Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file
 * **Upstream:**
   1. Supports transparent decompression for 15+ formats via built-in libraries or external tools: compress/uncompress (`.Z`, LZW), gzip (`.gz`), bzip2 (`.bz2`), xz (`.xz`), lzip (`.lz`), lrzip (`.lrz`), lz4 (`.lz4`), zstd (`.zst`), lzma (`.lzma`), pack (`\037\036`), frozen (`\037\236`), SCO LZH (`\037\240`), and raw zlib deflate.
   2. When decompressed, it recursively invokes `file_buffer` on the decompressed stream, running **all** detection tests (identifying inner ELF binaries, shell scripts, XML, source code, etc.).
-* **Ctoolbox:**
-  1. [`probe_decompression`](file:///workspaces/ctoolbox/src/formats/detection/container.rs#L1516-L1558) **only inspects Gzip** (`[0x1F, 0x8B]`). Bzip2, XZ, Zstandard, Lzip, LZ4, etc., are never decompressed.
-  2. It **only** calls `inspect_tar` on the decompressed bytes to check for `POSIX tar archive (gzip compressed)`. If a `.gz` file contains an inner text document, script, or binary, `probe_decompression` returns `None`.
+* **Ctoolbox Status:** **Partially Implemented**.
+  1. **Working:** [`probe_decompression_candidates`](file:///workspaces/ctoolbox/src/formats/detection/decompression.rs) implements transparent and recursive bounded decompression inspection across currently supported formats (`Gzip`, `Bzip2`, `Bzip`, `Xz`, `Lzip`, `Lz4`, `Zstd`, `Lzma`, `CompressLzw` 1/2/16/modern, `Pack`, `OldPack`, `Compact`, `Freeze1/2`, `SCO Compress`, `Deflate`/`Zlib`, `Rzip`, `Lzo`, `Szip`). Supports `--compat` mode (`-z` and `-Z`) as well as rich compound resolution (`TarGz`, `TarBz2`, `TarZ`, `TarLzo`) and format chain directives (`@chain(...)`).
+  2. **Remaining Gaps vs Upstream:**
+     - **`lrzip` (`.lrz`):** Not implemented. Blocked on `ZPAQ` decompression support and multi-file archive streaming facilities.
+     - **External helper fallbacks:** Upstream can delegate to system decompression binaries (`gzip -cd`, `uncompress -c`, etc.) if built-in decoders fail; ctoolbox relies solely on in-process decoders.
+
+
 
 ---
 

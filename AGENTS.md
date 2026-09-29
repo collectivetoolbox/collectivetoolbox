@@ -14,6 +14,22 @@
 - If prompted to move a module into a subcrate, the intended action is very simple: move files (using a tool/script, not by generating them), copy and trim the Cargo.toml, update the package name, replace the import from a module to a use, and add them to the root Cargo.toml. If anything else is needed, ask before acting on it.
 - Prefer reporting failures over reporting successes. It's more or less irrelevant that twenty tests pass if one test fails - it's the one failing one that I need to know about because it needs more work. Similarly, if you had to bypass tests during development to progress on others, highlight that as the headline summary - it tells me where to go next. Needing to report that you couldn't get a test passing in a reasonable amount of time and decided to leave it for later is completely fine and a normal part of development; leaving tests skipped or failing without making it very obvious in your summary is not. If you left some parts of a task unimplemented for later, tell me about those as the primary conclusion; similarly, it's fine to not finish something all in one go, but I need to know what I still have to focus on.
 
+## Reporting, Status Tracking, and Scope Honesty
+- **Never label a feature or status item as "Implemented" if there are any remaining gaps, missing formats, unhandled flags, or deferred prerequisites.**
+  - If a feature has even one unhandled upstream case (e.g. missing `lrzip`, missing flag, partial header parsing), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
+  - In tracking documents (like `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Do not erase or gloss over gaps when recording what was added.
+- **Differentiate between "sub-task completion" and "feature completion":**
+  - If you were asked to do a bounded subset of a feature (e.g. "implement the ones available so far"), your conclusion must frame it as partial progress toward the whole, not as the feature being finished.
+- **Lead responses with what is left, broken, or deferred:**
+  - When summarizing work, do NOT write cheerful "all done!" recaps. Start with:
+    1. **Failing / Skipped Tests** (if any).
+    2. **Known Gaps & What's Left** (what still needs to be done for full parity/completion).
+    3. **Deferred Items** (what was deliberately omitted and why).
+  - Only summarize what was implemented as secondary context under the gaps. If something is done, the operator can see the code and tests; what the operator needs from you is an accurate accounting of the remaining debt so context is not lost.
+- **Treat optimistic misrepresentation as a bug:** Calling something "complete" or "working" when known edge cases or formats were skipped is a critical accuracy failure. When in doubt, err on the side of skepticism about your own implementation.
+
+The rationale for this is that what's critical to your operator is an honest assessment of *what's left* - what's *done* I don't really need to know about, because it's completed - I can forget about it and scratch it off the list. Knowing what remains to implement is critical, though, because it's key to correctness. That's especially important because if I think a slice of work is done when it's not, I'll move on to another stage of implementation, and forget the context about the previous stage - and then when I eventually discover that it was not fully completed, I have to return and regain that context to address it.
+
 ## Standards and Style Guide
 - Use the `anyhow` crate for error handling in new code, and avoid panics.
 - Avoid statefulness where possible.

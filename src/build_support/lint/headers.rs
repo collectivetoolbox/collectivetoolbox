@@ -40,10 +40,89 @@ pub struct Violation {
     pub message: String,
 }
 
+fn should_skip_dir(
+    dir: &Path,
+    path: &Path,
+    rel_str: &str,
+) -> bool {
+    let name = path.file_name().and_then(|n| n.to_str());
+
+    // "data" directories:
+    // Excluding "data" directories in folders with a Cargo.toml wherever
+    // they are is fine, except for compression data fixtures which contains
+    // first-party test scripts that must have license headers.
+    if name == Some("data") {
+        let is_compression_data = rel_str == "src/formats/compression/data"
+            || rel_str == "compression/data"
+            || path.ends_with("formats/compression/data")
+            || path.ends_with("compression/data");
+        if is_compression_data {
+            return false;
+        }
+        let has_cargo_toml = path.join("Cargo.toml").is_file();
+        let parent_has_cargo_toml = dir.join("Cargo.toml").is_file();
+        if !has_cargo_toml || parent_has_cargo_toml {
+            return true;
+        }
+    }
+
+    // Root-level directories: only skip if at the root of the search.
+    if rel_str == "target"
+        || rel_str == "vendor"
+        || rel_str == ".git"
+        || rel_str == "old"
+        || rel_str == "built"
+        || rel_str == "node_modules"
+    {
+        return true;
+    }
+
+    // Specific known external or generated paths:
+    if rel_str == "docs/reference-implementations"
+        || rel_str == "packaging/guix/generated"
+        || rel_str == "src/formats/kaitai/generated"
+        || rel_str == "src/formats/kaitai/tests/generated"
+        || rel_str == "assets/web/vendor"
+        || rel_str == "src/formats/dcdata/data/magic/upstream"
+        || rel_str == "src/formats/dcdata/data/droid/tests/skeletons"
+        || path.ends_with("docs/reference-implementations")
+        || path.ends_with("packaging/guix/generated")
+        || path.ends_with("formats/kaitai/generated")
+        || path.ends_with("formats/kaitai/tests/generated")
+        || path.ends_with("assets/web/vendor")
+    {
+        return true;
+    }
+
+    false
+}
+
 /// Recursively find all source files excluding target, vendor, old,
 /// built, generated, .git, data directories without code/Cargo.toml,
 /// and third-party reference implementations.
 pub fn find_files(
+    dir: &Path,
+    rs_files: &mut Vec<PathBuf>,
+    scm_files: &mut Vec<PathBuf>,
+    docker_files: &mut Vec<PathBuf>,
+    shell_files: &mut Vec<PathBuf>,
+    python_files: &mut Vec<PathBuf>,
+    violations: &mut Vec<Violation>,
+) -> Result<()> {
+    find_files_internal(
+        dir,
+        dir,
+        rs_files,
+        scm_files,
+        docker_files,
+        shell_files,
+        python_files,
+        violations,
+    )
+}
+
+fn find_files_internal(
+    root: &Path,
     dir: &Path,
     rs_files: &mut Vec<PathBuf>,
     scm_files: &mut Vec<PathBuf>,
@@ -57,30 +136,13 @@ pub fn find_files(
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str());
         if path.is_dir() {
-            let is_data_dir = name == Some("data");
-            let has_cargo_toml = path.join("Cargo.toml").is_file();
-            let is_compression_data = path.ends_with("formats/compression/data")
-                || path.ends_with("compression/data");
-            if is_data_dir && !has_cargo_toml && !is_compression_data {
+            let rel_path = path.strip_prefix(root).unwrap_or(&path);
+            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+            if should_skip_dir(dir, &path, &rel_str) {
                 continue;
             }
-
-            if name == Some("target")
-                || name == Some("vendor")
-                || name == Some(".git")
-                || name == Some("old")
-                || name == Some("built")
-                || name == Some("generated")
-                || name == Some("node_modules")
-                || name == Some("reference-implementations")
-                || name == Some("construct")
-                || name == Some("upstream")
-                || name == Some("skeletons")
-                || name.is_some_and(|n| n.starts_with("viuer"))
-            {
-                continue;
-            }
-            find_files(
+            find_files_internal(
+                root,
                 &path,
                 rs_files,
                 scm_files,
@@ -2159,6 +2221,99 @@ mod tests {
             patch_scm_count >= 80,
             "find_files must find all Scheme files in scripts/guix/patches, found {patch_scm_count}"
         );
+    }
+
+    #[test]
+    fn test_find_files_skips_only_root_vendor_and_old_not_nested() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "test_find_files_paths_{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        // 1. Root /vendor, /old, /target, /built should be skipped
+        let root_vendor = temp_dir.join("vendor/some_pkg");
+        fs::create_dir_all(&root_vendor).unwrap();
+        fs::write(root_vendor.join("ignored.rs"), "fn ignored() {}\n").unwrap();
+
+        let root_old = temp_dir.join("old/legacy");
+        fs::create_dir_all(&root_old).unwrap();
+        fs::write(root_old.join("old.rs"), "fn old() {}\n").unwrap();
+
+        let root_target = temp_dir.join("target/debug");
+        fs::create_dir_all(&root_target).unwrap();
+        fs::write(root_target.join("target.rs"), "fn target() {}\n").unwrap();
+
+        let root_built = temp_dir.join("built/assets");
+        fs::create_dir_all(&root_built).unwrap();
+        fs::write(root_built.join("built.rs"), "fn built() {}\n").unwrap();
+
+        // 2. Nested directories with names "vendor", "old", "generated" should NOT be skipped
+        let nested_vendor = temp_dir.join("src/my_crate/vendor");
+        fs::create_dir_all(&nested_vendor).unwrap();
+        let nested_vendor_rs = nested_vendor.join("included_vendor.rs");
+        fs::write(&nested_vendor_rs, "fn included_vendor() {}\n").unwrap();
+
+        let nested_old = temp_dir.join("scripts/old");
+        fs::create_dir_all(&nested_old).unwrap();
+        let nested_old_sh = nested_old.join("included_old.sh");
+        fs::write(&nested_old_sh, "#!/usr/bin/env bash\necho included\n").unwrap();
+
+        let nested_gen = temp_dir.join("src/my_crate/generated");
+        fs::create_dir_all(&nested_gen).unwrap();
+        let nested_gen_rs = nested_gen.join("included_gen.rs");
+        fs::write(&nested_gen_rs, "fn included_gen() {}\n").unwrap();
+
+        // 3. Known external/generated directories SHOULD be skipped
+        let kaitai_gen = temp_dir.join("src/formats/kaitai/generated");
+        fs::create_dir_all(&kaitai_gen).unwrap();
+        fs::write(kaitai_gen.join("skipped_kaitai.rs"), "fn skipped() {}\n").unwrap();
+
+        let ref_impl = temp_dir.join("docs/reference-implementations");
+        fs::create_dir_all(&ref_impl).unwrap();
+        fs::write(ref_impl.join("skipped_ref.rs"), "fn skipped() {}\n").unwrap();
+
+        let guix_gen = temp_dir.join("packaging/guix/generated");
+        fs::create_dir_all(&guix_gen).unwrap();
+        fs::write(guix_gen.join("skipped_guix.scm"), ";;; skipped\n").unwrap();
+
+        // 4. Data directory in folder with Cargo.toml should be skipped
+        let crate_dir = temp_dir.join("src/crate_with_cargo");
+        fs::create_dir_all(&crate_dir).unwrap();
+        fs::write(crate_dir.join("Cargo.toml"), "[package]\nname = \"test\"\n").unwrap();
+        let crate_data = crate_dir.join("data");
+        fs::create_dir_all(&crate_data).unwrap();
+        fs::write(crate_data.join("sample.rs"), "fn sample() {}\n").unwrap();
+
+        let mut rs_files = Vec::new();
+        let mut scm_files = Vec::new();
+        let mut docker_files = Vec::new();
+        let mut shell_files = Vec::new();
+        let mut python_files = Vec::new();
+        let mut violations = Vec::new();
+
+        find_files(
+            &temp_dir,
+            &mut rs_files,
+            &mut scm_files,
+            &mut docker_files,
+            &mut shell_files,
+            &mut python_files,
+            &mut violations,
+        ).unwrap();
+
+        // Verify nested vendor and generated rs files are included
+        assert!(rs_files.contains(&nested_vendor_rs), "Nested vendor/ must NOT be skipped");
+        assert!(rs_files.contains(&nested_gen_rs), "Nested generated/ in crate must NOT be skipped");
+        assert_eq!(rs_files.len(), 2, "Only nested vendor and nested generated rs files should be found");
+
+        // Verify nested old shell script is included
+        assert_eq!(shell_files, vec![nested_old_sh], "Nested old/ must NOT be skipped");
+
+        // Verify scm_files is empty (guix generated skipped)
+        assert!(scm_files.is_empty(), "packaging/guix/generated must be skipped");
+
+        fs::remove_dir_all(&temp_dir).ok();
     }
 }
 

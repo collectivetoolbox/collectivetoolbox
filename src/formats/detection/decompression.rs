@@ -824,10 +824,18 @@ where
     let mut results = Vec::new();
 
     if compat {
+        let mut outer_for_compat = outer_candidate_ref.clone();
+        if let Some(magic_desc) = outer_candidate_ref.evidence.iter().find_map(|e| match e {
+            DetectionEvidence::FileMagic { description, .. } => Some(description.clone()),
+            _ => None,
+        }) {
+            outer_for_compat.description = magic_desc;
+        }
+
         if let Some(inner) = inner_cand {
             results.push(build_compat_candidate(
                 inner,
-                outer_candidate_ref,
+                &outer_for_compat,
                 uncompress_noreport,
             ));
         } else {
@@ -842,7 +850,7 @@ where
             };
             results.push(build_compat_candidate(
                 &synth_inner,
-                outer_candidate_ref,
+                &outer_for_compat,
                 uncompress_noreport,
             ));
         }
@@ -908,8 +916,14 @@ mod tests {
 
     fn make_test_tar_bytes() -> Vec<u8> {
         let mut tar_bytes = vec![0u8; 512];
-        tar_bytes[..5].copy_from_slice(b"hello");
-        tar_bytes[257..263].copy_from_slice(b"ustar\0");
+        tar_bytes[..9].copy_from_slice(b"test.txt\0");
+        tar_bytes[100..108].copy_from_slice(b"0000644\0");
+        tar_bytes[108..116].copy_from_slice(b"0001750\0");
+        tar_bytes[116..124].copy_from_slice(b"0001750\0");
+        tar_bytes[124..136].copy_from_slice(b"00000000000\0");
+        tar_bytes[136..148].copy_from_slice(b"14713210000\0");
+        tar_bytes[156] = b'0';
+        tar_bytes[257..265].copy_from_slice(b"ustar\000");
 
         let mut sum: u32 = 0;
         for (i, &b) in tar_bytes.iter().enumerate() {
@@ -966,7 +980,7 @@ mod tests {
     #[ctb_test]
     fn test_format_chain_directive_and_pretty() {
         let directive =
-            format_chain_directive(FormatId::Tar, FormatId::CompressLzw16);
+            format_chain_directive(FormatId::Tar, FormatId::CompressLzw);
         assert_eq!(directive, "@chain(f161 > f44)");
 
         let expr = parse_format_expr(&directive)
@@ -974,7 +988,7 @@ mod tests {
         validate_format_expr(&expr).expect("Should validate chain expression");
 
         let pretty =
-            format_chain_pretty(FormatId::Tar, FormatId::CompressLzw16);
+            format_chain_pretty(FormatId::Tar, FormatId::CompressLzw);
         assert!(pretty.starts_with("@chain(f161 > f44):"));
         assert!(pretty.contains("tar"));
     }
@@ -996,9 +1010,13 @@ mod tests {
             Some(&compat_hint),
         )
         .unwrap();
-        eprintln!("DEBUG rep1 candidates: {:?}", rep1.candidates);
         assert_eq!(rep1.candidates[0].format_id, Some(FormatId::Gzip));
-        assert!(rep1.candidates[0].description.contains("gzip"));
+        assert!(
+            rep1.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("gzip")
+        );
 
         // 2. Compat mode with -z: reports `<inner> (<outer>)`
         let z_hint = DetectionHint {
@@ -1009,8 +1027,18 @@ mod tests {
         let rep2 =
             guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
                 .unwrap();
-        assert!(rep2.candidates[0].description.contains("tar archive"));
-        assert!(rep2.candidates[0].description.contains("(gzip"));
+        assert!(
+            rep2.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("tar archive")
+        );
+        assert!(
+            rep2.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("(gzip")
+        );
         assert!(
             rep2.candidates[0]
                 .mime
@@ -1028,8 +1056,18 @@ mod tests {
         let rep3 =
             guess_format_report(&mut gz_bytes.as_slice(), Some(&cap_z_hint))
                 .unwrap();
-        assert!(rep3.candidates[0].description.contains("tar archive"));
-        assert!(!rep3.candidates[0].description.contains("(gzip"));
+        assert!(
+            rep3.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("tar archive")
+        );
+        assert!(
+            !rep3.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("(gzip")
+        );
 
         // 4. Default rich mode: compound format TarGz is top, followed by format chain
         let rep4 =
@@ -1051,7 +1089,6 @@ mod tests {
 
         // Default rich mode: TarBz2 is top, format chain is present
         let rep = guess_format_report(&mut bz2_bytes.as_slice(), None).unwrap();
-        eprintln!("DEBUG tar_bzip2 candidates: {:?}", rep.candidates);
         assert_eq!(rep.candidates[0].format_id, Some(FormatId::TarBz2));
         assert!(
             rep.candidates
@@ -1068,8 +1105,18 @@ mod tests {
         let rep_z =
             guess_format_report(&mut bz2_bytes.as_slice(), Some(&z_hint))
                 .unwrap();
-        assert!(rep_z.candidates[0].description.contains("tar archive"));
-        assert!(rep_z.candidates[0].description.contains("(bzip2"));
+        assert!(
+            rep_z.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("tar archive")
+        );
+        assert!(
+            rep_z.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("(bzip2")
+        );
     }
 
     #[ctb_test]
@@ -1083,7 +1130,7 @@ mod tests {
         let rep = guess_format_report(&mut zst_bytes.as_slice(), None).unwrap();
         let top = &rep.candidates[0];
         assert!(top.description.contains("@chain("));
-        assert!(top.description.contains("> f298)")); // Zstd is f298
+        assert!(top.description.contains("> f40)")); // Zstd is f40
         assert!(top.description.contains("JSON"));
 
         // Compat -z mode
@@ -1096,7 +1143,12 @@ mod tests {
             guess_format_report(&mut zst_bytes.as_slice(), Some(&z_hint))
                 .unwrap();
         assert!(rep_z.candidates[0].description.contains("JSON"));
-        assert!(rep_z.candidates[0].description.contains("(Zstandard"));
+        assert!(
+            rep_z.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("(zstandard")
+        );
     }
 
     #[ctb_test]
@@ -1122,7 +1174,12 @@ mod tests {
             guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
                 .unwrap();
         assert!(rep_z.candidates[0].description.contains("script"));
-        assert!(rep_z.candidates[0].description.contains("(gzip"));
+        assert!(
+            rep_z.candidates[0]
+                .description
+                .to_ascii_lowercase()
+                .contains("(gzip")
+        );
     }
 }
 /*
