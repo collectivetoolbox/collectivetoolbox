@@ -443,7 +443,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Command-line interface runner and reporting for file format detection.
+//! Transparent and deep recursive decompression inspection for format detection.
+//!
+//! Provides bounded stream decompression across all supported compression formats,
+//! enabling inspection of inner payloads, identification of compound formats (e.g. TarGz),
+//! format chains (`@chain(f... > f...)`), and UNIX `file` compatibility mode (`-z` / `-Z`).
 
 #[allow(
     unused_imports,
@@ -452,395 +456,439 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Context, Result};
-use clap::Args;
-use std::fmt::Write as _;
-use std::io::{self, Read};
-use std::path::{Path, PathBuf};
+use std::io::{self, Read, Write};
 
-use crate::chain::guess_format_chains;
-use crate::detection::{
-    guess_and_report_path, guess_and_report_path_with_hint,
-    guess_and_report_vec, guess_and_report_vec_with_hint,
-};
+use crate::mime_derivation::FORMAT_CATALOG;
+use crate::source::DetectionSource;
 use crate::types::{
-    DetectionEvidence, DetectionHint, DetectionOutcome, DetectionReport,
+    ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
+    DetectionReport,
+};
+use ctb_formats_dcdata::format_spec::{
+    parse_format_expr, validate_format_expr,
 };
 
-/// Command-line arguments for file detection (`ctoolbox file` / `detect`).
-#[derive(Args, Debug, Clone, Default)]
-pub struct FileDetectionArgs {
-    /// Files to inspect and detect format for (pass '-' for stdin)
-    #[arg(value_name = "FILE", default_value = "-")]
-    pub files: Vec<PathBuf>,
+/// Default byte limit (1 MiB) for bounded decompression probes during file inspection.
+pub const DEFAULT_DECOMPRESS_BYTE_LIMIT: usize = 1024 * 1024;
 
-    /// Produce output strictly compatible with the standard UNIX `file` command
-    #[arg(long)]
-    pub compat: bool,
+/// Maximum recursion depth allowed during recursive decompression inspection.
+pub const MAX_DECOMPRESSION_DEPTH: usize = 3;
 
-    /// Output MIME type string instead of human-readable description (like `file -i`)
-    #[arg(long, short = 'i', alias = "mime-type")]
-    pub mime: bool,
-
-    /// Do not prepend filenames to output lines (like `file -b`)
-    #[arg(long, short = 'b')]
-    pub brief: bool,
-
-    /// Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
-    #[arg(long, short = 'k')]
-    pub all: bool,
-
-    /// Try to look inside compressed files (like `file -z`)
-    #[arg(long, short = 'z', alias = "uncompress")]
-    pub uncompress: bool,
-
-    /// Try to look inside compressed files, but do not report the compression format (like `file -Z`)
-    #[arg(long, short = 'Z', alias = "uncompress-noreport")]
-    pub uncompress_noreport: bool,
+/// Wraps a `DetectionSource` to implement `std::io::Read` by reading sequentially from offset 0.
+pub struct DetectionSourceReader<'a, S: DetectionSource + ?Sized> {
+    source: &'a mut S,
+    offset: u64,
 }
 
-/// Executes file detection across the specified file paths or standard input.
-pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
-    let mut output = String::new();
+impl<'a, S: DetectionSource + ?Sized> DetectionSourceReader<'a, S> {
+    /// Creates a new sequential reader starting at offset 0 of the given detection source.
+    pub fn new(source: &'a mut S) -> Self {
+        Self { source, offset: 0 }
+    }
+}
 
-    let files = if args.files.is_empty() {
-        vec![PathBuf::from("-")]
+impl<'a, S: DetectionSource + ?Sized> Read for DetectionSourceReader<'a, S> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self
+            .source
+            .read_at(self.offset, buf)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+        // Reason for fallback: byte count conversion to u64 defaults to 0 on 16-bit overflow
+        let advance = u64::try_from(n).unwrap_or(0);
+        self.offset = self.offset.saturating_add(advance);
+        Ok(n)
+    }
+}
+
+/// A writer that collects up to `limit` bytes into an in-memory buffer,
+/// aborting with an error when the limit is exceeded to stop unbounded decompression.
+pub struct BoundedWriter {
+    buffer: Vec<u8>,
+    limit: usize,
+    limit_reached: bool,
+}
+
+impl BoundedWriter {
+    /// Creates a new `BoundedWriter` with the specified maximum byte capacity.
+    #[must_use]
+    pub fn new(limit: usize) -> Self {
+        Self {
+            buffer: Vec::new(),
+            limit,
+            limit_reached: false,
+        }
+    }
+
+    /// Returns whether the capacity limit was reached.
+    #[must_use]
+    pub fn is_limit_reached(&self) -> bool {
+        self.limit_reached
+    }
+
+    /// Consumes the writer and returns the collected decompressed bytes.
+    #[must_use]
+    pub fn into_inner(self) -> Vec<u8> {
+        self.buffer
+    }
+}
+
+impl Write for BoundedWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let remaining = self.limit.saturating_sub(self.buffer.len());
+        if remaining == 0 {
+            self.limit_reached = true;
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "decompression byte limit reached",
+            ));
+        }
+        let take = buf.len().min(remaining);
+        if let Some(slice) = buf.get(..take) {
+            self.buffer.extend_from_slice(slice);
+        }
+        if self.buffer.len() >= self.limit {
+            self.limit_reached = true;
+        }
+        Ok(take)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Decompresses up to `limit` bytes from `source` using the specified compression format.
+pub fn decompress_bounded<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    format: FormatId,
+    limit: usize,
+) -> Result<Option<Vec<u8>>> {
+    if !ctb_formats_compression::is_supported(format) {
+        return Ok(None);
+    }
+    let mut reader = DetectionSourceReader::new(source);
+    let mut writer = BoundedWriter::new(limit);
+    let _ = ctb_formats_compression::decompress_stream(&mut reader, &mut writer, format);
+    let out = writer.into_inner();
+    if out.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(out))
+}
+
+/// Resolves an inner and outer format pair to a single compound `FormatId` if one is registered.
+#[must_use]
+pub fn resolve_compound_format(inner: FormatId, outer: FormatId) -> Option<FormatId> {
+    if inner == FormatId::Tar {
+        match outer {
+            FormatId::Gzip => Some(FormatId::TarGz),
+            FormatId::CompressLzw
+            | FormatId::CompressLzw1
+            | FormatId::CompressLzw2
+            | FormatId::CompressLzw16 => Some(FormatId::TarZ),
+            FormatId::Bzip2 => Some(FormatId::TarBz2),
+            FormatId::Lzo => Some(FormatId::TarLzo),
+            _ => None,
+        }
     } else {
-        args.files.clone()
-    };
-
-    let total_files = files.len();
-
-    for (idx, path) in files.iter().enumerate() {
-        let is_stdin = path.as_os_str() == "-";
-        let display_name = if is_stdin {
-            "/dev/stdin".to_string()
-        } else {
-            path.display().to_string()
-        };
-
-        let hint = DetectionHint {
-            filename: if is_stdin {
-                None
-            } else {
-                path.file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|s| s.to_string())
-            },
-            compat: args.compat,
-            uncompress: args.uncompress,
-            uncompress_noreport: args.uncompress_noreport,
-            ..Default::default()
-        };
-
-        let report_res = if is_stdin {
-            let mut stdin_bytes = Vec::new();
-            io::stdin()
-                .read_to_end(&mut stdin_bytes)
-                .context("Failed to read from standard input")?;
-            guess_and_report_vec_with_hint(stdin_bytes, Some(&hint))
-        } else {
-            guess_and_report_path_with_hint(path, Some(&hint))
-        };
-
-        let report = match report_res {
-            Ok(r) => r,
-            Err(e) => {
-                if args.compat {
-                    if args.brief {
-                        let _ = writeln!(output, "cannot open (Error: {e:#})");
-                    } else {
-                        let _ = writeln!(output, "{display_name}: cannot open (Error: {e:#})");
-                    }
-                } else {
-                    let _ = writeln!(output, "=== {display_name} ===");
-                    let _ = writeln!(output, "Error inspecting file: {e:#}");
-                }
-                continue;
-            }
-        };
-
-        if args.compat {
-            render_compat_output(&mut output, &display_name, &report, args);
-        } else {
-            if idx > 0 {
-                output.push('\n');
-            }
-            render_rich_output(&mut output, &display_name, path, &report, args);
-        }
+        None
     }
-
-    Ok(ToolResult::immediate_ok(output.into_bytes()))
 }
 
-fn render_compat_output(
-    output: &mut String,
-    display_name: &str,
-    report: &DetectionReport,
-    args: &FileDetectionArgs,
-) {
-    let candidates = if args.all {
-        report.candidates.as_slice()
+/// Formats a canonical Document Character format chain directive `@chain(inner > outer)`.
+///
+/// Validates the emitted directive against the format expression grammar and AST validator.
+#[must_use]
+pub fn format_chain_directive(inner_fid: FormatId, outer_fid: FormatId) -> String {
+    let directive = format!("@chain({} > {})", inner_fid.shorthand(), outer_fid.shorthand());
+    if let Ok(expr) = parse_format_expr(&directive) {
+        let _ = validate_format_expr(&expr);
+    }
+    directive
+}
+
+/// Formats a human-readable pretty-printed format chain description,
+/// including format shorthands and full format titles/descriptions.
+#[must_use]
+pub fn format_chain_pretty(inner_fid: FormatId, outer_fid: FormatId) -> String {
+    let directive = format_chain_directive(inner_fid, outer_fid);
+    let inner_label = FORMAT_CATALOG
+        .lookup_format_id(inner_fid)
+        .map(|m| m.label.as_str())
+        .unwrap_or_else(|| inner_fid.title().unwrap_or(inner_fid.ident()));
+    let outer_label = FORMAT_CATALOG
+        .lookup_format_id(outer_fid)
+        .map(|m| m.label.as_str())
+        .unwrap_or_else(|| outer_fid.title().unwrap_or(outer_fid.ident()));
+    format!("{directive}: \"{inner_label}\" > \"{outer_label}\"")
+}
+
+/// Builds a `DetectionCandidate` representing a compound format (e.g. `TarGz`).
+#[must_use]
+pub fn build_compound_candidate(
+    compound_fid: FormatId,
+    inner_cand: &DetectionCandidate,
+    outer_cand: &DetectionCandidate,
+) -> DetectionCandidate {
+    let mapping = FORMAT_CATALOG.lookup_format_id(compound_fid);
+    let desc = mapping
+        .map(|m| m.label.clone())
+        .unwrap_or_else(|| format!("{} ({})", inner_cand.description, outer_cand.description));
+    let mime = mapping
+        .and_then(|m| m.mime_types.first().cloned())
+        .or_else(|| inner_cand.mime.clone());
+
+    DetectionCandidate {
+        format_id: Some(compound_fid),
+        dc_id: compound_fid.dc_id(),
+        mime,
+        description: desc,
+        confidence: ConfidenceTier::HighestConfidence,
+        score: 95,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: format!(
+                "Decompressed payload identified as compound format {:?} [{}]",
+                compound_fid,
+                compound_fid.shorthand()
+            ),
+            score: 95,
+        }],
+    }
+}
+
+/// Builds a `DetectionCandidate` representing an arbitrary format chain (`@chain(inner > outer)`).
+#[must_use]
+pub fn build_format_chain_candidate(
+    inner_cand: &DetectionCandidate,
+    outer_cand: &DetectionCandidate,
+    inner_fid: FormatId,
+    outer_fid: FormatId,
+) -> DetectionCandidate {
+    let pretty_desc = format_chain_pretty(inner_fid, outer_fid);
+    let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+    let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
+    let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
+
+    DetectionCandidate {
+        format_id: None,
+        dc_id: None,
+        mime: Some(chain_mime),
+        description: pretty_desc,
+        confidence: ConfidenceTier::Strong,
+        score: 94,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: format!(
+                "Decompressed format chain {} validated",
+                format_chain_directive(inner_fid, outer_fid)
+            ),
+            score: 94,
+        }],
+    }
+}
+
+/// Builds a `DetectionCandidate` adhering to UNIX `file` compatibility mode conventions.
+#[must_use]
+pub fn build_compat_candidate(
+    inner_cand: &DetectionCandidate,
+    outer_cand: &DetectionCandidate,
+    uncompress_noreport: bool,
+) -> DetectionCandidate {
+    if uncompress_noreport {
+        // -Z mode: report inner description and MIME only
+        let mut cand = inner_cand.clone();
+        cand.score = cand.score.max(outer_cand.score);
+        cand.confidence = ConfidenceTier::HighestConfidence;
+        cand
     } else {
-        match report.candidates.first() {
-            Some(cand) => std::slice::from_ref(cand),
-            None => &[],
-        }
-    };
+        // -z mode: report `<inner_desc> (<outer_desc>)`
+        let desc = format!("{} ({})", inner_cand.description, outer_cand.description);
+        let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+        let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
+        let mime = format!("{inner_mime} compressed-encoding={outer_mime}");
 
-    if candidates.is_empty() {
-        let (desc, mime) = match &report.outcome {
-            DetectionOutcome::InsufficientData {
-                available_bytes, ..
-            } if *available_bytes == 0 => ("empty", "application/x-empty"),
-            _ => ("data", "application/octet-stream"),
-        };
-
-        let text = if args.mime { mime } else { desc };
-        if args.brief {
-            let _ = writeln!(output, "{text}");
-        } else {
-            let _ = writeln!(output, "{display_name}: {text}");
-        }
-        return;
-    }
-
-    for (cand_idx, cand) in candidates.iter().enumerate() {
-        // Reason for fallback: format candidates without an explicit MIME subtype fall back to standard application/octet-stream in compat mode
-        let text = if args.mime {
-            cand.mime.as_deref().unwrap_or("application/octet-stream")
-        } else {
-            &cand.description
-        };
-
-        if args.brief {
-            let _ = writeln!(output, "{text}");
-        } else if cand_idx == 0 || !args.all {
-            let _ = writeln!(output, "{display_name}: {text}");
-        } else {
-            // Continuation line for file -k
-            let _ = writeln!(output, "-: {text}");
+        DetectionCandidate {
+            format_id: inner_cand.format_id,
+            dc_id: inner_cand.dc_id,
+            mime: Some(mime),
+            description: desc,
+            confidence: ConfidenceTier::HighestConfidence,
+            score: outer_cand.score.max(inner_cand.score),
+            evidence: inner_cand.evidence.clone(),
         }
     }
 }
 
-fn render_rich_output(
-    output: &mut String,
-    display_name: &str,
-    path: &Path,
-    report: &DetectionReport,
-    args: &FileDetectionArgs,
-) {
-    let _ = writeln!(output, "=== {display_name} ===");
+/// Probes a compressed source, decompressing up to the configured limit and recursively
+/// identifying the inner payload format.
+pub fn probe_decompression_candidates<S: DetectionSource + ?Sized, FReport>(
+    source: &mut S,
+    outer_candidates: &[DetectionCandidate],
+    hint: Option<&DetectionHint>,
+    mut run_inner_report: FReport,
+) -> Result<Vec<DetectionCandidate>>
+where
+    FReport: FnMut(&mut dyn DetectionSource, Option<&DetectionHint>) -> Result<DetectionReport>,
+{
+    let compat = hint.map_or(false, |h| h.compat);
+    let uncompress = hint.map_or(false, |h| h.uncompress);
+    let uncompress_noreport = hint.map_or(false, |h| h.uncompress_noreport);
+    let depth = hint.map_or(0, |h| h.recursion_depth);
 
-    match &report.outcome {
-        DetectionOutcome::Matched(candidates) => {
-            let _ = writeln!(
-                output,
-                "Outcome:          Matched ({} candidate{}) | Bytes Evaluated: {}",
-                candidates.len(),
-                if candidates.len() == 1 { "" } else { "s" },
-                report.bytes_evaluated
-            );
-        }
-        DetectionOutcome::InsufficientData {
-            available_bytes,
-            required_bytes,
-        } => {
-            let _ = writeln!(
-                output,
-                "Outcome:          Insufficient Data (available: {available_bytes}, required: {required_bytes}) | Bytes Evaluated: {}",
-                report.bytes_evaluated
-            );
-        }
-        DetectionOutcome::QuotaExhausted { quota_type, limit } => {
-            let _ = writeln!(
-                output,
-                "Outcome:          Quota Exhausted ({quota_type:?}, limit: {limit}) | Bytes Evaluated: {}",
-                report.bytes_evaluated
-            );
-        }
-        DetectionOutcome::ReadError { offset, message } => {
-            let _ = writeln!(
-                output,
-                "Outcome:          Read Error at offset {offset}: {message} | Bytes Evaluated: {}",
-                report.bytes_evaluated
-            );
-        }
-        DetectionOutcome::TrueNegative { bytes_inspected } => {
-            let _ = writeln!(
-                output,
-                "Outcome:          True Negative (unidentified data, bytes inspected: {bytes_inspected}) | Bytes Evaluated: {}",
-                report.bytes_evaluated
-            );
-        }
+    // In compat mode, do NOT decompress unless -z or -Z is passed
+    if compat && !uncompress && !uncompress_noreport {
+        return Ok(Vec::new());
     }
 
-    if let Some(top) = report.candidates.first() {
-        let _ = writeln!(output, "\nTop Detection:");
-        if let Some(fid) = top.format_id {
-            let _ = writeln!(
-                output,
-                "  Format:         {fid:?} [{}]",
-                fid.shorthand()
-            );
-        } else {
-            let _ = writeln!(output, "  Format:         Unassigned");
-        }
+    if depth >= MAX_DECOMPRESSION_DEPTH {
+        return Ok(Vec::new());
+    }
 
-        if let Some(dc) = top.dc_id {
-            let _ = writeln!(output, "  Dc ID:          {dc}");
-        }
+    // Locate the candidate outer compression format
+    let outer_cand = outer_candidates.iter().find(|c| {
+        c.format_id
+            .map_or(false, ctb_formats_compression::is_supported)
+    });
 
-        if let Some(mime) = &top.mime {
-            let _ = writeln!(output, "  MIME Type:      {mime}");
-        }
+    let (outer_fid, outer_candidate_ref) = if let Some(cand) = outer_cand {
+        (cand.format_id.unwrap_or(FormatId::Gzip), cand)
+    } else {
+        // Fallback: check extension from hint
+        let ext_fmt = hint
+            .and_then(|h| h.extension.as_deref().or(h.filename.as_deref()))
+            .and_then(|name| {
+                let clean = name.trim().trim_start_matches('.');
+                let last_ext = clean.rsplit('.').next().unwrap_or(clean);
+                FormatId::from_ident(last_ext)
+            })
+            .filter(|&fid| ctb_formats_compression::is_supported(fid));
 
-        let _ = writeln!(
-            output,
-            "  Confidence:     {:?} (Score: {}/100)",
-            top.confidence, top.score
-        );
-        let _ = writeln!(output, "  Description:    {}", top.description);
-
-        let _ = writeln!(output, "\nCandidates Ranked by Likelihood:");
-        for (idx, cand) in report.candidates.iter().enumerate() {
-            let label = if let Some(fid) = cand.format_id {
-                format!("{fid:?} ({})", fid.shorthand())
-            } else {
-                cand.description.clone()
+        if let Some(fid) = ext_fmt {
+            // Synthesize an outer candidate
+            let desc = FORMAT_CATALOG
+                .lookup_format_id(fid)
+                .map(|m| m.label.clone())
+                .unwrap_or_else(|| format!("{:?} compressed data", fid));
+            let mime = FORMAT_CATALOG
+                .lookup_format_id(fid)
+                .and_then(|m| m.mime_types.first().cloned());
+            let synth = DetectionCandidate {
+                format_id: Some(fid),
+                dc_id: fid.dc_id(),
+                mime,
+                description: desc,
+                confidence: ConfidenceTier::Moderate,
+                score: 80,
+                evidence: Vec::new(),
             };
+            // Note: will use synth as outer_cand
+            return Ok(Vec::new());
+        } else {
+            return Ok(Vec::new());
+        }
+    };
 
-            // Reason for fallback: candidates lacking a registered MIME type display a placeholder dash in the candidates summary
-            let mime_str = cand.mime.as_deref().unwrap_or("-");
-            let _ = writeln!(
-                output,
-                "  {}. {} (Confidence: {:?}, Score: {}/100, MIME: {})",
-                idx.saturating_add(1),
-                label,
-                cand.confidence,
-                cand.score,
-                mime_str
-            );
+    let limit = hint
+        .and_then(|h| h.decompress_byte_limit)
+        .unwrap_or(DEFAULT_DECOMPRESS_BYTE_LIMIT);
 
-            if !cand.evidence.is_empty() {
-                let _ = writeln!(output, "     Evidence:");
-                for ev in &cand.evidence {
-                    let _ = writeln!(output, "       • {}", format_evidence(ev));
-                }
-            }
+    let Some(decompressed) = decompress_bounded(source, outer_fid, limit)? else {
+        return Ok(Vec::new());
+    };
+
+    if decompressed.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Prepare inner detection hint
+    let mut inner_hint = hint.cloned().unwrap_or_default();
+    inner_hint.recursion_depth = depth.saturating_add(1);
+    inner_hint.uncompress = false;
+    inner_hint.uncompress_noreport = false;
+
+    // Strip outer compression extension from filename if present
+    if let Some(filename) = &inner_hint.filename {
+        let stripped = if let Some((stem, _)) = filename.rsplit_once('.') {
+            stem.to_string()
+        } else {
+            filename.clone()
+        };
+        inner_hint.extension = stripped.rsplit_once('.').map(|(_, ext)| ext.to_string());
+        inner_hint.filename = Some(stripped);
+    }
+
+    let mut inner_source = decompressed.as_slice();
+    let inner_report = run_inner_report(&mut inner_source, Some(&inner_hint))?;
+
+    let inner_cand = inner_report.candidates.first();
+
+    let mut results = Vec::new();
+
+    if compat {
+        if let Some(inner) = inner_cand {
+            results.push(build_compat_candidate(
+                inner,
+                outer_candidate_ref,
+                uncompress_noreport,
+            ));
+        } else {
+            let synth_inner = DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/octet-stream".to_string()),
+                description: "data".to_string(),
+                confidence: ConfidenceTier::Weak,
+                score: 20,
+                evidence: Vec::new(),
+            };
+            results.push(build_compat_candidate(
+                &synth_inner,
+                outer_candidate_ref,
+                uncompress_noreport,
+            ));
         }
     } else {
-        let _ = writeln!(output, "  Description:    data");
+        // Default rich mode: generate compound candidate and format chain candidate
+        if let Some(inner) = inner_cand {
+            if let Some(inner_fid) = inner.format_id {
+                if let Some(compound_fid) = resolve_compound_format(inner_fid, outer_fid) {
+                    results.push(build_compound_candidate(
+                        compound_fid,
+                        inner,
+                        outer_candidate_ref,
+                    ));
+                }
+                results.push(build_format_chain_candidate(
+                    inner,
+                    outer_candidate_ref,
+                    inner_fid,
+                    outer_fid,
+                ));
+            } else {
+                // Inner candidate has no registered FormatId (e.g. arbitrary text / data)
+                let desc = format!("{} ({})", inner.description, outer_candidate_ref.description);
+                let inner_mime = inner.mime.as_deref().unwrap_or("application/octet-stream");
+                let outer_mime = outer_candidate_ref.mime.as_deref().unwrap_or("application/octet-stream");
+                let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
+                results.push(DetectionCandidate {
+                    format_id: None,
+                    dc_id: None,
+                    mime: Some(chain_mime),
+                    description: desc,
+                    confidence: ConfidenceTier::Strong,
+                    score: 94,
+                    evidence: vec![DetectionEvidence::ContainerStructure {
+                        detail: format!(
+                            "Decompressed payload identified as {} inside {:?}",
+                            inner.description, outer_fid
+                        ),
+                        score: 94,
+                    }],
+                });
+            }
+        }
     }
 
-    // Format chains if available
-    let path_str = path.to_string_lossy();
-    let chains = guess_format_chains(&path_str, None);
-    if !chains.is_empty() {
-        let _ = writeln!(output, "\nFormat Chain(s):");
-        for chain in chains {
-            let layers_str: Vec<String> =
-                chain.layers.iter().map(|f| format!("{f:?}")).collect();
-            let _ = writeln!(
-                output,
-                "  • {} (score: {})",
-                layers_str.join(" > "),
-                chain.score
-            );
-        }
-    }
-}
-
-fn format_evidence(ev: &DetectionEvidence) -> String {
-    match ev {
-        DetectionEvidence::FileMagic { description, score } => {
-            format!("FileMagic (upstream Magdir): {description} (score: {score})")
-        }
-        DetectionEvidence::CtbMagic { description, score } => {
-            format!("CtbMagic (ctoolbox.magic): {description} (score: {score})")
-        }
-        DetectionEvidence::CtbRule { description, score } => {
-            format!("CtbRule: {description} (score: {score})")
-        }
-        DetectionEvidence::Extension {
-            ext,
-            is_primary,
-            score,
-        } => {
-            format!(
-                "Extension: .{ext} (primary: {is_primary}, score: {score})"
-            )
-        }
-        DetectionEvidence::PlatformPrior { platform, score } => {
-            format!("PlatformPrior: {platform:?} (score: {score})")
-        }
-        DetectionEvidence::CategoryMatch { category, score } => {
-            format!("CategoryMatch: {category:?} (score: {score})")
-        }
-        DetectionEvidence::AppleTypeCode { code, score } => {
-            let code_str = String::from_utf8_lossy(code);
-            format!("AppleTypeCode: '{code_str}' (score: {score})")
-        }
-        DetectionEvidence::Encoding { encoding, score } => {
-            format!("Encoding: {encoding} (score: {score})")
-        }
-        DetectionEvidence::TextProperties {
-            line_ending,
-            has_long_lines,
-            has_escapes,
-            score,
-        } => {
-            format!(
-                "TextProperties: line_ending={line_ending:?}, long_lines={has_long_lines}, escapes={has_escapes} (score: {score})"
-            )
-        }
-        DetectionEvidence::SpecialFile { kind, score } => {
-            format!("SpecialFile: {kind} (score: {score})")
-        }
-        DetectionEvidence::ContainerStructure { detail, score } => {
-            format!("ContainerStructure: {detail} (score: {score})")
-        }
-        DetectionEvidence::DualAnchored {
-            bof_offset,
-            eof_offset,
-            score,
-        } => {
-            format!("DualAnchored: BOF={bof_offset}, EOF={eof_offset:?} (score: {score})")
-        }
-        DetectionEvidence::ByteRange {
-            start,
-            end,
-            label,
-            score,
-        } => {
-            format!("ByteRange: [{start}..{end}] {label} (score: {score})")
-        }
-        DetectionEvidence::Polyglot {
-            formats,
-            detail,
-            score,
-        } => {
-            format!("Polyglot: formats={formats:?}, {detail} (score: {score})")
-        }
-        DetectionEvidence::Pronom { puid, score } => {
-            format!("Pronom (DROID): {puid} (score: {score})")
-        }
-        DetectionEvidence::AttachedStream {
-            stream_kind_name,
-            detail,
-            score,
-        } => {
-            format!("AttachedStream: {stream_kind_name} ({detail}, score: {score})")
-        }
-        DetectionEvidence::SubsumedAncestor {
-            parent_id,
-            parent_mime,
-            score,
-        } => {
-            format!("SubsumedAncestor: parent_id={parent_id:?}, mime={parent_mime:?} (score: {score})")
-        }
-    }
+    Ok(results)
 }
 
 #[cfg(test)]
@@ -856,86 +904,225 @@ fn format_evidence(ev: &DetectionEvidence) -> String {
 )]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
+    use crate::detection::guess_format_report;
 
-    #[crate::ctb_test]
-    fn test_cli_compat_output_regular_file() {
-        let mut file = NamedTempFile::new().unwrap();
-        writeln!(file, "Hello, world! This is plain text.").unwrap();
+    fn make_test_tar_bytes() -> Vec<u8> {
+        let mut tar_bytes = vec![0u8; 512];
+        tar_bytes[..5].copy_from_slice(b"hello");
+        tar_bytes[257..263].copy_from_slice(b"ustar\0");
 
-        let args = FileDetectionArgs {
-            files: vec![file.path().to_path_buf()],
-            compat: true,
-            mime: false,
-            brief: false,
-            all: false,
-            uncompress: false,
-            uncompress_noreport: false,
-        };
-
-        let res = run_file_detection(&args).unwrap();
-        match res {
-            ToolResult::Immediate { stdout, .. } => {
-                let out_str = String::from_utf8(stdout).unwrap();
-                assert!(out_str.contains("ASCII text") || out_str.contains("text"));
-                assert!(out_str.starts_with(&file.path().display().to_string()));
+        let mut sum: u32 = 0;
+        for (i, &b) in tar_bytes.iter().enumerate() {
+            if (148..156).contains(&i) {
+                sum = sum.saturating_add(u32::from(b' '));
+            } else {
+                sum = sum.saturating_add(u32::from(b));
             }
-            _ => panic!("Expected ToolResult::Immediate"),
         }
+        let chksum_str = format!("{sum:06o}\0 ");
+        tar_bytes[148..156].copy_from_slice(chksum_str.as_bytes());
+        tar_bytes
     }
 
-    #[crate::ctb_test]
-    fn test_cli_compat_brief_mime_output() {
-        let mut file = NamedTempFile::new().unwrap();
-        writeln!(file, "Hello, world!").unwrap();
-
-        let args = FileDetectionArgs {
-            files: vec![file.path().to_path_buf()],
-            compat: true,
-            mime: true,
-            brief: true,
-            all: false,
-            uncompress: false,
-            uncompress_noreport: false,
-        };
-
-        let res = run_file_detection(&args).unwrap();
-        match res {
-            ToolResult::Immediate { stdout, .. } => {
-                let out_str = String::from_utf8(stdout).unwrap();
-                assert!(out_str.starts_with("text/plain"));
-                assert!(!out_str.contains(&file.path().display().to_string()));
-            }
-            _ => panic!("Expected ToolResult::Immediate"),
-        }
+    #[ctb_test]
+    fn test_bounded_writer_limits() {
+        let mut writer = BoundedWriter::new(10);
+        assert_eq!(writer.write(b"12345").unwrap(), 5);
+        assert!(!writer.is_limit_reached());
+        assert_eq!(writer.write(b"67890123").unwrap(), 5);
+        assert!(writer.is_limit_reached());
+        assert!(writer.write(b"more").is_err());
+        assert_eq!(writer.into_inner(), b"1234567890");
     }
 
-    #[crate::ctb_test]
-    fn test_cli_rich_output() {
-        let mut file = NamedTempFile::new().unwrap();
-        file.write_all(b"{\"name\": \"test\", \"value\": 42}").unwrap();
+    #[ctb_test]
+    fn test_compound_format_resolution() {
+        assert_eq!(
+            resolve_compound_format(FormatId::Tar, FormatId::Gzip),
+            Some(FormatId::TarGz)
+        );
+        assert_eq!(
+            resolve_compound_format(FormatId::Tar, FormatId::CompressLzw),
+            Some(FormatId::TarZ)
+        );
+        assert_eq!(
+            resolve_compound_format(FormatId::Tar, FormatId::CompressLzw16),
+            Some(FormatId::TarZ)
+        );
+        assert_eq!(
+            resolve_compound_format(FormatId::Tar, FormatId::Bzip2),
+            Some(FormatId::TarBz2)
+        );
+        assert_eq!(
+            resolve_compound_format(FormatId::Tar, FormatId::Lzo),
+            Some(FormatId::TarLzo)
+        );
+        assert_eq!(
+            resolve_compound_format(FormatId::Json, FormatId::Zstd),
+            None
+        );
+    }
 
-        let args = FileDetectionArgs {
-            files: vec![file.path().to_path_buf()],
-            compat: false,
-            mime: false,
-            brief: false,
-            all: false,
-            uncompress: false,
-            uncompress_noreport: false,
+    #[ctb_test]
+    fn test_format_chain_directive_and_pretty() {
+        let directive =
+            format_chain_directive(FormatId::Tar, FormatId::CompressLzw16);
+        assert_eq!(directive, "@chain(f161 > f44)");
+
+        let expr = parse_format_expr(&directive)
+            .expect("Should parse chain directive");
+        validate_format_expr(&expr).expect("Should validate chain expression");
+
+        let pretty =
+            format_chain_pretty(FormatId::Tar, FormatId::CompressLzw16);
+        assert!(pretty.starts_with("@chain(f161 > f44):"));
+        assert!(pretty.contains("tar"));
+    }
+
+    #[ctb_test]
+    fn test_decompression_probe_targz_compat_and_rich() {
+        let tar_data = make_test_tar_bytes();
+        let gz_bytes =
+            ctb_formats_compression::compress(&tar_data, FormatId::Gzip)
+                .expect("Compression should succeed");
+
+        // 1. Compat mode without -z / -Z: no decompression
+        let compat_hint = DetectionHint {
+            compat: true,
+            ..Default::default()
         };
+        let rep1 = guess_format_report(
+            &mut gz_bytes.as_slice(),
+            Some(&compat_hint),
+        )
+        .unwrap();
+        eprintln!("DEBUG rep1 candidates: {:?}", rep1.candidates);
+        assert_eq!(rep1.candidates[0].format_id, Some(FormatId::Gzip));
+        assert!(rep1.candidates[0].description.contains("gzip"));
 
-        let res = run_file_detection(&args).unwrap();
-        match res {
-            ToolResult::Immediate { stdout, .. } => {
-                let out_str = String::from_utf8(stdout).unwrap();
-                assert!(out_str.contains("Top Detection:"));
-                assert!(out_str.contains("Candidates Ranked by Likelihood:"));
-                assert!(out_str.contains("Score:"));
-            }
-            _ => panic!("Expected ToolResult::Immediate"),
-        }
+        // 2. Compat mode with -z: reports `<inner> (<outer>)`
+        let z_hint = DetectionHint {
+            compat: true,
+            uncompress: true,
+            ..Default::default()
+        };
+        let rep2 =
+            guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
+                .unwrap();
+        assert!(rep2.candidates[0].description.contains("tar archive"));
+        assert!(rep2.candidates[0].description.contains("(gzip"));
+        assert!(
+            rep2.candidates[0]
+                .mime
+                .as_deref()
+                .unwrap()
+                .contains("compressed-encoding=")
+        );
+
+        // 3. Compat mode with -Z: reports `<inner>` only
+        let cap_z_hint = DetectionHint {
+            compat: true,
+            uncompress_noreport: true,
+            ..Default::default()
+        };
+        let rep3 =
+            guess_format_report(&mut gz_bytes.as_slice(), Some(&cap_z_hint))
+                .unwrap();
+        assert!(rep3.candidates[0].description.contains("tar archive"));
+        assert!(!rep3.candidates[0].description.contains("(gzip"));
+
+        // 4. Default rich mode: compound format TarGz is top, followed by format chain
+        let rep4 =
+            guess_format_report(&mut gz_bytes.as_slice(), None).unwrap();
+        assert_eq!(rep4.candidates[0].format_id, Some(FormatId::TarGz));
+        assert!(
+            rep4.candidates
+                .iter()
+                .any(|c| c.description.contains("@chain(f161 > f35)"))
+        );
+    }
+
+    #[ctb_test]
+    fn test_decompression_probe_tar_bzip2() {
+        let tar_data = make_test_tar_bytes();
+        let bz2_bytes =
+            ctb_formats_compression::compress(&tar_data, FormatId::Bzip2)
+                .expect("Compression should succeed");
+
+        // Default rich mode: TarBz2 is top, format chain is present
+        let rep = guess_format_report(&mut bz2_bytes.as_slice(), None).unwrap();
+        eprintln!("DEBUG tar_bzip2 candidates: {:?}", rep.candidates);
+        assert_eq!(rep.candidates[0].format_id, Some(FormatId::TarBz2));
+        assert!(
+            rep.candidates
+                .iter()
+                .any(|c| c.description.contains("@chain(f161 > f38)"))
+        );
+
+        // Compat -z mode
+        let z_hint = DetectionHint {
+            compat: true,
+            uncompress: true,
+            ..Default::default()
+        };
+        let rep_z =
+            guess_format_report(&mut bz2_bytes.as_slice(), Some(&z_hint))
+                .unwrap();
+        assert!(rep_z.candidates[0].description.contains("tar archive"));
+        assert!(rep_z.candidates[0].description.contains("(bzip2"));
+    }
+
+    #[ctb_test]
+    fn test_decompression_probe_json_zstd() {
+        let json_data = br#"{"name":"ctoolbox","version":1}"#;
+        let zst_bytes =
+            ctb_formats_compression::compress(json_data, FormatId::Zstd)
+                .expect("Zstd compression should succeed");
+
+        // Default rich mode: non-compound pair emits @chain(f... > f...)
+        let rep = guess_format_report(&mut zst_bytes.as_slice(), None).unwrap();
+        let top = &rep.candidates[0];
+        assert!(top.description.contains("@chain("));
+        assert!(top.description.contains("> f298)")); // Zstd is f298
+        assert!(top.description.contains("JSON"));
+
+        // Compat -z mode
+        let z_hint = DetectionHint {
+            compat: true,
+            uncompress: true,
+            ..Default::default()
+        };
+        let rep_z =
+            guess_format_report(&mut zst_bytes.as_slice(), Some(&z_hint))
+                .unwrap();
+        assert!(rep_z.candidates[0].description.contains("JSON"));
+        assert!(rep_z.candidates[0].description.contains("(Zstandard"));
+    }
+
+    #[ctb_test]
+    fn test_decompression_probe_shell_script_gzip() {
+        let script_data = b"#!/bin/sh\necho 'hello world'\n";
+        let gz_bytes =
+            ctb_formats_compression::compress(script_data, FormatId::Gzip)
+                .expect("Gzip compression should succeed");
+
+        // Default rich mode: non-compound pair emits @chain
+        let rep = guess_format_report(&mut gz_bytes.as_slice(), None).unwrap();
+        let top = &rep.candidates[0];
+        assert!(top.description.contains("@chain("));
+        assert!(top.description.contains("> f35)")); // Gzip is f35
+
+        // Compat -z mode
+        let z_hint = DetectionHint {
+            compat: true,
+            uncompress: true,
+            ..Default::default()
+        };
+        let rep_z =
+            guess_format_report(&mut gz_bytes.as_slice(), Some(&z_hint))
+                .unwrap();
+        assert!(rep_z.candidates[0].description.contains("script"));
+        assert!(rep_z.candidates[0].description.contains("(gzip"));
     }
 }
 /*

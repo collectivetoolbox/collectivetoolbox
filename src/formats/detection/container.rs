@@ -1509,55 +1509,6 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
 }
 
 // ---------------------------------------------------------------------------
-// 7. Transparent Payload Decompression Probe (`compress.c`)
-// ---------------------------------------------------------------------------
-
-/// Probes inside compressed streams to inspect inner payload format.
-pub fn probe_decompression<S: DetectionSource + ?Sized>(
-    source: &mut S,
-) -> Result<Option<DetectionCandidate>> {
-    let mut magic = [0u8; 4];
-    let n = source.read_at(0, &mut magic)?;
-    if n < 2 {
-        return Ok(None);
-    }
-
-    // Gzip probe: [0x1f, 0x8b]
-    if magic.starts_with(&[0x1F, 0x8B]) {
-        let mut compressed_buf = vec![0u8; 16384];
-        let c_len = source.read_at(0, &mut compressed_buf)?;
-        if let Some(data) = compressed_buf.get(..c_len) {
-            let mut decoder = flate2::read::GzDecoder::new(data);
-            let mut decompressed = vec![0u8; 2048];
-            if let Ok(d_len) = decoder.read(&mut decompressed) {
-                if d_len >= 512 {
-                    if let Some(mut slice) = decompressed.get(..d_len) {
-                        if let Ok(Some(inner_tar)) = inspect_tar(&mut slice) {
-                            return Ok(Some(DetectionCandidate {
-                                format_id: Some(FormatId::TarGz),
-                                dc_id: None,
-                                mime: Some("application/x-tar".to_string()),
-                                description: "POSIX tar archive (gzip compressed)".to_string(),
-                                confidence: ConfidenceTier::HighestConfidence,
-                                score: 95,
-                                evidence: vec![
-                                    DetectionEvidence::ContainerStructure {
-                                        detail: "Decompressed inner TAR header validated".to_string(),
-                                        score: 95,
-                                    },
-                                ],
-                            }));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(None)
-}
-
-// ---------------------------------------------------------------------------
 // 8. SIM-H Magnetic Tape Image Inspector (`is_simh.c`)
 // ---------------------------------------------------------------------------
 
@@ -1719,13 +1670,7 @@ pub fn detect_container_candidates<S: DetectionSource + ?Sized>(
 ) -> Result<Vec<DetectionCandidate>> {
     let mut candidates = Vec::new();
 
-    // 1. Transparent decompression probe
-    if let Ok(Some(decomp_cand)) = probe_decompression(source) {
-        candidates.push(decomp_cand);
-        return Ok(candidates);
-    }
-
-    // 2. ELF binary inspection
+    // 1. ELF binary inspection
     if let Ok(Some(elf_cand)) = inspect_elf(source) {
         candidates.push(elf_cand);
         return Ok(candidates);

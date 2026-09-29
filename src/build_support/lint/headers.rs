@@ -41,8 +41,8 @@ pub struct Violation {
 }
 
 /// Recursively find all source files excluding target, vendor, old,
-/// built, generated, .git, data directories without a Cargo.toml,
-/// third-party reference implementations, and patch files.
+/// built, generated, .git, data directories without code/Cargo.toml,
+/// and third-party reference implementations.
 pub fn find_files(
     dir: &Path,
     rs_files: &mut Vec<PathBuf>,
@@ -59,7 +59,9 @@ pub fn find_files(
         if path.is_dir() {
             let is_data_dir = name == Some("data");
             let has_cargo_toml = path.join("Cargo.toml").is_file();
-            if is_data_dir && !has_cargo_toml {
+            let is_compression_data = path.ends_with("formats/compression/data")
+                || path.ends_with("compression/data");
+            if is_data_dir && !has_cargo_toml && !is_compression_data {
                 continue;
             }
 
@@ -71,8 +73,9 @@ pub fn find_files(
                 || name == Some("generated")
                 || name == Some("node_modules")
                 || name == Some("reference-implementations")
-                || name == Some("patches")
                 || name == Some("construct")
+                || name == Some("upstream")
+                || name == Some("skeletons")
                 || name.is_some_and(|n| n.starts_with("viuer"))
             {
                 continue;
@@ -1882,6 +1885,280 @@ mod tests {
         let doc_result =
             check_module_docblock(&header_after_darwin, &parsed_header);
         assert!(doc_result.is_ok());
+    }
+
+    #[test]
+    fn test_lint_shell_file_valid() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_valid_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let sub_dir = temp_dir.join("scripts");
+        fs::create_dir_all(&sub_dir).unwrap();
+        let script_path = sub_dir.join("test-script");
+
+        let content = format!(
+            "#!/usr/bin/env bash\n{HASH_AGPL_HEADER}\n\n# Purpose comment\nset -euo pipefail\n\ncd \"$(dirname \"$(readlink -f \"${{BASH_SOURCE[0]}}\")\")/..\" || exit 1\n"
+        );
+        fs::write(&script_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
+        assert!(violations.is_empty(), "Unexpected violations: {violations:?}");
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_shell_file_rejects_missing_hash_agpl_header() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_invalid_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let sub_dir = temp_dir.join("scripts");
+        fs::create_dir_all(&sub_dir).unwrap();
+        let script_path = sub_dir.join("test-compressors-old");
+
+        // Only SPDX-License-Identifier without the required full HASH_AGPL_HEADER block
+        let content = "#!/usr/bin/env bash\n# SPDX-License-Identifier: AGPL-3.0-or-later\n#\n# Comment\nset -euo pipefail\n\ncd \"$(dirname \"$(readlink -f \"${BASH_SOURCE[0]}\")\")/..\" || exit 1\n";
+        fs::write(&script_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Missing or invalid AGPL license header in shell script"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_shell_file_rejects_invalid_shebang_and_missing_cd() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_sh_shebang_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let script_path = temp_dir.join("bad-script.sh");
+
+        let content = format!(
+            "#!/bin/sh\n{HASH_AGPL_HEADER}\n\nset -euo pipefail\n\necho 'missing cd'\n"
+        );
+        fs::write(&script_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_shell_file(&script_path, &temp_dir, &allowed, &mut violations).unwrap();
+        assert!(violations.iter().any(|v| v.message.contains("Shell script shebang must be `#!/usr/bin/env bash`")));
+        assert!(violations.iter().any(|v| v.message.contains("Expected `cd")));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_scm_file_valid() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_valid_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let scm_path = temp_dir.join("patch.scm");
+
+        let content = format!("{SCHEME_GPL_HEADER}\n\n;;; Purpose of this patch module\n(define-module (test))\n");
+        fs::write(&scm_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("GPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
+        assert!(violations.is_empty(), "Unexpected violations: {violations:?}");
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_scm_file_rejects_missing_header() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_invalid_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let scm_path = temp_dir.join("patch.scm");
+
+        let content = ";;; Missing GPL header\n(define-module (test))\n";
+        fs::write(&scm_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("GPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Missing or invalid Scheme GPL license header"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_scm_file_rejects_missing_purpose_comment() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_scm_no_comment_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let scm_path = temp_dir.join("patch.scm");
+
+        let content = format!("{SCHEME_GPL_HEADER}\n\n(define-module (test))\n");
+        fs::write(&scm_path, content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("GPL-3.0-or-later".to_string());
+        let mut violations = Vec::new();
+        lint_scm_file(&scm_path, &allowed, &mut violations).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Expected file purpose comment"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_python_file_valid_and_invalid() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_py_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let valid_py = temp_dir.join("valid.py");
+        let invalid_py = temp_dir.join("invalid.py");
+
+        let valid_content = format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\n\"\"\"Docstring\"\"\"\n");
+        fs::write(&valid_py, valid_content).unwrap();
+
+        let invalid_content = "#!/usr/bin/env python3\n\"\"\"Docstring without license\"\"\"\n";
+        fs::write(&invalid_py, invalid_content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+
+        let mut violations = Vec::new();
+        lint_python_file(&valid_py, &allowed, &mut violations).unwrap();
+        assert!(violations.is_empty());
+
+        lint_python_file(&invalid_py, &allowed, &mut violations).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Missing or invalid AGPL license header in Python script"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_lint_docker_file_valid_and_invalid() {
+        let temp_dir = std::env::temp_dir().join(format!("test_lint_docker_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+        let valid_df = temp_dir.join("Dockerfile");
+        let invalid_df = temp_dir.join("Dockerfile.bad");
+
+        let valid_content = format!("{HASH_AGPL_HEADER}\n\nFROM alpine:latest\n");
+        fs::write(&valid_df, valid_content).unwrap();
+
+        let invalid_content = "FROM alpine:latest\n";
+        fs::write(&invalid_df, invalid_content).unwrap();
+
+        let mut allowed = BTreeSet::new();
+        allowed.insert("AGPL-3.0-or-later".to_string());
+
+        let mut violations = Vec::new();
+        lint_docker_file(&valid_df, &allowed, &mut violations).unwrap();
+        assert!(violations.is_empty());
+
+        lint_docker_file(&invalid_df, &allowed, &mut violations).unwrap();
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("Missing or invalid AGPL license header in Dockerfile"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_find_files_includes_compression_scripts_and_patches_scheme() {
+        let temp_dir = std::env::temp_dir().join(format!("test_find_files_coverage_{}", std::process::id()));
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        // 1. Scheme patch under scripts/guix/patches/
+        let patches_dir = temp_dir.join("scripts/guix/patches");
+        fs::create_dir_all(&patches_dir).unwrap();
+        let patch_file = patches_dir.join("abseil-cpp.scm");
+        fs::write(&patch_file, ";;; test patch\n").unwrap();
+
+        // 2. Extensionless script under formats/compression/data/fixtures/
+        let comp_fixtures_dir = temp_dir.join("src/formats/compression/data/fixtures");
+        fs::create_dir_all(&comp_fixtures_dir).unwrap();
+        let test_compressors = comp_fixtures_dir.join("test-compressors");
+        fs::write(&test_compressors, "#!/usr/bin/env bash\necho test\n").unwrap();
+
+        // 3. Python file in compression data fixtures
+        let oracle_py = comp_fixtures_dir.join("codec-oracle.py");
+        fs::write(&oracle_py, "#!/usr/bin/env python3\n").unwrap();
+
+        // 4. Other data directory without Cargo.toml (should be skipped)
+        let other_data_dir = temp_dir.join("src/formats/other/data");
+        fs::create_dir_all(&other_data_dir).unwrap();
+        let other_file = other_data_dir.join("ignored.rs");
+        fs::write(&other_file, "fn dummy() {}\n").unwrap();
+
+        // 5. Vendor directory (should be skipped)
+        let vendor_dir = temp_dir.join("vendor/some_crate");
+        fs::create_dir_all(&vendor_dir).unwrap();
+        let vendor_file = vendor_dir.join("lib.rs");
+        fs::write(&vendor_file, "fn vendor() {}\n").unwrap();
+
+        let mut rs_files = Vec::new();
+        let mut scm_files = Vec::new();
+        let mut docker_files = Vec::new();
+        let mut shell_files = Vec::new();
+        let mut python_files = Vec::new();
+        let mut violations = Vec::new();
+
+        find_files(
+            &temp_dir,
+            &mut rs_files,
+            &mut scm_files,
+            &mut docker_files,
+            &mut shell_files,
+            &mut python_files,
+            &mut violations,
+        ).unwrap();
+
+        assert_eq!(scm_files, vec![patch_file]);
+        assert_eq!(shell_files, vec![test_compressors]);
+        assert_eq!(python_files, vec![oracle_py]);
+        assert!(rs_files.is_empty(), "Other data and vendor should be excluded from rs_files");
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_repo_find_files_covers_test_compressors_and_scheme_patches() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let repo_root = repo_root.canonicalize().unwrap();
+
+        let mut rs_files = Vec::new();
+        let mut scm_files = Vec::new();
+        let mut docker_files = Vec::new();
+        let mut shell_files = Vec::new();
+        let mut python_files = Vec::new();
+        let mut violations = Vec::new();
+
+        find_files(
+            &repo_root,
+            &mut rs_files,
+            &mut scm_files,
+            &mut docker_files,
+            &mut shell_files,
+            &mut python_files,
+            &mut violations,
+        ).unwrap();
+
+        let has_test_compressors = shell_files.iter().any(|p| {
+            p.ends_with("src/formats/compression/data/fixtures/test-compressors")
+        });
+        assert!(has_test_compressors, "find_files must include test-compressors in shell_files");
+
+        let has_generate_fixtures = shell_files.iter().any(|p| {
+            p.ends_with("src/formats/compression/data/fixtures/generate-compression-fixtures")
+        });
+        assert!(has_generate_fixtures, "find_files must include generate-compression-fixtures in shell_files");
+
+        let patch_scm_count = scm_files.iter().filter(|p| {
+            p.to_string_lossy().contains("scripts/guix/patches")
+        }).count();
+        assert!(
+            patch_scm_count >= 80,
+            "find_files must find all Scheme files in scripts/guix/patches, found {patch_scm_count}"
+        );
     }
 }
 

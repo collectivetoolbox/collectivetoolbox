@@ -607,6 +607,16 @@ pub struct DetectionHint {
     pub stream_candidates: Vec<DetectionCandidate>,
     pub special_kind: Option<String>,
     pub file_origin: Option<ctb_io_file::FileOrigin>,
+    /// Whether transparent decompression inspection is requested (like `file -z`).
+    pub uncompress: bool,
+    /// Whether decompression inspection should suppress outer format reporting (like `file -Z`).
+    pub uncompress_noreport: bool,
+    /// Maximum byte limit for bounded decompression inspection (defaults to 1 MiB).
+    pub decompress_byte_limit: Option<usize>,
+    /// Current recursion depth of payload peeling / decompression.
+    pub recursion_depth: usize,
+    /// Whether detection should strictly emulate standard UNIX `file` output.
+    pub compat: bool,
 }
 
 impl DetectionHint {

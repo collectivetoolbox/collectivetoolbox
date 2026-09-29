@@ -22,7 +22,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 use ctb_formats_utilities::format_info::FormatInfoOptionExt;
-use std::path::Path;
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
@@ -132,6 +131,15 @@ pub fn parse_compression_format(s: &str) -> Result<FormatId> {
     for fid in lookup_format_by_extension(clean) {
         if is_supported(fid) {
             return Ok(fid);
+        }
+    }
+    for &fid in SUPPORTED {
+        if let Some(info) = fid.format_info() {
+            for nick in info.sorted_nicknames() {
+                if nick.eq_ignore_ascii_case(clean) {
+                    return Ok(fid);
+                }
+            }
         }
     }
     bail!("Unknown compression format: '{s}'")

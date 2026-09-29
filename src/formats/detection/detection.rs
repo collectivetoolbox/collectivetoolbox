@@ -631,6 +631,7 @@ pub mod types;
 pub mod file_upstream_suite;
 pub mod cli;
 pub mod der;
+pub mod decompression;
 
 pub use platform::{current_platform_os, format_matches_platform, is_os_match};
 pub use source::{DetectionSource, EmptySource};
@@ -638,6 +639,7 @@ pub use types::*;
 
 use self::conflict::resolve_candidate_conflicts;
 use self::container::detect_container_candidates;
+use self::decompression::probe_decompression_candidates;
 use self::droid::{evaluate_dual_anchored_signatures, evaluate_pronom_signatures};
 use self::extension::resolve_extension_candidates;
 use self::magic::evaluate_rule;
@@ -988,6 +990,24 @@ pub fn guess_format_report(
         }
     }
 
+    // 2.3b. Evaluate transparent and recursive decompression inspection (decompression.rs)
+    if let Ok(decomp_cands) = probe_decompression_candidates(
+        source,
+        &candidates,
+        hint,
+        |inner_src, inner_h| guess_format_report(inner_src, inner_h),
+    ) {
+        if hint.map_or(false, |h| h.compat && (h.uncompress || h.uncompress_noreport)) {
+            if !decomp_cands.is_empty() {
+                candidates = decomp_cands;
+            }
+        } else {
+            for cand in decomp_cands.into_iter().rev() {
+                candidates.insert(0, cand);
+            }
+        }
+    }
+
     // 2.4. Evaluate PolyFile polyglot container detection (polyfile.rs)
     if let Ok(Some(poly_cand)) = detect_polyglots(source, &candidates) {
         candidates.push(poly_cand);
@@ -1290,10 +1310,18 @@ impl DetectionSource for PayloadSourceAdapter<'_> {
 
 /// Evaluates multiple detection signals for an `io/file` `File` (i.e.
 /// `FileEntity`) and its payload, inspecting file identity, Apple Type codes,
-/// attached streams, and container bundles, and populating `file_origin`.
 pub fn detect_file_report(
     file: &File,
     payload: &mut dyn ctb_io_file::PayloadSource,
+) -> Result<DetectionReport> {
+    detect_file_report_with_hint(file, payload, None)
+}
+
+/// Evaluates multiple detection signals for an `io/file` `File` with custom detection hint.
+pub fn detect_file_report_with_hint(
+    file: &File,
+    payload: &mut dyn ctb_io_file::PayloadSource,
+    user_hint: Option<&DetectionHint>,
 ) -> Result<DetectionReport> {
     let filename = file
         .identity
@@ -1455,7 +1483,7 @@ pub fn detect_file_report(
         _ => None,
     };
 
-    let hint = DetectionHint {
+    let mut hint = DetectionHint {
         filename: filename.map(|s| s.to_string()),
         extension: None,
         platform: effective_platform,
@@ -1466,6 +1494,18 @@ pub fn detect_file_report(
         file_origin: Some(file.identity.origin.clone()),
         ..Default::default()
     };
+    if let Some(user_h) = user_hint {
+        hint.compat = user_h.compat;
+        hint.uncompress = user_h.uncompress;
+        hint.uncompress_noreport = user_h.uncompress_noreport;
+        hint.decompress_byte_limit = user_h.decompress_byte_limit;
+        hint.recursion_depth = user_h.recursion_depth;
+        if user_h.expected_category.is_some() {
+            hint.expected_category = user_h.expected_category;
+            hint.expected_categories = user_h.expected_categories.clone();
+            hint.limit_to_categories = user_h.limit_to_categories;
+        }
+    }
 
     // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.
     if let FileEntityKind::Directory = file.kind {
@@ -1538,14 +1578,23 @@ pub fn detect_file_format(
 /// # }
 /// ```
 pub fn guess_and_report_path(path: impl AsRef<std::path::Path>) -> Result<DetectionReport> {
+    guess_and_report_path_with_hint(path, None)
+}
+
+/// Guesses format candidates and generates a detection report for a filesystem
+/// path with custom detection hint.
+pub fn guess_and_report_path_with_hint(
+    path: impl AsRef<std::path::Path>,
+    hint: Option<&DetectionHint>,
+) -> Result<DetectionReport> {
     let p = path.as_ref();
     let file = File::from_filesystem(p, None)?;
     if file.kind.entity_type() == FileEntityType::Regular {
         let mut source = DiskPayloadSource::open(p)?;
-        detect_file_report(&file, &mut source)
+        detect_file_report_with_hint(&file, &mut source, hint)
     } else {
         let mut source = MemoryPayloadSource::new(Vec::new())?;
-        detect_file_report(&file, &mut source)
+        detect_file_report_with_hint(&file, &mut source, hint)
     }
 }
 
@@ -1692,9 +1741,17 @@ pub fn guess_dcs(
 /// # }
 /// ```
 pub fn guess_and_report_vec(bytes: Vec<u8>) -> Result<DetectionReport> {
+    guess_and_report_vec_with_hint(bytes, None)
+}
+
+/// Guesses format candidates and generates a detection report from raw bytes with custom hint.
+pub fn guess_and_report_vec_with_hint(
+    bytes: Vec<u8>,
+    hint: Option<&DetectionHint>,
+) -> Result<DetectionReport> {
     let file = File::from_vec(bytes.clone());
     let mut source = MemoryPayloadSource::new(bytes)?;
-    detect_file_report(&file, &mut source)
+    detect_file_report_with_hint(&file, &mut source, hint)
 }
 
 /// Guesses the authoritative format for raw bytes.

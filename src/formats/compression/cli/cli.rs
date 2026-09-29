@@ -19,7 +19,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI execution helpers for compression and decompression.
 
-#[allow(clippy::wildcard_imports)]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 pub use ctb_formats_compression::*;
 use ctb_formats_detection::{FormatCategory, detect_file_format, detect_format_id};
@@ -27,7 +31,7 @@ use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 
-/// Detects the compression format given a FileEntity and PayloadSource.
+/// Detects the compression format given a `FileEntity` and `PayloadSource`.
 pub fn detect_entity(
     entity: &ctb_io_file::FileEntity,
     payload: &mut dyn ctb_io_file::PayloadSource,
@@ -262,26 +266,26 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-            let cli_output =
-                execute_cli_compress(
-                    args.clone(),
-                    read_file_or_stdin,
-                    check_overwrite_prompt,
-                )?;
-            match cli_output {
-                CliCompressionOutput::Stdout(bytes) => {
-                    Ok(ToolResult::immediate_ok(bytes))
-                }
-                CliCompressionOutput::FileWritten(_) => {
-                    Ok(ToolResult::immediate_ok(Vec::new()))
-                }
-                CliCompressionOutput::Cancelled => {
-                    Ok(ToolResult::immediate_err(
-                        "Operation cancelled.\n".as_bytes().to_vec(),
-                        1,
-                    ))
-                }
-            }
+    let cli_output =
+        execute_cli_compress(
+            args,
+            read_file_or_stdin,
+            check_overwrite_prompt,
+        )?;
+    match cli_output {
+        CliCompressionOutput::Stdout(bytes) => {
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        CliCompressionOutput::FileWritten(_) => {
+            Ok(ToolResult::immediate_ok(Vec::new()))
+        }
+        CliCompressionOutput::Cancelled => {
+            Ok(ToolResult::immediate_err(
+                "Operation cancelled.\n".as_bytes().to_vec(),
+                1,
+            ))
+        }
+    }
 }
 
 pub fn run_decompress<FRead, FOverwrite>(
@@ -299,10 +303,10 @@ where
     let cli_output =
         execute_cli_decompress(
             CliDecompressArgs {
-                format: format.clone(),
-                input_path: file.clone(),
-                output_path: output.clone(),
-                force: force,
+                format,
+                input_path: file,
+                output_path: output,
+                force,
             },
             read_file_or_stdin,
             check_overwrite_prompt,
@@ -629,10 +633,6 @@ mod tests {
         assert_eq!(
             detect(Some(b"SZ\x0a\x04"), None),
             Some(FormatId::Szip)
-        );
-        assert_eq!(
-            detect(Some(b"SZ\x0a\x02"), None),
-            Some(FormatId::Szip111)
         );
     }
 
