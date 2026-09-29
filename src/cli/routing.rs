@@ -539,10 +539,10 @@ pub enum Command {
         #[arg(long)]
         strict: bool,
     },
-    /// Checksummed copy with rsync-compatible resolution and post-flush verification
+    /// Checksummed copy with rsync-compatible path resolution and an extra verification step
     #[command(name = "csc")]
     Csc(ctb_io_csc::args::CscArgs),
-    /// Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+    /// Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
     #[command(name = "cp")]
     Cp(ctb_io_csc::args::CscArgs),
     /// Move files or directories without copying when possible, or run verified cross-device copy
