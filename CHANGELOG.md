@@ -1,5 +1,12 @@
 While I won't document all breaking changes until this application is stable, I'll try to note the most significant ones here.
 
+# September 28, 2026
+
+Breaking changes:
+
+- Removed `short-fmt` subcommand as confusing and redundant. Use `ctoolbox short-dc f80` (or some other format ID) instead.
+- `ctoolbox short-dc` no longer accepts inputs that are not valid shorthand Dc references (see `README.shorthand.md` for a description of the requirements), again as it was confusing and redundant.
+
 # August 30, 2026
 
 Breaking changes:

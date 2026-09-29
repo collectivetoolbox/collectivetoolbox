@@ -22,8 +22,7 @@ Commands:
   bin2hex                    Convert binary data to a hexadecimal string or hex dump
   hexdump                    Format binary data as a hex dump (fancy by default, or --plain / --xxd)
   xxd                        Format binary data as an xxd hex dump
-  short-dc                   Convert short Document Character ID to Global Graph ID or show Dc metadata
-  short-fmt                  Convert short Format ID to Global Graph ID or show Format metadata
+  short-dc                   Convert Document Character (Dc) shorthand to Global Graph ID or show metadata
   gid                        Convert Global Graph ID to short representation or show full metadata
   range_gen                  Generate a range of numbers in various bases
   character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future
@@ -48,8 +47,8 @@ Commands:
   ts-check                   Type-check TypeScript code
   js-test                    Run JavaScript tests
   validate-docker-image      Validate a docker save image tarball
-  csc                        Checksummed copy with rsync-compatible resolution and post-flush verification
-  cp                         Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+  csc                        Checksummed copy with rsync-compatible path resolution and an extra verification step
+  cp                         Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
   mv                         Move files or directories without copying when possible, or run verified cross-device copy
   csc-verify                 Verify a directory against a manifest recorded by csc
   fsindex                    Index a directory or csc manifest for quick searching
@@ -307,7 +306,7 @@ Supported compression formats:
 ### `ctoolbox cp`
 
 ```text
-Copy files or directories with post-flush verification (alias for `csc --delete-manifest-after`)
+Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
 
 Usage: ctoolbox cp [OPTIONS] [PATHS]...
 
@@ -402,7 +401,7 @@ Options:
 ### `ctoolbox csc`
 
 ```text
-Checksummed copy with rsync-compatible resolution and post-flush verification
+Checksummed copy with rsync-compatible path resolution and an extra verification step
 
 Usage: ctoolbox csc [OPTIONS] [PATHS]...
 
@@ -1683,43 +1682,25 @@ Examples:
 ### `ctoolbox short-dc`
 
 ```text
-Convert short Document Character ID to Global Graph ID or show Dc metadata
+Convert Document Character (Dc) shorthand to Global Graph ID or show metadata
 
 Usage: ctoolbox short-dc [OPTIONS] <ID>
 
 Arguments:
-  <ID>  Short Document Character (Dc) ID (e.g. 296, 0x128, dc:296)
+  <ID>  Document Character shorthand identifier (e.g. 296, f80, u12a, l1114408)
 
 Options:
-  -i, --info  Show full metadata for the Document Character
+  -i, --info  Show full metadata for the Document Character, Format, or Codepoint
   -h, --help  Print help
 
 Examples:
   $ ctoolbox short-dc 296
   1114408
 
-  $ ctoolbox short-dc -i 296
-```
-
-### `ctoolbox short-fmt`
-
-```text
-Convert short Format ID to Global Graph ID or show Format metadata
-
-Usage: ctoolbox short-fmt [OPTIONS] <ID>
-
-Arguments:
-  <ID>  Short Format ID (e.g. 80, 0x50, fmt:80)
-
-Options:
-  -i, --info  Show full metadata for the Format
-  -h, --help  Print help
-
-Examples:
-  $ ctoolbox short-fmt 80
+  $ ctoolbox short-dc f80
   2228304
 
-  $ ctoolbox short-fmt -i 80
+  $ ctoolbox short-dc -i 296
 ```
 
 ### `ctoolbox show-node`

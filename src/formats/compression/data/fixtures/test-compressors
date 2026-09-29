@@ -237,6 +237,7 @@ tool_compress() {
             ;;
         compact)
             "$TMP_DIR/compact" < "$in_file" > "$out_file"
+            # Note that compact can say "Does not save bytes." but when using a pipe it still works
             if [[ "$(wc -c < "$in_file")" -eq 1 && ! -s "$out_file" ]]; then
                 REVERSE_SKIP_REASON="BSD compact requires two input bytes to emit a stream"
             fi

@@ -108,6 +108,10 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("br"),
     },
     ExtensionEntry {
+        format_id: FormatId::Brotli,
+        rule: ExtensionRule::insensitive("b"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Gzip,
         rule: ExtensionRule::insensitive("gz"),
     },
@@ -205,7 +209,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Rzip,
-        rule: ExtensionRule::sensitive("rz"),
+        rule: ExtensionRule::insensitive("rz"),
     },
     ExtensionEntry {
         format_id: FormatId::Lz4,

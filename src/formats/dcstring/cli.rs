@@ -445,20 +445,20 @@ mod tests {
         assert!(res_dc_i.contains("Type: !Cx (Control: Dc special)"));
         assert!(res_dc_i.contains("Syntax: :~ [number]"));
 
-        let args_short_fmt = crate::cli_identifiers::ShortFmtArgs {
-            id: "80".to_string(),
+        let args_short_fmt = crate::cli_identifiers::ShortDcArgs {
+            id: "f80".to_string(),
             info: false,
         };
-        let res_fmt = crate::cli_identifiers::execute_cli_short_fmt(&args_short_fmt)
-            .expect("Run short-fmt");
+        let res_fmt = crate::cli_identifiers::execute_cli_short_dc(&args_short_fmt)
+            .expect("Run short-dc f80");
         assert_eq!(res_fmt, "2228304\n");
 
-        let args_short_fmt_i = crate::cli_identifiers::ShortFmtArgs {
-            id: "80".to_string(),
+        let args_short_fmt_i = crate::cli_identifiers::ShortDcArgs {
+            id: "f80".to_string(),
             info: true,
         };
-        let res_fmt_i = crate::cli_identifiers::execute_cli_short_fmt(&args_short_fmt_i)
-            .expect("Run short-fmt -i");
+        let res_fmt_i = crate::cli_identifiers::execute_cli_short_dc(&args_short_fmt_i)
+            .expect("Run short-dc -i f80");
         assert!(res_fmt_i.starts_with("2228304\nString\n\nCategory: semantic"));
     }
 

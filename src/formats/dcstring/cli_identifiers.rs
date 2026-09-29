@@ -37,28 +37,13 @@ use ctb_storage_minimal::global_graph_layout::{
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
 #[command(
     name = "short-dc",
-    after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
+    after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc f80\n  2228304\n\n  $ ctoolbox short-dc -i 296"
 )]
 pub struct ShortDcArgs {
-    /// Short Document Character (Dc) ID (e.g. 296, 0x128, dc:296)
+    /// Document Character shorthand identifier (e.g. 296, f80, u12a, l1114408)
     pub id: String,
 
-    /// Show full metadata for the Document Character
-    #[arg(short = 'i', long = "info")]
-    pub info: bool,
-}
-
-/// Arguments for the `short-fmt` CLI command.
-#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
-#[command(
-    name = "short-fmt",
-    after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
-)]
-pub struct ShortFmtArgs {
-    /// Short Format ID (e.g. 80, 0x50, fmt:80)
-    pub id: String,
-
-    /// Show full metadata for the Format
+    /// Show full metadata for the Document Character, Format, or Codepoint
     #[arg(short = 'i', long = "info")]
     pub info: bool,
 }
@@ -143,43 +128,43 @@ pub fn parse_graph_or_short_id(input: &str) -> Result<u128> {
     }
 }
 
-/// Executes the `short-dc` CLI command.
-pub fn execute_cli_short_dc(args: &ShortDcArgs) -> Result<String> {
-    let gid = parse_graph_or_short_id(&args.id)?;
-    let dc_id = if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
-        u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
-            .context("Failed to convert Dc ID to u32")?
-    } else {
-        u32::try_from(parse_number_literal(&args.id)?)
-            .context("Dc ID exceeds 32-bit range")?
-    };
-
-    if args.info {
+/// Formats full metadata for a Global Graph ID.
+pub fn describe_gid_metadata(gid: u128) -> Result<String> {
+    if gid <= UNICODE_REGION_END {
+        let cp = u32::try_from(gid).context("Invalid Unicode code point")?;
+        let desc =
+            ctb_formats_unicode::character_description::describe_codepoint(cp);
+        Ok(format!("{gid}\n{desc}\n"))
+    } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
+        let dc_id = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
+            .context("Invalid Dc ID range")?;
         let desc = crate::character_description::describe_dc(dc_id)?;
         Ok(format!("{desc}\n"))
-    } else {
-        let full_gid = dc_to_gid(u64::from(dc_id));
-        Ok(format!("{full_gid}\n"))
-    }
-}
-
-/// Executes the `short-fmt` CLI command.
-pub fn execute_cli_short_fmt(args: &ShortFmtArgs) -> Result<String> {
-    let gid = parse_graph_or_short_id(&args.id)?;
-    let fmt_id = if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-        usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
-            .context("Failed to convert Format ID to usize")?
-    } else {
-        usize::try_from(parse_number_literal(&args.id)?)
-            .context("Format ID exceeds usize range")?
-    };
-
-    if args.info {
+    } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
+        let fmt_id =
+            usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
+                .context("Invalid Format ID range")?;
         let desc = ctb_formats_utilities::describe_format(fmt_id)?;
         Ok(format!("{desc}\n"))
     } else {
-        let full_gid = format_to_gid(u64::try_from(fmt_id)?);
-        Ok(format!("{full_gid}\n"))
+        let block = match get_block_name_for_id(gid) {
+            Ok(name) => name,
+            Err(_) => "Reserved".to_string(),
+        };
+        Ok(format!("{gid}\nBlock: {block}\n"))
+    }
+}
+
+/// Executes the `short-dc` CLI command.
+pub fn execute_cli_short_dc(args: &ShortDcArgs) -> Result<String> {
+    let shorthand =
+        ctb_storage_minimal::shorthand::DcShorthand::parse(&args.id)?;
+    let gid = shorthand.to_global_id()?;
+
+    if args.info {
+        describe_gid_metadata(gid)
+    } else {
+        Ok(format!("{gid}\n"))
     }
 }
 
@@ -188,32 +173,7 @@ pub fn execute_cli_gid(args: &GidArgs) -> Result<String> {
     let gid = parse_graph_or_short_id(&args.id)?;
 
     if args.info {
-        if gid <= UNICODE_REGION_END {
-            let cp =
-                u32::try_from(gid).context("Invalid Unicode code point")?;
-            let desc =
-                ctb_formats_unicode::character_description::describe_codepoint(
-                    cp,
-                );
-            Ok(format!("{gid}\n{desc}\n"))
-        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&gid) {
-            let dc_id = u32::try_from(gid.saturating_sub(SHORT_DC_REGION_START))
-                .context("Invalid Dc ID range")?;
-            let desc = crate::character_description::describe_dc(dc_id)?;
-            Ok(format!("{desc}\n"))
-        } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&gid) {
-            let fmt_id =
-                usize::try_from(gid.saturating_sub(FORMAT_REGION_START))
-                    .context("Invalid Format ID range")?;
-            let desc = ctb_formats_utilities::describe_format(fmt_id)?;
-            Ok(format!("{desc}\n"))
-        } else {
-            let block = match get_block_name_for_id(gid) {
-                Ok(name) => name,
-                Err(_) => "Reserved".to_string(),
-            };
-            Ok(format!("{gid}\nBlock: {block}\n"))
-        }
+        describe_gid_metadata(gid)
     } else {
         let short = gid_to_short(gid);
         Ok(format!("{short}\n"))
@@ -273,24 +233,78 @@ mod tests {
                 "1114420\nNext number is a long (global graph) Dc"
             )
         );
-        assert!(out_308_info.contains("Syntax: :~ [number]"));
-    }
-
-    #[crate::ctb_test]
-    fn test_short_fmt_execution() {
-        let out = execute_cli_short_fmt(&ShortFmtArgs {
-            id: "80".to_string(),
+        // Shorthand format f80
+        let out_fmt = execute_cli_short_dc(&ShortDcArgs {
+            id: "f80".to_string(),
             info: false,
         })
-        .expect("short-fmt 80");
-        assert_eq!(out, "2228304\n");
+        .expect("short-dc f80");
+        assert_eq!(out_fmt, "2228304\n");
 
-        let out_info = execute_cli_short_fmt(&ShortFmtArgs {
-            id: "80".to_string(),
+        let out_fmt_info = execute_cli_short_dc(&ShortDcArgs {
+            id: "f80".to_string(),
             info: true,
         })
-        .expect("short-fmt -i 80");
-        assert!(out_info.starts_with("2228304\nString\n\nCategory: semantic"));
+        .expect("short-dc -i f80");
+        assert!(out_fmt_info.starts_with("2228304\nString\n\nCategory: semantic"));
+
+        // Shorthand unicode u12a
+        let out_uni = execute_cli_short_dc(&ShortDcArgs {
+            id: "u12a".to_string(),
+            info: false,
+        })
+        .expect("short-dc u12a");
+        assert_eq!(out_uni, "298\n");
+
+        let out_uni_info = execute_cli_short_dc(&ShortDcArgs {
+            id: "u12a".to_string(),
+            info: true,
+        })
+        .expect("short-dc -i u12a");
+        assert!(out_uni_info.contains("LATIN CAPITAL LETTER I WITH MACRON"));
+
+        // Shorthand long l1114408
+        let out_long = execute_cli_short_dc(&ShortDcArgs {
+            id: "l1114408".to_string(),
+            info: false,
+        })
+        .expect("short-dc l1114408");
+        assert_eq!(out_long, "1114408\n");
+
+        // Idiosyncratic / non-standard formats are rejected
+        assert!(
+            execute_cli_short_dc(&ShortDcArgs {
+                id: "dc:296".to_string(),
+                info: false,
+            })
+            .is_err()
+        );
+
+        assert!(
+            execute_cli_short_dc(&ShortDcArgs {
+                id: "0x128".to_string(),
+                info: false,
+            })
+            .is_err()
+        );
+
+        // Local shorthand L42 cannot be mapped to a single GID
+        assert!(
+            execute_cli_short_dc(&ShortDcArgs {
+                id: "L42".to_string(),
+                info: false,
+            })
+            .is_err()
+        );
+
+        // Invalid shorthand returns an error
+        assert!(
+            execute_cli_short_dc(&ShortDcArgs {
+                id: "F80".to_string(),
+                info: false,
+            })
+            .is_err()
+        );
     }
 
     #[crate::ctb_test]

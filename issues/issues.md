@@ -134,7 +134,7 @@ from_code_point: unknown code point [63489]
 
 Csc copy fifo
 
-Short_dc should take a shorthand also maybe and short_fmt removed
+- [x] Short_dc should take a shorthand also maybe and short_fmt removed
 
 Don’t save environment in archive by default? Or maybe just show warning. Otherwise galse sense of security. Though any low metadata mode would still overlook in file metadata
 

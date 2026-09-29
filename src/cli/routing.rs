@@ -108,9 +108,6 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "short-dc"
             | "short_dc"
             | "shortdc"
-            | "short-fmt"
-            | "short_fmt"
-            | "shortfmt"
             | "gid"
             | "graph-id"
             | "graph_id"
@@ -291,22 +288,14 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox xxd \"Hello\"\n  $ echo -n \"Hello\" | ctoolbox xxd\n  $ ctoolbox xxd -f file.bin -o file.hex\n  $ ctoolbox xxd --plain \"Hello\"\n  $ ctoolbox xxd --fancy \"Hello\""
     )]
     Xxd(ctb_formats_hexdump::cli::XxdArgs),
-    /// Convert short Document Character ID to Global Graph ID or show Dc metadata
+    /// Convert Document Character (Dc) shorthand to Global Graph ID or show metadata
     #[command(
         name = "short-dc",
         alias = "short_dc",
         alias = "shortdc",
-        after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc -i 296"
+        after_help = "Examples:\n  $ ctoolbox short-dc 296\n  1114408\n\n  $ ctoolbox short-dc f80\n  2228304\n\n  $ ctoolbox short-dc -i 296"
     )]
     ShortDc(ctb_formats_dcstring::cli_identifiers::ShortDcArgs),
-    /// Convert short Format ID to Global Graph ID or show Format metadata
-    #[command(
-        name = "short-fmt",
-        alias = "short_fmt",
-        alias = "shortfmt",
-        after_help = "Examples:\n  $ ctoolbox short-fmt 80\n  2228304\n\n  $ ctoolbox short-fmt -i 80"
-    )]
-    ShortFmt(ctb_formats_dcstring::cli_identifiers::ShortFmtArgs),
     /// Convert Global Graph ID to short representation or show full metadata
     #[command(
         name = "gid",
@@ -946,13 +935,6 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         Command::ShortDc(args) => {
             let output =
                 ctb_formats_dcstring::cli_identifiers::execute_cli_short_dc(
-                    args,
-                )?;
-            Ok(ToolResult::immediate_ok(output.into_bytes()))
-        }
-        Command::ShortFmt(args) => {
-            let output =
-                ctb_formats_dcstring::cli_identifiers::execute_cli_short_fmt(
                     args,
                 )?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
