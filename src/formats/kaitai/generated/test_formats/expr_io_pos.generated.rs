@@ -120,11 +120,13 @@ impl KStruct for ExprIoPos {
         let _io_substream1 = BytesReader::from(_raw_substream1);
         let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(&_io_substream1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_substream2 = _io.read_bytes(14_usize)?;
         *self_rc.substream2_raw.borrow_mut() = _raw_substream2.clone();
         let _io_substream2 = BytesReader::from(_raw_substream2);
         let t = Self::read_into::<BytesReader, ExprIoPos_AllPlusNumber>(&_io_substream2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -223,8 +225,11 @@ impl KStruct for ExprIoPos_AllPlusNumber {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.my_str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(2_usize))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

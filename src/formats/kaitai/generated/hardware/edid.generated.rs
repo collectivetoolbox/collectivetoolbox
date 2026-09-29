@@ -93,22 +93,37 @@ impl KStruct for Edid {
         if !(*self_rc.magic() == vec![0x0u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mfg_bytes.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.product_code.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.serial.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mfg_week.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mfg_year_mod.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.edid_version_major.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.edid_version_minor.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.input_flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.screen_size_h.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.screen_size_v.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.gamma_mod.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.features_flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Edid_ChromacityInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.chromacity.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Edid_EstTimingsInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.est_timings.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.std_timings.borrow_mut() = Vec::new();
         let l_std_timings = 8_usize;
         for _i in 0_usize..l_std_timings {
@@ -117,6 +132,7 @@ impl KStruct for Edid {
             let t = Self::read_into::<BytesReader, Edid_StdTiming>(&_io_std_timings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.std_timings.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -458,22 +474,38 @@ impl KStruct for Edid_ChromacityInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red_x_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.red_y_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_x_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_y_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_x_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_y_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.white_x_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.white_y_1_0.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.red_x_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.red_y_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_x_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_y_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_x_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_y_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.white_x_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.white_y_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -934,23 +966,41 @@ impl KStruct for Edid_EstTimingsInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.can_720x400px_70hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_720x400px_88hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_640x480px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_640x480px_67hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_640x480px_72hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_640x480px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_800x600px_56hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_800x600px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_800x600px_72hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_800x600px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_832x624px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1024x768px_87hz_i.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1024x768px_60hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1024x768px_70hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1024x768px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1280x1024px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.can_1152x870px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1194,8 +1244,11 @@ impl KStruct for Edid_StdTiming {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.horiz_active_pixels_mod.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.aspect_ratio.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.refresh_rate_mod.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

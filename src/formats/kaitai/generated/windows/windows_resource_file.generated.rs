@@ -97,6 +97,7 @@ impl KStruct for WindowsResourceFile {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -200,19 +201,31 @@ impl KStruct for WindowsResourceFile_Resource {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.r#type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, WindowsResourceFile_UnicodeOrId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.format_version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.language.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value_version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -509,12 +522,17 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.save_pos1()? >= 0 {
             *self_rc.first.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_string()?) {
             *self_rc.as_numeric.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_string()? {
             *self_rc.rest.borrow_mut() = Vec::new();
             {
@@ -528,9 +546,12 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
                     if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0))  {
             *self_rc.noop.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

@@ -116,6 +116,7 @@ impl KStruct for ValidFailInEnum {
         if matches!(*self_rc.foo(), ValidFailInEnum_Animal::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

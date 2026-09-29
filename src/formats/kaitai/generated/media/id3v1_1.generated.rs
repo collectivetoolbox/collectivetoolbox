@@ -188,12 +188,19 @@ impl KStruct for Id3v11_Id3V11Tag {
         if !(*self_rc.magic() == vec![0x54u8, 0x41u8, 0x47u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/id3_v1_1_tag/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.title.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.artist.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.album.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comment.borrow_mut() = _io.read_bytes(30_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.genre.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

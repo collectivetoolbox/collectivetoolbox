@@ -118,6 +118,7 @@ impl KStruct for EofExceptionSized {
         let _io_buf = BytesReader::from(_raw_buf);
         let t = Self::read_into::<BytesReader, EofExceptionSized_Foo>(&_io_buf, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

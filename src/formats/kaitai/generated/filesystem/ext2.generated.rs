@@ -178,12 +178,19 @@ impl KStruct for Ext2_Bgd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.block_bitmap_block.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inode_bitmap_block.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inode_table_block.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.free_blocks_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.free_inodes_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.used_dirs_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pad_reserved.borrow_mut() = _io.read_bytes(usize::try_from((2_i32).saturating_add(12_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -355,12 +362,14 @@ impl KStruct for Ext2_BlockGroup {
         let _io_super_block = BytesReader::from(_raw_super_block);
         let t = Self::read_into::<BytesReader, Ext2_SuperBlockStruct>(&_io_super_block, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.super_block.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_groups.borrow_mut() = Vec::new();
         let l_block_groups = usize::try_from(*self_rc.super_block().block_group_count()?)?;
         for _i in 0_usize..l_block_groups {
             let t = Self::read_into::<_, Ext2_Bgd>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block_groups.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -454,6 +463,7 @@ impl KStruct for Ext2_BlockPtr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ptr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -565,6 +575,7 @@ impl KStruct for Ext2_Dir {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -654,11 +665,17 @@ impl KStruct for Ext2_DirEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.inode_ptr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rec_len.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.name_len()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.rec_len()).saturating_sub(u16::from(*self_rc.name_len())))).saturating_sub(8_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -855,28 +872,46 @@ impl KStruct for Ext2_Inode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.mode.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uid.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.atime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ctime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mtime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dtime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.gid.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.links_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.osd1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block.borrow_mut() = Vec::new();
         let l_block = 15_usize;
         for _i in 0_usize..l_block {
             let t = Self::read_into::<_, Ext2_BlockPtr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.generation.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_acl.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dir_acl.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.faddr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.osd2.borrow_mut() = _io.read_bytes(12_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1064,6 +1099,7 @@ impl KStruct for Ext2_RawBlock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bg1()?.super_block().block_size()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1201,56 +1237,100 @@ impl KStruct for Ext2_SuperBlockStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.inodes_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r_blocks_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.free_blocks_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.free_inodes_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_data_block.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.log_block_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.log_frag_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks_per_group.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frags_per_group.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inodes_per_group.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mtime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.wtime.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mnt_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_mnt_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.magic() == vec![0x53u8, 0xefu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/super_block_struct/seq/15".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.state.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.errors.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_rev_level.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lastcheck.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checkinterval.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.creator_os.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rev_level.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.def_resuid.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.def_resgid.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_ino.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inode_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_group_nr.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.feature_compat.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.feature_incompat.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.feature_ro_compat.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uuid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_name.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.last_mounted.borrow_mut() = _io.read_bytes(64_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.algo_bitmap.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.prealloc_blocks.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.prealloc_dir_blocks.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding1.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.journal_uuid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.journal_inum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.journal_dev.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.last_orphan.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hash_seed.borrow_mut() = Vec::new();
         let l_hash_seed = 4_usize;
         for _i in 0_usize..l_hash_seed {
             self_rc.hash_seed.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.def_hash_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

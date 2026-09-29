@@ -119,18 +119,23 @@ impl KStruct for BufferedStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_block1 = _io.read_bytes(usize::try_from(*self_rc.len1())?)?;
         *self_rc.block1_raw.borrow_mut() = _raw_block1.clone();
         let _io_block1 = BytesReader::from(_raw_block1);
         let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_block2 = _io.read_bytes(usize::try_from(*self_rc.len2())?)?;
         *self_rc.block2_raw.borrow_mut() = _raw_block2.clone();
         let _io_block2 = BytesReader::from(_raw_block2);
         let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.finisher.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -242,7 +247,9 @@ impl KStruct for BufferedStruct_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

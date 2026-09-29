@@ -116,10 +116,13 @@ impl KStruct for EnumIf {
         let _io = io;
         let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, EnumIf_Operation>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op3.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -244,7 +247,9 @@ impl KStruct for EnumIf_ArgStr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -336,7 +341,9 @@ impl KStruct for EnumIf_ArgTuple {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -424,13 +431,18 @@ impl KStruct for EnumIf_Operation {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.opcode.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.opcode() == EnumIf_Opcodes::ATuple {
             let t = Self::read_into::<_, EnumIf_ArgTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_tuple.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.opcode() == EnumIf_Opcodes::AString {
             let t = Self::read_into::<_, EnumIf_ArgStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arg_str.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

@@ -121,6 +121,7 @@ impl KStruct for SwitchMultiBoolOps {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -301,6 +302,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match if  ((((to_i128(*self_rc.code())) > (to_i128(0)))) && (((to_i128(*self_rc.code())) <= (to_i128(8)))) && (if ((to_i128(*self_rc.code())) != (to_i128(10))) { true } else { false }))  { i32::from(*self_rc.code()) } else { 0_i32 } {
             1 => {
                 *self_rc.body.borrow_mut() = Some(_io.read_u1()?.into());
@@ -316,6 +318,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

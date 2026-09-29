@@ -115,8 +115,10 @@ impl KStruct for NavRoot {
         let _io = io;
         let t = Self::read_into::<_, NavRoot_HeaderObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, NavRoot_IndexObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -203,6 +205,7 @@ impl KStruct for NavRoot_Entry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().filename_len())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -289,7 +292,9 @@ impl KStruct for NavRoot_HeaderObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty_entries.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.filename_len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -377,12 +382,14 @@ impl KStruct for NavRoot_IndexObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().qty_entries())?;
         for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, NavRoot_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -121,6 +121,7 @@ impl KStruct for SwitchManualIntSizeElse {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -300,7 +301,9 @@ impl KStruct for SwitchManualIntSizeElse_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             17 => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
@@ -324,6 +327,7 @@ impl KStruct for SwitchManualIntSizeElse_Chunk {
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -427,6 +431,7 @@ impl KStruct for SwitchManualIntSizeElse_Chunk_ChunkDir {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -513,7 +518,9 @@ impl KStruct for SwitchManualIntSizeElse_Chunk_ChunkMeta {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.author.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -599,6 +606,7 @@ impl KStruct for SwitchManualIntSizeElse_Chunk_Dummy {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.rest.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

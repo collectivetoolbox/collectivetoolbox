@@ -73,16 +73,20 @@ impl KStruct for Avi {
         if !(*self_rc.magic1() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic2() == vec![0x41u8, 0x56u8, 0x49u8, 0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_data = _io.read_bytes(usize::try_from((*self_rc.file_size()).saturating_sub(4_u32))?)?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
         let t = Self::read_into::<BytesReader, Avi_Blocks>(&_io_data, Some(self_rc._root.clone()), None)?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -337,16 +341,27 @@ impl KStruct for Avi_AvihBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.micro_sec_per_frame.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_bytes_per_sec.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding_granularity.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_frames.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.initial_frames.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.streams.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.suggested_buffer_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -602,7 +617,9 @@ impl KStruct for Avi_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.four_cc.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.four_cc() {
             Avi_ChunkType::Avih => {
                 *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
@@ -626,9 +643,10 @@ impl KStruct for Avi_Block {
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -732,6 +750,7 @@ impl KStruct for Avi_Blocks {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -813,8 +832,10 @@ impl KStruct for Avi_ListBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.list_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Avi_Blocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -903,9 +924,13 @@ impl KStruct for Avi_Rect {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.left.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.top.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.right.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bottom.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1096,20 +1121,34 @@ impl KStruct for Avi_StrhBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.fcc_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fcc_handler.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.priority.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.language.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.initial_frames.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.scale.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rate.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.suggested_buffer_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.quality.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Avi_Rect>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.frame.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

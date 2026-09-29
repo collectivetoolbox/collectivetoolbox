@@ -82,11 +82,13 @@ impl KStruct for GimpBrush {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(u32::try_from(4_i32)?))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, GimpBrush_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -241,6 +243,7 @@ impl KStruct for GimpBrush_Bitmap {
             let t = Self::read_into::<_, GimpBrush_Row>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.rows.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -331,6 +334,7 @@ impl KStruct for GimpBrush_Header {
         if !(*self_rc.version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         let max_val: u32 = (10000).try_into()?;
@@ -340,6 +344,7 @@ impl KStruct for GimpBrush_Header {
         if !(*self_rc.width() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/header/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         let max_val: u32 = (10000).try_into()?;
@@ -349,13 +354,18 @@ impl KStruct for GimpBrush_Header {
         if !(*self_rc.height() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/header/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes_per_pixel.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x49u8, 0x4du8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.spacing.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.brush_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -559,6 +569,7 @@ impl KStruct for GimpBrush_Row {
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -647,6 +658,7 @@ impl KStruct for GimpBrush_Row_PixelGray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.gray.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -778,9 +790,13 @@ impl KStruct for GimpBrush_Row_PixelRgba {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alpha.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

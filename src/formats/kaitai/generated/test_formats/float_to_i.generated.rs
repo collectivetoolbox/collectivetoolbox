@@ -144,12 +144,18 @@ impl KStruct for FloatToI {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.single_value.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.double_value.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if true {
             *self_rc.single_value_if.borrow_mut() = _io.read_f4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if true {
             *self_rc.double_value_if.borrow_mut() = _io.read_f8be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

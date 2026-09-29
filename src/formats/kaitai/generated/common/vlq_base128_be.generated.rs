@@ -94,6 +94,7 @@ impl KStruct for VlqBase128Be {
                 if !(*_tmpa.has_next()) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -207,7 +208,9 @@ impl KStruct for VlqBase128Be_Group {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.has_next.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

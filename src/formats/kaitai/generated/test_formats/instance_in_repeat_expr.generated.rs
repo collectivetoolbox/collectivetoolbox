@@ -120,6 +120,7 @@ impl KStruct for InstanceInRepeatExpr {
             let t = Self::read_into::<_, InstanceInRepeatExpr_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -216,7 +217,9 @@ impl KStruct for InstanceInRepeatExpr_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

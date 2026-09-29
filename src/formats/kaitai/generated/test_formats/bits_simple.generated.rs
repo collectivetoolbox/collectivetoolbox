@@ -127,19 +127,32 @@ impl KStruct for BitsSimple {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.byte_1.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte_2.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_a.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_b.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_c.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.large_bits_1.borrow_mut() = _io.read_bits_int_be(10)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.spacer.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.large_bits_2.borrow_mut() = _io.read_bits_int_be(11)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.normal_s2.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte_8_9_10.borrow_mut() = _io.read_bits_int_be(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte_11_to_14.borrow_mut() = _io.read_bits_int_be(32)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte_15_to_19.borrow_mut() = _io.read_bits_int_be(40)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte_20_to_27.borrow_mut() = _io.read_bits_int_be(64)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -81,22 +81,29 @@ impl KStruct for MozillaMar {
         if !(*self_rc.magic() == vec![0x4du8, 0x41u8, 0x52u8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_index.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signatures.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signatures.borrow_mut() = Vec::new();
         let l_signatures = usize::try_from(*self_rc.len_signatures())?;
         for _i in 0_usize..l_signatures {
             let t = Self::read_into::<_, MozillaMar_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.signatures.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_additional_sections.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.additional_sections.borrow_mut() = Vec::new();
         let l_additional_sections = usize::try_from(*self_rc.len_additional_sections())?;
         for _i in 0_usize..l_additional_sections {
             let t = Self::read_into::<_, MozillaMar_AdditionalSection>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.additional_sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -341,7 +348,9 @@ impl KStruct for MozillaMar_AdditionalSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_block.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_identifier.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.block_identifier() {
             MozillaMar_BlockIdentifiers::ProductInformation => {
                 *self_rc.bytes_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.len_block()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?.into();
@@ -351,9 +360,10 @@ impl KStruct for MozillaMar_AdditionalSection {
                 *self_rc.bytes.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.bytes.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.bytes.borrow_mut() = Some(_io.read_bytes(usize::try_from(((*self_rc.len_block()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -457,6 +467,7 @@ impl KStruct for MozillaMar_IndexEntries {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -542,9 +553,13 @@ impl KStruct for MozillaMar_IndexEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_content.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_content.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -662,11 +677,13 @@ impl KStruct for MozillaMar_MarIndex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_index.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_index_entries = _io.read_bytes(usize::try_from(*self_rc.len_index())?)?;
         *self_rc.index_entries_raw.borrow_mut() = _raw_index_entries.clone();
         let _io_index_entries = BytesReader::from(_raw_index_entries);
         let t = Self::read_into::<BytesReader, MozillaMar_IndexEntries>(&_io_index_entries, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index_entries.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -760,7 +777,9 @@ impl KStruct for MozillaMar_ProductInformationBlock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -859,8 +878,11 @@ impl KStruct for MozillaMar_Signature {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.algorithm.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signature.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

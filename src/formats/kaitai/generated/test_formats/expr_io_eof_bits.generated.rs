@@ -118,16 +118,24 @@ impl KStruct for ExprIoEofBits {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bits_int_be(20)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.bar.borrow_mut() = _io.read_bits_int_be(4)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.baz.borrow_mut() = _io.read_bits_int_be(16)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         io.align_to_byte()?;
         *self_rc.align.borrow_mut() = _io.read_bytes(0_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.qux.borrow_mut() = _io.read_bits_int_be(16)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

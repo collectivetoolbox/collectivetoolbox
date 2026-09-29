@@ -71,6 +71,7 @@ impl KStruct for Luks {
         let _io = io;
         let t = Self::read_into::<_, Luks_PartitionHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.partition_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -186,25 +187,37 @@ impl KStruct for Luks_PartitionHeader {
         if !(*self_rc.magic() == vec![0x4cu8, 0x55u8, 0x4bu8, 0x53u8, 0xbau8, 0xbeu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.version() == vec![0x0u8, 0x1u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_header/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cipher_name_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cipher_mode_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hash_specification.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.payload_offset.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_key_bytes.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.master_key_checksum.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.master_key_salt_parameter.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.master_key_iterations_parameter.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uuid.borrow_mut() = bytes_to_str(&_io.read_bytes(40_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key_slots.borrow_mut() = Vec::new();
         let l_key_slots = 8_usize;
         for _i in 0_usize..l_key_slots {
             let t = Self::read_into::<_, Luks_PartitionHeader_KeySlot>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.key_slots.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -377,10 +390,15 @@ impl KStruct for Luks_PartitionHeader_KeySlot {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.state_of_key_slot.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.iteration_parameter.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.salt_parameter.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_sector_of_key_material.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_anti_forensic_stripes.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

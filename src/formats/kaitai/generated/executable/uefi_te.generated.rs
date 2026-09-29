@@ -90,12 +90,14 @@ impl KStruct for UefiTe {
         let _io_te_hdr = BytesReader::from(_raw_te_hdr);
         let t = Self::read_into::<BytesReader, UefiTe_TeHeader>(&_io_te_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.te_hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sections.borrow_mut() = Vec::new();
         let l_sections = usize::from(*self_rc.te_hdr().num_sections());
         for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, UefiTe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -187,7 +189,9 @@ impl KStruct for UefiTe_DataDir {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -275,8 +279,10 @@ impl KStruct for UefiTe_HeaderDataDirs {
         let _io = io;
         let t = Self::read_into::<_, UefiTe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.base_relocation_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, UefiTe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.debug.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -374,15 +380,25 @@ impl KStruct for UefiTe_Section {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_raw_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_relocations.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_linenumbers.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_relocations.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_linenumbers.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -539,15 +555,24 @@ impl KStruct for UefiTe_TeHeader {
         if !(*self_rc.magic() == vec![0x56u8, 0x5au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/te_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.machine.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_sections.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subsystem.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.stripped_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entry_point_addr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.base_of_code.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_base.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, UefiTe_HeaderDataDirs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_dirs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

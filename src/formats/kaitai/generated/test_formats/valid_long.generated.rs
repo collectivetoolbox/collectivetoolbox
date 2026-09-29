@@ -129,54 +129,65 @@ impl KStruct for ValidLong {
         if !(*self_rc.magic1() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint8.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (255).try_into()?;
         if !(*self_rc.uint8() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint8.borrow_mut() = _io.read_s1()?;
         let expected: i8 = (-1).try_into()?;
         if !(*self_rc.sint8() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "utf-8")?;
         if !(*self_rc.magic_uint() == "PACK-U-DEF") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16.borrow_mut() = _io.read_u2le()?;
         let expected: u16 = (65535).try_into()?;
         if !(*self_rc.uint16() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint32.borrow_mut() = _io.read_u4le()?;
         let expected: u32 = (4294967295_i64).try_into()?;
         if !(*self_rc.uint32() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint64.borrow_mut() = _io.read_u8le()?;
         let expected: u64 = (18446744073709551615_i128).try_into()?;
         if !(*self_rc.uint64() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "utf-8")?;
         if !(*self_rc.magic_sint() == "PACK-S-DEF") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16.borrow_mut() = _io.read_s2le()?;
         let expected: i16 = (-1).try_into()?;
         if !(*self_rc.sint16() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/8".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint32.borrow_mut() = _io.read_s4le()?;
         let expected: i32 = (-1).try_into()?;
         if !(*self_rc.sint32() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/9".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint64.borrow_mut() = _io.read_s8le()?;
         let expected: i64 = (-1).try_into()?;
         if !(*self_rc.sint64() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/10".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

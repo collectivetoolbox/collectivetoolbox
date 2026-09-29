@@ -70,12 +70,14 @@ impl KStruct for HeroesOfMightAndMagicAgg {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_files.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entries.borrow_mut() = Vec::new();
         let l_entries = usize::from(*self_rc.num_files());
         for _i in 0_usize..l_entries {
             let t = Self::read_into::<_, HeroesOfMightAndMagicAgg_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -195,9 +197,13 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.hash.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -308,6 +314,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

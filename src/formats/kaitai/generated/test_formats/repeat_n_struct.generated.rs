@@ -114,12 +114,14 @@ impl KStruct for RepeatNStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.chunks.borrow_mut() = Vec::new();
         let l_chunks = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_chunks {
             let t = Self::read_into::<_, RepeatNStruct_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -206,7 +208,9 @@ impl KStruct for RepeatNStruct_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

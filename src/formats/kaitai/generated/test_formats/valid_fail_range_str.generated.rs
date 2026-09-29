@@ -120,6 +120,7 @@ impl KStruct for ValidFailRangeStr {
         if !((*(self_rc.foo())).as_str() <= "P1") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

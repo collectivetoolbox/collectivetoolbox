@@ -74,10 +74,15 @@ impl KStruct for UdpDatagram {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.src_port.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dst_port.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(8_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

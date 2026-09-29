@@ -102,6 +102,7 @@ impl KStruct for PythonPickle {
                 if *_tmpa.code() == PythonPickle_Opcode::Stop { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -695,7 +696,9 @@ impl KStruct for PythonPickle_Bytearray8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -792,7 +795,9 @@ impl KStruct for PythonPickle_Bytes1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -889,7 +894,9 @@ impl KStruct for PythonPickle_Bytes4 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -991,7 +998,9 @@ impl KStruct for PythonPickle_Bytes8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1086,6 +1095,7 @@ impl KStruct for PythonPickle_DecimalnlLong {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1173,6 +1183,7 @@ impl KStruct for PythonPickle_DecimalnlShort {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1258,6 +1269,7 @@ impl KStruct for PythonPickle_Floatnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1345,7 +1357,9 @@ impl KStruct for PythonPickle_Long1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1443,7 +1457,9 @@ impl KStruct for PythonPickle_Long4 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2330,6 +2346,7 @@ impl KStruct for PythonPickle_Op {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             PythonPickle_Opcode::Additems => {
                 let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -2592,6 +2609,7 @@ impl KStruct for PythonPickle_Op {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2707,7 +2725,9 @@ impl KStruct for PythonPickle_String1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2811,7 +2831,9 @@ impl KStruct for PythonPickle_String4 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2906,6 +2928,7 @@ impl KStruct for PythonPickle_Stringnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2990,6 +3013,7 @@ impl KStruct for PythonPickle_StringnlNoescape {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3076,8 +3100,10 @@ impl KStruct for PythonPickle_StringnlNoescapePair {
         let _io = io;
         let t = Self::read_into::<_, PythonPickle_StringnlNoescape>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.val1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPickle_StringnlNoescape>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.val2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3169,7 +3195,9 @@ impl KStruct for PythonPickle_Unicodestring1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "utf8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3266,7 +3294,9 @@ impl KStruct for PythonPickle_Unicodestring4 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "utf8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3368,7 +3398,9 @@ impl KStruct for PythonPickle_Unicodestring8 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "utf8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3463,6 +3495,7 @@ impl KStruct for PythonPickle_Unicodestringnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

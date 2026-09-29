@@ -123,6 +123,7 @@ impl KStruct for DebugArrayUserCurrentExcluded {
             self_rc.array_of_cats.borrow_mut().push(t);
             res?;
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -204,6 +205,7 @@ impl KStruct for DebugArrayUserCurrentExcluded_Cat {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.meow.borrow_mut() = _io.read_bytes(usize::try_from((3_usize).saturating_sub(self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.array_of_cats().len()))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -113,19 +113,23 @@ impl KStruct for ValidNotParsedIf {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if false {
             *self_rc.not_parsed.borrow_mut() = _io.read_u1()?;
             let expected: u8 = (42).try_into()?;
             if !(*self_rc.not_parsed() == expected) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if true {
             *self_rc.parsed.borrow_mut() = _io.read_u1()?;
             let expected: u8 = (80).try_into()?;
             if !(*self_rc.parsed() == expected) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

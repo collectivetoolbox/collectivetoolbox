@@ -120,11 +120,13 @@ impl KStruct for ExprIoEof {
         let _io_substream1 = BytesReader::from(_raw_substream1);
         let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_substream2 = _io.read_bytes(8_usize)?;
         *self_rc.substream2_raw.borrow_mut() = _raw_substream2.clone();
         let _io_substream2 = BytesReader::from(_raw_substream2);
         let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -223,8 +225,11 @@ impl KStruct for ExprIoEof_OneOrTwo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.two.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

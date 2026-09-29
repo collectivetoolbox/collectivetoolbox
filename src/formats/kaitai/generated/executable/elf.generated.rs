@@ -91,21 +91,29 @@ impl KStruct for Elf {
         if !(*self_rc.magic() == vec![0x7fu8, 0x45u8, 0x4cu8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.endian.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ei_version.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (1).try_into()?;
         if !(*self_rc.ei_version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abi.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abi_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pad.borrow_mut() = _io.read_bytes(7_usize)?;
         if !(*self_rc.pad() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Elf_EndianElf>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4826,11 +4834,14 @@ impl KStruct for Elf_EndianElf {
             return Err(KError::UndecidedEndianness { src_path: "/types/endian_elf".to_string() });
         }
         *self_rc.e_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.machine.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
         if matches!(*self_rc.machine(), Elf_Machine::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/endian_elf/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.e_version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.entry_point.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -4840,6 +4851,7 @@ impl KStruct for Elf_EndianElf {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.ofs_program_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -4849,6 +4861,7 @@ impl KStruct for Elf_EndianElf {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.ofs_section_headers.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -4858,13 +4871,21 @@ impl KStruct for Elf_EndianElf {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.e_ehsize.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.program_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_program_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.section_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_section_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.section_names_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5125,6 +5146,7 @@ impl KStruct for Elf_EndianElf_DynsymSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5252,22 +5274,35 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
             *self_rc.value_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
             *self_rc.size_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.bind.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.other.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sh_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
             *self_rc.value_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
             *self_rc.size_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -5518,6 +5553,7 @@ impl KStruct for Elf_EndianElf_NoteSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5619,12 +5655,19 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, Some(0), false, None);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_name()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5810,6 +5853,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6031,6 +6075,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -6040,6 +6085,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6692,8 +6738,11 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
             *self_rc.flags64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
@@ -6704,6 +6753,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.virt_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -6713,6 +6763,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.phys_addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -6722,6 +6773,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -6731,6 +6783,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.memory_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -6740,8 +6793,11 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 {
             *self_rc.flags32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
@@ -6752,6 +6808,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7006,6 +7063,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.path_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7107,6 +7165,7 @@ impl KStruct for Elf_EndianElf_RelocationSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7378,6 +7437,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.info.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -7387,6 +7447,8 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.has_addend() {
             match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
                 Elf_Bits::B32 => {
@@ -7397,6 +7459,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
                 }
                 _ => {}
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -8131,7 +8194,9 @@ impl KStruct for Elf_EndianElf_SectionHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.flags.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8141,6 +8206,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.addr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8150,6 +8216,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.ofs_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8159,6 +8226,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.len_body.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8168,8 +8236,11 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.linked_section_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.info.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.align.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8179,6 +8250,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.entry_size.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8188,6 +8260,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8520,6 +8593,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8755,6 +8829,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
                 *self_rc.value_or_ptr.borrow_mut() = Some(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? }.into());
@@ -8764,6 +8839,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8942,6 +9018,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9042,16 +9119,20 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ofs_start()? < 0 {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 8_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdaux_entry/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9242,6 +9323,7 @@ impl KStruct for Elf_EndianElf_VerdefSection {
         let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9386,38 +9468,47 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ofs_start()? < 0 {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
         if !(*self_rc.version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/endian_elf/types/verdef_section_entry/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_index.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let _borrowed = self_rc.version_index();
         let _tmpa = *_borrowed;
         if !(((_tmpa & 32768_u16) == 0_u16)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let min_val: u16 = (1).try_into()?;
         if !(*self_rc.num_aux_entries() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verdef_section_entry/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let min_val: u32 = (20).try_into()?;
         if !(*self_rc.ofs_first_aux() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verdef_section_entry/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 20_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9674,21 +9765,28 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ofs_start()? < 0 {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.hash.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut Elf_EndianElf_VersionIndex| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VersionIndex>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.version_index.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/vernaux_entry/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9924,6 +10022,7 @@ impl KStruct for Elf_EndianElf_VerneedSection {
         let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10064,31 +10163,38 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ofs_start()? < 0 {
             *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let expected: u16 = (1).try_into()?;
         if !(*self_rc.version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/endian_elf/types/verneed_section_entry/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_aux_entries.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         let min_val: u16 = (1).try_into()?;
         if !(*self_rc.num_aux_entries() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verneed_section_entry/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_file_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_first_aux.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let min_val: u32 = (16).try_into()?;
         if !(*self_rc.ofs_first_aux() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verneed_section_entry/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         let _borrowed = self_rc.ofs_next();
         let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verneed_section_entry/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10463,6 +10569,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10641,6 +10748,7 @@ impl KStruct for Elf_EndianElf_VersymSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

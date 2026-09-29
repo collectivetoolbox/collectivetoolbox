@@ -73,6 +73,7 @@ impl KStruct for Dune2Pak {
         let _io_dir = BytesReader::from(_raw_dir);
         let t = Self::read_into::<BytesReader, Dune2Pak_Files>(&_io_dir, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dir.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -181,8 +182,11 @@ impl KStruct for Dune2Pak_File {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.ofs())) != (to_i128(0))) {
             *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -334,6 +338,7 @@ impl KStruct for Dune2Pak_Files {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

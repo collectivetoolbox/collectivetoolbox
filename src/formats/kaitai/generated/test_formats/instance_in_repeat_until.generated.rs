@@ -126,6 +126,7 @@ impl KStruct for InstanceInRepeatUntil {
                 if _tmpa == *self_rc.until_val()? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

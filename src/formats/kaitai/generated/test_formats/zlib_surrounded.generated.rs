@@ -118,13 +118,16 @@ impl KStruct for ZlibSurrounded {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pre.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_zlib = _io.read_bytes(12_usize)?;
         *self_rc.zlib_raw.borrow_mut() = _raw_zlib.clone();
         let _processed_zlib = process_zlib(&_raw_zlib)?;
         let _io_zlib = BytesReader::from(_processed_zlib);
         let t = Self::read_into::<BytesReader, ZlibSurrounded_Inflated>(&_io_zlib, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.zlib.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.post.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -230,6 +233,7 @@ impl KStruct for ZlibSurrounded_Inflated {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -129,8 +129,10 @@ impl KStruct for Expr2 {
         let _io = io;
         let t = Self::read_into::<_, Expr2_ModStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Expr2_ModStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -308,12 +310,15 @@ impl KStruct for Expr2_ModStr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_orig.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_mod()?)?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_rest = _io.read_bytes(3_usize)?;
         *self_rc.rest_raw.borrow_mut() = _raw_rest.clone();
         let _io_rest = BytesReader::from(_raw_rest);
         let t = Self::read_into::<BytesReader, Expr2_Tuple>(&_io_rest, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -460,8 +465,11 @@ impl KStruct for Expr2_Tuple {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.byte0.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.byte2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

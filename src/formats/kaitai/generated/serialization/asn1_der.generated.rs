@@ -240,8 +240,10 @@ impl KStruct for Asn1Der {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.type_tag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Asn1Der_LenEncoded>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.type_tag() {
             Asn1Der_TypeTag::ObjectId => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len().result()?))?.into();
@@ -286,9 +288,10 @@ impl KStruct for Asn1Der {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len().result()?))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -476,7 +479,9 @@ impl KStruct for Asn1Der_BodyObjectId {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.first_and_second.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rest.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -586,6 +591,7 @@ impl KStruct for Asn1Der_BodyPrintableString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -674,6 +680,7 @@ impl KStruct for Asn1Der_BodySequence {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -754,6 +761,7 @@ impl KStruct for Asn1Der_BodyUtf8string {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -838,11 +846,16 @@ impl KStruct for Asn1Der_LenEncoded {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.b1())) == (to_i128(130))) {
             *self_rc.int2.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.b1())) == (to_i128(129))) {
             *self_rc.int1.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

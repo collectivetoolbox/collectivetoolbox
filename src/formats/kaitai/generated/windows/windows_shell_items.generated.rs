@@ -88,6 +88,7 @@ impl KStruct for WindowsShellItems {
                 if ((to_i128(*_tmpa.len_data())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -183,9 +184,13 @@ impl KStruct for WindowsShellItems_FileEntryBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unnamed0.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.last_mod_time.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_attrs.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -311,7 +316,9 @@ impl KStruct for WindowsShellItems_RootFolderBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sort_index.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.shell_folder_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -408,12 +415,15 @@ impl KStruct for WindowsShellItems_ShellItem {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_data())) >= (to_i128(2))) {
             let _raw_data = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_data())).saturating_sub(2_i32))?)?;
             *self_rc.data_raw.borrow_mut() = _raw_data.clone();
             let _io_data = BytesReader::from(_raw_data);
             let t = Self::read_into::<BytesReader, WindowsShellItems_ShellItemData>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.data.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -606,6 +616,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             31 => {
                 let t = Self::read_into::<_, WindowsShellItems_RootFolderBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -613,6 +624,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match ((i32::from(*self_rc.code())) & (112_i32)) {
             32 => {
                 let t = Self::read_into::<_, WindowsShellItems_VolumeBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -624,6 +636,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -718,6 +731,7 @@ impl KStruct for WindowsShellItems_VolumeBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

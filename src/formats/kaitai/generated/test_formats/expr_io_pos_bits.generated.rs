@@ -116,14 +116,21 @@ impl KStruct for ExprIoPosBits {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if _io.pos() == 1 {
             *self_rc.bar.borrow_mut() = _io.read_bits_int_be(5)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if _io.pos() == 1 {
             *self_rc.baz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if _io.pos() == 2 {
             *self_rc.qux.borrow_mut() = _io.read_bits_int_be(7)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

@@ -125,6 +125,7 @@ impl KStruct for ValidFailAnyofInt {
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4 || _item == expected_5 || _item == expected_6 || _item == expected_7) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

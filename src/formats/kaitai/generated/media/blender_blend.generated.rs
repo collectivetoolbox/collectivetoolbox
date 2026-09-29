@@ -81,6 +81,7 @@ impl KStruct for BlenderBlend {
         let _io = io;
         let t = Self::read_into::<_, BlenderBlend_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -90,6 +91,7 @@ impl KStruct for BlenderBlend {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -286,49 +288,64 @@ impl KStruct for BlenderBlend_Dna1Body {
         if !(*self_rc.id() == vec![0x53u8, 0x44u8, 0x4eu8, 0x41u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.name_magic() == vec![0x4eu8, 0x41u8, 0x4du8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_names.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.names.borrow_mut() = Vec::new();
         let l_names = usize::try_from(*self_rc.num_names())?;
         for _i in 0_usize..l_names {
             self_rc.names.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding_1.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.type_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.type_magic() == vec![0x54u8, 0x59u8, 0x50u8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_types.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.types.borrow_mut() = Vec::new();
         let l_types = usize::try_from(*self_rc.num_types())?;
         for _i in 0_usize..l_types {
             self_rc.types.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding_2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tlen_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.tlen_magic() == vec![0x54u8, 0x4cu8, 0x45u8, 0x4eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/9".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lengths.borrow_mut() = Vec::new();
         let l_lengths = usize::try_from(*self_rc.num_types())?;
         for _i in 0_usize..l_lengths {
             self_rc.lengths.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding_3.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.strc_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.strc_magic() == vec![0x53u8, 0x54u8, 0x52u8, 0x43u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/dna1_body/seq/12".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_structs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.structs.borrow_mut() = Vec::new();
         let l_structs = usize::try_from(*self_rc.num_structs())?;
         for _i in 0_usize..l_structs {
             let t = Self::read_into::<_, BlenderBlend_DnaStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.structs.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -499,7 +516,9 @@ impl KStruct for BlenderBlend_DnaField {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.idx_type.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.idx_name.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -618,13 +637,16 @@ impl KStruct for BlenderBlend_DnaStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.idx_type.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_fields.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fields.borrow_mut() = Vec::new();
         let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
             let t = Self::read_into::<_, BlenderBlend_DnaField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.fields.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -792,10 +814,15 @@ impl KStruct for BlenderBlend_FileBlock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mem_addr.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().psize()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sdna_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.code().as_str() {
             "DNA1" => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into();
@@ -805,9 +832,10 @@ impl KStruct for BlenderBlend_FileBlock {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -970,9 +998,13 @@ impl KStruct for BlenderBlend_Header {
         if !(*self_rc.magic() == vec![0x42u8, 0x4cu8, 0x45u8, 0x4eu8, 0x44u8, 0x45u8, 0x52u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ptr_size_id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.endian.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

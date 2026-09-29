@@ -99,8 +99,10 @@ impl KStruct for DosDatetime {
         let _io = io;
         let t = Self::read_into::<_, DosDatetime_Time>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DosDatetime_Date>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.date.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -200,6 +202,7 @@ impl KStruct for DosDatetime_Date {
         if !(*self_rc.day() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/date/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = _io.read_bits_int_le(4)?;
         let min_val: u64 = (1).try_into()?;
         let max_val: u64 = (12).try_into()?;
@@ -209,7 +212,9 @@ impl KStruct for DosDatetime_Date {
         if !(*self_rc.month() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/date/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.year_minus_1980.borrow_mut() = _io.read_bits_int_le(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -366,16 +371,19 @@ impl KStruct for DosDatetime_Time {
         if !(*self_rc.second_div_2() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = _io.read_bits_int_le(6)?;
         let max_val: u64 = (59).try_into()?;
         if !(*self_rc.minute() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = _io.read_bits_int_le(5)?;
         let max_val: u64 = (23).try_into()?;
         if !(*self_rc.hour() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/time/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

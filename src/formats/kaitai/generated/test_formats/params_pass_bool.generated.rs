@@ -124,26 +124,34 @@ impl KStruct for ParamsPassBool {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.s_false.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.s_true.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(*self_rc.s_true()));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.seq_b1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(*self_rc.s_false()));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.seq_bool.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(false));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.literal_b1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(true));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.literal_bool.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassBool_ParamTypeB1| Ok(t.set_params(*self_rc.v_true()?));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeB1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.inst_b1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassBool_ParamTypeBool| Ok(t.set_params(*self_rc.v_false()?));
         let t = Self::read_into_with_init::<_, ParamsPassBool_ParamTypeBool>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.inst_bool.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -285,6 +293,7 @@ impl KStruct for ParamsPassBool_ParamTypeB1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.arg() { 1_i32 } else { 2_i32 })?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -382,6 +391,7 @@ impl KStruct for ParamsPassBool_ParamTypeBool {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.arg() { 1_i32 } else { 2_i32 })?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

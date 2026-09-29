@@ -140,9 +140,13 @@ impl KStruct for ExprIfIntEq {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.skip.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.seq.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if true {
             *self_rc.seq_if.borrow_mut() = _io.read_s2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

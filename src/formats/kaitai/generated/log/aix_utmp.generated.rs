@@ -75,6 +75,7 @@ impl KStruct for AixUtmp {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -212,7 +213,9 @@ impl KStruct for AixUtmp_ExitStatus {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.termination_code.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exit_code.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -322,17 +325,28 @@ impl KStruct for AixUtmp_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inittab_id.borrow_mut() = bytes_to_str(&_io.read_bytes(14_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device.borrow_mut() = bytes_to_str(&_io.read_bytes(64_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_s2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, AixUtmp_ExitStatus>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.exit_status.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hostname.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dbl_word_pad.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_a.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_v.borrow_mut() = _io.read_bytes(24_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

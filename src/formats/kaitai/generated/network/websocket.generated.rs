@@ -70,6 +70,8 @@ impl KStruct for Websocket {
         let _io = io;
         let t = Self::read_into::<_, Websocket_InitialFrame>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.initial_frame.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.initial_frame().header().finished() != true {
             *self_rc.trailing_frames.borrow_mut() = Vec::new();
             {
@@ -83,6 +85,7 @@ impl KStruct for Websocket {
                     if *_tmpa.header().finished() { break; }
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -248,11 +251,16 @@ impl KStruct for Websocket_Dataframe {
         let _io = io;
         let t = Self::read_into::<_, Websocket_FrameHeader>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.initial_frame().header().opcode() != Websocket_Opcode::Text {
             *self_rc.payload_bytes.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.initial_frame().header().opcode() == Websocket_Opcode::Text {
             *self_rc.payload_text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -363,19 +371,30 @@ impl KStruct for Websocket_FrameHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.finished.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.opcode.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_masked.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_payload_primary.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(126))) {
             *self_rc.len_payload_extended_1.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(127))) {
             *self_rc.len_payload_extended_2.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_masked() {
             *self_rc.mask_key.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -509,11 +528,16 @@ impl KStruct for Websocket_InitialFrame {
         let _io = io;
         let t = Self::read_into::<_, Websocket_FrameHeader>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().opcode() != Websocket_Opcode::Text {
             *self_rc.payload_bytes.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().opcode() == Websocket_Opcode::Text {
             *self_rc.payload_text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

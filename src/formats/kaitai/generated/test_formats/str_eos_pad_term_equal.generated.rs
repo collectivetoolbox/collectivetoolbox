@@ -124,21 +124,25 @@ impl KStruct for StrEosPadTermEqual {
         let _io_s1 = BytesReader::from(_raw_s1);
         let t = Self::read_into::<BytesReader, StrEosPadTermEqual_S1Type>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s2 = _io.read_bytes(20_usize)?;
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _io_s2 = BytesReader::from(_raw_s2);
         let t = Self::read_into::<BytesReader, StrEosPadTermEqual_S2Type>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s3 = _io.read_bytes(20_usize)?;
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _io_s3 = BytesReader::from(_raw_s3);
         let t = Self::read_into::<BytesReader, StrEosPadTermEqual_S3Type>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s4 = _io.read_bytes(20_usize)?;
         *self_rc.s4_raw.borrow_mut() = _raw_s4.clone();
         let _io_s4 = BytesReader::from(_raw_s4);
         let t = Self::read_into::<BytesReader, StrEosPadTermEqual_S4Type>(&_io_s4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s4.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -254,6 +258,7 @@ impl KStruct for StrEosPadTermEqual_S1Type {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), false, Some(64)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -334,6 +339,7 @@ impl KStruct for StrEosPadTermEqual_S2Type {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), true, Some(43)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -414,6 +420,7 @@ impl KStruct for StrEosPadTermEqual_S3Type {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(43), false, Some(43)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -494,6 +501,7 @@ impl KStruct for StrEosPadTermEqual_S4Type {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(46), true, Some(46)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

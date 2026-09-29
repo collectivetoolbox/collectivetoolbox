@@ -118,17 +118,21 @@ impl KStruct for StrEncodingsUtf16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_be.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_be_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_be())?)?;
         *self_rc.be_bom_removed_raw.borrow_mut() = _raw_be_bom_removed.clone();
         let _io_be_bom_removed = BytesReader::from(_raw_be_bom_removed);
         let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrBeBomRemoved>(&_io_be_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.be_bom_removed.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_le.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_le_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_le())?)?;
         *self_rc.le_bom_removed_raw.borrow_mut() = _raw_le_bom_removed.clone();
         let _io_le_bom_removed = BytesReader::from(_raw_le_bom_removed);
         let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrLeBomRemoved>(&_io_le_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.le_bom_removed.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -235,7 +239,9 @@ impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -322,7 +328,9 @@ impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

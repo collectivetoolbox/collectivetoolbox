@@ -115,8 +115,10 @@ impl KStruct for NestedSameName {
         let _io = io;
         let t = Self::read_into::<_, NestedSameName_Main>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main_data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, NestedSameName_DummyObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dummy.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -349,8 +351,10 @@ impl KStruct for NestedSameName_Main {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.main_size.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, NestedSameName_Main_FooObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.foo.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -437,6 +441,7 @@ impl KStruct for NestedSameName_Main_FooObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.main_size()).saturating_mul(2_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

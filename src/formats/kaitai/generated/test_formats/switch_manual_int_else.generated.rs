@@ -121,6 +121,7 @@ impl KStruct for SwitchManualIntElse {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -298,6 +299,7 @@ impl KStruct for SwitchManualIntElse_Opcode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             73 => {
                 let t = Self::read_into::<_, SwitchManualIntElse_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -312,6 +314,7 @@ impl KStruct for SwitchManualIntElse_Opcode {
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -397,6 +400,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Intval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -477,6 +481,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Noneval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.filler.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -557,6 +562,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Strval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

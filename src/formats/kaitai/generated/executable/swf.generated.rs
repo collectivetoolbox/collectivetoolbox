@@ -85,19 +85,26 @@ impl KStruct for Swf {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.compression.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signature.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.signature() == vec![0x57u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.compression() == Swf_Compressions::None {
             let _raw_plain_body = _io.read_bytes_full()?;
             *self_rc.plain_body_raw.borrow_mut() = _raw_plain_body.clone();
             let _io_plain_body = BytesReader::from(_raw_plain_body);
             let t = Self::read_into::<BytesReader, Swf_SwfBody>(&_io_plain_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.plain_body.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.compression() == Swf_Compressions::Zlib {
             let _raw_zlib_body = _io.read_bytes_full()?;
             *self_rc.zlib_body_raw.borrow_mut() = _raw_zlib_body.clone();
@@ -105,6 +112,7 @@ impl KStruct for Swf {
             let _io_zlib_body = BytesReader::from(_processed_zlib_body);
             let t = Self::read_into::<BytesReader, Swf_SwfBody>(&_io_zlib_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.zlib_body.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -338,12 +346,18 @@ impl KStruct for Swf_DefineSoundBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.format.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sampling_rate.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_per_sample.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_channels.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.num_samples.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -557,8 +571,11 @@ impl KStruct for Swf_DoAbcBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abcdata.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -656,8 +673,11 @@ impl KStruct for Swf_RecordHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_code_and_length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.small_len()? == 63 {
             *self_rc.big_len.borrow_mut() = _io.read_s4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -786,7 +806,9 @@ impl KStruct for Swf_Rect {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skip.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.num_bytes()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -903,8 +925,11 @@ impl KStruct for Swf_Rgb {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.g.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -996,7 +1021,9 @@ impl KStruct for Swf_ScriptLimitsBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.max_recursion_depth.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.script_timeout_seconds.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1087,11 +1114,16 @@ impl KStruct for Swf_SwfBody {
         let _io = io;
         let t = Self::read_into::<_, Swf_Rect>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rect.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_rate.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version())) >= (to_i128(8))) {
             let t = Self::read_into::<_, Swf_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_attributes_tag.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.tags.borrow_mut() = Vec::new();
         {
@@ -1102,6 +1134,7 @@ impl KStruct for Swf_SwfBody {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1203,12 +1236,14 @@ impl KStruct for Swf_SymbolClassBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_symbols.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.symbols.borrow_mut() = Vec::new();
         let l_symbols = usize::from(*self_rc.num_symbols());
         for _i in 0_usize..l_symbols {
             let t = Self::read_into::<_, Swf_SymbolClassBody_Symbol>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.symbols.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1295,7 +1330,9 @@ impl KStruct for Swf_SymbolClassBody_Symbol {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1563,6 +1600,7 @@ impl KStruct for Swf_Tag {
         let _io = io;
         let t = Self::read_into::<_, Swf_RecordHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.record_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.record_header().tag_type()? {
             Swf_TagType::DefineSound => {
                 *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
@@ -1607,9 +1645,10 @@ impl KStruct for Swf_Tag {
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.tag_body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.tag_body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

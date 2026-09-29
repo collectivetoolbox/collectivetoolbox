@@ -86,21 +86,34 @@ impl KStruct for RtpPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_padding.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_extension.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.csrc_count.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.marker.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.payload_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(7)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.sequence_number.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_extension() {
             let t = Self::read_into::<_, RtpPacket_HeaderExtention>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header_extension.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(usize::try_from(*self_rc.len_padding()?)?))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -423,7 +436,9 @@ impl KStruct for RtpPacket_HeaderExtention {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

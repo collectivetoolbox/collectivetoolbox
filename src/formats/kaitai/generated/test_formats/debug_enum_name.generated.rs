@@ -115,13 +115,16 @@ impl KStruct for DebugEnumName {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.array_of_ints.borrow_mut() = Vec::new();
         let l_array_of_ints = 1_usize;
         for _i in 0_usize..l_array_of_ints {
             self_rc.array_of_ints.borrow_mut().push(i64::from(_io.read_u1()?).try_into()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DebugEnumName_TestSubtype>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.test_type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -273,7 +276,9 @@ impl KStruct for DebugEnumName_TestSubtype {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.field1.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.field2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

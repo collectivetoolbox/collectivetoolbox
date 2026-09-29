@@ -128,19 +128,25 @@ impl KStruct for InstanceIoUserEarlier {
         let _io_sized_a = BytesReader::from(_raw_sized_a);
         let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_a, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_a.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_sized_b = _io.read_bytes(6_usize)?;
         *self_rc.sized_b_raw.borrow_mut() = _raw_sized_b.clone();
         let _io_sized_b = BytesReader::from(_raw_sized_b);
         let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_b, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_a_skipped.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_a.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, InstanceIoUserEarlier_Baz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.last_accessor.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -287,8 +293,10 @@ impl KStruct for InstanceIoUserEarlier_Baz {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.into_b().inst()?.last()?)) == (to_i128(89))) {
             *self_rc.v.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -374,8 +382,11 @@ impl KStruct for InstanceIoUserEarlier_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.indicator.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((((to_i128((i64::try_from(self_rc.inst()?._io().size())?))) != (to_i128(0)))) && (((to_i128(*self_rc.inst()?.content())) == (to_i128(102)))))  {
             *self_rc.bar.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -487,8 +498,10 @@ impl KStruct for InstanceIoUserEarlier_Slot {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128((i64::try_from(_io.size())?))) != (to_i128(0))) {
             *self_rc.content.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

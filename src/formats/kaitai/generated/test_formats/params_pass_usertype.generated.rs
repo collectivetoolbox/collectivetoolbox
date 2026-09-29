@@ -115,9 +115,11 @@ impl KStruct for ParamsPassUsertype {
         let _io = io;
         let t = Self::read_into::<_, ParamsPassUsertype_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassUsertype_ParamType| Ok(t.set_params((self_rc.first()).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassUsertype_ParamType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.one.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -203,6 +205,7 @@ impl KStruct for ParamsPassUsertype_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -285,6 +288,7 @@ impl KStruct for ParamsPassUsertype_ParamType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.buf.borrow_mut() = _io.read_bytes(usize::from(*self_rc.foo().foo()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

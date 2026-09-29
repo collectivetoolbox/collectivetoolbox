@@ -256,23 +256,41 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         if !(*self_rc.magic() == vec![0x50u8, 0x4du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/partition_entry/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_1.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_partitions.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_start.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_start.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_status.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_code_start.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_code_size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_loader_address.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_2.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_code_entry.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_3.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_code_cksum.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

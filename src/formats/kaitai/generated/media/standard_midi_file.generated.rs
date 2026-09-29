@@ -83,12 +83,14 @@ impl KStruct for StandardMidiFile {
         let _io = io;
         let t = Self::read_into::<_, StandardMidiFile_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tracks.borrow_mut() = Vec::new();
         let l_tracks = usize::from(*self_rc.hdr().num_tracks());
         for _i in 0_usize..l_tracks {
             let t = Self::read_into::<_, StandardMidiFile_Track>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tracks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -174,6 +176,7 @@ impl KStruct for StandardMidiFile_ChannelPressureEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pressure.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -255,7 +258,9 @@ impl KStruct for StandardMidiFile_ControllerEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.controller.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -348,10 +353,15 @@ impl KStruct for StandardMidiFile_Header {
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x68u8, 0x64u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.format.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_tracks.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.division.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -455,9 +465,12 @@ impl KStruct for StandardMidiFile_MetaEventBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.meta_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -625,7 +638,9 @@ impl KStruct for StandardMidiFile_NoteOffEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.note.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.velocity.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -712,7 +727,9 @@ impl KStruct for StandardMidiFile_NoteOnEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.note.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.velocity.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -803,7 +820,9 @@ impl KStruct for StandardMidiFile_PitchBendEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -914,7 +933,9 @@ impl KStruct for StandardMidiFile_PolyphonicPressureEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.note.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pressure.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1000,6 +1021,7 @@ impl KStruct for StandardMidiFile_ProgramChangeEvent {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.program.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1083,7 +1105,9 @@ impl KStruct for StandardMidiFile_SysexEventBody {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1180,12 +1204,15 @@ impl KStruct for StandardMidiFile_Track {
         if !(*self_rc.magic() == vec![0x4du8, 0x54u8, 0x72u8, 0x6bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/track/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_events.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_events = _io.read_bytes(usize::try_from(*self_rc.len_events())?)?;
         *self_rc.events_raw.borrow_mut() = _raw_events.clone();
         let _io_events = BytesReader::from(_raw_events);
         let t = Self::read_into::<BytesReader, StandardMidiFile_TrackEvents>(&_io_events, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.events.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1510,14 +1537,20 @@ impl KStruct for StandardMidiFile_TrackEvent {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.v_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.event_header.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.event_header())) == (to_i128(255))) {
             let t = Self::read_into::<_, StandardMidiFile_MetaEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.meta_event_body.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.event_header())) == (to_i128(240))) {
             let t = Self::read_into::<_, StandardMidiFile_SysexEventBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.sysex_body.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.event_type()? {
             128 => {
@@ -1550,6 +1583,7 @@ impl KStruct for StandardMidiFile_TrackEvent {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1684,6 +1718,7 @@ impl KStruct for StandardMidiFile_TrackEvents {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

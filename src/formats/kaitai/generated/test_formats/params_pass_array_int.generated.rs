@@ -121,12 +121,15 @@ impl KStruct for ParamsPassArrayInt {
         for _i in 0_usize..l_ints {
             self_rc.ints.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((self_rc.ints()).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((*self_rc.ints_calc()?).clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints_calc.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

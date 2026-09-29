@@ -178,15 +178,20 @@ impl KStruct for AndroidBootldrQcom {
         if !(*self_rc.magic() == vec![0x42u8, 0x4fu8, 0x4fu8, 0x54u8, 0x4cu8, 0x44u8, 0x52u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_images.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_img_bodies.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bootloader_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.img_headers.borrow_mut() = Vec::new();
         let l_img_headers = usize::try_from(*self_rc.num_images())?;
         for _i in 0_usize..l_img_headers {
             let t = Self::read_into::<_, AndroidBootldrQcom_ImgHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.img_headers.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -335,6 +340,7 @@ impl KStruct for AndroidBootldrQcom_ImgBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.img_header()?.len_body())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -443,7 +449,9 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

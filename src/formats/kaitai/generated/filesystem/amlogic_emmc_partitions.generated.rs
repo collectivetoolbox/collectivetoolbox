@@ -85,7 +85,9 @@ impl KStruct for AmlogicEmmcPartitions {
         if !(*self_rc.magic() == vec![0x4du8, 0x50u8, 0x54u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(12_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_partitions.borrow_mut() = _io.read_s4le()?;
         let min_val: i32 = (1).try_into()?;
         let max_val: i32 = (32).try_into()?;
@@ -95,13 +97,16 @@ impl KStruct for AmlogicEmmcPartitions {
         if !(*self_rc.num_partitions() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = usize::try_from(*self_rc.num_partitions())?;
         for _i in 0_usize..l_partitions {
             let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -224,14 +229,19 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_flags = _io.read_bytes(4_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
         let t = Self::read_into::<BytesReader, AmlogicEmmcPartitions_Partition_PartFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -353,8 +363,11 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.is_code.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_cache.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_data.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -82,6 +82,7 @@ impl KStruct for Ogg {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -183,30 +184,43 @@ impl KStruct for Ogg_Page {
         if !(*self_rc.sync_code() == vec![0x4fu8, 0x67u8, 0x67u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.version() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/page/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_end_of_stream.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_beginning_of_stream.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_continuation.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.granule_pos.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bitstream_serial.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.page_seq_num.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_segments.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_segments.borrow_mut() = Vec::new();
         let l_len_segments = usize::from(*self_rc.num_segments());
         for _i in 0_usize..l_len_segments {
             self_rc.len_segments.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.segments.borrow_mut() = Vec::new();
         let l_segments = usize::from(*self_rc.num_segments());
         for _i in 0_usize..l_segments {
             self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(_i).ok_or(KError::CastError)?)))?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -76,8 +76,10 @@ impl KStruct for Pcap {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic_number.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Pcap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packets.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -87,6 +89,7 @@ impl KStruct for Pcap {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -900,11 +903,17 @@ impl KStruct for Pcap_Header {
         if !(*self_rc.version_major() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_minor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.thiszone.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sigfigs.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.snaplen.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.network.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1150,9 +1159,13 @@ impl KStruct for Pcap_Packet {
             return Err(KError::UndecidedEndianness { src_path: "/types/packet".to_string() });
         }
         *self_rc.ts_sec.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ts_usec.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.incl_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.orig_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().network() {
             Pcap_Linktype::Ethernet => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into();
@@ -1169,9 +1182,10 @@ impl KStruct for Pcap_Packet {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

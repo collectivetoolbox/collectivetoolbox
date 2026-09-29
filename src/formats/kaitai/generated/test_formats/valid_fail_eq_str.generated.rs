@@ -117,6 +117,7 @@ impl KStruct for ValidFailEqStr {
         if !(*self_rc.foo() == "BACK") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -87,14 +87,18 @@ impl KStruct for Gif {
         let _io = io;
         let t = Self::read_into::<_, Gif_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Gif_LogicalScreenDescriptorStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.logical_screen_descriptor.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.logical_screen_descriptor().has_color_table()? {
             let _raw_global_color_table = _io.read_bytes(usize::try_from((*self_rc.logical_screen_descriptor().color_table_size()?).saturating_mul(3_i32))?)?;
             *self_rc.global_color_table_raw.borrow_mut() = _raw_global_color_table.clone();
             let _io_global_color_table = BytesReader::from(_raw_global_color_table);
             let t = Self::read_into::<BytesReader, Gif_ColorTable>(&_io_global_color_table, Some(self_rc._root.clone()), None)?.into();
             *self_rc.global_color_table.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
@@ -108,6 +112,7 @@ impl KStruct for Gif {
                 if  ((_io.is_eof()) || (*_tmpa.block_type() == Gif_BlockType::EndOfFile))  { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -290,8 +295,11 @@ impl KStruct for Gif_ApplicationId {
         if !(*self_rc.len_bytes() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/application_id/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.application_identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.application_auth_code.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -458,6 +466,7 @@ impl KStruct for Gif_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.block_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.block_type() {
             Gif_BlockType::Extension => {
                 let t = Self::read_into::<_, Gif_Extension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -469,6 +478,7 @@ impl KStruct for Gif_Block {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -566,6 +576,7 @@ impl KStruct for Gif_ColorTable {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -648,8 +659,11 @@ impl KStruct for Gif_ColorTableEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -742,6 +756,7 @@ impl KStruct for Gif_ExtApplication {
         let _io = io;
         let t = Self::read_into::<_, Gif_ApplicationId>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.application_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subblocks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -754,6 +769,7 @@ impl KStruct for Gif_ExtApplication {
                 if ((to_i128(*_tmpa.len_bytes())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -854,13 +870,18 @@ impl KStruct for Gif_ExtGraphicControl {
         if !(*self_rc.block_size() == vec![0x4u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/ext_graphic_control/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.delay_time.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.transparent_idx.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/ext_graphic_control/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1082,6 +1103,7 @@ impl KStruct for Gif_Extension {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.label.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.label() {
             Gif_ExtensionLabel::Application => {
                 let t = Self::read_into::<_, Gif_ExtApplication>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -1100,6 +1122,7 @@ impl KStruct for Gif_Extension {
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1194,7 +1217,9 @@ impl KStruct for Gif_Header {
         if !(*self_rc.magic() == vec![0x47u8, 0x49u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1290,8 +1315,10 @@ impl KStruct for Gif_ImageData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.lzw_min_code_size.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Gif_Subblocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.subblocks.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1392,19 +1419,27 @@ impl KStruct for Gif_LocalImageDescriptor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.left.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.top.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_color_table()? {
             let _raw_local_color_table = _io.read_bytes(usize::try_from((*self_rc.color_table_size()?).saturating_mul(3_i32))?)?;
             *self_rc.local_color_table_raw.borrow_mut() = _raw_local_color_table.clone();
             let _io_local_color_table = BytesReader::from(_raw_local_color_table);
             let t = Self::read_into::<BytesReader, Gif_ColorTable>(&_io_local_color_table, Some(self_rc._root.clone()), None)?.into();
             *self_rc.local_color_table.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Gif_ImageData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1580,10 +1615,15 @@ impl KStruct for Gif_LogicalScreenDescriptorStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.screen_width.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.screen_height.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bg_color_index.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pixel_aspect_ratio.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1710,7 +1750,9 @@ impl KStruct for Gif_Subblock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_bytes.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_bytes()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1812,6 +1854,7 @@ impl KStruct for Gif_Subblocks {
                 if ((to_i128(*_tmpa.len_bytes())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

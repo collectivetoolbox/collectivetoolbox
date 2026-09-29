@@ -118,7 +118,9 @@ impl KStruct for TypeIntUnaryOp {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_s2.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value_s8.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

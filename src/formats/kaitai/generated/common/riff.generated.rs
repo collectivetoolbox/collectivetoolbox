@@ -81,6 +81,7 @@ impl KStruct for Riff {
         let _io = io;
         let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -269,13 +270,17 @@ impl KStruct for Riff_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_data_slot = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
         *self_rc.data_slot_raw.borrow_mut() = _raw_data_slot.clone();
         let _io_data_slot = BytesReader::from(_raw_data_slot);
         let t = Self::read_into::<BytesReader, Riff_Chunk_Slot>(&_io_data_slot, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_slot.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pad_byte.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).checked_rem(2_u32).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -497,11 +502,14 @@ impl KStruct for Riff_ChunkType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.chunk_ofs()? < 0 {
             *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -698,11 +706,14 @@ impl KStruct for Riff_InfoSubchunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.chunk_ofs()? < 0 {
             *self_rc.save_chunk_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Riff_Chunk>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -942,11 +953,14 @@ impl KStruct for Riff_ListChunkData {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.parent_chunk_data_ofs()? < 0 {
             *self_rc.save_parent_chunk_data_ofs.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Riff_ParentChunkData>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.parent_chunk_data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1110,11 +1124,13 @@ impl KStruct for Riff_ParentChunkData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.form_type.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_subchunks_slot = _io.read_bytes_full()?;
         *self_rc.subchunks_slot_raw.borrow_mut() = _raw_subchunks_slot.clone();
         let _io_subchunks_slot = BytesReader::from(_raw_subchunks_slot);
         let t = Self::read_into::<BytesReader, Riff_ParentChunkData_Slot>(&_io_subchunks_slot, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.subchunks_slot.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

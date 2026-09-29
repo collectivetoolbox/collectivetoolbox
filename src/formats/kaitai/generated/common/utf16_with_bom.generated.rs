@@ -88,11 +88,16 @@ impl KStruct for Utf16WithBom {
         if !(*_item == vec![0xfeu8, 0xffu8] || *_item == vec![0xffu8, 0xfeu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_be()? {
             *self_rc.str_be.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_le()? {
             *self_rc.str_le.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

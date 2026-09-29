@@ -86,12 +86,14 @@ impl KStruct for SystemdJournal {
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, SystemdJournal_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.objects.borrow_mut() = Vec::new();
         let l_objects = usize::try_from(*self_rc.header().num_objects())?;
         for _i in 0_usize..l_objects {
             let t = Self::read_into::<_, SystemdJournal_JournalObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.objects.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -299,12 +301,19 @@ impl KStruct for SystemdJournal_DataObject {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.hash.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next_hash.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_head_field.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_entry.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_entry_array.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_entries.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.payload.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -522,40 +531,72 @@ impl KStruct for SystemdJournal_Header {
         if !(*self_rc.signature() == vec![0x4cu8, 0x50u8, 0x4bu8, 0x53u8, 0x48u8, 0x48u8, 0x52u8, 0x48u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compatible_flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.incompatible_flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.state.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(7_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.machine_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.seqnum_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_arena.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_data_hash_table.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data_hash_table.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_field_hash_table.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_field_hash_table.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_tail_object.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_objects.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_entries.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tail_entry_seqnum.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.head_entry_seqnum.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_entry_array.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.head_entry_realtime.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tail_entry_realtime.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tail_entry_monotonic.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.num_data.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.num_fields.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.num_tags.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.num_entry_arrays.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -864,10 +905,15 @@ impl KStruct for SystemdJournal_JournalObject {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(((8_usize).saturating_sub(_io.pos())).checked_rem(8_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.object_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_object.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.object_type() {
             SystemdJournal_JournalObject_ObjectTypes::Data => {
                 *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_object()).saturating_sub(16_u64))?)?.into();
@@ -877,9 +923,10 @@ impl KStruct for SystemdJournal_JournalObject {
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::try_from((*self_rc.len_object()).saturating_sub(16_u64))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -85,6 +85,7 @@ impl KStruct for DimeMessage {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -213,8 +214,11 @@ impl KStruct for DimeMessage_OptionElement {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.element_format.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_element.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.element_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_element()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -322,6 +326,7 @@ impl KStruct for DimeMessage_OptionField {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -407,6 +412,7 @@ impl KStruct for DimeMessage_Padding {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -517,32 +523,50 @@ impl KStruct for DimeMessage_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_first_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_last_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_chunk_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.type_format.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.len_options.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_type.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_options = _io.read_bytes(usize::from(*self_rc.len_options()))?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
         let t = Self::read_into::<BytesReader, DimeMessage_OptionField>(&_io_options, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options_padding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_id()))?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.id_padding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_type()))?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.type_padding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_padding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -166,11 +166,13 @@ impl KStruct for PacketPpi {
         let _io = io;
         let t = Self::read_into::<_, PacketPpi_PacketPpiHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_fields = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().pph_len())).saturating_sub(8_i32))?)?;
         *self_rc.fields_raw.borrow_mut() = _raw_fields.clone();
         let _io_fields = BytesReader::from(_raw_fields);
         let t = Self::read_into::<BytesReader, PacketPpi_PacketPpiFields>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.fields.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header().pph_dlt() {
             PacketPpi_Linktype::Ethernet => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -190,6 +192,7 @@ impl KStruct for PacketPpi {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -681,15 +684,24 @@ impl KStruct for PacketPpi_MacFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unused1.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.aggregate_delimiter.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.more_aggregates.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.aggregate.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dup_rx.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rx_short_guard.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_ht_40.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.greenfield.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.unused2.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -967,7 +979,9 @@ impl KStruct for PacketPpi_PacketPpiField {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pfh_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pfh_datalen.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.pfh_type() {
             PacketPpi_PfhType::Radio80211Common => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.pfh_datalen()))?.into();
@@ -991,9 +1005,10 @@ impl KStruct for PacketPpi_PacketPpiField {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.pfh_datalen()))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1097,6 +1112,7 @@ impl KStruct for PacketPpi_PacketPpiFields {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1184,9 +1200,13 @@ impl KStruct for PacketPpi_PacketPpiHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pph_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pph_flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pph_len.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pph_dlt.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1294,14 +1314,23 @@ impl KStruct for PacketPpi_Radio80211CommonBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tsf_timer.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rate.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.channel_freq.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.channel_flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fhss_hopset.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fhss_pattern.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dbm_antsignal.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dbm_antnoise.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1431,9 +1460,13 @@ impl KStruct for PacketPpi_Radio80211nMacExtBody {
         let _io = io;
         let t = Self::read_into::<_, PacketPpi_MacFlags>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a_mpdu_id.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_delimiters.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1550,35 +1583,47 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
         let _io = io;
         let t = Self::read_into::<_, PacketPpi_MacFlags>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a_mpdu_id.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_delimiters.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mcs.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_streams.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rssi_combined.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rssi_ant_ctl.borrow_mut() = Vec::new();
         let l_rssi_ant_ctl = 4_usize;
         for _i in 0_usize..l_rssi_ant_ctl {
             self_rc.rssi_ant_ctl.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rssi_ant_ext.borrow_mut() = Vec::new();
         let l_rssi_ant_ext = 4_usize;
         for _i in 0_usize..l_rssi_ant_ext {
             self_rc.rssi_ant_ext.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ext_channel_freq.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ext_channel_flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rf_signal_noise.borrow_mut() = Vec::new();
         let l_rf_signal_noise = 4_usize;
         for _i in 0_usize..l_rf_signal_noise {
             let t = Self::read_into::<_, PacketPpi_Radio80211nMacPhyExtBody_SignalNoise>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.rf_signal_noise.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.evm.borrow_mut() = Vec::new();
         let l_evm = 4_usize;
         for _i in 0_usize..l_evm {
             self_rc.evm.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1758,14 +1803,23 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.spectrum_2ghz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofdm.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cck.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.turbo.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.gfsk.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dyn_cck_ofdm.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.only_passive_scan.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.spectrum_5ghz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1919,7 +1973,9 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signal.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.noise.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

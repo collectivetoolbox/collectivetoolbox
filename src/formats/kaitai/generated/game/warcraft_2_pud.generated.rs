@@ -85,6 +85,7 @@ impl KStruct for Warcraft2Pud {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -821,7 +822,9 @@ impl KStruct for Warcraft2Pud_Section {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.name().as_str() {
             "DIM " => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
@@ -894,9 +897,10 @@ impl KStruct for Warcraft2Pud_Section {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.size())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -998,7 +1002,9 @@ impl KStruct for Warcraft2Pud_SectionDim {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1088,6 +1094,7 @@ impl KStruct for Warcraft2Pud_SectionEra {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.terrain.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1179,6 +1186,7 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1266,6 +1274,7 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1359,8 +1368,11 @@ impl KStruct for Warcraft2Pud_SectionType {
         if !(*self_rc.magic() == vec![0x57u8, 0x41u8, 0x52u8, 0x32u8, 0x20u8, 0x4du8, 0x41u8, 0x50u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/section_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.id_tag.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1472,6 +1484,7 @@ impl KStruct for Warcraft2Pud_SectionUnit {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1556,6 +1569,7 @@ impl KStruct for Warcraft2Pud_SectionVer {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1642,10 +1656,15 @@ impl KStruct for Warcraft2Pud_Unit {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.u_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.owner.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.options.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

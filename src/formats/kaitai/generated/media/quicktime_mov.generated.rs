@@ -67,6 +67,7 @@ impl KStruct for QuicktimeMov {
         let _io = io;
         let t = Self::read_into::<_, QuicktimeMov_AtomList>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.atoms.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1208,9 +1209,13 @@ impl KStruct for QuicktimeMov_Atom {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len32.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.atom_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len32())) == (to_i128(1))) {
             *self_rc.len64.borrow_mut() = _io.read_u8be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.atom_type() {
             QuicktimeMov_AtomType::Dinf => {
@@ -1291,9 +1296,10 @@ impl KStruct for QuicktimeMov_Atom {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len()?)?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1414,6 +1420,7 @@ impl KStruct for QuicktimeMov_AtomList {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1499,7 +1506,9 @@ impl KStruct for QuicktimeMov_Fixed16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.int_part.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frac_part.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1590,7 +1599,9 @@ impl KStruct for QuicktimeMov_Fixed32 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.int_part.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frac_part.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1683,7 +1694,9 @@ impl KStruct for QuicktimeMov_FtypBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.major_brand.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_version.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compatible_brands.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -1692,6 +1705,7 @@ impl KStruct for QuicktimeMov_FtypBody {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1810,24 +1824,41 @@ impl KStruct for QuicktimeMov_MvhdBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.creation_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.modification_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_scale.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.duration.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.preferred_rate.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, QuicktimeMov_Fixed16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.preferred_volume.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(10_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.matrix.borrow_mut() = _io.read_bytes(36_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.preview_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.preview_duration.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.poster_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.selection_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.selection_duration.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.current_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.next_track_id.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2086,22 +2117,37 @@ impl KStruct for QuicktimeMov_TkhdBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.creation_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.modification_time.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.track_id.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.duration.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.layer.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alternative_group.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.matrix.borrow_mut() = _io.read_bytes(36_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.width.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, QuicktimeMov_Fixed32>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.height.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

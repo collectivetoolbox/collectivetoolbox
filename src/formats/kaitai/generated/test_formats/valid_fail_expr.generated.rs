@@ -119,12 +119,14 @@ impl KStruct for ValidFailExpr {
         if !((_tmpa == 1_u8)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bar.borrow_mut() = _io.read_s2le()?;
         let _borrowed = self_rc.bar();
         let _tmpa = *_borrowed;
         if !( (((to_i128(_tmpa)) < (to_i128((0_i32).saturating_sub(to_i32(190))))) || ((to_i128(_tmpa)) > (to_i128((0_i32).saturating_sub(to_i32(190)))))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

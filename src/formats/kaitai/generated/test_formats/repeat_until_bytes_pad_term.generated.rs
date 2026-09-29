@@ -124,6 +124,7 @@ impl KStruct for RepeatUntilBytesPadTerm {
                 if *_tmpa == vec![0xaau8, 0x55u8] { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

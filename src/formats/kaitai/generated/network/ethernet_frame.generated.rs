@@ -169,14 +169,21 @@ impl KStruct for EthernetFrame {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.dst_mac.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.src_mac.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ether_type_1.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
             let t = Self::read_into::<_, EthernetFrame_TagControlInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.tci.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.ether_type_1() == EthernetFrame_EtherTypeEnum::Ieee8021qTpid {
             *self_rc.ether_type_2.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc.ether_type()? {
             EthernetFrame_EtherTypeEnum::Ipv4 => {
@@ -197,6 +204,7 @@ impl KStruct for EthernetFrame {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -408,8 +416,11 @@ impl KStruct for EthernetFrame_TagControlInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.priority.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.drop_eligible.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vlan_id.borrow_mut() = _io.read_bits_int_be(12)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -130,8 +130,11 @@ impl KStruct for CombineBytes {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bytes_term.borrow_mut() = _io.read_bytes_term(124, false, true, true)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes_limit.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes_eos.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

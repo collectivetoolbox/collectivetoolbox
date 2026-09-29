@@ -69,6 +69,7 @@ impl KStruct for MicrosoftPe {
         let _io = io;
         let t = Self::read_into::<_, MicrosoftPe_MzPlaceholder>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mz.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -367,9 +368,13 @@ impl KStruct for MicrosoftPe_CertificateEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.revision.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.certificate_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.certificate_bytes.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.length()).saturating_sub(8_u32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -591,6 +596,7 @@ impl KStruct for MicrosoftPe_CertificateTable {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -689,12 +695,19 @@ impl KStruct for MicrosoftPe_CoffHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.machine.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_sections.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_date_stamp.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_symbol_table.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_symbols.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_optional_header.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.characteristics.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1109,11 +1122,17 @@ impl KStruct for MicrosoftPe_CoffSymbol {
         let _io_name_annoying = BytesReader::from(_raw_name_annoying);
         let t = Self::read_into::<BytesReader, MicrosoftPe_Annoyingstring>(&_io_name_annoying, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name_annoying.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.section_number.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.storage_class.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_aux_symbols.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1251,7 +1270,9 @@ impl KStruct for MicrosoftPe_DataDir {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1343,8 +1364,11 @@ impl KStruct for MicrosoftPe_MzPlaceholder {
         if !(*self_rc.magic() == vec![0x4du8, 0x5au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/mz_placeholder/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data1.borrow_mut() = _io.read_bytes(58_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_pe.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1447,10 +1471,13 @@ impl KStruct for MicrosoftPe_OptionalHeader {
         let _io = io;
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeaderStd>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.std.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeaderWindows>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.windows.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeaderDataDirs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_dirs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1556,34 +1583,49 @@ impl KStruct for MicrosoftPe_OptionalHeaderDataDirs {
         let _io = io;
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.export_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.import_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.resource_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.exception_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.certificate_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.base_relocation_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.debug.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.architecture.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.global_ptr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tls_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.load_config_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bound_import.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.iat.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.delay_import_descriptor.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.clr_runtime_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1742,15 +1784,25 @@ impl KStruct for MicrosoftPe_OptionalHeaderStd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.format.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_linker_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_linker_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_code.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_initialized_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_uninitialized_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.address_of_entry_point.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.base_of_code.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.base_of_data.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1896,52 +1948,88 @@ impl KStruct for MicrosoftPe_OptionalHeaderWindows {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.image_base_32.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32Plus {
             *self_rc.image_base_64.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.section_alignment.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_alignment.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_operating_system_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_operating_system_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_image_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_image_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_subsystem_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_subsystem_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.win32_version_value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_image.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_headers.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.check_sum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subsystem.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dll_characteristics.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.size_of_stack_reserve_32.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32Plus {
             *self_rc.size_of_stack_reserve_64.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.size_of_stack_commit_32.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32Plus {
             *self_rc.size_of_stack_commit_64.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.size_of_heap_reserve_32.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32Plus {
             *self_rc.size_of_heap_reserve_64.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.size_of_heap_commit_32.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.std().format() == MicrosoftPe_PeFormat::Pe32Plus {
             *self_rc.size_of_heap_commit_64.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.loader_flags.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_rva_and_sizes.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2219,19 +2307,23 @@ impl KStruct for MicrosoftPe_PeHeader {
         if !(*self_rc.pe_signature() == vec![0x50u8, 0x45u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/pe_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MicrosoftPe_CoffHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.coff_hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_optional_hdr = _io.read_bytes(usize::from(*self_rc.coff_hdr().size_of_optional_header()))?;
         *self_rc.optional_hdr_raw.borrow_mut() = _raw_optional_hdr.clone();
         let _io_optional_hdr = BytesReader::from(_raw_optional_hdr);
         let t = Self::read_into::<BytesReader, MicrosoftPe_OptionalHeader>(&_io_optional_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.optional_hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sections.borrow_mut() = Vec::new();
         let l_sections = usize::from(*self_rc.coff_hdr().number_of_sections());
         for _i in 0_usize..l_sections {
             let t = Self::read_into::<_, MicrosoftPe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2369,15 +2461,25 @@ impl KStruct for MicrosoftPe_Section {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_raw_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_relocations.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pointer_to_linenumbers.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_relocations.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_linenumbers.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

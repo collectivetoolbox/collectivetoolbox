@@ -80,17 +80,21 @@ impl KStruct for AllegroDat {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pack_magic.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dat_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.dat_magic() == vec![0x41u8, 0x4cu8, 0x4cu8, 0x2eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_objects.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.objects.borrow_mut() = Vec::new();
         let l_objects = usize::try_from(*self_rc.num_objects())?;
         for _i in 0_usize..l_objects {
             let t = Self::read_into::<_, AllegroDat_DatObject>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.objects.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -218,9 +222,13 @@ impl KStruct for AllegroDat_DatBitmap {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -413,6 +421,7 @@ impl KStruct for AllegroDat_DatFont {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_size.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.font_size() {
             0 => {
                 let t = Self::read_into::<_, AllegroDat_DatFont39>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -428,6 +437,7 @@ impl KStruct for AllegroDat_DatFont {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -523,6 +533,7 @@ impl KStruct for AllegroDat_DatFont16 {
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(16_usize)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -615,12 +626,14 @@ impl KStruct for AllegroDat_DatFont39 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_ranges.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ranges.borrow_mut() = Vec::new();
         let l_ranges = usize::try_from(*self_rc.num_ranges())?;
         for _i in 0_usize..l_ranges {
             let t = Self::read_into::<_, AllegroDat_DatFont39_Range>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ranges.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -709,8 +722,11 @@ impl KStruct for AllegroDat_DatFont39_FontChar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::from((*self_rc.width()).saturating_mul(*self_rc.height())))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -809,14 +825,18 @@ impl KStruct for AllegroDat_DatFont39_Range {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.mono.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_char.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.end_char.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.chars.borrow_mut() = Vec::new();
         let l_chars = usize::try_from(((*self_rc.end_char()).saturating_sub(*self_rc.start_char())).saturating_add(1_u32))?;
         for _i in 0_usize..l_chars {
             let t = Self::read_into::<_, AllegroDat_DatFont39_FontChar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chars.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -930,6 +950,7 @@ impl KStruct for AllegroDat_DatFont8 {
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(8_usize)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1149,8 +1170,11 @@ impl KStruct for AllegroDat_DatObject {
                 if !(*_tmpa.is_valid()?) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_compressed.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_uncompressed.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.r#type()?.as_str() {
             "BMP " => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_compressed())?)?.into();
@@ -1174,9 +1198,10 @@ impl KStruct for AllegroDat_DatObject {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_compressed())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1293,10 +1318,15 @@ impl KStruct for AllegroDat_DatRleSprite {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_image.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1405,14 +1435,21 @@ impl KStruct for AllegroDat_Property {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_valid()? {
             *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_valid()? {
             *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_valid()? {
             *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_body())?)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

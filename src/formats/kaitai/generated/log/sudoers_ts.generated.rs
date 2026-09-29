@@ -76,6 +76,7 @@ impl KStruct for SudoersTs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -283,7 +284,9 @@ impl KStruct for SudoersTs_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_record.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.version() {
             1 => {
                 *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_record())).saturating_sub(4_i32))?)?.into();
@@ -300,9 +303,10 @@ impl KStruct for SudoersTs_Record {
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::try_from((i32::from(*self_rc.len_record())).saturating_sub(4_i32))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -412,17 +416,26 @@ impl KStruct for SudoersTs_RecordV1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SudoersTs_TsFlag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.auth_uid.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sid.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SudoersTs_Timespec>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ts.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() == SudoersTs_TsType::Tty {
             *self_rc.ttydev.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() == SudoersTs_TsType::Ppid {
             *self_rc.ppid.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -569,19 +582,29 @@ impl KStruct for SudoersTs_RecordV2 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SudoersTs_TsFlag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.auth_uid.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sid.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SudoersTs_Timespec>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.start_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SudoersTs_Timespec>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ts.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() == SudoersTs_TsType::Tty {
             *self_rc.ttydev.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() == SudoersTs_TsType::Ppid {
             *self_rc.ppid.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -731,7 +754,9 @@ impl KStruct for SudoersTs_Timespec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sec.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nsec.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -828,9 +853,13 @@ impl KStruct for SudoersTs_TsFlag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved0.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.anyuid.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disabled.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -116,6 +116,7 @@ impl KStruct for OpaqueExternalType02Parent {
         let _io = io;
         let t = Self::read_into::<_, OpaqueExternalType02Parent_ParentObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.parent.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -197,6 +198,7 @@ impl KStruct for OpaqueExternalType02Parent_ParentObj {
         let _io = io;
         let t = Self::read_into::<_, OpaqueExternalType02Child>(&*_io, None, None)?.into();
         *self_rc.child.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

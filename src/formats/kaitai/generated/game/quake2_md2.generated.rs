@@ -171,26 +171,43 @@ impl KStruct for Quake2Md2 {
         if !(*self_rc.magic() == vec![0x49u8, 0x44u8, 0x50u8, 0x32u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
         let expected: u32 = (8).try_into()?;
         if !(*self_rc.version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skin_width_px.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.skin_height_px.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes_per_frame.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_skins.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices_per_frame.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_tex_coords.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_triangles.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_gl_cmds.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_frames.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_skins.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_tex_coords.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_triangles.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_frames.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_gl_cmds.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_eof.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -564,8 +581,11 @@ impl KStruct for Quake2Md2_CompressedVec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x_compressed.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_compressed.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z_compressed.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -697,15 +717,19 @@ impl KStruct for Quake2Md2_Frame {
         let _io = io;
         let t = Self::read_into::<_, Quake2Md2_Vec3f>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.scale.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Quake2Md2_Vec3f>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.translate.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.vertices_per_frame())?;
         for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Quake2Md2_Vertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -811,12 +835,14 @@ impl KStruct for Quake2Md2_GlCmd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.cmd_num_vertices.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = usize::try_from(*self_rc.num_vertices()?)?;
         for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Quake2Md2_GlVertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -925,6 +951,7 @@ impl KStruct for Quake2Md2_GlCmdsList {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.items.borrow_mut() = Vec::new();
             {
@@ -938,6 +965,7 @@ impl KStruct for Quake2Md2_GlCmdsList {
                     if ((to_i128(*_tmpa.cmd_num_vertices())) == (to_i128(0))) { break; }
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1024,7 +1052,9 @@ impl KStruct for Quake2Md2_GlVertex {
         for _i in 0_usize..l_tex_coords_normalized {
             self_rc.tex_coords_normalized.borrow_mut().push(_io.read_f4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertex_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1119,7 +1149,9 @@ impl KStruct for Quake2Md2_TexPoint {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.s_px.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.t_px.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1234,11 +1266,13 @@ impl KStruct for Quake2Md2_Triangle {
         for _i in 0_usize..l_vertex_indices {
             self_rc.vertex_indices.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tex_point_indices.borrow_mut() = Vec::new();
         let l_tex_point_indices = 3_usize;
         for _i in 0_usize..l_tex_point_indices {
             self_rc.tex_point_indices.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1334,8 +1368,11 @@ impl KStruct for Quake2Md2_Vec3f {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1430,7 +1467,9 @@ impl KStruct for Quake2Md2_Vertex {
         let _io = io;
         let t = Self::read_into::<_, Quake2Md2_CompressedVec>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.position.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.normal_index.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

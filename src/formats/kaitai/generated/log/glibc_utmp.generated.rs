@@ -73,6 +73,7 @@ impl KStruct for GlibcUtmp {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -230,17 +231,28 @@ impl KStruct for GlibcUtmp_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ut_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.line.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.user.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.host.borrow_mut() = bytes_to_str(&_io.read_bytes(256_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exit.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.session.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, GlibcUtmp_Timeval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tv.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.addr_v6.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -442,7 +454,9 @@ impl KStruct for GlibcUtmp_Timeval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sec.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.usec.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -83,8 +83,10 @@ impl KStruct for Exif {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.endianness.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Exif_ExifBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1848,7 +1850,9 @@ impl KStruct for Exif_ExifBody {
         if !(*self_rc.magic() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/exif_body/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_ifd0.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1956,6 +1960,7 @@ impl KStruct for Exif_ExifBody_AsciiString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_term(0, false, true, false)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2072,6 +2077,7 @@ impl KStruct for Exif_ExifBody_Doubles {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f8le()? } else { _io.read_f8be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2162,6 +2168,7 @@ impl KStruct for Exif_ExifBody_Floats {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_f4le()? } else { _io.read_f4be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2254,6 +2261,7 @@ impl KStruct for Exif_ExifBody_Ifd {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_fields.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fields.borrow_mut() = Vec::new();
         let l_fields = usize::from(*self_rc.num_fields());
         for _i in 0_usize..l_fields {
@@ -2263,7 +2271,9 @@ impl KStruct for Exif_ExifBody_Ifd {
             let t = Self::read_into_with_init::<BytesReader, Exif_ExifBody_IfdField>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.fields.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_next_ifd.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2776,10 +2786,15 @@ impl KStruct for Exif_ExifBody_IfdField {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.field_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_values.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.has_immediate_data()?) {
             *self_rc.ofs_data.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -3119,6 +3134,7 @@ impl KStruct for Exif_ExifBody_Longs {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3208,7 +3224,9 @@ impl KStruct for Exif_ExifBody_Rational {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3338,6 +3356,7 @@ impl KStruct for Exif_ExifBody_Rationals {
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Rational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.values.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3428,6 +3447,7 @@ impl KStruct for Exif_ExifBody_Sbytes {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_s1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3518,6 +3538,7 @@ impl KStruct for Exif_ExifBody_Shorts {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3608,6 +3629,7 @@ impl KStruct for Exif_ExifBody_Slongs {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3697,7 +3719,9 @@ impl KStruct for Exif_ExifBody_Srational {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_num.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value_den.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s4le()? } else { _io.read_s4be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3826,6 +3850,7 @@ impl KStruct for Exif_ExifBody_Srationals {
             let t = Self::read_into_with_init::<_, Exif_ExifBody_Srational>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.values.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3916,6 +3941,7 @@ impl KStruct for Exif_ExifBody_Sshorts {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? });
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4002,6 +4028,7 @@ impl KStruct for Exif_ExifBody_Utf8String {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, false)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

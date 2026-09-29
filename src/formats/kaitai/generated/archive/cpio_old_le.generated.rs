@@ -70,6 +70,7 @@ impl KStruct for CpioOldLe {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -159,26 +160,36 @@ impl KStruct for CpioOldLe_File {
         let _io = io;
         let t = Self::read_into::<_, CpioOldLe_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.path_name.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().path_name_size())).saturating_sub(1_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.string_terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.string_terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if (i32::from(*self_rc.header().path_name_size())).checked_rem(2_i32).ok_or(KError::CastError)? == 1 {
             *self_rc.path_name_padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.path_name_padding() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file/seq/3".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.file_data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().file_size().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if modulo(i64::from(*self_rc.header().file_size().value()?), 2_i64) == 1 {
             *self_rc.file_data_padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.file_data_padding() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file/seq/5".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((*self_rc.path_name() == vec![0x54u8, 0x52u8, 0x41u8, 0x49u8, 0x4cu8, 0x45u8, 0x52u8, 0x21u8, 0x21u8, 0x21u8]) && (*self_rc.header().file_size().value()? == 0))  {
             *self_rc.end_of_file_padding.borrow_mut() = _io.read_bytes_full()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -313,18 +324,29 @@ impl KStruct for CpioOldLe_FileHeader {
         if !(*self_rc.magic() == vec![0xc7u8, 0x71u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_number.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.inode_number.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mode.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.user_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.group_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_links.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r_device_number.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, CpioOldLe_FourByteUnsignedInteger>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.modification_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.path_name_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, CpioOldLe_FourByteUnsignedInteger>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -458,7 +480,9 @@ impl KStruct for CpioOldLe_FourByteUnsignedInteger {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.most_significant_bits.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.least_significant_bits.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

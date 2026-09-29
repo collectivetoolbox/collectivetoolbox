@@ -124,10 +124,13 @@ impl KStruct for NestedTypesImport {
         let _io = io;
         let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeCc>(&*_io, None, None)?.into();
         *self_rc.a_cc.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeC_SubtypeD>(&*_io, None, None)?.into();
         *self_rc.a_c_d.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, NestedTypes3_SubtypeB>(&*_io, None, None)?.into();
         *self_rc.b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -80,6 +80,7 @@ impl KStruct for ZxSpectrumTap {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -232,11 +233,14 @@ impl KStruct for ZxSpectrumTap_ArrayParams {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.var_name.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved1() == vec![0x0u8, 0x80u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/array_params/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -337,16 +341,24 @@ impl KStruct for ZxSpectrumTap_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_block.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((((to_i128(*self_rc.len_block())) == (to_i128(19)))) && (*self_rc.flag() == ZxSpectrumTap_FlagEnum::Header))  {
             let t = Self::read_into::<_, ZxSpectrumTap_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_block())) == (to_i128(19))) {
             *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().len_data())).saturating_add(4_i32))?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flag() == ZxSpectrumTap_FlagEnum::Data {
             *self_rc.headerless_data.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_block())).saturating_sub(1_i32))?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -460,7 +472,9 @@ impl KStruct for ZxSpectrumTap_BytesParams {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -652,8 +666,11 @@ impl KStruct for ZxSpectrumTap_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.filename.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(10_usize)?, None, false, Some(32));
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header_type() {
             ZxSpectrumTap_HeaderTypeEnum::Bytes => {
                 let t = Self::read_into::<_, ZxSpectrumTap_BytesParams>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -673,7 +690,9 @@ impl KStruct for ZxSpectrumTap_Header {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -784,7 +803,9 @@ impl KStruct for ZxSpectrumTap_ProgramParams {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.autostart_line.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_program.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

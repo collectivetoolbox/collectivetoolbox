@@ -114,6 +114,7 @@ impl KStruct for Enum1 {
         let _io = io;
         let t = Self::read_into::<_, Enum1_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -195,6 +196,7 @@ impl KStruct for Enum1_MainObj {
         let _io = io;
         let t = Self::read_into::<_, Enum1_MainObj_SubmainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.submain.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -311,7 +313,9 @@ impl KStruct for Enum1_MainObj_SubmainObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pet_1.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pet_2.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -204,6 +204,7 @@ impl KStruct for SshPublicKey {
         let _io = io;
         let t = Self::read_into::<_, SshPublicKey_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.key_name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.key_name().value().as_str() {
             "ecdsa-sha2-nistp256" => {
                 let t = Self::read_into::<_, SshPublicKey_KeyEcdsa>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -223,6 +224,7 @@ impl KStruct for SshPublicKey {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -324,7 +326,9 @@ impl KStruct for SshPublicKey_Bignum2 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -441,7 +445,9 @@ impl KStruct for SshPublicKey_Cstring {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -544,7 +550,9 @@ impl KStruct for SshPublicKey_EllipticCurve {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -643,12 +651,16 @@ impl KStruct for SshPublicKey_KeyDsa {
         let _io = io;
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.dsa_p.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.dsa_q.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.dsa_g.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.dsa_pub_key.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -750,8 +762,10 @@ impl KStruct for SshPublicKey_KeyEcdsa {
         let _io = io;
         let t = Self::read_into::<_, SshPublicKey_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.curve_name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SshPublicKey_EllipticCurve>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ec.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -843,7 +857,9 @@ impl KStruct for SshPublicKey_KeyEd25519 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_pk.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pk.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_pk())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -942,8 +958,10 @@ impl KStruct for SshPublicKey_KeyRsa {
         let _io = io;
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.rsa_e.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, SshPublicKey_Bignum2>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.rsa_n.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

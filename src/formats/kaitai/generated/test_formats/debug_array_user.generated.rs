@@ -115,6 +115,7 @@ impl KStruct for DebugArrayUser {
         let _io = io;
         let t = Self::read_into::<_, DebugArrayUser_Cat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.one_cat.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
@@ -126,6 +127,7 @@ impl KStruct for DebugArrayUser {
             self_rc.array_of_cats.borrow_mut().push(t);
             res?;
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -211,6 +213,7 @@ impl KStruct for DebugArrayUser_Cat {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.meow.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

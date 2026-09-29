@@ -82,6 +82,7 @@ impl KStruct for Lzh {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -170,10 +171,14 @@ impl KStruct for Lzh_FileRecord {
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, Lzh_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header().header1().lha_level())) == (to_i128(0))) {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().header1().file_size_compr())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -281,20 +286,31 @@ impl KStruct for Lzh_Header {
         let _io = io;
         let t = Self::read_into::<_, Lzh_Header1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(0))) {
             *self_rc.filename_len.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(0))) {
             *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.filename_len()))?, "ASCII")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.file_uncompr_crc16.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.os.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header1().lha_level())) == (to_i128(2))) {
             *self_rc.ext_header_size.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -418,16 +434,23 @@ impl KStruct for Lzh_Header1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_checksum.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.method_id.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size_compr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size_uncompr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_file_timestamp = _io.read_bytes(4_usize)?;
         *self_rc.file_timestamp_raw.borrow_mut() = _raw_file_timestamp.clone();
         let _io_file_timestamp = BytesReader::from(_raw_file_timestamp);
         let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_timestamp, None, None)?.into();
         *self_rc.file_timestamp.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attr.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lha_level.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -565,9 +588,12 @@ impl KStruct for Lzh_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.header_len())) > (to_i128(0))) {
             let t = Self::read_into::<_, Lzh_FileRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_record.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

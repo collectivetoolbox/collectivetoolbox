@@ -138,18 +138,22 @@ impl KStruct for TypeTernary2ndFalsy {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.int_truthy.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, TypeTernary2ndFalsy_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ut.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.int_array.borrow_mut() = Vec::new();
         let l_int_array = 2_usize;
         for _i in 0_usize..l_int_array {
             self_rc.int_array.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.int_array_empty.borrow_mut() = Vec::new();
         let l_int_array_empty = 0_usize;
         for _i in 0_usize..l_int_array_empty {
             self_rc.int_array_empty.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -377,6 +381,7 @@ impl KStruct for TypeTernary2ndFalsy_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.m.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

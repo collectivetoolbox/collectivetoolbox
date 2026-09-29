@@ -114,7 +114,9 @@ impl KStruct for ToStringCustom {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

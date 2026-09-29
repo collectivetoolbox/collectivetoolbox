@@ -127,16 +127,19 @@ impl KStruct for ExprIoTernary {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_obj1 = _io.read_bytes(4_usize)?;
         *self_rc.obj1_raw.borrow_mut() = _raw_obj1.clone();
         let _io_obj1 = BytesReader::from(_raw_obj1);
         let t = Self::read_into::<BytesReader, ExprIoTernary_One>(&_io_obj1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.obj1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_obj2 = _io.read_bytes(8_usize)?;
         *self_rc.obj2_raw.borrow_mut() = _raw_obj2.clone();
         let _io_obj2 = BytesReader::from(_raw_obj2);
         let t = Self::read_into::<BytesReader, ExprIoTernary_Two>(&_io_obj2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.obj2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -296,6 +299,7 @@ impl KStruct for ExprIoTernary_One {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -376,6 +380,7 @@ impl KStruct for ExprIoTernary_Two {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.two.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -119,16 +119,19 @@ impl KStruct for RepeatNTermBytes {
         for _i in 0_usize..l_records1 {
             self_rc.records1.borrow_mut().push(_io.read_bytes_term(170, false, true, true)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records2.borrow_mut() = Vec::new();
         let l_records2 = 2_usize;
         for _i in 0_usize..l_records2 {
             self_rc.records2.borrow_mut().push(_io.read_bytes_term(170, true, true, true)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records3.borrow_mut() = Vec::new();
         let l_records3 = 2_usize;
         for _i in 0_usize..l_records3 {
             self_rc.records3.borrow_mut().push(_io.read_bytes_term(85, false, false, true)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

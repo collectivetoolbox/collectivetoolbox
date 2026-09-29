@@ -121,16 +121,21 @@ impl KStruct for ExprIfIntOps {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if true {
             *self_rc.key.borrow_mut() = _io.read_u8le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.skip.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bytes.borrow_mut() = process_xor_one(&_io.read_bytes(8_usize)?, u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = 4_usize;
         for _i in 0_usize..l_items {
             self_rc.items.borrow_mut().push(_io.read_s1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

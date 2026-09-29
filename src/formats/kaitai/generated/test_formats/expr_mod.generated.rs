@@ -122,7 +122,9 @@ impl KStruct for ExprMod {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.int_u.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.int_s.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

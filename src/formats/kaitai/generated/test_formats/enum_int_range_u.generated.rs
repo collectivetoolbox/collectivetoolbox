@@ -114,7 +114,9 @@ impl KStruct for EnumIntRangeU {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.f1.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f2.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

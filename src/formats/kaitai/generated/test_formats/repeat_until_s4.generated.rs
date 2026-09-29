@@ -125,7 +125,9 @@ impl KStruct for RepeatUntilS4 {
                 if ((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1))))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.afterall.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

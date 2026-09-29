@@ -183,6 +183,7 @@ impl KStruct for NonStandard {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.foo() {
             42 => {
                 *self_rc.bar.borrow_mut() = Some(_io.read_u2le()?.into());
@@ -192,6 +193,7 @@ impl KStruct for NonStandard {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -124,10 +124,14 @@ impl KStruct for Gzip {
         if !(*self_rc.magic() == vec![0x1fu8, 0x8bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Gzip_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mod_time.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.compression_method() {
             Gzip_CompressionMethods::Deflate => {
                 let t = Self::read_into::<_, Gzip_ExtraFlagsDeflate>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -135,23 +139,36 @@ impl KStruct for Gzip {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.os.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_extra() {
             let t = Self::read_into::<_, Gzip_Extras>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extras.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_name() {
             *self_rc.name.borrow_mut() = _io.read_bytes_term(0, false, true, true)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_comment() {
             *self_rc.comment.borrow_mut() = _io.read_bytes_term(0, false, true, true)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_header_crc() {
             *self_rc.header_crc16.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body_crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_uncompressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -484,6 +501,7 @@ impl KStruct for Gzip_ExtraFlagsDeflate {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.compression_strength.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -598,11 +616,13 @@ impl KStruct for Gzip_Extras {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_subfields.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_subfields = _io.read_bytes(usize::from(*self_rc.len_subfields()))?;
         *self_rc.subfields_raw.borrow_mut() = _raw_subfields.clone();
         let _io_subfields = BytesReader::from(_raw_subfields);
         let t = Self::read_into::<BytesReader, Gzip_Subfields>(&_io_subfields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.subfields.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -698,11 +718,17 @@ impl KStruct for Gzip_Flags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_comment.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_name.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_extra.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_header_crc.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_text.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -835,8 +861,11 @@ impl KStruct for Gzip_Subfield {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_data()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -948,6 +977,7 @@ impl KStruct for Gzip_Subfields {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

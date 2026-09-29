@@ -75,10 +75,14 @@ impl KStruct for PythonPyc27 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version_magic.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crlf.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.modification_timestamp.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -281,12 +285,15 @@ impl KStruct for PythonPyc27_Assembly {
         if !(*self_rc.string_magic() == vec![0x73u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/assembly/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_items = _io.read_bytes(usize::try_from(*self_rc.length())?)?;
         *self_rc.items_raw.borrow_mut() = _raw_items.clone();
         let _io_items = BytesReader::from(_raw_items);
         let t = Self::read_into::<BytesReader, PythonPyc27_OpArgs>(&_io_items, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.items.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -395,28 +402,42 @@ impl KStruct for PythonPyc27_CodeObject {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.arg_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.local_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.stack_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_Assembly>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.code.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.consts.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.names.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.var_names.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.free_vars.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.cell_vars.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.filename.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_line_no.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.lnotab.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -598,8 +619,11 @@ impl KStruct for PythonPyc27_OpArg {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.op_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if i64::from(&*self_rc.op_code()) >= i64::from(&PythonPyc27_OpArg_OpCodeEnum::StoreName) {
             *self_rc.arg.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1077,6 +1101,7 @@ impl KStruct for PythonPyc27_OpArgs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1430,6 +1455,7 @@ impl KStruct for PythonPyc27_PyObject {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             PythonPyc27_PyObject_ObjectType::CodeObject => {
                 let t = Self::read_into::<_, PythonPyc27_CodeObject>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -1468,6 +1494,7 @@ impl KStruct for PythonPyc27_PyObject {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1611,7 +1638,9 @@ impl KStruct for PythonPyc27_PyObject_InternedString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1850,7 +1879,9 @@ impl KStruct for PythonPyc27_PyObject_PyString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.length())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2014,6 +2045,7 @@ impl KStruct for PythonPyc27_PyObject_StringRef {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.interned_list_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2095,12 +2127,14 @@ impl KStruct for PythonPyc27_PyObject_Tuple {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, PythonPyc27_PyObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2188,7 +2222,9 @@ impl KStruct for PythonPyc27_PyObject_UnicodeString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.length())?)?, "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

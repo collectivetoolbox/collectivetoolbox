@@ -80,33 +80,48 @@ impl KStruct for WindowsLnkFile {
         let _io = io;
         let t = Self::read_into::<_, WindowsLnkFile_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_link_target_id_list() {
             let t = Self::read_into::<_, WindowsLnkFile_LinkTargetIdList>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.target_id_list.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_link_info() {
             let t = Self::read_into::<_, WindowsLnkFile_LinkInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.info.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_name() {
             let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.name.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_rel_path() {
             let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.rel_path.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_work_dir() {
             let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.work_dir.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_arguments() {
             let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.arguments.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.header().flags().has_icon_location() {
             let t = Self::read_into::<_, WindowsLnkFile_StringData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.icon_location.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -324,27 +339,39 @@ impl KStruct for WindowsLnkFile_FileHeader {
         if !(*self_rc.len_header() == vec![0x4cu8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.link_clsid.borrow_mut() = _io.read_bytes(16_usize)?;
         if !(*self_rc.link_clsid() == vec![0x1u8, 0x14u8, 0x2u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0xc0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_flags = _io.read_bytes(4_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
         let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_attrs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_creation.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_access.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_write.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.target_file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.icon_index.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.show_command.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hotkey.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(10_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/11".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -522,17 +549,29 @@ impl KStruct for WindowsLnkFile_LinkFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.is_unicode.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_icon_location.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_arguments.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_work_dir.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_rel_path.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_name.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_link_info.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_link_target_id_list.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed8.borrow_mut() = _io.read_bits_int_be(16)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keep_local_id_list_for_unc_target.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed11.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -674,11 +713,13 @@ impl KStruct for WindowsLnkFile_LinkInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_all.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_all = _io.read_bytes(usize::try_from((*self_rc.len_all()).saturating_sub(4_u32))?)?;
         *self_rc.all_raw.borrow_mut() = _raw_all.clone();
         let _io_all = BytesReader::from(_raw_all);
         let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_All>(&_io_all, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.all.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -779,11 +820,13 @@ impl KStruct for WindowsLnkFile_LinkInfo_All {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(8_u32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -919,15 +962,24 @@ impl KStruct for WindowsLnkFile_LinkInfo_Header {
         let _io = io;
         let t = Self::read_into::<_, WindowsLnkFile_LinkInfo_LinkInfoFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_volume_id.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_local_base_path.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_common_net_rel_link.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_common_path_suffix.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.ofs_local_base_path_unicode.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             *self_rc.ofs_common_path_suffix_unicode.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1046,9 +1098,13 @@ impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_common_net_rel_link.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_volume_id_and_local_base_path.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1155,10 +1211,15 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.drive_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.drive_serial_number.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_volume_label.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_unicode()? {
             *self_rc.ofs_volume_label_unicode.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1290,11 +1351,13 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdSpec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_all.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_body = _io.read_bytes(usize::try_from((*self_rc.len_all()).saturating_sub(4_u32))?)?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
         let t = Self::read_into::<BytesReader, WindowsLnkFile_LinkInfo_VolumeIdBody>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1391,11 +1454,13 @@ impl KStruct for WindowsLnkFile_LinkTargetIdList {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_id_list.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_id_list = _io.read_bytes(usize::from(*self_rc.len_id_list()))?;
         *self_rc.id_list_raw.borrow_mut() = _raw_id_list.clone();
         let _io_id_list = BytesReader::from(_raw_id_list);
         let t = Self::read_into::<BytesReader, WindowsShellItems>(&_io_id_list, None, None)?.into();
         *self_rc.id_list.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1488,7 +1553,9 @@ impl KStruct for WindowsLnkFile_StringData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chars_str.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((i32::from(*self_rc.chars_str())).saturating_mul(2_i32))?)?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

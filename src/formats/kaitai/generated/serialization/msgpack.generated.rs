@@ -335,6 +335,7 @@ impl KStruct for Msgpack {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.b1() {
             204 => {
                 *self_rc.int_extra.borrow_mut() = Some(_io.read_u1()?.into());
@@ -362,30 +363,48 @@ impl KStruct for Msgpack {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_float_32()? {
             *self_rc.float_32_value.borrow_mut() = _io.read_f4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_float_64()? {
             *self_rc.float_64_value.borrow_mut() = _io.read_f8be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_str_8()? {
             *self_rc.str_len_8.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_str_16()? {
             *self_rc.str_len_16.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_str_32()? {
             *self_rc.str_len_32.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_str()? {
             *self_rc.str_value.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.str_len()?)?)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_array_16()? {
             *self_rc.num_array_elements_16.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_array_32()? {
             *self_rc.num_array_elements_32.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_array()? {
             *self_rc.array_elements.borrow_mut() = Vec::new();
             let l_array_elements = usize::try_from(*self_rc.num_array_elements()?)?;
@@ -393,13 +412,19 @@ impl KStruct for Msgpack {
                 let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.array_elements.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_map_16()? {
             *self_rc.num_map_elements_16.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_map_32()? {
             *self_rc.num_map_elements_32.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_map()? {
             *self_rc.map_elements.borrow_mut() = Vec::new();
             let l_map_elements = usize::try_from(*self_rc.num_map_elements()?)?;
@@ -407,6 +432,7 @@ impl KStruct for Msgpack {
                 let t = Self::read_into::<_, Msgpack_MapTuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.map_elements.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1006,8 +1032,10 @@ impl KStruct for Msgpack_MapTuple {
         let _io = io;
         let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.key.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

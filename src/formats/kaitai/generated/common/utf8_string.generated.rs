@@ -92,6 +92,7 @@ impl KStruct for Utf8String {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -188,6 +189,7 @@ impl KStruct for Utf8String_Utf8Codepoint {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bytes.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_bytes()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

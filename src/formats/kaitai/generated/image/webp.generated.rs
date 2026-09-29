@@ -73,16 +73,20 @@ impl KStruct for Webp {
         if !(*self_rc.magic() == vec![0x52u8, 0x49u8, 0x46u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.webp.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.webp() == vec![0x57u8, 0x45u8, 0x42u8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_payload = _io.read_bytes(usize::try_from((*self_rc.len_data()).saturating_sub(u32::try_from(4_i32)?))?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
         let t = Self::read_into::<BytesReader, Webp_Chunks>(&_io_payload, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -352,17 +356,22 @@ impl KStruct for Webp_Alph {
         if !(*self_rc.reserved() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/alph/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.preprocessing.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         if matches!(*self_rc.preprocessing(), Webp_Preprocessing::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.filtering.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
         if matches!(*self_rc.compression(), Webp_CompressionMethod::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/alph/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -469,7 +478,9 @@ impl KStruct for Webp_Anim {
         let _io = io;
         let t = Self::read_into::<_, Webp_Anim_BgColor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.background_color.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.loop_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -558,9 +569,13 @@ impl KStruct for Webp_Anim_BgColor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.red.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alpha.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -672,19 +687,28 @@ impl KStruct for Webp_Anmf {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.frame_x_div_2.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_y_div_2.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_width_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_height_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.duration.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(6)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/anmf/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blending_method.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disposal_method.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1101,7 +1125,9 @@ impl KStruct for Webp_Chunk {
         if matches!(*self_rc.name(), Webp_ChunkNames::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/chunk/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.name() {
             Webp_ChunkNames::Alph => {
                 *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into();
@@ -1160,14 +1186,17 @@ impl KStruct for Webp_Chunk {
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_data())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128((*self_rc.len_data()).checked_rem(2_u32).ok_or(KError::CastError)?)) != (to_i128(0))) {
             *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
             if !(*self_rc.padding() == vec![0x0u8]) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/seq/3".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1277,6 +1306,7 @@ impl KStruct for Webp_Chunks {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1373,24 +1403,34 @@ impl KStruct for Webp_Vp8 {
         if !(*self_rc.frame_type() == false) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bits_int_le(3)?;
         let max_val: u64 = (3).try_into()?;
         if !(*self_rc.version() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/vp8/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.show_frame.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_first_partition.borrow_mut() = _io.read_bits_int_le(19)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.start_code.borrow_mut() = _io.read_bytes(3_usize)?;
         if !(*self_rc.start_code() == vec![0x9du8, 0x1u8, 0x2au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_bits_int_le(14)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.horizontal_scale.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_bits_int_le(14)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertical_scale.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1533,16 +1573,22 @@ impl KStruct for Webp_Vp8l {
         if !(*self_rc.signature() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8l/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_width_minus_1.borrow_mut() = _io.read_bits_int_le(14)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_height_minus_1.borrow_mut() = _io.read_bits_int_le(14)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alpha_is_used.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_number.borrow_mut() = _io.read_bits_int_le(3)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.version_number() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8l/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1694,26 +1740,36 @@ impl KStruct for Webp_Vp8x {
         if !(*self_rc.reserved1() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.icc_profile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alpha.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exif.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.xmp.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.animation.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         if !(*self_rc.reserved2() == false) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_bits_int_be(24)?;
         let expected: u64 = (0).try_into()?;
         if !(*self_rc.reserved3() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vp8x/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.canvas_width_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.canvas_height_minus_1.borrow_mut() = _io.read_bits_int_le(24)?;
         let max_val: u64 = (((4294967295_u64).checked_div(*self_rc.canvas_width()?).ok_or(KError::CastError)?).saturating_sub(1_u64)).try_into()?;
         if !(*self_rc.canvas_height_minus_1() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/vp8x/seq/9".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1863,6 +1919,7 @@ impl KStruct for Webp_Xmp {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

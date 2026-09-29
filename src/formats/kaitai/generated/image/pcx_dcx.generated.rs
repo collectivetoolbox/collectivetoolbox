@@ -75,6 +75,7 @@ impl KStruct for PcxDcx {
         if !(*self_rc.magic() == vec![0xb1u8, 0x68u8, 0xdeu8, 0x3au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.files.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -87,6 +88,7 @@ impl KStruct for PcxDcx {
                 if ((to_i128(*_tmpa.ofs_body())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -174,6 +176,7 @@ impl KStruct for PcxDcx_PcxOffset {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

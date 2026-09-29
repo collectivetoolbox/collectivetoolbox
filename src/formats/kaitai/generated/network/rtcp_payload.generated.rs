@@ -75,6 +75,7 @@ impl KStruct for RtcpPayload {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -370,17 +371,26 @@ impl KStruct for RtcpPayload_PacketStatusChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.t.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 0 {
             *self_rc.s2.borrow_mut() = _io.read_bits_int_be(2)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 1 {
             *self_rc.s1.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 0 {
             *self_rc.rle.borrow_mut() = _io.read_bits_int_be(13)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 1 {
             *self_rc.symbol_list.borrow_mut() = _io.read_bits_int_be(14)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -551,6 +561,7 @@ impl KStruct for RtcpPayload_PsfbAfbPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.uid.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.uid() {
             1380273474 => {
                 *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -563,6 +574,7 @@ impl KStruct for RtcpPayload_PsfbAfbPacket {
                 *self_rc.contents.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -658,14 +670,18 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_ssrc.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.br_exp.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.br_mantissa.borrow_mut() = _io.read_bits_int_be(18)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.ssrc_list.borrow_mut() = Vec::new();
         let l_ssrc_list = usize::from(*self_rc.num_ssrc());
         for _i in 0_usize..l_ssrc_list {
             self_rc.ssrc_list.borrow_mut().push(_io.read_u4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -833,7 +849,9 @@ impl KStruct for RtcpPayload_PsfbPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ssrc_media_source.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.fmt()? {
             RtcpPayload_PsfbSubtype::Afb => {
                 *self_rc.fci_block_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -846,6 +864,7 @@ impl KStruct for RtcpPayload_PsfbPacket {
                 *self_rc.fci_block.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -962,11 +981,17 @@ impl KStruct for RtcpPayload_ReportBlock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc_source.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lost_val.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.highest_seq_num_received.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interarrival_jitter.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lsr.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dlsr.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1097,12 +1122,14 @@ impl KStruct for RtcpPayload_RrPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.report_block.borrow_mut() = Vec::new();
         let l_report_block = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?;
         for _i in 0_usize..l_report_block {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1373,11 +1400,16 @@ impl KStruct for RtcpPayload_RtcpPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subtype.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.payload_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.payload_type() {
             RtcpPayload_PayloadType::Psfb => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
@@ -1415,9 +1447,10 @@ impl KStruct for RtcpPayload_RtcpPacket {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1588,7 +1621,9 @@ impl KStruct for RtcpPayload_RtpfbPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ssrc_media_source.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.fmt()? {
             RtcpPayload_RtpfbSubtype::TransportFeedback => {
                 *self_rc.fci_block_raw.borrow_mut() = _io.read_bytes_full()?.into();
@@ -1601,6 +1636,7 @@ impl KStruct for RtcpPayload_RtpfbPacket {
                 *self_rc.fci_block.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1719,9 +1755,13 @@ impl KStruct for RtcpPayload_RtpfbTransportFeedbackPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.base_sequence_number.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packet_status_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b4.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.remaining.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1872,6 +1912,7 @@ impl KStruct for RtcpPayload_SdesPacket {
             let t = Self::read_into::<_, RtcpPayload_SourceChunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.source_chunk.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1967,11 +2008,16 @@ impl KStruct for RtcpPayload_SdesTlv {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() != RtcpPayload_SdesSubtype::Pad {
             *self_rc.length.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.r#type() != RtcpPayload_SdesSubtype::Pad {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2069,6 +2115,7 @@ impl KStruct for RtcpPayload_SourceChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sdes_tlv.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -2078,6 +2125,7 @@ impl KStruct for RtcpPayload_SourceChunk {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2171,17 +2219,24 @@ impl KStruct for RtcpPayload_SrPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ssrc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ntp_msw.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ntp_lsw.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rtp_timestamp.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sender_packet_count.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sender_octet_count.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.report_block.borrow_mut() = Vec::new();
         let l_report_block = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype())?;
         for _i in 0_usize..l_report_block {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

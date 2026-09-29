@@ -115,11 +115,13 @@ impl KStruct for IndexToParamExpr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sizes.borrow_mut() = Vec::new();
         let l_sizes = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_sizes {
             self_rc.sizes.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = Vec::new();
         let l_blocks = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_blocks {
@@ -127,6 +129,7 @@ impl KStruct for IndexToParamExpr {
             let t = Self::read_into_with_init::<_, IndexToParamExpr_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -219,6 +222,7 @@ impl KStruct for IndexToParamExpr_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.buf.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sizes().get(usize::try_from(*self_rc.idx())?).ok_or(KError::CastError)?))?)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

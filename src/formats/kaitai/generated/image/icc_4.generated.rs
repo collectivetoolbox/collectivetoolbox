@@ -64,8 +64,10 @@ impl KStruct for Icc4 {
         let _io = io;
         let t = Self::read_into::<_, Icc4_ProfileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_TagTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tag_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -156,11 +158,17 @@ impl KStruct for Icc4_DateTimeNumber {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.year.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.day.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.second.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -271,11 +279,17 @@ impl KStruct for Icc4_DeviceAttributes {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reflective_or_transparency.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.glossy_or_matte.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.positive_or_negative_media_polarity.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colour_or_black_and_white_media.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(28)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vendor_specific.borrow_mut() = _io.read_bits_int_be(32)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -509,6 +523,7 @@ impl KStruct for Icc4_DeviceManufacturer {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.device_manufacturer.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1405,7 +1420,9 @@ impl KStruct for Icc4_PositionNumber {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.offset_to_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1512,33 +1529,51 @@ impl KStruct for Icc4_ProfileHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.preferred_cmm_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_ProfileHeader_VersionField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_class.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_space.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pcs.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.creation_date_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_signature.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.file_signature() == vec![0x61u8, 0x63u8, 0x73u8, 0x70u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.primary_platform.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_ProfileHeader_ProfileFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.profile_flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rendering_intent.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.nciexyz_values_of_illuminant_of_pcs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.creator.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.identifier.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_data.borrow_mut() = _io.read_bytes(28_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2060,8 +2095,11 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.embedded_profile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.profile_can_be_used_independently_of_embedded_colour_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.other_flags.borrow_mut() = _io.read_bits_int_be(30)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2158,13 +2196,17 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
         if !(*self_rc.major() == vec![0x4u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/types/version_field/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bug_fix_level.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/types/version_field/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2262,12 +2304,15 @@ impl KStruct for Icc4_Response16Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/response_16_number/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_S15Fixed16Number>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.measurement_value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2359,6 +2404,7 @@ impl KStruct for Icc4_S15Fixed16Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2444,6 +2490,7 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.standard_illuminant_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2578,12 +2625,14 @@ impl KStruct for Icc4_TagTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_count.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.tag_count())?;
         for _i in 0_usize..l_tags {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tags.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4217,8 +4266,11 @@ impl KStruct for Icc4_TagTable_TagDefinition {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_signature.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_of_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5106,6 +5158,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -5121,6 +5174,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5303,6 +5357,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -5318,6 +5373,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5500,6 +5556,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -5515,6 +5572,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5697,6 +5755,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -5712,6 +5771,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5894,6 +5954,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -5909,6 +5970,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6091,6 +6153,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6106,6 +6169,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6226,6 +6290,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6233,6 +6298,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6353,6 +6419,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6360,6 +6427,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6480,6 +6548,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6487,6 +6556,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6607,6 +6677,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6614,6 +6685,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6734,6 +6806,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6741,6 +6814,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6892,6 +6966,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -6903,6 +6978,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7023,6 +7099,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::DateTimeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DateTimeType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -7030,6 +7107,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7150,6 +7228,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::TextType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TextType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -7157,6 +7236,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7277,6 +7357,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::S15Fixed16ArrayType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -7284,6 +7365,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7404,6 +7486,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ChromaticityType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -7411,6 +7494,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7502,14 +7586,18 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/chromaticity_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_device_channels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colorant_and_phosphor_encoding.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ciexy_coordinates_per_channel.borrow_mut() = Vec::new();
         let l_ciexy_coordinates_per_channel = usize::from(*self_rc.number_of_device_channels());
         for _i in 0_usize..l_ciexy_coordinates_per_channel {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ciexy_coordinates_per_channel.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7647,7 +7735,9 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateVal
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x_coordinate.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_coordinate.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7768,6 +7858,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantOrderType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantOrderType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -7775,6 +7866,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7865,12 +7957,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/colorant_order_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_colorants.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut() = Vec::new();
         let l_numbers_of_colorants_in_order_of_printing = usize::try_from(*self_rc.count_of_colorants())?;
         for _i in 0_usize..l_numbers_of_colorants_in_order_of_printing {
             self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7996,6 +8091,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8003,6 +8099,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8123,6 +8220,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8130,6 +8228,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8220,13 +8319,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/colorant_table_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_colorants.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colorants.borrow_mut() = Vec::new();
         let l_colorants = usize::try_from(*self_rc.count_of_colorants())?;
         for _i in 0_usize..l_colorants {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colorants.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8320,6 +8422,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = Vec::new();
         let l_padding = usize::try_from((32_usize).saturating_sub(self_rc.name().len()))?;
         for _i in 0_usize..l_padding {
@@ -8328,7 +8431,9 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         if !self_rc.padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/colorant_table_type/types/colorant/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pcs_values.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8459,6 +8564,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8466,6 +8572,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8586,6 +8693,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8593,6 +8701,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8684,16 +8793,22 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/curve_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_entries.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.number_of_entries())) > (to_i128(1))) {
             *self_rc.curve_values.borrow_mut() = Vec::new();
             let l_curve_values = usize::try_from(*self_rc.number_of_entries())?;
             for _i in 0_usize..l_curve_values {
                 self_rc.curve_values.borrow_mut().push(_io.read_u2be()?);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.number_of_entries())) == (to_i128(1))) {
             *self_rc.curve_value.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -8825,6 +8940,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8832,6 +8948,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -8952,6 +9069,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -8959,6 +9077,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9079,6 +9198,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9086,6 +9206,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9206,6 +9327,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9213,6 +9335,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9298,6 +9421,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data_flag.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9414,8 +9538,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/date_time_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.date_and_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9536,6 +9662,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9543,6 +9670,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9663,6 +9791,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9670,6 +9799,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -9852,6 +9982,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9867,6 +9998,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10018,6 +10150,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -10029,6 +10162,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10149,6 +10283,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -10156,6 +10291,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10307,6 +10443,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -10318,6 +10455,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10438,6 +10576,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -10445,6 +10584,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10546,23 +10686,34 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_16_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_clut_grid_points.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.padding() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_16_type/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
         let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_table_entries.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels()))).saturating_mul(i32::from(*self_rc.number_of_input_table_entries())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))))).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels()))).saturating_mul(i32::from(*self_rc.number_of_output_table_entries())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10724,23 +10875,34 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_8_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_clut_grid_points.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.padding() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_8_type/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.encoded_e_parameters.borrow_mut() = Vec::new();
         let l_encoded_e_parameters = 9_usize;
         for _i in 0_usize..l_encoded_e_parameters {
             self_rc.encoded_e_parameters.borrow_mut().push(_io.read_s4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_table_entries.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_table_entries.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::from((((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))).saturating_mul(*self_rc.number_of_output_channels())))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -10898,18 +11060,28 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_a_to_b_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.padding() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_a_to_b_type/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_b_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_matrix.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_m_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_clut.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_a_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11047,18 +11219,28 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_b_to_a_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.padding() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/lut_b_to_a_type/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_b_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_matrix.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_m_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_clut.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset_to_first_a_curve.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11219,6 +11401,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MeasurementType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MeasurementType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -11226,6 +11409,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11319,13 +11503,19 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/measurement_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.standard_observer_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.nciexyz_tristimulus_values_for_measurement_backing.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.measurement_geometry_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.measurement_flare_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.standard_illuminant_encoding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11568,6 +11758,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -11575,6 +11766,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11666,14 +11858,18 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/multi_localized_unicode_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_records.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.record_size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = usize::try_from(*self_rc.number_of_records())?;
         for _i in 0_usize..l_records {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11774,9 +11970,13 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.language_code.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.country_code.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.string_length.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.string_offset.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -11895,16 +12095,22 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/multi_process_elements_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_input_channels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_output_channels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_processing_elements.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.process_element_positions_table.borrow_mut() = Vec::new();
         let l_process_element_positions_table = usize::try_from(*self_rc.number_of_processing_elements())?;
         for _i in 0_usize..l_process_element_positions_table {
             let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.process_element_positions_table.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12045,6 +12251,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::NamedColor2Type => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -12052,6 +12259,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12148,10 +12356,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vendor_specific_flag.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_named_colours.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_device_coordinates_for_each_named_colour.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.prefix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.prefix_for_each_colour_name_padding.borrow_mut() = Vec::new();
         let l_prefix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.prefix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_prefix_for_each_colour_name_padding {
@@ -12160,7 +12373,9 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         if !self_rc.prefix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.suffix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.suffix_for_each_colour_name_padding.borrow_mut() = Vec::new();
         let l_suffix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.suffix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_suffix_for_each_colour_name_padding {
@@ -12169,12 +12384,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         if !self_rc.suffix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.named_colour_definitions.borrow_mut() = Vec::new();
         let l_named_colour_definitions = usize::try_from(*self_rc.count_of_named_colours())?;
         for _i in 0_usize..l_named_colour_definitions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.named_colour_definitions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12299,6 +12516,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.root_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.root_name_padding.borrow_mut() = Vec::new();
         let l_root_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.root_name().len()))?;
         for _i in 0_usize..l_root_name_padding {
@@ -12307,13 +12525,17 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         if !self_rc.root_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/types/named_colour_definition/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pcs_coordinates.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())) > (to_i128(0))) {
             *self_rc.device_coordinates.borrow_mut() = Vec::new();
             let l_device_coordinates = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())?;
             for _i in 0_usize..l_device_coordinates {
                 self_rc.device_coordinates.borrow_mut().push(_io.read_u2be()?);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -12450,6 +12672,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ResponseCurveSet16Type => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -12457,6 +12680,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12706,11 +12930,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/parametric_curve_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.function_type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_2.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved_2() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/parametric_curve_type/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.function_type() {
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::Cie1221996 => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -12734,6 +12961,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12872,8 +13100,11 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie122199
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -12968,10 +13199,15 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619662
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.c.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.d.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13075,9 +13311,13 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.c.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13179,12 +13419,19 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsOb
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.c.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.d.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.e.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13295,6 +13542,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXT
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13410,6 +13658,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -13417,6 +13666,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13630,6 +13880,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -13649,6 +13900,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -13831,6 +14083,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -13846,6 +14099,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14028,6 +14282,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -14043,6 +14298,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14163,6 +14419,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -14170,6 +14427,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14260,13 +14518,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/profile_sequence_desc_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_description_structures.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.profile_descriptions.borrow_mut() = Vec::new();
         let l_profile_descriptions = usize::try_from(*self_rc.number_of_description_structures())?;
         for _i in 0_usize..l_profile_descriptions {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_descriptions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14364,15 +14625,21 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDesc
         let _io = io;
         let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TechnologyTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_technology.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DeviceMfgDescTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.description_of_device_manufacturer.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DeviceModelDescTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.description_of_device_model.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14518,6 +14785,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceIdentifierType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -14525,6 +14793,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14616,19 +14885,23 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/profile_sequence_identifier_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_structures.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.positions_table.borrow_mut() = Vec::new();
         let l_positions_table = usize::try_from(*self_rc.number_of_structures())?;
         for _i in 0_usize..l_positions_table {
             let t = Self::read_into::<_, Icc4_PositionNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.positions_table.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.profile_identifiers.borrow_mut() = Vec::new();
         let l_profile_identifiers = usize::try_from(*self_rc.number_of_structures())?;
         for _i in 0_usize..l_profile_identifiers {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_identifiers.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14726,8 +14999,10 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_Profi
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.profile_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.profile_description.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14853,6 +15128,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceDescType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -14860,6 +15136,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -14980,6 +15257,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -14987,6 +15265,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15138,6 +15417,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -15149,6 +15429,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15241,14 +15522,19 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/response_curve_set_16_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_channels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count_of_measurement_types.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.response_curve_structure_offsets.borrow_mut() = Vec::new();
         let l_response_curve_structure_offsets = usize::from(*self_rc.count_of_measurement_types());
         for _i in 0_usize..l_response_curve_structure_offsets {
             self_rc.response_curve_structure_offsets.borrow_mut().push(_io.read_u4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.response_curve_structures.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15353,6 +15639,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/s_15_fixed_16_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -15362,6 +15649,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15482,6 +15770,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -15489,6 +15778,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15579,7 +15869,9 @@ impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/signature_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signature.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15705,6 +15997,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -15712,6 +16005,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15801,7 +16095,9 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/text_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15891,6 +16187,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/u_16_fixed_16_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -15900,6 +16197,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -15989,6 +16287,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/u_int_16_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -15997,6 +16296,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16086,6 +16386,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/u_int_32_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -16094,6 +16395,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16183,6 +16485,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/u_int_64_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -16191,6 +16494,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16280,6 +16584,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/u_int_8_array_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -16288,6 +16593,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16408,6 +16714,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -16415,6 +16722,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16535,6 +16843,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ViewingConditionsType => {
                 let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ViewingConditionsType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -16542,6 +16851,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16633,12 +16943,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/viewing_conditions_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.un_normalized_ciexyz_values_for_illuminant.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_XyzNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.un_normalized_ciexyz_values_for_surround.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.illuminant_type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16738,6 +17052,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/xyz_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -16747,6 +17062,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16833,6 +17149,7 @@ impl KStruct for Icc4_U16Fixed16Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -16919,6 +17236,7 @@ impl KStruct for Icc4_U1Fixed15Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -17005,6 +17323,7 @@ impl KStruct for Icc4_U8Fixed8Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -17095,8 +17414,11 @@ impl KStruct for Icc4_XyzNumber {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

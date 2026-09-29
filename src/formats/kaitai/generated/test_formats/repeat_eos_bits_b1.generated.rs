@@ -120,6 +120,7 @@ impl KStruct for RepeatEosBitsB1 {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

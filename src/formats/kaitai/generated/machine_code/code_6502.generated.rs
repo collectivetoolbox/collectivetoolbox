@@ -77,6 +77,7 @@ impl KStruct for Code6502 {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -724,6 +725,7 @@ impl KStruct for Code6502_Operation {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             Code6502_Opcode::AdcAbs => {
                 *self_rc.args.borrow_mut() = Some(_io.read_u2le()?.into());
@@ -1093,6 +1095,7 @@ impl KStruct for Code6502_Operation {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

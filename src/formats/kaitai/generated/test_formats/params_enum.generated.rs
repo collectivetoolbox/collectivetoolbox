@@ -114,9 +114,11 @@ impl KStruct for ParamsEnum {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsEnum_WithParam| Ok(t.set_params(*self_rc.one()));
         let t = Self::read_into_with_init::<_, ParamsEnum_WithParam>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.invoke_with_param.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

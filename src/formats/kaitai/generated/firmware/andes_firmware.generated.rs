@@ -75,8 +75,11 @@ impl KStruct for AndesFirmware {
         let _io_image_header = BytesReader::from(_raw_image_header);
         let t = Self::read_into::<BytesReader, AndesFirmware_ImageHeader>(&_io_image_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ilm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().ilm_len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dlm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().dlm_len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -188,11 +191,17 @@ impl KStruct for AndesFirmware_ImageHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ilm_len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dlm_len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fw_ver.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.build_ver.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.extra.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.build_time.borrow_mut() = bytes_to_str(&_io.read_bytes(16_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

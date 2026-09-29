@@ -82,6 +82,7 @@ impl KStruct for Specpr {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -202,6 +203,7 @@ impl KStruct for Specpr_CoarseTimestamp {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.scaled_seconds.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -298,6 +300,7 @@ impl KStruct for Specpr_DataContinuation {
         for _i in 0_usize..l_cdata {
             self_rc.cdata.borrow_mut().push(_io.read_f4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -415,51 +418,80 @@ impl KStruct for Specpr_DataInitial {
         let _io = io;
         let t = Self::read_into::<_, Specpr_Identifiers>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ids.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.iscta.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.isctb.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.jdatea.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.jdateb.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Specpr_CoarseTimestamp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.istb.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.isra.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.isdec.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itchan.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.irmas.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.revs.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.iband.borrow_mut() = Vec::new();
         let l_iband = 2_usize;
         for _i in 0_usize..l_iband {
             self_rc.iband.borrow_mut().push(_io.read_s4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.irwav.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.irespt.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.irecno.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itpntr.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ihist.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(60_usize)?, None, false, Some(32)), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mhist.borrow_mut() = Vec::new();
         let l_mhist = 4_usize;
         for _i in 0_usize..l_mhist {
             self_rc.mhist.borrow_mut().push(bytes_to_str(&_io.read_bytes(74_usize)?, "ascii")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nruns.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Specpr_IllumAngle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.siangl.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Specpr_IllumAngle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seangl.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sphase.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.iwtrns.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itimch.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.xnrm.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.scatim.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timint.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tempd.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = Vec::new();
         let l_data = 256_usize;
         for _i in 0_usize..l_data {
             self_rc.data.borrow_mut().push(_io.read_f4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -835,12 +867,19 @@ impl KStruct for Specpr_Icflag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(26)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.isctb_type.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.iscta_type.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.coordinate_mode.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.errors.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.text.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.continuation.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1003,7 +1042,9 @@ impl KStruct for Specpr_Identifiers {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ititle.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(40_usize)?, None, false, Some(32)), "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.usernm.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1113,6 +1154,7 @@ impl KStruct for Specpr_IllumAngle {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.angl.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1384,6 +1426,7 @@ impl KStruct for Specpr_Record {
         let _io = io;
         let t = Self::read_into::<_, Specpr_Icflag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.icflag.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.icflag().r#type()? {
             Specpr_RecordType::DataContinuation => {
                 *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into();
@@ -1414,9 +1457,10 @@ impl KStruct for Specpr_Record {
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.content.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.content.borrow_mut() = Some(_io.read_bytes(usize::try_from((1536_i32).saturating_sub(4_i32))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1512,6 +1556,7 @@ impl KStruct for Specpr_TextContinuation {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tdata.borrow_mut() = bytes_to_str(&_io.read_bytes(1532_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1606,9 +1651,13 @@ impl KStruct for Specpr_TextInitial {
         let _io = io;
         let t = Self::read_into::<_, Specpr_Identifiers>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.ids.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itxtpt.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itxtch.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.itext.borrow_mut() = bytes_to_str(&_io.read_bytes(1476_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

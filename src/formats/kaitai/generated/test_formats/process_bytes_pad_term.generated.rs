@@ -120,9 +120,13 @@ impl KStruct for ProcessBytesPadTerm {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str_pad.borrow_mut() = process_xor_one(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, None, false, Some(64)), 21_u8);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term.borrow_mut() = process_xor_one(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, None), 21_u8);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term_and_pad.borrow_mut() = process_xor_one(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(43)), 21_u8);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term_include.borrow_mut() = process_xor_one(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, None), 21_u8);
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

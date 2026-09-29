@@ -115,8 +115,10 @@ impl KStruct for MultipleUse {
         let _io = io;
         let t = Self::read_into::<_, MultipleUse_Type1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.t1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MultipleUse_Type2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.t2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -202,6 +204,7 @@ impl KStruct for MultipleUse_Multi {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -283,6 +286,7 @@ impl KStruct for MultipleUse_Type1 {
         let _io = io;
         let t = Self::read_into::<_, MultipleUse_Multi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.first_use.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

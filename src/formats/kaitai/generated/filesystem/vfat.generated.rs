@@ -75,6 +75,7 @@ impl KStruct for Vfat {
         let _io = io;
         let t = Self::read_into::<_, Vfat_BootSector>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.boot_sector.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -217,17 +218,29 @@ impl KStruct for Vfat_BiosParamBlock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bytes_per_ls.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ls_per_clus.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_reserved_ls.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_fats.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_root_dir_rec.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_ls_2.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.media_code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ls_per_fat.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ps_per_track.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_heads.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_hidden_sectors.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_ls_4.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -447,16 +460,23 @@ impl KStruct for Vfat_BootSector {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.jmp_instruction.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.oem_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Vfat_BiosParamBlock>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bpb.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_fat32()?) {
             let t = Self::read_into::<_, Vfat_ExtBiosParamBlockFat16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.ebpb_fat16.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_fat32()? {
             let t = Self::read_into::<_, Vfat_ExtBiosParamBlockFat32>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.ebpb_fat32.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -705,11 +725,17 @@ impl KStruct for Vfat_ExtBiosParamBlockFat16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.phys_drive_num.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ext_boot_sign.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_id.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(11_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -877,25 +903,41 @@ impl KStruct for Vfat_ExtBiosParamBlockFat32 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ls_per_fat.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_active_fat.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_le(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.active_fat_id.borrow_mut() = _io.read_bits_int_le(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved2() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/ext_bios_param_block_fat32/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fat_version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.root_dir_start_clus.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ls_fs_info.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_sectors_copy_start_ls.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_bytes(12_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.phys_drive_num.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ext_boot_sign.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_id.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(11_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1135,6 +1177,7 @@ impl KStruct for Vfat_RootDirectory {
             let t = Self::read_into::<_, Vfat_RootDirectoryRec>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1224,19 +1267,25 @@ impl KStruct for Vfat_RootDirectoryRec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.file_name.borrow_mut() = _io.read_bytes(11_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_attrs = _io.read_bytes(1_usize)?;
         *self_rc.attrs_raw.borrow_mut() = _raw_attrs.clone();
         let _io_attrs = BytesReader::from(_raw_attrs);
         let t = Self::read_into::<BytesReader, Vfat_RootDirectoryRec_AttrFlags>(&_io_attrs, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.attrs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(10_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_last_write_time = _io.read_bytes(4_usize)?;
         *self_rc.last_write_time_raw.borrow_mut() = _raw_last_write_time.clone();
         let _io_last_write_time = BytesReader::from(_raw_last_write_time);
         let t = Self::read_into::<BytesReader, DosDatetime>(&_io_last_write_time, None, None)?.into();
         *self_rc.last_write_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_clus.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1370,12 +1419,19 @@ impl KStruct for Vfat_RootDirectoryRec_AttrFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.read_only.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hidden.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.system.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_id.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_directory.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.archive.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

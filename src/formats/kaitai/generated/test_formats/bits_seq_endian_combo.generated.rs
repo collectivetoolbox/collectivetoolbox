@@ -120,13 +120,21 @@ impl KStruct for BitsSeqEndianCombo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.be1.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.be2.borrow_mut() = _io.read_bits_int_be(10)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.le3.borrow_mut() = _io.read_bits_int_le(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.be4.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.le5.borrow_mut() = _io.read_bits_int_le(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.le6.borrow_mut() = _io.read_bits_int_le(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.le7.borrow_mut() = _io.read_bits_int_le(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.be8.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -123,8 +123,10 @@ impl KStruct for ProcessRepeatUsertypeDynargXor {
             let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargXor_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ProcessRepeatUsertypeDynargXor_BlocksBWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.blocks_b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -215,6 +217,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.a.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -299,6 +302,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.dummy.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

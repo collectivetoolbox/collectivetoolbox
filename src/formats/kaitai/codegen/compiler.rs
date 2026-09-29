@@ -938,6 +938,7 @@ fn emit_attr_read(
     let self_name = ctx.self_name();
 
     if let Some(if_expr) = &attr.if_expr {
+        w.puts(&format!("*{self_name}._io.borrow_mut() = _io.clone();"));
         let cond = translate_expr(if_expr, ctx);
         w.puts(&format!("if {cond} {{"));
         w.inc();
@@ -1141,6 +1142,7 @@ fn emit_attr_read(
     }
 
     emit_attr_validation(w, current, attr, ctx);
+    w.puts(&format!("*{self_name}._io.borrow_mut() = _io.clone();"));
 
     if attr.if_expr.is_some() {
         w.dec();

@@ -116,9 +116,13 @@ impl KStruct for EnumLongRangeU {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.f1.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f2.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f3.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f4.borrow_mut() = i64::from_ne_bytes((_io.read_u8be()?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

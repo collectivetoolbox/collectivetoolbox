@@ -129,6 +129,7 @@ impl KStruct for SomeIp {
         let _io = io;
         let t = Self::read_into::<_, SomeIp_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header().message_id().value()? {
             4294934784 => {
                 *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().length()).saturating_sub(8_u32))?)?.into();
@@ -138,9 +139,10 @@ impl KStruct for SomeIp {
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::try_from((*self_rc.header().length()).saturating_sub(8_u32))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -245,16 +247,23 @@ impl KStruct for SomeIp_Header {
         let _io_message_id = BytesReader::from(_raw_message_id);
         let t = Self::read_into::<BytesReader, SomeIp_Header_MessageId>(&_io_message_id, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.message_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_request_id = _io.read_bytes(4_usize)?;
         *self_rc.request_id_raw.borrow_mut() = _raw_request_id.clone();
         let _io_request_id = BytesReader::from(_raw_request_id);
         let t = Self::read_into::<BytesReader, SomeIp_Header_RequestId>(&_io_request_id, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.request_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.protocol_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interface_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.message_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.return_code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -559,12 +568,18 @@ impl KStruct for SomeIp_Header_MessageId {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.service_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sub_id.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.sub_id() == false {
             *self_rc.method_id.borrow_mut() = _io.read_bits_int_be(15)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.sub_id() == true {
             *self_rc.event_id.borrow_mut() = _io.read_bits_int_be(15)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -707,7 +722,9 @@ impl KStruct for SomeIp_Header_RequestId {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.client_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.session_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

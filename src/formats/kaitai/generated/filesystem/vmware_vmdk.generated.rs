@@ -91,20 +91,34 @@ impl KStruct for VmwareVmdk {
         if !(*self_rc.magic() == vec![0x4bu8, 0x44u8, 0x4du8, 0x56u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VmwareVmdk_HeaderFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_max.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_grain.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_descriptor.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_descriptor.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_grain_table_entries.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_secondary_grain.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_primary_grain.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size_metadata.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_dirty.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.stuff.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -380,16 +394,25 @@ impl KStruct for VmwareVmdk_HeaderFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.zeroed_grain_table_entry.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.use_secondary_grain_dir.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.valid_new_line_detection_test.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved3.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_metadata.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_compressed_grain.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.reserved4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

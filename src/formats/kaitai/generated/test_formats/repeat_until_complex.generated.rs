@@ -126,6 +126,7 @@ impl KStruct for RepeatUntilComplex {
                 if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.second.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -138,6 +139,7 @@ impl KStruct for RepeatUntilComplex {
                 if ((to_i128(*_tmpa.count())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.third.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -150,6 +152,7 @@ impl KStruct for RepeatUntilComplex {
                 if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -241,11 +244,13 @@ impl KStruct for RepeatUntilComplex_TypeU1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         let l_values = usize::from(*self_rc.count());
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -332,11 +337,13 @@ impl KStruct for RepeatUntilComplex_TypeU2 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values.borrow_mut() = Vec::new();
         let l_values = usize::from(*self_rc.count());
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

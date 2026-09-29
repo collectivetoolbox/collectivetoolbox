@@ -70,7 +70,9 @@ impl KStruct for Respack {
         let _io = io;
         let t = Self::read_into::<_, Respack_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.json.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_json())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -169,9 +171,13 @@ impl KStruct for Respack_Header {
         if !(*self_rc.magic() == vec![0x52u8, 0x53u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_json.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.md5.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

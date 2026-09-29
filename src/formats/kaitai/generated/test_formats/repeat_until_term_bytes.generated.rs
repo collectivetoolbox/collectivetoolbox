@@ -125,6 +125,7 @@ impl KStruct for RepeatUntilTermBytes {
                 if _tmpa.len() == 0 { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records2.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -136,6 +137,7 @@ impl KStruct for RepeatUntilTermBytes {
                 if *_tmpa != vec![0xaau8] { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records3.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -147,6 +149,7 @@ impl KStruct for RepeatUntilTermBytes {
                 if *_tmpa == *self_rc.records1().last().ok_or(KError::EmptyIterator)? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

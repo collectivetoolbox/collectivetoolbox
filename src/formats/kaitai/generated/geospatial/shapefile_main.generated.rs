@@ -64,6 +64,7 @@ impl KStruct for ShapefileMain {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.records.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -73,6 +74,7 @@ impl KStruct for ShapefileMain {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -276,8 +278,10 @@ impl KStruct for ShapefileMain_BoundingBoxXY {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.x.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.y.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -367,12 +371,16 @@ impl KStruct for ShapefileMain_BoundingBoxXYZM {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.x.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.y.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -469,7 +477,9 @@ impl KStruct for ShapefileMain_BoundsMinMax {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.min.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -567,34 +577,44 @@ impl KStruct for ShapefileMain_FileHeader {
         if !(*self_rc.file_code() == vec![0x0u8, 0x0u8, 0x27u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_1.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_1() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_2.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_3.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_4.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_4() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_field_5.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.unused_field_5() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_length.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.version() == vec![0xe8u8, 0x3u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -738,38 +758,48 @@ impl KStruct for ShapefileMain_MultiPatch {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.part_types.borrow_mut() = Vec::new();
         let l_part_types = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_part_types {
             self_rc.part_types.borrow_mut().push(i64::from(_io.read_s4le()?).try_into()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z_values.borrow_mut() = Vec::new();
         let l_z_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -898,13 +928,16 @@ impl KStruct for ShapefileMain_MultiPoint {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1000,20 +1033,25 @@ impl KStruct for ShapefileMain_MultiPointM {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1121,27 +1159,34 @@ impl KStruct for ShapefileMain_MultiPointZ {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z_values.borrow_mut() = Vec::new();
         let l_z_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1253,7 +1298,9 @@ impl KStruct for ShapefileMain_Point {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1341,8 +1388,11 @@ impl KStruct for ShapefileMain_PointM {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1436,9 +1486,13 @@ impl KStruct for ShapefileMain_PointZ {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1539,19 +1593,24 @@ impl KStruct for ShapefileMain_PolyLine {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1659,26 +1718,33 @@ impl KStruct for ShapefileMain_PolyLineM {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1798,33 +1864,42 @@ impl KStruct for ShapefileMain_PolyLineZ {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z_values.borrow_mut() = Vec::new();
         let l_z_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1950,19 +2025,24 @@ impl KStruct for ShapefileMain_Polygon {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2070,26 +2150,33 @@ impl KStruct for ShapefileMain_PolygonM {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2209,33 +2296,42 @@ impl KStruct for ShapefileMain_PolygonZ {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXY>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_parts.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_points.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parts.borrow_mut() = Vec::new();
         let l_parts = usize::try_from(*self_rc.number_of_parts())?;
         for _i in 0_usize..l_parts {
             self_rc.parts.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.points.borrow_mut() = Vec::new();
         let l_points = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_points {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.z_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z_values.borrow_mut() = Vec::new();
         let l_z_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_z_values {
             self_rc.z_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m_range.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.m_values.borrow_mut() = Vec::new();
         let l_m_values = usize::try_from(*self_rc.number_of_points())?;
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2358,8 +2454,10 @@ impl KStruct for ShapefileMain_Record {
         let _io = io;
         let t = Self::read_into::<_, ShapefileMain_RecordHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ShapefileMain_RecordContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.contents.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2856,6 +2954,8 @@ impl KStruct for ShapefileMain_RecordContents {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.shape_type() != ShapefileMain_ShapeType::NullShape {
             match *self_rc.shape_type() {
                 ShapefileMain_ShapeType::MultiPatch => {
@@ -2912,6 +3012,7 @@ impl KStruct for ShapefileMain_RecordContents {
                 }
                 _ => {}
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2999,7 +3100,9 @@ impl KStruct for ShapefileMain_RecordHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.record_number.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.content_length.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

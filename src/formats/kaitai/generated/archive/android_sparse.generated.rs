@@ -80,17 +80,20 @@ impl KStruct for AndroidSparse {
         let _io = io;
         let t = Self::read_into::<_, AndroidSparse_FileHeaderPrefix>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_prefix.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((i32::from(*self_rc.header_prefix().len_header())).saturating_sub(10_i32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, AndroidSparse_FileHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.chunks.borrow_mut() = Vec::new();
         let l_chunks = usize::try_from(*self_rc.header().num_chunks())?;
         for _i in 0_usize..l_chunks {
             let t = Self::read_into::<_, AndroidSparse_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -280,14 +283,16 @@ impl KStruct for AndroidSparse_Chunk {
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, AndroidSparse_Chunk_ChunkHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.header().chunk_type() {
             AndroidSparse_ChunkTypes::Crc32 => {
                 *self_rc.body.borrow_mut() = Some(_io.read_u4le()?.into());
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.header().len_body()?)?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -390,13 +395,17 @@ impl KStruct for AndroidSparse_Chunk_ChunkHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.chunk_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_body_blocks.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_chunk.borrow_mut() = _io.read_u4le()?;
         let expected: u32 = (if *self_rc.len_body_expected()? != (0_i32).saturating_sub(to_i32(1)) { u32::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header())).saturating_add(*self_rc.len_body_expected()?))? } else { *self_rc.len_chunk() }).try_into()?;
         if !(*self_rc.len_chunk() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/types/chunk_header/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -539,15 +548,20 @@ impl KStruct for AndroidSparse_FileHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_chunk_header.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
         let _borrowed = self_rc.block_size();
         let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/file_header/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_blocks.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_chunks.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -701,9 +715,12 @@ impl KStruct for AndroidSparse_FileHeaderPrefix {
         if !(*self_rc.magic() == vec![0x3au8, 0xffu8, 0x26u8, 0xedu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header_prefix/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, AndroidSparse_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -807,7 +824,9 @@ impl KStruct for AndroidSparse_Version {
         if !(*self_rc.major() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/version/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

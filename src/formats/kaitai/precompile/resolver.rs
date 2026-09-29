@@ -1190,11 +1190,21 @@ fn resolve_attr_data_type(
             // Substream reading for switch
             if attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some() {
                 if !cases.contains_key("_") {
+                    let sw_size = if let Some(s) = &attr.size {
+                        Some(match s {
+                            ValueOrExpr::Expr(e) => parse_expr(e)?,
+                            ValueOrExpr::Int(i) => Expr::IntNum(*i),
+                            ValueOrExpr::Float(f) => Expr::FloatNum(*f),
+                            ValueOrExpr::Bool(b) => Expr::Bool(*b),
+                        })
+                    } else {
+                        None
+                    };
                     cases.insert(
                         "_".to_string(),
                         DataType::Bytes {
-                            size: None,
-                            size_eos: false,
+                            size: sw_size,
+                            size_eos: attr.size_eos.unwrap_or(false),
                             terminator: None,
                             include: false,
                             consume: false,
@@ -1949,8 +1959,8 @@ fn resolve_instance(
                     cases.insert(
                         "_".to_string(),
                         DataType::Bytes {
-                            size: None,
-                            size_eos: false,
+                            size: size_expr.clone(),
+                            size_eos: inst.size_eos.unwrap_or(false),
                             terminator: None,
                             include: false,
                             consume: false,

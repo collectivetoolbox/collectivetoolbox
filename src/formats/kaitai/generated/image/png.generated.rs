@@ -138,18 +138,23 @@ impl KStruct for Png {
         if !(*self_rc.magic() == vec![0x89u8, 0x50u8, 0x4eu8, 0x47u8, 0xdu8, 0xau8, 0x1au8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ihdr_len.borrow_mut() = _io.read_u4be()?;
         let expected: u32 = (13).try_into()?;
         if !(*self_rc.ihdr_len() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ihdr_type.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.ihdr_type() == vec![0x49u8, 0x48u8, 0x44u8, 0x52u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_IhdrChunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ihdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ihdr_crc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.chunks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -162,6 +167,7 @@ impl KStruct for Png {
                 if  (((_tmpa.r#type()?.as_str() == "IEND")) || (_io.is_eof()))  { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -539,6 +545,7 @@ impl KStruct for Png_AdobeFireworksChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.preview_data.borrow_mut() = process_zlib(&_io.read_bytes_full()?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -629,7 +636,9 @@ impl KStruct for Png_AnimationControlChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_frames.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_plays.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -740,15 +749,21 @@ impl KStruct for Png_AtchChunk {
         if !( ((_tmpa.len() != 0_usize) && (substring(&_tmpa, 0, 1) != ".")) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/atch_chunk/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.compression(), Png_AtchChunk_CompressionAttachMethods::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/atch_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.compression() == Png_AtchChunk_CompressionAttachMethods::None {
             *self_rc.data_plain.borrow_mut() = _io.read_bytes_full()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.compression() == Png_AtchChunk_CompressionAttachMethods::Zlib {
             *self_rc.data_zlib.borrow_mut() = process_zlib(&_io.read_bytes_full()?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1036,6 +1051,7 @@ impl KStruct for Png_BkgdChunk {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1120,6 +1136,7 @@ impl KStruct for Png_BkgdGreyscale {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1204,6 +1221,7 @@ impl KStruct for Png_BkgdIndexed {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.palette_index.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1290,8 +1308,11 @@ impl KStruct for Png_BkgdTruecolor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1387,7 +1408,9 @@ impl KStruct for Png_ChrmChromaticity {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1505,12 +1528,16 @@ impl KStruct for Png_ChrmChunk {
         let _io = io;
         let t = Self::read_into::<_, Png_ChrmChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.white_point.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_ChrmChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.red.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_ChrmChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.green.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_ChrmChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.blue.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2451,12 +2478,14 @@ impl KStruct for Png_Chunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.type_raw.borrow_mut() = _io.read_bytes(4_usize)?;
         let _borrowed = self_rc.type_raw();
         let _tmpa = &*_borrowed;
         if !( ( ( ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(0_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(0_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(1_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(1_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(2_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(2_usize).ok_or(KError::CastError)?) <= 122_u8)) )  &&  ( ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 65_u8) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 90_u8))  ||  ((*(_tmpa.get(3_usize).ok_or(KError::CastError)?) >= 97_u8) && (*(_tmpa.get(3_usize).ok_or(KError::CastError)?) <= 122_u8)) ) ) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.r#type()?.as_str() {
             "PLTE" => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?.into();
@@ -2655,10 +2684,12 @@ impl KStruct for Png_Chunk {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2862,12 +2893,15 @@ impl KStruct for Png_CicpChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.color_primaries.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.transfer_function.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.matrix_coefficients.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (0).try_into()?;
         if !(*self_rc.matrix_coefficients() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/cicp_chunk/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.video_full_range_flag.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (0).try_into()?;
         let expected_1: u8 = (1).try_into()?;
@@ -2875,6 +2909,7 @@ impl KStruct for Png_CicpChunk {
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/cicp_chunk/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3012,7 +3047,9 @@ impl KStruct for Png_ClliChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.max_content_light_level_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_frame_average_light_level_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3130,6 +3167,7 @@ impl KStruct for Png_CompressedText {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3233,16 +3271,19 @@ impl KStruct for Png_CompressedTextChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.compression_method() == Png_CompressionMethods::Zlib) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/compressed_text_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_text = _io.read_bytes_full()?;
         *self_rc.text_raw.borrow_mut() = _raw_text.clone();
         let _processed_text = process_zlib(&_raw_text)?;
         let _io_text = BytesReader::from(_processed_text);
         let t = Self::read_into::<BytesReader, Png_CompressedText>(&_io_text, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.text.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3353,6 +3394,7 @@ impl KStruct for Png_EvernoteSkmfChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.json.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3451,7 +3493,9 @@ impl KStruct for Png_EvernoteSkrfChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.uuid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.orig_img.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3565,6 +3609,7 @@ impl KStruct for Png_ExifChunk {
         let _io = io;
         let t = Self::read_into::<_, Exif>(&*_io, None, None)?.into();
         *self_rc.exif.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3659,6 +3704,7 @@ impl KStruct for Png_FrameControlChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sequence_number.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         let max_val: u32 = (*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().width()).try_into()?;
@@ -3668,6 +3714,7 @@ impl KStruct for Png_FrameControlChunk {
         if !(*self_rc.width() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/frame_control_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         let max_val: u32 = (*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().height()).try_into()?;
@@ -3677,26 +3724,33 @@ impl KStruct for Png_FrameControlChunk {
         if !(*self_rc.height() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/frame_control_chunk/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.x_offset.borrow_mut() = _io.read_u4be()?;
         let max_val: u32 = ((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().width()).saturating_sub(*self_rc.width())).try_into()?;
         if !(*self_rc.x_offset() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/frame_control_chunk/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_offset.borrow_mut() = _io.read_u4be()?;
         let max_val: u32 = ((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().height()).saturating_sub(*self_rc.height())).try_into()?;
         if !(*self_rc.y_offset() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/frame_control_chunk/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.delay_num.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.delay_den.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dispose_op.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.dispose_op(), Png_DisposeOpValues::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/frame_control_chunk/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blend_op.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.blend_op(), Png_BlendOpValues::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/frame_control_chunk/seq/8".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3886,7 +3940,9 @@ impl KStruct for Png_FrameDataChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sequence_number.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.frame_data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4009,6 +4065,7 @@ impl KStruct for Png_GamaChunk {
         if !((_tmpa != 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/gama_chunk/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4141,6 +4198,7 @@ impl KStruct for Png_HistChunk {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4255,16 +4313,19 @@ impl KStruct for Png_IccpChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.profile_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.compression_method() == Png_CompressionMethods::Zlib) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/iccp_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_profile = _io.read_bytes_full()?;
         *self_rc.profile_raw.borrow_mut() = _raw_profile.clone();
         let _processed_profile = process_zlib(&_raw_profile)?;
         let _io_profile = BytesReader::from(_processed_profile);
         let t = Self::read_into::<BytesReader, Icc4>(&_io_profile, None, None)?.into();
         *self_rc.profile.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4405,11 +4466,13 @@ impl KStruct for Png_IhdrChunk {
         if !(*self_rc.width() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/ihdr_chunk/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u4be()?;
         let min_val: u32 = (1).try_into()?;
         if !(*self_rc.height() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/ihdr_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bit_depth.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (1).try_into()?;
         let expected_1: u8 = (2).try_into()?;
@@ -4420,22 +4483,27 @@ impl KStruct for Png_IhdrChunk {
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/ihdr_chunk/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.color_type(), Png_ColorType::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/ihdr_chunk/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.compression_method(), Png_CompressionMethods::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/ihdr_chunk/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.filter_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.filter_method(), Png_FilterMethod::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/ihdr_chunk/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interlace_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.interlace_method(), Png_InterlaceMethod::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/ihdr_chunk/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4546,6 +4614,7 @@ impl KStruct for Png_InternationalText {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4659,6 +4728,7 @@ impl KStruct for Png_InternationalTextChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_flag.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (0).try_into()?;
         let expected_1: u8 = (1).try_into()?;
@@ -4666,19 +4736,26 @@ impl KStruct for Png_InternationalTextChunk {
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/international_text_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if !(*self_rc.compression_method() == if ((to_i128(*self_rc.compression_flag())) == (to_i128(1))) { Png_CompressionMethods::Zlib.clone() } else { self_rc.compression_method().clone() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/international_text_chunk/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.language_tag.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.translated_keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.compression_flag())) == (to_i128(0))) {
             let _raw_text_plain = _io.read_bytes_full()?;
             *self_rc.text_plain_raw.borrow_mut() = _raw_text_plain.clone();
             let _io_text_plain = BytesReader::from(_raw_text_plain);
             let t = Self::read_into::<BytesReader, Png_InternationalText>(&_io_text_plain, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.text_plain.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.compression_flag())) == (to_i128(1))) {
             let _raw_text_zlib = _io.read_bytes_full()?;
             *self_rc.text_zlib_raw.borrow_mut() = _raw_text_zlib.clone();
@@ -4686,6 +4763,7 @@ impl KStruct for Png_InternationalTextChunk {
             let _io_text_zlib = BytesReader::from(_processed_text_zlib);
             let t = Self::read_into::<BytesReader, Png_InternationalText>(&_io_text_zlib, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.text_zlib.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -4878,7 +4956,9 @@ impl KStruct for Png_MdcvChromaticity {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x_int.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_int.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5003,14 +5083,20 @@ impl KStruct for Png_MdcvChunk {
         let _io = io;
         let t = Self::read_into::<_, Png_MdcvChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.red.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_MdcvChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.green.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_MdcvChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.blue.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Png_MdcvChromaticity>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.white_point.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_luminance_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.min_luminance_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5161,11 +5247,14 @@ impl KStruct for Png_PhysChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pixels_per_unit_x.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pixels_per_unit_y.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unit.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         if matches!(*self_rc.unit(), Png_PhysUnit::UnknownVariant(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/phys_chunk/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5314,6 +5403,7 @@ impl KStruct for Png_PlteChunk {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5396,8 +5486,11 @@ impl KStruct for Png_Rgb {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.g.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5590,6 +5683,7 @@ impl KStruct for Png_SbitChunk {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -5692,6 +5786,8 @@ impl KStruct for Png_SbitGreyscale {
         if !(*self_rc.grey() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_greyscale/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_alpha() {
             *self_rc.alpha.borrow_mut() = _io.read_u1()?;
             let min_val: u8 = (1).try_into()?;
@@ -5702,6 +5798,7 @@ impl KStruct for Png_SbitGreyscale {
             if !(*self_rc.alpha() <= max_val) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_greyscale/seq/1".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -5810,6 +5907,7 @@ impl KStruct for Png_SbitTruecolor {
         if !(*self_rc.red() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_truecolor/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
         let min_val: u8 = (1).try_into()?;
         let max_val: u8 = (*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_depth()?).try_into()?;
@@ -5819,6 +5917,7 @@ impl KStruct for Png_SbitTruecolor {
         if !(*self_rc.green() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_truecolor/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
         let min_val: u8 = (1).try_into()?;
         let max_val: u8 = (*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_depth()?).try_into()?;
@@ -5828,6 +5927,8 @@ impl KStruct for Png_SbitTruecolor {
         if !(*self_rc.blue() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_truecolor/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_alpha() {
             *self_rc.alpha.borrow_mut() = _io.read_u1()?;
             let min_val: u8 = (1).try_into()?;
@@ -5838,6 +5939,7 @@ impl KStruct for Png_SbitTruecolor {
             if !(*self_rc.alpha() <= max_val) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/sbit_truecolor/seq/3".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -5955,6 +6057,7 @@ impl KStruct for Png_SpltChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.palette_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_depth.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (8).try_into()?;
         let expected_1: u8 = (16).try_into()?;
@@ -5962,6 +6065,7 @@ impl KStruct for Png_SpltChunk {
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/splt_chunk/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.entries.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -5971,6 +6075,7 @@ impl KStruct for Png_SpltChunk {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6362,6 +6467,7 @@ impl KStruct for Png_SpltEntry {
                 *self_rc.red.borrow_mut() = Some(_io.read_u2be()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_depth() {
             8 => {
                 *self_rc.green.borrow_mut() = Some(_io.read_u1()?.into());
@@ -6370,6 +6476,7 @@ impl KStruct for Png_SpltEntry {
                 *self_rc.green.borrow_mut() = Some(_io.read_u2be()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_depth() {
             8 => {
                 *self_rc.blue.borrow_mut() = Some(_io.read_u1()?.into());
@@ -6378,6 +6485,7 @@ impl KStruct for Png_SpltEntry {
                 *self_rc.blue.borrow_mut() = Some(_io.read_u2be()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.sample_depth() {
             8 => {
                 *self_rc.alpha.borrow_mut() = Some(_io.read_u1()?.into());
@@ -6386,7 +6494,9 @@ impl KStruct for Png_SpltEntry {
                 *self_rc.alpha.borrow_mut() = Some(_io.read_u2be()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.freq.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6532,6 +6642,7 @@ impl KStruct for Png_SrgbChunk {
         if matches!(*self_rc.render_intent(), Png_SrgbChunk_Intent::Unknown(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/srgb_chunk/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6662,7 +6773,9 @@ impl KStruct for Png_TextChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.keyword.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ISO-8859-1")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6780,11 +6893,17 @@ impl KStruct for Png_TimeChunk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.year.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.day.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.second.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -6968,6 +7087,7 @@ impl KStruct for Png_TrnsChunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().color_type() == Png_ColorType::Indexed {
             *self_rc.palette_alphas.borrow_mut() = Vec::new();
             {
@@ -6977,6 +7097,7 @@ impl KStruct for Png_TrnsChunk {
                     _i = _i.saturating_add(1);
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.ihdr().color_type() {
             Png_ColorType::Greyscale => {
@@ -6989,6 +7110,7 @@ impl KStruct for Png_TrnsChunk {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7116,6 +7238,7 @@ impl KStruct for Png_TrnsGreyscaleColor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.grey_raw.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -7216,8 +7339,11 @@ impl KStruct for Png_TrnsTruecolorColor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red_raw.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_raw.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_raw.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

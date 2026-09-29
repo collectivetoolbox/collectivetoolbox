@@ -117,8 +117,11 @@ impl KStruct for ParamsDef {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.buf.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_trailer() {
             *self_rc.trailer.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

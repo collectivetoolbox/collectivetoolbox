@@ -168,22 +168,28 @@ impl KStruct for ExprBits {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.enum_seq.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.byte_size.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.a())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.repeat_expr.borrow_mut() = Vec::new();
         let l_repeat_expr = usize::try_from(*self_rc.a())?;
         for _i in 0_usize..l_repeat_expr {
             self_rc.repeat_expr.borrow_mut().push(_io.read_s1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.a() {
             2 => {
                 *self_rc.switch_on_type.borrow_mut() = Some(_io.read_s1()?.into());
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ExprBits_EndianSwitch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.switch_on_endian.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -370,6 +376,7 @@ impl KStruct for ExprBits_EndianSwitch {
             return Err(KError::UndecidedEndianness { src_path: "/types/endian_switch".to_string() });
         }
         *self_rc.foo.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? };
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

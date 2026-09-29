@@ -149,16 +149,19 @@ impl KStruct for ExprArray {
         for _i in 0_usize..l_aint {
             self_rc.aint.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.afloat.borrow_mut() = Vec::new();
         let l_afloat = 3_usize;
         for _i in 0_usize..l_afloat {
             self_rc.afloat.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.astr.borrow_mut() = Vec::new();
         let l_astr = 3_usize;
         for _i in 0_usize..l_astr {
             self_rc.astr.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

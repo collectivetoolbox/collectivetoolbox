@@ -142,50 +142,77 @@ impl KStruct for Integers {
         if !(*self_rc.magic1() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint8.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint8.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint.borrow_mut() = _io.read_bytes(10_usize)?;
         if !(*self_rc.magic_uint() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x44u8, 0x45u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint64.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint.borrow_mut() = _io.read_bytes(10_usize)?;
         if !(*self_rc.magic_sint() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x44u8, 0x45u8, 0x46u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint32.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint64.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint_le.borrow_mut() = _io.read_bytes(9_usize)?;
         if !(*self_rc.magic_uint_le() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x4cu8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/11".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16le.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint32le.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint64le.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint_le.borrow_mut() = _io.read_bytes(9_usize)?;
         if !(*self_rc.magic_sint_le() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x4cu8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/15".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16le.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint32le.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint64le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_uint_be.borrow_mut() = _io.read_bytes(9_usize)?;
         if !(*self_rc.magic_uint_be() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x55u8, 0x2du8, 0x42u8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/19".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint16be.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint32be.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uint64be.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic_sint_be.borrow_mut() = _io.read_bytes(9_usize)?;
         if !(*self_rc.magic_sint_be() == vec![0x50u8, 0x41u8, 0x43u8, 0x4bu8, 0x2du8, 0x53u8, 0x2du8, 0x42u8, 0x45u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/23".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint16be.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint32be.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sint64be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

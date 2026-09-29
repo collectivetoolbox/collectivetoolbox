@@ -72,6 +72,7 @@ impl KStruct for Grub2Font {
         if !(*self_rc.magic() == vec![0x46u8, 0x49u8, 0x4cu8, 0x45u8, 0x0u8, 0x0u8, 0x0u8, 0x4u8, 0x50u8, 0x46u8, 0x46u8, 0x32u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sections.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -84,6 +85,7 @@ impl KStruct for Grub2Font {
                 if (_tmpa.section_type().as_str() == "DATA") { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -181,6 +183,7 @@ impl KStruct for Grub2Font_AsceSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ascent_in_pixels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -269,6 +272,7 @@ impl KStruct for Grub2Font_ChixSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -353,8 +357,11 @@ impl KStruct for Grub2Font_ChixSection_Character {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code_point.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_definition.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -471,11 +478,17 @@ impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.x_offset.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_offset.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.device_width.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bitmap_data.borrow_mut() = _io.read_bytes(usize::try_from(div_floor(i64::from((i32::from((*self_rc.width()).saturating_mul(*self_rc.height()))).saturating_add(7_i32)), 8_i64)?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -601,6 +614,7 @@ impl KStruct for Grub2Font_DescSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.descent_in_pixels.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -681,6 +695,7 @@ impl KStruct for Grub2Font_FamiSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_family_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -761,6 +776,7 @@ impl KStruct for Grub2Font_MaxhSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.maximum_character_height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -841,6 +857,7 @@ impl KStruct for Grub2Font_MaxwSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.maximum_character_width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -921,6 +938,7 @@ impl KStruct for Grub2Font_NameSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1001,6 +1019,7 @@ impl KStruct for Grub2Font_PtszSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_point_size.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1419,7 +1438,10 @@ impl KStruct for Grub2Font_Section {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.section_type.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if (self_rc.section_type().as_str() != "DATA") {
             match self_rc.section_type().as_str() {
                 "ASCE" => {
@@ -1493,9 +1515,10 @@ impl KStruct for Grub2Font_Section {
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                    *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len_body())?)?.into());
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1601,6 +1624,7 @@ impl KStruct for Grub2Font_SlanSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_slant.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1681,6 +1705,7 @@ impl KStruct for Grub2Font_WeigSection {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.font_weight.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -163,6 +163,7 @@ impl KStruct for ValidSwitch {
         if !(*self_rc.a() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.a() {
             80 => {
                 *self_rc.b.borrow_mut() = Some(_io.read_u2le()?.into());
@@ -175,6 +176,7 @@ impl KStruct for ValidSwitch {
         if !(self_rc.b() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -123,18 +123,21 @@ impl KStruct for ProcessTermStruct {
         let _io_s1 = BytesReader::from(_processed_s1);
         let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s2 = _io.read_bytes_term(124, false, false, true)?;
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _processed_s2 = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(32)? & 0xff)?, false, &[0u8]).decode(&_raw_s2).map_err(|e| KError::BytesDecodingError { msg: e })?;
         let _io_s2 = BytesReader::from(_processed_s2);
         let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_s3 = _io.read_bytes_term(64, true, true, true)?;
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _processed_s3 = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(32)? & 0xff)?, false, &[0u8]).decode(&_raw_s3).map_err(|e| KError::BytesDecodingError { msg: e })?;
         let _io_s3 = BytesReader::from(_processed_s3);
         let t = Self::read_into::<BytesReader, ProcessTermStruct_BytesWrapper>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -240,6 +243,7 @@ impl KStruct for ProcessTermStruct_BytesWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

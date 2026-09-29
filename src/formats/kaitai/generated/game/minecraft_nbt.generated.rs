@@ -139,11 +139,14 @@ impl KStruct for MinecraftNbt {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ({ let _ = *self_rc.root_type()? == MinecraftNbt_Tag::End; false }) {
             *self_rc.root_check.borrow_mut() = _io.read_bytes(0_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, MinecraftNbt_NamedTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.root.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -642,10 +645,14 @@ impl KStruct for MinecraftNbt_NamedTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_tag_end()?) {
             let t = Self::read_into::<_, MinecraftNbt_TagString>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.name.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_tag_end()?) {
             match *self_rc.r#type() {
                 MinecraftNbt_Tag::Byte => {
@@ -692,6 +699,7 @@ impl KStruct for MinecraftNbt_NamedTag {
                 }
                 _ => {}
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -797,7 +805,9 @@ impl KStruct for MinecraftNbt_TagByteArray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -901,6 +911,7 @@ impl KStruct for MinecraftNbt_TagCompound {
                 if *_tmpa.is_tag_end()? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -996,11 +1007,13 @@ impl KStruct for MinecraftNbt_TagIntArray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.num_tags())?;
         for _i in 0_usize..l_tags {
             self_rc.tags.borrow_mut().push(_io.read_s4be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1415,7 +1428,9 @@ impl KStruct for MinecraftNbt_TagList {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tags_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.num_tags())?;
         for _i in 0_usize..l_tags {
@@ -1465,6 +1480,7 @@ impl KStruct for MinecraftNbt_TagList {
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1558,11 +1574,13 @@ impl KStruct for MinecraftNbt_TagLongArray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_tags.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tags.borrow_mut() = Vec::new();
         let l_tags = usize::try_from(*self_rc.num_tags())?;
         for _i in 0_usize..l_tags {
             self_rc.tags.borrow_mut().push(_io.read_s8be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1662,7 +1680,9 @@ impl KStruct for MinecraftNbt_TagString {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_data()))?, "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

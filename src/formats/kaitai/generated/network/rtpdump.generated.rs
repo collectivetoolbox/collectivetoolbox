@@ -72,6 +72,7 @@ impl KStruct for Rtpdump {
         let _io = io;
         let t = Self::read_into::<_, Rtpdump_HeaderT>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packets.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -81,6 +82,7 @@ impl KStruct for Rtpdump {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -177,17 +179,26 @@ impl KStruct for Rtpdump_HeaderT {
         if !(*self_rc.shebang() == vec![0x23u8, 0x21u8, 0x72u8, 0x74u8, 0x70u8, 0x70u8, 0x6cu8, 0x61u8, 0x79u8, 0x31u8, 0x2eu8, 0x30u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.space.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.space() == vec![0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header_t/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ip.borrow_mut() = bytes_to_str(&_io.read_bytes_term(47, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.port.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_sec.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_usec.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ip2.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.port2.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -332,13 +343,17 @@ impl KStruct for Rtpdump_PacketT {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packet_usec.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_body = _io.read_bytes(usize::from(*self_rc.len_body()))?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
         let t = Self::read_into::<BytesReader, RtpPacket>(&_io_body, None, None)?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

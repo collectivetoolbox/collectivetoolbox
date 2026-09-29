@@ -74,14 +74,18 @@ impl KStruct for NtMdtPal {
         if !(*self_rc.signature() == vec![0x4eu8, 0x54u8, 0x2du8, 0x4du8, 0x44u8, 0x54u8, 0x20u8, 0x50u8, 0x61u8, 0x6cu8, 0x65u8, 0x74u8, 0x74u8, 0x65u8, 0x20u8, 0x46u8, 0x69u8, 0x6cu8, 0x65u8, 0x20u8, 0x20u8, 0x31u8, 0x2eu8, 0x30u8, 0x30u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.count.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.meta.borrow_mut() = Vec::new();
         let l_meta = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_meta {
             let t = Self::read_into::<_, NtMdtPal_Meta>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.meta.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.something2.borrow_mut() = _io.read_bytes(1_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tables.borrow_mut() = Vec::new();
         let l_tables = usize::try_from(*self_rc.count())?;
         for _i in 0_usize..l_tables {
@@ -89,6 +93,7 @@ impl KStruct for NtMdtPal {
             let t = Self::read_into_with_init::<_, NtMdtPal_ColTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.tables.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -200,15 +205,20 @@ impl KStruct for NtMdtPal_ColTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.size1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.name_size()))?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn1.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colors.borrow_mut() = Vec::new();
         let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_colors {
             let t = Self::read_into::<_, NtMdtPal_Color>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -327,9 +337,13 @@ impl KStruct for NtMdtPal_Color {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -440,14 +454,23 @@ impl KStruct for NtMdtPal_Meta {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unkn00.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn01.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn02.borrow_mut() = _io.read_bytes(1_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn03.borrow_mut() = _io.read_bytes(1_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.colors_count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn10.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn11.borrow_mut() = _io.read_bytes(1_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unkn12.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_size.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

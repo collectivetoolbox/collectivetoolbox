@@ -126,15 +126,24 @@ impl KStruct for TsPacketHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sync_byte.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.transport_error_indicator.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.payload_unit_start_indicator.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.transport_priority.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pid.borrow_mut() = _io.read_bits_int_be(13)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.transport_scrambling_control.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.adaptation_field_control.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.continuity_counter.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.ts_packet_remain.borrow_mut() = _io.read_bytes(184_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

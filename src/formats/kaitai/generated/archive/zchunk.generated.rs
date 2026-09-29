@@ -73,18 +73,23 @@ impl KStruct for Zchunk {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_HeaderLead>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.lead.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header_rest = _io.read_bytes(usize::try_from(*self_rc.lead().len_header_rest().value()?)?)?;
         *self_rc.header_rest_raw.borrow_mut() = _raw_header_rest.clone();
         let _io_header_rest = BytesReader::from(_raw_header_rest);
         let t = Self::read_into::<BytesReader, Zchunk_HeaderWithoutLead>(&_io_header_rest, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_rest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dict.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header_rest().index().len_dict().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.lead().is_detached_header()?) {
             *self_rc.chunks.borrow_mut() = Vec::new();
             let l_chunks = usize::try_from(self_rc.header_rest().index().chunks_metadata().len())?;
             for _i in 0_usize..l_chunks {
                 self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(_i).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -294,6 +299,7 @@ impl KStruct for Zchunk_ChecksumType {
         if !((*self_rc.len_checksum()? != 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/checksum_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -410,18 +416,25 @@ impl KStruct for Zchunk_Chunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_data_streams() {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.chunk_stream.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.chunk_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_checksum())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_uncompressed_source() {
             *self_rc.uncompressed_chunk_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_checksum())?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_uncompressed_chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -584,6 +597,7 @@ impl KStruct for Zchunk_CompressedInteger {
                 if *_tmpa.is_last() { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -701,11 +715,13 @@ impl KStruct for Zchunk_CompressedInteger_Group {
         if !(*self_rc.is_last() == if ((to_i128(*self_rc.idx())) == (to_i128(9))) { true } else { *self_rc.is_last() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/compressed_integer/types/group/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
         let max_val: u64 = (u64::try_from(if ((to_i128(*self_rc.idx())) == (to_i128(9))) { 1_i32 } else { 127_i32 })?).try_into()?;
         if !(*self_rc.value() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/compressed_integer/types/group/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -828,11 +844,15 @@ impl KStruct for Zchunk_HeaderLead {
         if !(*_item == vec![0x0u8, 0x5au8, 0x43u8, 0x4bu8, 0x31u8] || *_item == vec![0x0u8, 0x5au8, 0x48u8, 0x52u8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header_lead/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_ChecksumType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.overall_checksum_type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_header_rest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.overall_checksum_type().len_checksum()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -989,13 +1009,16 @@ impl KStruct for Zchunk_HeaderWithoutLead {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_Preface>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.preface.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_index.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_index = _io.read_bytes(usize::try_from(*self_rc.len_index().value()?)?)?;
         *self_rc.index_raw.borrow_mut() = _raw_index.clone();
         let _io_index = BytesReader::from(_raw_index);
         let t = Self::read_into::<BytesReader, Zchunk_Index>(&_io_index, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_signatures.borrow_mut() = t;
         let _borrowed = self_rc.num_signatures();
@@ -1003,6 +1026,7 @@ impl KStruct for Zchunk_HeaderWithoutLead {
         if !((*_tmpa.value()? == 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/header_without_lead/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1132,6 +1156,7 @@ impl KStruct for Zchunk_Index {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_ChecksumType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.chunk_checksum_type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_chunks.borrow_mut() = t;
         let _borrowed = self_rc.num_chunks();
@@ -1139,6 +1164,8 @@ impl KStruct for Zchunk_Index {
         if !((*_tmpa.value()? >= 1_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_data_streams()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.dict_stream.borrow_mut() = t;
@@ -1147,15 +1174,21 @@ impl KStruct for Zchunk_Index {
             if !((*_tmpa.value()? == 0_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/2".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.dict_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.chunk_checksum_type().len_checksum()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_uncompressed_source()? {
             *self_rc.uncompressed_dict_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.chunk_checksum_type().len_checksum()?)?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_dict.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_uncompressed_dict.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.chunks_metadata.borrow_mut() = Vec::new();
         let l_chunks_metadata = usize::try_from(*self_rc.num_data_chunks()?)?;
         for _i in 0_usize..l_chunks_metadata {
@@ -1163,6 +1196,7 @@ impl KStruct for Zchunk_Index {
             let t = Self::read_into_with_init::<_, Zchunk_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.chunks_metadata.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1340,9 +1374,12 @@ impl KStruct for Zchunk_OptionalElement {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.element_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1451,6 +1488,7 @@ impl KStruct for Zchunk_Preface {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.lead().overall_checksum_type().len_checksum()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
         let _borrowed = self_rc.flags();
@@ -1458,6 +1496,7 @@ impl KStruct for Zchunk_Preface {
         if !((*_tmpa.value()? <= 7_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.compression_type_int.borrow_mut() = t;
         let _borrowed = self_rc.compression_type_int();
@@ -1465,6 +1504,8 @@ impl KStruct for Zchunk_Preface {
         if !( (((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::None)))) || ((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::Zstd))))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_optional_elements()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.num_optional_elements.borrow_mut() = t;
@@ -1473,7 +1514,9 @@ impl KStruct for Zchunk_Preface {
             if !((*_tmpa.value()? >= 1_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/3".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_optional_elements()? {
             *self_rc.optional_elements.borrow_mut() = Vec::new();
             let l_optional_elements = usize::try_from(*self_rc.num_optional_elements().value()?)?;
@@ -1481,6 +1524,7 @@ impl KStruct for Zchunk_Preface {
                 let t = Self::read_into::<_, Zchunk_OptionalElement>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.optional_elements.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

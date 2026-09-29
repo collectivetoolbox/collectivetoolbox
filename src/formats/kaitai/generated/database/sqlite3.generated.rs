@@ -110,30 +110,54 @@ impl KStruct for Sqlite3 {
         if !(*self_rc.magic() == vec![0x53u8, 0x51u8, 0x4cu8, 0x69u8, 0x74u8, 0x65u8, 0x20u8, 0x66u8, 0x6fu8, 0x72u8, 0x6du8, 0x61u8, 0x74u8, 0x20u8, 0x33u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_page_mod.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.write_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.read_version.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_space.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_payload_frac.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.min_payload_frac.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.leaf_payload_frac.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_change_counter.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_pages.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_freelist_trunk_page.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_freelist_pages.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.schema_cookie.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.schema_format.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.def_page_cache_size.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_root_page.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.text_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.user_version.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_incremental_vacuum.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.application_id.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_valid_for.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sqlite_version_number.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Sqlite3_BtreePage>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.root_page.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -481,12 +505,19 @@ impl KStruct for Sqlite3_BtreePage {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.page_type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_freeblock.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_cells.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_cells.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_frag_free_bytes.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((((to_i128(*self_rc.page_type())) == (to_i128(2)))) || (((to_i128(*self_rc.page_type())) == (to_i128(5)))))  {
             *self_rc.right_ptr.borrow_mut() = _io.read_u4be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.cells.borrow_mut() = Vec::new();
         let l_cells = usize::from(*self_rc.num_cells());
@@ -494,6 +525,7 @@ impl KStruct for Sqlite3_BtreePage {
             let t = Self::read_into::<_, Sqlite3_RefCell>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.cells.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -611,13 +643,16 @@ impl KStruct for Sqlite3_CellIndexInterior {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.left_child_page.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
         let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
         *self_rc.payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -720,11 +755,13 @@ impl KStruct for Sqlite3_CellIndexLeaf {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
         let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
         *self_rc.payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -823,11 +860,13 @@ impl KStruct for Sqlite3_CellPayload {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_header_and_len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_column_serials = _io.read_bytes(usize::try_from((*self_rc.len_header_and_len().value()?).saturating_sub(1_i32))?)?;
         *self_rc.column_serials_raw.borrow_mut() = _raw_column_serials.clone();
         let _io_column_serials = BytesReader::from(_raw_column_serials);
         let t = Self::read_into::<BytesReader, Sqlite3_Serials>(&_io_column_serials, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.column_serials.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.column_contents.borrow_mut() = Vec::new();
         let l_column_contents = usize::try_from(self_rc.column_serials().entries().len())?;
         for _i in 0_usize..l_column_contents {
@@ -835,6 +874,7 @@ impl KStruct for Sqlite3_CellPayload {
             let t = Self::read_into_with_init::<_, Sqlite3_ColumnContent>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.column_contents.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -935,8 +975,10 @@ impl KStruct for Sqlite3_CellTableInterior {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.left_child_page.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.row_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1030,13 +1072,16 @@ impl KStruct for Sqlite3_CellTableLeaf {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.len_payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.row_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_payload = _io.read_bytes(usize::try_from(*self_rc.len_payload().value()?)?)?;
         *self_rc.payload_raw.borrow_mut() = _raw_payload.clone();
         let _io_payload = BytesReader::from(_raw_payload);
         let t = Self::read_into::<BytesReader, Sqlite3_CellPayload>(&_io_payload, Some(self_rc._root.clone()), None)?.into();
         *self_rc.payload.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1243,6 +1288,7 @@ impl KStruct for Sqlite3_ColumnContent {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((*self_rc.serial_type().code().value()? >= 1) && (*self_rc.serial_type().code().value()? <= 6))  {
             match *self_rc.serial_type().code().value()? {
                 1 => {
@@ -1265,14 +1311,20 @@ impl KStruct for Sqlite3_ColumnContent {
                 }
                 _ => {}
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.serial_type().code().value()? == 7 {
             *self_rc.as_float.borrow_mut() = _io.read_f8be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.serial_type().is_blob()? {
             *self_rc.as_blob.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.serial_type().len_content()?)?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.as_str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.serial_type().len_content()?)?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1521,6 +1573,7 @@ impl KStruct for Sqlite3_RefCell {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_body.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1641,6 +1694,7 @@ impl KStruct for Sqlite3_Serial {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Be>(&*_io, None, None)?.into();
         *self_rc.code.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1767,6 +1821,7 @@ impl KStruct for Sqlite3_Serials {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

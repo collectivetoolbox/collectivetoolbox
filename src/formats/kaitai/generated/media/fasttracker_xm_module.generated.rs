@@ -79,23 +79,27 @@ impl KStruct for FasttrackerXmModule {
         let _io = io;
         let t = Self::read_into::<_, FasttrackerXmModule_Preheader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.preheader.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((*self_rc.preheader().header_size()).saturating_sub(4_u32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, FasttrackerXmModule_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.patterns.borrow_mut() = Vec::new();
         let l_patterns = usize::from(*self_rc.header().num_patterns());
         for _i in 0_usize..l_patterns {
             let t = Self::read_into::<_, FasttrackerXmModule_Pattern>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patterns.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = usize::from(*self_rc.header().num_instruments());
         for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -197,7 +201,9 @@ impl KStruct for FasttrackerXmModule_Flags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(15)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.freq_table_type.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -295,19 +301,28 @@ impl KStruct for FasttrackerXmModule_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.song_length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.restart_position.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_channels.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_patterns.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_instruments.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, FasttrackerXmModule_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.default_tempo.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.default_bpm.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pattern_order_table.borrow_mut() = Vec::new();
         let l_pattern_order_table = 256_usize;
         for _i in 0_usize..l_pattern_order_table {
             self_rc.pattern_order_table.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -463,17 +478,20 @@ impl KStruct for FasttrackerXmModule_Instrument {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((*self_rc.header_size()).saturating_sub(4_u32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, FasttrackerXmModule_Instrument_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.samples_headers.borrow_mut() = Vec::new();
         let l_samples_headers = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples_headers {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_SampleHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.samples_headers.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.samples.borrow_mut() = Vec::new();
         let l_samples = usize::from(*self_rc.header().num_samples());
         for _i in 0_usize..l_samples {
@@ -481,6 +499,7 @@ impl KStruct for FasttrackerXmModule_Instrument {
             let t = Self::read_into_with_init::<_, FasttrackerXmModule_Instrument_SamplesData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.samples.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -605,39 +624,59 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_sample_header.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.idx_sample_per_note.borrow_mut() = Vec::new();
         let l_idx_sample_per_note = 96_usize;
         for _i in 0_usize..l_idx_sample_per_note {
             self_rc.idx_sample_per_note.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_points.borrow_mut() = Vec::new();
         let l_volume_points = 12_usize;
         for _i in 0_usize..l_volume_points {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.volume_points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_points.borrow_mut() = Vec::new();
         let l_panning_points = 12_usize;
         for _i in 0_usize..l_panning_points {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.panning_points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_volume_points.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_panning_points.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_sustain_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_loop_start_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_loop_end_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_sustain_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_loop_start_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_loop_end_point.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vibrato_type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vibrato_sweep.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vibrato_depth.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vibrato_rate.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_fadeout.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -872,7 +911,9 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -970,11 +1011,16 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(22_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_samples.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.num_samples())) > (to_i128(0))) {
             let t = Self::read_into::<_, FasttrackerXmModule_Instrument_ExtraHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.extra_header.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1090,16 +1136,26 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sample_length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_loop_start.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sample_loop_length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fine_tune.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, FasttrackerXmModule_Instrument_SampleHeader_LoopType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.r#type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.panning.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.relative_note_number.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(22_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1241,9 +1297,13 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved0.borrow_mut() = _io.read_bits_int_be(3)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.is_sample_data_16_bit.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.loop_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1386,6 +1446,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().sample_length()).saturating_mul(u32::try_from(if *self_rc.header().r#type().is_sample_data_16_bit() { 2_i32 } else { 1_i32 })?))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1484,7 +1545,9 @@ impl KStruct for FasttrackerXmModule_Pattern {
         let _io = io;
         let t = Self::read_into::<_, FasttrackerXmModule_Pattern_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.packed_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.header().main().len_packed_pattern()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1577,11 +1640,13 @@ impl KStruct for FasttrackerXmModule_Pattern_Header {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header_length.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_main = _io.read_bytes(usize::try_from((*self_rc.header_length()).saturating_sub(4_u32))?)?;
         *self_rc.main_raw.borrow_mut() = _raw_main.clone();
         let _io_main = BytesReader::from(_raw_main);
         let t = Self::read_into::<BytesReader, FasttrackerXmModule_Pattern_Header_HeaderMain>(&_io_main, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1745,6 +1810,7 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.packing_type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.preheader().version_number().value()? {
             258 => {
                 *self_rc.num_rows_raw.borrow_mut() = Some(_io.read_u1()?.into());
@@ -1753,7 +1819,9 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
                 *self_rc.num_rows_raw.borrow_mut() = Some(_io.read_u2le()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_packed_pattern.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1882,15 +1950,21 @@ impl KStruct for FasttrackerXmModule_Preheader {
         if !(*self_rc.signature0() == vec![0x45u8, 0x78u8, 0x74u8, 0x65u8, 0x6eu8, 0x64u8, 0x65u8, 0x64u8, 0x20u8, 0x4du8, 0x6fu8, 0x64u8, 0x75u8, 0x6cu8, 0x65u8, 0x3au8, 0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.module_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signature1.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.signature1() == vec![0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/preheader/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tracker_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(0), false, None), "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, FasttrackerXmModule_Preheader_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version_number.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2025,7 +2099,9 @@ impl KStruct for FasttrackerXmModule_Preheader_Version {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.minor.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

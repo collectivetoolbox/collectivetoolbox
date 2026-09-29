@@ -118,6 +118,7 @@ impl KStruct for EosExceptionBytes {
         let _io_envelope = BytesReader::from(_raw_envelope);
         let t = Self::read_into::<BytesReader, EosExceptionBytes_Data>(&_io_envelope, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.envelope.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -204,6 +205,7 @@ impl KStruct for EosExceptionBytes_Data {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.buf.borrow_mut() = _io.read_bytes(7_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

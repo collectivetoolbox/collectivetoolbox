@@ -90,8 +90,10 @@ impl KStruct for RubyMarshal {
         if !(*self_rc.version() == vec![0x4u8, 0x8u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.records.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -249,9 +251,12 @@ impl KStruct for RubyMarshal_Bignum {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sign.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_div_2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_div_2().value()?).saturating_mul(2_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -366,14 +371,17 @@ impl KStruct for RubyMarshal_InstanceVar {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.obj.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_vars.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vars.borrow_mut() = Vec::new();
         let l_vars = usize::try_from(*self_rc.num_vars().value()?)?;
         for _i in 0_usize..l_vars {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.vars.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -631,6 +639,7 @@ impl KStruct for RubyMarshal_PackedInt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             1 => {
                 *self_rc.encoded.borrow_mut() = Some(_io.read_u1()?.into());
@@ -658,6 +667,7 @@ impl KStruct for RubyMarshal_PackedInt {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             253 => {
                 *self_rc.encoded2.borrow_mut() = Some(_io.read_u1()?.into());
@@ -667,6 +677,7 @@ impl KStruct for RubyMarshal_PackedInt {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -796,8 +807,10 @@ impl KStruct for RubyMarshal_Pair {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.key.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1141,6 +1154,7 @@ impl KStruct for RubyMarshal_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             RubyMarshal_Codes::Bignum => {
                 let t = Self::read_into::<_, RubyMarshal_Bignum>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -1184,6 +1198,7 @@ impl KStruct for RubyMarshal_Record {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1271,12 +1286,14 @@ impl KStruct for RubyMarshal_RubyArray {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_elements.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.elements.borrow_mut() = Vec::new();
         let l_elements = usize::try_from(*self_rc.num_elements().value()?)?;
         for _i in 0_usize..l_elements {
             let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.elements.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1368,12 +1385,14 @@ impl KStruct for RubyMarshal_RubyHash {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_pairs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pairs.borrow_mut() = Vec::new();
         let l_pairs = usize::try_from(*self_rc.num_pairs().value()?)?;
         for _i in 0_usize..l_pairs {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.pairs.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1466,7 +1485,9 @@ impl KStruct for RubyMarshal_RubyString {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1564,14 +1585,17 @@ impl KStruct for RubyMarshal_RubyStruct {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_Record>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_members.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.members.borrow_mut() = Vec::new();
         let l_members = usize::try_from(*self_rc.num_members().value()?)?;
         for _i in 0_usize..l_members {
             let t = Self::read_into::<_, RubyMarshal_Pair>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.members.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1677,7 +1701,9 @@ impl KStruct for RubyMarshal_RubySymbol {
         let _io = io;
         let t = Self::read_into::<_, RubyMarshal_PackedInt>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

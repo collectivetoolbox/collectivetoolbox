@@ -75,6 +75,7 @@ impl KStruct for Hccapx {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -182,22 +183,38 @@ impl KStruct for Hccapx_HccapxRecord {
         if !(*self_rc.magic() == vec![0x48u8, 0x43u8, 0x50u8, 0x58u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/hccapx_record/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ignore_replay_counter.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.message_pair.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.len_essid.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.essid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_essid()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding1.borrow_mut() = _io.read_bytes(usize::try_from((32_i32).saturating_sub(i32::from(*self_rc.len_essid())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keyver.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keymic.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mac_ap.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nonce_ap.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mac_station.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nonce_station.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_eapol.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.eapol.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_eapol()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_sub(i32::from(*self_rc.len_eapol())))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

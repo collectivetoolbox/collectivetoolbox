@@ -84,11 +84,13 @@ impl KStruct for Zisofs {
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, Zisofs_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_pointers.borrow_mut() = Vec::new();
         let l_block_pointers = usize::try_from((*self_rc.header().num_blocks()?).saturating_add(1_i32))?;
         for _i in 0_usize..l_block_pointers {
             self_rc.block_pointers.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -336,12 +338,15 @@ impl KStruct for Zisofs_Header {
         if !(*self_rc.magic() == vec![0x37u8, 0xe4u8, 0x53u8, 0x96u8, 0xc9u8, 0xdbu8, 0xd6u8, 0x7u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uncompressed_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u1()?;
         let expected: u8 = (4).try_into()?;
         if !(*self_rc.len_header() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_size_log2.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (15).try_into()?;
         let expected_1: u8 = (16).try_into()?;
@@ -350,10 +355,12 @@ impl KStruct for Zisofs_Header {
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

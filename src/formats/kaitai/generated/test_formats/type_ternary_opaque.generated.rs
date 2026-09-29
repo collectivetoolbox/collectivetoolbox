@@ -121,13 +121,16 @@ impl KStruct for TypeTernaryOpaque {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_hack()?) {
             let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
             let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
             let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_wo_hack, None, None)?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_hack()? {
             let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
@@ -135,6 +138,7 @@ impl KStruct for TypeTernaryOpaque {
             let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
             let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_with_hack, None, None)?.into();
             *self_rc.dif_with_hack.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

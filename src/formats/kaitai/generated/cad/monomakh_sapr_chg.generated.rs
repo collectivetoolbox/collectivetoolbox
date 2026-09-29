@@ -76,6 +76,7 @@ impl KStruct for MonomakhSaprChg {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ent.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -85,6 +86,7 @@ impl KStruct for MonomakhSaprChg {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -179,8 +181,11 @@ impl KStruct for MonomakhSaprChg_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header.borrow_mut() = bytes_to_str(&_io.read_bytes(13_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_size.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.file_size())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

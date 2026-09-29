@@ -84,6 +84,7 @@ impl KStruct for Regf {
         let _io = io;
         let t = Self::read_into::<_, Regf_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hive_bins.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -95,6 +96,7 @@ impl KStruct for Regf {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -207,23 +209,40 @@ impl KStruct for Regf_FileHeader {
         if !(*self_rc.signature() == vec![0x72u8, 0x65u8, 0x67u8, 0x66u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.primary_sequence_number.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.secondary_sequence_number.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.last_modification_date_and_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major_version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor_version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.format.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.root_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hive_bins_data_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.clustering_factor.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown1.borrow_mut() = _io.read_bytes(64_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown2.borrow_mut() = _io.read_bytes(396_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3576_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_type.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_recover.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -460,6 +479,7 @@ impl KStruct for Regf_Filetime {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -542,6 +562,7 @@ impl KStruct for Regf_HiveBin {
         let _io = io;
         let t = Self::read_into::<_, Regf_HiveBinHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cells.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -551,6 +572,7 @@ impl KStruct for Regf_HiveBin {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -854,7 +876,9 @@ impl KStruct for Regf_HiveBinCell {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.cell_size_raw.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.identifier().as_str() {
             "lf" => {
                 *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
@@ -906,9 +930,10 @@ impl KStruct for Regf_HiveBinCell {
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1053,26 +1078,46 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.last_key_written_date_and_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parent_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_sub_keys.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_volatile_sub_keys.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sub_keys_list_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.number_of_values.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.values_list_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.security_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.class_name_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_sub_key_name_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_sub_key_class_name_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_value_name_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.largest_value_data_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key_name_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.class_name_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown_string_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.unknown_string_size())?)?, "ascii")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1316,12 +1361,14 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLhLf_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1408,7 +1455,9 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.named_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hash_value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1495,12 +1544,14 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1586,6 +1637,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.named_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1667,12 +1719,14 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.count.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = usize::from(*self_rc.count());
         for _i in 0_usize..l_items {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListRi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1758,6 +1812,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sub_key_list_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1841,9 +1896,13 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unknown1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.previous_security_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.next_security_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reference_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1946,13 +2005,21 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_name_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags() == Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName {
             *self_rc.value_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.value_name_size()))?, "ascii")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2169,13 +2236,20 @@ impl KStruct for Regf_HiveBinHeader {
         if !(*self_rc.signature() == vec![0x68u8, 0x62u8, 0x69u8, 0x6eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/hive_bin_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.timestamp.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unknown4.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

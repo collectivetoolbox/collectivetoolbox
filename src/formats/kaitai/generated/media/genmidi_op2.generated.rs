@@ -83,17 +83,20 @@ impl KStruct for GenmidiOp2 {
         if !(*self_rc.magic() == vec![0x23u8, 0x4fu8, 0x50u8, 0x4cu8, 0x5fu8, 0x49u8, 0x49u8, 0x23u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = 175_usize;
         for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, GenmidiOp2_InstrumentEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instrument_names.borrow_mut() = Vec::new();
         let l_instrument_names = 175_usize;
         for _i in 0_usize..l_instrument_names {
             self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, Some(0)), "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -194,11 +197,16 @@ impl KStruct for GenmidiOp2_Instrument {
         let _io = io;
         let t = Self::read_into::<_, GenmidiOp2_OpSettings>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.feedback.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, GenmidiOp2_OpSettings>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.op2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.base_note.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -310,14 +318,18 @@ impl KStruct for GenmidiOp2_InstrumentEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.finetune.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.note.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.instruments.borrow_mut() = Vec::new();
         let l_instruments = 2_usize;
         for _i in 0_usize..l_instruments {
             let t = Self::read_into::<_, GenmidiOp2_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -426,11 +438,17 @@ impl KStruct for GenmidiOp2_OpSettings {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.trem_vibr.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.att_dec.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sust_rel.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.wave.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.scale.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.level.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

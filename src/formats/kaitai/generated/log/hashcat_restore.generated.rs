@@ -77,18 +77,27 @@ impl KStruct for HashcatRestore {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(256_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dicts_pos.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.masks_pos.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.current_restore_point.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.argc.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.padding2.borrow_mut() = _io.read_bytes(12_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.argv.borrow_mut() = Vec::new();
         let l_argv = usize::try_from(*self_rc.argc())?;
         for _i in 0_usize..l_argv {
             self_rc.argv.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

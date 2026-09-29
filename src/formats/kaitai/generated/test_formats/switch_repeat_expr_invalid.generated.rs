@@ -205,6 +205,7 @@ impl KStruct for SwitchRepeatExprInvalid {
         for _i in 0_usize..l_codes {
             self_rc.codes.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = Vec::new();
         let l_body = 3_usize;
         for _i in 0_usize..l_body {
@@ -220,10 +221,11 @@ impl KStruct for SwitchRepeatExprInvalid {
                     self_rc.body.borrow_mut().push(t);
                 }
                 _ => {
-                    self_rc.body.borrow_mut().push(_io_body.read_bytes_full()?.into());
+                    self_rc.body.borrow_mut().push(_io_body.read_bytes(4_usize)?.into());
                 }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -314,6 +316,7 @@ impl KStruct for SwitchRepeatExprInvalid_One {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.first.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -394,6 +397,7 @@ impl KStruct for SwitchRepeatExprInvalid_Two {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.second.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

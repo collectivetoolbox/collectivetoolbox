@@ -84,24 +84,39 @@ impl KStruct for Tga {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.image_id_len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_map_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_map_ofs.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_color_map.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_map_depth.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.x_offset.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_offset.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_depth.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.img_descriptor.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_id.borrow_mut() = _io.read_bytes(usize::from(*self_rc.image_id_len()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.color_map_type() == Tga_ColorMapEnum::HasColorMap {
             *self_rc.color_map.borrow_mut() = Vec::new();
             let l_color_map = usize::from(*self_rc.num_color_map());
             for _i in 0_usize..l_color_map {
                 self_rc.color_map.borrow_mut().push(_io.read_bytes(usize::try_from(div_floor(i64::from((i32::from(*self_rc.color_map_depth())).saturating_add(7_i32)), 8_i64)?)?)?);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -398,24 +413,39 @@ impl KStruct for Tga_TgaExtArea {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ext_area_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.author_name.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comments.borrow_mut() = Vec::new();
         let l_comments = 4_usize;
         for _i in 0_usize..l_comments {
             self_rc.comments.borrow_mut().push(bytes_to_str(&_io.read_bytes(81_usize)?, "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_bytes(12_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.job_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.job_time.borrow_mut() = bytes_to_str(&_io.read_bytes(6_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.software_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.software_version.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.key_color.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.pixel_aspect_ratio.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.gamma_value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_corr_ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.postage_stamp_ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.scan_line_ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -648,8 +678,11 @@ impl KStruct for Tga_TgaFooter {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ext_area_ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dev_dir_ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_magic.borrow_mut() = _io.read_bytes(18_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

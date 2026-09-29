@@ -123,10 +123,15 @@ impl KStruct for FloatingPoints {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.single_value.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.double_value.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.single_value_be.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.double_value_be.borrow_mut() = _io.read_f8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.approximate_value.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -115,7 +115,9 @@ impl KStruct for BitsByteAlignedEofBe {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.prebuf.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits.borrow_mut() = _io.read_bits_int_be(31)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

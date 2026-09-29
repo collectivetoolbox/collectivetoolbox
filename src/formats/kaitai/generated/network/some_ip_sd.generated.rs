@@ -85,19 +85,25 @@ impl KStruct for SomeIpSd {
         let _io = io;
         let t = Self::read_into::<_, SomeIpSd_SdFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_entries.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_entries = _io.read_bytes(usize::try_from(*self_rc.len_entries())?)?;
         *self_rc.entries_raw.borrow_mut() = _raw_entries.clone();
         let _io_entries = BytesReader::from(_raw_entries);
         let t = Self::read_into::<BytesReader, SomeIpSdEntries>(&_io_entries, None, None)?.into();
         *self_rc.entries.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_options.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_options = _io.read_bytes(usize::try_from(*self_rc.len_options())?)?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
         let t = Self::read_into::<BytesReader, SomeIpSdOptions>(&_io_options, None, None)?.into();
         *self_rc.options.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -229,9 +235,13 @@ impl KStruct for SomeIpSd_SdFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reboot.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unicast.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.initial_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

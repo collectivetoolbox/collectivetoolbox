@@ -85,6 +85,7 @@ impl KStruct for EfivarSignatureList {
         let _io = io;
         let t = Self::read_into::<_, EfivarSignatureList_EfiVarAttr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.var_attributes.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signatures.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -94,6 +95,7 @@ impl KStruct for EfivarSignatureList {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -195,14 +197,23 @@ impl KStruct for EfivarSignatureList_EfiVarAttr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.enhanced_authenticated_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.append_write.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.time_based_authenticated_write_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.authenticated_write_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hardware_error_record.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.runtime_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bootservice_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.non_volatile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(24)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -333,7 +344,9 @@ impl KStruct for EfivarSignatureList_SignatureData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.owner.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -470,10 +483,16 @@ impl KStruct for EfivarSignatureList_SignatureList {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signature_type.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signature_list.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signature_header.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_signature.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature_header())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_signature())) > (to_i128(0))) {
             *self_rc.signatures.borrow_mut() = Vec::new();
             let l_signatures = usize::try_from((((*self_rc.len_signature_list()).saturating_sub(*self_rc.len_signature_header())).saturating_sub(28_u32)).checked_div(*self_rc.len_signature()).ok_or(KError::CastError)?)?;
@@ -483,6 +502,7 @@ impl KStruct for EfivarSignatureList_SignatureList {
                 let t = Self::read_into::<BytesReader, EfivarSignatureList_SignatureData>(&_io_signatures, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.signatures.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

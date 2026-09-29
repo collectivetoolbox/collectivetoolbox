@@ -128,13 +128,21 @@ impl KStruct for IntegersDoubleOverflow {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.signed_safe_min_be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_safe_min_le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_safe_max_be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_safe_max_le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_unsafe_neg_be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_unsafe_neg_le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_unsafe_pos_be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.signed_unsafe_pos_le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

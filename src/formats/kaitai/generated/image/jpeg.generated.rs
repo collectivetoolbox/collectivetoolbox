@@ -91,6 +91,7 @@ impl KStruct for Jpeg {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -217,11 +218,13 @@ impl KStruct for Jpeg_ExifInJpeg {
         if !(*self_rc.extra_zero() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/exif_in_jpeg/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_data = _io.read_bytes_full()?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
         let t = Self::read_into::<BytesReader, Exif>(&_io_data, None, None)?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -468,10 +471,15 @@ impl KStruct for Jpeg_Segment {
         if !(*self_rc.magic() == vec![0xffu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/segment/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.marker.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi) && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi))  {
             *self_rc.length.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if  ((*self_rc.marker() != Jpeg_Segment_MarkerEnum::Soi) && (*self_rc.marker() != Jpeg_Segment_MarkerEnum::Eoi))  {
             match *self_rc.marker() {
                 Jpeg_Segment_MarkerEnum::App0 => {
@@ -503,12 +511,15 @@ impl KStruct for Jpeg_Segment {
                     *self_rc.data.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                    *self_rc.data.borrow_mut() = Some(_io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(2_i32))?)?.into());
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.marker() == Jpeg_Segment_MarkerEnum::Sos {
             *self_rc.image_data.borrow_mut() = _io.read_bytes_full()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -750,14 +761,23 @@ impl KStruct for Jpeg_SegmentApp0 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_minor.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.density_units.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.density_x.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.density_y.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.thumbnail_x.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.thumbnail_y.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.thumbnail.borrow_mut() = _io.read_bytes(usize::try_from((i32::from((*self_rc.thumbnail_x()).saturating_mul(*self_rc.thumbnail_y()))).saturating_mul(3_i32))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -978,6 +998,7 @@ impl KStruct for Jpeg_SegmentApp1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.magic().as_str() {
             "Exif" => {
                 let t = Self::read_into::<_, Jpeg_ExifInJpeg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -985,6 +1006,7 @@ impl KStruct for Jpeg_SegmentApp1 {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1074,15 +1096,20 @@ impl KStruct for Jpeg_SegmentSof0 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bits_per_sample.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_height.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.image_width.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_components.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.components.borrow_mut() = Vec::new();
         let l_components = usize::from(*self_rc.num_components());
         for _i in 0_usize..l_components {
             let t = Self::read_into::<_, Jpeg_SegmentSof0_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.components.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1189,8 +1216,11 @@ impl KStruct for Jpeg_SegmentSof0_Component {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sampling_factors.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.quantization_table_id.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1313,15 +1343,20 @@ impl KStruct for Jpeg_SegmentSos {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.num_components.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.components.borrow_mut() = Vec::new();
         let l_components = usize::from(*self_rc.num_components());
         for _i in 0_usize..l_components {
             let t = Self::read_into::<_, Jpeg_SegmentSos_Component>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.components.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.start_spectral_selection.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.end_spectral.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.appr_bit_pos.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1443,7 +1478,9 @@ impl KStruct for Jpeg_SegmentSos_Component {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.huffman_table.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

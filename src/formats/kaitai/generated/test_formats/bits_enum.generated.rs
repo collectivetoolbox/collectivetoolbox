@@ -115,8 +115,11 @@ impl KStruct for BitsEnum {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.two.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(8)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.three.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

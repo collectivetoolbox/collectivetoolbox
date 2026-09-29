@@ -118,6 +118,7 @@ impl KStruct for RepeatNBytesPad {
         for _i in 0_usize..l_records {
             self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, None, false, Some(170)));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

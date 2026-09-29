@@ -125,6 +125,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate {
             let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargRotate_Block>(&_io_blocks_rol, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks_rol.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks_ror.borrow_mut() = Vec::new();
         let l_blocks_ror = 3_usize;
         for _i in 0_usize..l_blocks_ror {
@@ -134,8 +135,10 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate {
             let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargRotate_Block>(&_io_blocks_ror, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks_ror.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.blocks_b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -236,6 +239,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.a.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -326,6 +330,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.dummy.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

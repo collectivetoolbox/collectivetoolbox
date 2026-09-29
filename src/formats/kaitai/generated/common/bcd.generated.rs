@@ -170,6 +170,7 @@ impl KStruct for Bcd {
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

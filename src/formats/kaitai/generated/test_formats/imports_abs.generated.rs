@@ -118,7 +118,9 @@ impl KStruct for ImportsAbs {
         let _io = io;
         let t = Self::read_into::<_, VlqBase128Le>(&*_io, None, None)?.into();
         *self_rc.len.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len().value()?)?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

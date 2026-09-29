@@ -72,15 +72,18 @@ impl KStruct for Bson {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_fields = _io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(5_i32))?)?;
         *self_rc.fields_raw.borrow_mut() = _raw_fields.clone();
         let _io_fields = BytesReader::from(_raw_fields);
         let t = Self::read_into::<BytesReader, Bson_ElementsList>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.fields.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -242,7 +245,9 @@ impl KStruct for Bson_BinData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.subtype.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.subtype() {
             Bson_BinData_Subtype::ByteArrayDeprecated => {
                 *self_rc.content_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?.into();
@@ -252,9 +257,10 @@ impl KStruct for Bson_BinData {
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.content.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.content.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.len())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -403,7 +409,9 @@ impl KStruct for Bson_BinData_ByteArrayDeprecated {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.content.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -496,10 +504,13 @@ impl KStruct for Bson_CodeWithScope {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.source.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.scope.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -594,6 +605,7 @@ impl KStruct for Bson_Cstring {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -680,8 +692,10 @@ impl KStruct for Bson_DbPointer {
         let _io = io;
         let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.namespace.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_ObjectId>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1135,8 +1149,10 @@ impl KStruct for Bson_Element {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.type_byte.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.type_byte() {
             Bson_Element_BsonType::Array => {
                 let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
@@ -1203,6 +1219,7 @@ impl KStruct for Bson_Element {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1393,6 +1410,7 @@ impl KStruct for Bson_ElementsList {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1480,10 +1498,14 @@ impl KStruct for Bson_F16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exponent.borrow_mut() = _io.read_bits_int_be(15)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.significand_hi.borrow_mut() = _io.read_bits_int_be(49)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.significand_lo.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1586,11 +1608,15 @@ impl KStruct for Bson_ObjectId {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.epoch_time.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_U3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.machine_id.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.process_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_U3>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.counter.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1696,8 +1722,10 @@ impl KStruct for Bson_RegEx {
         let _io = io;
         let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.pattern.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bson_Cstring>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.options.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1786,11 +1814,14 @@ impl KStruct for Bson_String {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(1_i32))?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.terminator() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/string/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1891,7 +1922,9 @@ impl KStruct for Bson_Timestamp {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.increment.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1985,8 +2018,11 @@ impl KStruct for Bson_U3 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b3.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

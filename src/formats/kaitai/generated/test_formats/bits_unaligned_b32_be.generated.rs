@@ -115,8 +115,11 @@ impl KStruct for BitsUnalignedB32Be {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.a.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_bits_int_be(32)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.c.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

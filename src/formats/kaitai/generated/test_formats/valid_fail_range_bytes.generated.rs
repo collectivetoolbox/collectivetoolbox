@@ -120,6 +120,7 @@ impl KStruct for ValidFailRangeBytes {
         if !((*(self_rc.foo())).as_slice() <= (vec![0x50u8, 0x31u8]).as_slice()) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

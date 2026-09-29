@@ -114,7 +114,9 @@ impl KStruct for BitsSignedShiftB64Le {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.a.borrow_mut() = _io.read_bits_int_le(63)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b.borrow_mut() = _io.read_bits_int_le(9)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

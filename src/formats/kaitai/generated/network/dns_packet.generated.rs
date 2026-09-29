@@ -75,20 +75,31 @@ impl KStruct for DnsPacket {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.transaction_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DnsPacket_PacketFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.qdcount.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.ancount.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.nscount.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.arcount.borrow_mut() = _io.read_u2be()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.queries.borrow_mut() = Vec::new();
             let l_queries = usize::from(*self_rc.qdcount());
@@ -96,7 +107,9 @@ impl KStruct for DnsPacket {
                 let t = Self::read_into::<_, DnsPacket_Query>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.queries.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.answers.borrow_mut() = Vec::new();
             let l_answers = usize::from(*self_rc.ancount());
@@ -104,7 +117,9 @@ impl KStruct for DnsPacket {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.answers.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.authorities.borrow_mut() = Vec::new();
             let l_authorities = usize::from(*self_rc.nscount());
@@ -112,7 +127,9 @@ impl KStruct for DnsPacket {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.authorities.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().is_opcode_valid()? {
             *self_rc.additionals.borrow_mut() = Vec::new();
             let l_additionals = usize::from(*self_rc.arcount());
@@ -120,6 +137,7 @@ impl KStruct for DnsPacket {
                 let t = Self::read_into::<_, DnsPacket_Answer>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.additionals.borrow_mut().push(t);
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -385,6 +403,7 @@ impl KStruct for DnsPacket_Address {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ip.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -471,6 +490,7 @@ impl KStruct for DnsPacket_AddressV6 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ip_v6.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -804,10 +824,15 @@ impl KStruct for DnsPacket_Answer {
         let _io = io;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.answer_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ttl.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rdlength.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             DnsPacket_TypeType::A => {
                 *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
@@ -873,9 +898,10 @@ impl KStruct for DnsPacket_Answer {
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.payload.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.rdlength()))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1001,13 +1027,20 @@ impl KStruct for DnsPacket_AuthorityInfo {
         let _io = io;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.primary_ns.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.responsible_mailbox.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.serial.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.refresh_interval.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.retry_interval.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.expire_limit.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.min_ttl.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1129,6 +1162,7 @@ impl KStruct for DnsPacket_DomainName {
                 if  ((((to_i128(*_tmpa.length())) == (to_i128(0)))) || (((to_i128(*_tmpa.length())) >= (to_i128(192)))))  { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1218,12 +1252,17 @@ impl KStruct for DnsPacket_Label {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_pointer()? {
             let t = Self::read_into::<_, DnsPacket_PointerStruct>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.pointer.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_pointer()?) {
             *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1341,8 +1380,10 @@ impl KStruct for DnsPacket_MxInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.preference.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.mx.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1450,6 +1491,7 @@ impl KStruct for DnsPacket_PacketFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1664,6 +1706,7 @@ impl KStruct for DnsPacket_PointerStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1767,8 +1810,11 @@ impl KStruct for DnsPacket_Query {
         let _io = io;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.query_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1862,10 +1908,14 @@ impl KStruct for DnsPacket_Service {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.priority.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.weight.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.target.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1963,7 +2013,9 @@ impl KStruct for DnsPacket_Txt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2062,6 +2114,7 @@ impl KStruct for DnsPacket_TxtBody {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

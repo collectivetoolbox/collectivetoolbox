@@ -115,16 +115,19 @@ impl KStruct for RepeatNStrzDouble {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lines1.borrow_mut() = Vec::new();
         let l_lines1 = usize::try_from((*self_rc.qty()).checked_div(2_u32).ok_or(KError::CastError)?)?;
         for _i in 0_usize..l_lines1 {
             self_rc.lines1.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lines2.borrow_mut() = Vec::new();
         let l_lines2 = usize::try_from((*self_rc.qty()).checked_div(2_u32).ok_or(KError::CastError)?)?;
         for _i in 0_usize..l_lines2 {
             self_rc.lines2.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

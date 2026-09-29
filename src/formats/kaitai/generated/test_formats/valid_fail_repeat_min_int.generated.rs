@@ -124,6 +124,7 @@ impl KStruct for ValidFailRepeatMinInt {
         if !self_rc.foo().iter().all(|_x| *_x >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -141,16 +141,19 @@ impl KStruct for Bmp {
         let _io = io;
         let t = Self::read_into::<_, Bmp_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_dib_info = _io.read_bytes(usize::try_from((*self_rc.file_hdr().ofs_bitmap()).saturating_sub(14_i32))?)?;
         *self_rc.dib_info_raw.borrow_mut() = _raw_dib_info.clone();
         let _io_dib_info = BytesReader::from(_raw_dib_info);
         let t = Self::read_into::<BytesReader, Bmp_BitmapInfo>(&_io_dib_info, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dib_info.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_bitmap = _io.read_bytes_full()?;
         *self_rc.bitmap_raw.borrow_mut() = _raw_bitmap.clone();
         let _io_bitmap = BytesReader::from(_raw_bitmap);
         let t = Self::read_into::<BytesReader, Bmp_Bitmap>(&_io_bitmap, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bitmap.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -833,6 +836,7 @@ impl KStruct for Bmp_BitmapHeader {
                 *self_rc.image_width.borrow_mut() = Some(_io.read_u2le()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.is_core_header()? {
             false => {
                 *self_rc.image_height_raw.borrow_mut() = Some(_io.read_s4le()?.into());
@@ -841,28 +845,41 @@ impl KStruct for Bmp_BitmapHeader {
                 *self_rc.image_height_raw.borrow_mut() = Some(_io.read_s2le()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_planes.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_per_pixel.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.extends_bitmap_info()? {
             let t = Self::read_into::<_, Bmp_BitmapInfoExtension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.bitmap_info_ext.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_color_mask_here()? {
             let f = |t : &mut Bmp_ColorMask| Ok(t.set_params(((to_i128(*self_rc.len_header())) != (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader))))));
             let t = Self::read_into_with_init::<_, Bmp_ColorMask>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
             *self_rc.color_mask.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.extends_os2_2x_bitmap()? {
             let t = Self::read_into::<_, Bmp_Os22xBitmapExtension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.os2_2x_bitmap_ext.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.extends_bitmap_v4()? {
             let t = Self::read_into::<_, Bmp_BitmapV4Extension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.bitmap_v4_ext.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.extends_bitmap_v5()? {
             let t = Self::read_into::<_, Bmp_BitmapV5Extension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.bitmap_v5_ext.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1149,17 +1166,22 @@ impl KStruct for Bmp_BitmapInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(u32::try_from(4_i32)?))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let f = |t : &mut Bmp_BitmapHeader| Ok(t.set_params((*self_rc.len_header()).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<BytesReader, Bmp_BitmapHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.is_color_mask_here()? {
             let f = |t : &mut Bmp_ColorMask| Ok(t.set_params(*self_rc.header().bitmap_info_ext().compression() == Bmp_Compressions::AlphaBitfields));
             let t = Self::read_into_with_init::<_, Bmp_ColorMask>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
             *self_rc.color_mask.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(_io.is_eof()) {
             let _raw_color_table = _io.read_bytes_full()?;
             *self_rc.color_table_raw.borrow_mut() = _raw_color_table.clone();
@@ -1167,6 +1189,7 @@ impl KStruct for Bmp_BitmapInfo {
             let f = |t : &mut Bmp_ColorTable| Ok(t.set_params(!(*self_rc.header().is_core_header()?), (if *self_rc.header().extends_bitmap_info()? { *self_rc.header().bitmap_info_ext().num_colors_used() } else { 0_u32 }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<BytesReader, Bmp_ColorTable>(&_io_color_table, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             *self_rc.color_table.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1371,17 +1394,26 @@ impl KStruct for Bmp_BitmapInfoExtension {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.extends_os2_2x_bitmap()?) {
             *self_rc.compression.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.extends_os2_2x_bitmap()? {
             *self_rc.os2_compression.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.len_image.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.x_resolution.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y_resolution.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_colors_used.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_colors_important.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1507,18 +1539,25 @@ impl KStruct for Bmp_BitmapV4Extension {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.color_space_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_CieXyz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.endpoint_red.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_CieXyz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.endpoint_green.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_CieXyz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.endpoint_blue.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_FixedPoint16Dot16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.gamma_red.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_FixedPoint16Dot16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.gamma_blue.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_FixedPoint16Dot16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.gamma_green.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1686,9 +1725,13 @@ impl KStruct for Bmp_BitmapV5Extension {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.intent.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_profile.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_profile.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1843,10 +1886,13 @@ impl KStruct for Bmp_CieXyz {
         let _io = io;
         let t = Self::read_into::<_, Bmp_FixedPoint2Dot30>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.x.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_FixedPoint2Dot30>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.y.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Bmp_FixedPoint2Dot30>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.z.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1941,10 +1987,15 @@ impl KStruct for Bmp_ColorMask {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.red_mask.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green_mask.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blue_mask.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_alpha_mask() {
             *self_rc.alpha_mask.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2061,6 +2112,7 @@ impl KStruct for Bmp_ColorTable {
             let t = Self::read_into_with_init::<_, Bmp_RgbRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.colors.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2180,10 +2232,15 @@ impl KStruct for Bmp_FileHeader {
         if !(*self_rc.file_type() == vec![0x42u8, 0x4du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_bitmap.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2294,6 +2351,7 @@ impl KStruct for Bmp_FixedPoint16Dot16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2388,6 +2446,7 @@ impl KStruct for Bmp_FixedPoint2Dot30 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2491,13 +2550,21 @@ impl KStruct for Bmp_Os22xBitmapExtension {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.units.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.recording.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.rendering.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size1.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.size2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.color_encoding.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.identifier.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2650,10 +2717,15 @@ impl KStruct for Bmp_RgbRecord {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.red.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_reserved_field() {
             *self_rc.reserved.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

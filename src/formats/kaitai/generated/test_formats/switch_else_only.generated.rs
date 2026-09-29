@@ -196,18 +196,22 @@ impl KStruct for SwitchElseOnly {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.opcode.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.opcode() {
             _ => {
                 *self_rc.prim_byte.borrow_mut() = Some(_io.read_s1()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.indicator.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.indicator().as_slice() {
             _ => {
                 let t = Self::read_into::<_, SwitchElseOnly_Data>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.ut.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -313,6 +317,7 @@ impl KStruct for SwitchElseOnly_Data {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

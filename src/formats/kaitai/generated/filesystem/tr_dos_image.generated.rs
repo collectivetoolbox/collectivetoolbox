@@ -96,6 +96,7 @@ impl KStruct for TrDosImage {
                 if *_tmpa.is_terminator()? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -372,7 +373,9 @@ impl KStruct for TrDosImage_File {
         let _io_name = BytesReader::from(_raw_name);
         let t = Self::read_into::<BytesReader, TrDosImage_Filename>(&_io_name, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.extension.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.extension() {
             35 => {
                 let t = Self::read_into::<_, TrDosImage_PositionAndLengthPrint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -391,9 +394,13 @@ impl KStruct for TrDosImage_File {
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length_sectors.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.starting_sector.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.starting_track.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -546,6 +553,7 @@ impl KStruct for TrDosImage_Filename {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -647,7 +655,9 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.program_and_data_length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.program_length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -734,7 +744,9 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -825,7 +837,9 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -913,8 +927,11 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.extent_no.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1031,22 +1048,36 @@ impl KStruct for TrDosImage_VolumeInfo {
         if !(*self_rc.catalog_end() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bytes(224_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_free_sector_sector.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.first_free_sector_track.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disk_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_files.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_free_sectors.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tr_dos_id.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.tr_dos_id() == vec![0x10u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/volume_info/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_2.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.password.borrow_mut() = _io.read_bytes(9_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_3.borrow_mut() = _io.read_bytes(1_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_deleted_files.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.label.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused_4.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

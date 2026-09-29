@@ -174,10 +174,14 @@ impl KStruct for IoLocalVar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.skip.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if OptRc::<IoLocalVar_Dummy>::try_from(&*((self_rc.mess_up()?).as_ref().ok_or(KError::CastError)?))?._io().pos() < 0 {
             *self_rc.always_null.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.followup.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

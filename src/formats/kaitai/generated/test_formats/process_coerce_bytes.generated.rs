@@ -118,6 +118,7 @@ impl KStruct for ProcessCoerceBytes {
             let t = Self::read_into::<_, ProcessCoerceBytes_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -204,11 +205,16 @@ impl KStruct for ProcessCoerceBytes_Record {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
             *self_rc.buf_unproc.borrow_mut() = _io.read_bytes(4_usize)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
             *self_rc.buf_proc.borrow_mut() = process_xor_one(&_io.read_bytes(4_usize)?, 170_u8);
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

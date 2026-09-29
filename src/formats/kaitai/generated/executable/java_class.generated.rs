@@ -88,13 +88,17 @@ impl KStruct for JavaClass {
         if !(*self_rc.magic() == vec![0xcau8, 0xfeu8, 0xbau8, 0xbeu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_minor.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_major.borrow_mut() = _io.read_u2be()?;
         let min_val: u16 = (43).try_into()?;
         if !(*self_rc.version_major() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.constant_pool_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.constant_pool.borrow_mut() = Vec::new();
         let l_constant_pool = usize::try_from((i32::from(*self_rc.constant_pool_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_constant_pool {
@@ -102,36 +106,48 @@ impl KStruct for JavaClass {
             let t = Self::read_into_with_init::<_, JavaClass_ConstantPoolEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.constant_pool.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.access_flags.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.this_class.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.super_class.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interfaces_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interfaces.borrow_mut() = Vec::new();
         let l_interfaces = usize::from(*self_rc.interfaces_count());
         for _i in 0_usize..l_interfaces {
             self_rc.interfaces.borrow_mut().push(_io.read_u2be()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fields_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fields.borrow_mut() = Vec::new();
         let l_fields = usize::from(*self_rc.fields_count());
         for _i in 0_usize..l_fields {
             let t = Self::read_into::<_, JavaClass_FieldInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.fields.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.methods_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.methods.borrow_mut() = Vec::new();
         let l_methods = usize::from(*self_rc.methods_count());
         for _i in 0_usize..l_methods {
             let t = Self::read_into::<_, JavaClass_MethodInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.methods.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = Vec::new();
         let l_attributes = usize::from(*self_rc.attributes_count());
         for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -444,7 +460,9 @@ impl KStruct for JavaClass_AttributeInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attribute_length.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match self_rc.name_as_str()?.as_str() {
             "Code" => {
                 *self_rc.info_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into();
@@ -475,9 +493,10 @@ impl KStruct for JavaClass_AttributeInfo {
                 *self_rc.info.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.info.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.info.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -597,23 +616,31 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.max_stack.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.max_locals.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.code_length.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.code.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.code_length())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exception_table_length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exception_table.borrow_mut() = Vec::new();
         let l_exception_table = usize::from(*self_rc.exception_table_length());
         for _i in 0_usize..l_exception_table {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.exception_table.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = Vec::new();
         let l_attributes = usize::from(*self_rc.attributes_count());
         for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -743,9 +770,13 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_pc.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.end_pc.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.handler_pc.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.catch_type.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -879,12 +910,14 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number_of_exceptions.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.exceptions.borrow_mut() = Vec::new();
         let l_exceptions = usize::from(*self_rc.number_of_exceptions());
         for _i in 0_usize..l_exceptions {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.exceptions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -974,6 +1007,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry 
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1082,12 +1116,14 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.line_number_table_length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.line_number_table.borrow_mut() = Vec::new();
         let l_line_number_table = usize::from(*self_rc.line_number_table_length());
         for _i in 0_usize..l_line_number_table {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.line_number_table.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1174,7 +1210,9 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTable
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_pc.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.line_number.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1266,6 +1304,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodySourceFile {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sourcefile_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1366,6 +1405,7 @@ impl KStruct for JavaClass_ClassCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1975,9 +2015,12 @@ impl KStruct for JavaClass_ConstantPoolEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_prev_two_entries()) {
             *self_rc.tag.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_prev_two_entries()) {
             match *self_rc.tag() {
                 JavaClass_ConstantPoolEntry_TagEnum::ClassType => {
@@ -2050,6 +2093,7 @@ impl KStruct for JavaClass_ConstantPoolEntry {
                 }
                 _ => {}
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -2239,6 +2283,7 @@ impl KStruct for JavaClass_DoubleCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_f8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2327,8 +2372,11 @@ impl KStruct for JavaClass_DynamicCpInfo {
         let f = |t : &mut JavaClass_VersionGuard| Ok(t.set_params((55).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bootstrap_method_attr_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2429,15 +2477,20 @@ impl KStruct for JavaClass_FieldInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.access_flags.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = Vec::new();
         let l_attributes = usize::from(*self_rc.attributes_count());
         for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2559,7 +2612,9 @@ impl KStruct for JavaClass_FieldRefCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2671,6 +2726,7 @@ impl KStruct for JavaClass_FloatCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2755,6 +2811,7 @@ impl KStruct for JavaClass_IntegerCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2844,7 +2901,9 @@ impl KStruct for JavaClass_InterfaceMethodRefCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2960,8 +3019,11 @@ impl KStruct for JavaClass_InvokeDynamicCpInfo {
         let f = |t : &mut JavaClass_VersionGuard| Ok(t.set_params((51).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bootstrap_method_attr_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3056,6 +3118,7 @@ impl KStruct for JavaClass_LongCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3144,8 +3207,11 @@ impl KStruct for JavaClass_MethodHandleCpInfo {
         let f = |t : &mut JavaClass_VersionGuard| Ok(t.set_params((51).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reference_kind.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reference_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3299,15 +3365,20 @@ impl KStruct for JavaClass_MethodInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.access_flags.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes_count.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = Vec::new();
         let l_attributes = usize::from(*self_rc.attributes_count());
         for _i in 0_usize..l_attributes {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3429,7 +3500,9 @@ impl KStruct for JavaClass_MethodRefCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3544,7 +3617,9 @@ impl KStruct for JavaClass_MethodTypeCpInfo {
         let f = |t : &mut JavaClass_VersionGuard| Ok(t.set_params((51).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3644,7 +3719,9 @@ impl KStruct for JavaClass_ModulePackageCpInfo {
         let f = |t : &mut JavaClass_VersionGuard| Ok(t.set_params((53).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3766,7 +3843,9 @@ impl KStruct for JavaClass_NameAndTypeCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3902,6 +3981,7 @@ impl KStruct for JavaClass_StringCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.string_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -3988,7 +4068,9 @@ impl KStruct for JavaClass_Utf8CpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str_len.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.str_len()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -4097,6 +4179,7 @@ impl KStruct for JavaClass_VersionGuard {
         if !((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version_major() >= *self_rc.major())) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/version_guard/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

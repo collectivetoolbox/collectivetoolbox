@@ -120,9 +120,13 @@ impl KStruct for StrPadTermZeroSize {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str_pad.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(0_usize)?, None, false, Some(64)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term_and_pad.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), false, Some(43)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str_term_include.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), true, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

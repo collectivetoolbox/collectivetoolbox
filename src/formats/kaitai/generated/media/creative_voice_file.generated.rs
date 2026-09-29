@@ -83,9 +83,13 @@ impl KStruct for CreativeVoiceFile {
         if !(*self_rc.magic() == vec![0x43u8, 0x72u8, 0x65u8, 0x61u8, 0x74u8, 0x69u8, 0x76u8, 0x65u8, 0x20u8, 0x56u8, 0x6fu8, 0x69u8, 0x63u8, 0x65u8, 0x20u8, 0x46u8, 0x69u8, 0x6cu8, 0x65u8, 0x1au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -95,6 +99,7 @@ impl KStruct for CreativeVoiceFile {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -529,12 +534,18 @@ impl KStruct for CreativeVoiceFile_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.block_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
             *self_rc.body_size1.borrow_mut() = _io.read_u2le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
             *self_rc.body_size2.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
             match *self_rc.block_type() {
                 CreativeVoiceFile_BlockTypes::ExtraInfo => {
@@ -580,9 +591,10 @@ impl KStruct for CreativeVoiceFile_Block {
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                    *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into());
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -722,8 +734,11 @@ impl KStruct for CreativeVoiceFile_BlockExtraInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.freq_div.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_channels_1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -854,6 +869,7 @@ impl KStruct for CreativeVoiceFile_BlockMarker {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.marker_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -942,6 +958,7 @@ impl KStruct for CreativeVoiceFile_BlockRepeatStart {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.repeat_count_1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1035,7 +1052,9 @@ impl KStruct for CreativeVoiceFile_BlockSilence {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.duration_samples.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.freq_div.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1165,8 +1184,11 @@ impl KStruct for CreativeVoiceFile_BlockSoundData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.freq_div.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1283,11 +1305,17 @@ impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sample_rate.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bits_per_sample.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_channels.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

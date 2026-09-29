@@ -118,6 +118,7 @@ impl KStruct for InstanceInSized {
         let _io_cont = BytesReader::from(_raw_cont);
         let t = Self::read_into::<BytesReader, InstanceInSized_Wrapper>(&_io_cont, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.cont.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -205,6 +206,7 @@ impl KStruct for InstanceInSized_Bar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -302,6 +304,7 @@ impl KStruct for InstanceInSized_Baz {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -400,8 +403,10 @@ impl KStruct for InstanceInSized_Qux {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.inst_invoked()?)) > (to_i128(0))) {
             *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -524,8 +529,10 @@ impl KStruct for InstanceInSized_Wrapper {
         let _io_seq_sized = BytesReader::from(_raw_seq_sized);
         let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(&_io_seq_sized, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_sized.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, InstanceInSized_Bar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_in_stream.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

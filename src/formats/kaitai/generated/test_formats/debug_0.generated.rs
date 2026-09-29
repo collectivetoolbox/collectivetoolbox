@@ -115,12 +115,15 @@ impl KStruct for Debug0 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.array_of_ints.borrow_mut() = Vec::new();
         let l_array_of_ints = 3_usize;
         for _i in 0_usize..l_array_of_ints {
             self_rc.array_of_ints.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unnamed2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

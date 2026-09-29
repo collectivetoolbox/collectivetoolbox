@@ -79,17 +79,20 @@ impl KStruct for Xar {
         let _io = io;
         let t = Self::read_into::<_, Xar_FileHeaderPrefix>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_prefix.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_header = _io.read_bytes(usize::try_from((i32::from(*self_rc.header_prefix().len_header())).saturating_sub(6_i32))?)?;
         *self_rc.header_raw.borrow_mut() = _raw_header.clone();
         let _io_header = BytesReader::from(_raw_header);
         let t = Self::read_into::<BytesReader, Xar_FileHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_toc = _io.read_bytes(usize::try_from(*self_rc.header().len_toc_compressed())?)?;
         *self_rc.toc_raw.borrow_mut() = _raw_toc.clone();
         let _processed_toc = process_zlib(&_raw_toc)?;
         let _io_toc = BytesReader::from(_processed_toc);
         let t = Self::read_into::<BytesReader, Xar_TocType>(&_io_toc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.toc.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -269,9 +272,14 @@ impl KStruct for Xar_FileHeader {
         if !(*self_rc.version() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_toc_compressed.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.toc_length_uncompressed.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum_algorithm_int.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.has_checksum_alg_name()? {
             *self_rc.checksum_alg_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "UTF-8")?;
             let _borrowed = self_rc.checksum_alg_name();
@@ -279,6 +287,7 @@ impl KStruct for Xar_FileHeader {
             if !( ((_tmpa != "") && (_tmpa != "none")) ) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/file_header/seq/4".to_string() }));
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -451,7 +460,9 @@ impl KStruct for Xar_FileHeaderPrefix {
         if !(*self_rc.magic() == vec![0x78u8, 0x61u8, 0x72u8, 0x21u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header_prefix/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_header.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -541,6 +552,7 @@ impl KStruct for Xar_TocType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.xml_string.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

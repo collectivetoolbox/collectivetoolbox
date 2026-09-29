@@ -115,17 +115,21 @@ impl KStruct for PharWithoutStub {
         let _io = io;
         let t = Self::read_into::<_, PharWithoutStub_Manifest>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.manifest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.files.borrow_mut() = Vec::new();
         let l_files = usize::try_from(*self_rc.manifest().num_files())?;
         for _i in 0_usize..l_files {
             self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(_i).ok_or(KError::CastError)?.len_data_compressed())?)?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.manifest().flags().has_signature()? {
             let _raw_signature = _io.read_bytes_full()?;
             *self_rc.signature_raw.borrow_mut() = _raw_signature.clone();
             let _io_signature = BytesReader::from(_raw_signature);
             let t = Self::read_into::<BytesReader, PharWithoutStub_Signature>(&_io_signature, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.signature.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -356,9 +360,13 @@ impl KStruct for PharWithoutStub_ApiVersion {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.release.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.major.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minor.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -464,20 +472,30 @@ impl KStruct for PharWithoutStub_FileEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_filename.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.filename.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_filename())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data_uncompressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timestamp.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_data_compressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PharWithoutStub_FileFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
             let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
             *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
             let _io_metadata = BytesReader::from(_raw_metadata);
             let t = Self::read_into::<BytesReader, PharWithoutStub_SerializedValue>(&_io_metadata, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -659,6 +677,7 @@ impl KStruct for PharWithoutStub_FileFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -797,6 +816,7 @@ impl KStruct for PharWithoutStub_GlobalFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -941,20 +961,29 @@ impl KStruct for PharWithoutStub_Manifest {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_manifest.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_files.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PharWithoutStub_ApiVersion>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.api_version.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, PharWithoutStub_GlobalFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_alias.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.alias.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_alias())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
             let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
             *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
             let _io_metadata = BytesReader::from(_raw_metadata);
             let t = Self::read_into::<BytesReader, PharWithoutStub_SerializedValue>(&_io_metadata, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.file_entries.borrow_mut() = Vec::new();
         let l_file_entries = usize::try_from(*self_rc.num_files())?;
@@ -962,6 +991,7 @@ impl KStruct for PharWithoutStub_Manifest {
             let t = Self::read_into::<_, PharWithoutStub_FileEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.file_entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1136,6 +1166,7 @@ impl KStruct for PharWithoutStub_SerializedValue {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1242,11 +1273,14 @@ impl KStruct for PharWithoutStub_Signature {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x42u8, 0x4du8, 0x42u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/signature/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

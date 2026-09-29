@@ -124,6 +124,7 @@ impl KStruct for ValidFailRepeatEqInt {
         if !self_rc.foo().iter().all(|_x| *_x == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

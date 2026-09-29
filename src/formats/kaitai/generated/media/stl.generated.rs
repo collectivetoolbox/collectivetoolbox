@@ -84,13 +84,16 @@ impl KStruct for Stl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.header.borrow_mut() = _io.read_bytes(80_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_triangles.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.triangles.borrow_mut() = Vec::new();
         let l_triangles = usize::try_from(*self_rc.num_triangles())?;
         for _i in 0_usize..l_triangles {
             let t = Self::read_into::<_, Stl_Triangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -195,13 +198,16 @@ impl KStruct for Stl_Triangle {
         let _io = io;
         let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.normal.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = 3_usize;
         for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Stl_Vec3d>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abr.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -305,8 +311,11 @@ impl KStruct for Stl_Vec3d {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.y.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.z.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

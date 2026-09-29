@@ -119,9 +119,11 @@ impl KStruct for ImportsParamsDefEnumImported {
         let _io = io;
         let t = Self::read_into::<_, EnumImportSeq>(&*_io, None, None)?.into();
         *self_rc.one.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let f = |t : &mut ParamsDefEnumImported| Ok(t.set_params(*self_rc.one().pet_1(), *self_rc.one().pet_2()));
         let t = Self::read_into_with_init::<_, ParamsDefEnumImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -132,13 +132,21 @@ impl KStruct for StrEncodingsEscapingToS {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str1_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_1()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str2_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_2()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str3_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.str4_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

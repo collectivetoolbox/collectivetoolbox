@@ -114,6 +114,7 @@ impl KStruct for VlqBase128Le {
                 if !(*_tmpa.has_next()) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -259,11 +260,13 @@ impl KStruct for VlqBase128Le_Group {
         if !(*self_rc.has_next() == if ((to_i128(*self_rc.idx())) == (to_i128(9))) { false } else { *self_rc.has_next() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/group/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
         let max_val: u64 = (u64::try_from(if ((to_i128(*self_rc.idx())) == (to_i128(9))) { 1_i32 } else { 127_i32 })?).try_into()?;
         if !(*self_rc.value() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/group/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

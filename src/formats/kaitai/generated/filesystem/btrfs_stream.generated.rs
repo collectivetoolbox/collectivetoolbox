@@ -77,6 +77,7 @@ impl KStruct for BtrfsStream {
         let _io = io;
         let t = Self::read_into::<_, BtrfsStream_SendStreamHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.commands.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -86,6 +87,7 @@ impl KStruct for BtrfsStream {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -372,13 +374,17 @@ impl KStruct for BtrfsStream_SendCommand {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.checksum.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_data = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
         let t = Self::read_into::<BytesReader, BtrfsStream_SendCommand_Tlvs>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -488,6 +494,7 @@ impl KStruct for BtrfsStream_SendCommand_String {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.string.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -569,7 +576,9 @@ impl KStruct for BtrfsStream_SendCommand_Timespec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ts_sec.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ts_nsec.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -796,7 +805,9 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.r#type() {
             BtrfsStream_Attribute::Atime => {
                 *self_rc.value_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?.into();
@@ -906,9 +917,10 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
                 *self_rc.value.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.value.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.value.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.length()))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1012,6 +1024,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlvs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1093,6 +1106,7 @@ impl KStruct for BtrfsStream_SendCommand_Uuid {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.uuid.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1182,7 +1196,9 @@ impl KStruct for BtrfsStream_SendStreamHeader {
         if !(*self_rc.magic() == vec![0x62u8, 0x74u8, 0x72u8, 0x66u8, 0x73u8, 0x2du8, 0x73u8, 0x74u8, 0x72u8, 0x65u8, 0x61u8, 0x6du8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/send_stream_header/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

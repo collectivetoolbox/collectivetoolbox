@@ -77,16 +77,19 @@ impl KStruct for MbrPartitionTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bootstrap_code.borrow_mut() = _io.read_bytes(446_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = 4_usize;
         for _i in 0_usize..l_partitions {
             let t = Self::read_into::<_, MbrPartitionTable_PartitionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_signature.borrow_mut() = _io.read_bytes(2_usize)?;
         if !(*self_rc.boot_signature() == vec![0x55u8, 0xaau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -188,8 +191,11 @@ impl KStruct for MbrPartitionTable_Chs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.head.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b3.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -309,13 +315,19 @@ impl KStruct for MbrPartitionTable_PartitionEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.status.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MbrPartitionTable_Chs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.chs_start.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.partition_type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, MbrPartitionTable_Chs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.chs_end.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_start.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_sectors.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

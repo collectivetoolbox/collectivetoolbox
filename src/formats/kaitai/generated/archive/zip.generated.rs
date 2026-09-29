@@ -87,6 +87,7 @@ impl KStruct for Zip {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -387,31 +388,49 @@ impl KStruct for Zip_CentralDirEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version_made_by.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version_needed_to_extract.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_file_mod_time = _io.read_bytes(4_usize)?;
         *self_rc.file_mod_time_raw.borrow_mut() = _raw_file_mod_time.clone();
         let _io_file_mod_time = BytesReader::from(_raw_file_mod_time);
         let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_mod_time, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_compressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_uncompressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file_name.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_extra.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_comment.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disk_number_start.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.int_file_attr.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ext_file_attr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_local_header.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_extra = _io.read_bytes(usize::from(*self_rc.len_extra()))?;
         *self_rc.extra_raw.borrow_mut() = _raw_extra.clone();
         let _io_extra = BytesReader::from(_raw_extra);
         let t = Self::read_into::<BytesReader, Zip_Extras>(&_io_extra, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -614,8 +633,11 @@ impl KStruct for Zip_DataDescriptor {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_compressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_uncompressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -714,13 +736,21 @@ impl KStruct for Zip_EndOfCentralDir {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.disk_of_end_of_central_dir.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.disk_of_central_dir.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_central_dir_entries_on_disk.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_central_dir_entries_total.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_central_dir.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_central_dir.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_comment.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comment.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_comment()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -961,7 +991,9 @@ impl KStruct for Zip_ExtraField {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             Zip_ExtraCodes::ExtendedTimestamp => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
@@ -985,9 +1017,10 @@ impl KStruct for Zip_ExtraField {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len_body()))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1095,14 +1128,21 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp {
         let _io_flags = BytesReader::from(_raw_flags);
         let t = Self::read_into::<BytesReader, Zip_ExtraField_ExtendedTimestamp_InfoFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_mod_time() {
             *self_rc.mod_time.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_access_time() {
             *self_rc.access_time.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_create_time() {
             *self_rc.create_time.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1219,9 +1259,13 @@ impl KStruct for Zip_ExtraField_ExtendedTimestamp_InfoFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.has_mod_time.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_access_time.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_create_time.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_le(5)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1327,10 +1371,15 @@ impl KStruct for Zip_ExtraField_InfozipUnixVarSize {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_uid.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.uid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_uid()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_gid.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.gid.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_gid()))?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1466,6 +1515,7 @@ impl KStruct for Zip_ExtraField_Ntfs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.attributes.borrow_mut() = Vec::new();
         {
             let mut _i = 0_usize;
@@ -1475,6 +1525,7 @@ impl KStruct for Zip_ExtraField_Ntfs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1618,7 +1669,9 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.tag() {
             1 => {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_body()))?.into();
@@ -1628,9 +1681,10 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute {
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                *self_rc.body.borrow_mut() = Some(_io.read_bytes(usize::from(*self_rc.len_body()))?.into());
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1728,8 +1782,11 @@ impl KStruct for Zip_ExtraField_Ntfs_Attribute1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.last_mod_time.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.last_access_time.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.creation_time.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1828,6 +1885,7 @@ impl KStruct for Zip_Extras {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1911,7 +1969,9 @@ impl KStruct for Zip_LocalFile {
         let _io = io;
         let t = Self::read_into::<_, Zip_LocalFileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_body_compressed())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2016,28 +2076,39 @@ impl KStruct for Zip_LocalFileHeader {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_flags = _io.read_bytes(2_usize)?;
         *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
         let _io_flags = BytesReader::from(_raw_flags);
         let t = Self::read_into::<BytesReader, Zip_LocalFileHeader_GpFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_file_mod_time = _io.read_bytes(4_usize)?;
         *self_rc.file_mod_time_raw.borrow_mut() = _raw_file_mod_time.clone();
         let _io_file_mod_time = BytesReader::from(_raw_file_mod_time);
         let t = Self::read_into::<BytesReader, DosDatetime>(&_io_file_mod_time, None, None)?.into();
         *self_rc.file_mod_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.crc32.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_compressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_body_uncompressed.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file_name.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_extra.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_extra = _io.read_bytes(usize::from(*self_rc.len_extra()))?;
         *self_rc.extra_raw.borrow_mut() = _raw_extra.clone();
         let _io_extra = BytesReader::from(_raw_extra);
         let t = Self::read_into::<BytesReader, Zip_Extras>(&_io_extra, Some(self_rc._root.clone()), None)?.into();
         *self_rc.extra.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2211,16 +2282,27 @@ impl KStruct for Zip_LocalFileHeader_GpFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.file_encrypted.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comp_options_raw.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_data_descriptor.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_1.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.comp_patched_data.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.strong_encrypt.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_2.borrow_mut() = _io.read_bits_int_le(4)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lang_encoding.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_3.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mask_header_values.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved_4.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -2585,7 +2667,9 @@ impl KStruct for Zip_PkSection {
         if !(*self_rc.magic() == vec![0x50u8, 0x4bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/pk_section/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.section_type.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.section_type() {
             1027 => {
                 let t = Self::read_into::<_, Zip_LocalFile>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -2605,6 +2689,7 @@ impl KStruct for Zip_PkSection {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

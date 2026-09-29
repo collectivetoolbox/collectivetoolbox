@@ -85,13 +85,19 @@ impl KStruct for ChromePak {
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.version())) == (to_i128(4))) {
             *self_rc.num_resources_v4.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.encoding.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.version())) == (to_i128(5))) {
             let t = Self::read_into::<_, ChromePak_HeaderV5Part>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.v5_part.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.resources.borrow_mut() = Vec::new();
         let l_resources = usize::try_from((*self_rc.num_resources()?).saturating_add(1_u32))?;
@@ -100,12 +106,14 @@ impl KStruct for ChromePak {
             let t = Self::read_into_with_init::<_, ChromePak_Resource>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.resources.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.aliases.borrow_mut() = Vec::new();
         let l_aliases = usize::try_from(*self_rc.num_aliases()?)?;
         for _i in 0_usize..l_aliases {
             let t = Self::read_into::<_, ChromePak_Alias>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.aliases.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -307,11 +315,13 @@ impl KStruct for ChromePak_Alias {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.resource_idx.borrow_mut() = _io.read_u2le()?;
         let max_val: u16 = ((*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.num_resources()?).saturating_sub(1_u32)).try_into()?;
         if !(*self_rc.resource_idx() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/alias/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -411,8 +421,11 @@ impl KStruct for ChromePak_HeaderV5Part {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.encoding_padding.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_resources.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_aliases.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -515,7 +528,9 @@ impl KStruct for ChromePak_Resource {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ofs_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

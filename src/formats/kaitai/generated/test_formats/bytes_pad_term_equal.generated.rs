@@ -120,9 +120,13 @@ impl KStruct for BytesPadTermEqual {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.s1.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(64));
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.s2.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(43));
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.s3.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(43), false, Some(43));
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.s4.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(46), true, Some(46));
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

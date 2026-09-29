@@ -121,12 +121,14 @@ impl KStruct for Uf2 {
         let _io = io;
         let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.first_block.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.blocks.borrow_mut() = Vec::new();
         let l_blocks = usize::try_from((*self_rc.first_block().num_blocks()?).saturating_sub(1_i32))?;
         for _i in 0_usize..l_blocks {
             let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -885,45 +887,58 @@ impl KStruct for Uf2_Block {
         if !(*self_rc.magic() == vec![0x55u8, 0x46u8, 0x32u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.second_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.second_magic() == vec![0x57u8, 0x51u8, 0x5du8, 0x9eu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Uf2_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.target_address.borrow_mut() = _io.read_u4le()?;
         let _borrowed = self_rc.target_address();
         let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_payload.borrow_mut() = _io.read_u4le()?;
         let _borrowed = self_rc.len_payload();
         let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/4".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.block_number.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.num_blocks_raw.borrow_mut() = _io.read_u4le()?;
         let min_val: u32 = ((*self_rc.block_number()).saturating_add(1_u32)).try_into()?;
         if !(*self_rc.num_blocks_raw() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/block/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.flags().has_family_id()?) {
             *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc.flags().has_family_id()? {
             *self_rc.family_id.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let _raw_data = _io.read_bytes(476_usize)?;
         *self_rc.data_raw.borrow_mut() = _raw_data.clone();
         let _io_data = BytesReader::from(_raw_data);
         let t = Self::read_into::<BytesReader, Uf2_BlockData>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.final_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.final_magic() == vec![0x30u8, 0x6fu8, 0xb1u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/10".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1168,9 +1183,13 @@ impl KStruct for Uf2_BlockData {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.payload.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.len_payload())?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().is_file_container()? {
             *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_extension_tags()? {
             *self_rc.extension_tags.borrow_mut() = Vec::new();
             {
@@ -1184,6 +1203,7 @@ impl KStruct for Uf2_BlockData {
                     if ((to_i128(*_tmpa.len_tag())) == (to_i128(0))) { break; }
                 }
             }
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1336,12 +1356,17 @@ impl KStruct for Uf2_ExtensionTag {
         if !( ((_tmpa == 0_u8) || ((to_i128(_tmpa)) >= (to_i128(*self_rc.min_len_tag()?)))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/extension_tag/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.tag_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_le(24)?).to_ne_bytes()).try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len_tag())) != (to_i128(0))) {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_tag()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1502,6 +1527,7 @@ impl KStruct for Uf2_Flags {
         if !( (((_tmpa & !(61441_u32)) == 0_u32) && !( (*self_rc.is_file_container()? && *self_rc.has_extension_tags()?) )) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/flags/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1692,8 +1718,11 @@ impl KStruct for Uf2_Md5Checksum {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_region.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.md5.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

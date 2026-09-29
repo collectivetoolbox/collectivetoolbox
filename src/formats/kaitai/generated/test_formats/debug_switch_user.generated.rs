@@ -179,6 +179,7 @@ impl KStruct for DebugSwitchUser {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         match *self_rc.code() {
             1 => {
                 let t = Self::read_into::<_, DebugSwitchUser_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -190,6 +191,7 @@ impl KStruct for DebugSwitchUser {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -275,6 +277,7 @@ impl KStruct for DebugSwitchUser_One {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -355,6 +358,7 @@ impl KStruct for DebugSwitchUser_Two {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

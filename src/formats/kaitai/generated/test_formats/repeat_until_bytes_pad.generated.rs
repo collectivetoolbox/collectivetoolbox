@@ -124,6 +124,7 @@ impl KStruct for RepeatUntilBytesPad {
                 if _tmpa.len() == 5 { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

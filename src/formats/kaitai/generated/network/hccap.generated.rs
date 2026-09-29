@@ -78,6 +78,7 @@ impl KStruct for Hccap {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -248,18 +249,27 @@ impl KStruct for Hccap_HccapRecord {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.essid.borrow_mut() = _io.read_bytes(36_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mac_ap.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.mac_station.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nonce_station.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.nonce_ap.borrow_mut() = _io.read_bytes(32_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_eapol_buffer = _io.read_bytes(256_usize)?;
         *self_rc.eapol_buffer_raw.borrow_mut() = _raw_eapol_buffer.clone();
         let _io_eapol_buffer = BytesReader::from(_raw_eapol_buffer);
         let t = Self::read_into::<BytesReader, Hccap_EapolDummy>(&_io_eapol_buffer, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.eapol_buffer.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_eapol.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keyver.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.keymic.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

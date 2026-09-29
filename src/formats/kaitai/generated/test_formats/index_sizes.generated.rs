@@ -116,16 +116,19 @@ impl KStruct for IndexSizes {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sizes.borrow_mut() = Vec::new();
         let l_sizes = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_sizes {
             self_rc.sizes.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bufs.borrow_mut() = Vec::new();
         let l_bufs = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_bufs {
             self_rc.bufs.borrow_mut().push(bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc.sizes().get(_i).ok_or(KError::CastError)?))?)?, "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

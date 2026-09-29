@@ -184,12 +184,19 @@ impl KStruct for Iso9660_Datetime {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.year.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.day.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sec.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timezone.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -318,13 +325,21 @@ impl KStruct for Iso9660_DecDatetime {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.month.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.day.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.hour.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.minute.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sec.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.sec_hundreds.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.timezone.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -486,6 +501,7 @@ impl KStruct for Iso9660_DirEntries {
                 if ((to_i128(*_tmpa.len())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -568,12 +584,15 @@ impl KStruct for Iso9660_DirEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.len())) > (to_i128(0))) {
             let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.len())).saturating_sub(1_i32))?)?;
             *self_rc.body_raw.borrow_mut() = _raw_body.clone();
             let _io_body = BytesReader::from(_raw_body);
             let t = Self::read_into::<BytesReader, Iso9660_DirEntryBody>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.body.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -682,23 +701,36 @@ impl KStruct for Iso9660_DirEntryBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_ext_attr_rec.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.lba_extent.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.size_extent.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_Datetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.datetime.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_unit_size.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.interleave_gap_size.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.vol_seq_num.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_file_name.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_file_name()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if (i32::from(*self_rc.len_file_name())).checked_rem(2_i32).ok_or(KError::CastError)? == 0 {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc.rest.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -889,12 +921,19 @@ impl KStruct for Iso9660_PathTableEntryLe {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_dir_name.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len_ext_attr_rec.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_extent.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.parent_dir_idx.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dir_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_dir_name()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if (i32::from(*self_rc.len_dir_name())).checked_rem(2_i32).ok_or(KError::CastError)? == 1 {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1018,6 +1057,7 @@ impl KStruct for Iso9660_PathTableLe {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1099,7 +1139,9 @@ impl KStruct for Iso9660_U2bi {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.le.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.be.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1186,7 +1228,9 @@ impl KStruct for Iso9660_U4bi {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.le.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.be.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1276,18 +1320,25 @@ impl KStruct for Iso9660_VolDesc {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.r#type.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.magic.borrow_mut() = _io.read_bytes(5_usize)?;
         if !(*self_rc.magic() == vec![0x43u8, 0x44u8, 0x30u8, 0x30u8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.r#type())) == (to_i128(0))) {
             let t = Self::read_into::<_, Iso9660_VolDescBootRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.vol_desc_boot_record.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         if ((to_i128(*self_rc.r#type())) == (to_i128(1))) {
             let t = Self::read_into::<_, Iso9660_VolDescPrimary>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.vol_desc_primary.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -1392,7 +1443,9 @@ impl KStruct for Iso9660_VolDescBootRecord {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.boot_system_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.boot_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -1537,53 +1590,82 @@ impl KStruct for Iso9660_VolDescPrimary {
         if !(*self_rc.unused1() == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.system_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.volume_id.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused2.borrow_mut() = _io.read_bytes(8_usize)?;
         if !(*self_rc.unused2() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.vol_space_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused3.borrow_mut() = _io.read_bytes(32_usize)?;
         if !(*self_rc.unused3() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/vol_desc_primary/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.vol_set_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.vol_seq_num.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U2bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.logical_block_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_U4bi>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.path_table_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_path_table_le.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_opt_path_table_le.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_path_table_be.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lba_opt_path_table_be.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_root_dir = _io.read_bytes(34_usize)?;
         *self_rc.root_dir_raw.borrow_mut() = _raw_root_dir.clone();
         let _io_root_dir = BytesReader::from(_raw_root_dir);
         let t = Self::read_into::<BytesReader, Iso9660_DirEntry>(&_io_root_dir, Some(self_rc._root.clone()), None)?.into();
         *self_rc.root_dir.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.vol_set_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.publisher_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.data_preparer_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.application_id.borrow_mut() = bytes_to_str(&_io.read_bytes(128_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.copyright_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(38_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.abstract_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(36_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.bibliographic_file_id.borrow_mut() = bytes_to_str(&_io.read_bytes(37_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.vol_create_datetime.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.vol_mod_datetime.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.vol_expire_datetime.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let t = Self::read_into::<_, Iso9660_DecDatetime>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.vol_effective_datetime.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.file_structure_version.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.unused4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.application_area.borrow_mut() = _io.read_bytes(512_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

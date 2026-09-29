@@ -119,12 +119,19 @@ impl KStruct for EnumLongRangeS {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.f1.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f2.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f3.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f4.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f5.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f6.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.f7.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

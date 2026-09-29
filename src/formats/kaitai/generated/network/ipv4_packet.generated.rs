@@ -85,26 +85,38 @@ impl KStruct for Ipv4Packet {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.total_length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.identification.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.b67.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.ttl.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.protocol.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.header_checksum.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.src_ip_addr.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.dst_ip_addr.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_options = _io.read_bytes(usize::try_from((*self_rc.ihl_bytes()?).saturating_sub(20_i32))?)?;
         *self_rc.options_raw.borrow_mut() = _raw_options.clone();
         let _io_options = BytesReader::from(_raw_options);
         let t = Self::read_into::<BytesReader, Ipv4Packet_Ipv4Options>(&_io_options, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         let _raw_body = _io.read_bytes(usize::try_from((i32::from(*self_rc.total_length())).saturating_sub(*self_rc.ihl_bytes()?))?)?;
         *self_rc.body_raw.borrow_mut() = _raw_body.clone();
         let _io_body = BytesReader::from(_raw_body);
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.protocol()).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<BytesReader, ProtocolBody>(&_io_body, None, None, &f)?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -305,8 +317,11 @@ impl KStruct for Ipv4Packet_Ipv4Option {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.len.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.len())) > (to_i128(2))) { (i32::from(*self_rc.len())).saturating_sub(2_i32) } else { 0_i32 })?)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -446,6 +461,7 @@ impl KStruct for Ipv4Packet_Ipv4Options {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

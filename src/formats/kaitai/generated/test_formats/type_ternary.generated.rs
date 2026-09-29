@@ -121,12 +121,14 @@ impl KStruct for TypeTernary {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = _io.clone();
         if !(*self_rc.is_hack()?) {
             let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
             let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
             let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_wo_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
+            *self_rc._io.borrow_mut() = _io.clone();
         }
         let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
         *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
@@ -134,6 +136,7 @@ impl KStruct for TypeTernary {
         let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
         let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_with_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dif_with_hack.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -264,6 +267,7 @@ impl KStruct for TypeTernary_Dummy {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

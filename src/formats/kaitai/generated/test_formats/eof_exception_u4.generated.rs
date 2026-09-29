@@ -115,7 +115,9 @@ impl KStruct for EofExceptionU4 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.prebuf.borrow_mut() = _io.read_bytes(9_usize)?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.fail_int.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

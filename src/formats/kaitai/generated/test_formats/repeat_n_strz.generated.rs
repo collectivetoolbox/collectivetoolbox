@@ -114,11 +114,13 @@ impl KStruct for RepeatNStrz {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.lines.borrow_mut() = Vec::new();
         let l_lines = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_lines {
             self_rc.lines.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
