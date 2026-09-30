@@ -1161,11 +1161,100 @@ mod tests {
         assert_eq!(fnv1a_64(b"a"), 0xaf63_dc4c_8601_ec8c);
         assert_eq!(fnv1a_64(b"foobar"), 0x8594_4171_f739_67e8);
         assert_eq!(fnv1a64_hex(b"foobar"), "85944171f73967e8");
+        assert_eq!(fnv1a_64(b"Hello!\x01\xff\xed"), 0xbd51_ea70_94ee_6fa1);
 
         assert_eq!(fnv1a_32(b""), 0x811c_9dc5);
         assert_eq!(fnv1a_32(b"a"), 0xe40c_292c);
         assert_eq!(fnv1a_32(b"foobar"), 0xbf9c_f968);
         assert_eq!(fnv1a32_hex(b"foobar"), "bf9cf968");
+        assert_eq!(fnv1a_32(b"Hello!\x01\xff\xed"), 0xfd9d_3881);
+
+        // Official RFC 9923 test vectors from Section 8.3 (main.c) for larger sizes
+        assert_eq!(
+            fnv1a_128_hex(b"foobar"),
+            "343e1662793c64bf6f0d3597ba446f18"
+        );
+        assert_eq!(
+            fnv1a_256_hex(b"foobar"),
+            "b055ea2f306cadad4f0f81c02d3889dc32453dad5ae35b753ba1a91084af3428"
+        );
+        assert_eq!(
+            fnv1a_512_hex(b"foobar"),
+            "b0ec738d9c6fd969d05f0b35f6c0ed53adcacccd8e0000004bf99f58ee4196af\
+             b9700e20110830fea5396b76280e47fd022b6e81331ca1a9ced729c364be7788"
+        );
+        assert_eq!(
+            fnv1a_1024_hex(b"foobar"),
+            "00000631175fa7ae643ad08723d312c9fd024adb91f77f6b19587197a22bcdf2\
+             3727166c4572d0b985d5ae000000000000000000000000000000000000000000\
+             00000000000000000000000000000000000000000000004270d11ef418ef08b8\
+             a49e1e825e547eb39937f819222f3b7fc92a0e4707900888847a554bacec98b0"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_rfc9923_section_2_3_serialization() {
+        let word32 = FnvWord::from_u32(fnv1a_32(b"foobar"));
+        assert_eq!(word32.to_be_bytes(), [0xbf, 0x9c, 0xf9, 0x68]);
+        assert_eq!(word32.to_le_bytes(), [0x68, 0xf9, 0x9c, 0xbf]);
+
+        let word64 = FnvWord::from_u64(fnv1a_64(b"foobar"));
+        assert_eq!(
+            word64.to_be_bytes(),
+            [0x85, 0x94, 0x41, 0x71, 0xf7, 0x39, 0x67, 0xe8]
+        );
+        assert_eq!(
+            word64.to_le_bytes(),
+            [0xe8, 0x67, 0x39, 0xf7, 0x71, 0x41, 0x94, 0x85]
+        );
+
+        let word128 = fnv1a_update_word(
+            compute_offset_basis::<16>(K_128, B_128),
+            K_128,
+            B_128,
+            b"foobar",
+        );
+        assert_eq!(word128.to_be_bytes(), fnv1a_128(b"foobar").to_be_bytes());
+        assert_eq!(
+            word128.to_le_bytes(),
+            [
+                0x18, 0x6f, 0x44, 0xba, 0x97, 0x35, 0x0d, 0x6f, 0xbf, 0x64,
+                0x3c, 0x79, 0x62, 0x16, 0x3e, 0x34,
+            ]
+        );
+
+        let word256 = fnv1a_update_word(
+            compute_offset_basis::<32>(K_256, B_256),
+            K_256,
+            B_256,
+            b"foobar",
+        );
+        let mut expected256_le = fnv1a_256(b"foobar");
+        expected256_le.reverse();
+        assert_eq!(word256.to_be_bytes(), fnv1a_256(b"foobar"));
+        assert_eq!(word256.to_le_bytes(), expected256_le);
+
+        let word512 = fnv1a_update_word(
+            compute_offset_basis::<64>(K_512, B_512),
+            K_512,
+            B_512,
+            b"foobar",
+        );
+        let mut expected512_le = fnv1a_512(b"foobar");
+        expected512_le.reverse();
+        assert_eq!(word512.to_be_bytes(), fnv1a_512(b"foobar"));
+        assert_eq!(word512.to_le_bytes(), expected512_le);
+
+        let word1024 = fnv1a_update_word(
+            compute_offset_basis::<128>(K_1024, B_1024),
+            K_1024,
+            B_1024,
+            b"foobar",
+        );
+        let mut expected1024_le = fnv1a_1024(b"foobar");
+        expected1024_le.reverse();
+        assert_eq!(word1024.to_be_bytes(), fnv1a_1024(b"foobar"));
+        assert_eq!(word1024.to_le_bytes(), expected1024_le);
     }
 
     #[crate::ctb_test]

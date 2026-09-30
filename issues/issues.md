@@ -44,14 +44,13 @@ Windows-style streams (:Zone.Identifier)
 
 - Restore semantic definitions of coordinate types in formats/math (removed recently; could probably find it in a commit, though a new implementation would need to be different)
 
-- Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
-Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_int.generated.rs: unexpected end of input, expected an expression
-Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
-Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size_eos.generated.rs: cannot parse string into token stream
-Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size.generated.rs: cannot parse string into token stream
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
 - [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
+
+FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
+//! there's no FormatId or parameterized format variant for that.
+
 
 - szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
 

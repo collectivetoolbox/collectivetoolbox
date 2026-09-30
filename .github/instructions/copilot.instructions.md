@@ -1,7 +1,6 @@
 ---
 applyTo: '**'
 ---
-
 ## Dev Environment Tips
 - A copy of dependencies are in `vendor/ctb-vendored/`. These can be referenced but should never be edited; they are auto-updated from crates.io. Similarly, the dependencies in `vendor/upstream-for-reference` should never be updated. Limited patches to other folders within the `vendor/` folder are acceptable when necessary.
 - You may write important notes you would like to save for the long term into the `memories/` folder in the repository. These will be reviewed and managed as part of the code.
@@ -13,6 +12,26 @@ applyTo: '**'
 - During development, you can use `./lint --quick` to check JS types.
 - Note that you may need to run `killall ctoolbox` or similar to exit the server process (which generally runs until it is shut down).
 - Your operator will sometimes be involved in the coding as you work. If you see edits come in as you're working on files, don't revert them: instead, re-read them and collaboratively take into account the direction of the edits.
+- Don't run temporary builds using Cargo in Antigravity chat folders, because all new files there are loaded in as "Artifacts", and the large file count of Cargo builds locks up the IDE.
+- If your operator prompts you to add something that seems small in scope and you would need to make large changes (like significant refactoring) to accomplish it, ask to confirm before editing, or use /plan mode.
+- If prompted to move a module into a subcrate, the intended action is very simple: move files (using a tool/script, not by generating them), copy and trim the Cargo.toml, update the package name, replace the import from a module to a use, and add them to the root Cargo.toml. If anything else is needed, ask before acting on it.
+- Prefer reporting failures over reporting successes. It's more or less irrelevant that twenty tests pass if one test fails - it's the one failing one that I need to know about because it needs more work. Similarly, if you had to bypass tests during development to progress on others, highlight that as the headline summary - it tells me where to go next. Needing to report that you couldn't get a test passing in a reasonable amount of time and decided to leave it for later is completely fine and a normal part of development; leaving tests skipped or failing without making it very obvious in your summary is not. If you left some parts of a task unimplemented for later, tell me about those as the primary conclusion; similarly, it's fine to not finish something all in one go, but I need to know what I still have to focus on.
+
+## Reporting, Status Tracking, and Scope Honesty
+- **Never label a feature or status item as "Implemented" if there are any remaining gaps, missing formats, unhandled flags, or deferred prerequisites.**
+  - If a feature has even one unhandled upstream case (e.g. missing `lrzip`, missing flag, partial header parsing), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
+  - In tracking documents (like `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Do not erase or gloss over gaps when recording what was added.
+- **Differentiate between "sub-task completion" and "feature completion":**
+  - If you were asked to do a bounded subset of a feature (e.g. "implement the ones available so far"), your conclusion must frame it as partial progress toward the whole, not as the feature being finished.
+- **Lead responses with what is left, broken, or deferred:**
+  - When summarizing work, do NOT write cheerful "all done!" recaps. Start with:
+    1. **Failing / Skipped Tests** (if any).
+    2. **Known Gaps & What's Left** (what still needs to be done for full parity/completion).
+    3. **Deferred Items** (what was deliberately omitted and why).
+  - Only summarize what was implemented as secondary context under the gaps. If something is done, the operator can see the code and tests; what the operator needs from you is an accurate accounting of the remaining debt so context is not lost.
+- **Treat optimistic misrepresentation as a bug:** Calling something "complete" or "working" when known edge cases or formats were skipped is a critical accuracy failure. When in doubt, err on the side of skepticism about your own implementation.
+
+The rationale for this is that what's critical to your operator is an honest assessment of *what's left* - what's *done* I don't really need to know about, because it's completed - I can forget about it and scratch it off the list. Knowing what remains to implement is critical, though, because it's key to correctness. That's especially important because if I think a slice of work is done when it's not, I'll move on to another stage of implementation, and forget the context about the previous stage - and then when I eventually discover that it was not fully completed, I have to return and regain that context to address it.
 
 ## Standards and Style Guide
 - Use the `anyhow` crate for error handling in new code, and avoid panics.
@@ -54,10 +73,11 @@ applyTo: '**'
   - Infallible cases and invariants must use ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar, not fallbacks like unwrap_or(), to avoid hiding broken assumptions.
   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
 - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
-- Don't remove the standard file boilerplate even though the standard use of "allow" in them causes a Clippy warning.
+- Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
 - If you make changes in troubleshooting that don't work, remove them later.
-- Use the newtype pattern, or branded types in JavaScript, whenever it may reduce confusion.
+- Use the newtype pattern whenever it may reduce confusion.
 - Do not add backticks around actual words/names of tools in docblocks just because Clippy complains about them (like MathML or StageL); add them to clippy.toml. Only add backticks for code, variable names, and similar.
+- When you have multiple choices of a name for something in a new format, pick the best one, rather than implementing multiple (e.g. don't support "case:" and "case-sensitive:" tags in a database, or "u" and "U" prefix formats; don't add multiple CLI commands that do the same thing unless asked to; etc.).
 
 - Never add non-layout Tailwind/EncreCSS styles (such as text size, font weight, letter spacing, background/text colors, e.g. text-xs, font-bold, text-gray-500, tracking-wider) to templates. Never use faux-headers (such as span elements with utility styling classes) in templates; use proper semantic HTML tags (like h2, h3) and ensure high-contrast accessible text styling. Project-wide stylesheet is preferred for most uses. Use semantic HTML markup.
   - For the vast majority of use cases you shouldn't need to add new CSS other than positioning of widgets, unless you're adding specifically a new themeable widget component.
@@ -68,6 +88,10 @@ applyTo: '**'
 - Design guidelines are maintained in docs/design-system.md. It should be kept up to date with new UI components where applicable.
 - Avoid !important in CSS; prefer precedence corrections.
 - Prefer rem sizes, not px or em.
+
+- Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints. However, they may be used inline in Dc serialization attributes on structs/enums (shorthand syntaxes apply - 123 = short Dc 123; l123 = long Dc 123; u1a3 = U+01A3; f123 = format Dc 123). Do not add Dc consts for annotations, as those sholud be self-explanatory; only add them if they will be used in actual code.
+- Keep consts DRY, as with other code. Avoid adding aliases to them or copying them into other modules.
+- There is no such thing as a "short format ID". Format IDs must never be exposed or processed as bare integers, because bare integers are confusing and look identical to short Dc IDs. Format IDs must always use the strongly typed `FormatId` enum or the `f<N>` shorthand string (e.g. `FormatId::shorthand()`, `FormatId::from_shorthand("f34")`). Never add integer conversion APIs like `short_id()` or `from_short_id()` to `FormatId`.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
