@@ -440,7 +440,7 @@ fn is_instance_field(
     k: Option<&KsyFile>,
     field: &str,
     root_ksy: Option<&KsyFile>,
-    imported: Option<&HashMap<String, KsyFile>>,
+    _imported: Option<&HashMap<String, KsyFile>>,
 ) -> bool {
     if let Some(curr) = k {
         if curr.instances.contains_key(field) {

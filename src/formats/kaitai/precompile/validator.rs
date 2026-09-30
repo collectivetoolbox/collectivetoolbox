@@ -43,8 +43,7 @@ use crate::utilities::*;
 
 use std::collections::{HashMap, HashSet};
 use serde_yaml::Value;
-use crate::spec::{KsyFile, AttrSpec, InstanceSpec};
-use crate::precompile::ClassSpec;
+use crate::spec::KsyFile;
 
 const LEGAL_KEYS_CLASS: &[&str] = &[
     "meta", "doc", "doc-ref", "to-string", "params", "seq", "types",
