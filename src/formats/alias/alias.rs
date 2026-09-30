@@ -44,8 +44,6 @@ use anyhow::anyhow;
 pub mod bookmark;
 mod shared;
 
-#[cfg(test)]
-use include_dir::{Dir, include_dir};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -56,12 +54,8 @@ use shared::{
 };
 
 #[cfg(test)]
-static ALIAS_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-// Fixtures available: data/fixtures/{folder,removable,root}.alias
-#[cfg(test)]
 pub(crate) fn get_alias_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&ALIAS_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 const ALIAS_FILE_MAGIC: &[u8; 16] = b"book\0\0\0\0mark\0\0\0\0";

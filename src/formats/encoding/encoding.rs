@@ -45,6 +45,9 @@ pub use mapping::{
 static ENCODING_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_encoding_data(key: &str) -> Option<Vec<u8>> {
+    if key.starts_with("fixtures/") {
+        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+    }
     get_embedded_asset(&ENCODING_DATA_DIR, key)
 }
 

@@ -32,7 +32,6 @@ SOFTWARE.
 )]
 pub(crate) use ctb_utilities::*;
 
-use include_dir::{Dir, include_dir};
 
 /// CLI helpers for Panorama files.
 pub mod cli;
@@ -60,10 +59,9 @@ pub mod string;
 /// Time formatting and parsing helpers.
 pub mod time;
 
-static PAN_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
+#[cfg(test)]
 pub(crate) fn get_pan_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&PAN_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 #[cfg(test)]

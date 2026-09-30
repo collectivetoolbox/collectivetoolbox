@@ -26,7 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use include_dir::{Dir, include_dir};
 
 pub mod deno_config;
 pub mod diagnostics;
@@ -40,10 +39,9 @@ pub mod ts_check;
 pub mod tsconfig;
 pub mod typescript;
 
-static JS_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
+#[cfg(test)]
 pub fn get_js_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&JS_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 #[cfg(test)]

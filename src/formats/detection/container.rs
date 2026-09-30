@@ -1080,91 +1080,29 @@ fn check_delimited_table(
 pub fn inspect_elf<S: DetectionSource + ?Sized>(
     source: &mut S,
 ) -> Result<Option<DetectionCandidate>> {
-    let mut hdr = [0u8; 64];
-    let n = source.read_at(0, &mut hdr)?;
-    if n < 52 {
-        return Ok(None);
-    }
-
-    if !hdr.starts_with(b"\x7fELF") {
-        return Ok(None);
-    }
-
-    let Some(&class_byte) = hdr.get(4) else {
+    let Some(elf) = super::readelf::inspect_elf_details(source, None) else {
         return Ok(None);
     };
-    let (is_64bit, class_str) = match class_byte {
-        1 => (false, "32-bit"),
-        2 => (true, "64-bit"),
-        _ => return Ok(None),
-    };
 
-    let Some(&data_byte) = hdr.get(5) else {
-        return Ok(None);
-    };
-    let (is_le, endian_str) = match data_byte {
-        1 => (true, "LSB"),
-        2 => (false, "MSB"),
-        _ => return Ok(None),
-    };
+    let class_str = if elf.is_64bit { "64-bit" } else { "32-bit" };
+    let endian_str = if elf.is_le { "LSB" } else { "MSB" };
 
-    // Reason for fallback: default to SYSV OSABI (0) if osabi byte is missing or 0
-    let osabi_byte = hdr.get(7).copied().unwrap_or(0);
-    let osabi_str = match osabi_byte {
-        0 => "SYSV",
-        1 => "HP-UX",
-        2 => "NetBSD",
-        3 => "Linux",
-        6 => "Solaris",
-        9 => "FreeBSD",
-        12 => "OpenBSD",
-        _ => "SYSV",
-    };
-
-    // Read e_type at bytes 16..18
-    let Some(&[t0, t1]) = hdr.get(16..18).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
-        return Ok(None);
-    };
-    let e_type = if is_le {
-        u16::from_le_bytes([t0, t1])
+    let (type_str, mime) = if elf.is_pie {
+        ("pie executable", "application/x-pie-executable")
     } else {
-        u16::from_be_bytes([t0, t1])
+        match elf.e_type {
+            1 => ("relocatable", "application/x-object"),
+            2 => ("executable", "application/x-executable"),
+            3 => ("shared object", "application/x-sharedlib"),
+            4 => ("core file", "application/x-coredump"),
+            _ => ("executable", "application/x-executable"),
+        }
     };
 
-    let (type_str, mime) = match e_type {
-        1 => ("relocatable", "application/x-object"),
-        2 => ("executable", "application/x-executable"),
-        3 => ("pie executable", "application/x-pie-executable"),
-        4 => ("core file", "application/x-coredump"),
-        _ => ("executable", "application/x-executable"),
-    };
-
-    // Read e_machine at bytes 18..20
-    let Some(&[m0, m1]) = hdr.get(18..20).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
-        return Ok(None);
-    };
-    let e_machine = if is_le {
-        u16::from_le_bytes([m0, m1])
-    } else {
-        u16::from_be_bytes([m0, m1])
-    };
-
-    let arch_str = match e_machine {
-        0x03 => "Intel 80386",
-        0x28 => "ARM",
-        0x3E => "x86-64",
-        0xB7 => "ARM aarch64",
-        0xF3 => "RISC-V",
-        0x08 => "MIPS",
-        0x14 => "PowerPC",
-        0x15 => "PowerPC 64-bit",
-        0x02 => "SPARC",
-        0x2B => "SPARC V9",
-        0x16 => "IBM S/390",
-        _ => "unknown architecture",
-    };
-
-    let desc = format!("ELF {class_str} {endian_str} {type_str}, {arch_str}, version 1 ({osabi_str})");
+    let desc = format!(
+        "ELF {class_str} {endian_str} {type_str}, {}, version 1 ({}){}",
+        elf.arch_str, elf.osabi_str, elf.suffix
+    );
 
     Ok(Some(DetectionCandidate {
         format_id: Some(FormatId::Elf),
@@ -1174,7 +1112,7 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::HighestConfidence,
         score: 98,
         evidence: vec![DetectionEvidence::ContainerStructure {
-            detail: format!("Parsed ELF {class_str} {arch_str} header"),
+            detail: format!("Parsed ELF {class_str} {} header", elf.arch_str),
             score: 98,
         }],
     }))

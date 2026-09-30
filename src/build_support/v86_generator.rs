@@ -1692,7 +1692,7 @@ mod tests {
     fn test_generated_files_equivalent_to_fixtures() {
         let root = find_workspace_root();
         let table_js_path = root.join("vendor/v86/gen/x86_table.js");
-        let fixtures_dir = root.join("src/build_support/data/fixtures");
+        let fixtures_dir = root.join("src/build_support/fixtures");
         assert!(
             table_js_path.is_file(),
             "x86_table.js must exist at {}",

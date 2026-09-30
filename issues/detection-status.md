@@ -104,12 +104,22 @@ Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file
 
 ## 5. In-Depth Container Introspection Details
 
-### A. ELF Introspection ([`src/readelf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readelf.c) vs [`inspect_elf`](file:///workspaces/ctoolbox/src/formats/detection/container.rs#L1080))
+### A. ELF Introspection ([`src/readelf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readelf.c) vs [`src/formats/detection/readelf.rs`](file:///workspaces/ctoolbox/src/formats/detection/readelf.rs))
+* **Status:** `Partially Implemented`
 * **Upstream:** `readelf.c` (1,981 lines) performs comprehensive structural analysis:
   * Program headers: Extracts dynamic linker interpreter path (`PT_INTERP`), and distinguishes statically linked vs. dynamically linked binaries.
   * Section headers: Identifies stripped vs. not stripped binaries, debug symbols, and section layout.
   * Notes: Parses OS ABI tags (e.g. `for GNU/Linux 3.2.0`, `FreeBSD 13.0`), GNU Build-ID (`BuildID[sha1]=...`), Go build IDs, Intel CET shadow stack / IBT properties, AArch64 BTI/PAC, and core dump process/register data.
-* **Ctoolbox:** [`inspect_elf`](file:///workspaces/ctoolbox/src/formats/detection/container.rs#L1080) only parses the first 64 bytes (the ELF file header for architecture, endianness, class, and `e_type`). It does not iterate program headers, section headers, or note segments.
+* **Ctoolbox Implementation:**
+  * Added dedicated [`readelf.rs`](file:///workspaces/ctoolbox/src/formats/detection/readelf.rs) mirroring upstream `readelf.c`: parses 32-bit and 64-bit ELF headers, program headers (`PT_INTERP`, `PT_DYNAMIC`, `PT_NOTE`), section headers (`.debug_info`, `SHT_SYMTAB`, `SHT_NOTE`), and note segments (`NT_GNU_BUILD_ID`, `NT_GO_BUILD_ID`, `NT_GNU_ABI_TAG`, BSD tags).
+  * Added `${x?then:else}` variable expansion (`varexpand`) in `magic.rs` driven by execution mode bit and `DF_1_PIE` flag, resolving `pie executable` vs `shared object` and MIME types.
+  * Tied ELF compatibility suffix formatting (`static-pie linked`, `dynamically linked`, interpreter, BuildID, ABI version, `stripped` / `not stripped`) into detection reporting.
+* **Remaining Gaps vs Upstream:**
+  * Intel CET shadow stack and indirect branch tracking (`GNU_PROPERTY_X86_FEATURE_1_AND`).
+  * AArch64 PAC / BTI properties (`GNU_PROPERTY_AARCH64_FEATURE_1_AND`).
+  * Core dump register & process data extraction (`NT_PRSTATUS`, `NT_PRPSINFO`).
+  * PaX / hardened Linux flag note extraction.
+
 
 ### B. OLE2 Compound Document Files ([`src/readcdf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readcdf.c), [`src/cdf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/cdf.c) vs [`inspect_ole2_cdf`](file:///workspaces/ctoolbox/src/formats/detection/container.rs#L1190))
 * **Upstream:** `cdf.c` (1,200 lines) traverses the entire directory SAT/FAT/MiniFAT chain and parses property streams (`\x05SummaryInformation` and `\x05DocumentSummaryInformation`):

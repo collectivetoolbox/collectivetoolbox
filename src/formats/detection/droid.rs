@@ -1680,6 +1680,9 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                             }
                         }
 
+                        let is_elf_puid = puid == "fmt/689"
+                            || puid == "fmt/690"
+                            || fmt.name.eq_ignore_ascii_case("Executable and Linkable Format");
                         let mapping = fmt
                             .mime_type
                             .as_deref()
@@ -1688,8 +1691,20 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                                 crate::mime_derivation::FORMAT_CATALOG
                                     .lookup_description_or_ident(&fmt.name)
                             });
-                        let format_id = mapping.and_then(|m| m.format_id);
-                        let dc_id = mapping.map(|m| m.dc_id);
+                        let format_id = mapping.and_then(|m| m.format_id).or_else(|| {
+                            if is_elf_puid {
+                                Some(FormatId::Elf)
+                            } else {
+                                None
+                            }
+                        });
+                        let dc_id = mapping.map(|m| m.dc_id).or_else(|| {
+                            if is_elf_puid {
+                                FormatId::Elf.dc_id()
+                            } else {
+                                None
+                            }
+                        });
 
                         candidates.push(DetectionCandidate {
                             format_id,

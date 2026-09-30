@@ -65,6 +65,9 @@ static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 /// Retrieves embedded Kaitai asset data by path key.
 #[must_use]
 pub fn get_kaitai_data(key: &str) -> Option<Vec<u8>> {
+    if key.starts_with("fixtures/") {
+        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+    }
     get_embedded_asset(&KAITAI_DATA_DIR, key)
 }
 

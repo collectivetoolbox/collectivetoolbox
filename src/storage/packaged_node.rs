@@ -24,7 +24,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
-use crate::get_storage_data;
 use crate::utilities::*;
 use uuid::Uuid;
 
@@ -257,6 +256,7 @@ pub fn deserialize_packaged_node(bytes: &[u8]) -> Result<PackagedNode> {
 )]
 mod tests {
     use super::*;
+    use crate::get_storage_fixture;
 
     #[crate::ctb_test]
     fn test_packaged_node_v2_roundtrip() -> Result<()> {
@@ -290,17 +290,16 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_deserialize_v1_sample() -> Result<()> {
-        let file =
-            get_storage_data("fixtures/packaged_node_v1_format_sample.ctbn")
+        let bytes =
+            get_storage_fixture("fixtures/packaged_node_v1_format_sample.ctbn")
                 .context("Missing v1 sample fixture file")?;
-        let bytes = file.contents();
-        let deserialized = deserialize_packaged_node(bytes)?;
+        let deserialized = deserialize_packaged_node(&bytes)?;
         assert_eq!(deserialized.node_type, NodeType::Data);
         assert!(deserialized.timestamp > 0);
-        let expected_file =
-            get_storage_data("fixtures/example2 with lemurs.pan")
+        let expected_bytes =
+            get_storage_fixture("fixtures/example2 with lemurs.pan")
                 .context("Missing expected body fixture file")?;
-        assert_eq!(deserialized.body, expected_file.contents());
+        assert_eq!(deserialized.body, expected_bytes);
         Ok(())
     }
 }

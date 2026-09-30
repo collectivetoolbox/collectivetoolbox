@@ -29,14 +29,12 @@ pub(crate) use ctb_utilities::*;
 pub use ctb_formats_apple_single_double as apple_single_double;
 pub use ctb_io_file::AppleArchiveExt;
 
-use include_dir::{Dir, include_dir};
 
-static ARCHIVE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded archive asset data by path key.
+/// Retrieves archive test fixture data by path key.
+#[cfg(test)]
 #[must_use]
 pub fn get_archive_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&ARCHIVE_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 #[cfg(test)]

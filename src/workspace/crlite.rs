@@ -236,7 +236,7 @@ mod tests {
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../utilities/https/data/fixtures/test_crlite_filters")
+            .join("../utilities/https/fixtures/test_crlite_filters")
             .join(name)
     }
 

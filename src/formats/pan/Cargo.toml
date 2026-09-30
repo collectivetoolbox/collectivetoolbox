@@ -26,7 +26,6 @@ number_to_words = "0.1.1"
 nix = { version = "0.30.1", features = ["time"] }
 pluralizer = "0.5.0"
 malachite = "0.9.0" # arbitrary-precision math
-include_dir = { version = "0.7.4", features = ["glob"] }
 csv = "1.4.0"
 clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
 serde = { version = "1.0.228", features = ["derive"] }

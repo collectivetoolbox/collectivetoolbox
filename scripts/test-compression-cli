@@ -220,7 +220,7 @@ $CARGO_CMD decompress compress1 "$TMP_DIR/sample1.txt.1.0.Z" -o "$TMP_DIR/lzw1_d
 cmp "$TEST_FILE" "$TMP_DIR/lzw1_decompressed.txt" || exit 1
 
 # 7. Test decompressing embedded fixtures directly
-FIXTURE_RAW="src/formats/compression/data/fixtures/example2 with lemurs.pan"
+FIXTURE_RAW="src/formats/compression/fixtures/example2 with lemurs.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_br.pan"
 

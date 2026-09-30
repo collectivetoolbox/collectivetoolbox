@@ -44,14 +44,8 @@ use lnk::{
 };
 
 #[cfg(test)]
-use include_dir::{Dir, include_dir};
-
-#[cfg(test)]
-static LNK_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-#[cfg(test)]
 pub(crate) fn get_lnk_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&LNK_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 fn split_windowsish_path(path: &str) -> (Option<&str>, &str) {

@@ -617,6 +617,8 @@ pub struct DetectionHint {
     pub recursion_depth: usize,
     /// Whether detection should strictly emulate standard UNIX `file` output.
     pub compat: bool,
+    /// POSIX file permission mode bits (e.g. 0o755) if known.
+    pub file_mode: Option<u32>,
 }
 
 impl DetectionHint {

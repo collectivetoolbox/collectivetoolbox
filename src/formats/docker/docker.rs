@@ -26,18 +26,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 use anyhow::{Context, Result};
-use include_dir::{Dir, include_dir};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::io::Read;
 
 pub mod cli;
 
-static DOCKER_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Returns an embedded fixture asset byte vector if present.
+/// Returns a fixture asset byte vector if present.
+#[cfg(test)]
 pub fn get_docker_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&DOCKER_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 /// Represents an entry in `manifest.json`.
@@ -543,7 +541,7 @@ mod tests {
     fn test_cli_run_validate_docker_image() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let fixture_path = std::path::Path::new(manifest_dir)
-            .join("data/fixtures/docker-hello-world/hello-world.tar");
+            .join("fixtures/docker-hello-world/hello-world.tar");
         let res = cli::run_validate_docker_image(Some(&fixture_path), false)
             .expect("Run CLI validation");
 

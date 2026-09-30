@@ -38,12 +38,13 @@ pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 pub const STARTUP_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 pub const STARTUP_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
-use include_dir::{Dir, include_dir};
-
-static HTTPS_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/https/data");
-
 pub(crate) fn get_https_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&HTTPS_DATA_DIR, key)
+    // Reason for fallback: strip optional fixtures/ prefix, defaulting to full relative key
+    let clean = key.strip_prefix("fixtures/").unwrap_or(key);
+    crate::load_manifest_fixture(
+        &format!("{}/https", env!("CARGO_MANIFEST_DIR")),
+        clean,
+    )
 }
 
 #[derive(Debug, Clone)]

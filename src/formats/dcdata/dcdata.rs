@@ -126,6 +126,13 @@ static DC_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Returns the raw bytes of an embedded data file within the `dc_data` asset directory.
 pub fn get_dc_data_file(key: &str) -> Option<Vec<u8>> {
+    if let Some(droid_rel) = key.strip_prefix("droid/tests/") {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/droid").join(droid_rel);
+        return std::fs::read(path).ok();
+    }
+    if key.starts_with("fixtures/") {
+        return ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key);
+    }
     get_embedded_asset(&DC_DATA_DIR, key)
 }
 
@@ -171,8 +178,8 @@ pub fn get_droid_signatures_dir() -> Option<&'static Dir<'static>> {
     DC_DATA_DIR.get_dir("droid/signatures")
 }
 
-/// Returns the embedded DROID tests directory containing test suites, containers, and skeletons.
-pub fn get_droid_tests_dir() -> Option<&'static Dir<'static>> {
-    DC_DATA_DIR.get_dir("droid/tests")
+/// Returns the filesystem path to the DROID test fixtures directory on disk.
+pub fn get_droid_tests_dir_path() -> std::path::PathBuf {
+    ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "droid")
 }
 

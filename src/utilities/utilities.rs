@@ -276,6 +276,8 @@ pub use testing::spawn_blocking_with_current_test_name;
 
 pub use testing::get_current_test_name;
 pub use testing::is_in_test;
+pub use testing::load_manifest_fixture;
+pub use testing::manifest_fixture_path;
 
 pub const COLUMN_UUID_DELIM: &str = "d13420ff-b2d7-4e52-a390-7a0d6159e8d6";
 

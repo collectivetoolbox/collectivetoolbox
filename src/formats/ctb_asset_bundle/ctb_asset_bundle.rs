@@ -77,7 +77,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! UUID.
 
 use anyhow::{Context, Result, bail, ensure};
-use include_dir::{Dir, include_dir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
@@ -89,20 +88,11 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-static CTB_ASSET_BUNDLE_DATA_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/data");
-
-pub fn get_embedded_asset(dir: &Dir, key: &str) -> Option<Vec<u8>> {
-    // Reason for fallback: keys without leading slash are looked up directly.
-    let key = key.strip_prefix('/').unwrap_or(key);
-    let file = dir.get_file(key);
-    Some(file?.contents().to_vec())
-}
-
 pub mod delta;
 
+#[cfg(test)]
 pub fn get_ctb_asset_bundle_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&CTB_ASSET_BUNDLE_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 pub const RESOURCE_BUNDLE_MAGIC: &[u8; 8] = b"CTBRSRC\0";

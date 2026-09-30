@@ -8,7 +8,6 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
-include_dir = { version = "0.7.4", features = ["glob"] }
 sha2 = "0.10.9"
 hex = "0.4.3"
 

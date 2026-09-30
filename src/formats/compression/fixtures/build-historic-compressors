@@ -22,10 +22,10 @@
 
 set -euo pipefail
 
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../../../.." || exit 1
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../../.." || exit 1
 
 REPO_ROOT="$PWD"
-SCRIPT_DIR="$REPO_ROOT/src/formats/compression/data/fixtures"
+SCRIPT_DIR="$REPO_ROOT/src/formats/compression/fixtures"
 
 DEST_DIR="${1:-$REPO_ROOT/built/bin_historic_tools}"
 mkdir -p "$DEST_DIR"

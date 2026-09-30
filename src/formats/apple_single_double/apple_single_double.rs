@@ -43,17 +43,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 
-static APPLESINGLEDOUBLE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded AppleSingle / AppleDouble asset data by path key.
+/// Retrieves AppleSingle / AppleDouble test fixture data by path key.
 #[must_use]
 pub fn get_apple_single_double_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&APPLESINGLEDOUBLE_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 /// AppleSingle magic number in big-endian byte order.

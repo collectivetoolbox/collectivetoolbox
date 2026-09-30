@@ -10,7 +10,6 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-perl = { path = "../perl" }
-include_dir = { version = "0.7.4", features = ["glob"] }
 regex = "1.12.2"
 
 [dev-dependencies]

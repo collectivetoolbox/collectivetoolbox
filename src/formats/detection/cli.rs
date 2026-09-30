@@ -519,6 +519,17 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
             path.display().to_string()
         };
 
+        let mut file_mode = None;
+        if !is_stdin {
+            if let Ok(meta) = std::fs::metadata(path) {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    file_mode = Some(meta.mode());
+                }
+            }
+        }
+
         let hint = DetectionHint {
             filename: if is_stdin {
                 None
@@ -530,6 +541,7 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
             compat: args.compat,
             uncompress: args.uncompress,
             uncompress_noreport: args.uncompress_noreport,
+            file_mode,
             ..Default::default()
         };
 

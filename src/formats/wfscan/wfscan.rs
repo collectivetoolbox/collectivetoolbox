@@ -31,15 +31,13 @@ pub(crate) use ctb_utilities::*;
 
 pub mod cli;
 
-use include_dir::{Dir, include_dir};
 use regex::Regex;
 use std::path::Path;
 
-static WFSCAN_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Returns the fixture/embedded data from the wfscan/data folder.
+/// Returns the fixture data from the wfscan/fixtures folder.
+#[cfg(test)]
 pub fn get_wfscan_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&WFSCAN_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 /// Parses the binary data of a file using the same logic as the original

@@ -68,14 +68,12 @@ use std::path::Path;
 use anyhow::Result;
 use num_enum::IntoPrimitive;
 
-use include_dir::{Dir, include_dir};
 
 use ctb_formats_utilities::FormatLog;
 
-static TROFF_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
+#[cfg(test)]
 pub(crate) fn get_troff_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&TROFF_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 // -----------------------------------------------------------------------------

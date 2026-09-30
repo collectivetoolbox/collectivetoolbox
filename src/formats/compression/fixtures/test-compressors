@@ -22,11 +22,12 @@
 
 set -euo pipefail
 
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../../../.." || exit 1
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../../.." || exit 1
 
 REPO_ROOT="$PWD"
+SCRIPT_DIR="$REPO_ROOT/src/formats/compression/fixtures"
 
-RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
+RAW_FILE="$REPO_ROOT/src/formats/compression/fixtures/example2 with lemurs.pan"
 if [[ ! -f "$RAW_FILE" ]]; then
     echo "Error: Base fixture raw file not found at '$RAW_FILE'." >&2
     exit 1

@@ -20,7 +20,6 @@ ctb-formats-compression-libraries = { path = "./libraries" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-io-file = { path = "../../io/file" }
 
-include_dir = { version = "0.7.4", features = ["glob"] }
 
 [lints]
 workspace = true

@@ -30,7 +30,6 @@ use ctb_formats_utilities::format_info::FormatInfoOptionExt;
 pub(crate) use ctb_utilities::*;
 use ctb_formats_compression_bzip as bzip;
 
-use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
 pub use ctb_formats_compression_compact as compact;
@@ -42,11 +41,9 @@ pub use ctb_formats_compression_rzip as rzip;
 pub use ctb_formats_compression_szip as szip;
 pub use ctb_formats_compression_libraries as libraries;
 
-static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Returns an embedded fixture asset byte vector if present.
+/// Returns a fixture asset byte vector if present.
 pub fn get_compression_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&COMPRESSION_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 include!("compression_format.generated.rs");

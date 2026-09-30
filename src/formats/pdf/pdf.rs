@@ -29,15 +29,11 @@ pub(crate) use ctb_utilities::*;
 
 use anyhow::Result;
 #[cfg(test)]
-use include_dir::{Dir, include_dir};
 // use unpdf::render::{RenderOptions, JsonFormat, to_text, to_json, to_markdown};
 
 #[cfg(test)]
-static PDF_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-#[cfg(test)]
 pub(crate) fn get_pdf_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&PDF_DATA_DIR, key)
+    ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
 /// Extract raw text from a PDF byte array.

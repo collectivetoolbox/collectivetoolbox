@@ -836,6 +836,55 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
     result
 }
 
+/// Expands `${x?then:else}` variable expressions according to mode execution bits,
+/// matching `varexpand` in `softmagic.c`.
+pub fn varexpand(s: &str, mode: u32) -> String {
+    if !s.contains("${") {
+        return s.to_string();
+    }
+    let is_exec = (mode & 0o111) != 0;
+    let mut result = String::with_capacity(s.len());
+    let mut rem = s;
+    while let Some(start_idx) = rem.find("${") {
+        let (prefix, after_start) = rem.split_at(start_idx);
+        result.push_str(prefix);
+        let Some(expr) = after_start.get(2..) else {
+            result.push_str(after_start);
+            rem = "";
+            break;
+        };
+        if let Some(end_idx) = expr.find('}') {
+            let Some(inner) = expr.get(..end_idx) else {
+                result.push_str(after_start);
+                rem = "";
+                break;
+            };
+            rem = expr.get(end_idx.saturating_add(1)..).unwrap_or("");
+            if let Some((var, branches)) = inner.split_once('?') {
+                if let Some((then_branch, else_branch)) = branches.split_once(':') {
+                    if var == "x" {
+                        if is_exec {
+                            result.push_str(then_branch);
+                        } else {
+                            result.push_str(else_branch);
+                        }
+                        continue;
+                    }
+                }
+            }
+            result.push_str("${");
+            result.push_str(inner);
+            result.push('}');
+        } else {
+            result.push_str(after_start);
+            rem = "";
+            break;
+        }
+    }
+    result.push_str(rem);
+    result
+}
+
 /// Returns true if the source is determined to be text (ASCII/UTF-8 with no null bytes).
 fn is_text_source<S: DetectionSource + ?Sized>(source: &mut S) -> bool {
     let mut buf = [0u8; 512];
@@ -1070,6 +1119,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
     prev_match_end: u64,
     templates: &HashMap<String, HierarchicalMagicRule>,
     depth: usize,
+    mode: u32,
 ) -> Option<RuleMatchResult> {
     if depth > 32 {
         return None;
@@ -2160,8 +2210,12 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         MagicTest::Use(template_name) => {
             if let Some(tpl) = templates.get(template_name) {
                 // Reason for fallback: template without top-level description defaults to empty description string
-                let mut sub_desc = tpl.description.clone().unwrap_or_default();
-                let mut sub_mime = tpl.mime.clone();
+                let mut sub_desc = tpl
+                    .description
+                    .as_deref()
+                    .map(|d| varexpand(d, mode))
+                    .unwrap_or_default();
+                let mut sub_mime = tpl.mime.as_deref().map(|m| varexpand(m, mode));
                 let mut sub_ext = tpl.ext.clone();
                 let mut sub_apple = tpl.apple.clone();
                 let mut sub_score = tpl.strength;
@@ -2194,6 +2248,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                         sub_sibling,
                         templates,
                         depth.saturating_add(1),
+                        mode,
                     ) {
                         matched_any_in_sub = true;
                         if child.cond != MagicCond::None {
@@ -2261,7 +2316,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         MagicTest::Indirect => {
             let mut best_match: Option<RuleMatchResult> = None;
             for r in super::magic_data::COMPILED_MAGIC_RULES.iter() {
-                if let Some(res) = evaluate_rule_internal(r, source, pos, pos, templates, depth.saturating_add(1)) {
+                if let Some(res) = evaluate_rule_internal(r, source, pos, pos, templates, depth.saturating_add(1), mode) {
                     if let Some(ref current_best) = best_match {
                         if res.score > current_best.score {
                             best_match = Some(res);
@@ -2274,7 +2329,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             if let Some(bm) = best_match {
                 let mut full_desc = String::new();
                 if let Some(raw) = &rule.description {
-                    full_desc.push_str(raw);
+                    full_desc.push_str(&varexpand(raw, mode));
                 }
                 if !bm.description.is_empty() {
                     if !full_desc.is_empty() && !full_desc.ends_with(' ') {
@@ -2289,7 +2344,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 }
                 use_subroutine_result = Some(RuleMatchResult {
                     description: full_desc,
-                    mime: bm.mime.or_else(|| rule.mime.clone()),
+                    mime: bm.mime.or_else(|| rule.mime.as_deref().map(|m| varexpand(m, mode))),
                     ext: bm.ext.or_else(|| rule.ext.clone()),
                     apple: bm.apple.or_else(|| rule.apple.clone()),
                     score: rule.strength.saturating_add(bm.score),
@@ -2312,7 +2367,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         (sub_res.description, sub_res.mime, sub_res.ext, sub_res.apple, sub_res.score, pos, sub_res.nospace, sub_res.match_end, sub_res.next_sibling_offset)
     } else {
         let desc = if let Some(raw) = &rule.description {
-            format_magic_description(raw, &format_val)
+            let formatted = format_magic_description(raw, &format_val);
+            varexpand(&formatted, mode)
         } else {
             String::new()
         };
@@ -2328,7 +2384,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             m_end
         };
         let starts_with_bs = desc.starts_with('\u{8}');
-        (desc, rule.mime.clone(), rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end, sib_end)
+        let expanded_mime = rule.mime.as_deref().map(|m| varexpand(m, mode));
+        (desc, expanded_mime, rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end, sib_end)
     };
     let mut matched_any_in_level = false;
     let mut last_cond_matched = false;
@@ -2358,6 +2415,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             current_child_offset,
             templates,
             depth.saturating_add(1),
+            mode,
         ) {
             matched_any_in_level = true;
             if child.cond != MagicCond::None {
@@ -2429,13 +2487,37 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
     })
 }
 
+/// Evaluates a hierarchical magic rule against a payload source using provided subroutines and file mode.
+pub fn evaluate_rule_with_templates_and_mode<S: DetectionSource + ?Sized>(
+    rule: &HierarchicalMagicRule,
+    source: &mut S,
+    templates: &HashMap<String, HierarchicalMagicRule>,
+    mode: u32,
+) -> Option<RuleMatchResult> {
+    evaluate_rule_internal(rule, source, 0, 0, templates, 0, mode)
+}
+
 /// Evaluates a hierarchical magic rule against a payload source using provided subroutines.
 pub fn evaluate_rule_with_templates<S: DetectionSource + ?Sized>(
     rule: &HierarchicalMagicRule,
     source: &mut S,
     templates: &HashMap<String, HierarchicalMagicRule>,
 ) -> Option<RuleMatchResult> {
-    evaluate_rule_internal(rule, source, 0, 0, templates, 0)
+    evaluate_rule_with_templates_and_mode(rule, source, templates, 0)
+}
+
+/// Evaluates a single `HierarchicalMagicRule` and its child tree against a `DetectionSource` with file mode.
+pub fn evaluate_rule_with_mode<S: DetectionSource + ?Sized>(
+    rule: &HierarchicalMagicRule,
+    source: &mut S,
+    mode: u32,
+) -> Option<RuleMatchResult> {
+    evaluate_rule_with_templates_and_mode(
+        rule,
+        source,
+        &super::magic_data::COMPILED_MAGIC_TEMPLATES,
+        mode,
+    )
 }
 
 /// Evaluates a single `HierarchicalMagicRule` and its child tree against a `DetectionSource`.
@@ -2443,7 +2525,7 @@ pub fn evaluate_rule<S: DetectionSource + ?Sized>(
     rule: &HierarchicalMagicRule,
     source: &mut S,
 ) -> Option<RuleMatchResult> {
-    evaluate_rule_with_templates(rule, source, &super::magic_data::COMPILED_MAGIC_TEMPLATES)
+    evaluate_rule_with_mode(rule, source, 0)
 }
 
 

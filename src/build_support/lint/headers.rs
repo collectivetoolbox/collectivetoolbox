@@ -66,6 +66,19 @@ fn should_skip_dir(
         }
     }
 
+    // "fixtures" directories:
+    // Exclude test fixtures, except for compression fixtures which contains
+    // first-party test scripts that must have license headers.
+    if name == Some("fixtures") {
+        let is_compression_fixtures = rel_str == "src/formats/compression/fixtures"
+            || rel_str == "compression/fixtures"
+            || path.ends_with("formats/compression/fixtures")
+            || path.ends_with("compression/fixtures");
+        if !is_compression_fixtures {
+            return true;
+        }
+    }
+
     // Root-level directories: only skip if at the root of the search.
     if rel_str == "target"
         || rel_str == "vendor"
@@ -82,7 +95,7 @@ fn should_skip_dir(
         || rel_str == "packaging/guix/generated"
         || rel_str == "assets/web/vendor"
         || rel_str == "src/formats/dcdata/data/magic/upstream"
-        || rel_str == "src/formats/dcdata/data/droid/tests/skeletons"    {
+        || rel_str == "src/formats/dcdata/fixtures/droid/skeletons"    {
         return true;
     }
 
@@ -2133,13 +2146,13 @@ mod tests {
         let patch_file = patches_dir.join("abseil-cpp.scm");
         fs::write(&patch_file, ";;; test patch\n").unwrap();
 
-        // 2. Extensionless script under formats/compression/data/fixtures/
-        let comp_fixtures_dir = temp_dir.join("src/formats/compression/data/fixtures");
+        // 2. Extensionless script under formats/compression/fixtures/
+        let comp_fixtures_dir = temp_dir.join("src/formats/compression/fixtures");
         fs::create_dir_all(&comp_fixtures_dir).unwrap();
         let test_compressors = comp_fixtures_dir.join("test-compressors");
         fs::write(&test_compressors, "#!/usr/bin/env bash\necho test\n").unwrap();
 
-        // 3. Python file in compression data fixtures
+        // 3. Python file in compression fixtures
         let oracle_py = comp_fixtures_dir.join("codec-oracle.py");
         fs::write(&oracle_py, "#!/usr/bin/env python3\n").unwrap();
 
@@ -2203,12 +2216,12 @@ mod tests {
         ).unwrap();
 
         let has_test_compressors = shell_files.iter().any(|p| {
-            p.ends_with("src/formats/compression/data/fixtures/test-compressors")
+            p.ends_with("src/formats/compression/fixtures/test-compressors")
         });
         assert!(has_test_compressors, "find_files must include test-compressors in shell_files");
 
         let has_generate_fixtures = shell_files.iter().any(|p| {
-            p.ends_with("src/formats/compression/data/fixtures/generate-compression-fixtures")
+            p.ends_with("src/formats/compression/fixtures/generate-compression-fixtures")
         });
         assert!(has_generate_fixtures, "find_files must include generate-compression-fixtures in shell_files");
 

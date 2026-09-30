@@ -27,7 +27,7 @@ import tempfile
 import unittest
 
 
-RUNNER = Path(__file__).resolve().parents[1] / "src/formats/compression/data/fixtures/test-compressors"
+RUNNER = Path(__file__).resolve().parents[1] / "src/formats/compression/fixtures/test-compressors"
 SOURCE = RUNNER.read_text()
 CTB_HELPERS = SOURCE[SOURCE.index("ctb_compress() {"):SOURCE.index("tool_compress() {")]
 WORKERS = SOURCE[SOURCE.index("record_result() {"):SOURCE.index('RUN_DIR="$TMP_DIR"')]

@@ -161,6 +161,45 @@ pub fn try_get_current_test_name() -> Option<String> {
 }
 
 pub fn is_in_test() -> bool {
-    IN_TEST_PROCESS.load(Ordering::Relaxed)
+    if IN_TEST_PROCESS.load(Ordering::Relaxed)
         || try_get_current_test_name().is_some()
+        || cfg!(test)
+        || std::env::var_os("RUST_TEST_THREADS").is_some()
+        || std::env::var_os("CARGO_TARGET_TMPDIR").is_some()
+    {
+        return true;
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let path_str = exe.to_string_lossy();
+        if (path_str.contains("/target/") && path_str.contains("/deps/"))
+            || path_str.contains("test")
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Loads the raw bytes of a test fixture located in the given manifest directory.
+/// Automatically handles optional "fixtures/" prefixing.
+pub fn load_manifest_fixture(manifest_dir: &str, relative_path: &str) -> Option<Vec<u8>> {
+    assert!(
+        is_in_test(),
+        "fixture loading is only permitted during test execution"
+    );
+    // Reason for fallback: strip optional fixtures/ prefix, defaulting to full relative path
+    let clean = relative_path.strip_prefix("fixtures/").unwrap_or(relative_path);
+    let path = std::path::Path::new(manifest_dir).join("fixtures").join(clean);
+    std::fs::read(path).ok()
+}
+
+/// Resolves the filesystem PathBuf of a test fixture in a given manifest directory.
+pub fn manifest_fixture_path(manifest_dir: &str, relative_path: &str) -> PathBuf {
+    assert!(
+        is_in_test(),
+        "fixture path resolution is only permitted during test execution"
+    );
+    // Reason for fallback: strip optional fixtures/ prefix, defaulting to full relative path
+    let clean = relative_path.strip_prefix("fixtures/").unwrap_or(relative_path);
+    std::path::Path::new(manifest_dir).join("fixtures").join(clean)
 }
