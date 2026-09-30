@@ -859,7 +859,12 @@ pub fn varexpand(s: &str, mode: u32) -> String {
                 rem = "";
                 break;
             };
-            rem = expr.get(end_idx.saturating_add(1)..).unwrap_or("");
+            let Some(after_expr) = expr.get(end_idx.saturating_add(1)..) else {
+                result.push_str(after_start);
+                rem = "";
+                break;
+            };
+            rem = after_expr;
             if let Some((var, branches)) = inner.split_once('?') {
                 if let Some((then_branch, else_branch)) = branches.split_once(':') {
                     if var == "x" {

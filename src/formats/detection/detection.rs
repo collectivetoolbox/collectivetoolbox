@@ -788,6 +788,7 @@ pub fn guess_format_report(
     let eval_mode = if let Some(ref elf) = elf_details {
         if elf.is_executable { 0o755 } else { 0o644 }
     } else {
+        // Reason for fallback: When file mode hint is absent or unspecified, evaluate magic rules with 0 (no mode bits)
         hint.and_then(|h| h.file_mode).unwrap_or(0)
     };
 

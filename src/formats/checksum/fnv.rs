@@ -24,7 +24,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Provides an independent implementation of 32, 64, 128, 256, 512, and
 //! 1024-bit FNV hashes derived from the mathematical specifications of
-//! RFC 9923, without using reference source code.
+//! RFC 9923 ("The FNV Non-Cryptographic Hash Algorithm", February 2026),
+//! without using reference source code:
+//! - Section 1.4 & Section 6: Non-cryptographic characteristics (sticky state,
+//!   dispersion limits on low bits, low work factor) and security
+//!   considerations regarding collision resistance.
+//! - Section 2 & Section 5: Core FNV-0, FNV-1, and FNV-1a algorithms, primes,
+//!   and offset bases.
+//! - Section 2.3: Little-endian representation for storage and interoperability.
+//! - Section 3: XOR folding to arbitrary bit widths and modulo range mapping
+//!   with retry-based bias avoidance.
+//! - Section 4: Hashing multiple values together and support for non-standard
+//!   `offset_basis` values.
 //!
 //! All offset bases are derived dynamically by executing the n-bit FNV-0
 //! algorithm over the standard 32-octet basis string (`FNV_BASIS_STRING`).
@@ -158,18 +169,19 @@ impl<const BYTES: usize> FnvWord<BYTES> {
 
         // Sum term1 + term2 + term3 modulo 2^(BYTES * 8)
         let mut sum_carry: u16 = 0;
-        for i in 0..BYTES {
-            let b1 = u16::from(*term1.get(i).unwrap_or(&0));
-            let b2 = u16::from(*term2.get(i).unwrap_or(&0));
-            let b3 = u16::from(*term3.get(i).unwrap_or(&0));
-            let s = b1
-                .wrapping_add(b2)
-                .wrapping_add(b3)
+        for (((slot, &b1), &b2), &b3) in self
+            .bytes
+            .iter_mut()
+            .zip(term1.iter())
+            .zip(term2.iter())
+            .zip(term3.iter())
+        {
+            let s = u16::from(b1)
+                .wrapping_add(u16::from(b2))
+                .wrapping_add(u16::from(b3))
                 .wrapping_add(sum_carry);
-            if let Some(slot) = self.bytes.get_mut(i) {
-                if let Ok(val) = u8::try_from(s & 0xff) {
-                    *slot = val;
-                }
+            if let Ok(val) = u8::try_from(s & 0xff) {
+                *slot = val;
             }
             sum_carry = s >> 8;
         }
@@ -240,8 +252,7 @@ impl<const BYTES: usize> FnvWord<BYTES> {
     /// Returns the big-endian representation of the lowest `num_bytes` bytes.
     #[must_use]
     pub fn to_trimmed_be_bytes(self, num_bytes: usize) -> Vec<u8> {
-        let count = num_bytes.min(BYTES);
-        let mut slice = self.bytes.get(..count).unwrap_or(&[]).to_vec();
+        let mut slice: Vec<u8> = self.bytes.into_iter().take(num_bytes).collect();
         slice.reverse();
         slice
     }
@@ -370,6 +381,23 @@ impl<const BYTES: usize> FnvStream<BYTES> {
         }
     }
 
+    /// Creates a streaming hasher with a custom initial `offset_basis`,
+    /// per RFC 9923 Section 4 and Section 8.1.1.
+    #[must_use]
+    pub fn with_basis(
+        variant: FnvVariant,
+        k: usize,
+        b: u8,
+        offset_basis: FnvWord<BYTES>,
+    ) -> Self {
+        Self {
+            variant,
+            k,
+            b,
+            state: offset_basis,
+        }
+    }
+
     /// Feeds additional bytes into the hasher.
     pub fn update(&mut self, data: &[u8]) {
         match self.variant {
@@ -454,6 +482,13 @@ pub fn fnv1a_32(data: &[u8]) -> u32 {
     fnv1a_update_word(basis, K_32, B_32, data).as_u32()
 }
 
+/// Computes the 32-bit FNV-1a hash of `data` using a custom `offset_basis`,
+/// per RFC 9923 Section 4.
+#[must_use]
+pub fn fnv1a_32_with_basis(offset_basis: u32, data: &[u8]) -> u32 {
+    fnv1a_32_update(offset_basis, data)
+}
+
 /// Computes the 32-bit FNV-1a hash of `data` as a lowercase hex string.
 #[must_use]
 pub fn fnv1a_32_hex(data: impl AsRef<[u8]>) -> String {
@@ -505,6 +540,13 @@ pub fn fnv1a_64(data: &[u8]) -> u64 {
     fnv1a_update_word(basis, K_64, B_64, data).as_u64()
 }
 
+/// Computes the 64-bit FNV-1a hash of `data` using a custom `offset_basis`,
+/// per RFC 9923 Section 4.
+#[must_use]
+pub fn fnv1a_64_with_basis(offset_basis: u64, data: &[u8]) -> u64 {
+    fnv1a_64_update(offset_basis, data)
+}
+
 /// Computes the 64-bit FNV-1a hash of `data` as a lowercase hex string.
 #[must_use]
 pub fn fnv1a_64_hex(data: impl AsRef<[u8]>) -> String {
@@ -543,11 +585,24 @@ pub fn fnv1_128_hex(data: impl AsRef<[u8]>) -> String {
     to_hex(&fnv1_128(data.as_ref()).to_be_bytes())
 }
 
+/// Updates an existing 128-bit FNV-1a hash with `data`.
+#[must_use]
+pub fn fnv1a_128_update(hash: u128, data: &[u8]) -> u128 {
+    fnv1a_update_word(FnvWord::from_u128(hash), K_128, B_128, data).as_u128()
+}
+
 /// Computes the 128-bit FNV-1a hash of `data`.
 #[must_use]
 pub fn fnv1a_128(data: &[u8]) -> u128 {
     let basis = compute_offset_basis::<16>(K_128, B_128);
     fnv1a_update_word(basis, K_128, B_128, data).as_u128()
+}
+
+/// Computes the 128-bit FNV-1a hash of `data` using a custom `offset_basis`,
+/// per RFC 9923 Section 4.
+#[must_use]
+pub fn fnv1a_128_with_basis(offset_basis: u128, data: &[u8]) -> u128 {
+    fnv1a_128_update(offset_basis, data)
 }
 
 /// Computes the 128-bit FNV-1a hash of `data` as a lowercase hex string.
@@ -819,10 +874,14 @@ pub fn fnv1a_fold_u64(k_bits: usize, data: &[u8]) -> Result<u64> {
 
 /// Computes the 16-bit FNV-1a hash of `data` via XOR-folding from 32 bits.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "folded is masked with 0xffff so it is provably guaranteed to fit in u16"
+)]
 pub fn fnv1a_16(data: &[u8]) -> u16 {
     let h = fnv1a_32(data);
     let folded = (h ^ (h >> 16)) & 0xffff;
-    u16::try_from(folded).unwrap_or(0)
+    u16::try_from(folded).expect("folded masked with 0xffff fits in u16")
 }
 
 /// Computes the 16-bit FNV-1a hash of `data` as a lowercase hex string.
@@ -840,10 +899,14 @@ pub fn fnv1a_24(data: &[u8]) -> u32 {
 
 /// Computes the 24-bit FNV-1a hash of `data` as a lowercase hex string.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "be has 4 bytes so slice from index 1 is provably non-empty and valid"
+)]
 pub fn fnv1a_24_hex(data: impl AsRef<[u8]>) -> String {
     let val = fnv1a_24(data.as_ref());
     let be = val.to_be_bytes();
-    to_hex(be.get(1..).unwrap_or(&[]))
+    to_hex(be.get(1..).expect("be has 4 bytes"))
 }
 
 /// Computes the 48-bit FNV-1a hash of `data` via XOR-folding from 64 bits.
@@ -855,32 +918,86 @@ pub fn fnv1a_48(data: &[u8]) -> u64 {
 
 /// Computes the 48-bit FNV-1a hash of `data` as a lowercase hex string.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "be has 8 bytes so slice from index 2 is provably non-empty and valid"
+)]
 pub fn fnv1a_48_hex(data: impl AsRef<[u8]>) -> String {
     let val = fnv1a_48(data.as_ref());
     let be = val.to_be_bytes();
-    to_hex(be.get(2..).unwrap_or(&[]))
+    to_hex(be.get(2..).expect("be has 8 bytes"))
 }
 
-/// Maps `data` to a value in `0..=max` using FNV-1a with retry-based modulo
-/// bias avoidance, per RFC 9923 Section 3.
+/// Maps `data` to a value in `0..=max` using 64-bit FNV-1a with retry-based
+/// modulo bias avoidance, per RFC 9923 Section 3.
 #[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "max_plus_1 is checked to be >= 2 and rem < max_plus_1 <= u64::MAX so rem fits in u64"
+)]
 pub fn fnv1a_range_u64(max: u64, data: &[u8]) -> u64 {
+    if max == u64::MAX {
+        return fnv1a_64(data);
+    }
     let max_plus_1 = u128::from(max).saturating_add(1);
     if max_plus_1 <= 1 {
         return 0;
     }
-    let Some(quotient) = u128::MAX.checked_div(max_plus_1) else {
-        return 0;
-    };
+    // S = 64, so 2^S - 1 = u64::MAX per RFC 9923 Section 3 formula:
+    // X = int((2**S - 1) / (max + 1)) * (max + 1)
+    let two_to_s_minus_1 = u128::from(u64::MAX);
+    let quotient = two_to_s_minus_1
+        .checked_div(max_plus_1)
+        .expect("max_plus_1 is checked to be >= 2 so division cannot divide by zero");
     let x_limit = quotient.wrapping_mul(max_plus_1);
+    let x_limit_u64 =
+        u64::try_from(x_limit).expect("x_limit <= 2^64 - 1 is guaranteed to fit in u64");
     let mut h = fnv1a_64(data);
     let offset = compute_offset_basis::<8>(K_64, B_64).as_u64();
     let prime: u64 = 0x0100_0000_01b3;
-    while u128::from(h) >= x_limit {
+    while h >= x_limit_u64 {
         h = h.wrapping_mul(prime).wrapping_add(offset);
     }
-    let rem = u128::from(h).checked_rem(max_plus_1).unwrap_or(0);
-    u64::try_from(rem).unwrap_or(0)
+    let rem = u128::from(h)
+        .checked_rem(max_plus_1)
+        .expect("max_plus_1 is >= 2 so checked_rem cannot divide by zero");
+    u64::try_from(rem).expect("rem < max_plus_1 <= u64::MAX fits in u64")
+}
+
+/// Maps `data` to a value in `0..=max` using 32-bit FNV-1a with retry-based
+/// modulo bias avoidance, per RFC 9923 Section 3.
+#[must_use]
+#[expect(
+    clippy::expect_used,
+    reason = "max_plus_1 is checked to be >= 2 and rem < max_plus_1 <= u32::MAX so rem fits in u32"
+)]
+pub fn fnv1a_range_u32(max: u32, data: &[u8]) -> u32 {
+    if max == u32::MAX {
+        return fnv1a_32(data);
+    }
+    let max_plus_1 = u64::from(max).saturating_add(1);
+    if max_plus_1 <= 1 {
+        return 0;
+    }
+    // S = 32, so 2^S - 1 = u32::MAX per RFC 9923 Section 3 formula:
+    // X = int((2**S - 1) / (max + 1)) * (max + 1)
+    let two_to_s_minus_1 = u64::from(u32::MAX);
+    let quotient = two_to_s_minus_1
+        .checked_div(max_plus_1)
+        .expect("max_plus_1 is checked to be >= 2 so division cannot divide by zero");
+    let x_limit = quotient.wrapping_mul(max_plus_1);
+    let x_limit_u32 =
+        u32::try_from(x_limit).expect("x_limit <= 2^32 - 1 is guaranteed to fit in u32");
+    let mut h = fnv1a_32(data);
+    let offset = compute_offset_basis::<4>(K_32, B_32).as_u32();
+    let prime: u32 = 0x0100_0193;
+    while h >= x_limit_u32 {
+        h = h.wrapping_mul(prime).wrapping_add(offset);
+    }
+    let rem = u64::from(h)
+        .checked_rem(max_plus_1)
+        .expect("max_plus_1 is >= 2 so checked_rem cannot divide by zero");
+    u32::try_from(rem).expect("rem < max_plus_1 <= u32::MAX fits in u32")
 }
 
 // ----------------------------------------------------------------------------
@@ -903,7 +1020,9 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
     }
     let k = (5_usize.saturating_add(1_usize << s)) / 12_usize;
     let m: u64 = (1_u64 << 40).wrapping_sub(1_u64 << 24).wrapping_sub(1);
+    ensure!(m > 0, "Modulo m must be non-zero");
     let bound: u64 = (1_u64 << 24).wrapping_add(1_u64 << 8).wrapping_add(1_u64 << 7);
+    let m_u128 = u128::from(m);
 
     // Compute 256^k mod M using u128 wrapping arithmetic
     let mut pow_256_k: u64 = 1;
@@ -913,10 +1032,12 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
     while exp > 0 {
         if exp & 1 == 1 {
             let prod = u128::from(pow_256_k).wrapping_mul(u128::from(cur_base));
-            pow_256_k = u64::try_from(prod.checked_rem(u128::from(m)).unwrap_or(0))?;
+            let rem = prod.checked_rem(m_u128).context("Modulo division by zero")?;
+            pow_256_k = u64::try_from(rem)?;
         }
         let sq = u128::from(cur_base).wrapping_mul(u128::from(cur_base));
-        cur_base = u64::try_from(sq.checked_rem(u128::from(m)).unwrap_or(0))?;
+        let rem = sq.checked_rem(m_u128).context("Modulo division by zero")?;
+        cur_base = u64::try_from(rem)?;
         exp >>= 1;
     }
 
@@ -929,7 +1050,7 @@ pub fn find_fnv_prime_param(s: usize) -> Result<u8> {
             continue;
         }
         let sum_val = pow_256_k.wrapping_add(256).wrapping_add(u64::from(b));
-        let p_mod_m = sum_val.checked_rem(m).unwrap_or(0);
+        let p_mod_m = sum_val.checked_rem(m).context("Modulo division by zero")?;
         if p_mod_m <= bound {
             continue;
         }
@@ -1093,6 +1214,75 @@ mod tests {
     fn test_range_mapping() {
         let val = fnv1a_range_u64(100, b"foobar");
         assert!(val <= 100);
+
+        let val_max = fnv1a_range_u64(u64::MAX, b"foobar");
+        assert_eq!(val_max, fnv1a_64(b"foobar"));
+
+        let val32 = fnv1a_range_u32(100, b"foobar");
+        assert!(val32 <= 100);
+
+        let val32_max = fnv1a_range_u32(u32::MAX, b"foobar");
+        assert_eq!(val32_max, fnv1a_32(b"foobar"));
+
+        // Verify that retry iteration correctly modifies values >= X
+        let max_val: u32 = 4;
+        let mut found = false;
+        for i in 0_u32..500 {
+            let res = fnv1a_range_u32(max_val, &i.to_le_bytes());
+            assert!(res <= max_val);
+            if res == 0 {
+                found = true;
+            }
+        }
+        assert!(found);
+    }
+
+    #[crate::ctb_test]
+    fn test_rfc9923_section_4_multi_value_chaining() {
+        // RFC 9923 Section 4: hashing concatenations matches chaining via offset_basis
+        let x = b"hello ";
+        let y = b"world";
+        let z = b"!";
+        let combined = b"hello world!";
+
+        let h_combined = fnv1a_64(combined);
+        let h_x = fnv1a_64(x);
+        let h_xy = fnv1a_64_with_basis(h_x, y);
+        let h_xyz = fnv1a_64_with_basis(h_xy, z);
+        assert_eq!(h_combined, h_xyz);
+
+        let h32_combined = fnv1a_32(combined);
+        let h32_x = fnv1a_32(x);
+        let h32_xy = fnv1a_32_with_basis(h32_x, y);
+        let h32_xyz = fnv1a_32_with_basis(h32_xy, z);
+        assert_eq!(h32_combined, h32_xyz);
+
+        let h128_combined = fnv1a_128(combined);
+        let h128_x = fnv1a_128(x);
+        let h128_xy = fnv1a_128_with_basis(h128_x, y);
+        let h128_xyz = fnv1a_128_with_basis(h128_xy, z);
+        assert_eq!(h128_combined, h128_xyz);
+    }
+
+    #[crate::ctb_test]
+    fn test_rfc9923_section_2_2_empty_string_basis() {
+        // RFC 9923 Section 2.2: hashing the null string yields the offset_basis
+        assert_eq!(
+            fnv1a_128(b""),
+            compute_offset_basis::<16>(K_128, B_128).as_u128()
+        );
+        assert_eq!(
+            fnv1a_256(b""),
+            compute_offset_basis::<32>(K_256, B_256).to_be_bytes()
+        );
+        assert_eq!(
+            fnv1a_512(b""),
+            compute_offset_basis::<64>(K_512, B_512).to_be_bytes()
+        );
+        assert_eq!(
+            fnv1a_1024(b""),
+            compute_offset_basis::<128>(K_1024, B_1024).to_be_bytes()
+        );
     }
 
     #[crate::ctb_test]
