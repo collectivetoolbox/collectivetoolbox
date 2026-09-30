@@ -95,6 +95,23 @@ mod tests {
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
+
+        let result_fnv = super::csum(
+            HashAlgorithm::Fnv1a_64,
+            &temp_file_path,
+            false,
+            |p| Ok(std::fs::read(p)?),
+        )
+        .expect("Run csum command with fnv1a_64");
+        match result_fnv {
+            ToolResult::Immediate { stdout, .. } => {
+                assert_eq!(
+                    String::from_utf8_lossy(&stdout),
+                    format!("{}\n", ctb_formats_checksum::fnv::fnv1a_64_hex(b"hello world"))
+                );
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
     }
 
 }

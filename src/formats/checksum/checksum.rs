@@ -37,6 +37,10 @@ use sha2::{Digest, Sha256 as Sha256Digest};
 use std::sync::LazyLock;
 
 /// Supported hash algorithms.
+#[expect(
+    non_camel_case_types,
+    reason = "Variant names align with canonical FormatId identifier naming"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HashAlgorithm {
     /// xxHash 32-bit algorithm, non-cryptographic
@@ -49,6 +53,42 @@ pub enum HashAlgorithm {
     XxHash3_128,
     /// SHA-256 cryptographic hash algorithm
     Sha256,
+    /// FNV-0 32-bit algorithm, non-cryptographic
+    Fnv0_32,
+    /// FNV-0 64-bit algorithm, non-cryptographic
+    Fnv0_64,
+    /// FNV-0 128-bit algorithm, non-cryptographic
+    Fnv0_128,
+    /// FNV-0 256-bit algorithm, non-cryptographic
+    Fnv0_256,
+    /// FNV-0 512-bit algorithm, non-cryptographic
+    Fnv0_512,
+    /// FNV-0 1024-bit algorithm, non-cryptographic
+    Fnv0_1024,
+    /// FNV-1 32-bit algorithm, non-cryptographic
+    Fnv1_32,
+    /// FNV-1 64-bit algorithm, non-cryptographic
+    Fnv1_64,
+    /// FNV-1 128-bit algorithm, non-cryptographic
+    Fnv1_128,
+    /// FNV-1 256-bit algorithm, non-cryptographic
+    Fnv1_256,
+    /// FNV-1 512-bit algorithm, non-cryptographic
+    Fnv1_512,
+    /// FNV-1 1024-bit algorithm, non-cryptographic
+    Fnv1_1024,
+    /// FNV-1a 32-bit algorithm, non-cryptographic
+    Fnv1a_32,
+    /// FNV-1a 64-bit algorithm, non-cryptographic
+    Fnv1a_64,
+    /// FNV-1a 128-bit algorithm, non-cryptographic
+    Fnv1a_128,
+    /// FNV-1a 256-bit algorithm, non-cryptographic
+    Fnv1a_256,
+    /// FNV-1a 512-bit algorithm, non-cryptographic
+    Fnv1a_512,
+    /// FNV-1a 1024-bit algorithm, non-cryptographic
+    Fnv1a_1024,
 }
 
 #[expect(
@@ -65,6 +105,24 @@ impl HashAlgorithm {
         Self::XxHash3_64,
         Self::XxHash3_128,
         Self::Sha256,
+        Self::Fnv0_32,
+        Self::Fnv0_64,
+        Self::Fnv0_128,
+        Self::Fnv0_256,
+        Self::Fnv0_512,
+        Self::Fnv0_1024,
+        Self::Fnv1_32,
+        Self::Fnv1_64,
+        Self::Fnv1_128,
+        Self::Fnv1_256,
+        Self::Fnv1_512,
+        Self::Fnv1_1024,
+        Self::Fnv1a_32,
+        Self::Fnv1a_64,
+        Self::Fnv1a_128,
+        Self::Fnv1a_256,
+        Self::Fnv1a_512,
+        Self::Fnv1a_1024,
     ];
 
     /// Maps this hash algorithm variant to its global `FormatId`.
@@ -76,6 +134,24 @@ impl HashAlgorithm {
             Self::XxHash3_64 => FormatId::XxHash3_64,
             Self::XxHash3_128 => FormatId::XxHash3_128,
             Self::Sha256 => FormatId::Sha256,
+            Self::Fnv0_32 => FormatId::Fnv0_32,
+            Self::Fnv0_64 => FormatId::Fnv0_64,
+            Self::Fnv0_128 => FormatId::Fnv0_128,
+            Self::Fnv0_256 => FormatId::Fnv0_256,
+            Self::Fnv0_512 => FormatId::Fnv0_512,
+            Self::Fnv0_1024 => FormatId::Fnv0_1024,
+            Self::Fnv1_32 => FormatId::Fnv1_32,
+            Self::Fnv1_64 => FormatId::Fnv1_64,
+            Self::Fnv1_128 => FormatId::Fnv1_128,
+            Self::Fnv1_256 => FormatId::Fnv1_256,
+            Self::Fnv1_512 => FormatId::Fnv1_512,
+            Self::Fnv1_1024 => FormatId::Fnv1_1024,
+            Self::Fnv1a_32 => FormatId::Fnv1a_32,
+            Self::Fnv1a_64 => FormatId::Fnv1a_64,
+            Self::Fnv1a_128 => FormatId::Fnv1a_128,
+            Self::Fnv1a_256 => FormatId::Fnv1a_256,
+            Self::Fnv1a_512 => FormatId::Fnv1a_512,
+            Self::Fnv1a_1024 => FormatId::Fnv1a_1024,
         }
     }
 
@@ -88,6 +164,24 @@ impl HashAlgorithm {
             FormatId::XxHash3_64 => Some(Self::XxHash3_64),
             FormatId::XxHash3_128 => Some(Self::XxHash3_128),
             FormatId::Sha256 => Some(Self::Sha256),
+            FormatId::Fnv0_32 => Some(Self::Fnv0_32),
+            FormatId::Fnv0_64 | FormatId::Fnv0 => Some(Self::Fnv0_64),
+            FormatId::Fnv0_128 => Some(Self::Fnv0_128),
+            FormatId::Fnv0_256 => Some(Self::Fnv0_256),
+            FormatId::Fnv0_512 => Some(Self::Fnv0_512),
+            FormatId::Fnv0_1024 => Some(Self::Fnv0_1024),
+            FormatId::Fnv1_32 => Some(Self::Fnv1_32),
+            FormatId::Fnv1_64 | FormatId::Fnv1 => Some(Self::Fnv1_64),
+            FormatId::Fnv1_128 => Some(Self::Fnv1_128),
+            FormatId::Fnv1_256 => Some(Self::Fnv1_256),
+            FormatId::Fnv1_512 => Some(Self::Fnv1_512),
+            FormatId::Fnv1_1024 => Some(Self::Fnv1_1024),
+            FormatId::Fnv1a_32 => Some(Self::Fnv1a_32),
+            FormatId::Fnv1a_64 | FormatId::Fnv1a => Some(Self::Fnv1a_64),
+            FormatId::Fnv1a_128 => Some(Self::Fnv1a_128),
+            FormatId::Fnv1a_256 => Some(Self::Fnv1a_256),
+            FormatId::Fnv1a_512 => Some(Self::Fnv1a_512),
+            FormatId::Fnv1a_1024 => Some(Self::Fnv1a_1024),
             _ => None,
         }
     }
@@ -227,6 +321,24 @@ pub fn hash(data: &[u8], algo: HashAlgorithm) -> Vec<u8> {
         HashAlgorithm::XxHash3_64 => xxhash::xxhash3_64(data).to_vec(),
         HashAlgorithm::XxHash3_128 => xxhash::xxhash3_128(data).to_vec(),
         HashAlgorithm::Sha256 => sha256(data).to_vec(),
+        HashAlgorithm::Fnv0_32 => fnv::fnv0_32(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv0_64 => fnv::fnv0_64(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv0_128 => fnv::fnv0_128(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv0_256 => fnv::fnv0_256(data).to_vec(),
+        HashAlgorithm::Fnv0_512 => fnv::fnv0_512(data).to_vec(),
+        HashAlgorithm::Fnv0_1024 => fnv::fnv0_1024(data).to_vec(),
+        HashAlgorithm::Fnv1_32 => fnv::fnv1_32(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1_64 => fnv::fnv1_64(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1_128 => fnv::fnv1_128(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1_256 => fnv::fnv1_256(data).to_vec(),
+        HashAlgorithm::Fnv1_512 => fnv::fnv1_512(data).to_vec(),
+        HashAlgorithm::Fnv1_1024 => fnv::fnv1_1024(data).to_vec(),
+        HashAlgorithm::Fnv1a_32 => fnv::fnv1a_32(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1a_64 => fnv::fnv1a_64(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1a_128 => fnv::fnv1a_128(data).to_be_bytes().to_vec(),
+        HashAlgorithm::Fnv1a_256 => fnv::fnv1a_256(data).to_vec(),
+        HashAlgorithm::Fnv1a_512 => fnv::fnv1a_512(data).to_vec(),
+        HashAlgorithm::Fnv1a_1024 => fnv::fnv1a_1024(data).to_vec(),
     }
 }
 
@@ -244,11 +356,13 @@ pub fn hash_hex(data: &[u8], algo: HashAlgorithm, prefix_0x: bool) -> String {
 /// Result of identifying a checksum digest or manifest format.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChecksumDetection {
-    /// Primary detected `FormatId` (e.g. `FormatId::Sha256`, `FormatId::Md5`, etc.).
+    /// Primary detected `FormatId` (e.g. `FormatId::Sha256`, `FormatId::Md5`,
+    /// etc.).
     pub format_id: FormatId,
     /// Possible candidate hash algorithm format IDs of equal digest length.
     pub candidate_algorithms: Vec<FormatId>,
-    /// Indicates whether the input is a checksum manifest file/line (e.g. `sha256sum`).
+    /// Indicates whether the input is a checksum manifest file/line
+    /// (e.g. `sha256sum`).
     pub is_manifest: bool,
     /// Digest length in characters if standalone hex digest.
     pub digest_len: usize,
@@ -256,7 +370,8 @@ pub struct ChecksumDetection {
     pub description: String,
 }
 
-/// Parses a line in GNU coreutils checksum format (`<hex>  <file>` or `<hex> *<file>`).
+/// Parses a line in GNU coreutils checksum format (`<hex>  <file>` or
+/// `<hex> *<file>`).
 fn parse_coreutils_line(line: &str) -> Option<(&str, &str)> {
     let (digest, rest) = line.split_once(' ')?;
     let filename = if let Some(bin_file) = rest.strip_prefix('*') {
@@ -304,18 +419,125 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
         .collect();
 
     if !lines.is_empty() {
-        let all_coreutils = lines.iter().all(|l| parse_coreutils_line(l).is_some());
+        let manifest_lines: Vec<&str> = lines
+            .iter()
+            .copied()
+            .filter(|l| !l.starts_with('#'))
+            .collect();
+        let comment_header = lines
+            .iter()
+            .find(|l| l.starts_with('#'))
+            .map(|l| l.to_ascii_lowercase());
+
+        let all_coreutils = !manifest_lines.is_empty()
+            && manifest_lines.iter().all(|l| parse_coreutils_line(l).is_some());
         if all_coreutils {
             // Reason for fallback: empty line fallback safely fails parse_coreutils_line if lines is empty
-            if let Some((first_digest, _)) = parse_coreutils_line(lines.first().unwrap_or(&"")) {
+            if let Some((first_digest, _)) = parse_coreutils_line(manifest_lines.first().unwrap_or(&"")) {
                 let dlen = first_digest.len();
-                let (fmt, candidates, name) = match dlen {
-                    64 => (FormatId::Sha256, vec![FormatId::Sha256, FormatId::Blake3], "SHA-256"),
-                    32 => (FormatId::Md5, vec![FormatId::Md5, FormatId::XxHash3_128], "MD5"),
+                let (mut fmt, candidates, name) = match dlen {
+                    8 => (
+                        FormatId::Crc32,
+                        vec![
+                            FormatId::Crc32,
+                            FormatId::Adler32,
+                            FormatId::XxHash32,
+                            FormatId::Fnv1a_32,
+                            FormatId::Fnv1_32,
+                            FormatId::Fnv0_32,
+                        ],
+                        "32-bit",
+                    ),
+                    16 => (
+                        FormatId::XxHash64,
+                        vec![
+                            FormatId::XxHash64,
+                            FormatId::XxHash3_64,
+                            FormatId::Fnv1a_64,
+                            FormatId::Fnv1_64,
+                            FormatId::Fnv0_64,
+                        ],
+                        "64-bit",
+                    ),
+                    32 => (
+                        FormatId::Md5,
+                        vec![
+                            FormatId::Md5,
+                            FormatId::XxHash3_128,
+                            FormatId::Fnv1a_128,
+                            FormatId::Fnv1_128,
+                            FormatId::Fnv0_128,
+                        ],
+                        "MD5 / 128-bit",
+                    ),
                     40 => (FormatId::Sha1, vec![FormatId::Sha1], "SHA-1"),
-                    128 => (FormatId::Sha512, vec![FormatId::Sha512], "SHA-512"),
+                    64 => (
+                        FormatId::Sha256,
+                        vec![
+                            FormatId::Sha256,
+                            FormatId::Blake3,
+                            FormatId::Fnv1a_256,
+                            FormatId::Fnv1_256,
+                            FormatId::Fnv0_256,
+                        ],
+                        "SHA-256",
+                    ),
+                    128 => (
+                        FormatId::Sha512,
+                        vec![
+                            FormatId::Sha512,
+                            FormatId::Fnv1a_512,
+                            FormatId::Fnv1_512,
+                            FormatId::Fnv0_512,
+                        ],
+                        "SHA-512",
+                    ),
+                    256 => (
+                        FormatId::Fnv1a_1024,
+                        vec![
+                            FormatId::Fnv1a_1024,
+                            FormatId::Fnv1_1024,
+                            FormatId::Fnv0_1024,
+                        ],
+                        "FNV-1a 1024-bit",
+                    ),
                     _ => (FormatId::Sha256, vec![FormatId::Sha256], "checksum"),
                 };
+
+                if let Some(comment) = &comment_header {
+                    if comment.contains("fnv1a") || comment.contains("fnv-1a") {
+                        match dlen {
+                            8 => fmt = FormatId::Fnv1a_32,
+                            16 => fmt = FormatId::Fnv1a_64,
+                            32 => fmt = FormatId::Fnv1a_128,
+                            64 => fmt = FormatId::Fnv1a_256,
+                            128 => fmt = FormatId::Fnv1a_512,
+                            256 => fmt = FormatId::Fnv1a_1024,
+                            _ => {}
+                        }
+                    } else if comment.contains("fnv1") || comment.contains("fnv-1") {
+                        match dlen {
+                            8 => fmt = FormatId::Fnv1_32,
+                            16 => fmt = FormatId::Fnv1_64,
+                            32 => fmt = FormatId::Fnv1_128,
+                            64 => fmt = FormatId::Fnv1_256,
+                            128 => fmt = FormatId::Fnv1_512,
+                            256 => fmt = FormatId::Fnv1_1024,
+                            _ => {}
+                        }
+                    } else if comment.contains("fnv0") || comment.contains("fnv-0") {
+                        match dlen {
+                            8 => fmt = FormatId::Fnv0_32,
+                            16 => fmt = FormatId::Fnv0_64,
+                            32 => fmt = FormatId::Fnv0_128,
+                            64 => fmt = FormatId::Fnv0_256,
+                            128 => fmt = FormatId::Fnv0_512,
+                            256 => fmt = FormatId::Fnv0_1024,
+                            _ => {}
+                        }
+                    }
+                }
+
                 return Some(ChecksumDetection {
                     format_id: fmt,
                     candidate_algorithms: candidates,
@@ -336,6 +558,12 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                     "sha1" => FormatId::Sha1,
                     "sha256" => FormatId::Sha256,
                     "sha512" => FormatId::Sha512,
+                    "fnv0_32" | "fnv0-32" => FormatId::Fnv0_32,
+                    "fnv0_64" | "fnv0-64" | "fnv0" => FormatId::Fnv0_64,
+                    "fnv1_32" | "fnv1-32" => FormatId::Fnv1_32,
+                    "fnv1_64" | "fnv1-64" | "fnv1" => FormatId::Fnv1_64,
+                    "fnv1a_32" | "fnv1a-32" => FormatId::Fnv1a_32,
+                    "fnv1a_64" | "fnv1a-64" | "fnv1a" => FormatId::Fnv1a_64,
                     _ => FormatId::Sha256,
                 };
                 return Some(ChecksumDetection {
@@ -399,6 +627,9 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                             FormatId::Crc32,
                             FormatId::Adler32,
                             FormatId::XxHash32,
+                            FormatId::Fnv1a_32,
+                            FormatId::Fnv1_32,
+                            FormatId::Fnv0_32,
                         ],
                         is_manifest: false,
                         digest_len: 8,
@@ -408,7 +639,13 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
                 16 => {
                     return Some(ChecksumDetection {
                         format_id: FormatId::XxHash64,
-                        candidate_algorithms: vec![FormatId::XxHash64, FormatId::XxHash3_64],
+                        candidate_algorithms: vec![
+                            FormatId::XxHash64,
+                            FormatId::XxHash3_64,
+                            FormatId::Fnv1a_64,
+                            FormatId::Fnv1_64,
+                            FormatId::Fnv0_64,
+                        ],
                         is_manifest: false,
                         digest_len: 16,
                         description: "xxHash64 / 64-bit hex checksum".to_string(),
@@ -458,6 +695,15 @@ mod tests {
         assert_eq!(
             sha256_hex(data),
             "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
+
+        assert_eq!(
+            hash_hex(b"foobar", HashAlgorithm::Fnv1a_64, false),
+            "85944171f73967e8"
+        );
+        assert_eq!(
+            hash_hex(b"foobar", HashAlgorithm::Fnv1a_32, false),
+            "bf9cf968"
         );
     }
 
@@ -514,6 +760,22 @@ mod tests {
             HashAlgorithm::try_from("sha-256").unwrap(),
             HashAlgorithm::Sha256
         );
+        assert_eq!(
+            HashAlgorithm::try_from("fnv1a").unwrap(),
+            HashAlgorithm::Fnv1a_64
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("fnv1a_32").unwrap(),
+            HashAlgorithm::Fnv1a_32
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("fnv0_64").unwrap(),
+            HashAlgorithm::Fnv0_64
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("fnv1_128").unwrap(),
+            HashAlgorithm::Fnv1_128
+        );
         assert!(HashAlgorithm::try_from("nonexistent_hash").is_err());
 
         let help = csum_help_table();
@@ -546,6 +808,13 @@ mod tests {
         let crc_hex = "00000000";
         let det = detect_checksum(crc_hex).unwrap();
         assert_eq!(det.format_id, FormatId::Crc32);
+        assert!(det.candidate_algorithms.contains(&FormatId::Fnv1a_32));
+
+        // 16-hex chars (xxHash64 / FNV-64)
+        let fnv64_hex = "85944171f73967e8";
+        let det64 = detect_checksum(fnv64_hex).unwrap();
+        assert_eq!(det64.format_id, FormatId::XxHash64);
+        assert!(det64.candidate_algorithms.contains(&FormatId::Fnv1a_64));
 
         // Coreutils manifest
         let manifest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  empty.txt\n\
@@ -554,11 +823,29 @@ mod tests {
         assert_eq!(det.format_id, FormatId::Sha256);
         assert!(det.is_manifest);
 
+        // 16-hex coreutils manifest (xxHash64 / FNV-64 candidates)
+        let manifest16 = "85944171f73967e8  foobar.txt";
+        let det16 = detect_checksum(manifest16).unwrap();
+        assert_eq!(det16.format_id, FormatId::XxHash64);
+        assert!(det16.candidate_algorithms.contains(&FormatId::Fnv1a_64));
+        assert!(det16.is_manifest);
+
+        // 16-hex coreutils manifest with FNV header comment
+        let manifest_fnv = "# FNV1A_64 checksum\n85944171f73967e8  foobar.txt";
+        let det_fnv_core = detect_checksum(manifest_fnv).unwrap();
+        assert_eq!(det_fnv_core.format_id, FormatId::Fnv1a_64);
+        assert!(det_fnv_core.is_manifest);
+
         // BSD format
         let bsd = "SHA256 (file.tar.gz) = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         let det = detect_checksum(bsd).unwrap();
         assert_eq!(det.format_id, FormatId::Sha256);
         assert!(det.is_manifest);
+
+        let bsd_fnv = "FNV1A_64 (file.tar.gz) = 85944171f73967e8";
+        let det_fnv = detect_checksum(bsd_fnv).unwrap();
+        assert_eq!(det_fnv.format_id, FormatId::Fnv1a_64);
+        assert!(det_fnv.is_manifest);
 
         assert!(detect_checksum("").is_none());
         assert!(detect_checksum("not-a-hash").is_none());

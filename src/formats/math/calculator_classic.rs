@@ -207,7 +207,7 @@ pub fn celsius_to_fahrenheit(celsius: f64) -> f64 {
     (celsius * 9.0 / 5.0) + 32.0
 }
 
-/// Checks prime status and calculates factors, matching legacy trial division logic.
+/// Checks prime status and calculates factors, matching legacy calculator interface.
 pub fn verify_prime_and_factors(n: i64) -> PrimeVerificationResult {
     if n <= 1 {
         return PrimeVerificationResult {
@@ -217,8 +217,18 @@ pub fn verify_prime_and_factors(n: i64) -> PrimeVerificationResult {
         };
     }
 
+    if let Ok(u_val) = u64::try_from(n) {
+        if crate::primality::is_prime_u64(u_val) {
+            return PrimeVerificationResult {
+                is_prime: true,
+                factor_a: None,
+                factor_b: None,
+            };
+        }
+    }
+
     let mut divisor: i64 = 2;
-    while divisor < n {
+    while divisor.saturating_mul(divisor) <= n {
         if n.checked_rem(divisor) == Some(0) {
             let Some(complement) = n.checked_div(divisor) else {
                 break;

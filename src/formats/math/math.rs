@@ -32,11 +32,13 @@ pub mod center_of_gravity;
 pub mod cli;
 pub mod constant;
 pub mod parsing;
+pub mod primality;
 pub mod range_generator;
 
 pub use cli::{
     BaseArgs, BaseToBaseArgs, CliBaseAlphabet, run_base_convert, run_base2base,
 };
+pub use malachite::Natural;
 pub use parsing::{MathDetection, detect_math_format, detect_numeric_format};
 
 #[cfg(test)]
