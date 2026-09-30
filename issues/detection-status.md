@@ -111,14 +111,18 @@ Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file
   * Section headers: Identifies stripped vs. not stripped binaries, debug symbols, and section layout.
   * Notes: Parses OS ABI tags (e.g. `for GNU/Linux 3.2.0`, `FreeBSD 13.0`), GNU Build-ID (`BuildID[sha1]=...`), Go build IDs, Intel CET shadow stack / IBT properties, AArch64 BTI/PAC, and core dump process/register data.
 * **Ctoolbox Implementation:**
-  * Added dedicated [`readelf.rs`](file:///workspaces/ctoolbox/src/formats/detection/readelf.rs) mirroring upstream `readelf.c`: parses 32-bit and 64-bit ELF headers, program headers (`PT_INTERP`, `PT_DYNAMIC`, `PT_NOTE`), section headers (`.debug_info`, `SHT_SYMTAB`, `SHT_NOTE`), and note segments (`NT_GNU_BUILD_ID`, `NT_GO_BUILD_ID`, `NT_GNU_ABI_TAG`, BSD tags).
+  * Added dedicated [`readelf.rs`](file:///workspaces/ctoolbox/src/formats/detection/readelf.rs) mirroring upstream `readelf.c`: parses 32-bit and 64-bit ELF headers, program headers (`PT_INTERP`, `PT_DYNAMIC`, `PT_NOTE`, `PT_LOAD`, `PT_PAX_FLAGS`), section headers (`.debug_info`, `SHT_SYMTAB`, `SHT_NOTE`, `SHT_SUNW_cap`), and note segments.
+  * Security Properties & CET: Parses `NT_GNU_PROPERTY_TYPE_0` (type 5) for Intel CET (`IBT`, `SHSTK`, `LAM_U48`, `LAM_U57`, ISA `x86-64-v1..v4`) and AArch64 (`BTI`, `PAC`).
+  * PaX / Hardened Linux Flags: Parses `PT_PAX_FLAGS` program header flags and `NT_NETBSD_PAX` note tags (`PAGEEXEC`, `EMUTRAMP`, `MPROTECT`, `RANDMMAP`, `RANDEXEC`, `SEGMEXEC`).
+  * Core Dump Introspection (`ET_CORE`): Extracts OS style (SVR4, NetBSD), process command line, PID, UIDs, GIDs, termination signal, signal code, thread counts (LWPs), and architectural instruction pointer (RIP, EIP, PC) from `NT_PRPSINFO`, `NT_PRSTATUS`, `NT_AUXV`, and `NT_NETBSD_CORE_PROCINFO`.
+  * Additional OS Notes: Android Memtag (`NT_ANDROID_MEMTAG`) & NDK build tags (`NT_ANDROID_VERSION`), DragonFly BSD version, SuSE version, and NetBSD march/cmodel/emulation tags.
   * Added `${x?then:else}` variable expansion (`varexpand`) in `magic.rs` driven by execution mode bit and `DF_1_PIE` flag, resolving `pie executable` vs `shared object` and MIME types.
-  * Tied ELF compatibility suffix formatting (`static-pie linked`, `dynamically linked`, interpreter, BuildID, ABI version, `stripped` / `not stripped`) into detection reporting.
+  * Tied ELF compatibility suffix formatting (`static-pie linked`, `dynamically linked`, interpreter, BuildID, ABI version, `stripped` / `not stripped`, PaX, CET, core dump details) into `--compat` mode, with structured multiline `DetectionEvidence::ContainerStructure` entries in rich non-compat mode.
 * **Remaining Gaps vs Upstream:**
-  * Intel CET shadow stack and indirect branch tracking (`GNU_PROPERTY_X86_FEATURE_1_AND`).
-  * AArch64 PAC / BTI properties (`GNU_PROPERTY_AARCH64_FEATURE_1_AND`).
-  * Core dump register & process data extraction (`NT_PRSTATUS`, `NT_PRPSINFO`).
-  * PaX / hardened Linux flag note extraction.
+  * Deep DWARF unwinding in `.debug_info` / `.eh_frame` to extract compiler producer strings and build flags (e.g. `gcc -O2 ...`). Upstream `readelf.c` inspects DWARF compilation unit headers.
+  * Core dump register state decoding for architectures outside x86-64, i386, and ARM/AArch64 (e.g. MIPS, SPARC, Alpha, PowerPC register sets in `prstatus`).
+  * Solaris-specific core dump structs (`prstatus_t` padding layout variations on SunOS/Solaris).
+  * Section symbol-level cross-referencing for `SHT_SUNW_cap` symbol capabilities (cross-referencing capabilities with dynamic symbols).
 
 
 ### B. OLE2 Compound Document Files ([`src/readcdf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readcdf.c), [`src/cdf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/cdf.c) vs [`inspect_ole2_cdf`](file:///workspaces/ctoolbox/src/formats/detection/container.rs#L1190))

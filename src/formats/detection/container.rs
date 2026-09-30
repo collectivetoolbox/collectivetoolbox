@@ -1104,6 +1104,59 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
         elf.arch_str, elf.osabi_str, elf.suffix
     );
 
+    let mut evidence = vec![DetectionEvidence::ContainerStructure {
+        detail: format!("Parsed ELF {class_str} {} header", elf.arch_str),
+        score: 98,
+    }];
+    if !elf.x86_properties.is_empty() {
+        evidence.push(DetectionEvidence::ContainerStructure {
+            detail: format!("x86 security properties: {}", elf.x86_properties.join(", ")),
+            score: 95,
+        });
+    }
+    if !elf.aarch64_properties.is_empty() {
+        evidence.push(DetectionEvidence::ContainerStructure {
+            detail: format!("AArch64 security properties: {}", elf.aarch64_properties.join(", ")),
+            score: 95,
+        });
+    }
+    if let Some(ref pax) = elf.pax_flags {
+        evidence.push(DetectionEvidence::ContainerStructure {
+            detail: format!("PaX flags: {pax}"),
+            score: 95,
+        });
+    }
+    if let Some(ref memtag) = elf.android_memtag {
+        evidence.push(DetectionEvidence::ContainerStructure {
+            detail: format!("Android Memtag: {memtag}"),
+            score: 95,
+        });
+    }
+    if let Some(ref core) = elf.core_details {
+        let mut parts = Vec::new();
+        if let Some(style) = core.os_style {
+            parts.push(format!("Style: {style}"));
+        }
+        if let Some(ref cmd) = core.command_line {
+            parts.push(format!("Process: {cmd}"));
+        }
+        if let Some(pid) = core.pid {
+            parts.push(format!("PID: {pid}"));
+        }
+        if let Some(sig) = core.signal {
+            parts.push(format!("Signal: {sig}"));
+        }
+        if let Some(ip) = core.register_ip {
+            parts.push(format!("Fault IP: 0x{ip:x}"));
+        }
+        if !parts.is_empty() {
+            evidence.push(DetectionEvidence::ContainerStructure {
+                detail: format!("Core dump: {}", parts.join(", ")),
+                score: 98,
+            });
+        }
+    }
+
     Ok(Some(DetectionCandidate {
         format_id: Some(FormatId::Elf),
         dc_id: None,
@@ -1111,10 +1164,7 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
         description: desc,
         confidence: ConfidenceTier::HighestConfidence,
         score: 98,
-        evidence: vec![DetectionEvidence::ContainerStructure {
-            detail: format!("Parsed ELF {class_str} {} header", elf.arch_str),
-            score: 98,
-        }],
+        evidence,
     }))
 }
 
@@ -1780,6 +1830,83 @@ mod tests {
         assert!(cand.description.contains("ELF 64-bit LSB executable, x86-64"));
         assert_eq!(cand.mime.as_deref(), Some("application/x-executable"));
         assert_eq!(cand.format_id, Some(FormatId::Elf));
+    }
+
+    #[ctb_test]
+    fn test_inspect_elf_rich_core_dump() {
+        let mut elf = vec![0u8; 1024];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0; // SYSV
+        elf[16] = 4; // e_type: ET_CORE
+        elf[18] = 0x3E; // x86-64
+
+        // e_phoff = 64, phnum = 2
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&2u16.to_le_bytes());
+
+        // Phdr 0: PT_LOAD at offset 512, filesz 256, vaddr 0x400000
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&1u32.to_le_bytes()); // PT_LOAD
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&512u64.to_le_bytes());
+        elf[ph0 + 16..ph0 + 24].copy_from_slice(&0x400000u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&256u64.to_le_bytes());
+
+        // Phdr 1: PT_NOTE at offset 200, size 512
+        let ph1 = 64usize + 56;
+        elf[ph1..ph1 + 4].copy_from_slice(&4u32.to_le_bytes()); // PT_NOTE
+        elf[ph1 + 8..ph1 + 16].copy_from_slice(&200u64.to_le_bytes());
+        elf[ph1 + 32..ph1 + 40].copy_from_slice(&512u64.to_le_bytes());
+
+        // Note 1: NT_PRPSINFO (3), name "CORE\0", size 128
+        let n1 = 200usize;
+        elf[n1..n1 + 4].copy_from_slice(&5u32.to_le_bytes());
+        elf[n1 + 4..n1 + 8].copy_from_slice(&128u32.to_le_bytes());
+        elf[n1 + 8..n1 + 12].copy_from_slice(&3u32.to_le_bytes()); // NT_PRPSINFO
+        elf[n1 + 12..n1 + 17].copy_from_slice(b"CORE\0");
+        // PRPSOFFSETS64[2] is 56 (Linux command line): write "myprog -v\0" at n1 + 20 + 56
+        let cmd_bytes = b"myprog -v\0";
+        elf[n1 + 20 + 56..n1 + 20 + 56 + cmd_bytes.len()].copy_from_slice(cmd_bytes);
+
+        // Note 2: NT_PRSTATUS (1), size 256
+        let n2 = n1 + 20 + 128;
+        elf[n2..n2 + 4].copy_from_slice(&5u32.to_le_bytes());
+        elf[n2 + 4..n2 + 8].copy_from_slice(&256u32.to_le_bytes());
+        elf[n2 + 8..n2 + 12].copy_from_slice(&1u32.to_le_bytes()); // NT_PRSTATUS
+        elf[n2 + 12..n2 + 17].copy_from_slice(b"CORE\0");
+        // signal = 11 (SIGSEGV) at n2 + 20 + 0
+        elf[n2 + 20..n2 + 20 + 4].copy_from_slice(&11u32.to_le_bytes());
+        // pid = 4321 at n2 + 20 + 32
+        elf[n2 + 20 + 32..n2 + 20 + 36].copy_from_slice(&4321u32.to_le_bytes());
+        // rip = 0x401234 at n2 + 20 + 240
+        elf[n2 + 20 + 240..n2 + 20 + 248].copy_from_slice(&0x401234u64.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let cand = inspect_elf(&mut source).unwrap().unwrap();
+        assert_eq!(cand.format_id, Some(FormatId::Elf));
+        assert_eq!(cand.mime.as_deref(), Some("application/x-coredump"));
+        // Check compat description
+        assert!(cand.description.contains(", SVR4-style, from 'myprog -v'"));
+        // Check rich evidence
+        let evidence_details: Vec<String> = cand
+            .evidence
+            .iter()
+            .filter_map(|e| match e {
+                DetectionEvidence::ContainerStructure { detail, .. } => Some(detail.clone()),
+                _ => None,
+            })
+            .collect();
+        assert!(evidence_details.iter().any(|d| {
+            d.starts_with("Core dump:")
+                && d.contains("Style: SVR4")
+                && d.contains("Process: myprog -v")
+                && d.contains("PID: 4321")
+                && d.contains("Signal: 11")
+                && d.contains("Fault IP: 0x401234")
+        }));
     }
 
     #[ctb_test]

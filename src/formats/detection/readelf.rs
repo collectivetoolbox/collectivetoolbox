@@ -487,6 +487,40 @@ use std::fmt::Write as _;
 use super::source::DetectionSource;
 
 /// Parsed structural inspection details extracted from an ELF file.
+/// Core dump introspection details extracted from note segments.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ElfCoreDetails {
+    /// Operating system core dump style ("SVR4", "FreeBSD", "NetBSD").
+    pub os_style: Option<&'static str>,
+    /// Command line or executable name of the process that dumped core.
+    pub command_line: Option<String>,
+    /// Process ID (PID) of the dumped process.
+    pub pid: Option<u32>,
+    /// Real user ID (UID).
+    pub uid: Option<u32>,
+    /// Effective user ID (EUID).
+    pub euid: Option<u32>,
+    /// Real group ID (GID).
+    pub gid: Option<u32>,
+    /// Effective group ID (EGID).
+    pub egid: Option<u32>,
+    /// Terminating signal number.
+    pub signal: Option<u32>,
+    /// Signal code.
+    pub signal_code: Option<u32>,
+    /// Number of lightweight processes / threads.
+    pub nlwps: Option<u32>,
+    /// Terminated thread ID (LWP).
+    pub lwp: Option<u32>,
+    /// Executable filename from auxiliary vector (`AT_LINUX_EXECFN`).
+    pub execfn: Option<String>,
+    /// Target hardware platform from auxiliary vector (`AT_LINUX_PLATFORM`).
+    pub platform: Option<String>,
+    /// Faulting instruction pointer register (e.g. RIP / EIP / PC) if extracted from NT_PRSTATUS.
+    pub register_ip: Option<u64>,
+}
+
+/// Parsed structural inspection details extracted from an ELF file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElfDetails {
     /// True if 64-bit ELF, false if 32-bit ELF.
@@ -511,6 +545,16 @@ pub struct ElfDetails {
     pub build_id: Option<String>,
     /// OS ABI target note string if extracted (e.g. "for GNU/Linux 3.2.0").
     pub os_note: Option<String>,
+    /// Extracted Intel CET / x86 GNU properties (e.g. "x86-64-v3", "IBT", "SHSTK").
+    pub x86_properties: Vec<String>,
+    /// Extracted AArch64 security properties (e.g. "BTI", "PAC").
+    pub aarch64_properties: Vec<String>,
+    /// PaX / hardened Linux execution flags if present.
+    pub pax_flags: Option<String>,
+    /// Android Memtag / MTE mode if present.
+    pub android_memtag: Option<String>,
+    /// Core dump introspected details if e_type == 4 (ET_CORE).
+    pub core_details: Option<ElfCoreDetails>,
     /// Whether `.debug_info` debug symbols section was found.
     pub has_debug_info: bool,
     /// Whether symbol table (`SHT_SYMTAB`) is absent (stripped).
@@ -521,9 +565,11 @@ pub struct ElfDetails {
     pub bytes_evaluated: u64,
 }
 
+const PT_LOAD: u32 = 1;
 const PT_DYNAMIC: u32 = 2;
 const PT_INTERP: u32 = 3;
 const PT_NOTE: u32 = 4;
+const PT_PAX_FLAGS: u32 = 0x6504_1580;
 
 const DT_NULL: u64 = 0;
 const DT_NEEDED: u64 = 1;
@@ -532,10 +578,52 @@ const DF_1_PIE: u64 = 0x0800_0000;
 
 const SHT_SYMTAB: u32 = 2;
 const SHT_NOTE: u32 = 7;
+const SHT_SUNW_CAP: u32 = 0x6fff_fff5;
+
+const NT_PRSTATUS: u32 = 1;
+const NT_PRPSINFO: u32 = 3;
+const NT_AUXV: u32 = 6;
+const NT_NETBSD_CORE_PROCINFO: u32 = 1;
 
 const NT_GNU_ABI_TAG: u32 = 1;
 const NT_GNU_BUILD_ID: u32 = 3;
 const NT_GO_BUILD_ID: u32 = 4;
+const NT_GNU_PROPERTY_TYPE_0: u32 = 5;
+
+const NT_NETBSD_VERSION: u32 = 1;
+const NT_NETBSD_EMULATION: u32 = 2;
+const NT_NETBSD_PAX: u32 = 3;
+const NT_NETBSD_MARCH: u32 = 5;
+const NT_NETBSD_CMODEL: u32 = 6;
+
+const NT_FREEBSD_VERSION: u32 = 1;
+const NT_OPENBSD_VERSION: u32 = 1;
+const NT_DRAGONFLY_VERSION: u32 = 1;
+const NT_ANDROID_VERSION: u32 = 1;
+const NT_ANDROID_MEMTAG: u32 = 4;
+
+const GNU_PROPERTY_X86_FEATURE_1_AND: u32 = 0xc000_0002;
+const GNU_PROPERTY_X86_ISA_1_NEEDED: u32 = 0xc000_8002;
+const GNU_PROPERTY_X86_ISA_1_USED: u32 = 0xc001_0002;
+const GNU_PROPERTY_AARCH64_FEATURE_1_AND: u32 = 0xc000_0000;
+
+const GNU_PROPERTY_X86_FEATURE_1_IBT: u32 = 1 << 0;
+const GNU_PROPERTY_X86_FEATURE_1_SHSTK: u32 = 1 << 1;
+const GNU_PROPERTY_X86_FEATURE_1_LAM_U48: u32 = 1 << 2;
+const GNU_PROPERTY_X86_FEATURE_1_LAM_U57: u32 = 1 << 3;
+
+const GNU_PROPERTY_AARCH64_FEATURE_1_BTI: u32 = 1 << 0;
+const GNU_PROPERTY_AARCH64_FEATURE_1_PAC: u32 = 1 << 1;
+
+const AT_LINUX_UID: u64 = 11;
+const AT_LINUX_EUID: u64 = 12;
+const AT_LINUX_GID: u64 = 13;
+const AT_LINUX_EGID: u64 = 14;
+const AT_LINUX_PLATFORM: u64 = 15;
+const AT_LINUX_EXECFN: u64 = 31;
+
+const PRPSOFFSETS32: [usize; 7] = [100, 84, 44, 28, 48, 32, 8];
+const PRPSOFFSETS64: [usize; 5] = [136, 120, 56, 40, 16];
 
 fn read_u16(slice: &[u8], is_le: bool) -> Option<u16> {
     let arr: [u8; 2] = slice.get(..2)?.try_into().ok()?;
@@ -575,6 +663,16 @@ fn read_exact_at<S: DetectionSource + ?Sized>(
     n == buf.len()
 }
 
+fn map_vaddr_to_file_offset(vaddr: u64, pt_loads: &[(u64, u64, u64)]) -> Option<u64> {
+    for &(va, off, sz) in pt_loads {
+        if vaddr >= va && vaddr < va.saturating_add(sz) {
+            let delta = vaddr.saturating_sub(va);
+            return Some(off.saturating_add(delta));
+        }
+    }
+    None
+}
+
 /// Inspects source payload for detailed ELF container structures matching `readelf.c`.
 pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
     source: &mut S,
@@ -600,6 +698,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
         _ => return None,
     };
 
+    // Reason for fallback: default to SYSV (0) if byte 7 is absent in truncated ELF ident
     let osabi_byte = hdr.get(7).copied().unwrap_or(0);
     let osabi_str = match osabi_byte {
         0 => "SYSV",
@@ -671,21 +770,23 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
 
     let mut max_evaluated = if is_64bit { 64u64 } else { 52u64 };
 
-    // 1. Traverse Program Headers (PT_DYNAMIC, PT_INTERP, PT_NOTE)
+    // 1. Traverse Program Headers (PT_DYNAMIC, PT_INTERP, PT_NOTE, PT_LOAD, PT_PAX_FLAGS)
     let mut dynamic = false;
     let mut pie = false;
     let mut needed_count = 0usize;
     let mut interpreter: Option<String> = None;
     let mut pt_notes: Vec<(u64, u64)> = Vec::new();
+    let mut pt_loads: Vec<(u64, u64, u64)> = Vec::new();
+    let mut detected_pax_flags: Option<String> = None;
 
     let min_phentsize = if is_64bit { 56 } else { 32 };
     let clamped_phnum = e_phnum.min(2048);
 
-    if (e_type == 2 || e_type == 3) && clamped_phnum > 0 && e_phentsize >= min_phentsize {
+    if (e_type == 2 || e_type == 3 || e_type == 4) && clamped_phnum > 0 && e_phentsize >= min_phentsize {
         let mut phdr_buf = vec![0u8; e_phentsize];
         for i in 0..clamped_phnum {
-            let i_u64 = u64::try_from(i).unwrap_or(0);
-            let sz_u64 = u64::try_from(e_phentsize).unwrap_or(0);
+            let Ok(i_u64) = u64::try_from(i) else { break; };
+            let Ok(sz_u64) = u64::try_from(e_phentsize) else { break; };
             let ph_offset = e_phoff.saturating_add(i_u64.saturating_mul(sz_u64));
             max_evaluated = max_evaluated.max(ph_offset.saturating_add(sz_u64));
 
@@ -694,17 +795,28 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             }
 
             let p_type = read_u32(phdr_buf.get(0..4)?, is_le)?;
-            let (p_offset, p_filesz) = if is_64bit {
+            let (p_offset, p_filesz, p_vaddr, p_flags) = if is_64bit {
+                // Reason for fallback: flags default to 0 if segment header is truncated
+                let flags = phdr_buf.get(4..8).and_then(|s| read_u32(s, is_le)).unwrap_or(0);
                 let off = read_u64(phdr_buf.get(8..16)?, is_le)?;
+                // Reason for fallback: virtual address defaults to 0 if absent in segment
+                let va = phdr_buf.get(16..24).and_then(|s| read_u64(s, is_le)).unwrap_or(0);
                 let fsz = read_u64(phdr_buf.get(32..40)?, is_le)?;
-                (off, fsz)
+                (off, fsz, va, flags)
             } else {
                 let off = u64::from(read_u32(phdr_buf.get(4..8)?, is_le)?);
+                // Reason for fallback: virtual address defaults to 0 if absent in segment
+                let va = phdr_buf.get(8..12).and_then(|s| read_u32(s, is_le)).map(u64::from).unwrap_or(0);
                 let fsz = u64::from(read_u32(phdr_buf.get(16..20)?, is_le)?);
-                (off, fsz)
+                // Reason for fallback: flags default to 0 if segment header is truncated
+                let flags = phdr_buf.get(24..28).and_then(|s| read_u32(s, is_le)).unwrap_or(0);
+                (off, fsz, va, flags)
             };
 
             match p_type {
+                PT_LOAD => {
+                    pt_loads.push((p_vaddr, p_offset, p_filesz));
+                }
                 PT_DYNAMIC => {
                     dynamic = true;
                     let dyn_entry_size = if is_64bit { 16 } else { 8 };
@@ -712,16 +824,17 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                     let clamped_filesz = p_filesz.min(65_536);
                     max_evaluated = max_evaluated.max(p_offset.saturating_add(clamped_filesz));
 
+                    // Reason for fallback: invalid dynamic segment size yields zero dynamic entries
                     let total_entries = usize::try_from(clamped_filesz)
-                        .unwrap_or(0)
-                        .checked_div(dyn_entry_size)
-                        .unwrap_or(0)
-                        .min(max_dyn_entries);
+                        .ok()
+                        .and_then(|sz| sz.checked_div(dyn_entry_size))
+                        .map(|n| n.min(max_dyn_entries))
+                        .unwrap_or(0);
 
                     let mut dyn_buf = vec![0u8; dyn_entry_size];
                     for d_idx in 0..total_entries {
-                        let d_u64 = u64::try_from(d_idx).unwrap_or(0);
-                        let e_sz = u64::try_from(dyn_entry_size).unwrap_or(0);
+                        let Ok(d_u64) = u64::try_from(d_idx) else { break; };
+                        let Ok(e_sz) = u64::try_from(dyn_entry_size) else { break; };
                         let d_offset = p_offset.saturating_add(d_u64.saturating_mul(e_sz));
 
                         if !read_exact_at(source, d_offset, &mut dyn_buf) {
@@ -750,22 +863,23 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 }
                 PT_INTERP => {
                     needed_count = needed_count.saturating_add(1);
-                    let read_len = usize::try_from(p_filesz.min(512)).unwrap_or(0);
-                    if read_len > 0 {
-                        let mut interp_buf = vec![0u8; read_len];
-                        if read_exact_at(source, p_offset, &mut interp_buf) {
-                            max_evaluated =
-                                max_evaluated.max(p_offset.saturating_add(u64::try_from(read_len).unwrap_or(0)));
-                            let clean_len = interp_buf
-                                .iter()
-                                .position(|&b| b == 0)
-                                .unwrap_or(interp_buf.len());
-                            if clean_len > 0 {
-                                let interp_str = String::from_utf8_lossy(
-                                    interp_buf.get(..clean_len).unwrap_or(&[]),
-                                )
-                                .to_string();
-                                interpreter = Some(interp_str);
+                    if let Ok(read_len) = usize::try_from(p_filesz.min(512)) {
+                        if read_len > 0 {
+                            let mut interp_buf = vec![0u8; read_len];
+                            if read_exact_at(source, p_offset, &mut interp_buf) {
+                                if let Ok(rlen_u64) = u64::try_from(read_len) {
+                                    max_evaluated = max_evaluated.max(p_offset.saturating_add(rlen_u64));
+                                }
+                                let clean_len = match interp_buf.iter().position(|&b| b == 0) {
+                                    Some(p) => p,
+                                    None => interp_buf.len(),
+                                };
+                                if clean_len > 0 {
+                                    if let Some(sub) = interp_buf.get(..clean_len) {
+                                        let interp_str = String::from_utf8_lossy(sub).to_string();
+                                        interpreter = Some(interp_str);
+                                    }
+                                }
                             }
                         }
                     }
@@ -775,50 +889,94 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                         pt_notes.push((p_offset, p_filesz));
                     }
                 }
+                PT_PAX_FLAGS => {
+                    let mut flags_strs = Vec::new();
+                    if p_flags & 0x0010 != 0 {
+                        flags_strs.push("+PAGEEXEC");
+                    } else if p_flags & 0x0020 != 0 {
+                        flags_strs.push("-PAGEEXEC");
+                    }
+                    if p_flags & 0x0040 != 0 {
+                        flags_strs.push("+EMUTRAMP");
+                    } else if p_flags & 0x0080 != 0 {
+                        flags_strs.push("-EMUTRAMP");
+                    }
+                    if p_flags & 0x0100 != 0 {
+                        flags_strs.push("+MPROTECT");
+                    } else if p_flags & 0x0200 != 0 {
+                        flags_strs.push("-MPROTECT");
+                    }
+                    if p_flags & 0x0400 != 0 {
+                        flags_strs.push("+RANDMMAP");
+                    } else if p_flags & 0x0800 != 0 {
+                        flags_strs.push("-RANDMMAP");
+                    }
+                    if p_flags & 0x1000 != 0 {
+                        flags_strs.push("+RANDEXEC");
+                    } else if p_flags & 0x2000 != 0 {
+                        flags_strs.push("-RANDEXEC");
+                    }
+                    if p_flags & 0x4000 != 0 {
+                        flags_strs.push("+SEGMEXEC");
+                    } else if p_flags & 0x8000 != 0 {
+                        flags_strs.push("-SEGMEXEC");
+                    }
+                    if !flags_strs.is_empty() {
+                        detected_pax_flags = Some(flags_strs.join(","));
+                    }
+                }
                 _ => {}
             }
         }
     }
 
-    // 2. Traverse Section Headers (.debug_info, SHT_SYMTAB, SHT_NOTE)
+    // 2. Traverse Section Headers (.debug_info, SHT_SYMTAB, SHT_NOTE, SHT_SUNW_cap)
     let min_shentsize = if is_64bit { 64 } else { 40 };
     let clamped_shnum = e_shnum.min(4096);
     let mut is_stripped = true;
     let mut has_debug_info = false;
     let mut sh_notes: Vec<(u64, u64)> = Vec::new();
+    let mut sunw_hw_caps = 0u64;
+    let mut sunw_sf_caps = 0u64;
 
     if clamped_shnum > 0 && e_shentsize >= min_shentsize && e_shoff > 0 {
         // Read section header string table
         let mut shstrtab = Vec::new();
         if e_shstrndx < clamped_shnum {
-            let ndx_u64 = u64::try_from(e_shstrndx).unwrap_or(0);
-            let s_sz_u64 = u64::try_from(e_shentsize).unwrap_or(0);
+            let Ok(ndx_u64) = u64::try_from(e_shstrndx) else { return None; };
+            let Ok(s_sz_u64) = u64::try_from(e_shentsize) else { return None; };
             let shstr_hdr_offset = e_shoff.saturating_add(ndx_u64.saturating_mul(s_sz_u64));
             let mut shstr_hdr_buf = vec![0u8; e_shentsize];
             if read_exact_at(source, shstr_hdr_offset, &mut shstr_hdr_buf) {
                 let (sh_off, sh_size) = if is_64bit {
+                    // Reason for fallback: offset defaults to 0 if section header is truncated
                     let off = read_u64(shstr_hdr_buf.get(24..32)?, is_le).unwrap_or(0);
+                    // Reason for fallback: size defaults to 0 if section header is truncated
                     let sz = read_u64(shstr_hdr_buf.get(32..40)?, is_le).unwrap_or(0);
                     (off, sz)
                 } else {
+                    // Reason for fallback: offset defaults to 0 if section header is truncated
                     let off = u64::from(read_u32(shstr_hdr_buf.get(16..20)?, is_le).unwrap_or(0));
+                    // Reason for fallback: size defaults to 0 if section header is truncated
                     let sz = u64::from(read_u32(shstr_hdr_buf.get(20..24)?, is_le).unwrap_or(0));
                     (off, sz)
                 };
-                let strtab_len = usize::try_from(sh_size.min(131_072)).unwrap_or(0);
-                if strtab_len > 0 {
-                    shstrtab = vec![0u8; strtab_len];
-                    let _ = read_exact_at(source, sh_off, &mut shstrtab);
-                    max_evaluated =
-                        max_evaluated.max(sh_off.saturating_add(u64::try_from(strtab_len).unwrap_or(0)));
+                if let Ok(strtab_len) = usize::try_from(sh_size.min(131_072)) {
+                    if strtab_len > 0 {
+                        shstrtab = vec![0u8; strtab_len];
+                        let _ = read_exact_at(source, sh_off, &mut shstrtab);
+                        if let Ok(slen_u64) = u64::try_from(strtab_len) {
+                            max_evaluated = max_evaluated.max(sh_off.saturating_add(slen_u64));
+                        }
+                    }
                 }
             }
         }
 
         let mut shdr_buf = vec![0u8; e_shentsize];
         for s_idx in 0..clamped_shnum {
-            let s_u64 = u64::try_from(s_idx).unwrap_or(0);
-            let s_sz_u64 = u64::try_from(e_shentsize).unwrap_or(0);
+            let Ok(s_u64) = u64::try_from(s_idx) else { break; };
+            let Ok(s_sz_u64) = u64::try_from(e_shentsize) else { break; };
             let sh_offset = e_shoff.saturating_add(s_u64.saturating_mul(s_sz_u64));
             max_evaluated = max_evaluated.max(sh_offset.saturating_add(s_sz_u64));
 
@@ -826,7 +984,7 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 break;
             }
 
-            let sh_name = usize::try_from(read_u32(shdr_buf.get(0..4)?, is_le)?).unwrap_or(0);
+            let Ok(sh_name) = usize::try_from(read_u32(shdr_buf.get(0..4)?, is_le)?) else { continue; };
             let sh_type = read_u32(shdr_buf.get(4..8)?, is_le)?;
             let (sec_off, sec_size) = if is_64bit {
                 let off = read_u64(shdr_buf.get(24..32)?, is_le)?;
@@ -839,12 +997,18 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             };
 
             if sh_name < shstrtab.len() {
-                let name_bytes = shstrtab.get(sh_name..).unwrap_or(&[]);
-                let name_len = name_bytes.iter().position(|&b| b == 0).unwrap_or(name_bytes.len());
-                let name_str = String::from_utf8_lossy(name_bytes.get(..name_len).unwrap_or(&[]));
-                if name_str == ".debug_info" {
-                    has_debug_info = true;
-                    is_stripped = false;
+                if let Some(name_bytes) = shstrtab.get(sh_name..) {
+                    let name_len = match name_bytes.iter().position(|&b| b == 0) {
+                        Some(p) => p,
+                        None => name_bytes.len(),
+                    };
+                    if let Some(sub) = name_bytes.get(..name_len) {
+                        let name_str = String::from_utf8_lossy(sub);
+                        if name_str == ".debug_info" {
+                            has_debug_info = true;
+                            is_stripped = false;
+                        }
+                    }
                 }
             }
 
@@ -852,12 +1016,40 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 is_stripped = false;
             } else if sh_type == SHT_NOTE && sec_size > 0 {
                 sh_notes.push((sec_off, sec_size));
+            } else if sh_type == SHT_SUNW_CAP && sec_size > 0 {
+                let cap_entry_sz = if is_64bit { 16 } else { 8 };
+                if let Ok(clamped_cap_sz) = usize::try_from(sec_size.min(1024)) {
+                    let mut cap_buf = vec![0u8; clamped_cap_sz];
+                    if read_exact_at(source, sec_off, &mut cap_buf) {
+                        let mut cap_pos = 0usize;
+                        while cap_pos.saturating_add(cap_entry_sz) <= cap_buf.len() {
+                            let (c_tag, c_val) = if is_64bit {
+                                let Some(tag) = cap_buf.get(cap_pos..cap_pos.saturating_add(8)).and_then(|s| read_u64(s, is_le)) else { break; };
+                                let Some(val) = cap_buf.get(cap_pos.saturating_add(8)..cap_pos.saturating_add(16)).and_then(|s| read_u64(s, is_le)) else { break; };
+                                (tag, val)
+                            } else {
+                                let Some(tag) = cap_buf.get(cap_pos..cap_pos.saturating_add(4)).and_then(|s| read_u32(s, is_le)).map(u64::from) else { break; };
+                                let Some(val) = cap_buf.get(cap_pos.saturating_add(4)..cap_pos.saturating_add(8)).and_then(|s| read_u32(s, is_le)).map(u64::from) else { break; };
+                                (tag, val)
+                            };
+                            cap_pos = cap_pos.saturating_add(cap_entry_sz);
+                            if c_tag == 0 {
+                                break;
+                            }
+                            if c_tag == 1 {
+                                sunw_hw_caps |= c_val;
+                            } else if c_tag == 2 {
+                                sunw_sf_caps |= c_val;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    // 3. Parse Notes (GNU Build-ID, Go BuildID, GNU/Linux/BSD OS ABI tags)
-    let notes_to_read = if clamped_shnum > 0 {
+    // 3. Parse Notes
+    let notes_to_read = if clamped_shnum > 0 && e_type != 4 {
         &sh_notes
     } else {
         &pt_notes
@@ -868,9 +1060,18 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
     let mut did_os_note = false;
     let mut primary_build_id: Option<String> = None;
     let mut primary_os_note: Option<String> = None;
+    let mut x86_properties: Vec<String> = Vec::new();
+    let mut aarch64_properties: Vec<String> = Vec::new();
+    let mut pax_flags: Option<String> = detected_pax_flags;
+    let mut android_memtag: Option<String> = None;
+    let mut core_details: Option<ElfCoreDetails> = if e_type == 4 {
+        Some(ElfCoreDetails::default())
+    } else {
+        None
+    };
 
     for &(n_off, n_size) in notes_to_read {
-        let read_size = usize::try_from(n_size.min(65_536)).unwrap_or(0);
+        let Ok(read_size) = usize::try_from(n_size.min(65_536)) else { continue; };
         if read_size < 12 {
             continue;
         }
@@ -878,18 +1079,16 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
         if !read_exact_at(source, n_off, &mut note_buf) {
             continue;
         }
-        max_evaluated = max_evaluated.max(n_off.saturating_add(u64::try_from(read_size).unwrap_or(0)));
+        if let Ok(rs_u64) = u64::try_from(read_size) {
+            max_evaluated = max_evaluated.max(n_off.saturating_add(rs_u64));
+        }
 
         let mut pos = 0usize;
         while pos.saturating_add(12) <= note_buf.len() {
-            let namesz =
-                usize::try_from(read_u32(note_buf.get(pos..pos.saturating_add(4))?, is_le)?)
-                    .unwrap_or(0);
-            let descsz = usize::try_from(read_u32(
-                note_buf.get(pos.saturating_add(4)..pos.saturating_add(8))?,
-                is_le,
-            )?)
-            .unwrap_or(0);
+            let Some(namesz_u32) = note_buf.get(pos..pos.saturating_add(4)).and_then(|s| read_u32(s, is_le)) else { break; };
+            let Some(descsz_u32) = note_buf.get(pos.saturating_add(4)..pos.saturating_add(8)).and_then(|s| read_u32(s, is_le)) else { break; };
+            let Ok(namesz) = usize::try_from(namesz_u32) else { break; };
+            let Ok(descsz) = usize::try_from(descsz_u32) else { break; };
             let note_type =
                 read_u32(note_buf.get(pos.saturating_add(8)..pos.saturating_add(12))?, is_le)?;
 
@@ -907,17 +1106,234 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 break;
             }
 
-            let name_slice = note_buf
-                .get(name_offset..name_offset.saturating_add(namesz))
-                .unwrap_or(&[]);
-            let desc_slice = note_buf
-                .get(desc_offset..desc_offset.saturating_add(descsz))
-                .unwrap_or(&[]);
+            let Some(name_slice) = note_buf.get(name_offset..name_offset.saturating_add(namesz)) else { break; };
+            let Some(desc_slice) = note_buf.get(desc_offset..desc_offset.saturating_add(descsz)) else { break; };
             pos = next_pos;
 
             let clean_name = String::from_utf8_lossy(name_slice)
                 .trim_matches('\0')
                 .to_string();
+
+            // Core dump note handling
+            if e_type == 4 {
+                if let Some(ref mut core) = core_details {
+                    // Identify core OS style
+                    if core.os_style.is_none() {
+                        if clean_name == "CORE" || name_slice.starts_with(b"CORE") {
+                            core.os_style = Some("SVR4");
+                        } else if clean_name == "FreeBSD" {
+                            core.os_style = Some("FreeBSD");
+                        } else if clean_name.starts_with("NetBSD-CORE") || name_slice.starts_with(b"NetBSD-CORE") {
+                            core.os_style = Some("NetBSD");
+                        }
+                    }
+
+                    match core.os_style {
+                        Some("NetBSD") => {
+                            if note_type == NT_NETBSD_CORE_PROCINFO && descsz >= 128 {
+                                if let (Some(signo), Some(sigcode), Some(pid), Some(euid), Some(egid), Some(nlwps)) = (
+                                    desc_slice.get(8..12).and_then(|s| read_u32(s, is_le)),
+                                    desc_slice.get(12..16).and_then(|s| read_u32(s, is_le)),
+                                    desc_slice.get(80..84).and_then(|s| read_u32(s, is_le)),
+                                    desc_slice.get(100..104).and_then(|s| read_u32(s, is_le)),
+                                    desc_slice.get(112..116).and_then(|s| read_u32(s, is_le)),
+                                    desc_slice.get(120..124).and_then(|s| read_u32(s, is_le)),
+                                ) {
+                                    if let Some(name_raw) = desc_slice.get(124..156) {
+                                        let name_len = match name_raw.iter().position(|&b| b == 0) {
+                                            Some(p) => p,
+                                            None => name_raw.len(),
+                                        };
+                                        if let Some(name_bytes) = name_raw.get(..name_len) {
+                                            let cmd = String::from_utf8_lossy(name_bytes).to_string();
+                                            core.command_line = Some(cmd);
+                                        }
+                                    }
+                                    let siglwp = if descsz >= 160 {
+                                        desc_slice.get(156..160).and_then(|s| read_u32(s, is_le))
+                                    } else {
+                                        None
+                                    };
+
+                                    core.pid = Some(pid);
+                                    core.euid = Some(euid);
+                                    core.egid = Some(egid);
+                                    core.nlwps = Some(nlwps);
+                                    core.lwp = siglwp;
+                                    core.signal = Some(signo);
+                                    core.signal_code = Some(sigcode);
+                                }
+                            }
+                        }
+                        Some("FreeBSD") => {
+                            if note_type == NT_PRPSINFO {
+                                let argoff = if is_64bit { 33 } else { 25 };
+                                if let Some(str_bytes) = desc_slice.get(argoff..) {
+                                    let max_len = str_bytes.len().min(80);
+                                    if let Some(sub) = str_bytes.get(..max_len) {
+                                        let clean_len = match sub.iter().position(|&b| b == 0) {
+                                            Some(p) => p,
+                                            None => max_len,
+                                        };
+                                        if let Some(raw_cmd) = str_bytes.get(..clean_len) {
+                                            let cmd = String::from_utf8_lossy(raw_cmd).trim().to_string();
+                                            if !cmd.is_empty() {
+                                                core.command_line = Some(cmd);
+                                            }
+                                        }
+                                    }
+                                }
+                                let pidoff = argoff.saturating_add(83);
+                                if let Some(pid_slice) = desc_slice.get(pidoff..pidoff.saturating_add(4)) {
+                                    core.pid = read_u32(pid_slice, is_le);
+                                }
+                            }
+                        }
+                        _ => {
+                            // Default: SVR4 / Linux
+                            if note_type == NT_PRPSINFO && core.command_line.is_none() {
+                                let offsets = if is_64bit {
+                                    &PRPSOFFSETS64[..]
+                                } else {
+                                    &PRPSOFFSETS32[..]
+                                };
+                                for &off in offsets {
+                                    let Some(probe_slice) = desc_slice.get(off..) else {
+                                        continue;
+                                    };
+                                    let max_probe = probe_slice.len().min(80);
+                                    let Some(probe) = probe_slice.get(..max_probe) else {
+                                        continue;
+                                    };
+                                    if probe.is_empty() || probe.first().copied() == Some(0) {
+                                        continue;
+                                    }
+                                    let clean_len = match probe.iter().position(|&b| b == 0) {
+                                        Some(p) => p,
+                                        None => probe.len(),
+                                    };
+                                    let Some(clean_slice) = probe.get(..clean_len) else {
+                                        continue;
+                                    };
+                                    let non_printable = clean_slice
+                                        .iter()
+                                        .any(|&b| b < 0x20 || b > 0x7E || b == b'\'' || b == b'"' || b == b'`');
+                                    if !non_printable && clean_len >= 1 {
+                                        let cmd = String::from_utf8_lossy(clean_slice)
+                                            .trim()
+                                            .to_string();
+                                        if !cmd.is_empty() {
+                                            core.command_line = Some(cmd);
+                                            break;
+                                        }
+                                    }
+                                }
+                            } else if note_type == NT_PRSTATUS {
+                                if is_64bit {
+                                    if desc_slice.len() >= 36 {
+                                        core.signal = read_u32(desc_slice.get(0..4)?, is_le);
+                                        core.signal_code = read_u32(desc_slice.get(4..8)?, is_le);
+                                        core.pid = read_u32(desc_slice.get(32..36)?, is_le);
+                                    }
+                                    if desc_slice.len() >= 248 && e_machine == 0x3E {
+                                        // x86_64: rip is at offset 240
+                                        core.register_ip = read_u64(desc_slice.get(240..248)?, is_le);
+                                    } else if desc_slice.len() >= 344 && e_machine == 0xB7 {
+                                        // AArch64: pc is at offset 336
+                                        core.register_ip = read_u64(desc_slice.get(336..344)?, is_le);
+                                    }
+                                } else {
+                                    if desc_slice.len() >= 28 {
+                                        core.signal = read_u32(desc_slice.get(0..4)?, is_le);
+                                        core.signal_code = read_u32(desc_slice.get(4..8)?, is_le);
+                                        core.pid = read_u32(desc_slice.get(24..28)?, is_le);
+                                    }
+                                    if desc_slice.len() >= 120 && e_machine == 0x03 {
+                                        // i386: eip is at offset 116
+                                        core.register_ip = read_u32(desc_slice.get(116..120)?, is_le).map(u64::from);
+                                    }
+                                }
+                            } else if note_type == NT_AUXV {
+                                let elsize = if is_64bit { 16 } else { 8 };
+                                let mut a_pos = 0usize;
+                                let mut entries_seen = 0usize;
+                                while a_pos.saturating_add(elsize) <= desc_slice.len() && entries_seen < 50 {
+                                    entries_seen = entries_seen.saturating_add(1);
+                                    let (a_type, a_val) = if is_64bit {
+                                        let Some(t) = desc_slice.get(a_pos..a_pos.saturating_add(8)).and_then(|s| read_u64(s, is_le)) else {
+                                            break;
+                                        };
+                                        let Some(v) = desc_slice.get(a_pos.saturating_add(8)..a_pos.saturating_add(16)).and_then(|s| read_u64(s, is_le)) else {
+                                            break;
+                                        };
+                                        (t, v)
+                                    } else {
+                                        let Some(t) = desc_slice.get(a_pos..a_pos.saturating_add(4)).and_then(|s| read_u32(s, is_le)).map(u64::from) else {
+                                            break;
+                                        };
+                                        let Some(v) = desc_slice.get(a_pos.saturating_add(4)..a_pos.saturating_add(8)).and_then(|s| read_u32(s, is_le)).map(u64::from) else {
+                                            break;
+                                        };
+                                        (t, v)
+                                    };
+                                    a_pos = a_pos.saturating_add(elsize);
+
+                                    match a_type {
+                                        AT_LINUX_UID => {
+                                            core.uid = u32::try_from(a_val).ok();
+                                        }
+                                        AT_LINUX_EUID => {
+                                            core.euid = u32::try_from(a_val).ok();
+                                        }
+                                        AT_LINUX_GID => {
+                                            core.gid = u32::try_from(a_val).ok();
+                                        }
+                                        AT_LINUX_EGID => {
+                                            core.egid = u32::try_from(a_val).ok();
+                                        }
+                                        AT_LINUX_PLATFORM => {
+                                            if let Some(off) = map_vaddr_to_file_offset(a_val, &pt_loads) {
+                                                let mut str_buf = [0u8; 64];
+                                                if source.read_at(off, &mut str_buf).is_ok() {
+                                                    let len = match str_buf.iter().position(|&b| b == 0) {
+                                                        Some(p) => p,
+                                                        None => str_buf.len(),
+                                                    };
+                                                    if let Some(slice) = str_buf.get(..len) {
+                                                        let s = String::from_utf8_lossy(slice).to_string();
+                                                        if !s.is_empty() {
+                                                            core.platform = Some(s);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        AT_LINUX_EXECFN => {
+                                            if let Some(off) = map_vaddr_to_file_offset(a_val, &pt_loads) {
+                                                let mut str_buf = [0u8; 128];
+                                                if source.read_at(off, &mut str_buf).is_ok() {
+                                                    let len = match str_buf.iter().position(|&b| b == 0) {
+                                                        Some(p) => p,
+                                                        None => str_buf.len(),
+                                                    };
+                                                    if let Some(slice) = str_buf.get(..len) {
+                                                        let s = String::from_utf8_lossy(slice).to_string();
+                                                        if !s.is_empty() {
+                                                            core.execfn = Some(s);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
 
             // GNU Build-ID
             if clean_name == "GNU" && note_type == NT_GNU_BUILD_ID && descsz >= 4 && descsz <= 64 {
@@ -954,25 +1370,171 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 continue;
             }
 
+            // GNU Program Properties (CET / AArch64 / ISA)
+            if clean_name == "GNU" && note_type == NT_GNU_PROPERTY_TYPE_0 && descsz >= 8 {
+                let align: usize = if is_64bit { 8 } else { 4 };
+                let mut prop_pos = 0usize;
+                let mut found_props = Vec::new();
+
+                while prop_pos.saturating_add(8) <= desc_slice.len() {
+                    let Some(pr_type) = desc_slice.get(prop_pos..prop_pos.saturating_add(4)).and_then(|s| read_u32(s, is_le)) else {
+                        break;
+                    };
+                    let Some(pr_datasz_raw) = desc_slice.get(prop_pos.saturating_add(4)..prop_pos.saturating_add(8)).and_then(|s| read_u32(s, is_le)) else {
+                        break;
+                    };
+                    let Ok(pr_datasz) = usize::try_from(pr_datasz_raw) else {
+                        break;
+                    };
+
+                    if pr_type == 0 && pr_datasz == 0 {
+                        break;
+                    }
+
+                    let data_offset = prop_pos.saturating_add(8);
+                    let align_mask = align.saturating_sub(1);
+                    let aligned_datasz = (pr_datasz.saturating_add(align_mask)) & !align_mask;
+                    let next_prop = data_offset.saturating_add(aligned_datasz);
+
+                    let Some(prop_data) = desc_slice.get(data_offset..data_offset.saturating_add(pr_datasz)) else {
+                        break;
+                    };
+                    prop_pos = next_prop;
+
+                    match pr_type {
+                        GNU_PROPERTY_X86_FEATURE_1_AND => {
+                            if let Some(val) = read_u32(prop_data, is_le) {
+                                if val & GNU_PROPERTY_X86_FEATURE_1_IBT != 0 {
+                                    x86_properties.push("IBT".to_string());
+                                    found_props.push("IBT".to_string());
+                                }
+                                if val & GNU_PROPERTY_X86_FEATURE_1_SHSTK != 0 {
+                                    x86_properties.push("SHSTK".to_string());
+                                    found_props.push("SHSTK".to_string());
+                                }
+                                if val & GNU_PROPERTY_X86_FEATURE_1_LAM_U48 != 0 {
+                                    x86_properties.push("LAM_U48".to_string());
+                                    found_props.push("LAM_U48".to_string());
+                                }
+                                if val & GNU_PROPERTY_X86_FEATURE_1_LAM_U57 != 0 {
+                                    x86_properties.push("LAM_U57".to_string());
+                                    found_props.push("LAM_U57".to_string());
+                                }
+                            }
+                        }
+                        GNU_PROPERTY_X86_ISA_1_NEEDED | GNU_PROPERTY_X86_ISA_1_USED => {
+                            if let Some(val) = read_u32(prop_data, is_le) {
+                                let isa_name = if val & (1 << 3) != 0 {
+                                    "x86-64-v4"
+                                } else if val & (1 << 2) != 0 {
+                                    "x86-64-v3"
+                                } else if val & (1 << 1) != 0 {
+                                    "x86-64-v2"
+                                } else if val & (1 << 0) != 0 {
+                                    "x86-64-baseline"
+                                } else {
+                                    ""
+                                };
+                                if !isa_name.is_empty() {
+                                    x86_properties.push(isa_name.to_string());
+                                    found_props.push(isa_name.to_string());
+                                }
+                            }
+                        }
+                        GNU_PROPERTY_AARCH64_FEATURE_1_AND => {
+                            if let Some(val) = read_u32(prop_data, is_le) {
+                                if val & GNU_PROPERTY_AARCH64_FEATURE_1_BTI != 0 {
+                                    aarch64_properties.push("BTI".to_string());
+                                    found_props.push("BTI".to_string());
+                                }
+                                if val & GNU_PROPERTY_AARCH64_FEATURE_1_PAC != 0 {
+                                    aarch64_properties.push("PAC".to_string());
+                                    found_props.push("PAC".to_string());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if !found_props.is_empty() {
+                    ordered_notes.push(format!("properties: {}", found_props.join(", ")));
+                }
+                continue;
+            }
+
+            // NetBSD PaX Note
+            if clean_name == "PaX" && note_type == NT_NETBSD_PAX && descsz == 4 {
+                if let Some(desc) = read_u32(desc_slice, is_le) {
+                    let mut flags_strs = Vec::new();
+                    if desc & 0x01 != 0 { flags_strs.push("+mprotect"); }
+                    if desc & 0x02 != 0 { flags_strs.push("-mprotect"); }
+                    if desc & 0x04 != 0 { flags_strs.push("+segvguard"); }
+                    if desc & 0x08 != 0 { flags_strs.push("-segvguard"); }
+                    if desc & 0x10 != 0 { flags_strs.push("+ASLR"); }
+                    if desc & 0x20 != 0 { flags_strs.push("-ASLR"); }
+                    if !flags_strs.is_empty() {
+                        let note_str = format!("PaX: {}", flags_strs.join(","));
+                        pax_flags = Some(flags_strs.join(","));
+                        ordered_notes.push(note_str);
+                    }
+                }
+                continue;
+            }
+
+            // Android Memtag Note
+            if clean_name == "Android" && note_type == NT_ANDROID_MEMTAG && descsz == 4 {
+                if let Some(desc) = read_u32(desc_slice, is_le) {
+                    let mut tags = Vec::new();
+                    if desc & (1 << 0) != 0 { tags.push("none"); }
+                    if desc & (1 << 1) != 0 { tags.push("async"); }
+                    if desc & (1 << 2) != 0 { tags.push("sync"); }
+                    if desc & (1 << 3) != 0 { tags.push("heap"); }
+                    if desc & (1 << 4) != 0 { tags.push("stack"); }
+                    if !tags.is_empty() {
+                        let note_str = format!("Android Memtag: {}", tags.join(","));
+                        android_memtag = Some(tags.join(","));
+                        ordered_notes.push(note_str);
+                    }
+                }
+                continue;
+            }
+
             // GNU OS ABI Version tag
             if clean_name == "GNU" && note_type == NT_GNU_ABI_TAG && descsz >= 16 {
                 if !did_os_note {
-                    did_os_note = true;
-                    let os_val = read_u32(desc_slice.get(0..4)?, is_le).unwrap_or(0);
-                    let maj = read_u32(desc_slice.get(4..8)?, is_le).unwrap_or(0);
-                    let min = read_u32(desc_slice.get(8..12)?, is_le).unwrap_or(0);
-                    let pat = read_u32(desc_slice.get(12..16)?, is_le).unwrap_or(0);
-                    let os_name = match os_val {
-                        0 => "Linux",
-                        1 => "Hurd",
-                        2 => "Solaris",
-                        3 => "kFreeBSD",
-                        4 => "kNetBSD",
-                        _ => "<unknown>",
-                    };
-                    let os_entry = format!("for GNU/{os_name} {maj}.{min}.{pat}");
-                    primary_os_note = Some(os_entry.clone());
-                    ordered_notes.push(os_entry);
+                    if let (Some(os_val), Some(maj), Some(min), Some(pat)) = (
+                        desc_slice.get(0..4).and_then(|s| read_u32(s, is_le)),
+                        desc_slice.get(4..8).and_then(|s| read_u32(s, is_le)),
+                        desc_slice.get(8..12).and_then(|s| read_u32(s, is_le)),
+                        desc_slice.get(12..16).and_then(|s| read_u32(s, is_le)),
+                    ) {
+                        did_os_note = true;
+                        let os_name = match os_val {
+                            0 => "Linux",
+                            1 => "Hurd",
+                            2 => "Solaris",
+                            3 => "kFreeBSD",
+                            4 => "kNetBSD",
+                            _ => "<unknown>",
+                        };
+                        let os_entry = format!("for GNU/{os_name} {maj}.{min}.{pat}");
+                        primary_os_note = Some(os_entry.clone());
+                        ordered_notes.push(os_entry);
+                    }
+                }
+                continue;
+            }
+
+            // SuSE Version tag
+            if clean_name == "SuSE" && note_type == 1 && descsz == 2 {
+                if !did_os_note {
+                    if let (Some(&maj), Some(&min)) = (desc_slice.first(), desc_slice.get(1)) {
+                        did_os_note = true;
+                        let os_entry = format!("for SuSE {maj}.{min}");
+                        primary_os_note = Some(os_entry.clone());
+                        ordered_notes.push(os_entry);
+                    }
                 }
                 continue;
             }
@@ -980,15 +1542,17 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             // FreeBSD Version tag
             if clean_name == "FreeBSD" && note_type == 1 && descsz >= 4 {
                 if !did_os_note {
-                    did_os_note = true;
-                    let ver = read_u32(desc_slice.get(0..4)?, is_le).unwrap_or(0);
-                    let maj = ver.checked_div(100_000).unwrap_or(0);
-                    let min = (ver.checked_div(1_000).unwrap_or(0))
-                        .checked_rem(100)
-                        .unwrap_or(0);
-                    let os_entry = format!("for FreeBSD {maj}.{min}");
-                    primary_os_note = Some(os_entry.clone());
-                    ordered_notes.push(os_entry);
+                    if let Some(ver) = desc_slice.get(0..4).and_then(|s| read_u32(s, is_le)) {
+                        if let (Some(maj), Some(min)) = (
+                            ver.checked_div(100_000),
+                            ver.checked_div(1_000).and_then(|v| v.checked_rem(100)),
+                        ) {
+                            did_os_note = true;
+                            let os_entry = format!("for FreeBSD {maj}.{min}");
+                            primary_os_note = Some(os_entry.clone());
+                            ordered_notes.push(os_entry);
+                        }
+                    }
                 }
                 continue;
             }
@@ -996,17 +1560,42 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
             // NetBSD Version tag
             if clean_name == "NetBSD" && note_type == 1 && descsz >= 4 {
                 if !did_os_note {
-                    did_os_note = true;
-                    let ver = read_u32(desc_slice.get(0..4)?, is_le).unwrap_or(0);
-                    let maj = ver.checked_div(100_000_000).unwrap_or(0);
-                    let min = (ver.checked_div(1_000_000).unwrap_or(0))
-                        .checked_rem(100)
-                        .unwrap_or(0);
-                    let os_entry = format!("for NetBSD {maj}.{min}");
-                    primary_os_note = Some(os_entry.clone());
-                    ordered_notes.push(os_entry);
+                    if let Some(ver) = desc_slice.get(0..4).and_then(|s| read_u32(s, is_le)) {
+                        if let (Some(maj), Some(min)) = (
+                            ver.checked_div(100_000_000),
+                            ver.checked_div(1_000_000).and_then(|v| v.checked_rem(100)),
+                        ) {
+                            did_os_note = true;
+                            let os_entry = format!("for NetBSD {maj}.{min}");
+                            primary_os_note = Some(os_entry.clone());
+                            ordered_notes.push(os_entry);
+                        }
+                    }
                 }
                 continue;
+            }
+
+            // NetBSD Architecture / Compilation tags
+            if clean_name == "NetBSD" {
+                if note_type == NT_NETBSD_MARCH && !desc_slice.is_empty() {
+                    let clean = String::from_utf8_lossy(desc_slice).trim_matches('\0').to_string();
+                    if !clean.is_empty() {
+                        ordered_notes.push(format!("compiled for: {clean}"));
+                    }
+                    continue;
+                } else if note_type == NT_NETBSD_CMODEL && !desc_slice.is_empty() {
+                    let clean = String::from_utf8_lossy(desc_slice).trim_matches('\0').to_string();
+                    if !clean.is_empty() {
+                        ordered_notes.push(format!("compiler model: {clean}"));
+                    }
+                    continue;
+                } else if note_type == NT_NETBSD_EMULATION && !desc_slice.is_empty() {
+                    let clean = String::from_utf8_lossy(desc_slice).trim_matches('\0').to_string();
+                    if !clean.is_empty() {
+                        ordered_notes.push(format!("emulation: {clean}"));
+                    }
+                    continue;
+                }
             }
 
             // OpenBSD Version tag
@@ -1020,14 +1609,54 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
                 continue;
             }
 
+            // DragonFly Version tag
+            if clean_name == "DragonFly" && note_type == 1 && descsz >= 4 {
+                if !did_os_note {
+                    if let Some(ver) = desc_slice.get(0..4).and_then(|s| read_u32(s, is_le)) {
+                        if let (Some(maj), Some(min), Some(patch)) = (
+                            ver.checked_div(100_000),
+                            ver.checked_div(10_000).and_then(|v| v.checked_rem(10)),
+                            ver.checked_rem(10_000),
+                        ) {
+                            did_os_note = true;
+                            let os_entry = format!("for DragonFly {maj}.{min}.{patch}");
+                            primary_os_note = Some(os_entry.clone());
+                            ordered_notes.push(os_entry);
+                        }
+                    }
+                }
+                continue;
+            }
+
             // Android Version tag
             if clean_name == "Android" && note_type == 1 && descsz >= 4 {
                 if !did_os_note {
-                    did_os_note = true;
-                    let api = read_u32(desc_slice.get(0..4)?, is_le).unwrap_or(0);
-                    let os_entry = format!("for Android {api}");
-                    primary_os_note = Some(os_entry.clone());
-                    ordered_notes.push(os_entry);
+                    if let Some(api) = desc_slice.get(0..4).and_then(|s| read_u32(s, is_le)) {
+                        did_os_note = true;
+                        let os_entry = format!("for Android {api}");
+                        primary_os_note = Some(os_entry.clone());
+                        ordered_notes.push(os_entry);
+                    }
+                }
+                if descsz >= 132 {
+                    if let (Some(rel_bytes), Some(bld_bytes)) = (desc_slice.get(4..68), desc_slice.get(68..132)) {
+                        let rel_len = match rel_bytes.iter().position(|&b| b == 0) {
+                            Some(p) => p,
+                            None => rel_bytes.len(),
+                        };
+                        let bld_len = match bld_bytes.iter().position(|&b| b == 0) {
+                            Some(p) => p,
+                            None => bld_bytes.len(),
+                        };
+                        if let (Some(rel_sub), Some(bld_sub)) = (rel_bytes.get(..rel_len), bld_bytes.get(..bld_len)) {
+                            let rel_str = String::from_utf8_lossy(rel_sub).trim().to_string();
+                            let bld_str = String::from_utf8_lossy(bld_sub).trim().to_string();
+
+                            if !rel_str.is_empty() && !bld_str.is_empty() {
+                                ordered_notes.push(format!("built by NDK {rel_str} ({bld_str})"));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1056,24 +1685,97 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
 
     // 5. Assemble Compatibility Suffix String
     let mut suffix = String::new();
-    if let Some(link) = linking_str {
-        let _ = write!(suffix, ", {link} linked");
-    }
-    if let Some(ref interp) = interpreter {
-        let _ = write!(suffix, ", interpreter {interp}");
-    }
-    for note in &ordered_notes {
-        let _ = write!(suffix, ", {note}");
-    }
-    if has_debug_info {
-        suffix.push_str(", with debug_info");
-    }
-    if clamped_shnum > 0 {
-        suffix.push_str(if is_stripped {
-            ", stripped"
-        } else {
-            ", not stripped"
-        });
+    if e_type == 4 {
+        // Core dump format
+        if let Some(ref core) = core_details {
+            if let Some(style) = core.os_style {
+                let _ = write!(suffix, ", {style}-style");
+            }
+            if let Some(style) = core.os_style {
+                if style == "NetBSD" {
+                    if let Some(ref cmd) = core.command_line {
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let pid = core.pid.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let euid = core.euid.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let egid = core.egid.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let nlwps = core.nlwps.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let lwp = core.lwp.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let signal = core.signal.unwrap_or(0);
+                        // Reason for fallback: NetBSD core dump procinfo field defaults to 0 if note is truncated
+                        let signal_code = core.signal_code.unwrap_or(0);
+                        let _ = write!(
+                            suffix,
+                            ", from '{cmd}', pid={pid}, uid={euid}, gid={egid}, nlwps={nlwps}, lwp={lwp} (signal {signal}/code {signal_code})"
+                        );
+                    }
+                } else if style == "FreeBSD" {
+                    if let Some(ref cmd) = core.command_line {
+                        let _ = write!(suffix, ", from '{cmd}'");
+                        if let Some(pid) = core.pid {
+                            let _ = write!(suffix, ", pid={pid}");
+                        }
+                    }
+                } else {
+                    if let Some(ref cmd) = core.command_line {
+                        let _ = write!(suffix, ", from '{cmd}'");
+                    }
+                    if let Some(uid) = core.uid {
+                        let _ = write!(suffix, ", real uid: {uid}");
+                    }
+                    if let Some(euid) = core.euid {
+                        let _ = write!(suffix, ", effective uid: {euid}");
+                    }
+                    if let Some(gid) = core.gid {
+                        let _ = write!(suffix, ", real gid: {gid}");
+                    }
+                    if let Some(egid) = core.egid {
+                        let _ = write!(suffix, ", effective gid: {egid}");
+                    }
+                    if let Some(ref execfn) = core.execfn {
+                        let _ = write!(suffix, ", execfn: '{execfn}'");
+                    }
+                    if let Some(ref platform) = core.platform {
+                        let _ = write!(suffix, ", platform: '{platform}'");
+                    }
+                }
+            }
+        }
+    } else {
+        if let Some(link) = linking_str {
+            let _ = write!(suffix, ", {link} linked");
+        }
+        if let Some(ref interp) = interpreter {
+            let _ = write!(suffix, ", interpreter {interp}");
+        }
+        for note in &ordered_notes {
+            let _ = write!(suffix, ", {note}");
+        }
+        if let Some(ref pax) = pax_flags {
+            if !ordered_notes.iter().any(|n| n.starts_with("PaX:")) {
+                let _ = write!(suffix, ", PaX: {pax}");
+            }
+        }
+        if sunw_hw_caps != 0 {
+            let _ = write!(suffix, ", hardware capability 0x{sunw_hw_caps:x}");
+        }
+        if sunw_sf_caps & 1 != 0 {
+            suffix.push_str(", uses frame pointer");
+        }
+        if has_debug_info {
+            suffix.push_str(", with debug_info");
+        }
+        if clamped_shnum > 0 {
+            suffix.push_str(if is_stripped {
+                ", stripped"
+            } else {
+                ", not stripped"
+            });
+        }
     }
 
     Some(ElfDetails {
@@ -1088,6 +1790,11 @@ pub fn inspect_elf_details<S: DetectionSource + ?Sized>(
         interpreter,
         build_id: primary_build_id,
         os_note: primary_os_note,
+        x86_properties,
+        aarch64_properties,
+        pax_flags,
+        android_memtag,
+        core_details,
         has_debug_info,
         is_stripped,
         suffix,
@@ -1231,6 +1938,347 @@ mod tests {
         let expected_sha1 = "BuildID[sha1]=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         assert_eq!(details.build_id.as_deref(), Some(expected_sha1));
         assert!(details.suffix.contains(&format!(", {expected_sha1}")));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_intel_cet_properties() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0; // SYSV
+        elf[16] = 2; // ET_EXEC
+        elf[18] = 0x3E; // x86-64
+
+        // e_phoff = 64
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        // e_phentsize = 56
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        // e_phnum = 1
+        elf[56..58].copy_from_slice(&1u16.to_le_bytes());
+
+        // Phdr 0: PT_NOTE at offset 128, size 80
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&128u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&80u64.to_le_bytes());
+
+        // Note header at offset 128:
+        // namesz = 4 ("GNU\0"), descsz = 48, type = 5 (NT_GNU_PROPERTY_TYPE_0)
+        let n = 128usize;
+        elf[n..n + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[n + 4..n + 8].copy_from_slice(&48u32.to_le_bytes());
+        elf[n + 8..n + 12].copy_from_slice(&5u32.to_le_bytes());
+        elf[n + 12..n + 16].copy_from_slice(b"GNU\0");
+
+        // Property 1: GNU_PROPERTY_X86_FEATURE_1_AND (0xc0000002), size 4, val = IBT (1) | SHSTK (2) = 3
+        let p1 = n + 16;
+        elf[p1..p1 + 4].copy_from_slice(&0xc0000002u32.to_le_bytes());
+        elf[p1 + 4..p1 + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[p1 + 8..p1 + 12].copy_from_slice(&3u32.to_le_bytes());
+        // 4 bytes padding to 8-byte alignment
+
+        // Property 2: GNU_PROPERTY_X86_ISA_1_NEEDED (0xc0008002), size 4, val = x86-64-v3 (4)
+        let p2 = p1 + 16;
+        elf[p2..p2 + 4].copy_from_slice(&0xc0008002u32.to_le_bytes());
+        elf[p2 + 4..p2 + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[p2 + 8..p2 + 12].copy_from_slice(&4u32.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse ELF");
+        assert!(details.x86_properties.contains(&"IBT".to_string()));
+        assert!(details.x86_properties.contains(&"SHSTK".to_string()));
+        assert!(details.x86_properties.contains(&"x86-64-v3".to_string()));
+        assert!(details.suffix.contains("properties: IBT, SHSTK, x86-64-v3"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_aarch64_security_features() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0; // SYSV
+        elf[16] = 2; // ET_EXEC
+        elf[18] = 0xB7; // ARM aarch64
+
+        // e_phoff = 64
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1u16.to_le_bytes());
+
+        // Phdr 0: PT_NOTE at offset 128, size 48
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&128u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&48u64.to_le_bytes());
+
+        // Note header at offset 128:
+        let n = 128usize;
+        elf[n..n + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[n + 4..n + 8].copy_from_slice(&16u32.to_le_bytes());
+        elf[n + 8..n + 12].copy_from_slice(&5u32.to_le_bytes());
+        elf[n + 12..n + 16].copy_from_slice(b"GNU\0");
+
+        // Property: GNU_PROPERTY_AARCH64_FEATURE_1_AND (0xc0000000), size 4, val = BTI (1) | PAC (2) = 3
+        let p1 = n + 16;
+        elf[p1..p1 + 4].copy_from_slice(&0xc0000000u32.to_le_bytes());
+        elf[p1 + 4..p1 + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[p1 + 8..p1 + 12].copy_from_slice(&3u32.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse ELF");
+        assert_eq!(details.arch_str, "ARM aarch64");
+        assert!(details.aarch64_properties.contains(&"BTI".to_string()));
+        assert!(details.aarch64_properties.contains(&"PAC".to_string()));
+        assert!(details.suffix.contains("properties: BTI, PAC"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_pax_flags_phdr_and_note() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0; // SYSV
+        elf[16] = 2; // ET_EXEC
+        elf[18] = 0x3E; // x86-64
+
+        // e_phoff = 64, phnum = 2
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&2u16.to_le_bytes());
+
+        // Phdr 0: PT_PAX_FLAGS (0x65041580), p_flags = 0x0010 (PAGEEXEC) | 0x0100 (MPROTECT)
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&0x65041580u32.to_le_bytes());
+        elf[ph0 + 4..ph0 + 8].copy_from_slice(&0x0110u32.to_le_bytes());
+
+        // Phdr 1: PT_NOTE at offset 200, size 32
+        let ph1 = 64usize + 56;
+        elf[ph1..ph1 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph1 + 8..ph1 + 16].copy_from_slice(&200u64.to_le_bytes());
+        elf[ph1 + 32..ph1 + 40].copy_from_slice(&32u64.to_le_bytes());
+
+        // Note: PaX note (name "PaX\0", type 3, desc = +mprotect (1) | +ASLR (16) = 17)
+        let n = 200usize;
+        elf[n..n + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[n + 4..n + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[n + 8..n + 12].copy_from_slice(&3u32.to_le_bytes());
+        elf[n + 12..n + 16].copy_from_slice(b"PaX\0");
+        elf[n + 16..n + 20].copy_from_slice(&17u32.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse ELF");
+        assert!(details.pax_flags.is_some());
+        assert!(details.suffix.contains("PaX: +mprotect,+ASLR"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_core_dump_svr4() {
+        let mut elf = vec![0u8; 1024];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0; // SYSV
+        elf[16] = 4; // e_type: ET_CORE
+        elf[18] = 0x3E; // x86-64
+
+        // e_phoff = 64, phnum = 2
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&2u16.to_le_bytes());
+
+        // Phdr 0: PT_LOAD at offset 512, filesz 256, vaddr 0x400000
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&1u32.to_le_bytes()); // PT_LOAD
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&512u64.to_le_bytes());
+        elf[ph0 + 16..ph0 + 24].copy_from_slice(&0x400000u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&256u64.to_le_bytes());
+
+        // String at vaddr 0x400000 (offset 512): "/bin/myprog\0"
+        let execfn_bytes = b"/bin/myprog\0";
+        elf[512..512 + execfn_bytes.len()].copy_from_slice(execfn_bytes);
+
+        // Phdr 1: PT_NOTE at offset 200, size 512
+        let ph1 = 64usize + 56;
+        elf[ph1..ph1 + 4].copy_from_slice(&4u32.to_le_bytes()); // PT_NOTE
+        elf[ph1 + 8..ph1 + 16].copy_from_slice(&200u64.to_le_bytes());
+        elf[ph1 + 32..ph1 + 40].copy_from_slice(&512u64.to_le_bytes());
+
+        // Note 1: NT_PRPSINFO (3), name "CORE\0", size 128
+        let n1 = 200usize;
+        elf[n1..n1 + 4].copy_from_slice(&5u32.to_le_bytes());
+        elf[n1 + 4..n1 + 8].copy_from_slice(&128u32.to_le_bytes());
+        elf[n1 + 8..n1 + 12].copy_from_slice(&3u32.to_le_bytes()); // NT_PRPSINFO
+        elf[n1 + 12..n1 + 17].copy_from_slice(b"CORE\0");
+        // PRPSOFFSETS64[2] is 56 (Linux command line): write "myprog -v\0" at n1 + 20 + 56
+        let cmd_bytes = b"myprog -v\0";
+        elf[n1 + 20 + 56..n1 + 20 + 56 + cmd_bytes.len()].copy_from_slice(cmd_bytes);
+
+        // Note 2: NT_PRSTATUS (1), size 256
+        let n2 = n1 + 20 + 128;
+        elf[n2..n2 + 4].copy_from_slice(&5u32.to_le_bytes());
+        elf[n2 + 4..n2 + 8].copy_from_slice(&256u32.to_le_bytes());
+        elf[n2 + 8..n2 + 12].copy_from_slice(&1u32.to_le_bytes()); // NT_PRSTATUS
+        elf[n2 + 12..n2 + 17].copy_from_slice(b"CORE\0");
+        // signal = 11 (SIGSEGV) at n2 + 20 + 0
+        elf[n2 + 20..n2 + 20 + 4].copy_from_slice(&11u32.to_le_bytes());
+        // pid = 4321 at n2 + 20 + 32
+        elf[n2 + 20 + 32..n2 + 20 + 36].copy_from_slice(&4321u32.to_le_bytes());
+        // rip = 0x401234 at n2 + 20 + 240
+        elf[n2 + 20 + 240..n2 + 20 + 248].copy_from_slice(&0x401234u64.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse ELF core");
+        assert_eq!(details.e_type, 4);
+        let core = details.core_details.expect("Should have core details");
+        assert_eq!(core.os_style, Some("SVR4"));
+        assert_eq!(core.command_line.as_deref(), Some("myprog -v"));
+        assert_eq!(core.signal, Some(11));
+        assert_eq!(core.pid, Some(4321));
+        assert_eq!(core.register_ip, Some(0x401234));
+        assert!(details.suffix.contains(", SVR4-style, from 'myprog -v'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_core_dump_netbsd() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 2; // NetBSD
+        elf[16] = 4; // ET_CORE
+        elf[18] = 0x3E; // x86-64
+
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1u16.to_le_bytes());
+
+        // Phdr 0: PT_NOTE at offset 128, size 200
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&128u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&200u64.to_le_bytes());
+
+        // Note: NT_NETBSD_CORE_PROCINFO (1), name "NetBSD-CORE\0", size 160
+        let n = 128usize;
+        elf[n..n + 4].copy_from_slice(&12u32.to_le_bytes());
+        elf[n + 4..n + 8].copy_from_slice(&160u32.to_le_bytes());
+        elf[n + 8..n + 12].copy_from_slice(&1u32.to_le_bytes());
+        elf[n + 12..n + 24].copy_from_slice(b"NetBSD-CORE\0");
+
+        let d = n + 24;
+        // signo = 6 (SIGABRT) at d + 8
+        elf[d + 8..d + 12].copy_from_slice(&6u32.to_le_bytes());
+        // pid = 999 at d + 80
+        elf[d + 80..d + 84].copy_from_slice(&999u32.to_le_bytes());
+        // euid = 1000 at d + 100
+        elf[d + 100..d + 104].copy_from_slice(&1000u32.to_le_bytes());
+        // egid = 1000 at d + 112
+        elf[d + 112..d + 116].copy_from_slice(&1000u32.to_le_bytes());
+        // nlwps = 1 at d + 120
+        elf[d + 120..d + 124].copy_from_slice(&1u32.to_le_bytes());
+        // name = "sh" at d + 124
+        elf[d + 124..d + 127].copy_from_slice(b"sh\0");
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse NetBSD core");
+        let core = details.core_details.expect("Should have core details");
+        assert_eq!(core.os_style, Some("NetBSD"));
+        assert_eq!(core.command_line.as_deref(), Some("sh"));
+        assert_eq!(core.pid, Some(999));
+        assert_eq!(core.signal, Some(6));
+        assert!(details.suffix.contains(", NetBSD-style, from 'sh', pid=999, uid=1000, gid=1000, nlwps=1"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_android_memtag_and_ndk() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0;
+        elf[16] = 2; // ET_EXEC
+        elf[18] = 0xB7; // ARM aarch64
+
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1u16.to_le_bytes());
+
+        // Phdr 0: PT_NOTE at offset 128, size 200
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&128u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&200u64.to_le_bytes());
+
+        // Note 1: Android Memtag (type 4), name "Android\0", desc = async (2) | heap (8) = 10
+        let n1 = 128usize;
+        elf[n1..n1 + 4].copy_from_slice(&8u32.to_le_bytes());
+        elf[n1 + 4..n1 + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[n1 + 8..n1 + 12].copy_from_slice(&4u32.to_le_bytes()); // NT_ANDROID_MEMTAG
+        elf[n1 + 12..n1 + 20].copy_from_slice(b"Android\0");
+        elf[n1 + 20..n1 + 24].copy_from_slice(&10u32.to_le_bytes());
+
+        // Note 2: Android Version + NDK (type 1), descsz = 132
+        let n2 = n1 + 24;
+        elf[n2..n2 + 4].copy_from_slice(&8u32.to_le_bytes());
+        elf[n2 + 4..n2 + 8].copy_from_slice(&132u32.to_le_bytes());
+        elf[n2 + 8..n2 + 12].copy_from_slice(&1u32.to_le_bytes()); // NT_ANDROID_VERSION
+        elf[n2 + 12..n2 + 20].copy_from_slice(b"Android\0");
+        // API level 33 at n2 + 20
+        elf[n2 + 20..n2 + 24].copy_from_slice(&33u32.to_le_bytes());
+        // Release "r25b" at n2 + 24
+        elf[n2 + 24..n2 + 29].copy_from_slice(b"r25b\0");
+        // Build "8937345" at n2 + 20 + 4 + 64
+        elf[n2 + 88..n2 + 96].copy_from_slice(b"8937345\0");
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse Android notes");
+        assert_eq!(details.android_memtag.as_deref(), Some("async,heap"));
+        assert!(details.suffix.contains(", Android Memtag: async,heap"));
+        assert!(details.suffix.contains(", for Android 33"));
+        assert!(details.suffix.contains(", built by NDK r25b (8937345)"));
+    }
+
+    #[crate::ctb_test]
+    fn test_readelf_dragonfly_and_suse() {
+        let mut elf = vec![0u8; 512];
+        elf[..4].copy_from_slice(b"\x7fELF");
+        elf[4] = 2; // 64-bit
+        elf[5] = 1; // LSB
+        elf[6] = 1;
+        elf[7] = 0;
+        elf[16] = 2;
+        elf[18] = 0x3E;
+
+        elf[32..40].copy_from_slice(&64u64.to_le_bytes());
+        elf[54..56].copy_from_slice(&56u16.to_le_bytes());
+        elf[56..58].copy_from_slice(&1u16.to_le_bytes());
+
+        let ph0 = 64usize;
+        elf[ph0..ph0 + 4].copy_from_slice(&4u32.to_le_bytes());
+        elf[ph0 + 8..ph0 + 16].copy_from_slice(&128u64.to_le_bytes());
+        elf[ph0 + 32..ph0 + 40].copy_from_slice(&64u64.to_le_bytes());
+
+        // Note: DragonFly (type 1), descsz 4, ver = 580002 -> 5.8.2
+        let n = 128usize;
+        elf[n..n + 4].copy_from_slice(&10u32.to_le_bytes());
+        elf[n + 4..n + 8].copy_from_slice(&4u32.to_le_bytes());
+        elf[n + 8..n + 12].copy_from_slice(&1u32.to_le_bytes());
+        elf[n + 12..n + 22].copy_from_slice(b"DragonFly\0");
+        let d = n + 24; // aligned to 4
+        elf[d..d + 4].copy_from_slice(&580002u32.to_le_bytes());
+
+        let mut source: &[u8] = &elf;
+        let details = inspect_elf_details(&mut source, None).expect("Should parse DragonFly note");
+        assert!(details.suffix.contains(", for DragonFly 5.8.2"));
     }
 }
 /*
