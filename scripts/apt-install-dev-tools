@@ -27,6 +27,8 @@ base_packages=(
     acl
     coreutils
     locales
+    # tar is only preserved because apt will try to install tar:i386 on trying to remove it. It gets deleted subsequently by `SKIP_BINS` instead.
+    tar
 )
 
 # Developer utilities and convenience tools (purged in CI via --remove)
@@ -42,8 +44,8 @@ dev_packages=(
     perl
     proot
     ripgrep
-    tar
     tmux
+    vim-common
     xxd
     xz-utils
     zstd
@@ -55,7 +57,7 @@ if [[ "${1:-}" == "--remove" || "${1:-}" == "--purge" ]]; then
         exit 1
     fi
     echo "Purging developer utilities..."
-    apt-get purge -y --allow-remove-essential "${dev_packages[@]}" 2>/dev/null || true
+    apt-get purge -y --no-install-recommends --allow-remove-essential "${dev_packages[@]}" corepack "libnode*" "node-*" 2>/dev/null || true
 else
     echo "Installing developer utilities..."
     apt-get update

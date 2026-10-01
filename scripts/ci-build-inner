@@ -242,8 +242,8 @@ echo "Cleaning generated files to verify offline regeneration..."
 echo "Purging developer utilities and non-build dependencies before build..."
 PLEASE_BREAK_MY_SYSTEM="y" "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
 
-apt-get remove -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
-apt-get purge -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
+apt-get remove -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base 2>/dev/null || true
+apt-get purge -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base 2>/dev/null || true
 apt-get autoremove --purge -y 2>/dev/null || true
 apt-get clean 2>/dev/null || true
 rm -rf /var/lib/apt/lists/*
