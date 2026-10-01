@@ -54,3 +54,4 @@ pub use dc_mixed_serde::{
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
+pub use malachite::{Integer, Natural};

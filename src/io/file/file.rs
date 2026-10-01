@@ -70,6 +70,7 @@ pub use identity::{
     FileIdentity, FileOrigin, InodeKey, extract_device_id_for_path as extract_identity_device_id,
     extract_file_identity, query_file_identity, resolve_relative_path_for_os,
 };
+pub use ctb_formats_dcstring::{Integer, Natural};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
     materialize_entity_at_path, verify_directory_filenames_exact,

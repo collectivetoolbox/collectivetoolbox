@@ -227,3 +227,116 @@ pub mod opt_text_or_base64 {
         }
     }
 }
+
+/// Serde helper for [`malachite::Natural`].
+///
+/// Serializes as integer if fitting in `u64`, otherwise as decimal string.
+/// Deserializes from `u64`, `u128`, `i64`, or decimal `String`.
+pub mod natural_flexible {
+    use super::*;
+    use malachite::Natural;
+    use std::str::FromStr;
+
+    /// Serializes a [`Natural`] as a `u64` if it fits, otherwise as a decimal string.
+    pub fn serialize<S>(val: &Natural, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if let Ok(v) = u64::try_from(val) {
+            serializer.serialize_u64(v)
+        } else {
+            serializer.serialize_str(&val.to_string())
+        }
+    }
+
+    /// Deserializes a [`Natural`] from an integer or string.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Natural, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum NumberOrString {
+            U64(u64),
+            U128(u128),
+            I64(i64),
+            String(String),
+        }
+
+        match NumberOrString::deserialize(deserializer)? {
+            NumberOrString::U64(v) => Ok(Natural::from(v)),
+            NumberOrString::U128(v) => Ok(Natural::from(v)),
+            NumberOrString::I64(v) => {
+                if let Ok(u) = u64::try_from(v) {
+                    Ok(Natural::from(u))
+                } else {
+                    Err(serde::de::Error::custom(
+                        "Negative number cannot be converted to Natural",
+                    ))
+                }
+            }
+            NumberOrString::String(s) => Natural::from_str(&s).map_err(|e| {
+                serde::de::Error::custom(format!(
+                    "Invalid Natural decimal string: {e:?}"
+                ))
+            }),
+        }
+    }
+}
+
+/// Serde helper for `Option<malachite::Natural>`.
+pub mod opt_natural_flexible {
+    use super::*;
+    use malachite::Natural;
+    use std::str::FromStr;
+
+    /// Serializes an optional [`Natural`].
+    pub fn serialize<S>(val: &Option<Natural>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match val {
+            Some(nat) => natural_flexible::serialize(nat, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    /// Deserializes an optional [`Natural`].
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Natural>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum OptNumberOrString {
+            U64(u64),
+            U128(u128),
+            I64(i64),
+            String(String),
+            None,
+        }
+
+        match Option::<OptNumberOrString>::deserialize(deserializer)? {
+            Some(OptNumberOrString::U64(v)) => Ok(Some(Natural::from(v))),
+            Some(OptNumberOrString::U128(v)) => Ok(Some(Natural::from(v))),
+            Some(OptNumberOrString::I64(v)) => {
+                if let Ok(u) = u64::try_from(v) {
+                    Ok(Some(Natural::from(u)))
+                } else {
+                    Err(serde::de::Error::custom(
+                        "Negative number cannot be converted to Natural",
+                    ))
+                }
+            }
+            Some(OptNumberOrString::String(s)) => {
+                let nat = Natural::from_str(&s).map_err(|e| {
+                    serde::de::Error::custom(format!(
+                        "Invalid Natural decimal string: {e:?}"
+                    ))
+                })?;
+                Ok(Some(nat))
+            }
+            Some(OptNumberOrString::None) | None => Ok(None),
+        }
+    }
+}

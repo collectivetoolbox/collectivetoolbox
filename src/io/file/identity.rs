@@ -26,17 +26,60 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use malachite::Natural;
 use serde::{Deserialize, Serialize};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 
 /// Unique filesystem inode identifier across mounts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct InodeKey {
     /// Device identifier (`st_dev`).
     pub device_id: u64,
     /// Inode number on the device (`st_ino`).
-    pub inode: u64,
+    #[serde(with = "crate::serde_helpers::natural_flexible")]
+    pub inode: Natural,
+}
+
+impl InodeKey {
+    /// Creates a new `InodeKey`.
+    #[must_use]
+    pub fn new(device_id: u64, inode: impl Into<Natural>) -> Self {
+        Self {
+            device_id,
+            inode: inode.into(),
+        }
+    }
+
+    /// Returns the inode number as a `u64` if it fits within 64 bits.
+    #[must_use]
+    pub fn as_u64(&self) -> Option<u64> {
+        u64::try_from(&self.inode).ok()
+    }
+}
+
+impl From<(u64, u64)> for InodeKey {
+    fn from((device_id, inode): (u64, u64)) -> Self {
+        Self {
+            device_id,
+            inode: Natural::from(inode),
+        }
+    }
+}
+
+impl From<(u64, u128)> for InodeKey {
+    fn from((device_id, inode): (u64, u128)) -> Self {
+        Self {
+            device_id,
+            inode: Natural::from(inode),
+        }
+    }
+}
+
+impl From<(u64, Natural)> for InodeKey {
+    fn from((device_id, inode): (u64, Natural)) -> Self {
+        Self { device_id, inode }
+    }
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for InodeKey {
@@ -54,7 +97,7 @@ impl ctb_formats_dcstring::DcMixedDecode for InodeKey {
         reader.expect_short_dc(328)?;
         let device_id = <u64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
         reader.expect_short_dc(327)?;
-        let inode = <u64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+        let inode = <Natural as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
         Ok(Self { device_id, inode })
     }
 }
@@ -130,8 +173,9 @@ pub struct FileIdentity {
     #[dc(short = 355)]
     pub nlink: u64,
     /// Optional hardlink grouping identifier (e.g. InodeKey or archive linkname).
+    #[serde(default, with = "crate::serde_helpers::opt_natural_flexible")]
     #[dc(short = 356)]
-    pub hardlink_group: Option<u64>,
+    pub hardlink_group: Option<Natural>,
 }
 
 impl FileIdentity {
@@ -227,7 +271,7 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
             .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
         Ok(InodeKey {
             device_id: meta.dev(),
-            inode: meta.ino(),
+            inode: Natural::from(meta.ino()),
         })
     }
     #[cfg(windows)]
@@ -240,25 +284,21 @@ pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
                 file_index,
             } => Ok(InodeKey {
                 device_id: u64::from(volume_serial_number),
-                inode: file_index,
+                inode: Natural::from(file_index),
             }),
             file_id::FileId::HighRes {
                 volume_serial_number,
                 file_id,
-            } => {
-                // Reason for fallback: Bitwise AND with u64::MAX bounds value within u64 range; fallback to 0 in impossible conversion failure.
-                let low_inode = u64::try_from(file_id & u128::from(u64::MAX)).unwrap_or(0);
-                Ok(InodeKey {
-                    device_id: volume_serial_number,
-                    inode: low_inode,
-                })
-            }
+            } => Ok(InodeKey {
+                device_id: volume_serial_number,
+                inode: Natural::from(file_id),
+            }),
             file_id::FileId::Inode {
                 device_id,
                 inode_number,
             } => Ok(InodeKey {
                 device_id,
-                inode: inode_number,
+                inode: Natural::from(inode_number),
             }),
         }
     }
@@ -280,7 +320,7 @@ pub fn extract_file_identity(path: &Path, meta: &Metadata) -> Result<InodeKey> {
         let _ = path;
         Ok(InodeKey {
             device_id: meta.dev(),
-            inode: meta.ino(),
+            inode: Natural::from(meta.ino()),
         })
     }
     #[cfg(windows)]

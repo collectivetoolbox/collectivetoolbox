@@ -381,6 +381,26 @@ impl<'a> DcMixedReader<'a> {
         u128::try_from(nat).map_err(|e| anyhow!("Dc number exceeds u128 range: {e:?}"))
     }
 
+    /// Reads an arbitrary-precision integer formatted as a Dc number.
+    ///
+    /// # Errors
+    /// Returns an error if delimiters are missing or characters are invalid.
+    pub fn read_integer(&mut self) -> Result<malachite::Integer> {
+        crate::dc_number::read_dc_number_from_reader(|| self.next_char())
+    }
+
+    /// Reads an arbitrary-precision non-negative natural number formatted as a Dc number.
+    ///
+    /// # Errors
+    /// Returns an error if delimiters are missing, number is negative, or characters are invalid.
+    pub fn read_natural(&mut self) -> Result<malachite::Natural> {
+        let int_val = self.read_integer()?;
+        ensure!(
+            int_val >= 0,
+            "Expected non-negative integer for Natural, found negative"
+        );
+        Ok(int_val.unsigned_abs_ref().clone())
+    }
 
     /// Reads an unsigned 64-bit integer.
     pub fn read_u64(&mut self) -> Result<u64> {
@@ -519,6 +539,38 @@ macro_rules! impl_dc_mixed_integer_unsigned {
 
 impl_dc_mixed_integer_unsigned!(u8, u16, u32, u64, u128, usize);
 impl_dc_mixed_integer_signed!(i8, i16, i32, i64, i128, isize);
+
+impl DcMixedEncode for malachite::Natural {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        let chars = crate::dc_number::natural_to_dc_number_chars(self, false)?;
+        for ch in chars {
+            mst.push_char(ch);
+        }
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for malachite::Natural {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        reader.read_natural()
+    }
+}
+
+impl DcMixedEncode for malachite::Integer {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        let chars = crate::dc_number::integer_to_dc_number_chars(self)?;
+        for ch in chars {
+            mst.push_char(ch);
+        }
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for malachite::Integer {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        reader.read_integer()
+    }
+}
 
 impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
@@ -1263,5 +1315,34 @@ mod tests {
         assert_dc_roundtrip(&empty)?;
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_malachite_natural_and_integer_dc_roundtrip() -> Result<()> {
+        use malachite::{Integer, Natural};
+
+        let small_nat = Natural::from(42_u64);
+        assert_dc_roundtrip(&small_nat)?;
+
+        let u64_max_nat = Natural::from(u64::MAX);
+        assert_dc_roundtrip(&u64_max_nat)?;
+
+        let u128_nat = Natural::from(u128::MAX);
+        assert_dc_roundtrip(&u128_nat)?;
+
+        let large_nat = Natural::from(u128::MAX) * Natural::from(u128::MAX);
+        assert_dc_roundtrip(&large_nat)?;
+
+        let pos_int = Integer::from(123_456_789_i64);
+        assert_dc_roundtrip(&pos_int)?;
+
+        let neg_int = Integer::from(-987_654_321_i64);
+        assert_dc_roundtrip(&neg_int)?;
+
+        let large_neg_int = -Integer::from(u128::MAX);
+        assert_dc_roundtrip(&large_neg_int)?;
+
+        Ok(())
+    }
 }
+
 

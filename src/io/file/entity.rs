@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::identity::{FileIdentity, FileOrigin, InodeKey};
+use malachite::Natural;
 use crate::materializer::{MaterializeOptions, MaterializeReceipt};
 use crate::metadata::{FileMetadata, FileTimestamps};
 use crate::payload::{Extent, PayloadSource, get_file_extents};
@@ -542,7 +543,7 @@ impl FileEntity {
                 warnings.push(format!(
                     "Failed to query Windows file identity: {err}"
                 ));
-                (0, 0)
+                (0, Natural::from(0_u32))
             }
         };
 
@@ -613,7 +614,7 @@ impl FileEntity {
             origin: FileOrigin::Filesystem {
                 key: InodeKey {
                     device_id: dev,
-                    inode: ino,
+                    inode: ino.clone(),
                 },
                 canonical_path: canonical,
             },
@@ -824,7 +825,7 @@ impl FileEntity {
             origin: FileOrigin::Filesystem {
                 key: InodeKey {
                     device_id: dev,
-                    inode: ino,
+                    inode: Natural::from(ino),
                 },
                 canonical_path: canonical,
             },
@@ -833,7 +834,7 @@ impl FileEntity {
             raw_relative_path: Some(raw_relative_path),
             raw_filename: Some(filename_bytes),
             nlink,
-            hardlink_group: if nlink > 1 { Some(ino) } else { None },
+            hardlink_group: if nlink > 1 { Some(Natural::from(ino)) } else { None },
         };
 
         let mut metadata = FileMetadata {

@@ -31,6 +31,7 @@ use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
+use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -749,14 +750,14 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         }
     }
     write_u64(w, entity.identity.nlink)?;
-    let (device_id, _inode) = match &entity.identity.origin {
-        FileOrigin::Filesystem { key, .. } => (key.device_id, key.inode),
-        _ => (0, 0),
+    let device_id = match &entity.identity.origin {
+        FileOrigin::Filesystem { key, .. } => key.device_id,
+        _ => 0,
     };
-    match entity.identity.hardlink_group {
+    match &entity.identity.hardlink_group {
         Some(grp) => {
             w.write_all(&[1])?;
-            write_u64(w, grp)?;
+            write_natural(w, grp)?;
             write_u64(w, device_id)?;
         }
         None => {
@@ -876,7 +877,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         FileOrigin::Filesystem { key, canonical_path } => {
             w.write_all(&[1])?;
             write_u64(w, key.device_id)?;
-            write_u64(w, key.inode)?;
+            write_natural(w, &key.inode)?;
             write_bytes(w, canonical_path.as_os_str().as_encoded_bytes())?;
         }
         _ => w.write_all(&[0])?,
@@ -919,7 +920,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let nlink = read_u64(&mut r)?;
     let has_grp = read_u8(&mut r)?;
     let (hardlink_group, origin_device_id) = if has_grp == 1 {
-        let grp = read_u64(&mut r)?;
+        let grp = read_natural(&mut r)?;
         let dev = read_u64(&mut r)?;
         (Some(grp), dev)
     } else {
@@ -1103,11 +1104,11 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         Some(raw_filename)
     };
 
-    let mut origin = if let Some(grp) = hardlink_group {
+    let mut origin = if let Some(ref grp) = hardlink_group {
         FileOrigin::Filesystem {
             key: InodeKey {
                 device_id: origin_device_id,
-                inode: grp,
+                inode: grp.clone(),
             },
             // Reason for fallback: root destination used if relative_path is empty for hardlink
             canonical_path: relative_path.clone().unwrap_or_default(),
@@ -1122,7 +1123,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             [0] => {}
             [1] => {
                 let device_id = read_u64(&mut r)?;
-                let inode = read_u64(&mut r)?;
+                let inode = read_natural(&mut r)?;
                 let canonical_path = resolve_relative_path_for_os(&read_bytes(&mut r)?, is_windows)?;
                 origin = FileOrigin::Filesystem { key: InodeKey { device_id, inode }, canonical_path };
             }
@@ -1223,6 +1224,17 @@ fn read_u64(r: &mut impl Read) -> Result<u64> {
     let mut buf = [0_u8; 8];
     r.read_exact(&mut buf)?;
     Ok(u64::from_le_bytes(buf))
+}
+
+fn write_natural(w: &mut impl Write, val: &Natural) -> Result<()> {
+    write_bytes(w, val.to_string().as_bytes())
+}
+
+fn read_natural(r: &mut impl Read) -> Result<Natural> {
+    let bytes = read_bytes(r)?;
+    let s = std::str::from_utf8(&bytes)?;
+    use std::str::FromStr;
+    Natural::from_str(s).map_err(|()| anyhow::anyhow!("Invalid natural in journal: {s}"))
 }
 
 fn write_i64(w: &mut impl Write, v: i64) -> Result<()> {
@@ -1379,7 +1391,7 @@ mod tests {
                 raw_relative_path: Some(b"link.txt".to_vec()),
                 raw_filename: Some(b"link.txt".to_vec()),
                 nlink: 2,
-                hardlink_group: Some(12345),
+                hardlink_group: Some(Natural::from(12345_u64)),
             },
             metadata: FileMetadata {
                 native: None,

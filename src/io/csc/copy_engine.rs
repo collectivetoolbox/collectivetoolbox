@@ -30,7 +30,7 @@ use crate::args::{CscArgs, SourceChangePolicy};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalWriter};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::FileOrigin;
+use ctb_io::file::identity::{FileOrigin, InodeKey};
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
 };
@@ -149,7 +149,7 @@ pub fn execute_copy_pipeline(
 ) -> Result<CopyStats> {
     crate::path_resolution::validate_task_overlap(tasks)?;
     let mut stats = CopyStats::default();
-    let mut hardlink_map: HashMap<(u64, u64), PathBuf> = HashMap::new();
+    let mut hardlink_map: HashMap<InodeKey, PathBuf> = HashMap::new();
     if let Some(snap) = journal.snapshot() {
         for entity in snap.committed_entities.values() {
             if entity.identity.nlink > 1 && entity.is_regular() {
@@ -157,7 +157,7 @@ pub fn execute_copy_pipeline(
                     if let Some(ref rel) = entity.identity.relative_path {
                         let dest_path = journal.destination().join(rel);
                         if dest_path.exists() {
-                            hardlink_map.insert((key.device_id, key.inode), dest_path);
+                            hardlink_map.insert(key.clone(), dest_path);
                         }
                     }
                 }
@@ -806,7 +806,7 @@ fn copy_single_item(
     options: &MaterializeOptions,
     args: &CscArgs,
     journal: &mut JournalWriter,
-    hardlink_map: &mut HashMap<(u64, u64), PathBuf>,
+    hardlink_map: &mut HashMap<InodeKey, PathBuf>,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
 ) -> Result<Option<PathBuf>> {
@@ -903,11 +903,11 @@ fn copy_single_item(
     // 3. Hardlink detection (nlink > 1)
     if entity.identity.nlink > 1 && entity.is_regular() {
         let key = match &entity.identity.origin {
-            FileOrigin::Filesystem { key, .. } => (key.device_id, key.inode),
+            FileOrigin::Filesystem { key, .. } => key,
             _ => anyhow::bail!("Filesystem entity has no inode identity"),
         };
 
-        if let Some(first_target_rel) = hardlink_map.get(&key) {
+        if let Some(first_target_rel) = hardlink_map.get(key) {
             let this_full_path = match &entity.identity.relative_path {
                 Some(p) => dest_dir.root_path().join(p),
                 None => dest_dir.root_path().to_path_buf(),
@@ -1271,7 +1271,7 @@ fn copy_single_item(
         if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
             if let Some(ref rel) = entity.identity.relative_path {
                 hardlink_map.insert(
-                    (key.device_id, key.inode),
+                    key.clone(),
                     dest_dir.root_path().join(rel),
                 );
             }

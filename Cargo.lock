@@ -3655,6 +3655,7 @@ dependencies = [
  "file-id",
  "filetime",
  "libc",
+ "malachite",
  "nix 0.30.1",
  "regex",
  "rustix 0.38.44",
