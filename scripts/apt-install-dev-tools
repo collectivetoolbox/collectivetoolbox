@@ -50,6 +50,10 @@ dev_packages=(
 )
 
 if [[ "${1:-}" == "--remove" || "${1:-}" == "--purge" ]]; then
+    if [[ "${PLEASE_BREAK_MY_SYSTEM:-}" != "y" ]]; then
+        echo "Refusing to purge essential packages unless PLEASE_BREAK_MY_SYSTEM=y is set." >&2
+        exit 1
+    fi
     echo "Purging developer utilities..."
     apt-get purge -y --allow-remove-essential "${dev_packages[@]}" 2>/dev/null || true
 else

@@ -228,7 +228,7 @@ echo "Cleaning generated files to verify offline regeneration..."
 ./scripts/clean-generated
 
 echo "Purging developer utilities and non-build dependencies before build..."
-"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
+PLEASE_BREAK_MY_SYSTEM="y" "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
 
 apt-get remove -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
 apt-get purge -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
