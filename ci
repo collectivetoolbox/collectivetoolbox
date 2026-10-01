@@ -120,22 +120,6 @@ mkdir -p ci-logs
 log_timestamp="$(date +%Y%m%d_%H%M%S)"
 log_file="ci-logs/ci-${log_timestamp}-${mode}-${version}-${commit}.log"
 
-# Determine physical block device limits if running on host
-io_limit=( )
-if ! $in_container; then
-    dev_path="$(df -P / | awk 'NR==2 {print $1}')"
-    if [[ -b "$dev_path" ]]; then
-        io_limit=(--device-write-bps "${dev_path}:40mb")
-    else
-        real_dev="$(readlink -f "$dev_path")"
-        if [[ -b "$real_dev" ]]; then
-            io_limit=(--device-write-bps "${real_dev}:40mb")
-        else
-            echo "Warning: Could not determine physical block device for /, I/O limiting disabled" >&2
-        fi
-    fi
-fi
-
 # Print run info
 {
   echo "=================================================="
@@ -144,11 +128,6 @@ fi
   echo "Version:       $version"
   echo "Commit:        $commit"
   echo "Log file:      $log_file"
-  if [[ "${#io_limit[@]}" != 0 ]]; then
-      echo "I/O Limit:" "${io_limit[@]}"
-  else
-      echo "I/O Limit:     None (disabled)"
-  fi
   echo "=================================================="
 } | tee -a "$log_file"
 
@@ -171,7 +150,6 @@ elif [[ "$mode" == "deploy" ]]; then
         --cpus=2 \
         --memory=4g \
         --memory-swap=44g \
-        "${io_limit[@]}" \
         -v "$(pwd)/VERSION":/VERSION:ro \
         -v "$(pwd)/COMMIT":/COMMIT:ro \
         -v "$(pwd)/scripts/ci-build-inner":/scripts/ci-build-inner:ro \
@@ -194,7 +172,6 @@ else
             --cpus=2 \
             --memory=4g \
             --memory-swap=44g \
-            "${io_limit[@]}" \
             -v "$(pwd)/.advisory-db":/advisory-db:ro \
             "$ci_image" \
             bash -c "mkdir -p /tmp/ctb-ci-build && tar -xf - -C /tmp/ctb-ci-build && cd /tmp/ctb-ci-build && bash scripts/ci-build-inner --dev" 2>&1 | tee -a "$log_file" || exit_code=$?
