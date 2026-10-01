@@ -170,25 +170,33 @@ fi
 echo "Configuring Cargo concurrency..."
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
-echo "Installing Rust..."
-if ! command -v cargo; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
-fi
 export PATH="$HOME/.cargo/bin:$PATH"
-rustup default 1.92
+
+if ! command -v cargo >/dev/null 2>&1; then
+    echo "Installing Rust..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
+    rustup default 1.92
+    echo "Adding targets..."
+    rustup target add x86_64-unknown-linux-musl
+    rustup target add i586-unknown-linux-musl
+    rustup target add wasm32-unknown-unknown
+    rustup target add x86_64-pc-windows-gnu
+else
+    echo "Rust is already installed, checking targets..."
+    installed_targets="$(rustup target list --installed 2>/dev/null || true)"
+    for target in x86_64-unknown-linux-musl i586-unknown-linux-musl wasm32-unknown-unknown x86_64-pc-windows-gnu; do
+        if ! echo "$installed_targets" | grep -q "^$target$"; then
+            echo "Adding missing target $target..."
+            rustup target add "$target"
+        fi
+    done
+fi
 
 # Ensure cargo-deny uses sparse protocol for crates.io to check for yanked crates
 export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
 
 # Reduce size of test artifacts in CI by stripping full debuginfo from tests
 export CARGO_PROFILE_TEST_DEBUG="line-tables-only"
-
-echo "Adding musl target..."
-rustup target add x86_64-unknown-linux-musl
-rustup target add i586-unknown-linux-musl
-rustup target add i586-unknown-linux-gnu
-rustup target add wasm32-unknown-unknown
-rustup target add x86_64-pc-windows-gnu
 
 if ! command -v cargo-deny >/dev/null 2>&1; then
     echo "Installing cargo-deny..."
