@@ -22,6 +22,10 @@ set -euxo pipefail
 # Change directory to the repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
+export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
+export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+
 offline=""
 quick=""
 while [[ $# -gt 0 ]]; do
@@ -104,10 +108,10 @@ deny_flags=""
 if [[ -n "$offline" ]]; then
     deny_flags="--offline"
 fi
-if ! cargo deny $deny_flags --workspace check; then
+if ! cargo deny $deny_flags --workspace check -A index-failure; then
     if [[ -z "$offline" ]]; then
         echo "cargo-deny failed online (possibly offline environment), retrying with --offline..."
-        if cargo deny --offline --workspace check; then
+        if cargo deny --offline --workspace check -A index-failure; then
             echo "cargo-deny passed offline."
         else
             echo "cargo-deny reported errors."

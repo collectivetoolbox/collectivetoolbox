@@ -18,6 +18,14 @@
 
 FROM ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2
 
+COPY scripts/rustup /tmp/rustup
+RUN set -eux; \
+    chmod +x /tmp/rustup; \
+    /tmp/rustup; \
+    if [ -f /tmp/rustup ]; then \
+        rm /tmp/rustup; \
+    fi
+
 # Install virtual framebuffer, X server, window manager, and GUI capture/interaction tools
 COPY scripts/docker/install-gui-tools.sh /tmp/install-gui-tools.sh
 RUN set -eux; \

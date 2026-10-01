@@ -53,15 +53,13 @@ RUN set -eux; \
     chmod 755 /root; \
     sed -i 's/UMASK\s*022/UMASK 0000/' /etc/login.defs
 
+COPY scripts/rustup /tmp/rustup
 RUN set -eux; \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92; \
-    rustup default 1.92; \
-    rustup target add x86_64-unknown-linux-musl; \
-    rustup target add i586-unknown-linux-musl; \
-    rustup target add i586-unknown-linux-gnu; \
-    rustup target add wasm32-unknown-unknown; \
-    rustup target add x86_64-pc-windows-gnu; \
-    cargo install --locked cargo-deny
+    chmod +x /tmp/rustup; \
+    /tmp/rustup; \
+    if [ -f /tmp/rustup ]; then \
+        rm /tmp/rustup; \
+    fi
 
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs

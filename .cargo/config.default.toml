@@ -7,6 +7,10 @@
 #jobs = 4
 incremental = false
 rustflags = ["-A", "warnings", "-A", "unfulfilled_lint_expectations"]
+rustdocflags = ["-A", "warnings"]
+
+[host]
+rustflags = ["-A", "warnings", "-A", "unfulfilled_lint_expectations"]
 
 [target.i586-unknown-linux-musl]
 linker = "scripts/i586-musl-gcc"

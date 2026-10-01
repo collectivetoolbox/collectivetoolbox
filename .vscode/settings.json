@@ -14,5 +14,16 @@
         "**/vendor/x11/c_src": true
     },
     "deno.enable": true,
-    "deno.config": "./deno.json"
+    "deno.config": "./deno.json",
+    "rust-analyzer.server.path": "rust-analyzer",
+    "rust-analyzer.cargo.extraEnv": {
+        "RUSTFLAGS": "",
+        "RUSTDOCFLAGS": "",
+        "CARGO_HOST_RUSTFLAGS": ""
+    },
+    "rust-analyzer.check.extraEnv": {
+        "RUSTFLAGS": "",
+        "RUSTDOCFLAGS": "",
+        "CARGO_HOST_RUSTFLAGS": ""
+    }
 }

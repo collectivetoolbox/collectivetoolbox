@@ -302,6 +302,11 @@ if [[ -z "$build_docs" ]]; then
     fi
 fi
 
+# Ensure all rustc, cargo, and rustdoc warnings are suppressed throughout the build
+export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
+export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
 
@@ -359,10 +364,10 @@ for p in "${platforms[@]}"; do
         exit 1
     fi
 
-    RUSTFLAGS="-Awarnings -Aunfulfilled_lint_expectations"
+    target_rustflags="$RUSTFLAGS"
     if [[ "$target" == *-unknown-linux-* ]]; then
         # I think there may be AGPL compatibility issues that would prevent static linking on Mac or Windows, so this is Linux-only for now.
-        RUSTFLAGS="$RUSTFLAGS -C target-feature=+crt-static"
+        target_rustflags="$target_rustflags -C target-feature=+crt-static"
     fi
 
     # Try to set build concurrency to something reasonable
@@ -429,14 +434,14 @@ for p in "${platforms[@]}"; do
 
         # Build workspace examples so example-based integration tests (which
         # spawn standalone example binaries) have their targets available.
-        CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline --workspace "${test_exclude[@]}" --examples --target "$target"
+        CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline --workspace "${test_exclude[@]}" --examples --target "$target"
 
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$RUSTFLAGS" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then
@@ -452,16 +457,16 @@ for p in "${platforms[@]}"; do
 
     if [[ "$build_binaries" == "true" ]]; then
         if [[ "$release" == "release" ]]; then
-            CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --release
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --release
             if [[ "$build_installer" == "true" ]]; then
-                CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" --release
+                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" --release
             fi
         else
             # Cargo errors if you pass --debug for some reason
             # SLOW builds - add to RUSTFLAGS only when needed: ` -C passes=ee-instrument<post-inline>`
-            CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --features debug
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --features debug
             if [[ "$build_installer" == "true" ]]; then
-                CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" # --features debug
+                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" # --features debug
             fi
         fi
     fi
