@@ -50,12 +50,6 @@ impl InodeKey {
             inode: inode.into(),
         }
     }
-
-    /// Returns the inode number as a `u64` if it fits within 64 bits.
-    #[must_use]
-    pub fn as_u64(&self) -> Option<u64> {
-        u64::try_from(&self.inode).ok()
-    }
 }
 
 impl From<(u64, u64)> for InodeKey {
