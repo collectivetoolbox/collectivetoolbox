@@ -1428,6 +1428,7 @@ mod tests {
             filesystem_type: None,
             environment: None,
             apple: None,
+            warnings: Vec::new(),
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();

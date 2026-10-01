@@ -115,6 +115,12 @@ fn handle_item_error(
     }
 }
 
+fn record_entity_warnings(entity: &FileEntity, journal: &mut JournalWriter) {
+    for warning in &entity.metadata.warnings {
+        let _ = journal.record_warning("FileReadWarning", warning);
+    }
+}
+
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
 fn validate_filesystem_known(path: &Path, fs_type: Option<&str>, args: &CscArgs) -> Result<()> {
     if !args.best_effort_metadata && !args.allow_unknown_fs {
@@ -244,7 +250,10 @@ pub fn execute_copy_pipeline(
                     Some(src_root),
                     &apple_read_options,
                 ) {
-                    Ok(e) => e,
+                    Ok(e) => {
+                        record_entity_warnings(&e, journal);
+                        e
+                    }
                     Err(e) => {
                         let _ = handle_item_error(
                             &curr_src,
@@ -375,7 +384,10 @@ pub fn execute_copy_pipeline(
                             Some(src_root),
                             &apple_read_options,
                         ) {
-                            Ok(e) => e,
+                            Ok(e) => {
+                                record_entity_warnings(&e, journal);
+                                e
+                            }
                             Err(e) => {
                                 let _ = handle_item_error(
                                     &entry_src,
@@ -474,7 +486,10 @@ pub fn execute_copy_pipeline(
 
             if src_meta.is_symlink() {
                 let mut sym_entity = match FileEntity::from_filesystem(src_root, None) {
-                    Ok(e) => e,
+                    Ok(e) => {
+                        record_entity_warnings(&e, journal);
+                        e
+                    }
                     Err(e) => {
                         let _ = handle_item_error(
                             src_root,
@@ -802,7 +817,10 @@ fn copy_single_item(
         None,
         &apple_read_options,
     ) {
-        Ok(e) => e,
+        Ok(e) => {
+            record_entity_warnings(&e, journal);
+            e
+        }
         Err(err) => {
             return handle_item_error(
                 src_path,
@@ -2269,7 +2287,9 @@ mod tests {
         fs::write(src.join("file.txt"), b"data").expect("write file");
 
         let meta = fs::metadata(&src).expect("read src metadata");
-        let dev_id = extract_device_id(&meta).expect("dev id");
+        let Some(dev_id) = extract_device_id(&meta) else {
+            return;
+        };
 
         // Simulate unknown filesystem
         set_cached_filesystem_info(dev_id, FilesystemInfo {

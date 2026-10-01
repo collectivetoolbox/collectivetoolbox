@@ -27,7 +27,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::fs::Metadata;
+use std::path::{Path, PathBuf};
 
 /// Unique filesystem inode identifier across mounts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -211,3 +212,106 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
         anyhow::bail!("Path resolution is unimplemented for this platform");
     }
 }
+
+/// Queries the unique file identity ([`InodeKey`]) of a filesystem entry.
+///
+/// On Unix, uses `symlink_metadata` to retrieve device (`st_dev`) and inode
+/// (`st_ino`). On Windows, queries file identity using the `file-id` crate
+/// (`file_id::get_file_id`), resolving volume serial number and 64-bit or
+/// 128-bit file index without modifying the target or following reparse points.
+pub fn query_file_identity(path: &Path) -> Result<InodeKey> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = std::fs::symlink_metadata(path)
+            .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+        Ok(InodeKey {
+            device_id: meta.dev(),
+            inode: meta.ino(),
+        })
+    }
+    #[cfg(windows)]
+    {
+        let fid = file_id::get_file_id(path)
+            .with_context(|| format!("Failed to read file ID for {}", path.display()))?;
+        match fid {
+            file_id::FileId::LowRes {
+                volume_serial_number,
+                file_index,
+            } => Ok(InodeKey {
+                device_id: u64::from(volume_serial_number),
+                inode: file_index,
+            }),
+            file_id::FileId::HighRes {
+                volume_serial_number,
+                file_id,
+            } => {
+                // Reason for fallback: Bitwise AND with u64::MAX bounds value within u64 range; fallback to 0 in impossible conversion failure.
+                let low_inode = u64::try_from(file_id & u128::from(u64::MAX)).unwrap_or(0);
+                Ok(InodeKey {
+                    device_id: volume_serial_number,
+                    inode: low_inode,
+                })
+            }
+            file_id::FileId::Inode {
+                device_id,
+                inode_number,
+            } => Ok(InodeKey {
+                device_id,
+                inode: inode_number,
+            }),
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        anyhow::bail!("query_file_identity is not supported on this platform");
+    }
+}
+
+/// Extracts or queries the [`InodeKey`] identity for a path and its metadata.
+///
+/// On Unix, extracts `st_dev` and `st_ino` directly from `meta`.
+/// On Windows, queries the file identity using [`query_file_identity`].
+pub fn extract_file_identity(path: &Path, meta: &Metadata) -> Result<InodeKey> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let _ = path;
+        Ok(InodeKey {
+            device_id: meta.dev(),
+            inode: meta.ino(),
+        })
+    }
+    #[cfg(windows)]
+    {
+        let _ = meta;
+        query_file_identity(path)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (path, meta);
+        anyhow::bail!("extract_file_identity is not supported on this platform");
+    }
+}
+
+/// Extracts or queries the device or volume ID for a path and its metadata.
+pub fn extract_device_id_for_path(path: &Path, meta: &Metadata) -> Result<u64> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let _ = path;
+        Ok(meta.dev())
+    }
+    #[cfg(windows)]
+    {
+        let _ = meta;
+        query_file_identity(path).map(|key| key.device_id)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (path, meta);
+        anyhow::bail!("extract_device_id_for_path is not supported on this platform");
+    }
+}
+

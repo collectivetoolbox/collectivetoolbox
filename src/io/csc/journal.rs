@@ -1069,6 +1069,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -1161,6 +1162,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             filesystem_type: None,
             environment: None,
             apple: None,
+            warnings: Vec::new(),
         },
         kind,
         streams,
@@ -1358,6 +1360,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1400,6 +1403,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1548,6 +1552,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -1643,6 +1648,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             };
 
             let err = ctb_io::file::apply_entity_metadata(
@@ -1728,6 +1734,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 25,

@@ -1345,6 +1345,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1449,6 +1450,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1541,6 +1543,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1621,6 +1624,7 @@ mod tests {
                 filesystem_type: None,
                 environment: None,
                 apple: None,
+                warnings: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,

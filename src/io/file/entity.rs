@@ -307,19 +307,7 @@ impl FileEntity {
                 nlink: 1,
                 hardlink_group: None,
             },
-            metadata: FileMetadata {
-                native: None,
-                mode: None,
-                uid: None,
-                gid: None,
-                timestamps: None,
-                flags: None,
-                platform_raw_flags: None,
-                read_time: None,
-                filesystem_type: None,
-                environment: None,
-                apple: None,
-            },
+            metadata: FileMetadata::empty(),
             kind: FileEntityKind::Fifo,
             streams: Vec::new(),
         }
@@ -356,19 +344,7 @@ impl FileEntity {
                 nlink: 1,
                 hardlink_group: None,
             },
-            metadata: FileMetadata {
-                native: None,
-                mode: None,
-                uid: None,
-                gid: None,
-                timestamps: None,
-                flags: None,
-                platform_raw_flags: None,
-                read_time: None,
-                filesystem_type: None,
-                environment: None,
-                apple: None,
-            },
+            metadata: FileMetadata::empty(),
             kind: FileEntityKind::Regular {
                 size,
                 sha256,
@@ -558,21 +534,16 @@ impl FileEntity {
         let is_symlink = file_type.is_symlink() || is_reparse;
 
         let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
+        let mut warnings = Vec::new();
 
-        let dev = if let Some(crate::metadata::NativeMetadataValue::Unsigned(serial)) =
-            native_metadata.values.get("volume_serial_number")
-        {
-            *serial
-        } else {
-            0
-        };
-
-        let ino = if let Some(crate::metadata::NativeMetadataValue::Unsigned(index)) =
-            native_metadata.values.get("file_index")
-        {
-            *index
-        } else {
-            0
+        let (dev, ino) = match crate::identity::query_file_identity(path) {
+            Ok(key) => (key.device_id, key.inode),
+            Err(err) => {
+                warnings.push(format!(
+                    "Failed to query Windows file identity: {err}"
+                ));
+                (0, 0)
+            }
         };
 
         let nlink = if let Some(crate::metadata::NativeMetadataValue::Unsigned(links)) =
@@ -666,6 +637,7 @@ impl FileEntity {
             filesystem_type: Some(fs_info.fs_type),
             environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
+            warnings,
         };
 
         let kind = if is_symlink {
@@ -876,6 +848,7 @@ impl FileEntity {
             filesystem_type: Some(fs_info.fs_type),
             environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
+            warnings: Vec::new(),
         };
 
         #[cfg(unix)]

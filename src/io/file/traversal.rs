@@ -40,8 +40,6 @@ use std::path::{Path, PathBuf};
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
-#[cfg(windows)]
-use std::os::windows::fs::MetadataExt;
 
 /// Traversal order strategy when walking directory trees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -307,7 +305,7 @@ pub fn read_dir_safe(
         dir.display()
     );
 
-    let root_dev = extract_device_id(&dir_meta);
+    let root_dev = extract_device_id(dir, &dir_meta);
     let mut items = Vec::new();
 
     let read_dir = match std::fs::read_dir(dir) {
@@ -351,7 +349,7 @@ pub fn read_dir_safe(
         };
 
         if options.one_file_system {
-            if let (Some(rdev), Some(edev)) = (root_dev, extract_device_id(&sym_meta)) {
+            if let (Some(rdev), Some(edev)) = (root_dev, extract_device_id(&entry_path, &sym_meta)) {
                 if rdev != edev {
                     continue;
                 }
@@ -432,10 +430,10 @@ impl DirTraverser {
             root.display()
         );
 
-        let root_dev = extract_device_id(&root_meta);
+        let root_dev = extract_device_id(root.as_ref(), &root_meta);
         let mut visited_inodes = HashSet::new();
 
-        if let Some(key) = extract_inode_key(&root_meta) {
+        if let Some(key) = extract_inode_key(root.as_ref(), &root_meta) {
             visited_inodes.insert(key);
         }
 
@@ -533,7 +531,7 @@ impl DirTraverser {
             };
 
             if self.options.one_file_system {
-                if let (Some(rdev), Some(edev)) = (self.root_dev, extract_device_id(&sym_meta)) {
+                if let (Some(rdev), Some(edev)) = (self.root_dev, extract_device_id(&entry_path, &sym_meta)) {
                     if rdev != edev {
                         continue;
                     }
@@ -564,7 +562,7 @@ impl DirTraverser {
 
             // Cycle detection for directories
             if is_dir && self.options.detect_cycles {
-                if let Some(key) = extract_inode_key(&sym_meta) {
+                if let Some(key) = extract_inode_key(&entry_path, &sym_meta) {
                     if self.visited_inodes.contains(&key) {
                         log_fmt!(
                             "Filesystem cycle detected for directory: {}",
@@ -829,44 +827,12 @@ pub fn traverse_dir(
     DirTraverser::new(root, options)
 }
 
-fn extract_device_id(meta: &Metadata) -> Option<u64> {
-    #[cfg(unix)]
-    {
-        Some(meta.dev())
-    }
-    #[cfg(windows)]
-    {
-        meta.volume_serial_number().map(u64::from)
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        None
-    }
+fn extract_device_id(path: &Path, meta: &Metadata) -> Option<u64> {
+    crate::identity::extract_device_id_for_path(path, meta).ok()
 }
 
-fn extract_inode_key(meta: &Metadata) -> Option<InodeKey> {
-    #[cfg(unix)]
-    {
-        Some(InodeKey {
-            device_id: meta.dev(),
-            inode: meta.ino(),
-        })
-    }
-    #[cfg(windows)]
-    {
-        // Reason for fallback: when Windows volume serial number is unavailable, default device ID to 0
-        let dev = meta.volume_serial_number().map_or(0_u64, u64::from);
-        // Reason for fallback: when Windows file index is unavailable, default inode to 0
-        let ino = meta.file_index().unwrap_or(0_u64);
-        Some(InodeKey {
-            device_id: dev,
-            inode: ino,
-        })
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        None
-    }
+fn extract_inode_key(path: &Path, meta: &Metadata) -> Option<InodeKey> {
+    crate::identity::extract_file_identity(path, meta).ok()
 }
 
 fn should_skip_apple_companion(

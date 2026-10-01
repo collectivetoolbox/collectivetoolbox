@@ -786,6 +786,10 @@ pub struct FileMetadata {
     #[serde(default)]
     #[dc(nested = 401)]
     pub apple: Option<AppleMetadata>,
+    /// Operational warnings or fidelity issues observed when inspecting this entity.
+    #[serde(default)]
+    #[dc(skip, reason = "Operational warnings retained in-memory for session reporting and journaling")]
+    pub warnings: Vec<String>,
 }
 
 pub use ctb_formats_apple_single_double::{
@@ -913,7 +917,13 @@ impl FileMetadata {
             filesystem_type: None,
             environment: None,
             apple: None,
+            warnings: Vec::new(),
         }
+    }
+
+    /// Appends an operational warning for this file.
+    pub fn add_warning(&mut self, warning: impl Into<String>) {
+        self.warnings.push(warning.into());
     }
 
     /// Returns a reference to the originating environment description, if attached.
@@ -1338,7 +1348,7 @@ mod tests {
                 resolution_nsec: None,
             }),
             flags: Some(Vec::new()), platform_raw_flags: None, read_time: None, filesystem_type: None,
-            environment: None, apple: None,
+            environment: None, apple: None, warnings: Vec::new(),
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());

@@ -69,7 +69,7 @@ pub static FS_CACHE_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(())
 /// Looks up cached information by volume/device ID. If not found in the
 /// cache, queries the operating system and caches the result.
 pub fn query_filesystem_info(path: &Path, meta: &Metadata) -> FilesystemInfo {
-    let dev_id = extract_device_id(meta);
+    let dev_id = extract_device_id_for_path(path, meta);
     if let Some(id) = dev_id {
         if let Ok(cache) = FS_CACHE.read() {
             if let Some(info) = cache.get(&id) {
@@ -134,16 +134,17 @@ pub fn extract_device_id(meta: &Metadata) -> Option<u64> {
         use std::os::unix::fs::MetadataExt;
         Some(meta.dev())
     }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        meta.volume_serial_number().map(u64::from)
-    }
-    #[cfg(not(any(unix, windows)))]
+    #[cfg(not(unix))]
     {
         let _ = meta;
         None
     }
+}
+
+/// Extracts device or volume identifier for a path and its metadata if available.
+#[must_use]
+pub fn extract_device_id_for_path(path: &Path, meta: &Metadata) -> Option<u64> {
+    crate::identity::extract_device_id_for_path(path, meta).ok()
 }
 
 #[cfg(target_os = "linux")]

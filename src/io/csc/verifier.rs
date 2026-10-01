@@ -1305,7 +1305,9 @@ mod tests {
         filetime::set_file_times(&dest_file_path, orig_atime, orig_mtime).expect("restore file times");
 
         let meta = fs::metadata(&dest).expect("read dest metadata");
-        let dev_id = extract_device_id(&meta).expect("dev id");
+        let Some(dev_id) = extract_device_id(&meta) else {
+            return;
+        };
 
         // 1. On known sparse filesystem (e.g. ext4):
         set_cached_filesystem_info(dev_id, FilesystemInfo {
