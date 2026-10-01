@@ -249,8 +249,12 @@ rustup target add i586-unknown-linux-gnu
 rustup target add wasm32-unknown-unknown
 rustup target add x86_64-pc-windows-gnu
 
-echo "Installing cargo-deny..."
-cargo install --locked cargo-deny
+if ! command -v cargo-deny >/dev/null 2>&1; then
+    echo "Installing cargo-deny..."
+    cargo install --locked cargo-deny
+else
+    echo "cargo-deny is already installed, skipping..."
+fi
 
 advisory_dir=""
 if [[ -d /advisory-db ]]; then

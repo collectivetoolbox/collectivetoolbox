@@ -302,22 +302,26 @@ if [[ -z "$build_docs" ]]; then
     fi
 fi
 
-# Run lint script
-if [[ "$lints" == "true" ]]; then
-    ./scripts/lint ${offline} || exit 1
-fi
-
 if [[ "$build_docs" == "true" ]]; then
     echo "Building documentation..."
 
-    cargo doc --workspace --offline --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
+    cargo doc --workspace ${offline} --no-deps --target=x86_64-unknown-linux-musl # --document-private-items
     # Re-run for ctoolbox so all re-exported crate links resolve (requires other crates' docs on disk)
-    cargo doc -p ctoolbox --offline --no-deps --target=x86_64-unknown-linux-musl
+    cargo doc -p ctoolbox ${offline} --no-deps --target=x86_64-unknown-linux-musl
     mkdir -p built/docs
     cp -r target/x86_64-unknown-linux-musl/doc/* built/docs/
     if [[ "$clean_targets" == "true" ]]; then
         rm -rf target/x86_64-unknown-linux-musl/doc target/doc
     fi
+fi
+
+if [[ "$build_docs" == "false" ]]; then
+    export CTB_SKIP_DOCS=1
+fi
+
+# Run lint script
+if [[ "$lints" == "true" ]]; then
+    ./scripts/lint ${offline} || exit 1
 fi
 
 declare -a platforms
