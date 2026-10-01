@@ -36,60 +36,8 @@ use ctb_utilities::string::{to_hex, to_hex_0x};
 use sha2::{Digest, Sha256 as Sha256Digest};
 use std::sync::LazyLock;
 
-/// Supported hash algorithms.
-#[expect(
-    non_camel_case_types,
-    reason = "Variant names align with canonical FormatId identifier naming"
-)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum HashAlgorithm {
-    /// xxHash 32-bit algorithm, non-cryptographic
-    XxHash32,
-    /// xxHash 64-bit algorithm, non-cryptographic
-    XxHash64,
-    /// xxHash3 64-bit algorithm, non-cryptographic
-    XxHash3_64,
-    /// xxHash3 128-bit algorithm, non-cryptographic
-    XxHash3_128,
-    /// SHA-256 cryptographic hash algorithm
-    Sha256,
-    /// FNV-0 32-bit algorithm, non-cryptographic
-    Fnv0_32,
-    /// FNV-0 64-bit algorithm, non-cryptographic
-    Fnv0_64,
-    /// FNV-0 128-bit algorithm, non-cryptographic
-    Fnv0_128,
-    /// FNV-0 256-bit algorithm, non-cryptographic
-    Fnv0_256,
-    /// FNV-0 512-bit algorithm, non-cryptographic
-    Fnv0_512,
-    /// FNV-0 1024-bit algorithm, non-cryptographic
-    Fnv0_1024,
-    /// FNV-1 32-bit algorithm, non-cryptographic
-    Fnv1_32,
-    /// FNV-1 64-bit algorithm, non-cryptographic
-    Fnv1_64,
-    /// FNV-1 128-bit algorithm, non-cryptographic
-    Fnv1_128,
-    /// FNV-1 256-bit algorithm, non-cryptographic
-    Fnv1_256,
-    /// FNV-1 512-bit algorithm, non-cryptographic
-    Fnv1_512,
-    /// FNV-1 1024-bit algorithm, non-cryptographic
-    Fnv1_1024,
-    /// FNV-1a 32-bit algorithm, non-cryptographic
-    Fnv1a_32,
-    /// FNV-1a 64-bit algorithm, non-cryptographic
-    Fnv1a_64,
-    /// FNV-1a 128-bit algorithm, non-cryptographic
-    Fnv1a_128,
-    /// FNV-1a 256-bit algorithm, non-cryptographic
-    Fnv1a_256,
-    /// FNV-1a 512-bit algorithm, non-cryptographic
-    Fnv1a_512,
-    /// FNV-1a 1024-bit algorithm, non-cryptographic
-    Fnv1a_1024,
-}
+/// Supported hash algorithms (re-exported from core utilities).
+pub type HashAlgorithm = SupportedHashFormat;
 
 #[expect(
     non_upper_case_globals,
@@ -97,161 +45,28 @@ pub enum HashAlgorithm {
 )]
 pub const Sha256: HashAlgorithm = HashAlgorithm::Sha256;
 
-impl HashAlgorithm {
-    /// List of all supported hash algorithms.
-    pub const ALL_ALGORITHMS: &'static [HashAlgorithm] = &[
-        Self::XxHash32,
-        Self::XxHash64,
-        Self::XxHash3_64,
-        Self::XxHash3_128,
-        Self::Sha256,
-        Self::Fnv0_32,
-        Self::Fnv0_64,
-        Self::Fnv0_128,
-        Self::Fnv0_256,
-        Self::Fnv0_512,
-        Self::Fnv0_1024,
-        Self::Fnv1_32,
-        Self::Fnv1_64,
-        Self::Fnv1_128,
-        Self::Fnv1_256,
-        Self::Fnv1_512,
-        Self::Fnv1_1024,
-        Self::Fnv1a_32,
-        Self::Fnv1a_64,
-        Self::Fnv1a_128,
-        Self::Fnv1a_256,
-        Self::Fnv1a_512,
-        Self::Fnv1a_1024,
-    ];
-
-    /// Maps this hash algorithm variant to its global `FormatId`.
-    #[must_use]
-    pub const fn to_format_id(&self) -> FormatId {
-        match self {
-            Self::XxHash32 => FormatId::XxHash32,
-            Self::XxHash64 => FormatId::XxHash64,
-            Self::XxHash3_64 => FormatId::XxHash3_64,
-            Self::XxHash3_128 => FormatId::XxHash3_128,
-            Self::Sha256 => FormatId::Sha256,
-            Self::Fnv0_32 => FormatId::Fnv0_32,
-            Self::Fnv0_64 => FormatId::Fnv0_64,
-            Self::Fnv0_128 => FormatId::Fnv0_128,
-            Self::Fnv0_256 => FormatId::Fnv0_256,
-            Self::Fnv0_512 => FormatId::Fnv0_512,
-            Self::Fnv0_1024 => FormatId::Fnv0_1024,
-            Self::Fnv1_32 => FormatId::Fnv1_32,
-            Self::Fnv1_64 => FormatId::Fnv1_64,
-            Self::Fnv1_128 => FormatId::Fnv1_128,
-            Self::Fnv1_256 => FormatId::Fnv1_256,
-            Self::Fnv1_512 => FormatId::Fnv1_512,
-            Self::Fnv1_1024 => FormatId::Fnv1_1024,
-            Self::Fnv1a_32 => FormatId::Fnv1a_32,
-            Self::Fnv1a_64 => FormatId::Fnv1a_64,
-            Self::Fnv1a_128 => FormatId::Fnv1a_128,
-            Self::Fnv1a_256 => FormatId::Fnv1a_256,
-            Self::Fnv1a_512 => FormatId::Fnv1a_512,
-            Self::Fnv1a_1024 => FormatId::Fnv1a_1024,
-        }
-    }
-
-    /// Converts a global `FormatId` to a `HashAlgorithm` if recognized.
-    #[must_use]
-    pub const fn from_format_id(id: FormatId) -> Option<Self> {
-        match id {
-            FormatId::XxHash32 => Some(Self::XxHash32),
-            FormatId::XxHash64 => Some(Self::XxHash64),
-            FormatId::XxHash3_64 => Some(Self::XxHash3_64),
-            FormatId::XxHash3_128 => Some(Self::XxHash3_128),
-            FormatId::Sha256 => Some(Self::Sha256),
-            FormatId::Fnv0_32 => Some(Self::Fnv0_32),
-            FormatId::Fnv0_64 | FormatId::Fnv0 => Some(Self::Fnv0_64),
-            FormatId::Fnv0_128 => Some(Self::Fnv0_128),
-            FormatId::Fnv0_256 => Some(Self::Fnv0_256),
-            FormatId::Fnv0_512 => Some(Self::Fnv0_512),
-            FormatId::Fnv0_1024 => Some(Self::Fnv0_1024),
-            FormatId::Fnv1_32 => Some(Self::Fnv1_32),
-            FormatId::Fnv1_64 | FormatId::Fnv1 => Some(Self::Fnv1_64),
-            FormatId::Fnv1_128 => Some(Self::Fnv1_128),
-            FormatId::Fnv1_256 => Some(Self::Fnv1_256),
-            FormatId::Fnv1_512 => Some(Self::Fnv1_512),
-            FormatId::Fnv1_1024 => Some(Self::Fnv1_1024),
-            FormatId::Fnv1a_32 => Some(Self::Fnv1a_32),
-            FormatId::Fnv1a_64 | FormatId::Fnv1a => Some(Self::Fnv1a_64),
-            FormatId::Fnv1a_128 => Some(Self::Fnv1a_128),
-            FormatId::Fnv1a_256 => Some(Self::Fnv1a_256),
-            FormatId::Fnv1a_512 => Some(Self::Fnv1a_512),
-            FormatId::Fnv1a_1024 => Some(Self::Fnv1a_1024),
-            _ => None,
-        }
-    }
-
+/// Extension trait for format metadata on [`SupportedHashFormat`].
+pub trait HashFormatExt {
     /// Retrieves format metadata from the shared registry.
-    #[must_use]
-    pub fn format_info(&self) -> Option<&'static FormatInfo> {
+    fn format_info(&self) -> Option<&'static FormatInfo>;
+}
+
+impl HashFormatExt for SupportedHashFormat {
+    fn format_info(&self) -> Option<&'static FormatInfo> {
         ctb_formats_utilities::get_format_info_by_id(self.to_format_id())
-    }
-}
-
-impl From<HashAlgorithm> for FormatId {
-    fn from(algo: HashAlgorithm) -> Self {
-        algo.to_format_id()
-    }
-}
-
-impl TryFrom<FormatId> for HashAlgorithm {
-    type Error = anyhow::Error;
-
-    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!(
-                "FormatId is not a supported HashAlgorithm: {id:?}"
-            )
-        })
     }
 }
 
 /// Generates a help table of supported hash algorithms and their aliases.
 pub fn csum_help_table() -> String {
-    let format_ids: Vec<FormatId> = HashAlgorithm::ALL_ALGORITHMS
-        .iter()
-        .map(HashAlgorithm::to_format_id)
-        .collect();
-    format_help_table("Supported hash algorithms:", &format_ids)
+    format_help_table(
+        "Supported hash algorithms:",
+        SupportedHashFormat::ALL_FORMAT_IDS,
+    )
 }
 
 /// Global static help table for `csum` CLI command.
 pub static CSUM_AFTER_HELP: LazyLock<String> = LazyLock::new(csum_help_table);
-
-impl TryFrom<&str> for HashAlgorithm {
-    type Error = anyhow::Error;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let clean = s.trim().to_ascii_lowercase();
-        if let Some(format_id) = FormatId::from_ident(&clean) {
-            if let Some(algo) = Self::from_format_id(format_id) {
-                return Ok(algo);
-            }
-        }
-        anyhow::bail!("Unknown hash algorithm: {s}")
-    }
-}
-
-impl TryFrom<String> for HashAlgorithm {
-    type Error = anyhow::Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::try_from(s.as_str())
-    }
-}
-
-impl std::str::FromStr for HashAlgorithm {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s)
-    }
-}
 
 /// Computes the SHA-256 hash of `data`.
 pub fn sha256(data: impl AsRef<[u8]>) -> [u8; 32] {

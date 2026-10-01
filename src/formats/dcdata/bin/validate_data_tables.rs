@@ -171,5 +171,17 @@ fn main() -> ExitCode {
         }
     }
 
+    match ctb_build_support::format_support_codegen::generate_format_support_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated format_support.generated.rs from formats category tables.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating format_support.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
     ExitCode::SUCCESS
 }

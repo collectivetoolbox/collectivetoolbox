@@ -74,6 +74,9 @@ pub use terminfo::Terminfo;
 #[path = "format_id.generated.rs"]
 pub mod format_id;
 pub use format_id::{FormatCategory, FormatId, *};
+#[path = "format_support.generated.rs"]
+pub mod format_support;
+pub use format_support::*;
 pub use dc_char::DcChar;
 
 pub use crate::cli::{OutputChunk, ToolResult};
