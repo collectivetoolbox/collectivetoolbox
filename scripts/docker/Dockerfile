@@ -32,40 +32,17 @@ ENV GUILE_AUTO_COMPILE=0
 ENV GUILE_WARN_DEPRECATED=no
 ENV container=docker
 
+COPY scripts/apt-install-build-deps scripts/apt-install-dev-tools /tmp/
 RUN set -eux; \
-    dpkg --add-architecture i386; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-        acl \
-        binutils \
-        brotli libbz2-dev lzip lz4 zstd liblzo2-dev \
-        build-essential \
-        ca-certificates \
-        clang \
-        coreutils \
-        curl \
-        file \
-        git \
-        locales \
-        mingw-w64 \
-        musl-tools \
-        nodejs \
-        npm \
-        patch \
-        perl \
-        pkg-config \
-        proot \
-        tar \
-        wine \
-        wine32:i386 \
-        wine64 \
-        xz-utils \
-        xxd; \
+    chmod +x /tmp/apt-install-build-deps /tmp/apt-install-dev-tools; \
+    /tmp/apt-install-build-deps; \
+    /tmp/apt-install-dev-tools; \
     locale-gen en_US.UTF-8; \
     npm install -g typescript playwright; \
     npx playwright install-deps chromium; \
     npx playwright install chromium; \
-    apt-get clean
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* /tmp/apt-install-build-deps /tmp/apt-install-dev-tools
 
 # Ensure system-wide umask is 0000 so files created inside container are readable/writable by host users
 RUN set -eux; \
@@ -208,29 +185,6 @@ RUN set -eux; \
     cd /; \
     rm -r /tmp/ctb-ts-build
 
-RUN set -eux; \
-    dpkg --add-architecture i386; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-        tmux \
-        ncdu \
-        ripgrep \
-        # autoconf \
-        # automake \
-        # bison \
-        build-essential \
-        gcc-i686-linux-gnu \
-        # libexpat1-dev \
-        # libexpat1-dev:i386 \
-        # libffi-dev \
-        # libffi-dev:i386 \
-        # libssl-dev \
-        # libssl-dev:i386 \
-        # libwayland-dev \
-        # libwayland-dev:i386 \
-        mingw-w64 \
-        musl-dev:i386; \
-    apt-get clean
 
 # Install virtual framebuffer, X server, window manager, and GUI capture/interaction tools
 COPY scripts/docker/install-gui-tools.sh /tmp/install-gui-tools.sh

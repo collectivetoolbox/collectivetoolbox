@@ -551,6 +551,24 @@ Supported hash algorithms:
   xxh3, xxhash3-64, xxhash3_64: xxHash3-64
   xxh128, xxhash128, xxhash3-128, xxhash3_128: xxHash3-128
   sha256, sha-256, sha2-256, sha2_256: SHA-256
+  Fnv0_32: FNV-0 hash, 32 bits
+  Fnv0_64: FNV-0 hash, 64 bits
+  Fnv0_128: FNV-0 hash, 128 bits
+  Fnv0_256: FNV-0 hash, 256 bits
+  Fnv0_512: FNV-0 hash, 512 bits
+  Fnv0_1024: FNV-0 hash, 1024 bits
+  Fnv1_32: FNV-1 hash, 32 bits
+  Fnv1_64: FNV-1 hash, 64 bits
+  Fnv1_128: FNV-1 hash, 128 bits
+  Fnv1_256: FNV-1 hash, 256 bits
+  Fnv1_512: FNV-1 hash, 512 bits
+  Fnv1_1024: FNV-1 hash, 1024 bits
+  Fnv1a_32: FNV-1a hash, 32 bits
+  Fnv1a_64: FNV-1a hash, 64 bits
+  Fnv1a_128: FNV-1a hash, 128 bits
+  Fnv1a_256: FNV-1a hash, 256 bits
+  Fnv1a_512: FNV-1a hash, 512 bits
+  Fnv1a_1024: FNV-1a hash, 1024 bits
 ```
 
 ### `ctoolbox ctb-asset-bundle-extract`

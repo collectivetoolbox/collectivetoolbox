@@ -46,23 +46,8 @@ if command -v npm >/dev/null 2>&1; then
     npm uninstall -g typescript playwright 2>/dev/null || true
 fi
 
-dpkg --add-architecture i386 || true
-apt-get update && apt-get install -y \
-    curl \
-    git \
-    build-essential \
-    clang \
-    musl-tools \
-    binutils \
-    patch \
-    pkg-config \
-    ca-certificates \
-    file \
-    mingw-w64 \
-    wine \
-    wine32:i386 \
-    wine64 \
-    xz-utils
+"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-build-deps"
+"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
 
 apt-get remove -y nodejs npm python3 python3-minimal python2 perl perl-base java-common default-jre default-jdk 2>/dev/null || true
 apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" perl perl-base "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true

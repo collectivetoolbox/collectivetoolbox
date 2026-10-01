@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+export DEBIAN_FRONTEND=noninteractive
+
+# ==============================================================================
+# Build Dependencies (Compilers, linkers, headers, and build tools)
+# ==============================================================================
+# NOTE: mingw-w64 is required for *building* x86_64-pc-windows-gnu (provides
+# the x86_64-w64-mingw32-gcc cross-compiler and linker for Windows targets).
+BUILD_DEPS=(
+    binutils
+    build-essential
+    ca-certificates
+    clang
+    curl
+    file
+    gcc-i686-linux-gnu
+    git
+    mingw-w64
+    musl-dev:i386
+    musl-tools
+    patch
+    pkg-config
+)
+
+# ==============================================================================
+# Test-Only Dependencies (Emulation/execution runners for foreign binaries)
+# ==============================================================================
+# NOTE: Wine is NOT required for building Windows binaries; it is only used
+# as a test runner to execute Windows test executables under Linux.
+TEST_DEPS=(
+    wine
+    wine32:i386
+    wine64
+)
+
+install_test_deps=true
+for arg in "$@"; do
+    case "$arg" in
+        --no-test-deps|--build-only)
+            install_test_deps=false
+            ;;
+    esac
+done
+
+dpkg --add-architecture i386 || true
+apt-get update
+
+echo "Installing build dependencies..."
+apt-get install -y --no-install-recommends "${BUILD_DEPS[@]}"
+
+if [[ "$install_test_deps" == "true" ]]; then
+    echo "Installing test runner dependencies (Wine)..."
+    apt-get install -y --no-install-recommends "${TEST_DEPS[@]}"
+fi
+
+apt-get clean

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+export DEBIAN_FRONTEND=noninteractive
+
+# Essential base utilities installed alongside dev tools (preserved on --remove)
+base_packages=(
+    acl
+    coreutils
+    locales
+    tar
+)
+
+# Developer utilities and convenience tools (purged in CI via --remove)
+dev_packages=(
+    brotli
+    libbz2-dev
+    liblzo2-dev
+    lz4
+    lzip
+    ncdu
+    nodejs
+    npm
+    perl
+    proot
+    ripgrep
+    tmux
+    xxd
+    xz-utils
+    zstd
+)
+
+if [[ "${1:-}" == "--remove" || "${1:-}" == "--purge" ]]; then
+    echo "Purging developer utilities..."
+    apt-get purge -y "${dev_packages[@]}" 2>/dev/null || true
+else
+    echo "Installing developer utilities..."
+    apt-get update
+    apt-get install -y --no-install-recommends "${base_packages[@]}" "${dev_packages[@]}"
+fi
+
+apt-get clean

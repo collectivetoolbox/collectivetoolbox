@@ -88,11 +88,12 @@ clean_targets=""
 clean_generated="false"
 
 supported_platforms=(
-    "linux-x64"
     "linux-x86"
-    "linux-x64-gnu"
-    "linux-x86-gnu"
     "windows-x64"
+    "linux-x64"
+    # Should work in principle, but not actively tested and not built in CI:
+    # "linux-x64-gnu"
+    # "linux-x86-gnu"
     # Future:
     # "mac-x64"
     # "mac-arm64"

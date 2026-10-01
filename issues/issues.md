@@ -54,6 +54,13 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
 
+- Fun with threads  ```/home/a/.local/bin/ctoolbox install
+
+thread 'main' (703045) panicked at src/installer/gui/theme.rs:49:56:
+Cannot block the current thread from within a runtime. This happens because a function attempted to block the current thread while the thread is being used to drive asynchronous tasks.
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container
