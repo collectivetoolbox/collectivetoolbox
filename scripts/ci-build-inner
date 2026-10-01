@@ -172,17 +172,21 @@ export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
-if ! command -v cargo >/dev/null 2>&1; then
-    echo "Installing Rust..."
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92
-    rustup default 1.92
+required_rust_version="1.92"
+if ! command -v rustc >/dev/null 2>&1 || ! rustc --version | grep -q " ${required_rust_version}\."; then
+    echo "Rust ${required_rust_version} not found or version mismatch. Setting up Rust ${required_rust_version}..."
+    if ! command -v rustup >/dev/null 2>&1; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain "${required_rust_version}"
+    else
+        rustup default "${required_rust_version}"
+    fi
     echo "Adding targets..."
     rustup target add x86_64-unknown-linux-musl
     rustup target add i586-unknown-linux-musl
     rustup target add wasm32-unknown-unknown
     rustup target add x86_64-pc-windows-gnu
 else
-    echo "Rust is already installed, checking targets..."
+    echo "Rust ${required_rust_version} is already installed, checking targets..."
     installed_targets="$(rustup target list --installed 2>/dev/null || true)"
     for target in x86_64-unknown-linux-musl i586-unknown-linux-musl wasm32-unknown-unknown x86_64-pc-windows-gnu; do
         if ! echo "$installed_targets" | grep -q "^$target$"; then
