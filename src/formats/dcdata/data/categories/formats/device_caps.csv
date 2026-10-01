@@ -10,9 +10,9 @@ Import/export/tests support columns meaning:
    -1=N/A
    blank/0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options
-   3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
-   4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
+   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
+   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
 2228233,9,Videoterminal,Character-mode terminal,device_caps,,.txt,,,,,,,,,"Variants: terminal, encoding",
 2228234,10,Teleprinter,Character-mode teleprinter,device_caps,,.txt,,,,,,,,,"Variants: terminal, encoding. (A printer that can overstrike etc. would still be considered immutable; immutable refers to whether it can erase. Raster, postscript, etc. printers would use their respective formats rather than this one.)",

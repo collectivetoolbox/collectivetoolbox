@@ -563,12 +563,12 @@ pub fn decompress_bounded<S: DetectionSource + ?Sized>(
     format: FormatId,
     limit: usize,
 ) -> Result<Option<Vec<u8>>> {
-    if !ctb_formats_compression::is_supported(format) {
+    let Ok(supported_format) = format.to_supported_decompression_format() else {
         return Ok(None);
-    }
+    };
     let mut reader = DetectionSourceReader::new(source);
     let mut writer = BoundedWriter::new(limit);
-    let _ = ctb_formats_compression::decompress_stream(&mut reader, &mut writer, format);
+    let _ = ctb_formats_compression::decompress_stream(&mut reader, &mut writer, supported_format);
     let out = writer.into_inner();
     if out.is_empty() {
         return Ok(None);
@@ -1018,7 +1018,7 @@ mod tests {
     fn test_decompression_probe_targz_compat_and_rich() {
         let tar_data = make_test_tar_bytes();
         let gz_bytes =
-            ctb_formats_compression::compress(&tar_data, FormatId::Gzip)
+            ctb_formats_compression::compress(&tar_data, SupportedCompressionFormat::Gzip)
                 .expect("Compression should succeed");
 
         // 1. Compat mode without -z / -Z: no decompression
@@ -1105,7 +1105,7 @@ mod tests {
     fn test_decompression_probe_tar_bzip2() {
         let tar_data = make_test_tar_bytes();
         let bz2_bytes =
-            ctb_formats_compression::compress(&tar_data, FormatId::Bzip2)
+            ctb_formats_compression::compress(&tar_data, SupportedCompressionFormat::Bzip2)
                 .expect("Compression should succeed");
 
         // Default rich mode: TarBz2 is top, format chain is present
@@ -1144,7 +1144,7 @@ mod tests {
     fn test_decompression_probe_json_zstd() {
         let json_data = br#"{"name":"ctoolbox","version":1}"#;
         let zst_bytes =
-            ctb_formats_compression::compress(json_data, FormatId::Zstd)
+            ctb_formats_compression::compress(json_data, SupportedCompressionFormat::Zstd)
                 .expect("Zstd compression should succeed");
 
         // Default rich mode: non-compound pair emits @chain(f... > f...)
@@ -1176,7 +1176,7 @@ mod tests {
     fn test_decompression_probe_shell_script_gzip() {
         let script_data = b"#!/bin/sh\necho 'hello world'\n";
         let gz_bytes =
-            ctb_formats_compression::compress(script_data, FormatId::Gzip)
+            ctb_formats_compression::compress(script_data, SupportedCompressionFormat::Gzip)
                 .expect("Gzip compression should succeed");
 
         // Default rich mode: non-compound pair emits @chain

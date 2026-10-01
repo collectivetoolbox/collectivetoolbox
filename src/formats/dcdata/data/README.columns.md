@@ -155,3 +155,23 @@ When records are generated or serialized, directives and items in Column 9 are a
 10. **Lineage / Implies**: `@based_on(...)`, `@implies(...)`
 11. **OS Associations**: `@os(...)`
 12. **Magic Names**: `@magic_name(...)`
+
+---
+
+## Columns 15–17: Format Support Levels (Import, Export, Tests)
+
+Columns 15 (`Import support`), 16 (`Export support`), and 17 (`Tests`) specify the implementation and verification status of a format within the toolbox. They take an integer in the range `-1..=5` or blank (equivalent to 0):
+
+| Value | Level | Description |
+|---|---|---|
+| `-1` | **N/A** | Not applicable (e.g. reverse transformation for one-way cryptographic hash functions, or internal-only formats). |
+| *blank* / `0` | **None** | No support implemented. |
+| `1` | **WIP** | Work-in-progress; partial or incomplete implementation. |
+| `2` | **Basic / Stream** | Mostly, or fully implemented for at least one version of a format with options. For standalone stream processing formats (such as stream compression or checksums), level 2 indicates fully functional encode/decode or calculation APIs. |
+| `3` | **Semantic Dc Syntax** | Fully implemented for semantic document content and conversion to/from Document Character (Dc) syntax. Requires dedicated APIs for converting to and from Dc document structures (and tests for variation in non-semantic details of the structure of the document being imported). |
+| `4` | **Lossless Roundtrip** | Lossless and roundtrippable in Dc syntax, preserving enough information for unambiguous bit-for-bit reconstruction of any given input document. |
+| `5` | **Strict Validation** | Level 4 lossless roundtripping plus optional strict validation mode. |
+
+### Document Category vs Other Categories
+- **Level 3+ requires Dc document conversion**: Levels 3 and above specifically refer to the ability to parse a format into Document Character (Dc) structures or serialize Dc structures into the format.
+- **Formats without dedicated Dc APIs must not exceed level 2**: Formats outside of the `document` category (such as stream compression algorithms in `compression.csv` and hash/checksum algorithms in `hash.csv`) operate on raw byte streams rather than producing Dc document structures. Without dedicated APIs for converting to Dc documents, their support level must not exceed `2`.

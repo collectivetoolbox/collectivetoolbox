@@ -47,65 +47,6 @@ if command -v npm >/dev/null 2>&1; then
 fi
 
 "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-build-deps"
-"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
-
-apt-get remove -y nodejs npm python3 python3-minimal python2 perl perl-base java-common default-jre default-jdk 2>/dev/null || true
-apt-get purge -y nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" perl perl-base "openjdk-*" default-jre default-jdk java-common 2>/dev/null || true
-apt-get autoremove --purge -y 2>/dev/null || true
-apt-get clean 2>/dev/null || true
-rm -rf /var/lib/apt/lists/*
-
-if [[ -d /usr/local/share/nvm ]]; then
-    rm -r /usr/local/share/nvm
-fi
-if [[ -d /root/.nvm ]]; then
-    rm -r /root/.nvm
-fi
-if [[ -d /home ]]; then
-    for nvm_dir in /home/*/.nvm; do
-        if [[ -d "$nvm_dir" ]]; then
-            rm -r "$nvm_dir"
-        fi
-    done
-fi
-
-SKIP_BINS=(
-  node npm npx corepack
-  python python3 python2
-  java javac
-  pip pip3 pipx
-  perl
-)
-
-for bin_name in "${SKIP_BINS[@]}"; do
-    for bin_dir in /usr/local/bin /usr/bin /bin /usr/local/sbin /usr/sbin /sbin; do
-        if [[ -e "$bin_dir/$bin_name" || -L "$bin_dir/$bin_name" ]]; then
-            rm -f "$bin_dir/$bin_name" 2>/dev/null || true
-        fi
-    done
-
-    cat <<EOF > "/usr/local/bin/$bin_name"
-#!/bin/sh
-echo "ERROR: $bin_name is prohibited as a build dependency." >&2
-exit 1
-EOF
-    chmod +x "/usr/local/bin/$bin_name"
-done
-
-export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v "nvm" | paste -sd: -)"
-unset NVM_DIR NVM_BIN NVM_INC NVM_CD_FLAGS
-
-for prohibited in "${SKIP_BINS[@]}"; do
-    if "$prohibited" >/dev/null 2>&1; then
-        echo "$prohibited is not a permitted dependency, but it succeeded." >&2
-        found_bin="$(command -v "$prohibited" || true)"
-        if [[ -n "$found_bin" && -e "$found_bin" ]]; then
-            echo "Found remaining binary at: $found_bin" >&2
-            dpkg -S "$found_bin" || true
-        fi
-        exit 1
-    fi
-done
 
 need_guix=true
 if [[ -f "/var/cache/ctoolbox/guix_posix_initrd.cpio.gz" || -f "built/guix_posix_initrd.cpio.gz" ]]; then
@@ -285,6 +226,68 @@ done < <(find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generat
 
 echo "Cleaning generated files to verify offline regeneration..."
 ./scripts/clean-generated
+
+echo "Purging developer utilities and non-build dependencies before build..."
+"$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
+
+apt-get remove -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
+apt-get purge -y --allow-remove-essential nodejs npm corepack node-corepack "node-*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common java-common default-jre perl perl-base default-jdk 2>/dev/null || true
+apt-get autoremove --purge -y 2>/dev/null || true
+apt-get clean 2>/dev/null || true
+rm -rf /var/lib/apt/lists/*
+
+if [[ -d /usr/local/share/nvm ]]; then
+    rm -rf /usr/local/share/nvm
+fi
+if [[ -d /root/.nvm ]]; then
+    rm -rf /root/.nvm
+fi
+if [[ -d /home ]]; then
+    for nvm_dir in /home/*/.nvm; do
+        if [[ -d "$nvm_dir" ]]; then
+            rm -rf "$nvm_dir"
+        fi
+    done
+fi
+
+SKIP_BINS=(
+  node npm npx corepack
+  python python3 python2
+  java javac
+  pip pip3 pipx
+  perl
+  tar
+)
+
+for bin_name in "${SKIP_BINS[@]}"; do
+    for bin_dir in /usr/local/bin /usr/bin /bin /usr/local/sbin /usr/sbin /sbin; do
+        if [[ -e "$bin_dir/$bin_name" || -L "$bin_dir/$bin_name" ]]; then
+            rm -f "$bin_dir/$bin_name" 2>/dev/null || true
+        fi
+    done
+
+    cat <<EOF > "/usr/local/bin/$bin_name"
+#!/bin/sh
+echo "ERROR: $bin_name is prohibited as a build dependency." >&2
+exit 1
+EOF
+    chmod +x "/usr/local/bin/$bin_name"
+done
+
+export PATH="$(echo "$PATH" | tr ':' '\n' | grep -v "nvm" | paste -sd: -)"
+unset NVM_DIR NVM_BIN NVM_INC NVM_CD_FLAGS
+
+for prohibited in "${SKIP_BINS[@]}"; do
+    if "$prohibited" >/dev/null 2>&1; then
+        echo "$prohibited is not a permitted dependency, but it succeeded." >&2
+        found_bin="$(command -v "$prohibited" || true)"
+        if [[ -n "$found_bin" && -e "$found_bin" ]]; then
+            echo "Found remaining binary at: $found_bin" >&2
+            dpkg -S "$found_bin" || true
+        fi
+        exit 1
+    fi
+done
 
 echo "Running offline build..."
 # Cargo deny produces an enormous amount of output when running in Docker, due

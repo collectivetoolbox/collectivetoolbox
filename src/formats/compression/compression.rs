@@ -46,7 +46,14 @@ pub fn get_compression_data(key: &str) -> Option<Vec<u8>> {
     ctb_utilities::load_manifest_fixture(env!("CARGO_MANIFEST_DIR"), key)
 }
 
-include!("compression_format.generated.rs");
+/// Ordered list of all compression formats supported by this crate.
+pub const SUPPORTED: &[FormatId] = SupportedDecompressionFormat::ALL_FORMAT_IDS;
+
+/// Returns true if the given `FormatId` is supported for compression/decompression by this crate.
+#[must_use]
+pub fn is_supported(format: FormatId) -> bool {
+    SupportedDecompressionFormat::is_supported(format)
+}
 
 /// Generates a detailed help table of supported compression formats and their shorthand aliases.
 pub fn format_help_table() -> String {
@@ -113,28 +120,62 @@ impl CompressionFormatExt for FormatId {
     }
 }
 
+impl CompressionFormatExt for SupportedCompressionFormat {
+    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
+        self.to_format_id().format_info()
+    }
+
+    fn extension(&self) -> &'static str {
+        self.to_format_id().extension()
+    }
+
+    fn is_implemented_in_repo(&self) -> bool {
+        self.to_format_id().is_implemented_in_repo()
+    }
+
+    fn default_verify(&self) -> bool {
+        self.to_format_id().default_verify()
+    }
+}
+
+impl CompressionFormatExt for SupportedDecompressionFormat {
+    fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
+        self.to_format_id().format_info()
+    }
+
+    fn extension(&self) -> &'static str {
+        self.to_format_id().extension()
+    }
+
+    fn is_implemented_in_repo(&self) -> bool {
+        self.to_format_id().is_implemented_in_repo()
+    }
+
+    fn default_verify(&self) -> bool {
+        self.to_format_id().default_verify()
+    }
+}
+
 /// Parses a compression format from a format name or extension.
-pub fn parse_compression_format(s: &str) -> Result<FormatId> {
+pub fn parse_compression_format(s: &str) -> Result<SupportedCompressionFormat> {
     let trimmed = s.trim();
     if trimmed.contains('/') || trimmed.contains('\\') {
         bail!("Unknown compression format: '{s}'");
     }
     let clean = trimmed.trim_start_matches('.');
-    if let Some(format_id) = FormatId::from_ident(clean) {
-        if is_supported(format_id) {
-            return Ok(format_id);
-        }
+    if let Ok(fmt) = SupportedCompressionFormat::try_from(clean) {
+        return Ok(fmt);
     }
     for fid in lookup_format_by_extension(clean) {
-        if is_supported(fid) {
-            return Ok(fid);
+        if let Ok(fmt) = fid.to_supported_compression_format() {
+            return Ok(fmt);
         }
     }
     for &fid in SUPPORTED {
         if let Some(info) = fid.format_info() {
             for nick in info.sorted_nicknames() {
                 if nick.eq_ignore_ascii_case(clean) {
-                    return Ok(fid);
+                    return fid.to_supported_compression_format();
                 }
             }
         }
@@ -142,55 +183,81 @@ pub fn parse_compression_format(s: &str) -> Result<FormatId> {
     bail!("Unknown compression format: '{s}'")
 }
 
-
+/// Parses a decompression format from a format name or extension.
+pub fn parse_decompression_format(s: &str) -> Result<SupportedDecompressionFormat> {
+    let trimmed = s.trim();
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        bail!("Unknown decompression format: '{s}'");
+    }
+    let clean = trimmed.trim_start_matches('.');
+    if let Ok(fmt) = SupportedDecompressionFormat::try_from(clean) {
+        return Ok(fmt);
+    }
+    for fid in lookup_format_by_extension(clean) {
+        if let Ok(fmt) = fid.to_supported_decompression_format() {
+            return Ok(fmt);
+        }
+    }
+    for &fid in SUPPORTED {
+        if let Some(info) = fid.format_info() {
+            for nick in info.sorted_nicknames() {
+                if nick.eq_ignore_ascii_case(clean) {
+                    return fid.to_supported_decompression_format();
+                }
+            }
+        }
+    }
+    bail!("Unknown decompression format: '{s}'")
+}
 
 /// Compresses a stream from `reader` directly into `writer` without verification.
 pub fn compress_stream_direct(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    format: FormatId,
+    format: SupportedCompressionFormat,
 ) -> Result<u64> {
     match format {
-        FormatId::Bzip => bzip::compress_stream(reader, writer),
-        FormatId::ScoCompress => {
+        SupportedCompressionFormat::Bzip => bzip::compress_stream(reader, writer),
+        SupportedCompressionFormat::ScoCompress => {
             sco_compress::compress_stream(reader, writer)
         }
-        FormatId::CompressLzw
-        | FormatId::CompressLzw2
-        | FormatId::CompressLzw1
-        | FormatId::CompressLzw16 => {
-            compress::compress_lzw_stream(reader, writer, format)
+        SupportedCompressionFormat::CompressLzw
+        | SupportedCompressionFormat::CompressLzw2
+        | SupportedCompressionFormat::CompressLzw1
+        | SupportedCompressionFormat::CompressLzw16 => {
+            compress::compress_lzw_stream(reader, writer, format.to_format_id())
         }
-        FormatId::Pack => pack::compress_pack_stream(reader, writer),
-        FormatId::OldPack => {
+        SupportedCompressionFormat::Pack => pack::compress_pack_stream(reader, writer),
+        SupportedCompressionFormat::OldPack => {
             pack::compress_old_pack_stream(reader, writer)
         }
-        FormatId::Compact => {
+        SupportedCompressionFormat::Compact => {
             compact::compress_compact_stream(reader, writer)
         }
-        FormatId::Freeze2 => {
+        SupportedCompressionFormat::Freeze2 => {
             freeze::compress_freeze2_stream(reader, writer)
         }
-        FormatId::Freeze1 => {
+        SupportedCompressionFormat::Freeze1 => {
             freeze::compress_freeze1_stream(reader, writer)
         }
-        FormatId::Rzip => rzip::compress_stream(reader, writer),
-        FormatId::Szip | FormatId::Szip111 => {
+        SupportedCompressionFormat::Rzip => rzip::compress_stream(reader, writer),
+        SupportedCompressionFormat::Szip | SupportedCompressionFormat::Szip111 => {
             szip::compress_stream(reader, writer)
         }
-        FormatId::Brotli
-        | FormatId::Gzip
-        | FormatId::Deflate
-        | FormatId::Zlib
-        | FormatId::Bzip2
-        | FormatId::Lz4
-        | FormatId::Xz
-        | FormatId::Lzip
-        | FormatId::Lzma
-        | FormatId::Lzma2
-        | FormatId::Zstd
-        | FormatId::Lzo => libraries::compress_stream(reader, writer, format),
-        _ => bail!("Unsupported format for compression: {format:?}"),
+        SupportedCompressionFormat::Brotli
+        | SupportedCompressionFormat::Gzip
+        | SupportedCompressionFormat::Deflate
+        | SupportedCompressionFormat::Zlib
+        | SupportedCompressionFormat::Bzip2
+        | SupportedCompressionFormat::Lz4
+        | SupportedCompressionFormat::Xz
+        | SupportedCompressionFormat::Lzip
+        | SupportedCompressionFormat::Lzma
+        | SupportedCompressionFormat::Lzma2
+        | SupportedCompressionFormat::Zstd
+        | SupportedCompressionFormat::Lzo => {
+            libraries::compress_stream(reader, writer, format.to_format_id())
+        }
     }
 }
 
@@ -198,7 +265,7 @@ pub fn compress_stream_direct(
 pub fn compress_stream_with_verify(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    format: FormatId,
+    format: SupportedCompressionFormat,
     verify: bool,
 ) -> Result<u64> {
     if !verify {
@@ -217,11 +284,12 @@ pub fn compress_stream_with_verify(
         format,
     )?;
 
+    let decomp_format = format.to_format_id().to_supported_decompression_format()?;
     let mut decompressed_buf = Vec::new();
     decompress_stream(
         &mut compressed_buf.as_slice(),
         &mut decompressed_buf,
-        format,
+        decomp_format,
     )
     .context("Verification failed: unable to decompress compressed stream")?;
 
@@ -243,7 +311,7 @@ pub fn compress_stream_with_verify(
 pub fn compress_stream(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    format: FormatId,
+    format: SupportedCompressionFormat,
 ) -> Result<u64> {
     compress_stream_with_verify(reader, writer, format, format.default_verify())
 }
@@ -252,56 +320,57 @@ pub fn compress_stream(
 pub fn decompress_stream(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    format: FormatId,
+    format: SupportedDecompressionFormat,
 ) -> Result<u64> {
     match format {
-        FormatId::Bzip => bzip::decompress_stream(reader, writer),
-        FormatId::ScoCompress => {
+        SupportedDecompressionFormat::Bzip => bzip::decompress_stream(reader, writer),
+        SupportedDecompressionFormat::ScoCompress => {
             sco_compress::decompress_stream(reader, writer)
         }
-        FormatId::CompressLzw
-        | FormatId::CompressLzw2
-        | FormatId::CompressLzw1
-        | FormatId::CompressLzw16 => {
-            compress::decompress_lzw_stream(reader, writer, format)
+        SupportedDecompressionFormat::CompressLzw
+        | SupportedDecompressionFormat::CompressLzw2
+        | SupportedDecompressionFormat::CompressLzw1
+        | SupportedDecompressionFormat::CompressLzw16 => {
+            compress::decompress_lzw_stream(reader, writer, format.to_format_id())
         }
-        FormatId::Pack => pack::decompress_pack_stream(reader, writer),
-        FormatId::OldPack => {
+        SupportedDecompressionFormat::Pack => pack::decompress_pack_stream(reader, writer),
+        SupportedDecompressionFormat::OldPack => {
             pack::decompress_old_pack_stream(reader, writer)
         }
-        FormatId::Compact => {
+        SupportedDecompressionFormat::Compact => {
             compact::decompress_compact_stream(reader, writer)
         }
-        FormatId::Freeze2 => {
+        SupportedDecompressionFormat::Freeze2 => {
             freeze::decompress_freeze2_stream(reader, writer)
         }
-        FormatId::Freeze1 => {
+        SupportedDecompressionFormat::Freeze1 => {
             freeze::decompress_freeze1_stream(reader, writer)
         }
-        FormatId::Rzip => rzip::decompress_stream(reader, writer),
-        FormatId::Szip | FormatId::Szip111 => {
+        SupportedDecompressionFormat::Rzip => rzip::decompress_stream(reader, writer),
+        SupportedDecompressionFormat::Szip | SupportedDecompressionFormat::Szip111 => {
             szip::decompress_stream(reader, writer)
         }
-        FormatId::Brotli
-        | FormatId::Gzip
-        | FormatId::Deflate
-        | FormatId::Zlib
-        | FormatId::Bzip2
-        | FormatId::Lz4
-        | FormatId::Xz
-        | FormatId::Lzip
-        | FormatId::Lzma
-        | FormatId::Lzma2
-        | FormatId::Zstd
-        | FormatId::Lzo => libraries::decompress_stream(reader, writer, format),
-        _ => bail!("Unsupported format for decompression: {format:?}"),
+        SupportedDecompressionFormat::Brotli
+        | SupportedDecompressionFormat::Gzip
+        | SupportedDecompressionFormat::Deflate
+        | SupportedDecompressionFormat::Zlib
+        | SupportedDecompressionFormat::Bzip2
+        | SupportedDecompressionFormat::Lz4
+        | SupportedDecompressionFormat::Xz
+        | SupportedDecompressionFormat::Lzip
+        | SupportedDecompressionFormat::Lzma
+        | SupportedDecompressionFormat::Lzma2
+        | SupportedDecompressionFormat::Zstd
+        | SupportedDecompressionFormat::Lzo => {
+            libraries::decompress_stream(reader, writer, format.to_format_id())
+        }
     }
 }
 
 /// Compresses in-memory byte slice using the specified compression format and verification option.
 pub fn compress_with_verify(
     data: &[u8],
-    format: FormatId,
+    format: SupportedCompressionFormat,
     verify: bool,
 ) -> Result<Vec<u8>> {
     let mut input = data;
@@ -312,12 +381,12 @@ pub fn compress_with_verify(
 
 /// Compresses in-memory byte slice using the specified compression format.
 /// Uses the format's default verification setting (verify for in-repo formats, no-verify for crates).
-pub fn compress(data: &[u8], format: FormatId) -> Result<Vec<u8>> {
+pub fn compress(data: &[u8], format: SupportedCompressionFormat) -> Result<Vec<u8>> {
     compress_with_verify(data, format, format.default_verify())
 }
 
 /// Decompresses in-memory byte slice using the specified compression format.
-pub fn decompress(data: &[u8], format: FormatId) -> Result<Vec<u8>> {
+pub fn decompress(data: &[u8], format: SupportedDecompressionFormat) -> Result<Vec<u8>> {
     let mut input = data;
     let mut output = Vec::new();
     decompress_stream(&mut input, &mut output, format)?;
@@ -422,10 +491,12 @@ mod tests {
     fn test_compress_stream_with_verify_toggle() {
         let data = b"The quick brown fox jumps over the lazy dog. 1234567890!";
         for &fmt in SUPPORTED {
+            let comp_fmt = fmt.to_supported_compression_format().unwrap();
+            let decomp_fmt = fmt.to_supported_decompression_format().unwrap();
             // Test with verify = false
             let compressed_unverified =
-                compress_with_verify(data, fmt, false).unwrap();
-            let decompressed = decompress(&compressed_unverified, fmt).unwrap();
+                compress_with_verify(data, comp_fmt, false).unwrap();
+            let decompressed = decompress(&compressed_unverified, decomp_fmt).unwrap();
             assert_eq!(
                 decompressed, data,
                 "Failed roundtrip with verify=false for format {fmt:?}"
@@ -433,8 +504,8 @@ mod tests {
 
             // Test with verify = true
             let compressed_verified =
-                compress_with_verify(data, fmt, true).unwrap();
-            let decompressed = decompress(&compressed_verified, fmt).unwrap();
+                compress_with_verify(data, comp_fmt, true).unwrap();
+            let decompressed = decompress(&compressed_verified, decomp_fmt).unwrap();
             assert_eq!(
                 decompressed, data,
                 "Failed roundtrip with verify=true for format {fmt:?}"
@@ -453,7 +524,7 @@ mod tests {
                             "Failed to parse alias '{alias}' for format {fmt:?}"
                         )
                     });
-                assert_eq!(parsed, fmt);
+                assert_eq!(parsed.to_format_id(), fmt);
             }
         }
     }
@@ -461,87 +532,87 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_extensions_and_parsing() {
         assert_eq!(
-            parse_compression_format("brotli").unwrap(),
+            parse_compression_format("brotli").unwrap().to_format_id(),
             FormatId::Brotli
         );
         assert_eq!(
-            parse_compression_format("bzip2").unwrap(),
+            parse_compression_format("bzip2").unwrap().to_format_id(),
             FormatId::Bzip2
         );
         assert_eq!(
-            parse_compression_format("bzip").unwrap(),
+            parse_compression_format("bzip").unwrap().to_format_id(),
             FormatId::Bzip
         );
         assert_eq!(
-            parse_compression_format("bz").unwrap(),
+            parse_compression_format("bz").unwrap().to_format_id(),
             FormatId::Bzip
         );
         assert_eq!(
-            parse_compression_format("compress2").unwrap(),
+            parse_compression_format("compress2").unwrap().to_format_id(),
             FormatId::CompressLzw2
         );
         assert_eq!(
-            parse_compression_format("pack").unwrap(),
+            parse_compression_format("pack").unwrap().to_format_id(),
             FormatId::Pack
         );
         assert_eq!(
-            parse_compression_format("old-pack").unwrap(),
+            parse_compression_format("old-pack").unwrap().to_format_id(),
             FormatId::OldPack
         );
         assert_eq!(
-            parse_compression_format("compact").unwrap(),
+            parse_compression_format("compact").unwrap().to_format_id(),
             FormatId::Compact
         );
         assert_eq!(
-            parse_compression_format("lz4").unwrap(),
+            parse_compression_format("lz4").unwrap().to_format_id(),
             FormatId::Lz4
         );
         assert_eq!(
-            parse_compression_format("lzma").unwrap(),
+            parse_compression_format("lzma").unwrap().to_format_id(),
             FormatId::Lzma
         );
         assert_eq!(
-            parse_compression_format("lzma2").unwrap(),
+            parse_compression_format("lzma2").unwrap().to_format_id(),
             FormatId::Lzma2
         );
         assert_eq!(
-            parse_compression_format("lzip").unwrap(),
+            parse_compression_format("lzip").unwrap().to_format_id(),
             FormatId::Lzip
         );
         assert_eq!(
-            parse_compression_format("xz").unwrap(),
+            parse_compression_format("xz").unwrap().to_format_id(),
             FormatId::Xz
         );
         assert_eq!(
-            parse_compression_format("zstd").unwrap(),
+            parse_compression_format("zstd").unwrap().to_format_id(),
             FormatId::Zstd
         );
         assert_eq!(
-            parse_compression_format("lzo").unwrap(),
+            parse_compression_format("lzo").unwrap().to_format_id(),
             FormatId::Lzo
         );
         assert_eq!(
-            parse_compression_format("rzip").unwrap(),
+            parse_compression_format("rzip").unwrap().to_format_id(),
             FormatId::Rzip
         );
         assert_eq!(
-            parse_compression_format("rz").unwrap(),
+            parse_compression_format("rz").unwrap().to_format_id(),
             FormatId::Rzip
         );
         assert_eq!(
-            parse_compression_format("szip").unwrap(),
+            parse_compression_format("szip").unwrap().to_format_id(),
             FormatId::Szip
         );
         assert_eq!(
-            parse_compression_format("sz").unwrap(),
+            parse_compression_format("sz").unwrap().to_format_id(),
             FormatId::Szip
         );
         assert_eq!(
-            parse_compression_format("freeze").unwrap(),
+            parse_compression_format("freeze").unwrap().to_format_id(),
             FormatId::Freeze2
         );
         assert_eq!(
-            parse_compression_format("freeze1").unwrap(),
+            parse_compression_format("freeze1").unwrap().to_format_id(),
             FormatId::Freeze1
         );
 
@@ -760,12 +831,15 @@ mod tests {
             ("random_data", &random_data),
         ];
 
+        let comp_fmt = format.to_supported_compression_format().unwrap();
+        let decomp_fmt = format.to_supported_decompression_format().unwrap();
+
         for (case_name, data) in test_cases {
             if data.is_empty() && format == FormatId::Compact {
-                assert!(compress(data, format).is_err());
+                assert!(compress(data, comp_fmt).is_err());
                 continue;
             }
-            let compressed = match compress(data, format) {
+            let compressed = match compress(data, comp_fmt) {
                 Ok(c) => c,
                 Err(e) => {
                     panic!(
@@ -773,7 +847,7 @@ mod tests {
                     );
                 }
             };
-            let decompressed = decompress(&compressed, format).unwrap_or_else(|e| {
+            let decompressed = decompress(&compressed, decomp_fmt).unwrap_or_else(|e| {
                 panic!("Decompression failed for case '{case_name}', format {format:?}: {e:?}");
             });
             assert!(
@@ -794,7 +868,7 @@ mod tests {
             let comp_data = get_compression_data(fixture_path)
                 .unwrap_or_else(|| panic!("Fixture missing: {fixture_path}"));
             let decompressed =
-                decompress(&comp_data, format).unwrap_or_else(|e| {
+                decompress(&comp_data, decomp_fmt).unwrap_or_else(|e| {
                     panic!("Decompress failed for {fixture_path}: {e:?}")
                 });
             assert_eq!(

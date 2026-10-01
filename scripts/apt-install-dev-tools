@@ -27,7 +27,6 @@ base_packages=(
     acl
     coreutils
     locales
-    tar
 )
 
 # Developer utilities and convenience tools (purged in CI via --remove)
@@ -43,6 +42,7 @@ dev_packages=(
     perl
     proot
     ripgrep
+    tar
     tmux
     xxd
     xz-utils
@@ -51,7 +51,7 @@ dev_packages=(
 
 if [[ "${1:-}" == "--remove" || "${1:-}" == "--purge" ]]; then
     echo "Purging developer utilities..."
-    apt-get purge -y "${dev_packages[@]}" 2>/dev/null || true
+    apt-get purge -y --allow-remove-essential "${dev_packages[@]}" 2>/dev/null || true
 else
     echo "Installing developer utilities..."
     apt-get update

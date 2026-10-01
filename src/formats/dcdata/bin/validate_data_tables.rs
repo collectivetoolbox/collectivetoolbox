@@ -159,17 +159,6 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_build_support::compression_codegen::generate_compression_format_file(&repo_root) {
-        Ok(updated) => {
-            if updated {
-                println!("Successfully updated compression_format.generated.rs from formats category tables.");
-            }
-        }
-        Err(e) => {
-            eprintln!("Error generating compression_format.generated.rs: {e}");
-            return ExitCode::FAILURE;
-        }
-    }
 
     match ctb_build_support::format_support_codegen::generate_format_support_file(&repo_root) {
         Ok(updated) => {

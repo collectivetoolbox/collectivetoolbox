@@ -431,6 +431,15 @@ pub fn validate_mime_field(field: &str) -> Result<()> {
 }
 
 /// Validates support level values: blank or `-1..=5`.
+///
+/// Scale:
+/// - `-1`: N/A
+/// - `blank`/`0`: None / unsupported
+/// - `1`: WIP
+/// - `2`: Basic / stream support (e.g. compression, hashing without Dc document conversion)
+/// - `3`: Semantic content / conversion to Dc syntax (requires dedicated APIs for converting to Dc documents)
+/// - `4`: Lossless and roundtrippable in Dc syntax
+/// - `5`: Level 4 + optional strict validation
 pub fn validate_support_level(val: &str) -> Result<()> {
     let trimmed = val.trim();
     if trimmed.is_empty() || trimmed == "0" {

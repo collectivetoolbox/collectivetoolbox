@@ -55,9 +55,6 @@ fn main() -> Result<()> {
     ctb_build_support::format_support_codegen::generate_format_support_file(
         &manifest_dir,
     )?;
-    ctb_build_support::compression_codegen::generate_compression_format_file(
-        &manifest_dir,
-    )?;
 
     let filter = workspace_filter_build::build();
     if filter.is_err() {

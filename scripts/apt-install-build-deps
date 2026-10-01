@@ -34,8 +34,10 @@ BUILD_DEPS=(
     clang
     curl
     file
+    gcc
     gcc-i686-linux-gnu
     git
+    make
     mingw-w64
     musl-dev:i386
     musl-tools
