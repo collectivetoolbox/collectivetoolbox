@@ -920,6 +920,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,

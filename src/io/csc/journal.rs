@@ -856,6 +856,9 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
             w.write_all(&[9])?;
             write_bytes(w, bundle_type.as_bytes())?;
         }
+        FileEntityKind::Inaccessible => {
+            w.write_all(&[10])?;
+        }
     }
 
     write_u32(w, u32::try_from(entity.streams.len())?)?;
@@ -1005,6 +1008,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             let bundle_type = String::from_utf8_lossy(&btype_bytes).to_string();
             FileEntityKind::Bundle { bundle_type }
         }
+        10 => FileEntityKind::Inaccessible,
         _ => bail!("Unknown file type tag"),
     };
 
@@ -1071,6 +1075,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -1164,6 +1169,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             environment: None,
             apple: None,
             warnings: Vec::new(),
+            errors: Vec::new(),
         },
         kind,
         streams,
@@ -1373,6 +1379,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1416,6 +1423,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1565,6 +1573,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -1661,6 +1670,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             };
 
             let err = ctb_io::file::apply_entity_metadata(
@@ -1747,6 +1757,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size: 25,

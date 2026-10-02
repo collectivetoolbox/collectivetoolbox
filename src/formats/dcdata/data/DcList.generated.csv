@@ -542,3 +542,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114645,533,Host kernel version string,0,BN,,!Cx,.Semantic,:~ [string],Kernel version or release string of execution environment host.,,,,,,,,,
 1114646,534,File origin: FIFO,0,BN,,!Cx,.Semantic,,,,,,,,,,,
 1114647,535,Format parameter application,0,BN,,!Cx,.Semantic,"@ident(""FormatParamApplication"")",Applies typed parameter bindings to a format in a format specification expression.,,,,,,,,,
+1114648,536,File warning,0,BN,,!Cx,.Semantic,:~ [string],Operational warning or fidelity notice observed for a file entity.,,,,,,,,,
+1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.,,,,,,,,,
+1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist.",,,,,,,,,

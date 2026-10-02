@@ -407,6 +407,7 @@ impl AttachedStream {
                 environment: Some(ctb_io_environment::capture_quick_arc()),
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,

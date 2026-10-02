@@ -200,6 +200,18 @@ impl FileIdentity {
             }
         }
     }
+
+    /// Returns a human-readable display path for error reporting and diagnostics.
+    #[must_use]
+    pub fn display_path(&self) -> String {
+        if let Some(ref rel) = self.relative_path {
+            rel.display().to_string()
+        } else if let Some(path) = self.full_original_path() {
+            path.display().to_string()
+        } else {
+            "<unknown>".to_string()
+        }
+    }
 }
 
 /// Resolves raw relative path bytes to a local OS `PathBuf`.

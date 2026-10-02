@@ -73,6 +73,9 @@ pub enum OnTraversalError {
 
     /// Logs or skips the unreadable entry and continues traversal.
     Skip,
+
+    /// Yields inaccessible or unreadable entries as `DirEntryItem` with errors attached.
+    Capture,
 }
 
 /// Configuration options for safe directory traversal.
@@ -184,14 +187,16 @@ pub struct DirEntryItem {
     pub relative_path: PathBuf,
     /// The filename component.
     pub file_name: OsString,
-    /// Unfollowed symlink metadata.
-    pub symlink_metadata: Metadata,
+    /// Unfollowed symlink metadata, if successfully read.
+    pub symlink_metadata: Option<Metadata>,
     /// True if the item is an actual directory (not a symlink to a directory).
     pub is_dir: bool,
     /// True if the item is a symbolic link.
     pub is_symlink: bool,
     /// Current depth relative to traversal root (root has depth 0).
     pub depth: usize,
+    /// Errors encountered while discovering or reading metadata for this entry.
+    pub errors: Vec<String>,
 }
 
 impl DirEntryItem {
@@ -225,10 +230,28 @@ impl DirEntryItem {
         self.relative_path.as_os_str().as_encoded_bytes()
     }
 
-    /// Returns the symlink metadata for this item.
+    /// Returns the symlink metadata for this item, if available.
     #[must_use]
-    pub fn metadata(&self) -> &Metadata {
-        &self.symlink_metadata
+    pub fn metadata(&self) -> Option<&Metadata> {
+        self.symlink_metadata.as_ref()
+    }
+
+    /// Returns the recorded errors for this entry.
+    #[must_use]
+    pub fn errors(&self) -> &[String] {
+        &self.errors
+    }
+
+    /// Returns `true` if this entry was read without errors and has valid metadata.
+    #[must_use]
+    pub fn is_ok(&self) -> bool {
+        self.errors.is_empty() && self.symlink_metadata.is_some()
+    }
+
+    /// Returns `true` if this entry contains errors or is missing metadata.
+    #[must_use]
+    pub fn is_error(&self) -> bool {
+        !self.is_ok()
     }
 
     /// Returns whether this entry is an actual directory.
@@ -255,10 +278,53 @@ impl DirEntryItem {
         self.depth
     }
 
+    /// Converts this entry to a [`FileEntity`], infallible even if the entry or file is unreadable.
+    #[must_use]
+    pub fn to_file_entity_infallible(&self, base_dir: Option<&Path>, compute_hash: bool) -> FileEntity {
+        self.to_file_entity_infallible_with_apple_options(
+            base_dir,
+            compute_hash,
+            &AppleReadOptions::default(),
+        )
+    }
+
+    /// Converts this entry to a [`FileEntity`] with custom Apple read options, infallible even if the entry or file is unreadable.
+    #[must_use]
+    pub fn to_file_entity_infallible_with_apple_options(
+        &self,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+        apple_options: &AppleReadOptions,
+    ) -> FileEntity {
+        let mut entity = if !self.errors.is_empty() && self.symlink_metadata.is_none() {
+            // Reason for fallback: default error message used if errors vector is empty
+            let primary_err = self
+                .errors
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "Inaccessible entry".to_string());
+            FileEntity::inaccessible(&self.path, base_dir, primary_err)
+        } else if compute_hash {
+            FileEntity::from_filesystem_infallible_with_apple_options(
+                &self.path,
+                base_dir,
+                apple_options,
+            )
+        } else {
+            FileEntity::from_filesystem_metadata_only_infallible_with_apple_options(
+                &self.path,
+                base_dir,
+                apple_options,
+            )
+        };
+        for err in &self.errors {
+            entity.metadata.add_error(err);
+        }
+        entity
+    }
+
     /// Inspects and captures this item as a complete [`FileEntity`].
-    ///
-    /// If `compute_hash` is `true`, reads and hashes the file payload (if regular file).
-    /// If `false`, captures metadata and attached streams only without reading the payload.
+    /// Returns `Err` if any errors occurred while discovering or reading the item.
     pub fn to_file_entity(&self, base_dir: Option<&Path>, compute_hash: bool) -> Result<FileEntity> {
         self.to_file_entity_with_apple_options(
             base_dir,
@@ -268,20 +334,32 @@ impl DirEntryItem {
     }
 
     /// Inspects and captures this item as a complete [`FileEntity`], applying custom [`AppleReadOptions`].
+    /// Returns `Err` if any errors occurred while discovering or reading the item.
     pub fn to_file_entity_with_apple_options(
         &self,
         base_dir: Option<&Path>,
         compute_hash: bool,
         apple_options: &AppleReadOptions,
     ) -> Result<FileEntity> {
-        if compute_hash {
-            FileEntity::from_filesystem_with_apple_options(&self.path, base_dir, apple_options)
+        let entity = self.to_file_entity_infallible_with_apple_options(
+            base_dir,
+            compute_hash,
+            apple_options,
+        );
+        if entity.is_error() {
+            // Reason for fallback: default error message when no error strings were recorded
+            let err_msg = entity
+                .metadata
+                .errors
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "File entry has errors".to_string());
+            Err(anyhow::Error::new(crate::entity::FileReadError {
+                entity: Box::new(entity),
+                source: anyhow::anyhow!(err_msg),
+            }))
         } else {
-            FileEntity::from_filesystem_metadata_only_with_apple_options(
-                &self.path,
-                base_dir,
-                apple_options,
-            )
+            Ok(entity)
         }
     }
 }
@@ -311,6 +389,22 @@ pub fn read_dir_safe(
     let read_dir = match std::fs::read_dir(dir) {
         Ok(rd) => rd,
         Err(err) => {
+            if options.error_policy == OnTraversalError::Capture {
+                // Reason for fallback: path without a file name component defaults to empty OsString
+                let file_name = dir
+                    .file_name()
+                    .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                return Ok(vec![DirEntryItem {
+                    path: dir.to_path_buf(),
+                    relative_path: PathBuf::new(),
+                    file_name,
+                    symlink_metadata: Some(dir_meta),
+                    is_dir: true,
+                    is_symlink: false,
+                    depth: 0,
+                    errors: vec![format!("Failed to read directory {}: {err}", dir.display())],
+                }]);
+            }
             if options.error_policy == OnTraversalError::Skip {
                 log_fmt!("Failed to read directory {}: {err}", dir.display());
                 return Ok(Vec::new());
@@ -324,6 +418,22 @@ pub fn read_dir_safe(
         let entry = match entry {
             Ok(e) => e,
             Err(err) => {
+                if options.error_policy == OnTraversalError::Capture {
+                    items.push(DirEntryItem {
+                        path: dir.to_path_buf(),
+                        relative_path: PathBuf::new(),
+                        file_name: OsString::from("?"),
+                        symlink_metadata: None,
+                        is_dir: false,
+                        is_symlink: false,
+                        depth: 1,
+                        errors: vec![format!(
+                            "Failed reading directory entry in {}: {err}",
+                            dir.display()
+                        )],
+                    });
+                    continue;
+                }
                 if options.error_policy == OnTraversalError::Skip {
                     log_fmt!("Failed reading entry in directory {}: {err}", dir.display());
                     continue;
@@ -335,9 +445,31 @@ pub fn read_dir_safe(
         };
 
         let entry_path = entry.path();
-        let sym_meta = match std::fs::symlink_metadata(&entry_path) {
-            Ok(m) => m,
+        let (sym_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&entry_path) {
+            Ok(m) => {
+                let is_symlink = m.is_symlink();
+                let is_dir = m.is_dir();
+                (Some(m), is_symlink, is_dir)
+            }
             Err(err) => {
+                if options.error_policy == OnTraversalError::Capture {
+                    let file_name = entry.file_name();
+                    let rel_path = PathBuf::from(&file_name);
+                    items.push(DirEntryItem {
+                        path: entry_path,
+                        relative_path: rel_path,
+                        file_name,
+                        symlink_metadata: None,
+                        is_dir: false,
+                        is_symlink: false,
+                        depth: 1,
+                        errors: vec![format!(
+                            "Failed reading metadata for {}: {err}",
+                            entry.path().display()
+                        )],
+                    });
+                    continue;
+                }
                 if options.error_policy == OnTraversalError::Skip {
                     log_fmt!("Failed reading metadata for {}: {err}", entry_path.display());
                     continue;
@@ -349,20 +481,28 @@ pub fn read_dir_safe(
         };
 
         if options.one_file_system {
-            if let (Some(rdev), Some(edev)) = (root_dev, extract_device_id(&entry_path, &sym_meta)) {
-                if rdev != edev {
-                    continue;
+            if let (Some(rdev), Some(meta)) = (root_dev, &sym_meta) {
+                if let Some(edev) = extract_device_id(&entry_path, meta) {
+                    if rdev != edev {
+                        continue;
+                    }
                 }
             }
         }
 
-        let is_symlink = sym_meta.is_symlink();
-        let is_dir = sym_meta.is_dir();
         let file_name = entry.file_name();
         let name_str = file_name.to_string_lossy();
 
-        if should_skip_apple_companion(dir, &name_str, &entry_path, &sym_meta, &options.apple_read_options) {
-            continue;
+        if let Some(meta) = &sym_meta {
+            if should_skip_apple_companion(
+                dir,
+                &name_str,
+                &entry_path,
+                meta,
+                &options.apple_read_options,
+            ) {
+                continue;
+            }
         }
 
         let rel_path = PathBuf::from(&file_name);
@@ -375,6 +515,7 @@ pub fn read_dir_safe(
             is_dir,
             is_symlink,
             depth: 1,
+            errors: Vec::new(),
         });
     }
 
@@ -421,20 +562,34 @@ impl DirTraverser {
     /// Creates a new `DirTraverser` anchored at `root` with the provided options.
     pub fn new(root: impl AsRef<Path>, options: TraversalOptions) -> Result<Self> {
         let root = root.as_ref().to_path_buf();
-        let root_meta = std::fs::symlink_metadata(&root)
-            .with_context(|| format!("Failed to read metadata for root: {}", root.display()))?;
+        let root_meta = match std::fs::symlink_metadata(&root) {
+            Ok(m) => Some(m),
+            Err(err) => {
+                if options.error_policy == OnTraversalError::Capture {
+                    None
+                } else {
+                    return Err(err).with_context(|| {
+                        format!("Failed to read metadata for root: {}", root.display())
+                    });
+                }
+            }
+        };
 
-        anyhow::ensure!(
-            root_meta.is_dir(),
-            "Traversal root is not a directory: {}",
-            root.display()
-        );
+        if let Some(ref meta) = root_meta {
+            if !meta.is_dir() && options.error_policy != OnTraversalError::Capture {
+                anyhow::bail!("Traversal root is not a directory: {}", root.display());
+            }
+        }
 
-        let root_dev = extract_device_id(root.as_ref(), &root_meta);
+        let root_dev = root_meta
+            .as_ref()
+            .and_then(|m| extract_device_id(root.as_ref(), m));
         let mut visited_inodes = HashSet::new();
 
-        if let Some(key) = extract_inode_key(root.as_ref(), &root_meta) {
-            visited_inodes.insert(key);
+        if let Some(ref meta) = root_meta {
+            if let Some(key) = extract_inode_key(root.as_ref(), meta) {
+                visited_inodes.insert(key);
+            }
         }
 
         let mut bfs_queue = VecDeque::new();
@@ -483,6 +638,25 @@ impl DirTraverser {
         let read_dir = match std::fs::read_dir(dir_abs) {
             Ok(rd) => rd,
             Err(err) => {
+                if self.options.error_policy == OnTraversalError::Capture {
+                    // Reason for fallback: path without a file name component defaults to empty OsString
+                    let file_name = dir_abs
+                        .file_name()
+                        .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                    return Ok(vec![DirEntryItem {
+                        path: dir_abs.to_path_buf(),
+                        relative_path: dir_rel.to_path_buf(),
+                        file_name,
+                        symlink_metadata: None,
+                        is_dir: false,
+                        is_symlink: false,
+                        depth,
+                        errors: vec![format!(
+                            "Failed to read directory {}: {err}",
+                            dir_abs.display()
+                        )],
+                    }]);
+                }
                 if self.options.error_policy == OnTraversalError::Skip {
                     log_fmt!("Failed to read directory {}: {err}", dir_abs.display());
                     return Ok(Vec::new());
@@ -500,6 +674,22 @@ impl DirTraverser {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
+                    if self.options.error_policy == OnTraversalError::Capture {
+                        items.push(DirEntryItem {
+                            path: dir_abs.to_path_buf(),
+                            relative_path: dir_rel.to_path_buf(),
+                            file_name: OsString::from("?"),
+                            symlink_metadata: None,
+                            is_dir: false,
+                            is_symlink: false,
+                            depth: child_depth,
+                            errors: vec![format!(
+                                "Failed reading directory entry in {}: {err}",
+                                dir_abs.display()
+                            )],
+                        });
+                        continue;
+                    }
                     if self.options.error_policy == OnTraversalError::Skip {
                         log_fmt!(
                             "Failed reading directory entry in {}: {err}",
@@ -514,9 +704,35 @@ impl DirTraverser {
             };
 
             let entry_path = entry.path();
-            let sym_meta = match std::fs::symlink_metadata(&entry_path) {
-                Ok(m) => m,
+            let (sym_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&entry_path) {
+                Ok(m) => {
+                    let is_symlink = m.is_symlink();
+                    let is_dir = m.is_dir();
+                    (Some(m), is_symlink, is_dir)
+                }
                 Err(err) => {
+                    if self.options.error_policy == OnTraversalError::Capture {
+                        let file_name = entry.file_name();
+                        let entry_rel = if dir_rel.as_os_str().is_empty() {
+                            PathBuf::from(&file_name)
+                        } else {
+                            dir_rel.join(&file_name)
+                        };
+                        items.push(DirEntryItem {
+                            path: entry_path,
+                            relative_path: entry_rel,
+                            file_name,
+                            symlink_metadata: None,
+                            is_dir: false,
+                            is_symlink: false,
+                            depth: child_depth,
+                            errors: vec![format!(
+                                "Failed reading metadata for {}: {err}",
+                                entry.path().display()
+                            )],
+                        });
+                        continue;
+                    }
                     if self.options.error_policy == OnTraversalError::Skip {
                         log_fmt!(
                             "Failed reading metadata for {}: {err}",
@@ -531,9 +747,11 @@ impl DirTraverser {
             };
 
             if self.options.one_file_system {
-                if let (Some(rdev), Some(edev)) = (self.root_dev, extract_device_id(&entry_path, &sym_meta)) {
-                    if rdev != edev {
-                        continue;
+                if let (Some(rdev), Some(meta)) = (self.root_dev, &sym_meta) {
+                    if let Some(edev) = extract_device_id(&entry_path, meta) {
+                        if rdev != edev {
+                            continue;
+                        }
                     }
                 }
             }
@@ -541,14 +759,16 @@ impl DirTraverser {
             let file_name = entry.file_name();
             let name_str = file_name.to_string_lossy();
 
-            if should_skip_apple_companion(
-                dir_abs,
-                &name_str,
-                &entry_path,
-                &sym_meta,
-                &self.options.apple_read_options,
-            ) {
-                continue;
+            if let Some(meta) = &sym_meta {
+                if should_skip_apple_companion(
+                    dir_abs,
+                    &name_str,
+                    &entry_path,
+                    meta,
+                    &self.options.apple_read_options,
+                ) {
+                    continue;
+                }
             }
 
             let entry_rel = if dir_rel.as_os_str().is_empty() {
@@ -557,20 +777,19 @@ impl DirTraverser {
                 dir_rel.join(&file_name)
             };
 
-            let is_symlink = sym_meta.is_symlink();
-            let is_dir = sym_meta.is_dir();
-
             // Cycle detection for directories
             if is_dir && self.options.detect_cycles {
-                if let Some(key) = extract_inode_key(&entry_path, &sym_meta) {
-                    if self.visited_inodes.contains(&key) {
-                        log_fmt!(
-                            "Filesystem cycle detected for directory: {}",
-                            entry_path.display()
-                        );
-                        continue;
+                if let Some(meta) = &sym_meta {
+                    if let Some(key) = extract_inode_key(&entry_path, meta) {
+                        if self.visited_inodes.contains(&key) {
+                            log_fmt!(
+                                "Filesystem cycle detected for directory: {}",
+                                entry_path.display()
+                            );
+                            continue;
+                        }
+                        self.visited_inodes.insert(key);
                     }
-                    self.visited_inodes.insert(key);
                 }
             }
 
@@ -582,6 +801,7 @@ impl DirTraverser {
                 is_dir,
                 is_symlink,
                 depth: child_depth,
+                errors: Vec::new(),
             });
         }
 
@@ -592,16 +812,46 @@ impl DirTraverser {
     fn maybe_yield_root(&mut self) -> Result<Option<DirEntryItem>> {
         if self.options.yield_root && !self.root_yielded {
             self.root_yielded = true;
-            let root_meta = std::fs::symlink_metadata(&self.root).with_context(|| {
-                format!("Failed to read metadata for root: {}", self.root.display())
-            })?;
+            let (root_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&self.root) {
+                Ok(m) => {
+                    let is_symlink = m.is_symlink();
+                    let is_dir = m.is_dir();
+                    (Some(m), is_symlink, is_dir)
+                }
+                Err(err) => {
+                    if self.options.error_policy == OnTraversalError::Capture {
+                        // Reason for fallback: root path without a file name component defaults to empty OsString
+                        let file_name = self
+                            .root
+                            .file_name()
+                            .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                        return Ok(Some(DirEntryItem {
+                            path: self.root.clone(),
+                            relative_path: PathBuf::new(),
+                            file_name,
+                            symlink_metadata: None,
+                            is_dir: false,
+                            is_symlink: false,
+                            depth: 0,
+                            errors: vec![format!(
+                                "Failed to read metadata for root {}: {err}",
+                                self.root.display()
+                            )],
+                        }));
+                    }
+                    if self.options.error_policy == OnTraversalError::Skip {
+                        return Ok(None);
+                    }
+                    return Err(err).with_context(|| {
+                        format!("Failed to read metadata for root: {}", self.root.display())
+                    });
+                }
+            };
             // Reason for fallback: root path without a file name component defaults to empty OsString
             let file_name = self
                 .root
                 .file_name()
                 .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
-            let is_symlink = root_meta.is_symlink();
-            let is_dir = root_meta.is_dir();
 
             return Ok(Some(DirEntryItem {
                 path: self.root.clone(),
@@ -611,6 +861,7 @@ impl DirTraverser {
                 is_dir,
                 is_symlink,
                 depth: 0,
+                errors: Vec::new(),
             }));
         }
         self.root_yielded = true;
@@ -661,7 +912,7 @@ impl DirTraverser {
     fn next_bfs(&mut self) -> Option<Result<DirEntryItem>> {
         loop {
             if let Some(item) = self.current_entries.pop_front() {
-                if item.is_dir {
+                if item.is_dir && item.errors.is_empty() {
                     self.pending_dir_for_bfs = Some((
                         item.path.clone(),
                         item.relative_path.clone(),
@@ -687,7 +938,7 @@ impl DirTraverser {
     fn next_dfs_pre_order(&mut self) -> Option<Result<DirEntryItem>> {
         loop {
             if let Some(item) = self.current_entries.pop_front() {
-                if item.is_dir && !self.skip_current {
+                if item.is_dir && item.errors.is_empty() && !self.skip_current {
                     let within_max_depth = match self.options.max_depth {
                         Some(max) => item.depth <= max,
                         None => true,
@@ -742,9 +993,33 @@ impl DirTraverser {
                     rel_path,
                     depth,
                 } => {
-                    let dir_meta = match std::fs::symlink_metadata(&abs_path) {
-                        Ok(m) => m,
+                    let (dir_meta, is_symlink, is_dir) = match std::fs::symlink_metadata(&abs_path) {
+                        Ok(m) => {
+                            let is_symlink = m.is_symlink();
+                            let is_dir = m.is_dir();
+                            (Some(m), is_symlink, is_dir)
+                        }
                         Err(err) => {
+                            if self.options.error_policy == OnTraversalError::Capture {
+                                // Reason for fallback: path without a file name component defaults to empty OsString
+                                let file_name = abs_path
+                                    .file_name()
+                                    .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
+                                let dir_item = DirEntryItem {
+                                    path: abs_path.clone(),
+                                    relative_path: rel_path.clone(),
+                                    file_name,
+                                    symlink_metadata: None,
+                                    is_dir: false,
+                                    is_symlink: false,
+                                    depth,
+                                    errors: vec![format!(
+                                        "Failed reading metadata for {}: {err}",
+                                        abs_path.display()
+                                    )],
+                                };
+                                return Some(Ok(dir_item));
+                            }
                             if self.options.error_policy == OnTraversalError::Skip {
                                 log_fmt!("Failed reading metadata for {}: {err}", abs_path.display());
                                 continue;
@@ -759,8 +1034,6 @@ impl DirTraverser {
                     let file_name = abs_path
                         .file_name()
                         .map_or_else(OsString::new, std::borrow::ToOwned::to_owned);
-                    let is_symlink = dir_meta.is_symlink();
-                    let is_dir = dir_meta.is_dir();
 
                     let dir_item = DirEntryItem {
                         path: abs_path.clone(),
@@ -770,6 +1043,7 @@ impl DirTraverser {
                         is_dir,
                         is_symlink,
                         depth,
+                        errors: Vec::new(),
                     };
 
                     // In post-order, push the directory frame to yield AFTER its children
@@ -1133,5 +1407,54 @@ mod tests {
         } else {
             panic!("expected regular file entity");
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_traversal_capture_error_policy() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let root = temp.path();
+
+        let good_file = root.join("good.txt");
+        fs::write(&good_file, b"readable").expect("write good");
+
+        let options = TraversalOptions::new()
+            .error_policy(OnTraversalError::Capture)
+            .yield_root(false);
+
+        // Verify standard traversal succeeds with Capture
+        let items: Vec<DirEntryItem> = traverse_dir(root, options)
+            .expect("traverse")
+            .collect::<Result<Vec<_>>>()
+            .expect("collect");
+
+        assert_eq!(items.len(), 1);
+        assert!(items[0].is_ok());
+
+        // Now test traversal on a non-existent directory with Capture policy
+        let missing_root = root.join("missing_dir");
+        let capture_missing_opts = TraversalOptions::new()
+            .error_policy(OnTraversalError::Capture)
+            .yield_root(true);
+
+        let missing_items: Vec<DirEntryItem> = traverse_dir(&missing_root, capture_missing_opts)
+            .expect("traverse missing with capture")
+            .collect::<Result<Vec<_>>>()
+            .expect("collect");
+
+        assert!(!missing_items.is_empty());
+        assert!(missing_items[0].is_error());
+        assert!(!missing_items[0].errors().is_empty());
+
+        let entity = missing_items[0].to_file_entity_infallible(Some(&missing_root), false);
+        assert!(entity.is_inaccessible());
+        assert!(entity.is_error());
+
+        let res = missing_items[0].to_file_entity(Some(&missing_root), false);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        let read_err = err
+            .downcast_ref::<crate::entity::FileReadError>()
+            .expect("expected FileReadError");
+        assert!(read_err.entity.is_inaccessible());
     }
 }

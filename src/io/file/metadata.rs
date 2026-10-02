@@ -788,8 +788,12 @@ pub struct FileMetadata {
     pub apple: Option<AppleMetadata>,
     /// Operational warnings or fidelity issues observed when inspecting this entity.
     #[serde(default)]
-    #[dc(skip, reason = "Operational warnings retained in-memory for session reporting and journaling")]
+    #[dc(short = 536, omit_default)]
     pub warnings: Vec<String>,
+    /// Operational errors or inaccessibility reasons encountered when reading this entity.
+    #[serde(default)]
+    #[dc(short = 537, omit_default)]
+    pub errors: Vec<String>,
 }
 
 pub use ctb_formats_apple_single_double::{
@@ -918,12 +922,40 @@ impl FileMetadata {
             environment: None,
             apple: None,
             warnings: Vec::new(),
+            errors: Vec::new(),
         }
     }
 
     /// Appends an operational warning for this file.
     pub fn add_warning(&mut self, warning: impl Into<String>) {
         self.warnings.push(warning.into());
+    }
+
+    /// Alias for [`add_warning`](Self::add_warning).
+    pub fn push_warning(&mut self, warning: impl Into<String>) {
+        self.add_warning(warning);
+    }
+
+    /// Appends an operational error for this file.
+    pub fn add_error(&mut self, error: impl Into<String>) {
+        self.errors.push(error.into());
+    }
+
+    /// Alias for [`add_error`](Self::add_error).
+    pub fn push_error(&mut self, error: impl Into<String>) {
+        self.add_error(error);
+    }
+
+    /// Returns `true` if this metadata has no recorded errors.
+    #[must_use]
+    pub fn is_ok(&self) -> bool {
+        self.errors.is_empty()
+    }
+
+    /// Returns `true` if this metadata contains one or more recorded errors.
+    #[must_use]
+    pub fn is_error(&self) -> bool {
+        !self.errors.is_empty()
     }
 
     /// Returns a reference to the originating environment description, if attached.
@@ -1348,7 +1380,7 @@ mod tests {
                 resolution_nsec: None,
             }),
             flags: Some(Vec::new()), platform_raw_flags: None, read_time: None, filesystem_type: None,
-            environment: None, apple: None, warnings: Vec::new(),
+            environment: None, apple: None, warnings: Vec::new(), errors: Vec::new(),
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());

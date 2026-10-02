@@ -114,6 +114,9 @@ pub enum FileEntityKind {
         #[dc(short = 371)]
         bundle_type: String,
     },
+    /// A file or directory node that was inaccessible, unreadable, or nonexistent.
+    #[dc(short = 538)]
+    Inaccessible,
 }
 
 /// Canonical categorical type of a file entity without payload details.
@@ -161,6 +164,9 @@ pub enum FileEntityType {
     /// Composite bundle directory.
     #[dc(short = 367)]
     Bundle,
+    /// Inaccessible, unreadable, or missing file entity.
+    #[dc(short = 538)]
+    Inaccessible,
 }
 
 impl FileEntityType {
@@ -179,6 +185,7 @@ impl FileEntityType {
             Self::Socket => "socket",
             Self::Door => "door",
             Self::Bundle => "bundle",
+            Self::Inaccessible => "inaccessible",
         }
     }
 
@@ -199,10 +206,11 @@ impl FileEntityType {
             "s" | "socket" => Ok(Self::Socket),
             "door" => Ok(Self::Door),
             "bundle" => Ok(Self::Bundle),
+            "inaccessible" | "error" | "unreadable" => Ok(Self::Inaccessible),
             other => anyhow::bail!(
                 "Unknown file entity type '{other}'. Expected one of: file/f, \
                  dir/d, symlink/l, hardlink/h, fifo/p, chardev/c, blockdev/b, \
-                 socket/s, door, bundle"
+                 socket/s, door, bundle, inaccessible"
             ),
         }
     }
@@ -237,6 +245,7 @@ impl FileEntityKind {
             Self::Socket => FileEntityType::Socket,
             Self::Door => FileEntityType::Door,
             Self::Bundle { .. } => FileEntityType::Bundle,
+            Self::Inaccessible => FileEntityType::Inaccessible,
         }
     }
 
@@ -270,7 +279,172 @@ pub struct FileEntity {
     pub streams: Vec<AttachedStream>,
 }
 
+/// An error encountered when reading a file from disk, retaining the partial
+/// or inaccessible entity for lossless error archival and diagnostics.
+#[derive(Debug)]
+pub struct FileReadError {
+    /// The partial or inaccessible entity constructed up to the point of failure.
+    pub entity: Box<FileEntity>,
+    /// Underlying error cause.
+    pub source: anyhow::Error,
+}
+
+impl std::fmt::Display for FileReadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.entity.identity.display_path(), self.source)
+    }
+}
+
+impl std::error::Error for FileReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.source.as_ref())
+    }
+}
+
 impl FileEntity {
+    /// Creates a placeholder `FileEntity` representing an unreadable, inaccessible,
+    /// or nonexistent file.
+    #[must_use]
+    pub fn inaccessible(
+        path: &Path,
+        base_dir: Option<&Path>,
+        error: impl Into<String>,
+    ) -> Self {
+        let err_msg = error.into();
+        let relative_path = if let Some(base) = base_dir {
+            match path.strip_prefix(base) {
+                Ok(rel) if !rel.as_os_str().is_empty() => Some(rel.to_path_buf()),
+                _ => path.file_name().map(PathBuf::from),
+            }
+        } else {
+            path.file_name().map(PathBuf::from)
+        };
+        let raw_filename = path.file_name().map(|f| f.as_encoded_bytes().to_vec());
+        let raw_relative_path = relative_path.as_ref().map(|rel| {
+            let mut bytes = rel.as_os_str().as_encoded_bytes().to_vec();
+            for b in &mut bytes {
+                if *b == b'\\' {
+                    *b = b'/';
+                }
+            }
+            bytes
+        });
+        let enclosing_path = match base_dir {
+            Some(base) => Some(base.to_path_buf()),
+            None => path.parent().map(Path::to_path_buf),
+        };
+
+        let mut metadata = FileMetadata::empty();
+        metadata.push_error(err_msg);
+
+        Self {
+            identity: FileIdentity {
+                origin: FileOrigin::Filesystem {
+                    key: InodeKey {
+                        device_id: 0,
+                        inode: Natural::from(0_u32),
+                    },
+                    canonical_path: path.to_path_buf(),
+                },
+                relative_path,
+                enclosing_path,
+                raw_relative_path,
+                raw_filename,
+                nlink: 0,
+                hardlink_group: None,
+            },
+            metadata,
+            kind: FileEntityKind::Inaccessible,
+            streams: Vec::new(),
+        }
+    }
+
+    /// Infallible read: inspects path, returning a `FileEntity` even if the file is inaccessible
+    /// or unreadable, capturing any error on `metadata.errors`.
+    pub fn from_filesystem_infallible(path: &Path, base_dir: Option<&Path>) -> Self {
+        Self::from_filesystem_infallible_with_apple_options(
+            path,
+            base_dir,
+            &crate::apple_double::AppleReadOptions::default(),
+        )
+    }
+
+    /// Infallible read applying custom [`AppleReadOptions`].
+    pub fn from_filesystem_infallible_with_apple_options(
+        path: &Path,
+        base_dir: Option<&Path>,
+        apple_options: &crate::apple_double::AppleReadOptions,
+    ) -> Self {
+        match Self::from_filesystem_with_apple_options(path, base_dir, apple_options) {
+            Ok(entity) => entity,
+            Err(err) => {
+                if let Some(read_err) = err.downcast_ref::<FileReadError>() {
+                    *read_err.entity.clone()
+                } else {
+                    Self::inaccessible(path, base_dir, err.to_string())
+                }
+            }
+        }
+    }
+
+    /// Infallibly inspects filesystem entry metadata without reading the payload.
+    pub fn from_filesystem_metadata_only_infallible(
+        path: &Path,
+        base_dir: Option<&Path>,
+    ) -> Self {
+        Self::from_filesystem_metadata_only_infallible_with_apple_options(
+            path,
+            base_dir,
+            &crate::apple_double::AppleReadOptions::default(),
+        )
+    }
+
+    /// Infallibly inspects filesystem entry metadata applying custom [`AppleReadOptions`].
+    pub fn from_filesystem_metadata_only_infallible_with_apple_options(
+        path: &Path,
+        base_dir: Option<&Path>,
+        apple_options: &crate::apple_double::AppleReadOptions,
+    ) -> Self {
+        match Self::from_filesystem_metadata_only_with_apple_options(path, base_dir, apple_options) {
+            Ok(entity) => entity,
+            Err(err) => {
+                if let Some(read_err) = err.downcast_ref::<FileReadError>() {
+                    *read_err.entity.clone()
+                } else {
+                    Self::inaccessible(path, base_dir, err.to_string())
+                }
+            }
+        }
+    }
+
+    /// Returns `true` if this entity was read without errors and is accessible.
+    #[must_use]
+    pub fn is_ok(&self) -> bool {
+        self.metadata.errors.is_empty() && !matches!(self.kind, FileEntityKind::Inaccessible)
+    }
+
+    /// Returns `true` if this entity contains recorded errors or is inaccessible.
+    #[must_use]
+    pub fn is_error(&self) -> bool {
+        !self.is_ok()
+    }
+
+    /// Whether this entity represents an inaccessible, unreadable, or nonexistent file.
+    #[must_use]
+    pub const fn is_inaccessible(&self) -> bool {
+        matches!(self.kind, FileEntityKind::Inaccessible)
+    }
+
+    /// Verifies that the entity has no recorded errors, returning `Err` if any exist.
+    pub fn check_ok(&self) -> Result<&Self> {
+        if let Some(first_err) = self.metadata.errors.first() {
+            anyhow::bail!("Entity has recorded error: {first_err}");
+        }
+        if matches!(self.kind, FileEntityKind::Inaccessible) {
+            anyhow::bail!("Entity is marked inaccessible");
+        }
+        Ok(self)
+    }
     /// Returns a reference to the execution environment description, if attached.
     #[must_use]
     pub fn environment(&self) -> Option<&ctb_io_environment::EnvDescription> {
@@ -526,8 +700,16 @@ impl FileEntity {
         use std::os::windows::fs::MetadataExt;
         use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
 
-        let sym_meta = std::fs::symlink_metadata(path)
-            .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+        let sym_meta = match std::fs::symlink_metadata(path) {
+            Ok(m) => m,
+            Err(err) => {
+                let entity = Self::inaccessible(path, base_dir, format!("Failed to read metadata: {err}"));
+                return Err(anyhow::Error::new(FileReadError {
+                    entity: Box::new(entity),
+                    source: anyhow::Error::new(err).context(format!("Failed to read metadata for {}", path.display())),
+                }));
+            }
+        };
 
         let file_type = sym_meta.file_type();
         let file_attrs = sym_meta.file_attributes();
@@ -626,7 +808,7 @@ impl FileEntity {
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
         };
 
-        let metadata = FileMetadata {
+        let mut metadata = FileMetadata {
             native: Some(native_metadata),
             mode: Some(mode),
             uid: Some(0),
@@ -639,6 +821,7 @@ impl FileEntity {
             environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
             warnings,
+            errors: Vec::new(),
         };
 
         let kind = if is_symlink {
@@ -662,15 +845,31 @@ impl FileEntity {
             FileEntityKind::Directory
         } else {
             let size = sym_meta.len();
-            let mut file = std::fs::File::open(path)
-                .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
-            let extents = get_file_extents(&file, size)?;
-            let is_sparse = extents.iter().any(Extent::is_hole);
-
-            let sha256 = if compute_hash {
-                crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
-            } else {
-                [0_u8; 32]
+            let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
+                Ok(mut file) => {
+                    // Reason for fallback: when extent query fails on Windows/unsupported filesystem, fall back to single contiguous data extent covering full size
+                    let extents = get_file_extents(&file, size).unwrap_or_else(|e| {
+                        metadata.push_warning(format!("Failed to query file extents: {e}"));
+                        vec![Extent::Data { offset: 0, length: size }]
+                    });
+                    let is_sparse = extents.iter().any(Extent::is_hole);
+                    let sha256 = if compute_hash {
+                        match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
+                            Ok(hash) => hash,
+                            Err(e) => {
+                                metadata.push_error(format!("Failed to read/hash payload: {e}"));
+                                [0_u8; 32]
+                            }
+                        }
+                    } else {
+                        [0_u8; 32]
+                    };
+                    (extents, is_sparse, sha256)
+                }
+                Err(err) => {
+                    metadata.push_error(format!("Failed to open file for hashing: {err}"));
+                    (vec![Extent::Data { offset: 0, length: size }], false, [0_u8; 32])
+                }
             };
 
             FileEntityKind::Regular {
@@ -681,14 +880,36 @@ impl FileEntity {
             }
         };
 
-        let streams = read_and_hash_streams(path)?;
+        let streams = match read_and_hash_streams(path) {
+            Ok(s) => s,
+            Err(e) => {
+                metadata.push_warning(format!("Failed to read attached streams: {e}"));
+                Vec::new()
+            }
+        };
 
-        Ok(Self {
+        let entity = Self {
             identity,
             metadata,
             kind,
             streams,
-        })
+        };
+
+        if entity.is_error() {
+            // Reason for fallback: generic error description when entity is inaccessible without recorded message strings
+            let first_err = entity
+                .metadata
+                .errors
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "File entity is inaccessible".to_string());
+            return Err(anyhow::Error::new(FileReadError {
+                entity: Box::new(entity),
+                source: anyhow::anyhow!("{first_err}"),
+            }));
+        }
+
+        Ok(entity)
     }
 
     #[cfg(unix)]
@@ -697,8 +918,16 @@ impl FileEntity {
         base_dir: Option<&Path>,
         compute_hash: bool,
     ) -> Result<Self> {
-        let sym_meta = std::fs::symlink_metadata(path)
-            .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+        let sym_meta = match std::fs::symlink_metadata(path) {
+            Ok(m) => m,
+            Err(err) => {
+                let entity = Self::inaccessible(path, base_dir, format!("Failed to read metadata: {err}"));
+                return Err(anyhow::Error::new(FileReadError {
+                    entity: Box::new(entity),
+                    source: anyhow::Error::new(err).context(format!("Failed to read metadata for {}", path.display())),
+                }));
+            }
+        };
 
         let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
 
@@ -850,6 +1079,7 @@ impl FileEntity {
             environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
             warnings: Vec::new(),
+            errors: Vec::new(),
         };
 
         #[cfg(unix)]
@@ -895,52 +1125,62 @@ impl FileEntity {
             // Regular file: discover extents and compute SHA-256
             let size = sym_meta.len();
             #[cfg(target_os = "linux")]
-            let (mut file, opened_with_noatime) = {
+            let open_res = {
                 use std::os::unix::fs::OpenOptionsExt;
                 let mut opts = std::fs::File::options();
                 opts.read(true);
                 opts.custom_flags(nix::libc::O_NOATIME);
                 match opts.open(path) {
-                    Ok(f) => (f, true),
-                    Err(_) => {
-                        let f = std::fs::File::open(path).with_context(|| {
-                            format!("Failed to open file for hashing: {}", path.display())
-                        })?;
-                        (f, false)
-                    }
+                    Ok(f) => Ok((f, true)),
+                    Err(_) => std::fs::File::open(path).map(|f| (f, false)),
                 }
             };
             #[cfg(not(target_os = "linux"))]
-            let (mut file, opened_with_noatime) = {
-                let f = std::fs::File::open(path).with_context(|| {
-                    format!("Failed to open file for hashing: {}", path.display())
-                })?;
-                (f, false)
+            let open_res = std::fs::File::open(path).map(|f| (f, false));
+
+            let (extents, is_sparse, sha256) = match open_res {
+                Ok((mut file, opened_with_noatime)) => {
+                    // Reason for fallback: when extent query fails on non-sparse filesystem, fall back to single contiguous data extent covering full size
+                    let extents = get_file_extents(&file, size).unwrap_or_else(|e| {
+                        metadata.push_warning(format!("Failed to query file extents: {e}"));
+                        vec![Extent::Data { offset: 0, length: size }]
+                    });
+                    let is_sparse = extents.iter().any(Extent::is_hole);
+
+                    let sha256 = if compute_hash {
+                        match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
+                            Ok(hash) => hash,
+                            Err(e) => {
+                                metadata.push_error(format!("Failed to read/hash payload: {e}"));
+                                [0_u8; 32]
+                            }
+                        }
+                    } else {
+                        [0_u8; 32]
+                    };
+
+                    metadata.set_used_noatime(opened_with_noatime);
+
+                    #[cfg(unix)]
+                    if !opened_with_noatime {
+                        let orig_atime = FileTime::from_unix_time(
+                            timestamps.atime_sec,
+                            timestamps.atime_nsec,
+                        );
+                        let orig_mtime = FileTime::from_unix_time(
+                            timestamps.mtime_sec,
+                            timestamps.mtime_nsec,
+                        );
+                        let _ = set_file_times(path, orig_atime, orig_mtime);
+                    }
+
+                    (extents, is_sparse, sha256)
+                }
+                Err(err) => {
+                    metadata.push_error(format!("Failed to open file for hashing: {err}"));
+                    (vec![Extent::Data { offset: 0, length: size }], false, [0_u8; 32])
+                }
             };
-
-            let extents = get_file_extents(&file, size)?;
-            let is_sparse = extents.iter().any(Extent::is_hole);
-
-            let sha256 = if compute_hash {
-                crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
-            } else {
-                [0_u8; 32]
-            };
-
-            metadata.set_used_noatime(opened_with_noatime);
-
-            #[cfg(unix)]
-            if !opened_with_noatime {
-                let orig_atime = FileTime::from_unix_time(
-                    timestamps.atime_sec,
-                    timestamps.atime_nsec,
-                );
-                let orig_mtime = FileTime::from_unix_time(
-                    timestamps.mtime_sec,
-                    timestamps.mtime_nsec,
-                );
-                let _ = set_file_times(path, orig_atime, orig_mtime);
-            }
 
             FileEntityKind::Regular {
                 size,
@@ -950,7 +1190,13 @@ impl FileEntity {
             }
         };
 
-        let streams = read_and_hash_streams(path)?;
+        let streams = match read_and_hash_streams(path) {
+            Ok(s) => s,
+            Err(e) => {
+                metadata.push_warning(format!("Failed to read attached streams: {e}"));
+                Vec::new()
+            }
+        };
 
         #[cfg(unix)]
         if is_symlink {
@@ -973,12 +1219,28 @@ impl FileEntity {
             }
         }
 
-        Ok(Self {
+        let entity = Self {
             identity,
             metadata,
             kind,
             streams,
-        })
+        };
+
+        if entity.is_error() {
+            // Reason for fallback: generic error description when entity is inaccessible without recorded message strings
+            let first_err = entity
+                .metadata
+                .errors
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "File entity is inaccessible".to_string());
+            return Err(anyhow::Error::new(FileReadError {
+                entity: Box::new(entity),
+                source: anyhow::anyhow!("{first_err}"),
+            }));
+        }
+
+        Ok(entity)
     }
 
     /// Whether this entity is a regular file.
@@ -1414,6 +1676,75 @@ mod tests {
         let dcs = ctb_formats_dcstring::DcString::from_dcutf(b"test".to_vec()).unwrap();
         let f_dcs = FileEntity::from_dcs(&dcs);
         assert_eq!(f_dcs.identity.origin, FileOrigin::Synthetic);
+    }
+
+    #[crate::ctb_test]
+    fn test_inaccessible_file_entity_handling() {
+        let non_existent = PathBuf::from("/nonexistent/path/to/missing_file.txt");
+        let res = FileEntity::from_filesystem(&non_existent, None);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        let read_err = err
+            .downcast_ref::<FileReadError>()
+            .expect("Expected FileReadError");
+        assert!(read_err.entity.is_inaccessible());
+        assert!(read_err.entity.is_error());
+        assert!(!read_err.entity.is_ok());
+        assert!(!read_err.entity.metadata.errors.is_empty());
+
+        let infallible = FileEntity::from_filesystem_infallible(&non_existent, None);
+        assert!(infallible.is_inaccessible());
+        assert!(infallible.is_error());
+        assert!(!infallible.is_ok());
+        assert!(infallible.check_ok().is_err());
+        assert_eq!(infallible.kind.entity_type(), FileEntityType::Inaccessible);
+    }
+
+    #[crate::ctb_test]
+    fn test_file_entity_errors_and_warnings_dc_roundtrip() {
+        let path = PathBuf::from("test/error_item.dat");
+        let mut entity = FileEntity::inaccessible(&path, None, "File cannot be accessed");
+        entity.identity.raw_relative_path = None;
+        entity.identity.raw_filename = None;
+        entity
+            .metadata
+            .push_warning("Fidelity warning: extended attributes missing");
+        entity
+            .metadata
+            .push_error("I/O error: permission denied while opening payload");
+
+        assert!(entity.is_inaccessible());
+        assert!(entity.is_error());
+        assert_eq!(entity.metadata.warnings.len(), 1);
+        assert_eq!(entity.metadata.errors.len(), 2);
+
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity)
+            .expect("FileEntity with errors/warnings DcMixed roundtrip failed");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_partially_read_file_payload_failure() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let test_file = temp_dir.path().join("unreadable.bin");
+        std::fs::write(&test_file, b"Confidential content").expect("write test file");
+
+        // Make file unreadable
+        let perms = std::fs::Permissions::from_mode(0o000);
+        std::fs::set_permissions(&test_file, perms).expect("chmod 000");
+
+        let infallible = FileEntity::from_filesystem_infallible(&test_file, None);
+        // Reset permissions so temp_dir cleanup succeeds
+        let reset_perms = std::fs::Permissions::from_mode(0o644);
+        let _ = std::fs::set_permissions(&test_file, reset_perms);
+
+        // In root/container environments, open might succeed even with 000;
+        // if unreadable, it captures payload failure while preserving Regular kind!
+        if infallible.is_error() {
+            assert!(matches!(infallible.kind, FileEntityKind::Regular { size: 20, .. }));
+            assert!(!infallible.metadata.errors.is_empty());
+        }
     }
 }
 

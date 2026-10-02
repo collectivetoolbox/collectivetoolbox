@@ -373,6 +373,18 @@ pub fn materialize_entity(
 ) -> Result<MaterializeReceipt> {
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
+    if entity.is_error() {
+        let err_details = if entity.metadata.errors.is_empty() {
+            "entity is marked inaccessible".to_string()
+        } else {
+            entity.metadata.errors.join("; ")
+        };
+        anyhow::bail!(
+            "Refusing to materialize inaccessible entity or entity with recorded errors ({}): {}",
+            entity.identity.display_path(),
+            err_details
+        );
+    }
     let relative_path = entity
         .identity
         .relative_path
@@ -941,6 +953,12 @@ pub fn materialize_entity(
                 skipped_identical: false,
             })
         }
+        FileEntityKind::Inaccessible => {
+            anyhow::bail!(
+                "Cannot materialize inaccessible entity: {}",
+                dest_path.display()
+            );
+        }
     }
 }
 
@@ -1346,6 +1364,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1451,6 +1470,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1544,6 +1564,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1625,6 +1646,7 @@ mod tests {
                 environment: None,
                 apple: None,
                 warnings: Vec::new(),
+                errors: Vec::new(),
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1714,6 +1736,33 @@ mod tests {
         assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600).is_err());
         assert_eq!(fs::read(path).unwrap(), b"keep this data");
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_materialize_entity_refuses_error_or_inaccessible() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let options = MaterializeOptions::default();
+
+        // 1. Inaccessible entity
+        let inaccessible = FileEntity::inaccessible(
+            Path::new("missing.txt"),
+            None,
+            "Cannot access file",
+        );
+        let res1 = materialize_entity(&inaccessible, None, &dest_dir, &options);
+        assert!(res1.is_err());
+        let err1_str = res1.unwrap_err().to_string();
+        assert!(err1_str.contains("Refusing to materialize inaccessible entity"));
+
+        // 2. Regular entity with error attached
+        let mut regular_err = FileEntity::from_string("hello");
+        regular_err.identity.relative_path = Some(PathBuf::from("hello.txt"));
+        regular_err.metadata.push_error("I/O payload corrupt");
+        let res2 = materialize_entity(&regular_err, None, &dest_dir, &options);
+        assert!(res2.is_err());
+        let err2_str = res2.unwrap_err().to_string();
+        assert!(err2_str.contains("Refusing to materialize inaccessible entity or entity with recorded errors"));
     }
 }
 
