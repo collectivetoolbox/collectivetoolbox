@@ -71,6 +71,36 @@ the main file payload and are not standalone backup archives. Legacy journals
 cannot recover fields that their writers never stored. A checksummed record that
 cannot be decoded is an error, not permission to truncate it during resume.
 
+## Filename Identity Requirement
+
+Required by the operator's actual backup corpus; implementation and regression
+coverage still need qualification. Thousands of files have different contents
+but names differing only in Unicode normalization after Apple File Protocol
+mishaps. These are distinct files, not duplicate spellings to clean up.
+
+Preserve Linux path components as exact raw bytes, including invalid UTF-8;
+preserve Windows-native names as exact UTF-16 code units. Never apply Unicode
+normalization (NFC, NFD, NFKC, or NFKD) to stored or materialized filenames.
+Display strings and normalized/case-folded comparisons must not become identity
+keys. This applies throughout capture, archive/journal serialization, indexing,
+resume, verification, and materialization. Linux-to-Linux operations must not
+change a single filename byte. Cross-platform transcoding, when necessary, must
+be exact and reversible; unrepresentable names are materialization errors.
+
+For example, byte names `b"caf\xc3\xa9"` and `b"cafe\xcc\x81"` must retain their
+separate identities and different payloads. Test directory components as well
+as leaf names, invalid UTF-8, index rebuilds, and interruption/resume.
+
+Archive creation must preserve both entries without regard to the eventual
+extraction filesystem. If that filesystem aliases their names, skipping an
+unmaterializable entry is acceptable only with a logged/displayed materialization
+error and an unsuccessful operation result. Never silently overwrite one entry
+with the other, normalize a name, or automatically rename it. Check collisions
+with other source entries and existing destination entries before destructive
+replacement, including after resume; retain original source/archive names and
+payloads. Use actual destination namespace behavior, not an assumption that all
+Windows or macOS filesystems normalize names alike.
+
 ## Stream Names
 
 Stream names are tagged raw bytes or raw Windows UTF-16 code units. The journal

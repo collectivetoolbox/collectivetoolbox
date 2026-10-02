@@ -1,3 +1,6 @@
+Execution priorities and MVP scope: [Dc-Native Personal MVP Roadmap](../docs/mvp-roadmap.md).
+This file remains the issue inbox; its ordering is not the implementation order.
+
 - [x] Icons do not have consistent size (compare "Restart" and "Reload")
 - [x] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
   - [ ] Make the debug logging less of a footgun somehow?

@@ -1,5 +1,10 @@
 # File Information & Format Architecture: Master Checklist
 
+> Execution priorities: [Dc-Native Personal MVP Roadmap](mvp-roadmap.md).
+> This checklist remains the detailed format backlog, not the application-wide
+> delivery order. Unfinished items below remain pending; detection/catalog parity
+> does not block the roadmap's native graph and preservation milestones.
+
 ## Implementation Progress Snapshot
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
@@ -494,8 +499,13 @@ particular, `value` describes an expression that can produce a value, not only
 the already evaluated result. A literal evaluates to its own represented value;
 a reference resolves its binding; an invocation evaluates according to its
 routine contract. A variable and a constant need not have different reference
-framing: mutability belongs to the binding. Parsing, displaying, indexing, or
-deserializing any of these forms must not itself perform evaluation.
+framing: mutability belongs to the binding. Parsing, deserialization, and raw
+source inspection must not implicitly execute the inspected or quoted payload.
+This is not a prohibition on execution for document display: displaying a Dc
+document runs it in the capability-gated runtime, as with PostScript. If indexing
+requires evaluation, it uses that runtime with explicit capabilities rather than
+the indexer's ambient privileges. See [renderer-flow.md](renderer-flow.md) for
+the permissive execution and resource/permission model.
 
 A statement need not have a special return token merely to produce its result.
 However, the result of evaluating an expression is **not** implicitly parsed and
@@ -540,14 +550,17 @@ payload must not be confused with a missing literal frame.
 This cleanup fixes data definitions, not the evaluator. The current syntax
 matcher consumes rule references and named constructs as token placeholders;
 it does not yet expand them into a full document grammar. Its recovery mode can
-also accept truncated structures with warnings. Neither behavior is suitable
-for execution validation. Regression tests expand the relevant data rules in
+also accept truncated structures with warnings. These are historical cleanup
+notes, not a requirement that normal display pass strict validation. Strict
+artifact validation and permissive runtime recovery serve different purposes.
+Regression tests expand the relevant data rules in
 test code and require complete, warning-free matches; they do not establish
 runtime support for these expressions.
 
-Before execution, implement namespace-safe Dc matching, bounded recursive rule
-resolution, strict framing validation, and an evaluator that never executes
-quoted payloads implicitly. Preserve original escaped spelling separately when
+For strict artifact validation, use namespace-safe Dc matching, bounded recursive
+rule resolution, and strict framing validation. This is not a prerequisite for
+attempting permissive runtime execution. The evaluator must never execute quoted
+payloads implicitly. Preserve original escaped spelling separately when
 bit-for-bit reconstruction is needed. Routine arguments, other routine markers,
 list/map element framing, and nested executable blocks need their own explicit
 grammar before inclusion in `statement` or `value`. The existing literal type
