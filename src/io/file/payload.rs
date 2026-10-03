@@ -618,6 +618,24 @@ impl<R: Read + Send> PayloadSource for ReaderPayloadSource<R> {
     }
 }
 
+impl<P: PayloadSource> PayloadSource for ProgressStream<P> {
+    fn total_size(&self) -> u64 {
+        self.inner().total_size()
+    }
+
+    fn extents(&self) -> &[Extent] {
+        self.inner().extents()
+    }
+
+    fn is_sparse(&self) -> bool {
+        self.inner().is_sparse()
+    }
+
+    fn opened_with_noatime(&self) -> bool {
+        self.inner().opened_with_noatime()
+    }
+}
+
 pub use crate::block_device_size::query_block_device_size;
 
 /// Computes the cryptographic SHA-256 digest of a payload source, taking

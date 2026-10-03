@@ -86,7 +86,7 @@ pub use crate::string::{
     parse_bytes_u128,
 };
 pub use crate::ui::progress::{
-    Progress, TaskId, should_show_progress, should_use_controls,
+    Progress, ProgressStream, TaskId, should_show_progress, should_use_controls,
 };
 pub use crate::utilities_json_json as json;
 pub use anyhow;

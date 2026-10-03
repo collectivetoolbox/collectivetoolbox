@@ -30,7 +30,7 @@ use crate::utilities::cli::{is_stderr_interactive, supports_control_characters};
 use crate::utilities::string::format_percentage;
 
 use std::collections::HashMap;
-use std::io::{Write, stderr};
+use std::io::{Read, Seek, SeekFrom, Write, stderr};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -364,7 +364,7 @@ impl Drop for Progress {
 
 /// Wrapper around a reader or payload source that reports streaming progress
 /// to the progress reporter API as bytes are processed.
-struct ProgressStream<R> {
+pub struct ProgressStream<R> {
     inner: R,
     progress: Progress,
     task_id: TaskId,
@@ -377,7 +377,8 @@ struct ProgressStream<R> {
 }
 
 impl<R> ProgressStream<R> {
-    fn new(
+    /// Constructs a new progress-reporting stream wrapping `inner`.
+    pub fn new(
         inner: R,
         progress: &Progress,
         task_id: TaskId,
@@ -397,6 +398,21 @@ impl<R> ProgressStream<R> {
             phase,
             last_update: Instant::now(),
         }
+    }
+
+    /// Returns a reference to the underlying reader.
+    pub fn inner(&self) -> &R {
+        &self.inner
+    }
+
+    /// Returns a mutable reference to the underlying reader.
+    pub fn inner_mut(&mut self) -> &mut R {
+        &mut self.inner
+    }
+
+    /// Consumes the stream, returning the underlying reader.
+    pub fn into_inner(self) -> R {
+        self.inner
     }
 
     fn maybe_report_progress(&mut self) {
@@ -438,24 +454,6 @@ impl<R: Read> Read for ProgressStream<R> {
 impl<R: Seek> Seek for ProgressStream<R> {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         self.inner.seek(pos)
-    }
-}
-
-impl<P: PayloadSource> PayloadSource for ProgressStream<P> {
-    fn total_size(&self) -> u64 {
-        self.inner.total_size()
-    }
-
-    fn extents(&self) -> &[Extent] {
-        self.inner.extents()
-    }
-
-    fn is_sparse(&self) -> bool {
-        self.inner.is_sparse()
-    }
-
-    fn opened_with_noatime(&self) -> bool {
-        self.inner.opened_with_noatime()
     }
 }
 
