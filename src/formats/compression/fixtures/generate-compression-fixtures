@@ -121,7 +121,7 @@ echo "=== Generating All Compression Fixtures Into Staging ==="
 # AT&T System III / V pack
 cp "$RAW_FILE" "$TMP_DIR/raw_sys3"
 (cd "$TMP_DIR" && ./sys3-pack raw_sys3 >/dev/null 2>&1)
-mv "$TMP_DIR/raw_sys3.z" "$FIXTURES_DIR/example2 with lemurs.pan.z"
+mv "$TMP_DIR/raw_sys3.z" "$FIXTURES_DIR/example2 with lemurs.pan.pack.z"
 
 # PDP-11 Zucker 1977 old-pack
 cp "$RAW_FILE" "$TMP_DIR/raw_opack"
@@ -211,7 +211,7 @@ verify_decomp compress Z "$TMP_DIR/ncompress" -c -d
 unpack_sys3() {
     (cd "$TMP_DIR" && ./sys3-pcat dec_pack.z)
 }
-cp "$FIXTURES_DIR/example2 with lemurs.pan.z" "$TMP_DIR/dec_pack.z"
+cp "$FIXTURES_DIR/example2 with lemurs.pan.pack.z" "$TMP_DIR/dec_pack.z"
 verify_decomp pack z unpack_sys3
 verify_decomp old-pack old.z "$TMP_DIR/opcat" "$FIXTURES_DIR/example2 with lemurs.pan.old.z"
 verify_decomp compact C "$TMP_DIR/uncompact"

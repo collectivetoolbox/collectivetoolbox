@@ -721,7 +721,7 @@ mod tests {
             FormatId::CompressLzw16 => {
                 &["fixtures/example2 with lemurs.pan.1.6.Z"]
             }
-            FormatId::Pack => &["fixtures/example2 with lemurs.pan.z"],
+            FormatId::Pack => &["fixtures/example2 with lemurs.pan.pack.z"],
             FormatId::OldPack => {
                 &["fixtures/example2 with lemurs.pan.old.z"]
             }

@@ -747,7 +747,7 @@ for %%F in (D:\tests\*.exe) do (
         echo === PASS %%~nF === >> COM1
     ) else (
         set /a FAILED+=1
-        echo === FAIL %%~nF (EXIT:!ERRORLEVEL!) === >> COM1
+        echo === FAIL %%~nF [EXIT:!ERRORLEVEL!] === >> COM1
     )
     echo. >> COM1
 )
@@ -824,9 +824,9 @@ with open(log_path, 'r', errors='replace') as f:
                 m_pass = re.search(r'=== PASS (\S+) ===', clean)
                 if m_pass:
                     passing_binaries.append(m_pass.group(1))
-                m_fail = re.search(r'=== FAIL (\S+) \(EXIT:(-?\d+)\) ===', clean)
+                m_fail = re.search(r'=== FAIL (\S+)(?: \[EXIT:(-?\d+)\])?', clean)
                 if m_fail:
-                    failing_binaries.append((m_fail.group(1), m_fail.group(2)))
+                    failing_binaries.append((m_fail.group(1), m_fail.group(2) or 'unknown'))
 
                 sys.stdout.write(line)
                 sys.stdout.flush()
