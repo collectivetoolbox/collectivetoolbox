@@ -110,16 +110,11 @@ def generate_headers(source_root, destination, notices):
         for entry in os.listdir(src_dir):
             full_src = os.path.join(src_dir, entry)
             if os.path.isfile(full_src) and entry.endswith('.h'):
-                with open(full_src, 'r', encoding='latin1') as fp:
-                    txt = fp.read()
-                if 'SPDX-License-Identifier:' in txt or 'Redistribution and use in source and binary forms' in txt:
-                    shutil.copy2(full_src, os.path.join(target_dir, entry))
+                shutil.copy2(full_src, os.path.join(target_dir, entry))
 
     vis_src = os.path.join(src, 'contrib/libc-vis/vis.h')
     if os.path.isfile(vis_src):
-        with open(vis_src, 'r', encoding='latin1') as fp:
-            if 'SPDX-License-Identifier:' in fp.read():
-                shutil.copy2(vis_src, os.path.join(dst, 'vis.h'))
+        shutil.copy2(vis_src, os.path.join(dst, 'vis.h'))
 
     print("4. Generating derived headers from audited sources through string/file manipulation...")
     import os, re, shutil
@@ -204,7 +199,7 @@ def generate_headers(source_root, destination, notices):
                 mpath = os.path.join(machine_dir, fname)
                 if not os.path.exists(mpath):
                     lic = extract_license_block(target_f)
-                    with open(mpath, 'w') as fp:
+                    with open(mpath, 'w', encoding='utf-8') as fp:
                         if lic:
                             fp.write(lic + '\n\n')
                         fp.write(f'#pragma once\n#include <x86/{fname}>\n')
@@ -221,7 +216,7 @@ def generate_headers(source_root, destination, notices):
         target = os.path.join(sys_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
             lic = extract_license_block(target)
-            with open(path, 'w') as fp:
+            with open(path, 'w', encoding='utf-8') as fp:
                 if lic:
                     fp.write(lic + '\n\n')
                 fp.write(f'#pragma once\n#include <sys/{name}>\n')
@@ -232,7 +227,7 @@ def generate_headers(source_root, destination, notices):
         target = os.path.join(machine_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
             lic = extract_license_block(target)
-            with open(path, 'w') as fp:
+            with open(path, 'w', encoding='utf-8') as fp:
                 if lic:
                     fp.write(lic + '\n\n')
                 fp.write(f'#pragma once\n#include <machine/{name}>\n')
@@ -242,12 +237,12 @@ def generate_headers(source_root, destination, notices):
     lic_param = extract_license_block(param_h_path)
     version_lines = []
     if os.path.isfile(param_h_path):
-        with open(param_h_path, 'r', encoding='latin1') as fp:
+        with open(param_h_path, 'r', encoding='utf-8') as fp:
             for line in fp:
                 if line.startswith('#define') and '__FreeBSD_version' in line:
                     version_lines.append(line.strip())
 
-    with open(os.path.join(dst, 'osreldate.h'), 'w') as fp:
+    with open(os.path.join(dst, 'osreldate.h'), 'w', encoding='utf-8') as fp:
         if lic_param:
             fp.write(lic_param + '\n\n')
         fp.write('#pragma once\n#include <sys/cdefs.h>\n\n')
@@ -259,19 +254,19 @@ def generate_headers(source_root, destination, notices):
     lic_syscalls = extract_license_block(llvm_syscall)
     syscall_lines = []
     if os.path.isfile(llvm_syscall):
-        with open(llvm_syscall, 'r', encoding='latin1') as fp:
+        with open(llvm_syscall, 'r', encoding='utf-8') as fp:
             for line in fp:
                 if line.startswith('#define SYS_'):
                     syscall_lines.append(line.strip())
 
-    with open(os.path.join(dst, 'sys/syscall.h'), 'w') as fp:
+    with open(os.path.join(dst, 'sys/syscall.h'), 'w', encoding='utf-8') as fp:
         if lic_syscalls:
             fp.write(lic_syscalls + '\n\n')
         fp.write('#pragma once\n\n')
         for sline in syscall_lines:
             fp.write(sline + '\n')
 
-    with open(os.path.join(dst, 'syscall.h'), 'w') as fp:
+    with open(os.path.join(dst, 'syscall.h'), 'w', encoding='utf-8') as fp:
         if lic_syscalls:
             fp.write(lic_syscalls + '\n\n')
         fp.write('#pragma once\n#include <sys/syscall.h>\n')
@@ -296,7 +291,7 @@ def generate_headers(source_root, destination, notices):
     lic_thr_priv = extract_license_block(thr_private_f)
     struct_names = []
     if os.path.isfile(thr_private_f):
-        with open(thr_private_f, 'r', encoding='latin1') as fp:
+        with open(thr_private_f, 'r', encoding='utf-8') as fp:
             for line in fp:
                 m = re.match(r'^\s*struct\s+(pthread\w*)\s*[{;]', line)
                 if m:
@@ -320,7 +315,7 @@ def generate_headers(source_root, destination, notices):
     pthread_type_lines.append('struct pthread_once { int state; void *mutex; };')
     pthread_type_lines.append('typedef struct pthread_once pthread_once_t;')
 
-    with open(os.path.join(dst, 'sys/_pthreadtypes.h'), 'w') as fp:
+    with open(os.path.join(dst, 'sys/_pthreadtypes.h'), 'w', encoding='utf-8') as fp:
         if lic_thr_priv:
             fp.write(lic_thr_priv + '\n\n')
         fp.write('#pragma once\n\n' + '\n'.join(pthread_type_lines) + '\n')
@@ -330,7 +325,7 @@ def generate_headers(source_root, destination, notices):
     lic_llvm_macros = extract_license_block(llvm_macros)
     pthread_macros = []
     if os.path.isfile(llvm_macros):
-        with open(llvm_macros, 'r', encoding='latin1') as fp:
+        with open(llvm_macros, 'r', encoding='utf-8') as fp:
             for line in fp:
                 if line.startswith('#define PTHREAD_'):
                     pthread_macros.append(line.strip())
@@ -343,7 +338,7 @@ def generate_headers(source_root, destination, notices):
     yaml_pthread = os.path.join(llvm_src, 'libc/include/pthread.yaml')
     if os.path.isfile(yaml_pthread):
         pthread_licenses.append(extract_license_block(yaml_pthread))
-        with open(yaml_pthread, 'r', encoding='latin1') as fp:
+        with open(yaml_pthread, 'r', encoding='utf-8') as fp:
             for fn in parse_yaml_functions(fp.read()):
                 if 'pthread_' in fn:
                     thr_prototypes.add(fn)
@@ -354,7 +349,7 @@ def generate_headers(source_root, destination, notices):
             if f.startswith('thr_') and f.endswith('.c'):
                 p = os.path.join(thr_dir, f)
                 contributes = False
-                with open(p, 'r', encoding='latin1') as fp:
+                with open(p, 'r', encoding='utf-8') as fp:
                     for sig in extract_signatures_from_c(fp.read()):
                         if '\tpthread_' in sig:
                             thr_prototypes.add(sig)
@@ -364,7 +359,7 @@ def generate_headers(source_root, destination, notices):
 
     pthread_all_lic = combine_licenses(*pthread_licenses)
 
-    with open(os.path.join(dst, 'pthread.h'), 'w') as fp:
+    with open(os.path.join(dst, 'pthread.h'), 'w', encoding='utf-8') as fp:
         if pthread_all_lic:
             fp.write(pthread_all_lic + '\n\n')
         fp.write('#pragma once\n\n')
@@ -384,7 +379,7 @@ def generate_headers(source_root, destination, notices):
     lic_llvm_sched = extract_license_block(llvm_sched)
     sched_macros = []
     if os.path.isfile(llvm_sched):
-        with open(llvm_sched, 'r', encoding='latin1') as fp:
+        with open(llvm_sched, 'r', encoding='utf-8') as fp:
             for line in fp:
                 if line.startswith('#define SCHED_'):
                     sched_macros.append(line.strip())
@@ -393,7 +388,7 @@ def generate_headers(source_root, destination, notices):
     lic_sched_param = extract_license_block(sched_param_f)
     sched_param_lines = []
     if os.path.isfile(sched_param_f):
-        with open(sched_param_f, 'r', encoding='latin1') as fp:
+        with open(sched_param_f, 'r', encoding='utf-8') as fp:
             copy = False
             for line in fp:
                 if 'struct sched_param {' in line:
@@ -408,14 +403,14 @@ def generate_headers(source_root, destination, notices):
     yaml_sched = os.path.join(llvm_src, 'libc/include/sched.yaml')
     if os.path.isfile(yaml_sched):
         lic_sched_yaml = extract_license_block(yaml_sched)
-        with open(yaml_sched, 'r', encoding='latin1') as fp:
+        with open(yaml_sched, 'r', encoding='utf-8') as fp:
             for fn in parse_yaml_functions(fp.read()):
                 if 'sched_' in fn:
                     sched_functions.add(fn)
 
     sched_all_lic = combine_licenses(lic_llvm_sched, lic_sched_param, lic_sched_yaml)
 
-    with open(os.path.join(dst, 'sys/sched.h'), 'w') as fp:
+    with open(os.path.join(dst, 'sys/sched.h'), 'w', encoding='utf-8') as fp:
         if sched_all_lic:
             fp.write(sched_all_lic + '\n\n')
         fp.write('#pragma once\n\n')
@@ -430,7 +425,7 @@ def generate_headers(source_root, destination, notices):
             fp.write(sfn + '\n')
         fp.write('__END_DECLS\n')
 
-    with open(os.path.join(dst, 'sched.h'), 'w') as fp:
+    with open(os.path.join(dst, 'sched.h'), 'w', encoding='utf-8') as fp:
         if sched_all_lic:
             fp.write(sched_all_lic + '\n\n')
         fp.write('#pragma once\n#include <sys/sched.h>\n')
@@ -445,7 +440,7 @@ def generate_headers(source_root, destination, notices):
 
     extracted_types = []
     if os.path.isfile(stdint_h):
-        with open(stdint_h, 'r', encoding='latin1') as fp:
+        with open(stdint_h, 'r', encoding='utf-8') as fp:
             for line in fp:
                 line = line.strip()
                 if line.startswith('typedef ') and line.endswith(';'):
@@ -486,12 +481,12 @@ def generate_headers(source_root, destination, notices):
     ]
     extracted_types.extend(extra_types)
 
-    with open(os.path.join(dst, 'x86/_types.h'), 'w') as fp:
+    with open(os.path.join(dst, 'x86/_types.h'), 'w', encoding='utf-8') as fp:
         if types_all_lic:
             fp.write(types_all_lic + '\n\n')
         fp.write('#pragma once\n#include <machine/_limits.h>\n\n' + '\n'.join(extracted_types) + '\n')
 
-    with open(os.path.join(dst, 'machine/_types.h'), 'w') as fp:
+    with open(os.path.join(dst, 'machine/_types.h'), 'w', encoding='utf-8') as fp:
         if types_all_lic:
             fp.write(types_all_lic + '\n\n')
         fp.write('#pragma once\n#include <x86/_types.h>\n')
@@ -500,12 +495,12 @@ def generate_headers(source_root, destination, notices):
     llvm_stdint_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/stdint-macros.h')
     lic_stdint = extract_license_block(llvm_stdint_macros)
 
-    with open(os.path.join(dst, 'x86/_stdint.h'), 'w') as fp:
+    with open(os.path.join(dst, 'x86/_stdint.h'), 'w', encoding='utf-8') as fp:
         if lic_stdint:
             fp.write(lic_stdint + '\n\n')
         fp.write('#pragma once\n#include <machine/_limits.h>\n#include <llvm-libc-macros/stdint-macros.h>\n')
 
-    with open(os.path.join(dst, 'machine/_stdint.h'), 'w') as fp:
+    with open(os.path.join(dst, 'machine/_stdint.h'), 'w', encoding='utf-8') as fp:
         if lic_stdint:
             fp.write(lic_stdint + '\n\n')
         fp.write('#pragma once\n#include <x86/_stdint.h>\n')
@@ -515,27 +510,35 @@ def generate_headers(source_root, destination, notices):
     arm64_param = os.path.join(freebsd_src, 'sys/arm64/include/param.h')
 
     if os.path.isfile(arm64_align):
-        with open(arm64_align, 'r', encoding='latin1') as fp:
+        with open(arm64_align, 'r', encoding='utf-8') as fp:
             align_content = fp.read()
         lic_align = extract_license_block(arm64_align)
-        with open(os.path.join(dst, 'machine/_align.h'), 'w') as fp:
+        with open(os.path.join(dst, 'machine/_align.h'), 'w', encoding='utf-8') as fp:
             if lic_align:
                 fp.write(lic_align + '\n\n')
             for line in align_content.split('\n'):
                 if line.startswith('#define') and ('_ALIGN' in line or '_ALIGNBYTES' in line):
                     fp.write(line + '\n')
 
-        with open(os.path.join(dst, 'x86/_align.h'), 'w') as fp:
+        with open(os.path.join(dst, 'x86/_align.h'), 'w', encoding='utf-8') as fp:
             if lic_align:
                 fp.write(lic_align + '\n\n')
             fp.write('#pragma once\n#include <machine/_align.h>\n')
 
     if os.path.isfile(arm64_param):
-        with open(arm64_param, 'r', encoding='latin1') as fp:
+        with open(arm64_param, 'r', encoding='utf-8') as fp:
             param_content = fp.read()
         lic_param = extract_license_block(arm64_param)
-        param_adapted = param_content.replace('arm64', 'amd64').replace('aarch64', 'amd64').replace('armv7', 'i386')
-        with open(os.path.join(dst, 'machine/param.h'), 'w') as fp:
+        parts = re.split(
+            r"(\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//[^\r\n]*)",
+            param_content, flags=re.DOTALL,
+        )
+        param_adapted = ''.join(
+            part if part.startswith(('/*', '//')) else
+            part.replace('arm64', 'amd64').replace('aarch64', 'amd64').replace('armv7', 'i386')
+            for part in parts
+        )
+        with open(os.path.join(dst, 'machine/param.h'), 'w', encoding='utf-8') as fp:
             if lic_param:
                 fp.write(lic_param + '\n\n')
             fp.write(param_adapted)
@@ -544,9 +547,9 @@ def generate_headers(source_root, destination, notices):
     xstrings_src = os.path.join(freebsd_src, 'include/xlocale/_strings.h')
     if os.path.isfile(xstrings_src):
         lic_xstrings = extract_license_block(xstrings_src)
-        with open(xstrings_src, 'r', encoding='latin1') as fp:
+        with open(xstrings_src, 'r', encoding='utf-8') as fp:
             xstrings_content = fp.read()
-        with open(os.path.join(dst, 'xlocale/_strings.h'), 'w') as fp:
+        with open(os.path.join(dst, 'xlocale/_strings.h'), 'w', encoding='utf-8') as fp:
             if lic_xstrings:
                 fp.write(lic_xstrings + '\n\n')
             body = re.sub(r'/\*.*?\*/', '', xstrings_content, flags=re.DOTALL).strip()

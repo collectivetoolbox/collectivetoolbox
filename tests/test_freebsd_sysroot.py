@@ -148,7 +148,9 @@ class FreeBSDSysrootTests(unittest.TestCase):
             ("freebsd", "lib/libthr/thread/thr_create.c"): 'int\npthread_create(void) {}\n',
             ("freebsd", "lib/libthr/thread/thr_join.c"): 'int\npthread_join(void) {}\n',
             ("freebsd", "sys/arm64/include/_align.h"): '#define _ALIGNBYTES 7\n',
-            ("freebsd", "sys/arm64/include/param.h"): '#define MACHINE "arm64"\n',
+            ("freebsd", "sys/arm64/include/param.h"): (
+                '/* Copyright arm64 Author \u00e9: unchanged notice. */\n#define MACHINE "arm64"\n'
+            ),
             ("freebsd", "include/xlocale/_strings.h"): 'int fixture_strings(void);\n',
             ("llvm", "libc/include/sys/syscall.h.def"): '#define SYS_fixture 42\n',
             ("llvm", "libc/include/llvm-libc-macros/pthread-macros.h"): '#define PTHREAD_FIXTURE 1\n',
@@ -199,6 +201,11 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertIn('Copyright second libc/include/sched.yaml', sched)
             self.assertIn('int\tsched_yaml(void);', sched)
             self.assertIn('#define MACHINE "amd64"', (include / 'machine/param.h').read_text())
+            param = (include / 'machine/param.h').read_text()
+            self.assertEqual(param.count('Copyright arm64 Author \u00e9: unchanged notice.'), 2)
+            self.assertTrue(param.endswith(
+                '/* Copyright second sys/arm64/include/param.h; retain this later notice. */\n'
+            ))
             self.assertIn('#define SYS_fixture 42', (include / 'sys/syscall.h').read_text())
             self.assertIn('Copyright second include/xlocale/_strings.h', (
                 include / 'xlocale/_strings.h'
