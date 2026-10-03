@@ -43,9 +43,7 @@ pub(crate) use ctb_utilities::Result;
 use ctb_utilities::anyhow;
 
 #[cfg(unix)]
-use nix::libc::{
-    MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit, syscall,
-};
+use nix::libc::{MCL_CURRENT, MCL_FUTURE, RLIMIT_CORE, mlockall, rlimit, setrlimit};
 
 /// Helper to check if an error represents an OS Error 2 (ENOENT / Not Found).
 fn is_not_found_error(err: &anyhow::Error) -> bool {
@@ -68,7 +66,7 @@ pub async fn main() -> Result<()> {
     {
         // Try to prevent the process from being swapped out (it still might if the computer is suspended or hibernated, if this is running in a VM, or perhaps if the process doesn't have permission to use this syscall).
         unsafe {
-            syscall(mlockall(MCL_CURRENT | MCL_FUTURE).into());
+            mlockall(MCL_CURRENT | MCL_FUTURE);
         }
 
         // Try to prevent core dumps

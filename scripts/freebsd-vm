@@ -659,6 +659,19 @@ cmd_test() {
         echo "ZFS validation succeeded!"
     '
     echo ""
+
+    local ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    if [[ ! -f "$ctb_bin" ]]; then
+        ctb_bin="target/x86_64-unknown-freebsd/debug/ctoolbox"
+    fi
+    if [[ -f "$ctb_bin" ]]; then
+        echo "5. Verifying ctoolbox binary execution in FreeBSD VM..."
+        scp -q -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -P "$DEFAULT_SSH_PORT" "$ctb_bin" root@127.0.0.1:/tmp/ctoolbox-test
+        cmd_run 'chmod +x /tmp/ctoolbox-test && /tmp/ctoolbox-test --version && /tmp/ctoolbox-test hex2dec ff && rm /tmp/ctoolbox-test'
+        echo ""
+    fi
+
     echo "=== FreeBSD & ZFS VM Tests Completed Successfully ==="
 }
 

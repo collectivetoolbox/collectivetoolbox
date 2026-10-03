@@ -580,7 +580,6 @@ unsafe extern "C" {
         size: libc::ssize_t,
     ) -> libc::ssize_t;
     fn acl_copy_int(buf_p: *const libc::c_void) -> *mut libc::c_void;
-    fn acl_size(acl: *mut libc::c_void) -> libc::ssize_t;
     fn acl_to_text(
         acl: *mut libc::c_void,
         len_p: *mut libc::ssize_t,
@@ -604,6 +603,7 @@ unsafe extern "C" {
     reason = "FFI declarations for Darwin ACL functions require an unsafe extern block in Rust 2024"
 )]
 unsafe extern "C" {
+    fn acl_size(acl: *mut libc::c_void) -> libc::ssize_t;
     fn acl_delete_link_np(
         path: *const libc::c_char,
         type_: libc::c_int,
@@ -814,23 +814,6 @@ fn record_freebsd_acl(
         format!("{prefix}.trivial"),
         NativeMetadataValue::Unsigned(if is_trivial { 1 } else { 0 }),
     );
-
-    // SAFETY: acl is valid acl_t.
-    let size = unsafe { acl_size(acl) };
-    if size > 0 {
-        let usize_len = usize::try_from(size).context("Invalid ACL size")?;
-        let mut buf = vec![0_u8; usize_len];
-        // SAFETY: buf is allocated with length matching size, acl is valid.
-        let copied = unsafe { acl_copy_ext(buf.as_mut_ptr().cast(), acl, size) };
-        if copied > 0 {
-            let actual_len = usize::try_from(copied).context("Invalid copied length")?;
-            buf.truncate(actual_len);
-            values.insert(
-                format!("{prefix}.raw"),
-                NativeMetadataValue::Bytes(buf),
-            );
-        }
-    }
 
     let mut text_len: libc::ssize_t = 0;
     // SAFETY: acl is valid, text_len pointer is valid.
