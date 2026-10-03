@@ -57,6 +57,7 @@ typedef HRESULT (WINAPI *PFN_RoActivateInstance)(void *activatableClassId, void 
 typedef int (WINAPI *PFN_GetHostNameW)(WCHAR *name, int namelen);
 typedef BOOL (WINAPI *PFN_RoOriginateErrorW)(HRESULT error, UINT cchMax, const WCHAR *message);
 typedef BOOL (WINAPI *PFN_RoOriginateError)(HRESULT error, void *message);
+typedef HRESULT (WINAPI *PFN_PathCchStripPrefix)(WCHAR *pszPath, SIZE_T cchPath);
 
 // Forward declarations of initial resolver stubs
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb);
@@ -73,6 +74,7 @@ static HRESULT WINAPI resolve_RoActivateInstance(void *activatableClassId, void 
 static int WINAPI resolve_GetHostNameW(WCHAR *name, int namelen);
 static BOOL WINAPI resolve_RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message);
 static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message);
+static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath);
 
 // ============================================================================
 // __imp_ Function Pointers (imported by raw-dylib / linkers)
@@ -92,6 +94,7 @@ PFN_RoActivateInstance __imp_RoActivateInstance = resolve_RoActivateInstance;
 PFN_GetHostNameW __imp_GetHostNameW = resolve_GetHostNameW;
 PFN_RoOriginateErrorW __imp_RoOriginateErrorW = resolve_RoOriginateErrorW;
 PFN_RoOriginateError __imp_RoOriginateError = resolve_RoOriginateError;
+PFN_PathCchStripPrefix __imp_PathCchStripPrefix = resolve_PathCchStripPrefix;
 
 // ============================================================================
 // Direct Function Stubs (for call <symbol>)
@@ -151,6 +154,10 @@ BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message) 
 
 BOOL WINAPI RoOriginateError(HRESULT error, void *message) {
     return __imp_RoOriginateError(error, message);
+}
+
+HRESULT WINAPI PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath) {
+    return __imp_PathCchStripPrefix(pszPath, cchPath);
 }
 
 // ============================================================================
@@ -469,3 +476,61 @@ static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message) {
     __imp_RoOriginateError = fn;
     return fn(error, message);
 }
+
+static HRESULT WINAPI fallback_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath) {
+    if (!pszPath || cchPath == 0) {
+        return (HRESULT)0x80070057L; // E_INVALIDARG
+    }
+    // Check for \\?\UNC\ (8 chars)
+    if (cchPath >= 8 &&
+        pszPath[0] == L'\\' && pszPath[1] == L'\\' &&
+        pszPath[2] == L'?'  && pszPath[3] == L'\\' &&
+        (pszPath[4] == L'U' || pszPath[4] == L'u') &&
+        (pszPath[5] == L'N' || pszPath[5] == L'n') &&
+        (pszPath[6] == L'C' || pszPath[6] == L'c') &&
+        pszPath[7] == L'\\') {
+        pszPath[0] = L'\\';
+        pszPath[1] = L'\\';
+        SIZE_T i = 2;
+        while (7 + (i - 1) < cchPath && pszPath[7 + (i - 1)] != L'\0') {
+            pszPath[i] = pszPath[7 + (i - 1)];
+            i++;
+        }
+        if (i < cchPath) {
+            pszPath[i] = L'\0';
+        }
+        return S_OK;
+    }
+    // Check for \\?\ (4 chars)
+    if (cchPath >= 4 &&
+        pszPath[0] == L'\\' && pszPath[1] == L'\\' &&
+        pszPath[2] == L'?'  && pszPath[3] == L'\\') {
+        SIZE_T i = 0;
+        while (i + 4 < cchPath && pszPath[i + 4] != L'\0') {
+            pszPath[i] = pszPath[i + 4];
+            i++;
+        }
+        if (i < cchPath) {
+            pszPath[i] = L'\0';
+        }
+        return S_OK;
+    }
+    return S_FALSE;
+}
+
+static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath) {
+    HMODULE hMod = GetModuleHandleA("kernelbase.dll");
+    if (!hMod) hMod = GetModuleHandleA("api-ms-win-core-path-l1-1-0.dll");
+    if (!hMod) hMod = LoadLibraryA("api-ms-win-core-path-l1-1-0.dll");
+    if (!hMod) hMod = LoadLibraryA("kernelbase.dll");
+    FARPROC proc = hMod ? GetProcAddress(hMod, "PathCchStripPrefix") : NULL;
+    PFN_PathCchStripPrefix fn;
+    if (proc) {
+        fn = (PFN_PathCchStripPrefix)(void *)proc;
+    } else {
+        fn = fallback_PathCchStripPrefix;
+    }
+    __imp_PathCchStripPrefix = fn;
+    return fn(pszPath, cchPath);
+}
+

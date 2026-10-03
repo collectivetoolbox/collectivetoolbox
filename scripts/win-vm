@@ -468,7 +468,7 @@ cmd_sync_binaries() {
         cp "$installer_bin" "$EXCHANGE_DIR/ctoolbox-installer.exe"
     fi
 
-    genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+    genisoimage -iso-level 3 -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
 
     if is_running; then
         cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
@@ -517,11 +517,9 @@ EOF
     cmd_send_keys "esc"
     sleep 0.5
 
-    cmd_send_keys "meta_l-r"
+    cmd_send_keys "ctrl-esc"
     sleep 1.2
-    cmd_send_keys "ctrl-a" "backspace"
-    sleep 0.2
-    cmd_type "cmd /c d:\\run.bat"
+    cmd_type "cmd /c D:\\run.bat"
     sleep 0.8
     cmd_send_keys "ret"
 
@@ -723,6 +721,17 @@ setlocal enabledelayedexpansion
 set "PATH=D:\\;%PATH%"
 set "CTB_WIN_TEST_ROOT=D:\\"
 cd /d "%TEMP%"
+reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKCU\Software\Policies\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKCU\Software\Policies\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\Windows" /v ErrorMode /t REG_DWORD /d 2 /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v "NoDriveTypeAutoRun" /t REG_DWORD /d 255 /f >nul 2>&1
+
+:: Background watchdog to kill any WerFault crash dialogs immediately
+start /B cmd /c "for /L %%i in () do (taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
 
 echo ---SUITE_START--- > COM1
 set TOTAL=0
@@ -766,11 +775,9 @@ EOF
 
     cmd_send_keys "esc"
     sleep 0.5
-    cmd_send_keys "meta_l-r"
+    cmd_send_keys "ctrl-esc"
     sleep 1.2
-    cmd_send_keys "ctrl-a" "backspace"
-    sleep 0.2
-    cmd_type "cmd /c d:\\run_suite.bat"
+    cmd_type "cmd /c D:\\run_suite.bat"
     sleep 0.8
     cmd_send_keys "ret"
 
@@ -782,22 +789,26 @@ start_offset = int(sys.argv[2])
 timeout = int(sys.argv[3])
 
 start_time = time.time()
+last_output_time = start_time
+last_heartbeat_time = start_time
 started = False
 suite_total = 0
 suite_passed = 0
 suite_failed = 0
 failing_binaries = []
 passing_binaries = []
+current_binary = ''
 
 with open(log_path, 'r', errors='replace') as f:
     f.seek(start_offset)
     while True:
         line = f.readline()
         if line:
+            last_output_time = time.time()
             clean = line.strip()
             if '---SUITE_START---' in clean:
                 started = True
-                print('>>> Windows 7 VM Test Suite Started <<<')
+                print('>>> Windows 7 VM Test Suite Started <<<', flush=True)
                 continue
             if '---SUITE_END:' in clean:
                 m = re.search(r'TOTAL=(\d+),PASSED=(\d+),FAILED=(\d+)', clean)
@@ -807,6 +818,9 @@ with open(log_path, 'r', errors='replace') as f:
                     suite_failed = int(m.group(3))
                 break
             if started:
+                m_run = re.search(r'=== RUN (\S+) ===', clean)
+                if m_run:
+                    current_binary = m_run.group(1)
                 m_pass = re.search(r'=== PASS (\S+) ===', clean)
                 if m_pass:
                     passing_binaries.append(m_pass.group(1))
@@ -817,9 +831,16 @@ with open(log_path, 'r', errors='replace') as f:
                 sys.stdout.write(line)
                 sys.stdout.flush()
         else:
-            if time.time() - start_time > timeout:
+            now = time.time()
+            if now - start_time > timeout:
                 sys.stderr.write(f'\n[TIMEOUT] Test suite exceeded {timeout} seconds in VM.\n')
                 sys.exit(124)
+            if started and now - last_heartbeat_time >= 30:
+                elapsed_min = int((now - start_time) / 60)
+                elapsed_sec = int((now - start_time) % 60)
+                silence_sec = int(now - last_output_time)
+                print(f'[Heartbeat {elapsed_min:02d}:{elapsed_sec:02d}] Active: {current_binary} (no output for {silence_sec}s | passed: {len(passing_binaries)}, failed: {len(failing_binaries)})', flush=True)
+                last_heartbeat_time = now
             time.sleep(0.2)
 
 print('\n' + '=' * 60)

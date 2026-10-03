@@ -1,0 +1,713 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Helper script to manage, snapshot, and run tests/commands in the FreeBSD VM in QEMU.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+REPO_ROOT="$(pwd)"
+DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/FreeBSD/freebsd.qcow2"
+SSH_KEY="$REPO_ROOT/ci-logs/VMs/FreeBSD/id_ed25519"
+SOCKET_DIR="/tmp/ctb-freebsd-vm"
+MONITOR_SOCK="$SOCKET_DIR/monitor.sock"
+VNC_SOCK="$SOCKET_DIR/vnc.sock"
+PID_FILE="$SOCKET_DIR/qemu.pid"
+SERIAL_LOG="$SOCKET_DIR/serial.log"
+SERIAL_SOCK="$SOCKET_DIR/serial.sock"
+EXCHANGE_DIR="/tmp/ctb-freebsd-exchange"
+EXCHANGE_ISO="/tmp/ctb-freebsd-exchange.iso"
+DEFAULT_SSH_PORT="2223"
+
+mkdir -p "$SOCKET_DIR"
+
+remove_if_exists() {
+    for path in "$@"; do
+        if [[ -e "$path" || -L "$path" || -S "$path" ]]; then
+            rm -r "$path"
+        fi
+    done
+}
+
+usage() {
+    cat <<EOF
+Usage: ./scripts/freebsd-vm <command> [options]
+
+VM Lifecycle:
+  start          Start the FreeBSD VM in the background (QEMU)
+                 Options:
+                   --persist        Write changes directly to the qcow2 image
+                                    (default: runs with -snapshot to protect image)
+                   --net            Attach an isolated local loopback NIC (restrict=on,
+                                    guest cannot access external LAN or internet; forwards
+                                    localhost:2223 -> guest:22 for SSH)
+                   --ssh-port PORT  Custom forwarded SSH port (default: 2223)
+                   --vnc-port P     Also listen on TCP port P for VNC (e.g. 5902)
+                   --image PATH     Use a custom qcow2 image (default: ci-logs/VMs/FreeBSD/freebsd.qcow2)
+                   --iso PATH       Attach a custom CD-ROM ISO (default: /tmp/ctb-freebsd-exchange.iso)
+                   --mem MB         Memory in MB (default: 2048)
+                   --smp CORES      CPU cores (default: 2)
+
+  stop           Stop the running VM (graceful ACPI shutdown, or --force)
+  status         Check if the VM is running and display resource usage
+
+Snapshot Management:
+  snapshot list             List snapshots present in the qcow2 disk image
+  snapshot create <name>    Create a snapshot (live if running, offline if stopped)
+  snapshot revert <name>    Revert disk image to a snapshot (stops VM if running)
+  snapshot delete <name>    Delete a snapshot from the qcow2 disk image
+
+Execution & Testing:
+  run <command...>          Execute a command in the VM (via SSH or serial) and stream output
+  ssh [command...]          Connect directly to the VM via SSH or run an SSH command
+  test [--reset]            Run the FreeBSD & ZFS validation smoke test suite in the VM
+  sync-binaries             Package binaries and fixtures into exchange ISO and hot-swap
+
+Interactive / Inspection:
+  screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/freebsd-screen.png)
+  send-keys <key>...        Send QEMU monitor keys (e.g. "ret", "down", "ctrl-c")
+  type <text>               Type arbitrary text into the VM console via simulated key events
+  monitor <cmd>             Execute an arbitrary command on the QEMU monitor
+
+Examples:
+  ./scripts/freebsd-vm start --net
+  ./scripts/freebsd-vm run zpool status
+  ./scripts/freebsd-vm run zfs list
+  ./scripts/freebsd-vm test
+  ./scripts/freebsd-vm screenshot
+  ./scripts/freebsd-vm stop
+EOF
+}
+
+is_running() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid="$(cat "$PID_FILE")"
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+cmd_start() {
+    if is_running; then
+        echo "VM is already running with PID $(cat "$PID_FILE")."
+        return 0
+    fi
+
+    local snapshot_flag="-snapshot"
+    local net_flags=()
+    local vnc_args=("-vnc" "unix:$VNC_SOCK")
+    local image="$DEFAULT_IMAGE"
+    local iso="$EXCHANGE_ISO"
+    local mem="2048"
+    local smp="2"
+    local ssh_port="$DEFAULT_SSH_PORT"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --persist)
+                snapshot_flag=""
+                ;;
+            --net)
+                net_flags=(
+                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:${ssh_port}-:22"
+                    "-device" "e1000,netdev=net0"
+                )
+                ;;
+            --ssh-port)
+                shift
+                ssh_port="${1:-$DEFAULT_SSH_PORT}"
+                net_flags=(
+                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:${ssh_port}-:22"
+                    "-device" "e1000,netdev=net0"
+                )
+                ;;
+            --vnc-port)
+                shift
+                vnc_args=("-vnc" "127.0.0.1:${1:-2},websocket=off")
+                ;;
+            --image)
+                shift
+                image="$1"
+                ;;
+            --iso)
+                shift
+                iso="$1"
+                ;;
+            --mem)
+                shift
+                mem="$1"
+                ;;
+            --smp)
+                shift
+                smp="$1"
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [[ ! -f "$image" ]]; then
+        echo "Error: VM disk image not found at $image" >&2
+        return 1
+    fi
+
+    if [[ ! -f "$iso" ]]; then
+        mkdir -p /tmp/ctb-empty-iso
+        genisoimage -J -r -o "$iso" /tmp/ctb-empty-iso >/dev/null 2>&1 || true
+        remove_if_exists /tmp/ctb-empty-iso
+    fi
+
+    remove_if_exists "$MONITOR_SOCK" "$VNC_SOCK" "$PID_FILE" "$SERIAL_SOCK"
+
+    echo "Starting FreeBSD VM..."
+    echo "  Image:    $image"
+    echo "  ISO:      $iso"
+    echo "  Memory:   ${mem}MB | SMP: $smp"
+    echo "  Snapshot: $(if [[ -n "$snapshot_flag" ]]; then echo "Enabled (read-only mode)"; else echo "Disabled (writes persist)"; fi)"
+    echo "  Network:  $(if [[ ${#net_flags[@]} -gt 0 ]]; then echo "Isolated loopback port-forward (127.0.0.1:${ssh_port} -> guest:22, restrict=on)"; else echo "Air-gapped (no NIC)"; fi)"
+
+    local qemu_cmd=(
+        qemu-system-x86_64
+        -nodefaults
+        -M pc
+        -cpu max
+        -m "$mem"
+        -smp "$smp"
+        -device ahci,id=ahci0
+        -drive "file=$image,if=none,id=drive0,format=qcow2"
+        -device ide-hd,bus=ahci0.0,drive=drive0
+        -drive "file=$iso,if=none,id=cdrom0,media=cdrom,readonly=on"
+        -device ide-cd,bus=ahci0.1,drive=cdrom0
+        -chardev "socket,id=serial0,path=$SERIAL_SOCK,server=on,wait=off,logfile=$SERIAL_LOG"
+        -serial "chardev:serial0"
+        -vga std
+        -usb -device usb-tablet
+        "${vnc_args[@]}"
+        -monitor "unix:$MONITOR_SOCK,server,nowait"
+        -pidfile "$PID_FILE"
+        -daemonize
+    )
+
+    if [[ -n "$snapshot_flag" ]]; then
+        qemu_cmd+=("$snapshot_flag")
+    fi
+
+    if [[ ${#net_flags[@]} -gt 0 ]]; then
+        qemu_cmd+=("${net_flags[@]}")
+    fi
+
+    "${qemu_cmd[@]}"
+    sleep 1
+
+    if is_running; then
+        echo "VM successfully started (PID: $(cat "$PID_FILE"))."
+    else
+        echo "Failed to start VM. Check logs or permissions." >&2
+        return 1
+    fi
+}
+
+cmd_stop() {
+    if ! is_running; then
+        echo "VM is not running."
+        remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+        return 0
+    fi
+
+    local force="false"
+    if [[ "${1:-}" == "--force" ]]; then
+        force="true"
+    fi
+
+    local pid
+    pid="$(cat "$PID_FILE")"
+
+    if [[ "$force" == "true" ]]; then
+        echo "Terminating VM (PID $pid)..."
+        kill -9 "$pid" 2>/dev/null || true
+    else
+        echo "Sending ACPI shutdown to VM (PID $pid)..."
+        cmd_monitor "system_powerdown" >/dev/null 2>&1 || kill -15 "$pid" 2>/dev/null || true
+        for _ in $(seq 1 15); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "VM did not shut down gracefully; stopping forcefully..."
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    fi
+
+    remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+    echo "VM stopped."
+}
+
+cmd_status() {
+    if is_running; then
+        local pid
+        pid="$(cat "$PID_FILE")"
+        echo "VM is running (PID: $pid)"
+        ps -o pid,user,%cpu,%mem,rss,cmd -p "$pid"
+    else
+        echo "VM is not running."
+    fi
+}
+
+cmd_monitor() {
+    local cmd="$*"
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket $MONITOR_SOCK not found or VM not running." >&2
+        return 1
+    fi
+    python3 -c "
+import socket, sys
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect('$MONITOR_SOCK')
+s.recv(1024)
+s.sendall(sys.argv[1].encode() + b'\n')
+import time; time.sleep(0.3)
+print(s.recv(4096).decode(errors='replace').strip())
+s.close()
+" "$cmd"
+}
+
+cmd_screenshot() {
+    local out_path="${1:-/tmp/freebsd-screen.png}"
+    local tmp_ppm="/tmp/freebsd-screen-tmp-$$.ppm"
+
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket not found or VM not running." >&2
+        return 1
+    fi
+
+    cmd_monitor "screendump $tmp_ppm" >/dev/null
+    sleep 0.5
+
+    if [[ -f "$tmp_ppm" ]]; then
+        ffmpeg -y -i "$tmp_ppm" "$out_path" 2>/dev/null || convert "$tmp_ppm" "$out_path"
+        remove_if_exists "$tmp_ppm"
+        echo "Screenshot saved to $out_path"
+    else
+        echo "Error: Failed to capture screen dump." >&2
+        return 1
+    fi
+}
+
+cmd_send_keys() {
+    for key in "$@"; do
+        cmd_monitor "sendkey $key" >/dev/null
+        sleep 0.2
+    done
+}
+
+cmd_type() {
+    local text="$*"
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket not found or VM not running." >&2
+        return 1
+    fi
+    python3 -c "
+import socket, sys, time
+
+monitor_sock = '$MONITOR_SOCK'
+text = sys.argv[1]
+
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect(monitor_sock)
+s.recv(1024)
+
+def send(key):
+    s.sendall(f'sendkey {key}\n'.encode())
+    time.sleep(0.04)
+
+key_map = {
+    ':': 'shift-semicolon',
+    ';': 'semicolon',
+    '\\\\': 'backslash',
+    '/': 'slash',
+    '.': 'dot',
+    ',': 'comma',
+    '-': 'minus',
+    '_': 'shift-minus',
+    '=': 'equal',
+    '+': 'shift-equal',
+    ' ': 'spc',
+    '>': 'shift-dot',
+    '<': 'shift-comma',
+    '*': 'shift-8',
+    '\"': 'shift-apostrophe',
+    \"'\": 'apostrophe',
+    '|': 'shift-backslash',
+    '[': 'bracket_left',
+    ']': 'bracket_right',
+    '{': 'shift-bracket_left',
+    '}': 'shift-bracket_right',
+    '(': 'shift-9',
+    ')': 'shift-0',
+    '&': 'shift-7',
+    '%': 'shift-5',
+    '$': 'shift-4',
+    '#': 'shift-3',
+    '@': 'shift-2',
+    '!': 'shift-1',
+    '?': 'shift-slash',
+    '~': 'shift-grave_accent',
+    '\`': 'grave_accent',
+    '\n': 'ret',
+}
+
+for ch in text:
+    if ch in key_map:
+        send(key_map[ch])
+    elif ch.isupper():
+        send(f'shift-{ch.lower()}')
+    elif ch.isdigit() or ch.islower():
+        send(ch)
+    else:
+        send(ch)
+
+s.close()
+" "$text"
+}
+
+cmd_snapshot() {
+    local subcmd="${1:-list}"
+    shift || true
+
+    local image="$DEFAULT_IMAGE"
+
+    case "$subcmd" in
+        list)
+            qemu-img snapshot -l "$image"
+            ;;
+        create)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/freebsd-vm snapshot create <name>" >&2
+                return 1
+            fi
+            if is_running; then
+                echo "VM is currently running. Creating live snapshot '$name'..."
+                cmd_monitor "savevm $name"
+            else
+                echo "Creating disk snapshot '$name' on $image..."
+                qemu-img snapshot -c "$name" "$image"
+            fi
+            echo "Snapshot '$name' created."
+            ;;
+        revert)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/freebsd-vm snapshot revert <name>" >&2
+                return 1
+            fi
+            if is_running; then
+                echo "Stopping VM before reverting snapshot..."
+                cmd_stop
+            fi
+            echo "Reverting $image to snapshot '$name'..."
+            qemu-img snapshot -a "$name" "$image"
+            echo "Successfully reverted to snapshot '$name'."
+            ;;
+        delete)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/freebsd-vm snapshot delete <name>" >&2
+                return 1
+            fi
+            echo "Deleting snapshot '$name' from $image..."
+            qemu-img snapshot -d "$name" "$image"
+            echo "Snapshot '$name' deleted."
+            ;;
+        *)
+            echo "Unknown snapshot subcommand: $subcmd" >&2
+            echo "Supported: list, create, revert, delete" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_sync_binaries() {
+    mkdir -p "$EXCHANGE_DIR"
+
+    local ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    if [[ ! -f "$ctb_bin" ]]; then
+        ctb_bin="target/x86_64-unknown-freebsd/debug/ctoolbox"
+    fi
+    if [[ -f "$ctb_bin" ]]; then
+        cp "$ctb_bin" "$EXCHANGE_DIR/ctoolbox"
+        chmod +x "$EXCHANGE_DIR/ctoolbox"
+    fi
+
+    genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+
+    if is_running; then
+        cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
+        sleep 0.5
+        cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
+        sleep 1.5
+    fi
+    echo "Synchronized binaries to $EXCHANGE_ISO."
+}
+
+is_ssh_available() {
+    local port="${1:-$DEFAULT_SSH_PORT}"
+    ssh -q -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o BatchMode=yes -o ConnectTimeout=2 -p "$port" root@127.0.0.1 "true" 2>/dev/null
+}
+
+wait_for_ssh() {
+    local port="${1:-$DEFAULT_SSH_PORT}"
+    local max_wait="${2:-45}"
+    local elapsed=0
+    echo -n "Waiting for FreeBSD SSH on port $port..."
+    while [[ $elapsed -lt $max_wait ]]; do
+        if is_ssh_available "$port"; then
+            echo " ready."
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+        echo -n "."
+    done
+    echo " timed out waiting for SSH."
+    return 1
+}
+
+cmd_ssh() {
+    if ! is_running; then
+        echo "VM is not running. Starting with network..."
+        cmd_start --net
+        wait_for_ssh "$DEFAULT_SSH_PORT" 45
+    elif ! is_ssh_available "$DEFAULT_SSH_PORT"; then
+        wait_for_ssh "$DEFAULT_SSH_PORT" 30 || true
+    fi
+
+    local ssh_opts=(
+        -i "$SSH_KEY"
+        -o StrictHostKeyChecking=no
+        -o UserKnownHostsFile=/dev/null
+        -o BatchMode=yes
+        -o LogLevel=ERROR
+        -p "$DEFAULT_SSH_PORT"
+    )
+
+    if [[ $# -gt 0 ]]; then
+        ssh "${ssh_opts[@]}" root@127.0.0.1 "$@"
+    else
+        ssh "${ssh_opts[@]}" root@127.0.0.1
+    fi
+}
+
+cmd_run() {
+    if ! is_running; then
+        echo "VM is not running. Starting VM..."
+        cmd_start --net
+        wait_for_ssh "$DEFAULT_SSH_PORT" 45
+    elif ! is_ssh_available "$DEFAULT_SSH_PORT"; then
+        wait_for_ssh "$DEFAULT_SSH_PORT" 30 || true
+    fi
+
+    local user_cmd="$*"
+    if [[ -z "$user_cmd" ]]; then
+        echo "Usage: ./scripts/freebsd-vm run <command...>" >&2
+        return 1
+    fi
+
+    if is_ssh_available "$DEFAULT_SSH_PORT"; then
+        cmd_ssh "$user_cmd"
+        return $?
+    fi
+
+    # Fallback to serial / console execution when network is disabled
+    local start_offset=0
+    if [[ -f "$SERIAL_LOG" ]]; then
+        start_offset=$(stat -c%s "$SERIAL_LOG")
+    else
+        touch "$SERIAL_LOG"
+    fi
+
+    cmd_type "$user_cmd; echo ---CTB_EXIT:\$?---\n"
+
+    python3 -c "
+import sys, time
+
+log_path = '$SERIAL_LOG'
+start_offset = int(sys.argv[1])
+timeout = 180
+
+start_time = time.time()
+started = False
+exit_code = None
+
+with open(log_path, 'r', errors='replace') as f:
+    f.seek(start_offset)
+    while True:
+        line = f.readline()
+        if line:
+            clean_line = line.strip()
+            if '---CTB_EXIT:' in clean_line:
+                part = clean_line.split('---CTB_EXIT:')[1].split('---')[0]
+                try:
+                    exit_code = int(part)
+                except ValueError:
+                    exit_code = 1
+                break
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        else:
+            if time.time() - start_time > timeout:
+                sys.stderr.write('Timeout waiting for command to finish in VM.\n')
+                sys.exit(124)
+            time.sleep(0.2)
+
+sys.exit(exit_code if exit_code is not None else 1)
+" "$start_offset"
+}
+
+cmd_test() {
+    local reset="false"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --reset)
+                reset="true"
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+
+    if [[ "$reset" == "true" ]]; then
+        if is_running; then
+            cmd_stop
+        fi
+        cmd_snapshot revert "base-state"
+    fi
+
+    if ! is_running; then
+        cmd_start --net
+        wait_for_ssh "$DEFAULT_SSH_PORT" 45
+    fi
+
+    echo "=== Running FreeBSD & ZFS Smoke Tests in VM ==="
+    echo "1. Checking FreeBSD version and kernel..."
+    cmd_run "uname -a && freebsd-version -k -u"
+    echo ""
+
+    echo "2. Checking ZFS pool status..."
+    cmd_run "zpool status zroot"
+    echo ""
+
+    echo "3. Checking ZFS datasets and compression..."
+    cmd_run "zfs list -o name,used,avail,refer,mountpoint,compression"
+    echo ""
+
+    echo "4. Validating ZFS filesystem operations (create, compress, write, snapshot, rollback, destroy)..."
+    cmd_run '
+        set -e
+        TEST_DS="zroot/test-zfs-validation"
+        echo "Creating dataset: $TEST_DS with lz4 compression..."
+        zfs create -o compression=lz4 "$TEST_DS"
+        
+        echo "Writing test file with repetitive data to test compression..."
+        jot -b "CollectiveToolbox ZFS Validation Test Payload Line" 20000 > "/$TEST_DS/payload.txt"
+        ls -lh "/$TEST_DS/payload.txt"
+        
+        echo "Verifying ZFS compression ratio..."
+        zfs get used,logicalused,compressratio "$TEST_DS"
+        
+        echo "Testing ZFS snapshot..."
+        zfs snapshot "${TEST_DS}@test-snap"
+        zfs list -t snapshot -r "$TEST_DS"
+        
+        echo "Modifying file and rolling back..."
+        echo "corrupted data" >> "/$TEST_DS/payload.txt"
+        zfs rollback "${TEST_DS}@test-snap"
+        
+        echo "Destroying test dataset..."
+        zfs destroy -r "$TEST_DS"
+        echo "ZFS validation succeeded!"
+    '
+    echo ""
+    echo "=== FreeBSD & ZFS VM Tests Completed Successfully ==="
+}
+
+action="${1:-}"
+shift || true
+
+case "$action" in
+    start)
+        cmd_start "$@"
+        ;;
+    stop)
+        cmd_stop "$@"
+        ;;
+    status)
+        cmd_status
+        ;;
+    screenshot)
+        cmd_screenshot "$@"
+        ;;
+    send-keys)
+        cmd_send_keys "$@"
+        ;;
+    type)
+        cmd_type "$@"
+        ;;
+    monitor)
+        cmd_monitor "$@"
+        ;;
+    snapshot)
+        cmd_snapshot "$@"
+        ;;
+    sync-binaries)
+        cmd_sync_binaries
+        ;;
+    ssh)
+        cmd_ssh "$@"
+        ;;
+    run)
+        cmd_run "$@"
+        ;;
+    test)
+        cmd_test "$@"
+        ;;
+    -h|--help|help)
+        usage
+        exit 0
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
