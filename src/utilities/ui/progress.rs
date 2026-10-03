@@ -362,6 +362,103 @@ impl Drop for Progress {
     }
 }
 
+/// Wrapper around a reader or payload source that reports streaming progress
+/// to the progress reporter API as bytes are processed.
+struct ProgressStream<R> {
+    inner: R,
+    progress: Progress,
+    task_id: TaskId,
+    files_done: u64,
+    base_bytes: u64,
+    file_size: u64,
+    file_bytes_read: u64,
+    phase: &'static str,
+    last_update: Instant,
+}
+
+impl<R> ProgressStream<R> {
+    fn new(
+        inner: R,
+        progress: &Progress,
+        task_id: TaskId,
+        files_done: u64,
+        base_bytes: u64,
+        file_size: u64,
+        phase: &'static str,
+    ) -> Self {
+        Self {
+            inner,
+            progress: progress.clone(),
+            task_id,
+            files_done,
+            base_bytes,
+            file_size,
+            file_bytes_read: 0,
+            phase,
+            last_update: Instant::now(),
+        }
+    }
+
+    fn maybe_report_progress(&mut self) {
+        if self.progress.is_enabled()
+            && self.last_update.elapsed() >= std::time::Duration::from_millis(500)
+        {
+            self.last_update = Instant::now();
+            let current_total = self.base_bytes.saturating_add(self.file_bytes_read);
+            let detail = if self.file_size > 0 {
+                format!(
+                    "{}: {}/{} ({} total)",
+                    self.phase,
+                    format_bytes_decimal(self.file_bytes_read),
+                    format_bytes_decimal(self.file_size),
+                    format_bytes_decimal(current_total)
+                )
+            } else {
+                format!("{}: {}", self.phase, format_bytes_decimal(current_total))
+            };
+            self.progress
+                .update_task(self.task_id, self.files_done, Some(&detail));
+        }
+    }
+}
+
+impl<R: Read> Read for ProgressStream<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        if n > 0 {
+            if let Ok(n_u64) = u64::try_from(n) {
+                self.file_bytes_read = self.file_bytes_read.saturating_add(n_u64);
+            }
+            self.maybe_report_progress();
+        }
+        Ok(n)
+    }
+}
+
+impl<R: Seek> Seek for ProgressStream<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.inner.seek(pos)
+    }
+}
+
+impl<P: PayloadSource> PayloadSource for ProgressStream<P> {
+    fn total_size(&self) -> u64 {
+        self.inner.total_size()
+    }
+
+    fn extents(&self) -> &[Extent] {
+        self.inner.extents()
+    }
+
+    fn is_sparse(&self) -> bool {
+        self.inner.is_sparse()
+    }
+
+    fn opened_with_noatime(&self) -> bool {
+        self.inner.opened_with_noatime()
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
