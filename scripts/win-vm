@@ -461,9 +461,16 @@ cmd_sync_binaries() {
         cp "$installer_bin" "$EXCHANGE_DIR/ctoolbox-installer.exe"
     fi
 
-    local combase_dll="ci-logs/VMs/Windows/combase-shim/combase.dll"
+    local combase_dll="scripts/windows/combase-shim/combase.dll"
+    if [[ ! -f "$combase_dll" ]]; then
+        combase_dll="ci-logs/VMs/Windows/combase-shim/combase.dll"
+    fi
     if [[ -f "$combase_dll" ]]; then
         cp "$combase_dll" "$EXCHANGE_DIR/combase.dll"
+    elif [[ -f "scripts/windows/combase-shim/combase.c" ]]; then
+        x86_64-w64-mingw32-gcc -shared -o "$EXCHANGE_DIR/combase.dll" \
+            scripts/windows/combase-shim/combase.c \
+            scripts/windows/combase-shim/combase.def
     elif [[ -f "ci-logs/VMs/Windows/combase-shim/combase.c" ]]; then
         x86_64-w64-mingw32-gcc -shared -o "$EXCHANGE_DIR/combase.dll" \
             ci-logs/VMs/Windows/combase-shim/combase.c \
@@ -496,10 +503,12 @@ cmd_run() {
     mkdir -p "$EXCHANGE_DIR"
     cat <<EOF > "$EXCHANGE_DIR/run.bat"
 @echo off
-if not exist "C:\Windows\System32\combase.dll" (
-    copy /y "%~dp0combase.dll" "C:\Windows\System32\\" > nul 2>&1
+set "PATH=D:\\;%PATH%"
+cd /d "%TEMP%"
+if not exist "C:\\Windows\\System32\\combase.dll" (
+    copy /y "D:\\combase.dll" "C:\\Windows\\System32\\" > nul 2>&1
 )
-cd /d "%~dp0"
+copy /y "D:\\combase.dll" "%TEMP%\\" > nul 2>&1
 echo ---CTB_START--- > COM1
 $user_cmd >> COM1 2>&1
 echo. >> COM1
@@ -515,9 +524,17 @@ EOF
         touch "$SERIAL_LOG"
     fi
 
+    # Dismiss any stray dialogs or AutoPlay popups before invoking Run
+    cmd_send_keys "esc"
+    sleep 0.5
+
     cmd_send_keys "meta_l-r"
     sleep 1.2
-    cmd_type "cmd /c d:\\run.bat\n"
+    cmd_send_keys "ctrl-a" "backspace"
+    sleep 0.2
+    cmd_type "cmd /c d:\\run.bat"
+    sleep 0.4
+    cmd_send_keys "ret"
 
     python3 -c "
 import sys, time
