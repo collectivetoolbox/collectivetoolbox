@@ -28,6 +28,12 @@ class FreeBSDSysrootTests(unittest.TestCase):
             b"/* Copyright Second Author; full second notice. */\n"
             b"int second(void);\n"
         )
+        self.raw_no_spdx = (
+            b"/* Copyright First Author; full first notice. */\n"
+            b"int first(void);\n"
+            b"/* Copyright Second Author; full second notice. */\n"
+            b"int second(void);\n"
+        )
         self.entry = {
             "repository": "freebsd", "path": "include/test.h",
             "destination": "usr/include/test.h",
@@ -251,12 +257,12 @@ class FreeBSDSysrootTests(unittest.TestCase):
     def test_review_can_quit_resume_view_and_approve(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'review.json'
-            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw, 'source')
+            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw_no_spdx, 'source')
             manifest = dict(self.manifest, files=[entry])
             SYSROOT.save_manifest(path, manifest)
             with self.assertRaisesRegex(ValueError, 'Pending review'):
                 SYSROOT.load_manifest(path)
-            with patch.object(SYSROOT, 'read_blob', return_value=self.raw):
+            with patch.object(SYSROOT, 'read_blob', return_value=self.raw_no_spdx):
                 SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: 'q')
                 self.assertEqual(json.loads(path.read_text())['files'][0]['decision'], 'pending')
                 answers = iter(['v', 'a', 'BSD-2-Clause'])
@@ -268,11 +274,11 @@ class FreeBSDSysrootTests(unittest.TestCase):
     def test_review_does_not_approve_prohibited_license(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'review.json'
-            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw, 'source')
+            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw_no_spdx, 'source')
             SYSROOT.save_manifest(path, dict(self.manifest, files=[entry]))
             for license_id in ('GPL-3.0-only', 'AGPL-3.0-only'):
                 answers = iter(['a', license_id, 'q'])
-                with patch.object(SYSROOT, 'read_blob', return_value=self.raw):
+                with patch.object(SYSROOT, 'read_blob', return_value=self.raw_no_spdx):
                     SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: next(answers))
                 self.assertEqual(json.loads(path.read_text())['files'][0]['decision'], 'pending')
 
@@ -393,33 +399,32 @@ class FreeBSDSysrootTests(unittest.TestCase):
     def test_numbered_license_selection(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "review.json"
-            entry = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
+            entry = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw_no_spdx, "source")
             manifest = dict(self.manifest, files=[entry])
             SYSROOT.save_manifest(path, manifest)
             answers = iter(["a", "6"])
-            with patch.object(SYSROOT, "read_blob", return_value=self.raw):
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw_no_spdx):
                 SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
             approved = json.loads(path.read_text())["files"][0]
             self.assertEqual(approved["decision"], "approved")
             self.assertEqual(approved["licenses"], ["BSD-2-Clause"])
 
             path2 = Path(temporary) / "review2.json"
-            entry2 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
+            entry2 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw_no_spdx, "source")
             SYSROOT.save_manifest(path2, dict(self.manifest, files=[entry2]))
             answers2 = iter(["6, 7"])
-            with patch.object(SYSROOT, "read_blob", return_value=self.raw):
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw_no_spdx):
                 SYSROOT.review_manifest(path2, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers2))
             approved2 = json.loads(path2.read_text())["files"][0]
             self.assertEqual(approved2["decision"], "approved")
             self.assertEqual(approved2["licenses"], ["BSD-2-Clause", "BSD-3-Clause"])
 
-            # Test compound SPDX expression with AND
+            # Test compound manual input
             path3 = Path(temporary) / "review3.json"
-            raw_uc = b"/* SPDX-License-Identifier: BSD-2-Clause AND BSD-4-Clause-UC */\nint test_uc(void);\n"
-            entry3 = SYSROOT.draft_entry("freebsd", self.entry["path"], raw_uc, "source")
+            entry3 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw_no_spdx, "source")
             SYSROOT.save_manifest(path3, dict(self.manifest, files=[entry3]))
             answers3 = iter(["a", "BSD-2-Clause AND BSD-4-Clause-UC"])
-            with patch.object(SYSROOT, "read_blob", return_value=raw_uc):
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw_no_spdx):
                 SYSROOT.review_manifest(path3, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers3))
             approved3 = json.loads(path3.read_text())["files"][0]
             self.assertEqual(approved3["decision"], "approved")
@@ -427,7 +432,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
 
     def test_pager_pagination_and_quit(self):
         lines = [f"// Line {i}\n" for i in range(120)]
-        long_raw = ("/* SPDX-License-Identifier: BSD-2-Clause */\n/* Copyright Author */\n" + "".join(lines)).encode("utf-8")
+        long_raw = ("/* Copyright Author */\n" + "".join(lines)).encode("utf-8")
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "review.json"
             entry = SYSROOT.draft_entry("freebsd", self.entry["path"], long_raw, "source")
@@ -442,12 +447,10 @@ class FreeBSDSysrootTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "review.json"
             raw_a = (
-                b"/* SPDX-License-Identifier: BSD-2-Clause */\n"
                 b"/* Copyright Shared Author; license terms. */\n"
                 b"int func_a(void);\n"
             )
             raw_b = (
-                b"/* SPDX-License-Identifier: BSD-2-Clause */\n"
                 b"/* Copyright Shared Author; license terms. */\n"
                 b"int func_b(void);\n"
             )
@@ -471,6 +474,30 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertEqual(file_b["licenses"], ["BSD-2-Clause"])
             self.assertIn("inherited from include/a.h", file_b["review"])
 
+    def test_auto_approve_spdx_entries(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            raw_spdx1 = b"/* SPDX-License-Identifier: BSD-3-Clause */\nint foo(void);\n"
+            raw_spdx2 = b"/* SPDX-License-Identifier: BSD-2-Clause AND BSD-4-Clause-UC */\nint bar(void);\n"
+            entry1 = SYSROOT.draft_entry("freebsd", "include/_ctype.h", raw_spdx1, "source")
+            entry2 = SYSROOT.draft_entry("freebsd", "include/bar.h", raw_spdx2, "source")
+            manifest = dict(self.manifest, files=[entry1, entry2])
+            SYSROOT.save_manifest(path, manifest)
+
+            def mock_blob(repo, commit, p):
+                return raw_spdx1 if p == "include/_ctype.h" else raw_spdx2
+
+            with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: self.fail("Prompted on valid SPDX!"))
+
+            data = json.loads(path.read_text())
+            f1 = next(f for f in data["files"] if f["path"] == "include/_ctype.h")
+            f2 = next(f for f in data["files"] if f["path"] == "include/bar.h")
+            self.assertEqual(f1["decision"], "approved")
+            self.assertEqual(f1["licenses"], ["BSD-3-Clause"])
+            self.assertEqual(f2["decision"], "approved")
+            self.assertEqual(f2["licenses"], ["BSD-2-Clause", "BSD-4-Clause-UC"])
+
     def test_unneeded_candidates_pruned(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "review.json"
@@ -486,6 +513,61 @@ class FreeBSDSysrootTests(unittest.TestCase):
             paths = [f["path"] for f in data["files"]]
             self.assertIn("include/test.h", paths)
             self.assertNotIn("lib/libc/gen/foo.c", paths)
+
+    def test_download_repositories_skips_fetch_if_commit_present(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cache_dir = Path(temporary)
+            for name, (url, commit) in SYSROOT.REPOSITORIES.items():
+                repo_path = cache_dir / name
+                repo_path.mkdir(parents=True)
+
+            with patch("subprocess.run") as mock_run, \
+                 patch.object(SYSROOT, "git") as mock_git:
+                mock_git.side_effect = lambda repo, *args: b"https://github.com/example/repo.git\n" if args[:2] == ("remote", "get-url") else b""
+                # mock subprocess.run for cat-file -e to succeed (returncode 0)
+                mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+                # Ensure get-url matches REPOSITORIES url
+                def fake_git(repo, *args):
+                    for rname, (rurl, rcommit) in SYSROOT.REPOSITORIES.items():
+                        if repo.name == rname and args[:2] == ("remote", "get-url"):
+                            return rurl.encode("utf-8")
+                    return b""
+                mock_git.side_effect = fake_git
+
+                repos = SYSROOT.download_repositories(cache_dir)
+                self.assertEqual(len(repos), len(SYSROOT.REPOSITORIES))
+                # Verify git fetch was NOT called
+                for call in mock_git.call_args_list:
+                    self.assertNotIn("fetch", call[0])
+
+    def test_inherit_from_nearest_notice(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            notice_raw = b"/* FreeBSD COPYRIGHT notice */\n"
+            notice_entry = dict(
+                SYSROOT.draft_entry("freebsd", "COPYRIGHT", notice_raw, "notice"),
+                decision="approved", licenses=["BSD-2-Clause", "BSD-4-Clause-UC"],
+                source_only_reviewed=True, review="audited",
+            )
+            stub_raw = b'#include <gssapi/gssapi.h>\n'
+            stub_entry = SYSROOT.draft_entry("freebsd", "include/gssapi.h", stub_raw, "source")
+            manifest = dict(self.manifest, files=[notice_entry, stub_entry])
+            SYSROOT.save_manifest(path, manifest)
+
+            def mock_blob(repo, commit, p):
+                return notice_raw if p == "COPYRIGHT" else stub_raw
+
+            answers = iter(["c"])
+            with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
+
+            data = json.loads(path.read_text())
+            gssapi = next(f for f in data["files"] if f["path"] == "include/gssapi.h")
+            self.assertEqual(gssapi["decision"], "approved")
+            self.assertEqual(gssapi["licenses"], ["BSD-2-Clause", "BSD-4-Clause-UC"])
+            self.assertEqual(gssapi["notices"], ["COPYRIGHT"])
+            self.assertIn("Inherited tree notice from COPYRIGHT", gssapi["review"])
+            SYSROOT.load_manifest(path)
 
 
 if __name__ == "__main__":

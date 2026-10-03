@@ -1153,10 +1153,21 @@ def download_repositories(directory):
         actual_url = git(repository, "remote", "get-url", "origin").decode("utf-8").strip()
         if actual_url != url:
             raise ValueError(f"Unexpected cached upstream URL for {name}")
-        git(repository, "fetch", "--quiet", "--depth=1", "--filter=blob:none", "origin", commit)
-        resolved = git(repository, "rev-parse", "FETCH_HEAD").decode("ascii").strip()
-        if resolved != commit:
-            raise ValueError(f"Upstream commit mismatch: {name}")
+        commit_present = False
+        try:
+            subprocess.run(
+                ["git", "--git-dir", str(repository), "cat-file", "-e", f"{commit}^{{commit}}"],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            commit_present = True
+        except subprocess.CalledProcessError:
+            commit_present = False
+
+        if not commit_present:
+            git(repository, "fetch", "--quiet", "--depth=1", "--filter=blob:none", "origin", commit)
+            resolved = git(repository, "rev-parse", "FETCH_HEAD").decode("ascii").strip()
+            if resolved != commit:
+                raise ValueError(f"Upstream commit mismatch: {name}")
         repositories[name] = repository
     return repositories
 
@@ -1172,6 +1183,10 @@ def save_manifest(path, manifest):
             handle.write('\n')
             handle.flush()
             os.fsync(handle.fileno())
+            try:
+                os.chmod(temporary, 0o666)
+            except OSError:
+                pass
             temporary.replace(path)
         finally:
             if temporary.exists():
@@ -1263,6 +1278,85 @@ def read_review_manifest(path):
     return manifest
 
 
+def auto_approve_spdx_entries(manifest, repositories, cache=None):
+    if cache is None:
+        cache = {}
+    auto_approved = 0
+    for entry in manifest["files"]:
+        if entry.get("decision") != "pending":
+            continue
+        repo_name = entry["repository"]
+        repo = repositories.get(repo_name)
+        if not repo:
+            continue
+        path_str = entry["path"]
+        if path_str in cache:
+            raw, db = cache[path_str]
+        else:
+            raw = read_blob(repo, REPOSITORIES[repo_name][1], path_str)
+            try:
+                db = extract_license_docblock(validate_text(raw, path_str))
+            except Exception:
+                db = None
+            cache[path_str] = (raw, db)
+
+        try:
+            text = validate_text(raw, path_str)
+        except Exception:
+            continue
+
+        hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
+        matched_terms = None
+        for hint in hints:
+            clean = hint.strip().rstrip("*/").strip()
+            try:
+                terms = sorted(spdx_terms(clean))
+                if terms and all(t in ALLOWED_LICENSES for t in terms):
+                    matched_terms = terms
+                    break
+            except Exception:
+                pass
+
+        if matched_terms:
+            candidate = dict(
+                entry,
+                licenses=matched_terms,
+                review=f"SPDX-License-Identifier: {' AND '.join(matched_terms)}",
+                source_only_reviewed=True,
+                notices=[],
+                decision="approved",
+            )
+            try:
+                validate_bytes(candidate, raw)
+            except ValueError:
+                continue
+            entry.update(candidate)
+            auto_approved += 1
+
+    return auto_approved
+
+
+def find_nearest_notice(manifest, entry):
+    if entry.get("kind") == "notice":
+        return None
+    repo = entry["repository"]
+    entry_parent = PurePosixPath(entry["path"]).parent
+    ancestors = [entry_parent, *entry_parent.parents]
+
+    notices = [
+        item for item in manifest["files"]
+        if item.get("repository") == repo and item.get("kind") == "notice"
+    ]
+    for anc in ancestors:
+        matches = [n for n in notices if PurePosixPath(n["path"]).parent == anc]
+        if matches:
+            for m in matches:
+                if re.fullmatch(r"(?:COPYRIGHT|LICENSE|LICENCE)(?:[._-].*)?", PurePosixPath(m["path"]).name.upper()):
+                    return m
+            return matches[0]
+    return None
+
+
 def review_manifest(path, repositories, ask=None):
     if ask is None:
         ask = input
@@ -1275,6 +1369,11 @@ def review_manifest(path, repositories, ask=None):
         save_manifest(path, manifest)
 
     blob_cache = {}
+    auto_approved = auto_approve_spdx_entries(manifest, repositories, cache=blob_cache)
+    if auto_approved:
+        print(f"Auto-approved {auto_approved} file(s) with compatible SPDX-License-Identifier.")
+        save_manifest(path, manifest)
+
     approved_dbs = {}
     for approved in manifest["files"]:
         if approved.get("decision") == "approved":
@@ -1282,12 +1381,15 @@ def review_manifest(path, repositories, ask=None):
             if key not in approved_dbs:
                 repo = repositories.get(approved["repository"])
                 if repo:
-                    raw = read_blob(repo, REPOSITORIES[approved["repository"]][1], approved["path"])
-                    try:
-                        db = extract_license_docblock(validate_text(raw, approved["path"]))
-                    except Exception:
-                        db = None
-                    blob_cache[approved["path"]] = (raw, db)
+                    if approved["path"] in blob_cache:
+                        raw, db = blob_cache[approved["path"]]
+                    else:
+                        raw = read_blob(repo, REPOSITORIES[approved["repository"]][1], approved["path"])
+                        try:
+                            db = extract_license_docblock(validate_text(raw, approved["path"]))
+                        except Exception:
+                            db = None
+                        blob_cache[approved["path"]] = (raw, db)
                     if db:
                         approved_dbs[key] = (approved, db)
     initial_inherited = 0
@@ -1298,7 +1400,13 @@ def review_manifest(path, repositories, ask=None):
         save_manifest(path, manifest)
 
     entries = manifest["files"]
-    print("Review the entire file and applicable companion terms. SPDX is a hint, not approval.")
+    pending_count = sum(entry.get("decision", "approved") == "pending" for entry in entries)
+    if not pending_count:
+        load_manifest(path)
+        print(f"All files approved. Review decisions saved. Generate with --manifest {path}")
+        return
+
+    print("Reviewing remaining files without compatible SPDX-License-Identifier headers.")
     for index, entry in enumerate(entries):
         if entry.get("decision", "approved") != "pending":
             continue
@@ -1315,21 +1423,34 @@ def review_manifest(path, repositories, ask=None):
         print(f"\n[{index + 1}/{len(entries)}] {name}/{entry['path']} ({entry['kind']})")
         hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
         print(f"SPDX hints (not verified): {', '.join(hints) if hints else 'none'}")
+        nearest_notice = find_nearest_notice(manifest, entry)
+        if nearest_notice:
+            nearest_status = f"{nearest_notice['path']}"
+            if nearest_notice.get("decision") == "approved" and nearest_notice.get("licenses"):
+                nearest_status += f" ({', '.join(nearest_notice['licenses'])})"
+            else:
+                nearest_status += " (pending review)"
+            print(f"Nearest notice: {nearest_status}")
+
         suggested_default = None
         for hint in hints:
-            clean_hint = hint.strip().rstrip("*/").strip()
+            clean = hint.strip().rstrip("*/").strip()
             try:
-                terms = sorted(spdx_terms(clean_hint))
+                terms = sorted(spdx_terms(clean))
                 if terms and all(t in ALLOWED_LICENSES for t in terms):
                     suggested_default = terms
                     break
             except ValueError:
-                if clean_hint in ALLOWED_LICENSES:
-                    suggested_default = [clean_hint]
+                if clean in ALLOWED_LICENSES:
+                    suggested_default = [clean]
                     break
 
+        if not suggested_default and not db and nearest_notice and nearest_notice.get("decision") == "approved" and nearest_notice.get("licenses"):
+            suggested_default = nearest_notice["licenses"]
+
+        notice_action = ", [c]opyright notice" if nearest_notice and nearest_notice.get("decision") == "approved" and nearest_notice.get("licenses") else ""
         while True:
-            action = ask("[v]iew file, [a]pprove (or enter license #), [r]eject, [s]kip, [q]uit [q]: ").strip()
+            action = ask(f"[v]iew file, [a]pprove (or enter license #){notice_action}, [r]eject, [s]kip, [q]uit [q]: ").strip()
             action_lower = action.lower()
             if action_lower in {"", "q"}:
                 save_manifest(path, manifest)
@@ -1343,7 +1464,7 @@ def review_manifest(path, repositories, ask=None):
             if action_lower == "r":
                 reason = ask("Reason for rejection: ").strip()
                 if not reason:
-                    print("A rejection reason is required.")
+                    print("Rejection reason is required.")
                     continue
                 entry["decision"] = "rejected"
                 entry["review"] = reason
@@ -1351,27 +1472,47 @@ def review_manifest(path, repositories, ask=None):
                 break
 
             licenses = None
-            if action_lower == "a":
-                print(format_license_menu())
-                default_prompt = ""
-                if suggested_default:
-                    def_str = ", ".join(f"{LICENSE_NUM_BY_NAME[t]}: {t}" for t in suggested_default)
-                    default_prompt = f" [{def_str}]"
-                lic_input = ask(
-                    f"All applicable compatible license IDs or numbers (comma or AND separated){default_prompt}: "
-                ).strip()
-                try:
-                    licenses = parse_licenses(lic_input, default=suggested_default)
-                except ValueError as err:
-                    print(f"No approval saved: {err}")
+            notices = []
+            review = entry.get("review") or "audited"
+            if action_lower == "c":
+                if not nearest_notice:
+                    print("No companion notice found in repository.")
                     continue
+                if nearest_notice.get("decision") != "approved" or not nearest_notice.get("licenses"):
+                    print(f"Nearest notice ({nearest_notice['path']}) is not approved yet; please approve it first.")
+                    continue
+                licenses = nearest_notice["licenses"]
+                notices = [nearest_notice["path"]]
+                review = f"Inherited tree notice from {nearest_notice['path']}"
+            elif action_lower == "a":
+                if suggested_default:
+                    licenses = suggested_default
+                    if nearest_notice and licenses == nearest_notice.get("licenses") and not db:
+                        notices = [nearest_notice["path"]]
+                        review = f"Inherited tree notice from {nearest_notice['path']}"
+                else:
+                    print(format_license_menu())
+                    notice_opt = f" (or 'c' for {nearest_notice['path']})" if nearest_notice and nearest_notice.get("decision") == "approved" and nearest_notice.get("licenses") else ""
+                    lic_input = ask(
+                        f"All applicable compatible license IDs or numbers (comma or AND separated){notice_opt}: "
+                    ).strip()
+                    if lic_input.lower() == "c" and nearest_notice and nearest_notice.get("decision") == "approved" and nearest_notice.get("licenses"):
+                        licenses = nearest_notice["licenses"]
+                        notices = [nearest_notice["path"]]
+                        review = f"Inherited tree notice from {nearest_notice['path']}"
+                    else:
+                        try:
+                            licenses = parse_licenses(lic_input)
+                        except ValueError as err:
+                            print(f"No approval saved: {err}")
+                            continue
             else:
                 try:
                     licenses = parse_licenses(action)
                 except ValueError:
                     licenses = None
                 if not licenses:
-                    print("Choose v, a, r, s, or q (or enter an allowed license number/ID directly).")
+                    print("Choose v, a, c, r, s, or q (or enter an allowed license number/ID directly).")
                     continue
 
             if not licenses:
@@ -1381,9 +1522,9 @@ def review_manifest(path, repositories, ask=None):
             candidate = dict(
                 entry,
                 licenses=licenses,
-                review=entry.get("review") or "audited",
+                review=review,
                 source_only_reviewed=True,
-                notices=entry.get("notices", []),
+                notices=notices,
                 decision="approved",
             )
             try:
