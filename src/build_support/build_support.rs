@@ -81,11 +81,13 @@ pub fn find_repository_root() -> Result<PathBuf> {
         }
     }
 
-    #[cfg(windows)]
-    {
-        let d_root = PathBuf::from("D:\\");
-        if is_workspace_root(&d_root) {
-            return Ok(d_root);
+    if let Ok(exe) = std::env::current_exe() {
+        let mut cur = exe.as_path();
+        while let Some(parent) = cur.parent() {
+            if is_workspace_root(parent) {
+                return Ok(parent.to_path_buf());
+            }
+            cur = parent;
         }
     }
 

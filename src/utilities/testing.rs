@@ -189,24 +189,38 @@ fn resolve_manifest_fixture_dir(manifest_dir: &str) -> PathBuf {
         if let Some(rel) = manifest_dir.strip_prefix(HOST_WORKSPACE_ROOT) {
             let clean_rel = rel.trim_start_matches(['/', '\\']);
             let win_root = if let Ok(val) = std::env::var("CTB_WIN_TEST_ROOT") {
-                val
-            } else {
-                DEFAULT_WIN_TEST_ROOT.to_string()
-            };
-            let mut normalized = PathBuf::from(win_root);
-            for comp in std::path::Path::new(clean_rel).components() {
-                match comp {
-                    std::path::Component::CurDir => {}
-                    std::path::Component::ParentDir => {
-                        normalized.pop();
+                Some(PathBuf::from(val))
+            } else if !DEFAULT_WIN_TEST_ROOT.is_empty() {
+                Some(PathBuf::from(DEFAULT_WIN_TEST_ROOT))
+            } else if let Ok(exe) = std::env::current_exe() {
+                let mut root = None;
+                let mut cur = exe.as_path();
+                while let Some(parent) = cur.parent() {
+                    if parent.join(".ctoolbox_workspace_root").is_file() {
+                        root = Some(parent.to_path_buf());
+                        break;
                     }
-                    std::path::Component::Normal(c) => {
-                        normalized.push(c);
-                    }
-                    _ => {}
+                    cur = parent;
                 }
+                root
+            } else {
+                None
+            };
+            if let Some(mut normalized) = win_root {
+                for comp in std::path::Path::new(clean_rel).components() {
+                    match comp {
+                        std::path::Component::CurDir => {}
+                        std::path::Component::ParentDir => {
+                            normalized.pop();
+                        }
+                        std::path::Component::Normal(c) => {
+                            normalized.push(c);
+                        }
+                        _ => {}
+                    }
+                }
+                return normalized;
             }
-            return normalized;
         }
     }
     PathBuf::from(manifest_dir)

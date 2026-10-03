@@ -88,11 +88,7 @@ fn main() -> Result<()> {
     };
     println!("cargo:rustc-env=CTB_HOST_WORKSPACE_ROOT={workspace_root}");
 
-    let win_root = if let Ok(val) = std::env::var("CTB_WIN_TEST_ROOT") {
-        val
-    } else {
-        "D:\\".to_string()
-    };
+    let win_root = std::env::var("CTB_WIN_TEST_ROOT").unwrap_or_default();
     println!("cargo:rustc-env=CTB_WIN_TEST_ROOT={win_root}");
 
     Ok(())

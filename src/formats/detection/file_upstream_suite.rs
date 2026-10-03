@@ -570,10 +570,17 @@ pub fn locate_upstream_tests_dir() -> Result<PathBuf> {
                 .join("src/formats/dcdata/data/magic/upstream/magic/tests"),
         );
     }
-    #[cfg(windows)]
-    candidates.push(PathBuf::from(
-        "D:\\src\\formats\\dcdata\\data\\magic\\upstream\\magic\\tests",
-    ));
+    if let Ok(exe) = std::env::current_exe() {
+        let mut cur = exe.as_path();
+        while let Some(parent) = cur.parent() {
+            let candidate = parent.join("src/formats/dcdata/data/magic/upstream/magic/tests");
+            if candidate.is_dir() {
+                candidates.push(candidate);
+                break;
+            }
+            cur = parent;
+        }
+    }
 
     for candidate in candidates {
         if candidate.is_dir() {
