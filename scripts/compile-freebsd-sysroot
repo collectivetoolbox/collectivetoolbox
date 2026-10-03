@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-print("5. Compiling startup objects from audited FreeBSD CSU source into $TARGET_SYSROOT_DIR/usr/lib...")
+print("1. Compiling startup objects from audited FreeBSD CSU source into $TARGET_SYSROOT_DIR/usr/lib...")
 
 import os, subprocess
 
@@ -82,7 +82,7 @@ subprocess.run([
 print('Compiled crt1.o, Scrt1.o, crti.o, crtn.o, crtbegin.o, crtbeginS.o, crtend.o, crtendS.o')
 
 
-print("6. Generating dynamic library linker stubs from audited sources into $TARGET_SYSROOT_DIR/usr/lib...")
+print("2. Generating dynamic library linker stubs from audited sources into $TARGET_SYSROOT_DIR/usr/lib...")
 
 import os, re, subprocess
 
