@@ -35,12 +35,14 @@ use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
-use ctb_io::file::payload::DiskPayloadSource;
+use ctb_io::file::payload::{DiskPayloadSource, Extent, PayloadSource};
 use ctb_io::file::{query_block_device_size, verify_directory_filenames_exact};
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
 use std::collections::HashMap;
+use std::io::{Read, Seek, SeekFrom};
+use std::time::Instant;
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
@@ -76,6 +78,103 @@ struct DeferredDirFixup {
     dest_path: PathBuf,
     dir_entity: FileEntity,
     expected_filenames: Vec<Vec<u8>>,
+}
+
+/// Wrapper around a reader or payload source that reports streaming progress
+/// to the progress reporter API as bytes are processed.
+struct ProgressStream<R> {
+    inner: R,
+    progress: Progress,
+    task_id: TaskId,
+    files_done: u64,
+    base_bytes: u64,
+    file_size: u64,
+    file_bytes_read: u64,
+    phase: &'static str,
+    last_update: Instant,
+}
+
+impl<R> ProgressStream<R> {
+    fn new(
+        inner: R,
+        progress: &Progress,
+        task_id: TaskId,
+        files_done: u64,
+        base_bytes: u64,
+        file_size: u64,
+        phase: &'static str,
+    ) -> Self {
+        Self {
+            inner,
+            progress: progress.clone(),
+            task_id,
+            files_done,
+            base_bytes,
+            file_size,
+            file_bytes_read: 0,
+            phase,
+            last_update: Instant::now(),
+        }
+    }
+
+    fn maybe_report_progress(&mut self) {
+        if self.progress.is_enabled()
+            && self.last_update.elapsed() >= std::time::Duration::from_millis(500)
+        {
+            self.last_update = Instant::now();
+            let current_total = self.base_bytes.saturating_add(self.file_bytes_read);
+            let detail = if self.file_size > 0 {
+                format!(
+                    "{}: {}/{} ({} total)",
+                    self.phase,
+                    format_bytes_decimal(self.file_bytes_read),
+                    format_bytes_decimal(self.file_size),
+                    format_bytes_decimal(current_total)
+                )
+            } else {
+                format!("{}: {}", self.phase, format_bytes_decimal(current_total))
+            };
+            self.progress
+                .update_task(self.task_id, self.files_done, Some(&detail));
+        }
+    }
+}
+
+impl<R: Read> Read for ProgressStream<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        if n > 0 {
+            if let Ok(n_u64) = u64::try_from(n) {
+                self.file_bytes_read = self.file_bytes_read.saturating_add(n_u64);
+            }
+            self.maybe_report_progress();
+        }
+        Ok(n)
+    }
+}
+
+impl<R: Seek> Seek for ProgressStream<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.inner.seek(pos)
+    }
+}
+
+impl<P: PayloadSource> PayloadSource for ProgressStream<P> {
+    fn total_size(&self) -> u64 {
+        self.inner.total_size()
+    }
+
+    fn extents(&self) -> &[Extent] {
+        self.inner.extents()
+    }
+
+    fn is_sparse(&self) -> bool {
+        self.inner.is_sparse()
+    }
+
+    fn opened_with_noatime(&self) -> bool {
+        self.inner.opened_with_noatime()
+    }
 }
 
 /// Records an item failure and either swallows it under `--continue-on-error` or
@@ -439,6 +538,8 @@ pub fn execute_copy_pipeline(
                             &mut hardlink_map,
                             &mut stats,
                             &mut files_to_verify,
+                            progress,
+                            copy_task,
                         )?;
                         if let Some(dest) = created_path {
                             if let Some(fname) = dest.file_name() {
@@ -540,7 +641,13 @@ pub fn execute_copy_pipeline(
                     &mut hardlink_map,
                     &mut stats,
                     &mut files_to_verify,
+                    progress,
+                    copy_task,
                 )?;
+                if progress.is_enabled() {
+                    let detail = format!("{} bytes", stats.bytes_copied);
+                    progress.update_task(copy_task, stats.files_copied, Some(&detail));
+                }
             }
         }
     }
@@ -724,6 +831,13 @@ pub fn execute_copy_pipeline(
         let verify_task = progress.start_task("Verifying", Some(total_to_verify));
 
         for (src_path, dest_path, entity) in &files_to_verify {
+            if progress.is_enabled() {
+                // Reason for fallback: root or empty path without a filename defaults to empty detail string
+                let detail = src_path
+                    .file_name()
+                    .map_or_else(String::new, |f| f.to_string_lossy().into_owned());
+                progress.update_task(verify_task, stats.files_verified, Some(&detail));
+            }
             let check_atime = args.should_check_atime()
                 || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
             #[cfg(unix)]
@@ -809,14 +923,17 @@ fn copy_single_item(
     hardlink_map: &mut HashMap<InodeKey, PathBuf>,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
+    progress: &Progress,
+    copy_task: TaskId,
 ) -> Result<Option<PathBuf>> {
-    // 2. Discover full entity from filesystem
+    // 2. Discover metadata-only entity from filesystem (avoiding full payload hash when unnecessary)
     let apple_read_options = args.resolve_apple_read_options();
-    let mut entity = match FileEntity::from_filesystem_with_apple_options(
+    let entity_res = FileEntity::from_filesystem_metadata_only_with_apple_options(
         src_path,
         None,
         &apple_read_options,
-    ) {
+    );
+    let mut entity = match entity_res {
         Ok(e) => {
             record_entity_warnings(&e, journal);
             e
@@ -895,6 +1012,37 @@ fn copy_single_item(
     if let Some(fname) = raw_fname {
         entity.identity.raw_filename = Some(fname);
     }
+
+    if let FileEntityKind::Regular {
+        size,
+        ref extents,
+        is_sparse,
+        ref mut sha256,
+    } = entity.kind
+    {
+        if *sha256 == [0_u8; 32] {
+            if let Ok(payload) = DiskPayloadSource::open(src_path) {
+                let mut p_stream = ProgressStream::new(
+                    payload,
+                    progress,
+                    copy_task,
+                    stats.files_copied,
+                    stats.bytes_copied,
+                    size,
+                    "Checksumming",
+                );
+                if let Ok(h) = ctb_io::file::payload::hash_payload_stream(
+                    &mut p_stream,
+                    extents,
+                    is_sparse,
+                    src_path,
+                ) {
+                    *sha256 = h;
+                }
+            }
+        }
+    }
+
     if !args.dry_run {
         record_journal_entry(journal, &effective_dest_path, &entity)?;
         journal.commit_batch()?;
@@ -1149,7 +1297,7 @@ fn copy_single_item(
             false,
         )
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-        let mut payload = match DiskPayloadSource::open(src_path) {
+        let payload = match DiskPayloadSource::open(src_path) {
             Ok(p) => p,
             Err(err) => {
                 return handle_item_error(
@@ -1163,8 +1311,17 @@ fn copy_single_item(
             }
         };
         let noatime = payload.opened_with_noatime();
+        let mut progress_payload = ProgressStream::new(
+            payload,
+            progress,
+            copy_task,
+            stats.files_copied,
+            stats.bytes_copied,
+            initial_size,
+            "Writing",
+        );
         (
-            materialize_entity(&entity, Some(&mut payload), dest_dir, options),
+            materialize_entity(&entity, Some(&mut progress_payload), dest_dir, options),
             noatime,
         )
     } else {
@@ -3333,6 +3490,36 @@ mod tests {
         let desc_content = fs::read_to_string(&desc_path).expect("read desc");
         assert!(desc_content.contains("Status: Failed:"), "desc must record Failed status: {desc_content}");
         assert!(desc_content.contains("ErrorsCount: 1"), "desc must record ErrorsCount: 1");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_progress_reporting_during_copy_pipeline() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_prog");
+        let dest = temp.path().join("dest_prog");
+        let state = temp.path().join("state_prog");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        // Write a 256KB sample file
+        fs::write(src.join("sample.bin"), vec![0x42; 256 * 1024]).expect("write file");
+
+        let mut args = default_test_args(
+            vec![src.join("sample.bin"), dest.join("sample.bin")],
+            state,
+        );
+        args.progress = true;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             1"));
+                assert!(dest.join("sample.bin").exists());
+            }
+            _ => panic!("Expected immediate result"),
+        }
     }
 }
 

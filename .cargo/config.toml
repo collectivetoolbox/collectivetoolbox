@@ -31,6 +31,8 @@ CC_x86_64_unknown_linux_musl = { value = "scripts/x86_64-musl-gcc", relative = t
 CC_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
 CXX_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-g++" }
 AR_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc-ar" }
+WINDRES = { value = "x86_64-w64-mingw32-windres" }
+RC_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-windres" }
 # CC_x86_64_pc_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
 
 PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-linux-musl" }

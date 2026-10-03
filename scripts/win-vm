@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Helper script to run and interact with the sandboxed Windows 7 VM in QEMU.
+set -euo pipefail
+
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+REPO_ROOT="$(readlink -f "$SCRIPT_DIR/..")"
+DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/Windows/win7.qcow2"
+SOCKET_DIR="/tmp/ctb-win7-vm"
+MONITOR_SOCK="$SOCKET_DIR/monitor.sock"
+VNC_SOCK="$SOCKET_DIR/vnc.sock"
+PID_FILE="$SOCKET_DIR/qemu.pid"
+
+mkdir -p "$SOCKET_DIR"
+
+usage() {
+    cat <<EOF
+Usage: ./scripts/win-vm <command> [options]
+
+Commands:
+  start          Start the Windows 7 VM in the background (QEMU)
+                 Options:
+                   --persist      Write changes directly to the qcow2 image
+                                  (default: runs with -snapshot to protect image)
+                   --net          Attach an isolated local loopback NIC (restrict=on,
+                                  guest cannot access external LAN or internet; forwards
+                                  localhost:2222 -> guest:22 for SSH)
+                   --vnc-port P   Also listen on TCP port P for VNC (e.g. 5901)
+                   --image PATH   Use a custom qcow2 image (default: ci-logs/VMs/Windows/win7.qcow2)
+                   --mem MB       Memory in MB (default: 2048)
+                   --smp CORES    CPU cores (default: 2)
+
+  stop           Stop the running VM (graceful ACPI shutdown, or --force)
+  status         Check if the VM is running and display resource usage
+  screenshot     Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
+  send-keys      Send QEMU monitor keys (e.g. "ret", "down", "ctrl-alt-delete")
+  monitor <cmd>  Execute an arbitrary command on the QEMU monitor
+
+Examples:
+  ./scripts/win-vm start
+  ./scripts/win-vm screenshot
+  ./scripts/win-vm stop
+EOF
+}
+
+is_running() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid="$(cat "$PID_FILE")"
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+cmd_start() {
+    if is_running; then
+        echo "VM is already running with PID $(cat "$PID_FILE")."
+        return 0
+    fi
+
+    local snapshot_flag="-snapshot"
+    local net_flags=()
+    local vnc_args=("-vnc" "unix:$VNC_SOCK")
+    local image="$DEFAULT_IMAGE"
+    local mem="2048"
+    local smp="2"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --persist)
+                snapshot_flag=""
+                ;;
+            --net)
+                # restrict=on isolates guest completely from the internet and external network.
+                # Only explicitly forwarded ports (127.0.0.1:2222 -> guest:22) are reachable.
+                net_flags=(
+                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:2222-:22"
+                    "-device" "e1000,netdev=net0"
+                )
+                ;;
+            --vnc-port)
+                shift
+                vnc_args=("-vnc" "127.0.0.1:${1:-1},websocket=off")
+                ;;
+            --image)
+                shift
+                image="$1"
+                ;;
+            --mem)
+                shift
+                mem="$1"
+                ;;
+            --smp)
+                shift
+                smp="$1"
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [[ ! -f "$image" ]]; then
+        echo "Error: VM disk image not found at $image" >&2
+        return 1
+    fi
+
+    rm -f "$MONITOR_SOCK" "$VNC_SOCK" "$PID_FILE"
+
+    echo "Starting Windows 7 VM..."
+    echo "  Image:    $image"
+    echo "  Memory:   ${mem}MB | SMP: $smp"
+    echo "  Snapshot: $(if [[ -n "$snapshot_flag" ]]; then echo "Enabled (read-only mode)"; else echo "Disabled (writes persist)"; fi)"
+    echo "  Network:  $(if [[ ${#net_flags[@]} -gt 0 ]]; then echo "Isolated loopback port-forward (restrict=on)"; else echo "Air-gapped (no NIC)"; fi)"
+
+    local qemu_cmd=(
+        qemu-system-x86_64
+        -nodefaults
+        -M pc
+        -cpu max
+        -m "$mem"
+        -smp "$smp"
+        -device ahci,id=ahci0
+        -drive "file=$image,if=none,id=drive0,format=qcow2"
+        -device ide-hd,bus=ahci0.0,drive=drive0
+        -vga std
+        -usb -device usb-tablet
+        "${vnc_args[@]}"
+        -monitor "unix:$MONITOR_SOCK,server,nowait"
+        -pidfile "$PID_FILE"
+        -daemonize
+    )
+
+    if [[ -n "$snapshot_flag" ]]; then
+        qemu_cmd+=("$snapshot_flag")
+    fi
+
+    if [[ ${#net_flags[@]} -gt 0 ]]; then
+        qemu_cmd+=("${net_flags[@]}")
+    fi
+
+    "${qemu_cmd[@]}"
+    sleep 1
+
+    if is_running; then
+        echo "VM successfully started (PID: $(cat "$PID_FILE"))."
+    else
+        echo "Failed to start VM. Check logs or permissions." >&2
+        return 1
+    fi
+}
+
+cmd_stop() {
+    if ! is_running; then
+        echo "VM is not running."
+        rm -f "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+        return 0
+    fi
+
+    local force="false"
+    if [[ "${1:-}" == "--force" ]]; then
+        force="true"
+    fi
+
+    local pid
+    pid="$(cat "$PID_FILE")"
+
+    if [[ "$force" == "true" ]]; then
+        echo "Terminating VM (PID $pid)..."
+        kill -9 "$pid" 2>/dev/null || true
+    else
+        echo "Sending ACPI shutdown to VM (PID $pid)..."
+        cmd_monitor "system_powerdown" >/dev/null 2>&1 || kill -15 "$pid" 2>/dev/null || true
+        for _ in $(seq 1 15); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "VM did not shut down gracefully; stopping forcefully..."
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    fi
+
+    rm -f "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+    echo "VM stopped."
+}
+
+cmd_status() {
+    if is_running; then
+        local pid
+        pid="$(cat "$PID_FILE")"
+        echo "VM is running (PID: $pid)"
+        ps -o pid,user,%cpu,%mem,rss,cmd -p "$pid"
+    else
+        echo "VM is not running."
+    fi
+}
+
+cmd_monitor() {
+    local cmd="$*"
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket $MONITOR_SOCK not found or VM not running." >&2
+        return 1
+    fi
+    python3 -c "
+import socket, sys
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect('$MONITOR_SOCK')
+s.recv(1024)
+s.sendall(sys.argv[1].encode() + b'\n')
+import time; time.sleep(0.3)
+print(s.recv(4096).decode(errors='replace').strip())
+s.close()
+" "$cmd"
+}
+
+cmd_screenshot() {
+    local out_path="${1:-/tmp/win7-screen.png}"
+    local tmp_ppm="/tmp/win7-screen-tmp-$$.ppm"
+
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket not found or VM not running." >&2
+        return 1
+    fi
+
+    cmd_monitor "screendump $tmp_ppm" >/dev/null
+    sleep 0.5
+
+    if [[ -f "$tmp_ppm" ]]; then
+        ffmpeg -y -i "$tmp_ppm" "$out_path" 2>/dev/null || convert "$tmp_ppm" "$out_path"
+        rm -f "$tmp_ppm"
+        echo "Screenshot saved to $out_path"
+    else
+        echo "Error: Failed to capture screen dump." >&2
+        return 1
+    fi
+}
+
+cmd_send_keys() {
+    for key in "$@"; do
+        cmd_monitor "sendkey $key" >/dev/null
+        sleep 0.2
+    done
+}
+
+action="${1:-}"
+shift || true
+
+case "$action" in
+    start)
+        cmd_start "$@"
+        ;;
+    stop)
+        cmd_stop "$@"
+        ;;
+    status)
+        cmd_status
+        ;;
+    screenshot)
+        cmd_screenshot "$@"
+        ;;
+    send-keys)
+        cmd_send_keys "$@"
+        ;;
+    monitor)
+        cmd_monitor "$@"
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
