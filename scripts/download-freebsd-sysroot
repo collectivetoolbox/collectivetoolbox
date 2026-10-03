@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # This file is part of Collective Toolbox, a database and document workspace and utilities.
@@ -16,90 +16,92 @@
 #
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
-set -euo pipefail
 
-script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-workspace_root="$(readlink -f "$script_dir/..")"
-cd "$workspace_root" || exit 1
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+workspace_root = os.path.realpath(os.path.join(script_dir, ".."))
+os.chdir(workspace_root)
 
 # Pinned commits:
 # 1. FreeBSD 13.4-RELEASE (release/13.4.0) for system headers, CSU startfiles, and library sources.
-FREEBSD_REPO="https://github.com/freebsd/freebsd-src.git"
-FREEBSD_COMMIT="c876eaf40915f213dc07f74e730ee6a2a9de7ba1"
+FREEBSD_REPO = "https://github.com/freebsd/freebsd-src.git"
+FREEBSD_COMMIT = "c876eaf40915f213dc07f74e730ee6a2a9de7ba1"
 
 # 2. LLVM Project (release/19.x) for clean, permissive POSIX definitions and types under Apache-2.0 w/ LLVM Exception.
-LLVM_REPO="https://github.com/llvm/llvm-project.git"
-LLVM_COMMIT="92ee37966563310901951b1b5a89bcbafbcea767"
+LLVM_REPO = "https://github.com/llvm/llvm-project.git"
+LLVM_COMMIT = "92ee37966563310901951b1b5a89bcbafbcea767"
 
-TARGET_SYSROOT_DIR="$workspace_root/vendor/upstream-for-reference/freebsd-sysroot"
-FINAL_SYSROOT_DIR="$workspace_root/vendor/freebsd-sysroot"
-TMP_DIR="$workspace_root/built/freebsd_sysroot_tmp"
+TARGET_SYSROOT_DIR = os.path.join(workspace_root, "vendor/upstream-for-reference/freebsd-sysroot")
+FINAL_SYSROOT_DIR = os.path.join(workspace_root, "vendor/freebsd-sysroot")
+TMP_DIR = os.path.join(workspace_root, "built/freebsd_sysroot_tmp")
 
-for req_cmd in git python3 clang lld ar; do
-    if ! command -v "$req_cmd" >/dev/null 2>&1; then
-        echo "error: $req_cmd is required to build the FreeBSD sysroot" >&2
-        exit 1
-    fi
-done
+for req_cmd in ["git", "python3", "clang", "lld", "ar"]:
+    if not shutil.which(req_cmd):
+        sys.exit(f"error: {req_cmd} is required to build the FreeBSD sysroot")
 
-echo "0. Cleaning existing sysroot directories..."
-for d in "$TARGET_SYSROOT_DIR" "$FINAL_SYSROOT_DIR" "$TMP_DIR"; do
-    if [ -d "$d" ]; then
-        chmod -R u+w "$d"
-        rm -r "$d"
-    fi
-done
+print("0. Cleaning existing sysroot directories...")
+for d in [TARGET_SYSROOT_DIR, FINAL_SYSROOT_DIR, TMP_DIR]:
+    if os.path.isdir(d):
+        for root, dirs, files in os.walk(d):
+            for entry in dirs + files:
+                try:
+                    os.chmod(os.path.join(root, entry), 0o777)
+                except OSError:
+                    pass
+        shutil.rmtree(d, ignore_errors=True)
 
-mkdir -p "$TMP_DIR"
-mkdir -p "$TARGET_SYSROOT_DIR/usr/include"
-mkdir -p "$TARGET_SYSROOT_DIR/usr/lib"
+os.makedirs(TMP_DIR, exist_ok=True)
+os.makedirs(os.path.join(TARGET_SYSROOT_DIR, "usr/include"), exist_ok=True)
+os.makedirs(os.path.join(TARGET_SYSROOT_DIR, "usr/lib"), exist_ok=True)
 
-echo "1. Downloading upstream source files (FreeBSD and LLVM permissive sources)..."
-git clone --depth 1 --filter=blob:none --sparse "$FREEBSD_REPO" "$TMP_DIR/freebsd"
-(
-    cd "$TMP_DIR/freebsd"
-    git fetch --depth 1 origin "$FREEBSD_COMMIT"
-    git checkout "$FREEBSD_COMMIT"
-    git sparse-checkout set \
-        include \
-        sys/sys \
-        sys/amd64/include \
-        sys/x86/include \
-        sys/arm64/include \
-        sys/net \
-        sys/netinet \
-        sys/netinet6 \
-        sys/vm \
-        sys/ufs/ufs \
-        sys/fs/devfs \
-        sys/fs/fdescfs \
-        sys/fs/nullfs \
-        sys/fs/procfs \
-        contrib/libc-vis \
-        sys/kern \
-        lib/csu \
-        lib/libc \
-        lib/libthr \
-        lib/msun \
-        lib/libprocstat \
-        lib/libutil \
-        lib/libkvm \
-        lib/libmemstat \
-        lib/libdevstat \
-        lib/libgeom \
-        contrib/libexecinfo
-)
+print("1. Downloading upstream source files (FreeBSD and LLVM permissive sources)...")
+subprocess.run(["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse", FREEBSD_REPO, os.path.join(TMP_DIR, "freebsd")], check=True)
+freebsd_dir = os.path.join(TMP_DIR, "freebsd")
+subprocess.run(["git", "fetch", "--depth", "1", "origin", FREEBSD_COMMIT], cwd=freebsd_dir, check=True)
+subprocess.run(["git", "checkout", FREEBSD_COMMIT], cwd=freebsd_dir, check=True)
+subprocess.run([
+    "git", "sparse-checkout", "set",
+    "include",
+    "sys/sys",
+    "sys/amd64/include",
+    "sys/x86/include",
+    "sys/arm64/include",
+    "sys/net",
+    "sys/netinet",
+    "sys/netinet6",
+    "sys/vm",
+    "sys/ufs/ufs",
+    "sys/fs/devfs",
+    "sys/fs/fdescfs",
+    "sys/fs/nullfs",
+    "sys/fs/procfs",
+    "contrib/libc-vis",
+    "sys/kern",
+    "lib/csu",
+    "lib/libc",
+    "lib/libthr",
+    "lib/msun",
+    "lib/libprocstat",
+    "lib/libutil",
+    "lib/libkvm",
+    "lib/libmemstat",
+    "lib/libdevstat",
+    "lib/libgeom",
+    "contrib/libexecinfo",
+], cwd=freebsd_dir, check=True)
 
-git clone --depth 1 --filter=blob:none --sparse "$LLVM_REPO" "$TMP_DIR/llvm"
-(
-    cd "$TMP_DIR/llvm"
-    git fetch --depth 1 origin "$LLVM_COMMIT"
-    git checkout "$LLVM_COMMIT"
-    git sparse-checkout set libc/include clang/lib/Headers
-)
+subprocess.run(["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse", LLVM_REPO, os.path.join(TMP_DIR, "llvm")], check=True)
+llvm_dir = os.path.join(TMP_DIR, "llvm")
+subprocess.run(["git", "fetch", "--depth", "1", "origin", LLVM_COMMIT], cwd=llvm_dir, check=True)
+subprocess.run(["git", "checkout", LLVM_COMMIT], cwd=llvm_dir, check=True)
+subprocess.run(["git", "sparse-checkout", "set", "libc/include", "clang/lib/Headers"], cwd=llvm_dir, check=True)
 
-echo "2. Auditing and filtering downloaded sources BEFORE generation (deleting incompatible/missing licenses)..."
-python3 -c "
+print("2. Auditing and filtering downloaded sources BEFORE generation (deleting incompatible/missing licenses)...")
 import os, re
 
 ALLOWED_EXACT_SPDX = {
@@ -130,7 +132,7 @@ def is_permissive_bsd_license(content):
         and '4. Neither the name' not in content
     )
 
-for repo_root in ['$TMP_DIR/freebsd', '$TMP_DIR/llvm']:
+for repo_root in [os.path.join(TMP_DIR, 'freebsd'), os.path.join(TMP_DIR, 'llvm')]:
     total = 0
     kept = 0
     deleted = 0
@@ -177,14 +179,12 @@ for repo_root in ['$TMP_DIR/freebsd', '$TMP_DIR/llvm']:
         if os.path.isdir(root) and not os.listdir(root):
             os.rmdir(root)
     print(f'Audited {repo_root}: kept {kept}, deleted {deleted} of {total} candidate files')
-"
 
-echo "3. Copying audited FreeBSD headers into $TARGET_SYSROOT_DIR/usr/include..."
-python3 -c "
+print(f"3. Copying audited FreeBSD headers into {TARGET_SYSROOT_DIR}/usr/include...")
 import os, shutil
 
-src = '$TMP_DIR/freebsd'
-dst = '$TARGET_SYSROOT_DIR/usr/include'
+src = os.path.join(TMP_DIR, 'freebsd')
+dst = os.path.join(TARGET_SYSROOT_DIR, 'usr/include')
 
 mappings = [
     ('include', ''),
@@ -228,15 +228,13 @@ if os.path.isfile(vis_src):
     with open(vis_src, 'r', encoding='latin1') as fp:
         if 'SPDX-License-Identifier:' in fp.read():
             shutil.copy2(vis_src, os.path.join(dst, 'vis.h'))
-"
 
-echo "4. Generating derived headers from audited sources through string/file manipulation..."
-python3 -c "
+print("4. Generating derived headers from audited sources through string/file manipulation...")
 import os, re, shutil
 
-freebsd_src = '$TMP_DIR/freebsd'
-llvm_src = '$TMP_DIR/llvm'
-dst = '$TARGET_SYSROOT_DIR/usr/include'
+freebsd_src = os.path.join(TMP_DIR, 'freebsd')
+llvm_src = os.path.join(TMP_DIR, 'llvm')
+dst = os.path.join(TARGET_SYSROOT_DIR, 'usr/include')
 
 os.makedirs(os.path.join(dst, 'x86'), exist_ok=True)
 os.makedirs(os.path.join(dst, 'machine'), exist_ok=True)
@@ -662,13 +660,11 @@ if os.path.isfile(xstrings_src):
         fp.write(body + '\n')
 
 print('Derived headers successfully generated from audited sources.')
-"
 
-echo "7. Auditing all output headers and verifying license provenance..."
-python3 -c "
+print("7. Auditing all output headers and verifying license provenance...")
 import os, re
 
-sysroot = '$TARGET_SYSROOT_DIR'
+sysroot = TARGET_SYSROOT_DIR
 inc_dir = os.path.join(sysroot, 'usr/include')
 
 total = 0
@@ -742,15 +738,20 @@ for rel_f, expected_snippets in provenance_checks:
             raise SystemExit(f'Provenance error: {rel_f} missing expected source license snippet: {snip}')
 
 print('Provenance verification: All derived headers verified to preserve full source licensing headers.')
-"
 
-echo "8. Mirroring complete generated sysroot to $FINAL_SYSROOT_DIR..."
-cp -r "$TARGET_SYSROOT_DIR" "$workspace_root/vendor/"
+print(f"8. Mirroring complete generated sysroot to {FINAL_SYSROOT_DIR}...")
+if os.path.exists(FINAL_SYSROOT_DIR):
+    shutil.rmtree(FINAL_SYSROOT_DIR, ignore_errors=True)
+shutil.copytree(TARGET_SYSROOT_DIR, FINAL_SYSROOT_DIR, symlinks=True)
 
-echo "9. Cleaning temporary download directory..."
-if [ -d "$TMP_DIR" ]; then
-    chmod -R u+w "$TMP_DIR"
-    rm -r "$TMP_DIR"
-fi
+print("9. Cleaning temporary download directory...")
+if os.path.isdir(TMP_DIR):
+    for root, dirs, files in os.walk(TMP_DIR):
+        for entry in dirs + files:
+            try:
+                os.chmod(os.path.join(root, entry), 0o777)
+            except OSError:
+                pass
+    shutil.rmtree(TMP_DIR, ignore_errors=True)
 
-echo "FreeBSD sysroot successfully downloaded, audited, generated, and vendored at: $FINAL_SYSROOT_DIR"
+print(f"FreeBSD sysroot successfully downloaded, audited, generated, and vendored at: {FINAL_SYSROOT_DIR}")
