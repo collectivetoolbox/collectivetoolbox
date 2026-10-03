@@ -375,7 +375,10 @@ for p in "${platforms[@]}"; do
     if [[ "$target" == *-win7-* ]]; then
         export RUSTC_BOOTSTRAP=1
         extra_cargo_flags=(-Z "build-std=std,panic_abort" --jobs 4)
-        target_rustflags="$target_rustflags -C link-arg=-fuse-ld=lld"
+        mkdir -p "target/$target"
+        x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
+            src/build_support/windows/combase_shim.c -o "target/$target/combase_shim.o"
+        target_rustflags="$target_rustflags -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$PWD/target/$target/combase_shim.o"
     fi
 
     # Try to set build concurrency to something reasonable

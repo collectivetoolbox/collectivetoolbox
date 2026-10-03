@@ -1,8 +1,0 @@
-LIBRARY combase.dll
-EXPORTS
-    CoCreateFreeThreadedMarshaler = ole32.CoCreateFreeThreadedMarshaler
-    CoIncrementMTAUsage = ole32.CoIncrementMTAUsage
-    CoTaskMemAlloc = ole32.CoTaskMemAlloc
-    CoTaskMemFree = ole32.CoTaskMemFree
-    CoTaskMemRealloc = ole32.CoTaskMemRealloc
-    RoGetAgileReference

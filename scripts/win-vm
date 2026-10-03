@@ -461,22 +461,6 @@ cmd_sync_binaries() {
         cp "$installer_bin" "$EXCHANGE_DIR/ctoolbox-installer.exe"
     fi
 
-    local combase_dll="scripts/windows/combase-shim/combase.dll"
-    if [[ ! -f "$combase_dll" ]]; then
-        combase_dll="ci-logs/VMs/Windows/combase-shim/combase.dll"
-    fi
-    if [[ -f "$combase_dll" ]]; then
-        cp "$combase_dll" "$EXCHANGE_DIR/combase.dll"
-    elif [[ -f "scripts/windows/combase-shim/combase.c" ]]; then
-        x86_64-w64-mingw32-gcc -shared -o "$EXCHANGE_DIR/combase.dll" \
-            scripts/windows/combase-shim/combase.c \
-            scripts/windows/combase-shim/combase.def
-    elif [[ -f "ci-logs/VMs/Windows/combase-shim/combase.c" ]]; then
-        x86_64-w64-mingw32-gcc -shared -o "$EXCHANGE_DIR/combase.dll" \
-            ci-logs/VMs/Windows/combase-shim/combase.c \
-            ci-logs/VMs/Windows/combase-shim/combase.def
-    fi
-
     genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
 
     if is_running; then
@@ -505,10 +489,6 @@ cmd_run() {
 @echo off
 set "PATH=D:\\;%PATH%"
 cd /d "%TEMP%"
-if not exist "C:\\Windows\\System32\\combase.dll" (
-    copy /y "D:\\combase.dll" "C:\\Windows\\System32\\" > nul 2>&1
-)
-copy /y "D:\\combase.dll" "%TEMP%\\" > nul 2>&1
 echo ---CTB_START--- > COM1
 $user_cmd >> COM1 2>&1
 echo. >> COM1

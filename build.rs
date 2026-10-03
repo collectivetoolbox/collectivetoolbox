@@ -96,6 +96,29 @@ fn main() -> Result<()> {
             res.set_icon(icon_path.to_string_lossy().as_ref());
         }
         res.compile()?;
+
+        let target = env::var("TARGET").unwrap_or_default();
+        if target.contains("win7") {
+            let out_dir = env::var("OUT_DIR")?;
+            let shim_o = Path::new(&out_dir).join("combase_shim.o");
+            let shim_c = manifest_path.join("src/build_support/windows/combase_shim.c");
+            println!("cargo:rerun-if-changed={}", shim_c.display());
+            let cc = env::var("CC_x86_64_win7_windows_gnu")
+                .or_else(|_| env::var("CC"))
+                .unwrap_or_else(|_| "x86_64-w64-mingw32-gcc".to_string());
+            let status = std::process::Command::new(cc)
+                .args(["-Wall", "-Wextra", "-Wno-attributes", "-O2", "-c"])
+                .arg(&shim_c)
+                .arg("-o")
+                .arg(&shim_o)
+                .status()?;
+            if !status.success() {
+                anyhow::bail!("Failed to compile combase_shim.c");
+            }
+            println!("cargo:rustc-link-arg=-fuse-ld=lld");
+            println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
+            println!("cargo:rustc-link-arg={}", shim_o.display());
+        }
     }
 
     // Emit vergen metadata
