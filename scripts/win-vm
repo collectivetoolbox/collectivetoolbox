@@ -71,9 +71,16 @@ Snapshot Management:
   snapshot delete <name>    Delete a snapshot from the qcow2 disk image
 
 Execution & Testing:
-  sync-binaries             Package Windows binaries + combase.dll into exchange ISO and hot-swap
+  sync-binaries             Package Windows binaries into exchange ISO and hot-swap
   run <command...>          Execute a command in the VM and stream output to terminal
-  test [--reset]            Run the Windows test suite in the VM
+  test [--reset]            Run the Windows smoke tests in the VM
+  test-suite [options]      Compile, package, and execute the full test suite in VM
+                            Options:
+                              --reset          Revert to base-state snapshot first
+                              --crate <name>   Test only a specific package/crate
+                              --filter <pat>   Test filter pattern
+                              --no-build       Skip build; use existing binaries
+                              --timeout <sec>  Timeout waiting for test suite (default: 1800)
 
 Interactive / Inspection:
   screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
@@ -464,6 +471,8 @@ cmd_sync_binaries() {
     genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
 
     if is_running; then
+        cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
+        sleep 0.5
         cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
         sleep 1.5
     fi
@@ -600,6 +609,233 @@ cmd_test() {
     echo "=== Windows VM Tests Completed Successfully ==="
 }
 
+cmd_test_suite() {
+    local reset="false"
+    local crate_filter=""
+    local test_filter=""
+    local no_build="false"
+    local timeout="1800"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --reset)
+                reset="true"
+                ;;
+            --crate)
+                shift
+                crate_filter="${1:-}"
+                ;;
+            --filter)
+                shift
+                test_filter="${1:-}"
+                ;;
+            --no-build)
+                no_build="true"
+                ;;
+            --timeout)
+                shift
+                timeout="${1:-1800}"
+                ;;
+            *)
+                echo "Unknown option for test-suite: $1" >&2
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    if [[ "$reset" == "true" ]]; then
+        if is_running; then
+            cmd_stop
+        fi
+        cmd_snapshot revert "base-state"
+    fi
+
+    if ! is_running; then
+        cmd_start
+        echo "Waiting for VM to reach desktop..."
+        sleep 25
+    fi
+
+    local target="x86_64-win7-windows-gnu"
+    local shim_obj="$REPO_ROOT/target/$target/combase_shim.o"
+
+    if [[ "$no_build" != "true" ]]; then
+        echo "=== Compiling Windows 7 Compatibility Shim ==="
+        mkdir -p "$REPO_ROOT/target/$target"
+        x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
+            src/build_support/windows/combase_shim.c -o "$shim_obj"
+
+        echo "=== Compiling Test Binaries for $target ==="
+        export RUSTC_BOOTSTRAP=1
+        export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
+        export CTB_WIN_TEST_ROOT="D:\\"
+        local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
+
+        local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
+        if [[ -n "$crate_filter" ]]; then
+            cargo_args+=(-p "$crate_filter")
+        else
+            cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
+        fi
+
+        RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
+    fi
+
+    echo "=== Packaging Tests and Fixtures for VM Exchange ==="
+    remove_if_exists "$EXCHANGE_DIR"
+    mkdir -p "$EXCHANGE_DIR/tests"
+
+    local binary_count=0
+    if [[ -n "$crate_filter" ]]; then
+        local crate_prefix="${crate_filter//-/_}"
+        for bin in target/"$target"/debug/deps/"$crate_prefix"-*.exe; do
+            if [[ -f "$bin" ]]; then
+                cp "$bin" "$EXCHANGE_DIR/tests/"
+                binary_count=$((binary_count + 1))
+            fi
+        done
+    else
+        for bin in target/"$target"/debug/deps/*.exe; do
+            if [[ -f "$bin" ]]; then
+                cp "$bin" "$EXCHANGE_DIR/tests/"
+                binary_count=$((binary_count + 1))
+            fi
+        done
+    fi
+
+    if [[ "$binary_count" -eq 0 ]]; then
+        echo "No test binaries found in target/$target/debug/deps/!" >&2
+        return 1
+    fi
+
+    echo "Packaging repository fixtures..."
+    find src -type d -name "fixtures" -print0 | tar --null -cf - --files-from=- | (cd "$EXCHANGE_DIR" && tar -xf -)
+
+    echo "Generating in-VM test runner script..."
+    cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
+@echo off
+setlocal enabledelayedexpansion
+set "PATH=D:\\;%PATH%"
+set "CTB_WIN_TEST_ROOT=D:\\"
+cd /d "%TEMP%"
+
+echo ---SUITE_START--- > COM1
+set TOTAL=0
+set PASSED=0
+set FAILED=0
+
+for %%F in (D:\tests\*.exe) do (
+    set /a TOTAL+=1
+    echo === RUN %%~nF === >> COM1
+    "%%F" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
+    if !ERRORLEVEL! EQU 0 (
+        set /a PASSED+=1
+        echo === PASS %%~nF === >> COM1
+    ) else (
+        set /a FAILED+=1
+        echo === FAIL %%~nF (EXIT:!ERRORLEVEL!) === >> COM1
+    )
+    echo. >> COM1
+)
+
+echo ---SUITE_END:TOTAL=!TOTAL!,PASSED=!PASSED!,FAILED=!FAILED!--- >> COM1
+EOF
+
+    echo "Creating exchange ISO with $binary_count test binaries and fixtures..."
+    genisoimage -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+
+    if is_running; then
+        cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
+        sleep 0.5
+        cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
+        sleep 1.5
+    fi
+
+    echo "=== Executing Test Suite in Windows 7 VM ==="
+    local start_offset=0
+    if [[ -f "$SERIAL_LOG" ]]; then
+        start_offset=$(stat -c%s "$SERIAL_LOG")
+    else
+        touch "$SERIAL_LOG"
+    fi
+
+    cmd_send_keys "esc"
+    sleep 0.5
+    cmd_send_keys "meta_l-r"
+    sleep 1.2
+    cmd_send_keys "ctrl-a" "backspace"
+    sleep 0.2
+    cmd_type "cmd /c d:\\run_suite.bat"
+    sleep 0.8
+    cmd_send_keys "ret"
+
+    python3 -c "
+import sys, time, re
+
+log_path = sys.argv[1]
+start_offset = int(sys.argv[2])
+timeout = int(sys.argv[3])
+
+start_time = time.time()
+started = False
+suite_total = 0
+suite_passed = 0
+suite_failed = 0
+failing_binaries = []
+passing_binaries = []
+
+with open(log_path, 'r', errors='replace') as f:
+    f.seek(start_offset)
+    while True:
+        line = f.readline()
+        if line:
+            clean = line.strip()
+            if '---SUITE_START---' in clean:
+                started = True
+                print('>>> Windows 7 VM Test Suite Started <<<')
+                continue
+            if '---SUITE_END:' in clean:
+                m = re.search(r'TOTAL=(\d+),PASSED=(\d+),FAILED=(\d+)', clean)
+                if m:
+                    suite_total = int(m.group(1))
+                    suite_passed = int(m.group(2))
+                    suite_failed = int(m.group(3))
+                break
+            if started:
+                m_pass = re.search(r'=== PASS (\S+) ===', clean)
+                if m_pass:
+                    passing_binaries.append(m_pass.group(1))
+                m_fail = re.search(r'=== FAIL (\S+) \(EXIT:(-?\d+)\) ===', clean)
+                if m_fail:
+                    failing_binaries.append((m_fail.group(1), m_fail.group(2)))
+
+                sys.stdout.write(line)
+                sys.stdout.flush()
+        else:
+            if time.time() - start_time > timeout:
+                sys.stderr.write(f'\n[TIMEOUT] Test suite exceeded {timeout} seconds in VM.\n')
+                sys.exit(124)
+            time.sleep(0.2)
+
+print('\n' + '=' * 60)
+print('             WINDOWS 7 VM TEST SUITE SUMMARY')
+print('=' * 60)
+if failing_binaries:
+    print(f'FAILED TEST BINARIES ({len(failing_binaries)}):')
+    for name, code in failing_binaries:
+        print(f'  [X] {name} (exit code: {code})')
+else:
+    print('NO TEST FAILURES DETECTED!')
+
+print(f'PASSED TEST BINARIES: {len(passing_binaries)}')
+print(f'TOTAL: {suite_total} | PASSED: {suite_passed} | FAILED: {suite_failed}')
+print('=' * 60)
+
+sys.exit(0 if suite_failed == 0 and len(failing_binaries) == 0 else 1)
+" "$SERIAL_LOG" "$start_offset" "$timeout"
+}
+
 action="${1:-}"
 shift || true
 
@@ -636,6 +872,9 @@ case "$action" in
         ;;
     test)
         cmd_test "$@"
+        ;;
+    test-suite)
+        cmd_test_suite "$@"
         ;;
     *)
         usage

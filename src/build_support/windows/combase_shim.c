@@ -54,6 +54,9 @@ typedef HRESULT (WINAPI *PFN_RoGetActivationFactory)(void *activatableClassId, c
 typedef HRESULT (WINAPI *PFN_RoInitialize)(int initType);
 typedef void (WINAPI *PFN_RoUninitialize)(void);
 typedef HRESULT (WINAPI *PFN_RoActivateInstance)(void *activatableClassId, void **instance);
+typedef int (WINAPI *PFN_GetHostNameW)(WCHAR *name, int namelen);
+typedef BOOL (WINAPI *PFN_RoOriginateErrorW)(HRESULT error, UINT cchMax, const WCHAR *message);
+typedef BOOL (WINAPI *PFN_RoOriginateError)(HRESULT error, void *message);
 
 // Forward declarations of initial resolver stubs
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb);
@@ -67,6 +70,9 @@ static HRESULT WINAPI resolve_RoGetActivationFactory(void *activatableClassId, c
 static HRESULT WINAPI resolve_RoInitialize(int initType);
 static void WINAPI resolve_RoUninitialize(void);
 static HRESULT WINAPI resolve_RoActivateInstance(void *activatableClassId, void **instance);
+static int WINAPI resolve_GetHostNameW(WCHAR *name, int namelen);
+static BOOL WINAPI resolve_RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message);
+static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message);
 
 // ============================================================================
 // __imp_ Function Pointers (imported by raw-dylib / linkers)
@@ -83,6 +89,9 @@ PFN_RoGetActivationFactory __imp_RoGetActivationFactory = resolve_RoGetActivatio
 PFN_RoInitialize __imp_RoInitialize = resolve_RoInitialize;
 PFN_RoUninitialize __imp_RoUninitialize = resolve_RoUninitialize;
 PFN_RoActivateInstance __imp_RoActivateInstance = resolve_RoActivateInstance;
+PFN_GetHostNameW __imp_GetHostNameW = resolve_GetHostNameW;
+PFN_RoOriginateErrorW __imp_RoOriginateErrorW = resolve_RoOriginateErrorW;
+PFN_RoOriginateError __imp_RoOriginateError = resolve_RoOriginateError;
 
 // ============================================================================
 // Direct Function Stubs (for call <symbol>)
@@ -130,6 +139,18 @@ void WINAPI RoUninitialize(void) {
 
 HRESULT WINAPI RoActivateInstance(void *activatableClassId, void **instance) {
     return __imp_RoActivateInstance(activatableClassId, instance);
+}
+
+int WINAPI GetHostNameW(WCHAR *name, int namelen) {
+    return __imp_GetHostNameW(name, namelen);
+}
+
+BOOL WINAPI RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message) {
+    return __imp_RoOriginateErrorW(error, cchMax, message);
+}
+
+BOOL WINAPI RoOriginateError(HRESULT error, void *message) {
+    return __imp_RoOriginateError(error, message);
 }
 
 // ============================================================================
@@ -341,4 +362,110 @@ static HRESULT WINAPI resolve_RoActivateInstance(void *activatableClassId, void 
     }
     __imp_RoActivateInstance = fn;
     return fn(activatableClassId, instance);
+}
+
+static HMODULE get_ws2_module(void) {
+    static HMODULE s_hWs2 = NULL;
+    if (!s_hWs2) {
+        s_hWs2 = GetModuleHandleA("ws2_32.dll");
+        if (!s_hWs2) {
+            s_hWs2 = LoadLibraryA("ws2_32.dll");
+        }
+    }
+    return s_hWs2;
+}
+
+static int WINAPI fallback_GetHostNameW(WCHAR *name, int namelen) {
+    if (!name || namelen <= 0) {
+        SetLastError(10014L); // WSAEFAULT
+        return -1;
+    }
+    HMODULE hWs2 = get_ws2_module();
+    if (!hWs2) {
+        return -1;
+    }
+    typedef int (WINAPI *PFN_gethostname)(char *name, int namelen);
+    PFN_gethostname p_gethostname = (PFN_gethostname)(void *)GetProcAddress(hWs2, "gethostname");
+    if (!p_gethostname) {
+        return -1;
+    }
+    char ansi[256];
+    int res = p_gethostname(ansi, sizeof(ansi));
+    if (res != 0) {
+        return res;
+    }
+    int wide_len = MultiByteToWideChar(CP_ACP, 0, ansi, -1, name, namelen);
+    if (wide_len == 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static int WINAPI resolve_GetHostNameW(WCHAR *name, int namelen) {
+    HMODULE hWs2 = get_ws2_module();
+    FARPROC proc = hWs2 ? GetProcAddress(hWs2, "GetHostNameW") : NULL;
+    PFN_GetHostNameW fn;
+    if (proc) {
+        fn = (PFN_GetHostNameW)(void *)proc;
+    } else {
+        fn = fallback_GetHostNameW;
+    }
+    __imp_GetHostNameW = fn;
+    return fn(name, namelen);
+}
+
+static HMODULE get_winrt_error_module(void) {
+    static HMODULE s_hWinRt = NULL;
+    if (!s_hWinRt) {
+        s_hWinRt = GetModuleHandleA("api-ms-win-core-winrt-error-l1-1-0.dll");
+        if (!s_hWinRt) {
+            s_hWinRt = GetModuleHandleA("combase.dll");
+        }
+        if (!s_hWinRt) {
+            s_hWinRt = LoadLibraryA("api-ms-win-core-winrt-error-l1-1-0.dll");
+        }
+        if (!s_hWinRt) {
+            s_hWinRt = LoadLibraryA("combase.dll");
+        }
+    }
+    return s_hWinRt;
+}
+
+static BOOL WINAPI fallback_RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message) {
+    (void)error;
+    (void)cchMax;
+    (void)message;
+    return FALSE;
+}
+
+static BOOL WINAPI resolve_RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message) {
+    HMODULE hMod = get_winrt_error_module();
+    FARPROC proc = hMod ? GetProcAddress(hMod, "RoOriginateErrorW") : NULL;
+    PFN_RoOriginateErrorW fn;
+    if (proc) {
+        fn = (PFN_RoOriginateErrorW)(void *)proc;
+    } else {
+        fn = fallback_RoOriginateErrorW;
+    }
+    __imp_RoOriginateErrorW = fn;
+    return fn(error, cchMax, message);
+}
+
+static BOOL WINAPI fallback_RoOriginateError(HRESULT error, void *message) {
+    (void)error;
+    (void)message;
+    return FALSE;
+}
+
+static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message) {
+    HMODULE hMod = get_winrt_error_module();
+    FARPROC proc = hMod ? GetProcAddress(hMod, "RoOriginateError") : NULL;
+    PFN_RoOriginateError fn;
+    if (proc) {
+        fn = (PFN_RoOriginateError)(void *)proc;
+    } else {
+        fn = fallback_RoOriginateError;
+    }
+    __imp_RoOriginateError = fn;
+    return fn(error, message);
 }

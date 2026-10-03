@@ -374,6 +374,8 @@ for p in "${platforms[@]}"; do
     extra_cargo_flags=()
     if [[ "$target" == *-win7-* ]]; then
         export RUSTC_BOOTSTRAP=1
+        export CTB_HOST_WORKSPACE_ROOT="$PWD"
+        export CTB_WIN_TEST_ROOT="D:\\"
         extra_cargo_flags=(-Z "build-std=std,panic_abort" --jobs 4)
         mkdir -p "target/$target"
         x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \

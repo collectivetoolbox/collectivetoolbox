@@ -77,6 +77,24 @@ fn main() -> Result<()> {
 
     println!("cargo:rustc-env=CTB_VERSION={ctb_version}");
 
+    let workspace_root = if let Some(src_dir) = manifest_dir.parent() {
+        if let Some(root) = src_dir.parent() {
+            root.to_string_lossy().to_string()
+        } else {
+            src_dir.to_string_lossy().to_string()
+        }
+    } else {
+        manifest_dir.to_string_lossy().to_string()
+    };
+    println!("cargo:rustc-env=CTB_HOST_WORKSPACE_ROOT={workspace_root}");
+
+    let win_root = if let Ok(val) = std::env::var("CTB_WIN_TEST_ROOT") {
+        val
+    } else {
+        "D:\\".to_string()
+    };
+    println!("cargo:rustc-env=CTB_WIN_TEST_ROOT={win_root}");
+
     Ok(())
 }
 

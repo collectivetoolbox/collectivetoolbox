@@ -180,6 +180,25 @@ pub fn is_in_test() -> bool {
     false
 }
 
+const HOST_WORKSPACE_ROOT: &str = env!("CTB_HOST_WORKSPACE_ROOT");
+const DEFAULT_WIN_TEST_ROOT: &str = env!("CTB_WIN_TEST_ROOT");
+
+fn resolve_manifest_fixture_dir(manifest_dir: &str) -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(rel) = manifest_dir.strip_prefix(HOST_WORKSPACE_ROOT) {
+            let clean_rel = rel.trim_start_matches(['/', '\\']);
+            let win_root = if let Ok(val) = std::env::var("CTB_WIN_TEST_ROOT") {
+                val
+            } else {
+                DEFAULT_WIN_TEST_ROOT.to_string()
+            };
+            return PathBuf::from(win_root).join(clean_rel);
+        }
+    }
+    PathBuf::from(manifest_dir)
+}
+
 /// Loads the raw bytes of a test fixture located in the given manifest directory.
 /// Automatically handles optional "fixtures/" prefixing.
 pub fn load_manifest_fixture(manifest_dir: &str, relative_path: &str) -> Option<Vec<u8>> {
@@ -189,7 +208,8 @@ pub fn load_manifest_fixture(manifest_dir: &str, relative_path: &str) -> Option<
     );
     // Reason for fallback: strip optional fixtures/ prefix, defaulting to full relative path
     let clean = relative_path.strip_prefix("fixtures/").unwrap_or(relative_path);
-    let path = std::path::Path::new(manifest_dir).join("fixtures").join(clean);
+    let base_dir = resolve_manifest_fixture_dir(manifest_dir);
+    let path = base_dir.join("fixtures").join(clean);
     std::fs::read(path).ok()
 }
 
@@ -201,5 +221,6 @@ pub fn manifest_fixture_path(manifest_dir: &str, relative_path: &str) -> PathBuf
     );
     // Reason for fallback: strip optional fixtures/ prefix, defaulting to full relative path
     let clean = relative_path.strip_prefix("fixtures/").unwrap_or(relative_path);
-    std::path::Path::new(manifest_dir).join("fixtures").join(clean)
+    let base_dir = resolve_manifest_fixture_dir(manifest_dir);
+    base_dir.join("fixtures").join(clean)
 }
