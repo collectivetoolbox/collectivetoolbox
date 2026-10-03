@@ -1427,7 +1427,7 @@ mod tests {
         assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
     }
 
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     #[crate::ctb_test]
     fn test_unsupported_fidelity_fails_explicitly() {
         let temp = tempfile::tempdir().unwrap();

@@ -1338,7 +1338,7 @@ mod tests {
         // and dir_a is visited before root!
         let rel_paths: Vec<String> = items
             .iter()
-            .map(|i| i.relative_path.to_string_lossy().into_owned())
+            .map(|i| i.relative_path.to_string_lossy().replace('\\', "/"))
             .collect();
 
         let pos_file = rel_paths.iter().position(|r| r == "dir_a/file_a1.txt").unwrap();
@@ -1374,7 +1374,7 @@ mod tests {
             if item.is_dir && item.file_name == "skip_me" {
                 traverser.skip_current_dir();
             }
-            yielded.push(item.relative_path.to_string_lossy().into_owned());
+            yielded.push(item.relative_path.to_string_lossy().replace('\\', "/"));
         }
 
         assert!(yielded.contains(&"skip_me".to_string()));

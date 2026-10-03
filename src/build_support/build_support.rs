@@ -74,6 +74,21 @@ pub fn find_repository_root() -> Result<PathBuf> {
         cur = parent.to_path_buf();
     }
 
+    if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
+        let p = PathBuf::from(win_root);
+        if is_workspace_root(&p) {
+            return Ok(p);
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let d_root = PathBuf::from("D:\\");
+        if is_workspace_root(&d_root) {
+            return Ok(d_root);
+        }
+    }
+
     bail!("Could not locate repository root containing src/formats/")
 }
 

@@ -740,6 +740,14 @@ print(count)
     echo "Packaging repository fixtures..."
     find src -type d -name "fixtures" -print0 | tar --null -cf - --files-from=- | (cd "$EXCHANGE_DIR" && tar -xf -)
 
+    echo "Packaging workspace markers, dcdata, and kaitai fixtures..."
+    touch "$EXCHANGE_DIR/.ctoolbox_workspace_root"
+    cp "$REPO_ROOT/Cargo.toml" "$EXCHANGE_DIR/Cargo.toml"
+    mkdir -p "$EXCHANGE_DIR/src/formats/dcdata"
+    cp -r "$REPO_ROOT/src/formats/dcdata/data" "$EXCHANGE_DIR/src/formats/dcdata/"
+    mkdir -p "$EXCHANGE_DIR/src/formats/kaitai"
+    cp -r "$REPO_ROOT/src/formats/kaitai/kaitai_struct_tests" "$EXCHANGE_DIR/src/formats/kaitai/"
+
     if [[ -f "$REPO_ROOT/built/ctoolbox.rsrc" ]]; then
         echo "Packaging runtime resource bundle (built/ctoolbox.rsrc)..."
         mkdir -p "$EXCHANGE_DIR/built" "$EXCHANGE_DIR/tests"
@@ -760,6 +768,9 @@ print(count)
 setlocal enabledelayedexpansion
 set "PATH=D:\\;%PATH%"
 set "CTB_WIN_TEST_ROOT=D:\\"
+mkdir "C:\workspaces" >nul 2>&1
+rmdir "C:\workspaces\ctoolbox" >nul 2>&1
+mklink /J "C:\workspaces\ctoolbox" "D:\" >nul 2>&1
 cd /d "%TEMP%"
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1

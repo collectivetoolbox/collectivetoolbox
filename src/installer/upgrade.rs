@@ -377,12 +377,10 @@ mod tests {
         let target_path = temp_dir.path().join("target");
 
         // Create a "backup" file
-        let mut backup = fs::File::create(&backup_path).unwrap();
-        backup.write_all(b"backup content").unwrap();
+        fs::write(&backup_path, b"backup content").unwrap();
 
         // Create a "corrupted" target
-        let mut target = fs::File::create(&target_path).unwrap();
-        target.write_all(b"corrupted").unwrap();
+        fs::write(&target_path, b"corrupted").unwrap();
 
         // Restore
         restore_from_backup(&backup_path, &target_path).unwrap();

@@ -51,6 +51,15 @@ LICENSE_RE = re.compile("|".join(LICENSE_PATTERNS), re.IGNORECASE)
 PRIORITY_CLAUSE = "immediately at the beginning of the file"
 
 
+def find_repo_root() -> Path:
+    """Locate the root directory of the repository."""
+    start = Path(__file__).resolve().parent
+    for parent in [start, *start.parents]:
+        if (parent / "Cargo.toml").is_file() and (parent / "src").is_dir():
+            return parent
+    return start.parents[1]
+
+
 def is_standalone_license_file(filename: str) -> bool:
     """Check if the file is an entire license / copying / copyright document."""
     upper = filename.upper()
@@ -203,7 +212,7 @@ def main() -> None:
         description="Extract licensing headers and COPYING/COPYRIGHT files from old/filedetect/file."
     )
     default_dir = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "old", "filedetect", "file")
+        str(find_repo_root() / "old" / "filedetect" / "file")
     )
     parser.add_argument(
         "--dir",

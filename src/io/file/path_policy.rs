@@ -250,10 +250,9 @@ pub fn validate_symlink_target(
             #[cfg(unix)]
             let target_os = <OsStr as std::os::unix::ffi::OsStrExt>::from_bytes(target_bytes);
             #[cfg(not(unix))]
-            let target_str = std::str::from_utf8(target_bytes)
-                .context("Symlink target cannot be represented losslessly on this platform")?;
+            let target_str = String::from_utf8_lossy(target_bytes);
             #[cfg(not(unix))]
-            let target_os = OsStr::new(target_str);
+            let target_os = OsStr::new(target_str.as_ref());
             let target_path = Path::new(target_os);
             let resolved = if target_path.is_absolute() {
                 target_path.to_path_buf()

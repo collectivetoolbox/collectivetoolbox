@@ -557,12 +557,23 @@ pub struct UpstreamSuiteSummary {
 /// Resolves the filesystem path to the upstream magic tests directory.
 pub fn locate_upstream_tests_dir() -> Result<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let candidates = [
+    let mut candidates = vec![
         manifest_dir.join("../dcdata/data/magic/upstream/magic/tests"),
         manifest_dir.join("src/formats/dcdata/data/magic/upstream/magic/tests"),
         PathBuf::from("src/formats/dcdata/data/magic/upstream/magic/tests"),
         PathBuf::from("/workspaces/ctoolbox/src/formats/dcdata/data/magic/upstream/magic/tests"),
     ];
+
+    if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
+        candidates.push(
+            PathBuf::from(win_root)
+                .join("src/formats/dcdata/data/magic/upstream/magic/tests"),
+        );
+    }
+    #[cfg(windows)]
+    candidates.push(PathBuf::from(
+        "D:\\src\\formats\\dcdata\\data\\magic\\upstream\\magic\\tests",
+    ));
 
     for candidate in candidates {
         if candidate.is_dir() {

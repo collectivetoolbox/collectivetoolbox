@@ -539,9 +539,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_cli_run_validate_docker_image() {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let fixture_path = std::path::Path::new(manifest_dir)
-            .join("fixtures/docker-hello-world/hello-world.tar");
+        let fixture_path = ctb_utilities::manifest_fixture_path(
+            env!("CARGO_MANIFEST_DIR"),
+            "docker-hello-world/hello-world.tar",
+        );
         let res = cli::run_validate_docker_image(Some(&fixture_path), false)
             .expect("Run CLI validation");
 

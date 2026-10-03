@@ -73,12 +73,13 @@ fn _get_known_folder(folder_id: &windows_sys::core::GUID) -> Option<PathBuf> {
     use std::os::windows::ffi::OsStringExt;
     use windows_sys::Win32::Foundation::S_OK;
     use windows_sys::Win32::System::Com::CoTaskMemFree;
-    use windows_sys::Win32::UI::Shell::SHGetKnownFolderPath;
+    use windows_sys::Win32::UI::Shell::{KF_FLAG_DONT_VERIFY, SHGetKnownFolderPath};
 
     let mut path_ptr = std::ptr::null_mut();
-    // KF_FLAG_DEFAULT is 0. hToken is null (current user).
+    // Reason for fallback: KF_FLAG_DONT_VERIFY is a positive i32 constant (16384) fitting into u32
+    let flags = u32::try_from(KF_FLAG_DONT_VERIFY).unwrap_or(0x4000);
     let res = unsafe {
-        SHGetKnownFolderPath(folder_id, 0, std::ptr::null_mut(), &mut path_ptr)
+        SHGetKnownFolderPath(folder_id, flags, std::ptr::null_mut(), &mut path_ptr)
     };
 
     if res == S_OK && !path_ptr.is_null() {
@@ -139,19 +140,30 @@ fn _get_system_application_dir() -> Option<PathBuf> {
 /// - Linux/Others: `/usr/local/bin`
 pub fn get_system_application_dir() -> Result<PathBuf> {
     let application_dir = _get_system_application_dir()
-        .ok_or(anyhow::anyhow!("Failed to get application dir"))?;
-    std::fs::create_dir_all(application_dir.clone()).with_context(|| {
-        format!("Failed to create application dir {application_dir:?}")
-    })?;
+        .ok_or_else(|| anyhow::anyhow!("Failed to get application dir"))?;
+    if let Err(e) = std::fs::create_dir_all(&application_dir) {
+        if e.kind() != std::io::ErrorKind::PermissionDenied {
+            return Err(e).with_context(|| {
+                format!("Failed to create application dir {application_dir:?}")
+            });
+        }
+    }
     Ok(application_dir)
 }
 
 fn _get_user_application_dir() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        use windows_sys::Win32::UI::Shell::FOLDERID_UserProgramFiles;
-        _get_known_folder(&FOLDERID_UserProgramFiles)
-            .map(|path| path.join("Collective Toolbox"))
+        use windows_sys::Win32::UI::Shell::{FOLDERID_LocalAppData, FOLDERID_UserProgramFiles};
+        if let Some(path) = _get_known_folder(&FOLDERID_UserProgramFiles) {
+            Some(path.join("Collective Toolbox"))
+        } else if let Some(local_app_data) = _get_known_folder(&FOLDERID_LocalAppData) {
+            Some(local_app_data.join("Programs").join("Collective Toolbox"))
+        } else {
+            directories::BaseDirs::new().map(|base_dirs| {
+                base_dirs.data_local_dir().join("Programs").join("Collective Toolbox")
+            })
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -175,7 +187,7 @@ fn _get_user_application_dir() -> Option<PathBuf> {
 /// - Linux/Others: `~/.local/bin`
 pub fn get_user_application_dir() -> Result<PathBuf> {
     let application_dir = _get_user_application_dir()
-        .ok_or(anyhow::anyhow!("Failed to get user application dir"))?;
+        .ok_or_else(|| anyhow::anyhow!("Failed to get user application dir"))?;
     std::fs::create_dir_all(application_dir.clone()).with_context(|| {
         format!("Failed to create user application dir {application_dir:?}")
     })?;

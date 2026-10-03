@@ -275,16 +275,21 @@ impl SandboxableDir {
         rel_dir: &Path,
         policy: PathTraversalPolicy,
     ) -> Result<DirHandle> {
-        anyhow::ensure!(policy != PathTraversalPolicy::StrictSandboxed,
-            "Descriptor-relative sandboxed traversal is not implemented on this platform");
         if rel_dir.as_os_str().is_empty() || rel_dir == Path::new(".") {
             return Ok(DirHandle {
                 path: self.root_path.clone(),
             });
         }
 
-        let full_path = self.root_path.join(rel_dir);
-        if !full_path.exists() {
+        let full_path = crate::path_policy::resolve_and_validate_path(
+            &self.root_path,
+            rel_dir,
+            policy,
+        )?;
+
+        if policy == PathTraversalPolicy::StrictSandboxed {
+            crate::path_policy::ensure_sandboxed_dir_all(&self.root_path, &full_path)?;
+        } else if !full_path.exists() {
             std::fs::create_dir_all(&full_path).with_context(|| {
                 format!("Failed to create directory '{}'", full_path.display())
             })?;

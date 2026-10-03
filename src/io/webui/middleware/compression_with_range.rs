@@ -551,11 +551,12 @@ mod tests {
     use std::convert::Infallible;
     use tower::{Service, ServiceBuilder, ServiceExt};
 
+    const TEST_PAYLOAD: &[u8] = b"This is a sample payload to verify compression layer deflate and brotli roundtrip encoding.";
+
     async fn handle(
         _req: Request<AxumBody>,
     ) -> Result<Response<AxumBody>, Infallible> {
-        let file = tokio::fs::read("Cargo.toml").await.expect("file missing");
-        Ok(Response::new(AxumBody::from(file)))
+        Ok(Response::new(AxumBody::from(TEST_PAYLOAD)))
     }
 
     #[crate::ctb_test("tokio")]
@@ -569,8 +570,7 @@ mod tests {
             Ok(buf)
         }
 
-        // Read the source file once so we can verify each response round-trips to the same bytes.
-        let expected = tokio::fs::read("Cargo.toml").await?;
+        let expected = TEST_PAYLOAD.to_vec();
 
         // Configure a layer that only offers deflate, then confirm the response is actually
         // deflate-encoded by decoding it and comparing to the original content.

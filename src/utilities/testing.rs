@@ -193,7 +193,20 @@ fn resolve_manifest_fixture_dir(manifest_dir: &str) -> PathBuf {
             } else {
                 DEFAULT_WIN_TEST_ROOT.to_string()
             };
-            return PathBuf::from(win_root).join(clean_rel);
+            let mut normalized = PathBuf::from(win_root);
+            for comp in std::path::Path::new(clean_rel).components() {
+                match comp {
+                    std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir => {
+                        normalized.pop();
+                    }
+                    std::path::Component::Normal(c) => {
+                        normalized.push(c);
+                    }
+                    _ => {}
+                }
+            }
+            return normalized;
         }
     }
     PathBuf::from(manifest_dir)

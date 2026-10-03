@@ -1199,6 +1199,7 @@ pub fn lint_docker_file(
 /// Lint a single Python file and record violations.
 pub fn lint_python_file(
     file_path: &Path,
+    workspace_root: &Path,
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) -> Result<()> {
@@ -1255,6 +1256,27 @@ pub fn lint_python_file(
                 "License `AGPL-3.0-or-later` is not listed in Cargo.toml `license` field"
                     .to_string(),
         });
+    }
+
+    let rel_path = file_path.strip_prefix(workspace_root).unwrap_or(file_path);
+    let in_scripts = rel_path.starts_with("scripts")
+        || file_path.components().any(|c| c.as_os_str() == "scripts");
+
+    if in_scripts {
+        let has_consistent_dir = normalized.contains("os.chdir(")
+            || normalized.contains("find_repo_root")
+            || (normalized.contains("__file__")
+                && (normalized.contains("REPO_ROOT")
+                    || normalized.contains("workspace_root")
+                    || normalized.contains("repo_root")));
+
+        if !has_consistent_dir {
+            violations.push(Violation {
+                file: file_path.to_path_buf(),
+                line: 1,
+                message: "Python script in scripts/ must ensure a consistent working directory (e.g. `os.chdir(...)` or `find_repo_root()`)".to_string(),
+            });
+        }
     }
 
     Ok(())
@@ -1721,7 +1743,12 @@ pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
         lint_docker_file(file_path, &allowed_licenses, &mut violations)?;
     }
     for file_path in &python_files {
-        lint_python_file(file_path, &allowed_licenses, &mut violations)?;
+        lint_python_file(
+            file_path,
+            workspace_root,
+            &allowed_licenses,
+            &mut violations,
+        )?;
     }
     for file_path in &shell_files {
         lint_shell_file(
@@ -2098,12 +2125,35 @@ mod tests {
         allowed.insert("AGPL-3.0-or-later".to_string());
 
         let mut violations = Vec::new();
-        lint_python_file(&valid_py, &allowed, &mut violations).unwrap();
+        lint_python_file(&valid_py, &temp_dir, &allowed, &mut violations).unwrap();
         assert!(violations.is_empty());
 
-        lint_python_file(&invalid_py, &allowed, &mut violations).unwrap();
+        lint_python_file(&invalid_py, &temp_dir, &allowed, &mut violations).unwrap();
         assert_eq!(violations.len(), 1);
         assert!(violations[0].message.contains("Missing or invalid AGPL license header in Python script"));
+
+        let script_dir = temp_dir.join("scripts");
+        fs::create_dir_all(&script_dir).unwrap();
+        let script_no_cd = script_dir.join("bad.py");
+        let script_with_cd = script_dir.join("good.py");
+
+        fs::write(
+            &script_no_cd,
+            format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\nprint('hello')\n"),
+        ).unwrap();
+        fs::write(
+            &script_with_cd,
+            format!("#!/usr/bin/env python3\n{HASH_AGPL_HEADER}\n\ndef find_repo_root(): pass\n"),
+        ).unwrap();
+
+        let mut v_no_cd = Vec::new();
+        lint_python_file(&script_no_cd, &temp_dir, &allowed, &mut v_no_cd).unwrap();
+        assert_eq!(v_no_cd.len(), 1);
+        assert!(v_no_cd[0].message.contains("consistent working directory"));
+
+        let mut v_with_cd = Vec::new();
+        lint_python_file(&script_with_cd, &temp_dir, &allowed, &mut v_with_cd).unwrap();
+        assert!(v_with_cd.is_empty());
 
         fs::remove_dir_all(&temp_dir).ok();
     }

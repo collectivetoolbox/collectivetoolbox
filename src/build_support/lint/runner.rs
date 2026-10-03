@@ -152,7 +152,7 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     python_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        match headers::lint_python_file(f, &allowed_licenses, &mut v) {
+        match headers::lint_python_file(f, workspace_root, &allowed_licenses, &mut v) {
             Ok(()) => {
                 if !v.is_empty() {
                     if let Ok(mut lock) = non_rs_violations.lock() {

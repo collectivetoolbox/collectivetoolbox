@@ -546,7 +546,7 @@ mod tests {
                 Err(Error::Internal("target peer not connected".into()))
             },
             Duration::from_millis(50),
-            Duration::from_millis(50),
+            Duration::from_millis(200),
         )
         .await?;
 

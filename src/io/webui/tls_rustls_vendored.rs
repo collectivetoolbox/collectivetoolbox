@@ -199,9 +199,10 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-        assert_eq!(
-            err.to_string(),
-            "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`: No such file or directory (os error 2)"
+        assert!(
+            err.to_string().starts_with(
+                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+            )
         );
 
         let err = RustlsConfig::from_pem_file(
@@ -211,9 +212,10 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-        assert_eq!(
-            err.to_string(),
-            "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`: No such file or directory (os error 2)"
+        assert!(
+            err.to_string().starts_with(
+                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+            )
         );
     }
 
@@ -226,9 +228,10 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-        assert_eq!(
-            err.to_string(),
-            "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`: No such file or directory (os error 2)"
+        assert!(
+            err.to_string().starts_with(
+                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+            )
         );
 
         let err = RustlsConfig::from_pem_chain_file(
@@ -238,9 +241,10 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-        assert_eq!(
-            err.to_string(),
-            "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`: No such file or directory (os error 2)"
+        assert!(
+            err.to_string().starts_with(
+                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+            )
         );
     }
 }

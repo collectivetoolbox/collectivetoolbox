@@ -149,7 +149,7 @@ fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
                     };
                 let resolved_path = Path::new(&resolved);
                 let normalized = normalize_path(resolved_path);
-                let resolved = normalized.to_string_lossy().to_string();
+                let resolved = normalized.to_string_lossy().replace('\\', "/");
                 let imported_css = String::from_utf8(
                     get_asset(&resolved).ok_or_else(|| {
                         anyhow::anyhow!(
@@ -166,7 +166,8 @@ fn inline_css_imports(css: &str, base_path: &str) -> Result<String> {
                     .parent()
                     // Reason for fallback: root asset path without parent directory defaults parent path to empty Path
                     .unwrap_or(Path::new(""))
-                    .to_string_lossy();
+                    .to_string_lossy()
+                    .replace('\\', "/");
                 let inlined = inline_css_imports(&imported_css, &new_base)?;
                 result.push_str(&inlined);
                 result.push('\n');

@@ -235,9 +235,10 @@ mod tests {
     use super::{get_crlite_manifest_json, validate_relative_artifact_path};
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../utilities/https/fixtures/test_crlite_filters")
-            .join(name)
+        ctb_utilities::manifest_fixture_path(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../utilities/https"),
+            &format!("test_crlite_filters/{name}"),
+        )
     }
 
     fn fixture_metadata(name: &str) -> (String, u64) {
