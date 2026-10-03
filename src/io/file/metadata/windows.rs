@@ -630,10 +630,10 @@ mod tests {
         };
         let meta = FileMetadata {
             native: Some(native),
-            mode: 0o644,
-            uid: 0,
-            gid: 0,
-            timestamps: FileTimestamps {
+            mode: Some(0o644),
+            uid: Some(0),
+            gid: Some(0),
+            timestamps: Some(FileTimestamps {
                 atime_sec: 0,
                 atime_nsec: 0,
                 mtime_sec: 0,
@@ -643,8 +643,8 @@ mod tests {
                 birthtime_sec: None,
                 birthtime_nsec: None,
                 resolution_nsec: Some(100),
-            },
-            flags: Vec::new(),
+            }),
+            flags: Some(Vec::new()),
             platform_raw_flags: None,
             read_time: None,
             filesystem_type: None,

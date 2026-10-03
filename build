@@ -354,7 +354,8 @@ for p in "${platforms[@]}"; do
     elif [[ "$p" == "linux-x86-gnu" ]]; then
         target="i586-unknown-linux-gnu"
     elif [[ "$p" == "windows-x64" ]]; then
-        target="x86_64-pc-windows-gnu"
+        # target="x86_64-pc-windows-gnu"
+        target="x86_64-win7-windows-gnu"
     elif [[ "$p" == "mac-x64" ]]; then
         target="x86_64-apple-darwin"
     elif [[ "$p" == "mac-arm64" ]]; then
@@ -368,6 +369,12 @@ for p in "${platforms[@]}"; do
     if [[ "$target" == *-unknown-linux-* ]]; then
         # I think there may be AGPL compatibility issues that would prevent static linking on Mac or Windows, so this is Linux-only for now.
         target_rustflags="$target_rustflags -C target-feature=+crt-static"
+    fi
+
+    extra_cargo_flags=()
+    if [[ "$target" == *-win7-* ]]; then
+        export RUSTC_BOOTSTRAP=1
+        extra_cargo_flags=(-Z "build-std=std,panic_abort")
     fi
 
     # Try to set build concurrency to something reasonable
@@ -422,9 +429,11 @@ for p in "${platforms[@]}"; do
         if [[ "$target" == *windows* ]]; then
             export WINEDEBUG="-all"
             if command -v wine64 >/dev/null 2>&1; then
-                export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
+                export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine64"
+                # export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
             elif command -v wine >/dev/null 2>&1; then
-                export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine"
+                export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine"
+                # export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine"
             else
                 extra_test_args=(--no-run)
                 echo "Could not find WINE to run tests."
@@ -434,14 +443,14 @@ for p in "${platforms[@]}"; do
 
         # Build workspace examples so example-based integration tests (which
         # spawn standalone example binaries) have their targets available.
-        CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline --workspace "${test_exclude[@]}" --examples --target "$target"
+        CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --examples --target "$target"
 
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then
@@ -457,16 +466,16 @@ for p in "${platforms[@]}"; do
 
     if [[ "$build_binaries" == "true" ]]; then
         if [[ "$release" == "release" ]]; then
-            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --release
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctoolbox --bin ctoolbox --target "$target" --release
             if [[ "$build_installer" == "true" ]]; then
-                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" --release
+                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctb-installer --bin ctoolbox-installer --target "$target" --release
             fi
         else
             # Cargo errors if you pass --debug for some reason
             # SLOW builds - add to RUSTFLAGS only when needed: ` -C passes=ee-instrument<post-inline>`
-            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctoolbox --bin ctoolbox --target "$target" --features debug
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctoolbox --bin ctoolbox --target "$target" --features debug
             if [[ "$build_installer" == "true" ]]; then
-                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline -p ctb-installer --bin ctoolbox-installer --target "$target" # --features debug
+                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctb-installer --bin ctoolbox-installer --target "$target" # --features debug
             fi
         fi
     fi

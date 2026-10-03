@@ -15,7 +15,11 @@ rustflags = ["-A", "warnings", "-A", "unfulfilled_lint_expectations"]
 [target.i586-unknown-linux-musl]
 linker = "scripts/i586-musl-gcc"
 
-[target.x86_64-pc-windows-gnu]
+# [target.x86_64-pc-windows-gnu]
+# linker = "x86_64-w64-mingw32-gcc"
+# ar = "x86_64-w64-mingw32-gcc-ar"
+
+[target.x86_64-win7-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
 ar = "x86_64-w64-mingw32-gcc-ar"
 
@@ -24,6 +28,10 @@ ar = "x86_64-w64-mingw32-gcc-ar"
 # Resolves 'scripts/i586-musl-gcc' relative to this config file
 CC_i586_unknown_linux_musl = { value = "scripts/i586-musl-gcc", relative = true }
 CC_x86_64_unknown_linux_musl = { value = "scripts/x86_64-musl-gcc", relative = true }
+CC_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
+CXX_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-g++" }
+AR_x86_64_win7_windows_gnu = { value = "x86_64-w64-mingw32-gcc-ar" }
+# CC_x86_64_pc_windows_gnu = { value = "x86_64-w64-mingw32-gcc" }
 
 PKG_CONFIG_SYSROOT_DIR_i586_unknown_linux_musl = { value = "/usr/include/i386-linux-musl" }
 PKG_CONFIG_SYSROOT_DIR_x86_64_unknown_linux_musl = { value = "/usr/include/x86_64-linux-musl" }

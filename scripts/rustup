@@ -25,7 +25,7 @@ export PATH="${HOME}/.cargo/bin:${PATH}"
 
 required_rust_version="1.92"
 targets=(
-    x86_64-pc-windows-gnu
+    # x86_64-pc-windows-gnu  # Replaced by x86_64-win7-windows-gnu (Tier 3, built via rust-src/build-std)
     x86_64-unknown-linux-musl
     i586-unknown-linux-musl
     wasm32-unknown-unknown

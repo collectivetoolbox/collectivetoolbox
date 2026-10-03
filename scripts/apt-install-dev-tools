@@ -43,6 +43,7 @@ dev_packages=(
     npm
     perl
     proot
+    qemu-system-x86
     ripgrep
     tmux
     vim-common
