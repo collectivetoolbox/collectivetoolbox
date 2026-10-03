@@ -51,6 +51,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
         self.load(self.manifest)
         for field, value in (
             ("licenses", ["BSD-4-Clause"]), ("licenses", ["LicenseRef-Unknown"]),
+            ("licenses", ["GPL-3.0-only"]), ("licenses", ["AGPL-3.0-only"]),
             ("review", ""), ("source_only_reviewed", False),
             ("sha256", ""), ("notices", ["COPYING"]),
             ("destination", "../escape.h"), ("destination", "usr/lib/test.o"),
@@ -123,6 +124,85 @@ class FreeBSDSysrootTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     SYSROOT.read_blob(Path("unused"), "commit", "include/test.h")
 
+    def generator_fixture(self, destination):
+        inputs = {
+            ("freebsd", "sys/sys/param.h"): '#define __FreeBSD_version 1304000\n',
+            ("freebsd", "sys/sys/types.h"): 'typedef int fixture_type;\n',
+            ("freebsd", "lib/libthr/thread/thr_private.h"): 'struct pthread;\n',
+            ("freebsd", "lib/libthr/thread/thr_create.c"): 'int\npthread_create(void) {}\n',
+            ("freebsd", "lib/libthr/thread/thr_join.c"): 'int\npthread_join(void) {}\n',
+            ("freebsd", "sys/arm64/include/_align.h"): '#define _ALIGNBYTES 7\n',
+            ("freebsd", "sys/arm64/include/param.h"): '#define MACHINE "arm64"\n',
+            ("freebsd", "include/xlocale/_strings.h"): 'int fixture_strings(void);\n',
+            ("llvm", "libc/include/sys/syscall.h.def"): '#define SYS_fixture 42\n',
+            ("llvm", "libc/include/llvm-libc-macros/pthread-macros.h"): '#define PTHREAD_FIXTURE 1\n',
+            ("llvm", "libc/include/llvm-libc-macros/sched-macros.h"): '#define SCHED_FIXTURE 2\n',
+            ("llvm", "libc/include/llvm-libc-types/struct_sched_param.h"): (
+                'struct sched_param {\n int sched_priority;\n};\n'
+            ),
+            ("llvm", "libc/include/llvm-libc-macros/stdint-macros.h"): '#define INT_FIXTURE 3\n',
+            ("llvm", "clang/lib/Headers/stdint.h"): 'typedef int int32_t;\n',
+            ("llvm", "libc/include/pthread.yaml"): (
+                '  - name: pthread_yaml\n    return_type: int\n'
+            ),
+            ("llvm", "libc/include/sched.yaml"): '  - name: sched_yaml\n    return_type: int\n',
+        }
+        entries = []
+        for (repository, path), body in inputs.items():
+            raw = (
+                f'/* SPDX-License-Identifier: BSD-2-Clause */\n'
+                f'/* Copyright first {path} */\n{body}'
+                f'/* Copyright second {path}; retain this later notice. */\n'
+            ).encode("utf-8")
+            entry = dict(
+                self.entry, repository=repository, path=path,
+                destination=f'src/{repository}/{path}', sha256=hashlib.sha256(raw).hexdigest(),
+            )
+            target = destination / entry["destination"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(raw)
+            entries.append(entry)
+        return dict(self.manifest, files=entries)
+
+    def test_restored_generator_preserves_every_contributor_and_later_notice(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+            SYSROOT.generate_reviewed_headers(manifest, destination)
+            include = destination / "usr/include"
+            pthread = (include / "pthread.h").read_text()
+            for path in (
+                'lib/libthr/thread/thr_create.c', 'lib/libthr/thread/thr_join.c',
+                'libc/include/pthread.yaml', 'libc/include/llvm-libc-macros/pthread-macros.h',
+            ):
+                self.assertIn(f'Copyright first {path}', pthread)
+                self.assertIn(f'Copyright second {path}; retain this later notice.', pthread)
+            self.assertIn('int\tpthread_join(void);', pthread)
+            self.assertIn('int\tpthread_yaml(void);', pthread)
+            sched = (include / 'sys/sched.h').read_text()
+            self.assertIn('Copyright second libc/include/sched.yaml', sched)
+            self.assertIn('int\tsched_yaml(void);', sched)
+            self.assertIn('#define MACHINE "amd64"', (include / 'machine/param.h').read_text())
+            self.assertIn('#define SYS_fixture 42', (include / 'sys/syscall.h').read_text())
+            self.assertIn('Copyright second include/xlocale/_strings.h', (
+                include / 'xlocale/_strings.h'
+            ).read_text())
+            self.assertIn('typedef int\t__int32_t;', (include / 'x86/_types.h').read_text())
+            provenance = json.loads((destination / 'header-provenance.json').read_text())
+            self.assertIn('lib/libthr/thread/thr_join.c', {
+                entry['path'] for entry in provenance['usr/include/pthread.h']
+            })
+
+    def test_missing_required_generator_input_fails(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+            manifest['files'] = [
+                entry for entry in manifest['files'] if entry['path'] != 'libc/include/sched.yaml'
+            ]
+            with self.assertRaisesRegex(ValueError, 'Required generation input'):
+                SYSROOT.generate_reviewed_headers(manifest, destination)
+
     def test_missing_manifest_has_no_download_or_deletion(self):
         with patch.object(SYSROOT, "git") as git, patch.object(SYSROOT, "publish") as publish:
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
@@ -188,13 +268,18 @@ class FreeBSDSysrootTests(unittest.TestCase):
                 patch.object(SYSROOT, "WORKSPACE_ROOT", root),
                 patch.object(SYSROOT, "REPOSITORIES", repositories),
                 patch.object(SYSROOT, "OUTPUTS", outputs),
+                patch.object(SYSROOT, "generate_reviewed_headers") as generate,
             ):
                 SYSROOT.main(["--manifest", str(path)])
+                generate.assert_called_once()
                 for output in outputs:
                     self.assertEqual((output / self.entry["destination"]).read_bytes(), self.raw)
                     self.assertEqual(
                         {str(item.relative_to(output)) for item in output.rglob("*") if item.is_file()},
-                        {self.entry["destination"], "reviewed-manifest.json"},
+                        {
+                            self.entry["destination"], "reviewed-manifest.json",
+                            "src/freebsd/include/test.h",
+                        },
                     )
                 manifest["files"][0]["sha256"] = "0" * 64
                 path.write_text(json.dumps(manifest), encoding="utf-8")

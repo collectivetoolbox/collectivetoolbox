@@ -26,8 +26,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use include_dir::{Dir, include_dir};
 use rustpython::{Interpreter, InterpreterBuilder, InterpreterBuilderExt};
-use rustpython_vm::VirtualMachine;
+use rustpython_vm::{VirtualMachine, builtins::PyBaseExceptionRef};
 use std::path::Path;
 
 static PYTHON_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -42,13 +43,13 @@ pub fn create_interpreter() -> Interpreter {
 }
 
 /// Helper to convert a Python exception into an anyhow::Error.
-fn py_err_to_anyhow(vm: &VirtualMachine, exc: rustpython_vm::PyBaseExceptionRef) -> anyhow::Error {
-    let mut buf = Vec::new();
+fn py_err_to_anyhow(vm: &VirtualMachine, exc: PyBaseExceptionRef) -> anyhow::Error {
+    let mut buf = String::new();
     let _ = vm.write_exception(&mut buf, &exc);
     if buf.is_empty() {
         anyhow::anyhow!("Python exception occurred")
     } else {
-        anyhow::anyhow!("{}", String::from_utf8_lossy(&buf))
+        anyhow::anyhow!("{buf}")
     }
 }
 
@@ -73,7 +74,7 @@ pub fn eval_python_expression(expr: &str) -> Result<String> {
         let repr = result
             .str(vm)
             .map_err(|exc| py_err_to_anyhow(vm, exc))?;
-        Ok(repr.as_str().to_owned())
+        Ok(repr.to_string_lossy().into_owned())
     })
 }
 
@@ -124,13 +125,19 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_run_python_code_with_imports() -> Result<()> {
-        let code = r#"
+        let handle = std::thread::Builder::new()
+            .name("python-test-thread".to_owned())
+            .stack_size(8 * 1024 * 1024)
+            .spawn(|| {
+                let code = r#"
 import json
 data = json.loads('{"hello": "world"}')
 assert data["hello"] == "world"
 "#;
-        run_python_code(code)?;
-        Ok(())
+                run_python_code(code)
+            })
+            .expect("Failed to spawn thread");
+        handle.join().expect("Thread panicked")
     }
 
     #[crate::ctb_test]
