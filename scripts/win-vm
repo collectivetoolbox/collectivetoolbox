@@ -614,7 +614,7 @@ cmd_test_suite() {
     local crate_filter=""
     local test_filter=""
     local no_build="false"
-    local timeout="1800"
+    local timeout="7200"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -691,14 +691,18 @@ cmd_test_suite() {
         local crate_prefix="${crate_filter//-/_}"
         for bin in target/"$target"/debug/deps/"$crate_prefix"-*.exe; do
             if [[ -f "$bin" ]]; then
-                cp "$bin" "$EXCHANGE_DIR/tests/"
+                local dest="$EXCHANGE_DIR/tests/$(basename "$bin")"
+                cp "$bin" "$dest"
+                x86_64-w64-mingw32-strip "$dest" >/dev/null 2>&1 || true
                 binary_count=$((binary_count + 1))
             fi
         done
     else
         for bin in target/"$target"/debug/deps/*.exe; do
             if [[ -f "$bin" ]]; then
-                cp "$bin" "$EXCHANGE_DIR/tests/"
+                local dest="$EXCHANGE_DIR/tests/$(basename "$bin")"
+                cp "$bin" "$dest"
+                x86_64-w64-mingw32-strip "$dest" >/dev/null 2>&1 || true
                 binary_count=$((binary_count + 1))
             fi
         done
@@ -728,7 +732,7 @@ set FAILED=0
 for %%F in (D:\tests\*.exe) do (
     set /a TOTAL+=1
     echo === RUN %%~nF === >> COM1
-    "%%F" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
+    "%%F" $test_filter --nocapture --test-threads 3 >> COM1 2>&1
     if !ERRORLEVEL! EQU 0 (
         set /a PASSED+=1
         echo === PASS %%~nF === >> COM1
@@ -743,7 +747,7 @@ echo ---SUITE_END:TOTAL=!TOTAL!,PASSED=!PASSED!,FAILED=!FAILED!--- >> COM1
 EOF
 
     echo "Creating exchange ISO with $binary_count test binaries and fixtures..."
-    genisoimage -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+    genisoimage -iso-level 3 -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
 
     if is_running; then
         cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
