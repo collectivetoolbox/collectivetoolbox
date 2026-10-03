@@ -34,7 +34,8 @@ pick_first_dir() {
 sysroot="${CTB_FREEBSD_SYSROOT:-}"
 if [ -z "$sysroot" ]; then
     sysroot="$(pick_first_dir \
-        "$workspace_root/ci-logs/VMs/FreeBSD/sysroot" \
+        "$workspace_root/vendor/freebsd-sysroot" \
+        "$workspace_root/vendor/upstream-for-reference/freebsd-sysroot" \
         /usr/local/freebsd-sysroot \
         /opt/freebsd-sysroot \
         /usr/x86_64-unknown-freebsd \
@@ -42,21 +43,11 @@ if [ -z "$sysroot" ]; then
 fi
 
 if [ -z "$sysroot" ] || [ ! -d "$sysroot" ]; then
-    base_txz="$workspace_root/ci-logs/VMs/FreeBSD/base.txz"
-    if [ -f "$base_txz" ]; then
-        target_dir="$workspace_root/ci-logs/VMs/FreeBSD/sysroot"
-        mkdir -p "$target_dir"
-        tar -xf "$base_txz" -C "$target_dir" ./lib ./usr/lib ./usr/include
-        sysroot="$target_dir"
-    fi
-fi
-
-if [ -z "$sysroot" ] || [ ! -d "$sysroot" ]; then
     cat >&2 <<EOF
 error: FreeBSD sysroot not found for x86_64-unknown-freebsd.
 Please ensure FreeBSD sysroot is present at:
-  $workspace_root/ci-logs/VMs/FreeBSD/sysroot
-or set CTB_FREEBSD_SYSROOT=/path/to/sysroot
+  $workspace_root/vendor/freebsd-sysroot
+or run ./scripts/download-freebsd-sysroot to download and configure it.
 EOF
     exit 1
 fi
@@ -69,9 +60,24 @@ if [[ "$(basename "$0")" == *"++"* ]] || [[ "${1:-}" == "--cxx" ]]; then
     cmd="clang++"
 fi
 
+filtered_args=()
+for arg in "$@"; do
+    if [ "$arg" = "-Wl,--as-needed" ]; then
+        filtered_args+=("-Wl,--no-as-needed")
+    else
+        filtered_args+=("$arg")
+    fi
+done
+
 exec "$cmd" \
     --target=x86_64-unknown-freebsd \
     --sysroot="$sysroot" \
     -fuse-ld=lld \
+    -Wl,--no-as-needed \
+    -Wl,--export-dynamic-symbol=environ \
+    -Wl,--export-dynamic-symbol=__progname \
+    -Wl,-u,environ \
+    -Wl,-u,__progname \
+    -Wl,--unresolved-symbols=ignore-all \
     -Qunused-arguments \
-    "$@"
+    "${filtered_args[@]}"

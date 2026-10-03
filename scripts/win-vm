@@ -257,6 +257,10 @@ cmd_stop() {
         if kill -0 "$pid" 2>/dev/null; then
             echo "VM did not shut down gracefully; stopping forcefully..."
             kill -9 "$pid" 2>/dev/null || true
+            while kill -0 "$pid" 2>/dev/null; do
+                sleep 0.2
+            done
+            sleep 1
         fi
     fi
 
@@ -685,26 +689,48 @@ cmd_test_suite() {
     mkdir -p "$EXCHANGE_DIR/tests"
 
     local binary_count=0
-    if [[ -n "$crate_filter" ]]; then
-        local crate_prefix="${crate_filter//-/_}"
-        for bin in target/"$target"/debug/deps/"$crate_prefix"-*.exe; do
-            if [[ -f "$bin" ]]; then
-                local dest="$EXCHANGE_DIR/tests/$(basename "$bin")"
-                cp "$bin" "$dest"
-                x86_64-w64-mingw32-strip "$dest" >/dev/null 2>&1 || true
-                binary_count=$((binary_count + 1))
-            fi
-        done
-    else
-        for bin in target/"$target"/debug/deps/*.exe; do
-            if [[ -f "$bin" ]]; then
-                local dest="$EXCHANGE_DIR/tests/$(basename "$bin")"
-                cp "$bin" "$dest"
-                x86_64-w64-mingw32-strip "$dest" >/dev/null 2>&1 || true
-                binary_count=$((binary_count + 1))
-            fi
-        done
-    fi
+    binary_count=$(python3 -c "
+import glob, os, re, shutil, subprocess, sys
+
+target = '$target'
+crate_filter = '$crate_filter'
+crate_prefix = crate_filter.replace('-', '_') if crate_filter else None
+exchange_dir = '$EXCHANGE_DIR/tests'
+
+fingerprints = glob.glob(f'target/{target}/debug/.fingerprint/*')
+test_hashes = set()
+for fp in fingerprints:
+    m = re.search(r'-([0-9a-f]{16})$', fp)
+    if not m:
+        continue
+    h = m.group(1)
+    for fname in os.listdir(fp):
+        if fname.startswith('test-') and not fname.endswith('.json'):
+            test_hashes.add(h)
+            break
+
+import concurrent.futures
+
+all_exes = glob.glob(f'target/{target}/debug/deps/*.exe')
+
+def process_exe(exe):
+    bname = os.path.basename(exe)
+    if crate_prefix and not bname.startswith(f'{crate_prefix}-'):
+        return False
+    m = re.search(r'-([0-9a-f]{16})\.exe$', bname)
+    if not m or m.group(1) not in test_hashes:
+        return False
+    dest = os.path.join(exchange_dir, bname)
+    shutil.copyfile(exe, dest)
+    shutil.copymode(exe, dest)
+    subprocess.run(['x86_64-w64-mingw32-strip', dest], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return True
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    count = sum(1 for ok in executor.map(process_exe, sorted(all_exes)) if ok)
+
+print(count)
+")
 
     if [[ "$binary_count" -eq 0 ]]; then
         echo "No test binaries found in target/$target/debug/deps/!" >&2
@@ -713,6 +739,20 @@ cmd_test_suite() {
 
     echo "Packaging repository fixtures..."
     find src -type d -name "fixtures" -print0 | tar --null -cf - --files-from=- | (cd "$EXCHANGE_DIR" && tar -xf -)
+
+    if [[ -f "$REPO_ROOT/built/ctoolbox.rsrc" ]]; then
+        echo "Packaging runtime resource bundle (built/ctoolbox.rsrc)..."
+        mkdir -p "$EXCHANGE_DIR/built" "$EXCHANGE_DIR/tests"
+        cp "$REPO_ROOT/built/ctoolbox.rsrc" "$EXCHANGE_DIR/built/ctoolbox.rsrc"
+        cp "$REPO_ROOT/built/ctoolbox.rsrc" "$EXCHANGE_DIR/tests/ctoolbox.rsrc"
+        cp "$REPO_ROOT/built/ctoolbox.rsrc" "$EXCHANGE_DIR/ctoolbox.rsrc"
+    fi
+
+    if [[ -d "$REPO_ROOT/vendor/v86/gen" ]]; then
+        echo "Packaging vendor/v86/gen for v86 tests..."
+        mkdir -p "$EXCHANGE_DIR/vendor/v86"
+        cp -r "$REPO_ROOT/vendor/v86/gen" "$EXCHANGE_DIR/vendor/v86/"
+    fi
 
     echo "Generating in-VM test runner script..."
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
@@ -731,7 +771,8 @@ reg add "HKLM\SYSTEM\CurrentControlSet\Control\Windows" /v ErrorMode /t REG_DWOR
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" /v "NoDriveTypeAutoRun" /t REG_DWORD /d 255 /f >nul 2>&1
 
 :: Background watchdog to kill any WerFault crash dialogs immediately
-start /B cmd /c "for /L %%i in () do (taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
+echo 1 > "%TEMP%\watchdog.run"
+start /B cmd /c "for /L %%i in () do (if not exist "%TEMP%\watchdog.run" exit & taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
 
 echo ---SUITE_START--- > COM1
 set TOTAL=0
@@ -752,6 +793,7 @@ for %%F in (D:\tests\*.exe) do (
     echo. >> COM1
 )
 
+del /f /q "%TEMP%\watchdog.run" >nul 2>&1
 echo ---SUITE_END:TOTAL=!TOTAL!,PASSED=!PASSED!,FAILED=!FAILED!--- >> COM1
 EOF
 

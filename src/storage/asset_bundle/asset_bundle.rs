@@ -342,6 +342,12 @@ pub fn find_resource_bundle_path() -> Result<PathBuf> {
         );
     }
 
+    if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
+        candidates.push(PathBuf::from(&win_root).join("built/ctoolbox.rsrc"));
+        candidates.push(PathBuf::from(&win_root).join("tests/ctoolbox.rsrc"));
+        candidates.push(PathBuf::from(&win_root).join("ctoolbox.rsrc"));
+    }
+
     for candidate in &candidates {
         if let Some(resolved) =
             resolve_allowed_candidate(candidate, exe_dir.as_deref())

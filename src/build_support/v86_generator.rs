@@ -1669,6 +1669,12 @@ mod tests {
                 }
             }
         }
+        if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
+            let p = PathBuf::from(win_root);
+            if p.join("vendor/v86").is_dir() {
+                return p;
+            }
+        }
         PathBuf::from(".")
     }
 

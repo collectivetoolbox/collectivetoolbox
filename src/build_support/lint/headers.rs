@@ -2195,8 +2195,17 @@ mod tests {
 
     #[test]
     fn test_repo_find_files_covers_test_compressors_and_scheme_patches() {
-        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let repo_root = repo_root.canonicalize().unwrap();
+        let repo_root = if let Ok(canon) = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize() {
+            canon
+        } else if let Ok(win_root) = std::env::var("CTB_WIN_TEST_ROOT") {
+            let p = PathBuf::from(win_root);
+            if !p.join("Cargo.toml").exists() {
+                return;
+            }
+            p
+        } else {
+            return;
+        };
 
         let mut rs_files = Vec::new();
         let mut scm_files = Vec::new();
