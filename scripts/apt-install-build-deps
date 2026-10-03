@@ -38,7 +38,6 @@ BUILD_DEPS=(
     gcc-i686-linux-gnu
     git
     lld
-    llvm
     make
     mingw-w64
     musl-dev:i386

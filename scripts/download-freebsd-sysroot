@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+workspace_root="$(readlink -f "$script_dir/..")"
+cd "$workspace_root" || exit 1
+
+# Pinned commit: FreeBSD 13.4-RELEASE (release/13.4.0).
+# An older release baseline maximizes binary backward-compatibility
+# across FreeBSD 13, 14, and 15 installations.
+FREEBSD_REPO="https://github.com/freebsd/freebsd-src.git"
+FREEBSD_COMMIT="c876eaf40915f213dc07f74e730ee6a2a9de7ba1"
+
+TARGET_SYSROOT_DIR="$workspace_root/vendor/upstream-for-reference/freebsd-sysroot"
+TMP_DIR="$workspace_root/built/freebsd_sysroot_tmp"
+
+if ! command -v git >/dev/null 2>&1; then
+    echo "error: git is required" >&2
+    exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "error: python3 is required" >&2
+    exit 1
+fi
+
+if [ -d "$TMP_DIR" ]; then
+    chmod -R u+w "$TMP_DIR"
+    rm -r "$TMP_DIR"
+fi
+mkdir -p "$TMP_DIR"
+mkdir -p "$TARGET_SYSROOT_DIR/usr/include"
+
+echo "1. Performing sparse clone of upstream FreeBSD source from pinned commit ($FREEBSD_COMMIT)..."
+git clone --depth 1 --filter=blob:none --sparse "$FREEBSD_REPO" "$TMP_DIR/src"
+(
+    cd "$TMP_DIR/src"
+    git fetch --depth 1 origin "$FREEBSD_COMMIT"
+    git checkout "$FREEBSD_COMMIT"
+    git sparse-checkout set \
+        include \
+        sys/sys \
+        sys/amd64/include \
+        sys/x86/include \
+        sys/net \
+        sys/netinet \
+        sys/netinet6 \
+        sys/vm \
+        sys/ufs/ufs \
+        sys/fs/devfs \
+        sys/fs/fdescfs \
+        sys/fs/nullfs \
+        sys/fs/procfs \
+        contrib/libc-vis
+)
+
+echo "2. Copying sysroot headers into $TARGET_SYSROOT_DIR/usr/include..."
+python3 -c "
+import os, shutil
+
+src = '$TMP_DIR/src'
+dst = '$TARGET_SYSROOT_DIR/usr/include'
+
+mappings = [
+    ('include', ''),
+    ('include/arpa', 'arpa'),
+    ('include/protocols', 'protocols'),
+    ('include/rpc', 'rpc'),
+    ('include/rpcsvc', 'rpcsvc'),
+    ('include/ssp', 'ssp'),
+    ('include/xlocale', 'xlocale'),
+    ('sys/sys', 'sys'),
+    ('sys/amd64/include', 'machine'),
+    ('sys/x86/include', 'x86'),
+    ('sys/net', 'net'),
+    ('sys/netinet', 'netinet'),
+    ('sys/netinet6', 'netinet6'),
+    ('sys/vm', 'vm'),
+    ('sys/ufs/ufs', 'ufs/ufs'),
+    ('sys/fs/devfs', 'fs/devfs'),
+    ('sys/fs/fdescfs', 'fs/fdescfs'),
+    ('sys/fs/nullfs', 'fs/nullfs'),
+    ('sys/fs/procfs', 'fs/procfs'),
+]
+
+for src_sub, dst_sub in mappings:
+    src_dir = os.path.join(src, src_sub)
+    target_dir = os.path.join(dst, dst_sub) if dst_sub else dst
+    if not os.path.isdir(src_dir):
+        continue
+    os.makedirs(target_dir, exist_ok=True)
+    for entry in os.listdir(src_dir):
+        full_src = os.path.join(src_dir, entry)
+        if os.path.isfile(full_src) and entry.endswith('.h'):
+            shutil.copy2(full_src, os.path.join(target_dir, entry))
+
+vis_src = os.path.join(src, 'contrib/libc-vis/vis.h')
+if os.path.isfile(vis_src):
+    shutil.copy2(vis_src, os.path.join(dst, 'vis.h'))
+"
+
+echo "3. Auditing and filtering licenses (deleting files with no SPDX or incompatible licenses)..."
+python3 -c "
+import os, re
+
+target = '$TARGET_SYSROOT_DIR/usr/include'
+
+# Explicit whitelist of permissive licenses compatible with AGPL-3.0+:
+ALLOWED_EXACT_SPDX = {
+    'BSD-2-Clause',
+    'BSD-3-Clause',
+    'BSD-1-Clause',
+    'Apache-2.0 WITH LLVM-exception',
+    '0BSD',
+    'ISC',
+    'MIT',
+    'BSD-3-Clause AND BSD-2-Clause',
+    'BSD-2-Clause AND BSD-3-Clause',
+    'BSD-3-Clause AND MIT-CMU',
+    '(BSD-3-Clause AND MIT-CMU)',
+    '(ISC AND BSD-3-Clause)',
+    '(BSD-3-Clause AND ISC)',
+    '(BSD-2-Clause AND ISC)',
+}
+
+total_files = 0
+kept_files = 0
+deleted_no_spdx = 0
+deleted_incompatible = 0
+incompatible_breakdown = {}
+
+for root, dirs, files in os.walk(target, topdown=False):
+    for f in files:
+        file_path = os.path.join(root, f)
+        total_files += 1
+
+        with open(file_path, 'rb') as fp:
+            raw_bytes = fp.read()
+        content = raw_bytes.decode('latin1', errors='replace')
+
+        m = re.search(r'SPDX-License-Identifier:\s*([^\r\n*\/]+)', content)
+        if not m:
+            deleted_no_spdx += 1
+            os.remove(file_path)
+            continue
+
+        spdx = m.group(1).strip()
+        # Clean trailing comment punctuation
+        spdx = re.sub(r'[\*\/]+$', '', spdx).strip()
+        # Normalize surrounding parentheses
+        spdx_norm = spdx.strip('()').strip()
+
+        # Reject any containing GPL, CDDL, BSD-4-Clause, Beerware, RSA-MD, or unverified OR expressions
+        is_incompatible = (
+            'GPL' in spdx
+            or 'CDDL' in spdx
+            or '4-Clause' in spdx
+            or 'Beerware' in spdx
+            or 'RSA' in spdx
+            or ' OR ' in spdx
+            or (spdx not in ALLOWED_EXACT_SPDX and spdx_norm not in ALLOWED_EXACT_SPDX)
+        )
+
+        if is_incompatible:
+            deleted_incompatible += 1
+            incompatible_breakdown[spdx] = incompatible_breakdown.get(spdx, 0) + 1
+            os.remove(file_path)
+        else:
+            kept_files += 1
+
+    # Remove empty directories
+    if not os.listdir(root):
+        os.rmdir(root)
+
+print(f'=== License Audit Results for {target} ===')
+print(f'Total candidate header files:  {total_files}')
+print(f'Kept (compatible SPDX):        {kept_files}')
+print(f'Deleted (no SPDX identifier):   {deleted_no_spdx}')
+print(f'Deleted (incompatible license): {deleted_incompatible}')
+if incompatible_breakdown:
+    print('\nDeleted incompatible license breakdown:')
+    for lic, count in sorted(incompatible_breakdown.items(), key=lambda x: -x[1]):
+        print(f'  {count:4d}: {lic}')
+"
+
+echo "4. Cleaning temporary download directory..."
+if [ -d "$TMP_DIR" ]; then
+    chmod -R u+w "$TMP_DIR"
+    rm -r "$TMP_DIR"
+fi
+
+cp -r "$workspace_root/vendor/upstream-for-reference/freebsd-sysroot" "$workspace_root/vendor/"
+
+echo "FreeBSD sysroot successfully downloaded, filtered, and vendored at: $TARGET_SYSROOT_DIR"
