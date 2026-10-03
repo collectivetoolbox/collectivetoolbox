@@ -500,7 +500,9 @@ cmd_run() {
     mkdir -p "$EXCHANGE_DIR"
     cat <<EOF > "$EXCHANGE_DIR/run.bat"
 @echo off
-set "PATH=D:\\;%PATH%"
+set "TEST_DRIVE=%~dp0"
+if "%CTB_WIN_TEST_ROOT%"=="" set "CTB_WIN_TEST_ROOT=%TEST_DRIVE%"
+set "PATH=%CTB_WIN_TEST_ROOT%;%PATH%"
 cd /d "%TEMP%"
 echo ---CTB_START--- > COM1
 $user_cmd >> COM1 2>&1
@@ -523,7 +525,7 @@ EOF
 
     cmd_send_keys "ctrl-esc"
     sleep 1.2
-    cmd_type "cmd /c D:\\run.bat"
+    cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run.bat %d:\\run.bat"
     sleep 0.8
     cmd_send_keys "ret"
 
@@ -671,7 +673,6 @@ cmd_test_suite() {
         echo "=== Compiling Test Binaries for $target ==="
         export RUSTC_BOOTSTRAP=1
         export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
-        export CTB_WIN_TEST_ROOT="D:\\"
         local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
 
         local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
@@ -766,11 +767,12 @@ print(count)
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
 @echo off
 setlocal enabledelayedexpansion
-set "PATH=D:\\;%PATH%"
-set "CTB_WIN_TEST_ROOT=D:\\"
+set "TEST_DRIVE=%~dp0"
+if "%CTB_WIN_TEST_ROOT%"=="" set "CTB_WIN_TEST_ROOT=%TEST_DRIVE%"
+set "PATH=%CTB_WIN_TEST_ROOT%;%PATH%"
 mkdir "C:\workspaces" >nul 2>&1
 rmdir "C:\workspaces\ctoolbox" >nul 2>&1
-mklink /J "C:\workspaces\ctoolbox" "D:\" >nul 2>&1
+mklink /J "C:\workspaces\ctoolbox" "%CTB_WIN_TEST_ROOT%" >nul 2>&1
 cd /d "%TEMP%"
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1
@@ -790,7 +792,7 @@ set TOTAL=0
 set PASSED=0
 set FAILED=0
 
-for %%F in (D:\tests\*.exe) do (
+for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     set /a TOTAL+=1
     echo === RUN %%~nF === >> COM1
     "%%F" $test_filter --nocapture --test-threads 3 >> COM1 2>&1
@@ -830,7 +832,7 @@ EOF
     sleep 0.5
     cmd_send_keys "ctrl-esc"
     sleep 1.2
-    cmd_type "cmd /c D:\\run_suite.bat"
+    cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run_suite.bat %d:\\run_suite.bat"
     sleep 0.8
     cmd_send_keys "ret"
 
