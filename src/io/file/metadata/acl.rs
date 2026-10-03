@@ -568,7 +568,11 @@ impl Drop for SafeAcl {
     target_os = "dragonfly",
     target_os = "netbsd",
 ))]
-extern "C" {
+#[expect(
+    unsafe_code,
+    reason = "FFI declarations for POSIX/BSD ACL functions require an unsafe extern block in Rust 2024"
+)]
+unsafe extern "C" {
     fn acl_free(obj_p: *mut libc::c_void) -> libc::c_int;
     fn acl_copy_ext(
         buf_p: *mut libc::c_void,
@@ -595,7 +599,11 @@ extern "C" {
 }
 
 #[cfg(target_vendor = "apple")]
-extern "C" {
+#[expect(
+    unsafe_code,
+    reason = "FFI declarations for Darwin ACL functions require an unsafe extern block in Rust 2024"
+)]
+unsafe extern "C" {
     fn acl_delete_link_np(
         path: *const libc::c_char,
         type_: libc::c_int,
@@ -603,7 +611,11 @@ extern "C" {
 }
 
 #[cfg(target_os = "freebsd")]
-extern "C" {
+#[expect(
+    unsafe_code,
+    reason = "FFI declarations for FreeBSD ACL functions require an unsafe extern block in Rust 2024"
+)]
+unsafe extern "C" {
     fn acl_is_trivial_np(
         acl: *const libc::c_void,
         trivialp: *mut libc::c_int,

@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+workspace_root="$(readlink -f "$script_dir/..")"
+
+pick_first_dir() {
+    for candidate in "$@"; do
+        if [ -d "$candidate" ]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+sysroot="${CTB_FREEBSD_SYSROOT:-}"
+if [ -z "$sysroot" ]; then
+    sysroot="$(pick_first_dir \
+        "$workspace_root/ci-logs/VMs/FreeBSD/sysroot" \
+        /usr/local/freebsd-sysroot \
+        /opt/freebsd-sysroot \
+        /usr/x86_64-unknown-freebsd \
+        2>/dev/null || true)"
+fi
+
+if [ -z "$sysroot" ] || [ ! -d "$sysroot" ]; then
+    base_txz="$workspace_root/ci-logs/VMs/FreeBSD/base.txz"
+    if [ -f "$base_txz" ]; then
+        target_dir="$workspace_root/ci-logs/VMs/FreeBSD/sysroot"
+        mkdir -p "$target_dir"
+        tar -xf "$base_txz" -C "$target_dir" ./lib ./usr/lib ./usr/include
+        sysroot="$target_dir"
+    fi
+fi
+
+if [ -z "$sysroot" ] || [ ! -d "$sysroot" ]; then
+    cat >&2 <<EOF
+error: FreeBSD sysroot not found for x86_64-unknown-freebsd.
+Please ensure FreeBSD sysroot is present at:
+  $workspace_root/ci-logs/VMs/FreeBSD/sysroot
+or set CTB_FREEBSD_SYSROOT=/path/to/sysroot
+EOF
+    exit 1
+fi
+
+cmd="clang"
+if [[ "$(basename "$0")" == *"++"* ]] || [[ "${1:-}" == "--cxx" ]]; then
+    if [[ "${1:-}" == "--cxx" ]]; then
+        shift
+    fi
+    cmd="clang++"
+fi
+
+exec "$cmd" \
+    --target=x86_64-unknown-freebsd \
+    --sysroot="$sysroot" \
+    -fuse-ld=lld \
+    -Qunused-arguments \
+    "$@"

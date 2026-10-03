@@ -1260,7 +1260,7 @@ fn apply_file_flags_native(
             return Ok(());
         }
         let (_, current) = query_file_flags(path, false)?;
-        if current.is_none_or(|record| record.raw_value != u64::from(target_mask)) {
+        if current.as_ref().is_none_or(|record| record.raw_value != u64::from(target_mask)) {
             let c_path = CString::new(path.as_os_str().as_bytes())?;
             #[cfg(target_vendor = "apple")]
             let res = unsafe { libc::chflags(c_path.as_ptr(), target_mask) };

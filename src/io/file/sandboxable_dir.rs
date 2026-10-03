@@ -351,11 +351,13 @@ impl SandboxableDir {
         mode: u32,
     ) -> Result<std::fs::File> {
         let temp_os = temp_name.as_ref();
+        let raw_mode = rustix::fs::RawMode::try_from(mode & 0o177_777)
+            .context("Failed to convert file mode to target RawMode")?;
         let fd = openat(
             parent_dir_fd,
             temp_os,
             OFlags::CREATE | OFlags::EXCL | OFlags::RDWR | OFlags::CLOEXEC,
-            Mode::from_bits_truncate(mode),
+            Mode::from_bits_truncate(raw_mode),
         )
         .with_context(|| {
             format!(
@@ -652,6 +654,9 @@ impl SandboxableDir {
         mode: u32,
     ) -> Result<()> {
         let name_os = name.as_ref();
+        let mode_t_val = nix::sys::stat::mode_t::try_from(mode & 0o177_777)
+            .context("Failed to convert file mode to target mode_t")?;
+        let nix_mode = nix::sys::stat::Mode::from_bits_truncate(mode_t_val);
         replace_node_atomically(*parent_dir_fd, name_os, |temporary| {
         match kind {
             FileEntityKind::Fifo => {
@@ -659,7 +664,7 @@ impl SandboxableDir {
                     parent_dir_fd,
                     temporary,
                     nix::sys::stat::SFlag::S_IFIFO,
-                    nix::sys::stat::Mode::from_bits_truncate(mode),
+                    nix_mode,
                     0,
                 )
                 .with_context(|| {
@@ -674,7 +679,7 @@ impl SandboxableDir {
                     parent_dir_fd,
                     temporary,
                     nix::sys::stat::SFlag::S_IFCHR,
-                    nix::sys::stat::Mode::from_bits_truncate(mode),
+                    nix_mode,
                     *rdev,
                 )
                 .with_context(|| {
@@ -689,7 +694,7 @@ impl SandboxableDir {
                     parent_dir_fd,
                     temporary,
                     nix::sys::stat::SFlag::S_IFBLK,
-                    nix::sys::stat::Mode::from_bits_truncate(mode),
+                    nix_mode,
                     *rdev,
                 )
                 .with_context(|| {
