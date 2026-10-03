@@ -1,102 +1,142 @@
-Milestone 0 is feasible only as a one-week decision and probe, not as the start of the archive, the graph, or a Windows fix. The two-month plan is a usable scope governor. It is not a credible promise that both a Dc workspace and a preservation-qualified backup of the real disk will be done in 120–160 hours.
+# Milestone 0: csc and archive probes
 
-## Feasibility
+Updated 2026-10-03. This note is the current work queue. It narrows
+[the roadmap](../../docs/mvp-roadmap.md): the Dc document runtime, ontology
+explorer, and graph-stored trust are future work. They start after `csc` and
+the archiver have a usable MVP. Do not spend this milestone on them.
 
-The originating prompts locked the product direction. Those decisions should not be reopened in week 1:
+A usable preservation MVP is copy, archive, and extract on btrfs and NTFS,
+with the contract below, plus an honest ZFS gap. It is not a qualified backup
+of the 100-million-file disk, and it is not a Dc workspace.
 
-- Personal use on Linux and Windows, about 15–20 hours a week, one to two months as a budget rather than a deadline.
-- Two separate outcomes: a Dc workspace you can open and navigate, and a preservation tool you can trust on a named filesystem. Neither one counts as the other.
-- Stop expanding format detection unless it blocks those two outcomes.
-- Global nodes are permanent and append-only. Local and team graphs may actually discard deleted content, but the ID stays reserved. Deleting a revision reveals the remaining trusted revision. Hiding a global node locally is reversible. Distrust is reversible. Deleting the only retained copy is not.
-- Trust, scopes, and most settings live in the local graph. Safe mode must ignore local overrides. A signature is not the same thing as trust, and trust is not permission to read a file.
-- The browser may be the first screen, but the application must not depend on page loads, routes, or request/response.
-- `ctoolbox csc` stays the copy tool. A separate `ctoolbox archive` command will make and extract a local, unencrypted Dc archive. Compression is outside the archive format.
-- NTFS, btrfs, and ZFS matter first. Filenames are exact byte or UTF-16 sequences, never normalized text. Inode numbers, ctime, and physical layout are recorded facts, not things extraction must recreate.
-- The first big backup may assume a mostly quiet source plus a final repeat sync. That is not a snapshot.
-- Displaying a Dc document runs it, with only a small amount of pure computation allowed unless you grant more. Looking at raw bytes must not run the document.
-- Encryption, MLS, and metadata-private sync stay out of this MVP. Week 1 only writes down the boundaries.
+## Still missing
 
-What does not fit the week-1 budget of 6–8 hours, or this machine:
+- No archive command and no stable archive format. Do not invent that format
+  until a small btrfs copy and a Windows copy have been run, and the data-loss
+  bugs below are either reproduced or cleared.
+- ZFS is unqualified. A BSD or Illumos VM can be prepared later. It does not
+  exist, and the application has not been run on those systems. Nothing in
+  this workspace is a ZFS result.
+- Windows capture can succeed while dropping data. Opening the metadata handle
+  can return success without that metadata. A failed reparse read is a
+  warning, then success. Each alternate stream is read with a whole-file read.
+  Strict sandboxed directory creation is rejected on non-Unix. These are code
+  readings, not VM results.
+- [csc-safety.md](../../docs/csc-safety.md) still says those Windows features
+  are unimplemented and return errors. That section is stale. Correct it
+  after a VM run, not before.
+- No filename-collision test exists. The requirement is only in the docs.
+- Journal growth per entry has no budget. At 100 million files, 1 KiB of
+  extra data per file is about 100 GB. That risk remains.
+- btrfs subvolumes and ZFS datasets are not in this milestone. File kinds and
+  their metadata are. Volume send/receive is a different tool; do not treat
+  silence as support.
 
-- This workspace is btrfs. There is no ZFS tool here, and no Windows host. A cross-compiled Windows test would not qualify NTFS. The roadmap already says that. Those two captures are operator-machine tasks, not something week 1 can finish here.
-- There is no filename-collision test yet. The requirement exists only in the docs.
-- Windows code is ahead of the safety note, and it fails open. If opening a file handle fails, metadata capture returns success with that information missing. If reading a reparse point fails, it logs a warning and continues. Alternate data streams are read entirely into memory. Strict sandboxed directory creation is explicitly rejected on non-Unix. The safety note still says those Windows features are unimplemented and return errors. Both documents cannot be treated as current.
-- A field-by-field NTFS/btrfs/ZFS matrix, a million-entry trial, and the 100-million-file backup are later evidence. Even 1 KiB of extra data per file is about 100 GB at that count. Week 1 only needs a number you are willing to live with.
-- The later milestones depend on contracts that are not written yet. Starting the node builder or the archive format this week would freeze guesses.
+## Settled
 
-The eight-week total of 98–136 hours is arithmetically consistent and leaves too little room for the known gaps: no archive format, a renderer that still passes strings through, Windows capture that can succeed while dropping data, and no measured resume cost. A credible four-week checkpoint is native node artifacts plus a plainly limited copy/archive preview. Full qualification of the real disk is calendar time on top of coding time.
+These are closed. Do not reopen them while writing fixtures.
 
-## Week 1 task list
+- Work is `csc` and the archiver only, on NTFS, btrfs, and ZFS. Detection
+  catalogs, the renderer, and graph editing are out of this MVP.
+- btrfs work can run on this machine. NTFS work uses the Windows 7 QEMU guest
+  driven by [scripts/win-vm](../../scripts/win-vm). Agents may run guest
+  commands or build NTFS fixtures in that VM. Cross-compilation does not
+  qualify NTFS. Windows 7 is a real NTFS host, not a stand-in for every later
+  NTFS feature. A feature the guest cannot create stays untested.
+- ZFS waits for a BSD or Illumos VM. Do not prepare that VM in this
+  milestone, and do not substitute Linux ZFS or a mock.
+- Resume does not have to continue inside a file. On restart, rewind may
+  discard at most 500 files, and at most the larger of the most recent file
+  and 1 GB. A multi-gigabyte file may be recopied whole, because stopping
+  inside it is not required. That cap is not permission to recopy the rest of
+  the tree. A changed live source is still not a snapshot.
+- The three filesystems need a comprehensive, robust implementation. Not
+  knowing which NTFS features are on one disk does not shrink that. This
+  milestone inventories the gap. It does not finish the implementation.
+- Archives stay local and unencrypted. Compression is outside the archive
+  format. Security boundaries need no further decision here.
+- Later graph deletion, recorded so it is not re-decided: the node type
+  becomes Deleted, the content is discarded, and the ID stays reserved.
+  Indexes are garbage-collected on demand or within a time bound. The bound
+  was not specified and is not needed for `csc`.
+- Global ID collisions across Git branches are not a problem: one developer,
+  branches not used that way.
+- Filenames stay exact native sequences. Normalization is not identity.
+  Inode numbers, ctime, and physical layout are source facts, not things
+  extraction must recreate.
 
-Do these in order. Stop when the timebox is gone and write down what was not reached. Do not fix the bugs you find unless one of them makes the measurements meaningless.
+## Task list
 
-**1. Write the decision sheet, about two hours.**
+Do these in order. Stop when the session is gone and write down what was not
+reached. Do not fix a bug unless the measurement is meaningless without the
+fix. Do not start the archive format, the Dc runtime, or a ZFS VM here.
 
-One short note, not a new design. Record only what the next milestone must not guess.
+**1. Write the filesystem gap list.**
 
-Already decided, so copy them down as settled: identity and deletion rules above; Git is the ledger for published global nodes, and a node body does not change after it is first committed; new assertions are new nodes; archives are local and unencrypted; compression is not part of the format; filenames stay exact; source observations are not restoration requirements.
+One table for NTFS, one for btrfs, one for ZFS. Rows are file kinds and
+metadata the platform can store, not the features someone remembers using.
+For each row, mark captured, restored, failed closed, failed open, or
+untested. Use the current file and `csc` code plus the platform's own
+behavior. On NTFS include streams, security descriptors, reparse points,
+timestamps, attributes, hard links, sparse files, short names, and names
+that differ only by case or by Unicode normalization. On btrfs include
+xattrs, ACLs, inode flags, project and extent flags, sparse files, and
+special file kinds. On ZFS include ACLs, xattr modes, and dataset filename
+properties (`casesensitivity`, `normalization`, `utf8only`), because a
+normalizing dataset cannot honestly store this corpus. Mark every ZFS row
+untested.
 
-Still needs your numbers, not more architecture:
+Done when a later session can pick one failing row without guessing what
+"comprehensive" means.
 
-- After a local deletion, what non-content residue must remain so the ID cannot be reused, and what must disappear from indexes.
-- How two development branches avoid allocating the same new global ID.
-- The restart rule you will accept: maximum extra memory, maximum journal growth per file, and how long a resume may spend before it is doing useful new work. Pick a number you would actually shut the machine down for. A million-file trial later has to meet it.
-- Which NTFS features the real disk uses: encryption, compression, sparse files, alternate streams, junctions, and anything else you know is there.
-- Where a native Windows test can run, and where ZFS can run. If either machine is not available this month, say so. That is a release blocker, not a footnote.
-- The security boundaries already in the security note: identity is not a key, trust is not read permission, a password hash is not a vault, the server must not see private content or usage, and revocation cannot erase a copy someone already has. One or two hours. If it starts turning into a protocol, stop.
+**2. Build the small hostile tree on this btrfs volume.**
 
-Done when a later session can implement a node or an archive without inventing an ID rule, a deletion rule, or a success rule.
+A few dozen entries, not a copy of the disk. Include composed and decomposed
+café names, as files and as directories, with different contents; a name
+that is not valid UTF-8; an empty file; a small file; one file large enough
+that a whole-file read is obvious; a hard link; a symlink; a sparse file; a
+case-only pair; and one unreadable file. Keep a manifest of the raw name
+bytes and payload hashes. Do not normalize or rename while creating it.
 
-**2. Build the smallest hostile sample on this btrfs machine, about two hours.**
+**3. Run today's `csc` copy against that tree.**
 
-A few dozen files, not a copy of the disk. Include:
+Linux to Linux only. Record kept, changed, skipped, or crashed for every
+case, after a first copy, a second copy, and an interrupted copy. Record
+journal bytes per entry and peak memory. This catches a whole-file buffer.
+It does not prove the 100-million-file case.
 
-- Two names that look the same after Unicode normalization, with different contents, both as file names and as directory names. Use the café example already in the safety note: the composed form and the decomposed form.
-- A name that is not valid UTF-8.
-- An empty file, a small file, and one file large enough that a full-file read would be obvious in memory.
-- A hard link pair, a symlink, a sparse file if btrfs will make one, and a name that differs only by case.
-- One unreadable file, so a permission error has somewhere to go.
+**4. Repeat the fixture on the Windows 7 guest.**
 
-Do not normalize, rename, or skip anything while creating it. Keep a manifest of the raw bytes of each name and a hash of each payload.
+Use [scripts/win-vm](../../scripts/win-vm). Create the NTFS objects in the
+guest, including an alternate stream, a reparse point, an unreadable file,
+and two names Windows treats as the same. Copy them with the Windows build.
+Record the same kept, changed, skipped, or crashed result, and whether a
+metadata or reparse failure still exits 0. If the VM is not usable, stop
+and write that down. Do not replace it with a cross-compile or with
+`mkfs.ntfs` on Linux.
 
-Done when that tree can be recreated and checked without remembering the cases.
+**5. Check resume against the rewind cap.**
 
-**3. Run today's copy tool against that sample and write down what it actually does, about two hours.**
+Interrupt a copy. Record how many files and how many bytes are redone. The
+run meets the new rule if the redo stays within 500 files and the larger of
+the most recent file and 1 GB, or if the tool stops and leaves a usable
+journal instead of a silently shortened tree. It fails if it rewinds the
+whole tree, drops a name, or reports success after a partial write. Also
+note whether already committed entries are rechecked. The current journal
+does recheck them. That is not by itself a violation of the rewind cap. It
+is a scale risk if the recheck has to load the whole tree.
 
-Use the existing `csc` copy, not a new archive command. Check:
+**6. Close ZFS in one paragraph.**
 
-- Linux to Linux on this btrfs volume: every name byte and every payload still distinct after copy, after a second run, and after an interrupted run that is resumed.
-- Whether a journal from the current writer can be read back, and how big it is per file.
-- Peak memory while copying the large file and the small tree. A single sample is enough to catch "the whole file is in RAM." It does not prove the 100-million-file case.
+No host, no run, not validated on BSD or Illumos. Name VM preparation as a
+later ticket. Do not start it here.
 
-Done when each case is marked kept, changed, skipped, or crashed, with the command and the result. No fixes in this step.
+**7. Go or no-go.**
 
-**4. Record the Windows and scale blockers from the code you already have, about one hour.**
+Three lists: what failed or was not run; the next single `csc` or archiver
+ticket; what this milestone left alone. The next ticket is a data-loss fix
+if task 3 or 4 found one. Archive framing comes after that, not before. The
+Dc runtime stays closed.
 
-Do not treat the safety note or the roadmap as the measurement. The current code already shows three blockers:
-
-- A failed Windows handle open is reported as success without the missing metadata.
-- A failed reparse read is a warning, then success.
-- Each alternate stream is read with a whole-file read.
-- Non-Unix strict sandboxing is rejected outright.
-- The safety note's Windows section contradicts that code and needs a correction later so the next session does not "fix" a problem that has moved.
-
-Also write the scale rule in one paragraph: resume must not load the whole tree; discovery state has to sit on disk; a changed file after restart must be reported; this tool will not claim a point-in-time snapshot.
-
-Done when the next preservation ticket is one named bug, not "make Windows work."
-
-**5. Operator captures, only if the machines are actually available this week.**
-
-On a real NTFS volume: one file with an alternate stream, one reparse point, one file you cannot read, and two names Windows treats as the same. On ZFS: the same normalization pair as in task 2, plus whatever native flags that pool actually has.
-
-If the machine is not available, the task is done by writing "not run, no host" and leaving NTFS or ZFS unqualified. Do not substitute a mock.
-
-**6. Close the week with a go or no-go, about half an hour.**
-
-Three lists only:
-
-- What failed or was not run.
-- The next single ticket, small enough for one or two sessions. The likely candidate is either the filename-byte copy bug, if task 3 finds one, or a fail-closed Windows capture fix. Do not start the node builder while a data-loss bug is still unnamed.
-- What week 1 deliberately did not do: archive format, graph nodes, renderer, encryption, detection work, and any Windows fix not required to trust the measurement.
-
-Week 1 has succeeded if those three lists exist. It has not succeeded if the only output is a cleaner plan with no fixture result and no named blocker.
+This milestone is done when those lists exist and the btrfs run has a
+result. A Windows or ZFS blank is a remaining gap, not a pass.
