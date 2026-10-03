@@ -52,6 +52,10 @@ ALLOWED_LICENSES = frozenset({
     "MIT-CMU", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
     "CC0-1.0", "Unlicense", "GPL-3.0-or-later", "AGPL-3.0-or-later",
 })
+SORTED_LICENSES = sorted(ALLOWED_LICENSES)
+LICENSE_BY_NUM = {i + 1: lic for i, lic in enumerate(SORTED_LICENSES)}
+LICENSE_NUM_BY_NAME = {lic: i + 1 for i, lic in enumerate(SORTED_LICENSES)}
+
 SOURCE_SUFFIXES = frozenset({".h", ".c", ".S", ".s", ".inc", ".def", ".yaml"})
 BINARY_SIGNATURES = (
     b"\x7fELF", b"!<arch>\n", b"!<thin>\n", b"MZ", b"\x89PNG", b"GIF87a",
@@ -67,6 +71,271 @@ FREEBSD_DIRECTORIES = (
     "lib/libprocstat", "lib/libutil", "lib/libkvm", "lib/libmemstat", "lib/libdevstat",
     "lib/libgeom", "contrib/libexecinfo",
 )
+
+MAPPED_DIRECTORIES = frozenset({
+    "include", "include/arpa", "include/protocols", "include/rpc", "include/rpcsvc",
+    "include/ssp", "include/xlocale", "sys/sys", "sys/amd64/include", "sys/x86/include",
+    "sys/net", "sys/netinet", "sys/netinet6", "sys/vm", "sys/ufs/ufs",
+    "sys/fs/devfs", "sys/fs/fdescfs", "sys/fs/nullfs", "sys/fs/procfs", "lib/libgeom",
+})
+SPECIAL_FREEBSD_SOURCES = frozenset({
+    "contrib/libc-vis/vis.h",
+    "sys/arm64/include/_align.h",
+    "sys/arm64/include/param.h",
+    "lib/libthr/thread/thr_private.h",
+    "lib/libthr/thread/thr_create.c",
+})
+SPECIAL_LLVM_SOURCES = frozenset({
+    "libc/include/sys/syscall.h.def",
+    "libc/include/pthread.yaml",
+    "libc/include/sched.yaml",
+    "clang/lib/Headers/stdint.h",
+})
+
+
+def is_required_source(repository, filename):
+    source_path = PurePosixPath(filename)
+    if repository == "freebsd":
+        if str(source_path.parent) in MAPPED_DIRECTORIES and source_path.suffix == ".h":
+            return True
+        if filename in SPECIAL_FREEBSD_SOURCES:
+            return True
+        if (
+            str(source_path.parent) == "lib/libthr/thread"
+            and source_path.name.startswith("thr_")
+            and source_path.suffix == ".c"
+        ):
+            return True
+        return False
+    if repository == "llvm":
+        if filename in SPECIAL_LLVM_SOURCES:
+            return True
+        if (
+            source_path.is_relative_to("libc/include/llvm-libc-macros")
+            or source_path.is_relative_to("libc/include/llvm-libc-types")
+        ) and source_path.suffix == ".h":
+            return True
+        return False
+    return False
+
+
+def prune_unneeded_entries(entries):
+    required_sources = set()
+    ancestors = {("freebsd", PurePosixPath(".")), ("llvm", PurePosixPath("."))}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        repo = entry.get("repository")
+        path_str = entry.get("path")
+        if not isinstance(repo, str) or not isinstance(path_str, str):
+            continue
+        try:
+            relative_path(path_str)
+        except ValueError:
+            return entries
+        if entry.get("kind") == "source" and is_required_source(repo, path_str):
+            required_sources.add((repo, path_str))
+            for parent in PurePosixPath(path_str).parents:
+                ancestors.add((repo, parent))
+    pruned = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            pruned.append(entry)
+            continue
+        key = (entry.get("repository"), entry.get("path"))
+        if key in required_sources:
+            pruned.append(entry)
+        elif entry.get("kind") == "notice":
+            path_str = entry.get("path")
+            if isinstance(path_str, str):
+                p = PurePosixPath(path_str)
+                if (entry.get("repository"), p.parent) in ancestors:
+                    pruned.append(entry)
+            else:
+                pruned.append(entry)
+    return pruned
+
+
+def format_license_menu():
+    lines = ["Allowed licenses:"]
+    half = (len(SORTED_LICENSES) + 1) // 2
+    for i in range(half):
+        idx1 = i
+        idx2 = i + half
+        item1 = f" {idx1 + 1:2d}) {SORTED_LICENSES[idx1]}"
+        if idx2 < len(SORTED_LICENSES):
+            item2 = f"{idx2 + 1:2d}) {SORTED_LICENSES[idx2]}"
+            lines.append(f"{item1:<38} {item2}")
+        else:
+            lines.append(item1)
+    return "\n".join(lines)
+
+
+def parse_licenses(value, default=None):
+    value = value.strip()
+    if not value:
+        if default:
+            return default
+        return []
+    tokens = [token.strip() for token in value.split(',') if token.strip()]
+    licenses = []
+    for token in tokens:
+        if token.isdigit():
+            num = int(token)
+            if num in LICENSE_BY_NUM:
+                licenses.append(LICENSE_BY_NUM[num])
+            else:
+                raise ValueError(f"Invalid license number: {num}")
+        elif token in ALLOWED_LICENSES:
+            licenses.append(token)
+        else:
+            raise ValueError(f"Unknown or prohibited license: {token}")
+    return licenses
+
+
+def pager(text, ask=input, page_size=50):
+    lines = text.splitlines(keepends=True)
+    total = len(lines)
+    if total <= page_size:
+        sys.stdout.write("".join(lines))
+        if not text.endswith("\n"):
+            sys.stdout.write("\n")
+        sys.stdout.flush()
+        return
+    for start in range(0, total, page_size):
+        end = min(start + page_size, total)
+        sys.stdout.write("".join(lines[start:end]))
+        sys.stdout.flush()
+        if end >= total:
+            break
+        prompt = f"-- More [{end}/{total} lines] (Enter/Space: continue, q: return) -- "
+        response = ask(prompt).strip().lower()
+        if response == "q":
+            break
+
+
+def extract_license_docblock(text):
+    text_len = len(text)
+    pos = 0
+    blocks = []
+    while pos < text_len:
+        while pos < text_len and text[pos].isspace():
+            pos += 1
+        if pos >= text_len:
+            break
+        if text.startswith("/*", pos):
+            end = text.find("*/", pos + 2)
+            if end == -1:
+                break
+            blk = text[pos + 2:end]
+            pos = end + 2
+            lines = [l.strip().lstrip("*").strip() for l in blk.splitlines()]
+            c = " ".join(l for l in lines if l)
+            if any(w in c.lower() for w in (
+                "spdx-license-identifier", "copyright", "license", "licence",
+                "redistribution", "all rights reserved",
+            )):
+                blocks.append(c)
+        elif text.startswith("//", pos):
+            end = text.find("\n", pos)
+            if end == -1:
+                end = text_len
+            line = text[pos + 2:end].strip()
+            pos = end
+            lines = [line] if line and not ("===--" in line) else []
+            while pos < text_len:
+                next_nl = text.find("\n", pos)
+                if next_nl == -1:
+                    next_nl = text_len
+                l = text[pos:next_nl].strip()
+                if l.startswith("//"):
+                    pos = next_nl
+                    sub = l[2:].strip()
+                    if not ("===--" in sub) and sub:
+                        lines.append(sub)
+                elif l == "":
+                    pos = next_nl
+                else:
+                    break
+            c = " ".join(lines)
+            if any(w in c.lower() for w in (
+                "spdx-license-identifier", "copyright", "license", "licence",
+                "redistribution", "all rights reserved",
+            )):
+                blocks.append(c)
+        elif text.startswith("#", pos):
+            end = text.find("\n", pos)
+            if end == -1:
+                end = text_len
+            line = text[pos + 1:end].strip()
+            pos = end
+            lines = [line] if line else []
+            while pos < text_len:
+                next_nl = text.find("\n", pos)
+                if next_nl == -1:
+                    next_nl = text_len
+                l = text[pos:next_nl].strip()
+                if l.startswith("#"):
+                    pos = next_nl
+                    sub = l[1:].strip()
+                    if sub:
+                        lines.append(sub)
+                elif l == "":
+                    pos = next_nl
+                else:
+                    break
+            c = " ".join(lines)
+            if any(w in c.lower() for w in (
+                "spdx-license-identifier", "copyright", "license", "licence",
+                "redistribution", "all rights reserved",
+            )):
+                blocks.append(c)
+        else:
+            break
+    return " \n ".join(blocks) if blocks else None
+
+
+def inherit_docblock_approvals(manifest, repositories, approved_entry, approved_db, cache=None):
+    if not approved_db:
+        return 0
+    if cache is None:
+        cache = {}
+    inherited_count = 0
+    repo_name = approved_entry["repository"]
+    repo = repositories.get(repo_name)
+    if not repo:
+        return 0
+    commit = REPOSITORIES[repo_name][1]
+    for other in manifest["files"]:
+        if other.get("decision") != "pending" or other["repository"] != repo_name:
+            continue
+        path = other["path"]
+        if path not in cache:
+            raw = read_blob(repo, commit, path)
+            try:
+                txt = validate_text(raw, path)
+                db = extract_license_docblock(txt)
+            except Exception:
+                db = None
+            cache[path] = (raw, db)
+        other_raw, other_db = cache[path]
+        if other_db and other_db == approved_db:
+            candidate = dict(
+                other,
+                licenses=list(approved_entry["licenses"]),
+                review=f"{approved_entry['review']} (inherited from {approved_entry['path']})",
+                source_only_reviewed=True,
+                notices=list(approved_entry.get("notices", [])),
+                decision="approved",
+            )
+            try:
+                validate_bytes(candidate, other_raw)
+            except ValueError:
+                continue
+            other.update(candidate)
+            inherited_count += 1
+    return inherited_count
+
 
 
 def generate_headers(source_root, destination, notices):
@@ -589,6 +858,7 @@ def load_manifest(path):
     entries = manifest["files"]
     if not isinstance(entries, list) or not entries:
         raise ValueError("No reviewed files: refusing to generate an empty sysroot")
+    entries = prune_unneeded_entries(entries)
     approved = []
     for entry in entries:
         if not isinstance(entry, dict):
@@ -949,14 +1219,9 @@ def prepare_manifest(path, repositories):
         selected = {}
         ancestors = {PurePosixPath('.')}
         for filename, object_id in records:
-            source_path = PurePosixPath(filename)
-            if name == "freebsd":
-                included = any(source_path.is_relative_to(directory) for directory in FREEBSD_DIRECTORIES)
-            else:
-                included = source_path.is_relative_to("libc/include") or filename == "clang/lib/Headers/stdint.h"
-            if included and source_path.suffix in SOURCE_SUFFIXES:
+            if is_required_source(name, filename) and PurePosixPath(filename).suffix in SOURCE_SUFFIXES:
                 selected[filename] = (object_id, "source")
-                ancestors.update(source_path.parents)
+                ancestors.update(PurePosixPath(filename).parents)
         for filename, object_id in records:
             notice_path = PurePosixPath(filename)
             if notice_path.parent in ancestors and re.fullmatch(
@@ -1009,31 +1274,75 @@ def review_manifest(path, repositories, ask=None):
     if ask is None:
         ask = input
     manifest = read_review_manifest(path)
+    original_count = len(manifest["files"])
+    manifest["files"] = prune_unneeded_entries(manifest["files"])
+    if len(manifest["files"]) < original_count:
+        pruned_count = original_count - len(manifest["files"])
+        print(f"Pruned {pruned_count} files not included/used in the sysroot.")
+        save_manifest(path, manifest)
+
+    blob_cache = {}
+    approved_dbs = {}
+    for approved in manifest["files"]:
+        if approved.get("decision") == "approved":
+            key = (approved["repository"], tuple(approved.get("licenses", [])))
+            if key not in approved_dbs:
+                repo = repositories.get(approved["repository"])
+                if repo:
+                    raw = read_blob(repo, REPOSITORIES[approved["repository"]][1], approved["path"])
+                    try:
+                        db = extract_license_docblock(validate_text(raw, approved["path"]))
+                    except Exception:
+                        db = None
+                    blob_cache[approved["path"]] = (raw, db)
+                    if db:
+                        approved_dbs[key] = (approved, db)
+    initial_inherited = 0
+    for approved, db in approved_dbs.values():
+        initial_inherited += inherit_docblock_approvals(manifest, repositories, approved, db, cache=blob_cache)
+    if initial_inherited:
+        print(f"Inherited approval to {initial_inherited} file(s) from previously approved files.")
+        save_manifest(path, manifest)
+
     entries = manifest["files"]
     print("Review the entire file and applicable companion terms. SPDX is a hint, not approval.")
+    last_evidence = ""
     for index, entry in enumerate(entries):
         if entry.get("decision", "approved") != "pending":
             continue
         name = entry["repository"]
-        raw = read_blob(repositories[name], REPOSITORIES[name][1], entry["path"])
+        if entry["path"] in blob_cache:
+            raw, _ = blob_cache[entry["path"]]
+        else:
+            raw = read_blob(repositories[name], REPOSITORIES[name][1], entry["path"])
         if hashlib.sha256(raw).hexdigest() != entry["sha256"]:
             raise ValueError(f"Candidate digest mismatch: {entry['path']}; prepare a new manifest")
         text = validate_text(raw, entry["path"])
+        db = extract_license_docblock(text)
+        blob_cache[entry["path"]] = (raw, db)
         print(f"\n[{index + 1}/{len(entries)}] {name}/{entry['path']} ({entry['kind']})")
         hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
         print(f"SPDX hints (not verified): {', '.join(hints) if hints else 'none'}")
+        suggested_default = None
+        for hint in hints:
+            clean_hint = hint.strip().rstrip("*/").strip()
+            if clean_hint in ALLOWED_LICENSES:
+                suggested_default = clean_hint
+                break
+
         while True:
-            action = ask("[v]iew entire file, [a]pprove, [r]eject, [s]kip, [q]uit [q]: ").strip().lower()
-            if action in {"", "q"}:
+            action = ask("[v]iew file, [a]pprove (or enter license #), [r]eject, [s]kip, [q]uit [q]: ").strip()
+            action_lower = action.lower()
+            if action_lower in {"", "q"}:
                 save_manifest(path, manifest)
                 print(f"Saved progress to {path}. Resume with --review-manifest {path}")
                 return
-            if action == "v":
-                print(text)
+            if action_lower == "v":
+                pager(text, ask=ask)
                 continue
-            if action == "s":
+            if action_lower == "s":
                 break
-            if action == "r":
+            if action_lower == "r":
                 reason = ask("Reason for rejection: ").strip()
                 if not reason:
                     print("A rejection reason is required.")
@@ -1042,22 +1351,48 @@ def review_manifest(path, repositories, ask=None):
                 entry["review"] = reason
                 save_manifest(path, manifest)
                 break
-            if action != "a":
-                print("Choose v, a, r, s, or q.")
-                continue
-            licenses = [value.strip() for value in ask(
-                "All applicable compatible license IDs (comma-separated): "
-            ).split(',') if value.strip()]
-            if not licenses or any(value not in ALLOWED_LICENSES for value in licenses):
+
+            licenses = None
+            if action_lower == "a":
+                print(format_license_menu())
+                default_prompt = ""
+                if suggested_default:
+                    def_num = LICENSE_NUM_BY_NAME.get(suggested_default)
+                    default_prompt = f" [{def_num}: {suggested_default}]"
+                lic_input = ask(
+                    f"All applicable compatible license IDs or numbers (comma-separated){default_prompt}: "
+                ).strip()
+                try:
+                    licenses = parse_licenses(lic_input, default=[suggested_default] if suggested_default else None)
+                except ValueError as err:
+                    print(f"No approval saved: {err}")
+                    continue
+            else:
+                try:
+                    licenses = parse_licenses(action)
+                except ValueError:
+                    licenses = None
+                if not licenses:
+                    print("Choose v, a, r, s, or q (or enter an allowed license number/ID directly).")
+                    continue
+
+            if not licenses:
                 print("Unknown/prohibited license. No approval saved.")
                 continue
-            evidence = ask("Your name and license-review evidence/reference: ").strip()
+
+            evidence_prompt = f"Your name and license-review evidence/reference [{last_evidence}]: " if last_evidence else "Your name and license-review evidence/reference: "
+            evidence = ask(evidence_prompt).strip()
+            if not evidence and last_evidence:
+                evidence = last_evidence
             if not evidence:
                 print("A review reference is required.")
                 continue
+            last_evidence = evidence
+
             if ask("Entire file checked: genuine source/plain-text notice, no encoded binary blobs? Type yes: ").strip() != "yes":
                 print("No approval saved.")
                 continue
+
             notice_paths = [value.strip() for value in ask(
                 "Required companion notice paths in this repository (comma-separated; empty means none): "
             ).split(',') if value.strip()]
@@ -1083,7 +1418,13 @@ def review_manifest(path, repositories, ask=None):
             entry.update(candidate)
             entries.extend(additional)
             save_manifest(path, manifest)
+
+            inherited = inherit_docblock_approvals(manifest, repositories, entry, db, cache=blob_cache)
+            if inherited:
+                print(f"Inherited approval from {entry['path']} to {inherited} pending file(s) with identical license docblock.")
+                save_manifest(path, manifest)
             break
+
     pending = sum(entry.get("decision") == "pending" for entry in entries)
     if pending:
         print(f"{pending} files still pending. Resume with --review-manifest {path}")

@@ -29,3 +29,5 @@ find src docs -type f \( -name '*.generated.*' -o -name '*.dtos.generated.rs' -o
     ! -path '*/vendor/*' \
     -print \
     -delete
+
+find . -name '*.pyc' -print -delete
