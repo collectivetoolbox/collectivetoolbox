@@ -20,8 +20,10 @@
 # Helper script to run and interact with the sandboxed Windows 7 VM in QEMU.
 set -euo pipefail
 
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-REPO_ROOT="$(readlink -f "$SCRIPT_DIR/..")"
+REPO_ROOT="$(pwd)"
 DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/Windows/win7.qcow2"
 SOCKET_DIR="/tmp/ctb-win7-vm"
 MONITOR_SOCK="$SOCKET_DIR/monitor.sock"

@@ -39,6 +39,7 @@ dev_packages=(
     lz4
     lzip
     ncdu
+    genisoimage
     nodejs
     npm
     perl
