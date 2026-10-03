@@ -17,14 +17,31 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-print("1. Compiling startup objects from audited FreeBSD CSU source into $TARGET_SYSROOT_DIR/usr/lib...")
+import os
+import re
+import subprocess
+import sys
 
-import os, subprocess
+script_dir = os.path.dirname(os.path.realpath(__file__))
+workspace_root = os.path.realpath(os.path.join(script_dir, ".."))
+os.chdir(workspace_root)
 
-src = '$TMP_DIR/freebsd'
-sysroot = '$TARGET_SYSROOT_DIR'
-lib_dir = os.path.join(sysroot, 'usr/lib')
+TMP_DIR = os.environ.get(
+    "TMP_DIR", os.path.join(workspace_root, "built/freebsd_sysroot_tmp")
+)
+TARGET_SYSROOT_DIR = os.environ.get(
+    "TARGET_SYSROOT_DIR",
+    os.path.join(workspace_root, "vendor/upstream-for-reference/freebsd-sysroot"),
+)
+
+src = os.path.join(TMP_DIR, "freebsd")
+sysroot = TARGET_SYSROOT_DIR
+lib_dir = os.path.join(sysroot, "usr/lib")
 os.makedirs(lib_dir, exist_ok=True)
+
+print(
+    f"1. Compiling startup objects from audited FreeBSD CSU source into {lib_dir}..."
+)
 
 csu_amd64 = os.path.join(src, 'lib/csu/amd64')
 csu_common = os.path.join(src, 'lib/csu/common')
@@ -82,14 +99,9 @@ subprocess.run([
 print('Compiled crt1.o, Scrt1.o, crti.o, crtn.o, crtbegin.o, crtbeginS.o, crtend.o, crtendS.o')
 
 
-print("2. Generating dynamic library linker stubs from audited sources into $TARGET_SYSROOT_DIR/usr/lib...")
-
-import os, re, subprocess
-
-src = '$TMP_DIR/freebsd'
-sysroot = '$TARGET_SYSROOT_DIR'
-lib_dir = os.path.join(sysroot, 'usr/lib')
-os.makedirs(lib_dir, exist_ok=True)
+print(
+    f"2. Generating dynamic library linker stubs from audited sources into {lib_dir}..."
+)
 
 def extract_license_block(file_path):
     if not os.path.isfile(file_path):
