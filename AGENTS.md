@@ -55,6 +55,7 @@ The rationale for this is that what's critical to your operator is an honest ass
 - Avoid returning HTTP 5xx errors if possible. The response bodies can be discarded by the CDN, making them confusing to debug.
 - If you reuse algorithms or code from another file, include a comment noting the source.
 - Never delete license blocks or copyright information.
+- All dependencies, including any build-time dependencies such as libraries or sysroots that are linked to the final binaries, MUST be under AGPL-3+-compatible licenses.
 - Any important or nontrivial code should have test coverage.
 - The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
 - Panicing unwrap, expect, etc. should not be introduced in new code.
