@@ -374,7 +374,8 @@ for p in "${platforms[@]}"; do
     extra_cargo_flags=()
     if [[ "$target" == *-win7-* ]]; then
         export RUSTC_BOOTSTRAP=1
-        extra_cargo_flags=(-Z "build-std=std,panic_abort")
+        extra_cargo_flags=(-Z "build-std=std,panic_abort" --jobs 4)
+        target_rustflags="$target_rustflags -C link-arg=-fuse-ld=lld"
     fi
 
     # Try to set build concurrency to something reasonable

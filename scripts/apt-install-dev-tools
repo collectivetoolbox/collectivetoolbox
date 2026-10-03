@@ -40,6 +40,7 @@ dev_packages=(
     lzip
     ncdu
     genisoimage
+    lld
     nodejs
     npm
     perl
@@ -64,6 +65,18 @@ else
     echo "Installing developer utilities..."
     apt-get update
     apt-get install -y --no-install-recommends "${base_packages[@]}" "${dev_packages[@]}"
+
+    # Set up MinGW ld.lld symlinks so -fuse-ld=lld resolves properly
+    if command -v ld.lld >/dev/null 2>&1; then
+        mkdir -p /usr/x86_64-w64-mingw32/bin
+        ln -sf "$(command -v ld.lld)" /usr/bin/x86_64-w64-mingw32-ld.lld
+        ln -sf "$(command -v ld.lld)" /usr/x86_64-w64-mingw32/bin/ld.lld
+        for gcc_dir in /usr/lib/gcc/x86_64-w64-mingw32/*; do
+            if [[ -d "$gcc_dir" ]]; then
+                ln -sf "$(command -v ld.lld)" "$gcc_dir/ld.lld"
+            fi
+        done
+    fi
 fi
 
 apt-get clean

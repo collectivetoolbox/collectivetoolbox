@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# Helper script to run and interact with the sandboxed Windows 7 VM in QEMU.
+# Helper script to manage, snapshot, and run tests/commands in the Windows 7 VM in QEMU.
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
@@ -29,14 +29,25 @@ SOCKET_DIR="/tmp/ctb-win7-vm"
 MONITOR_SOCK="$SOCKET_DIR/monitor.sock"
 VNC_SOCK="$SOCKET_DIR/vnc.sock"
 PID_FILE="$SOCKET_DIR/qemu.pid"
+SERIAL_LOG="$SOCKET_DIR/serial.log"
+EXCHANGE_DIR="/tmp/ctb-win7-exchange"
+EXCHANGE_ISO="/tmp/ctb-exchange.iso"
 
 mkdir -p "$SOCKET_DIR"
+
+remove_if_exists() {
+    for path in "$@"; do
+        if [[ -e "$path" || -L "$path" || -S "$path" ]]; then
+            rm -r "$path"
+        fi
+    done
+}
 
 usage() {
     cat <<EOF
 Usage: ./scripts/win-vm <command> [options]
 
-Commands:
+VM Lifecycle:
   start          Start the Windows 7 VM in the background (QEMU)
                  Options:
                    --persist      Write changes directly to the qcow2 image
@@ -46,17 +57,34 @@ Commands:
                                   localhost:2222 -> guest:22 for SSH)
                    --vnc-port P   Also listen on TCP port P for VNC (e.g. 5901)
                    --image PATH   Use a custom qcow2 image (default: ci-logs/VMs/Windows/win7.qcow2)
+                   --iso PATH     Attach a custom CD-ROM ISO (default: /tmp/ctb-exchange.iso)
                    --mem MB       Memory in MB (default: 2048)
                    --smp CORES    CPU cores (default: 2)
 
   stop           Stop the running VM (graceful ACPI shutdown, or --force)
   status         Check if the VM is running and display resource usage
-  screenshot     Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
-  send-keys      Send QEMU monitor keys (e.g. "ret", "down", "ctrl-alt-delete")
-  monitor <cmd>  Execute an arbitrary command on the QEMU monitor
+
+Snapshot Management:
+  snapshot list             List snapshots present in the qcow2 disk image
+  snapshot create <name>    Create a snapshot (live if running, offline if stopped)
+  snapshot revert <name>    Revert disk image to a snapshot (stops VM if running)
+  snapshot delete <name>    Delete a snapshot from the qcow2 disk image
+
+Execution & Testing:
+  sync-binaries             Package Windows binaries + combase.dll into exchange ISO and hot-swap
+  run <command...>          Execute a command in the VM and stream output to terminal
+  test [--reset]            Run the Windows test suite in the VM
+
+Interactive / Inspection:
+  screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
+  send-keys <key>...        Send QEMU monitor keys (e.g. "ret", "down", "ctrl-alt-delete", "meta_l-r")
+  type <text>               Type arbitrary text into the VM via simulated key events
+  monitor <cmd>             Execute an arbitrary command on the QEMU monitor
 
 Examples:
   ./scripts/win-vm start
+  ./scripts/win-vm test
+  ./scripts/win-vm run ctoolbox.exe --version
   ./scripts/win-vm screenshot
   ./scripts/win-vm stop
 EOF
@@ -83,6 +111,7 @@ cmd_start() {
     local net_flags=()
     local vnc_args=("-vnc" "unix:$VNC_SOCK")
     local image="$DEFAULT_IMAGE"
+    local iso="$EXCHANGE_ISO"
     local mem="2048"
     local smp="2"
 
@@ -106,6 +135,10 @@ cmd_start() {
             --image)
                 shift
                 image="$1"
+                ;;
+            --iso)
+                shift
+                iso="$1"
                 ;;
             --mem)
                 shift
@@ -132,10 +165,17 @@ cmd_start() {
         return 1
     fi
 
-    rm -f "$MONITOR_SOCK" "$VNC_SOCK" "$PID_FILE"
+    if [[ ! -f "$iso" ]]; then
+        mkdir -p /tmp/ctb-empty-iso
+        genisoimage -J -r -o "$iso" /tmp/ctb-empty-iso >/dev/null 2>&1 || true
+        remove_if_exists /tmp/ctb-empty-iso
+    fi
+
+    remove_if_exists "$MONITOR_SOCK" "$VNC_SOCK" "$PID_FILE"
 
     echo "Starting Windows 7 VM..."
     echo "  Image:    $image"
+    echo "  ISO:      $iso"
     echo "  Memory:   ${mem}MB | SMP: $smp"
     echo "  Snapshot: $(if [[ -n "$snapshot_flag" ]]; then echo "Enabled (read-only mode)"; else echo "Disabled (writes persist)"; fi)"
     echo "  Network:  $(if [[ ${#net_flags[@]} -gt 0 ]]; then echo "Isolated loopback port-forward (restrict=on)"; else echo "Air-gapped (no NIC)"; fi)"
@@ -150,6 +190,9 @@ cmd_start() {
         -device ahci,id=ahci0
         -drive "file=$image,if=none,id=drive0,format=qcow2"
         -device ide-hd,bus=ahci0.0,drive=drive0
+        -drive "file=$iso,if=none,id=cdrom0,media=cdrom,readonly=on"
+        -device ide-cd,bus=ahci0.1,drive=cdrom0
+        -serial "file:$SERIAL_LOG"
         -vga std
         -usb -device usb-tablet
         "${vnc_args[@]}"
@@ -180,7 +223,7 @@ cmd_start() {
 cmd_stop() {
     if ! is_running; then
         echo "VM is not running."
-        rm -f "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+        remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
         return 0
     fi
 
@@ -210,7 +253,7 @@ cmd_stop() {
         fi
     fi
 
-    rm -f "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
+    remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
     echo "VM stopped."
 }
 
@@ -257,7 +300,7 @@ cmd_screenshot() {
 
     if [[ -f "$tmp_ppm" ]]; then
         ffmpeg -y -i "$tmp_ppm" "$out_path" 2>/dev/null || convert "$tmp_ppm" "$out_path"
-        rm -f "$tmp_ppm"
+        remove_if_exists "$tmp_ppm"
         echo "Screenshot saved to $out_path"
     else
         echo "Error: Failed to capture screen dump." >&2
@@ -270,6 +313,294 @@ cmd_send_keys() {
         cmd_monitor "sendkey $key" >/dev/null
         sleep 0.2
     done
+}
+
+cmd_type() {
+    local text="$*"
+    if [[ ! -S "$MONITOR_SOCK" ]]; then
+        echo "Error: Monitor socket not found or VM not running." >&2
+        return 1
+    fi
+    python3 -c "
+import socket, sys, time
+
+monitor_sock = '$MONITOR_SOCK'
+text = sys.argv[1]
+
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect(monitor_sock)
+s.recv(1024)
+
+def send(key):
+    s.sendall(f'sendkey {key}\n'.encode())
+    time.sleep(0.04)
+
+key_map = {
+    ':': 'shift-semicolon',
+    ';': 'semicolon',
+    '\\\\': 'backslash',
+    '/': 'slash',
+    '.': 'dot',
+    ',': 'comma',
+    '-': 'minus',
+    '_': 'shift-minus',
+    '=': 'equal',
+    '+': 'shift-equal',
+    ' ': 'spc',
+    '>': 'shift-dot',
+    '<': 'shift-comma',
+    '*': 'shift-8',
+    '\"': 'shift-apostrophe',
+    \"'\": 'apostrophe',
+    '|': 'shift-backslash',
+    '[': 'bracket_left',
+    ']': 'bracket_right',
+    '{': 'shift-bracket_left',
+    '}': 'shift-bracket_right',
+    '(': 'shift-9',
+    ')': 'shift-0',
+    '&': 'shift-7',
+    '%': 'shift-5',
+    '$': 'shift-4',
+    '#': 'shift-3',
+    '@': 'shift-2',
+    '!': 'shift-1',
+    '?': 'shift-slash',
+    '~': 'shift-grave_accent',
+    '\`': 'grave_accent',
+    '\n': 'ret',
+}
+
+for ch in text:
+    if ch in key_map:
+        send(key_map[ch])
+    elif ch.isupper():
+        send(f'shift-{ch.lower()}')
+    elif ch.isdigit() or ch.islower():
+        send(ch)
+    else:
+        send(ch)
+
+s.close()
+" "$text"
+}
+
+cmd_snapshot() {
+    local subcmd="${1:-list}"
+    shift || true
+
+    local image="$DEFAULT_IMAGE"
+
+    case "$subcmd" in
+        list)
+            qemu-img snapshot -l "$image"
+            ;;
+        create)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/win-vm snapshot create <name>" >&2
+                return 1
+            fi
+            if is_running; then
+                echo "VM is currently running. Creating live snapshot '$name'..."
+                cmd_monitor "savevm $name"
+            else
+                echo "Creating disk snapshot '$name' on $image..."
+                qemu-img snapshot -c "$name" "$image"
+            fi
+            echo "Snapshot '$name' created."
+            ;;
+        revert)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/win-vm snapshot revert <name>" >&2
+                return 1
+            fi
+            if is_running; then
+                echo "Stopping VM before reverting snapshot..."
+                cmd_stop
+            fi
+            echo "Reverting $image to snapshot '$name'..."
+            qemu-img snapshot -a "$name" "$image"
+            echo "Successfully reverted to snapshot '$name'."
+            ;;
+        delete)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                echo "Usage: ./scripts/win-vm snapshot delete <name>" >&2
+                return 1
+            fi
+            echo "Deleting snapshot '$name' from $image..."
+            qemu-img snapshot -d "$name" "$image"
+            echo "Snapshot '$name' deleted."
+            ;;
+        *)
+            echo "Unknown snapshot subcommand: $subcmd" >&2
+            echo "Supported: list, create, revert, delete" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_sync_binaries() {
+    mkdir -p "$EXCHANGE_DIR"
+
+    local ctb_bin="target/x86_64-win7-windows-gnu/release/ctoolbox.exe"
+    if [[ ! -f "$ctb_bin" ]]; then
+        ctb_bin="target/x86_64-win7-windows-gnu/debug/ctoolbox.exe"
+    fi
+    if [[ -f "$ctb_bin" ]]; then
+        cp "$ctb_bin" "$EXCHANGE_DIR/ctoolbox.exe"
+    fi
+
+    local installer_bin="target/x86_64-win7-windows-gnu/release/ctoolbox-installer.exe"
+    if [[ ! -f "$installer_bin" ]]; then
+        installer_bin="target/x86_64-win7-windows-gnu/debug/ctoolbox-installer.exe"
+    fi
+    if [[ -f "$installer_bin" ]]; then
+        cp "$installer_bin" "$EXCHANGE_DIR/ctoolbox-installer.exe"
+    fi
+
+    local combase_dll="ci-logs/VMs/Windows/combase-shim/combase.dll"
+    if [[ -f "$combase_dll" ]]; then
+        cp "$combase_dll" "$EXCHANGE_DIR/combase.dll"
+    elif [[ -f "ci-logs/VMs/Windows/combase-shim/combase.c" ]]; then
+        x86_64-w64-mingw32-gcc -shared -o "$EXCHANGE_DIR/combase.dll" \
+            ci-logs/VMs/Windows/combase-shim/combase.c \
+            ci-logs/VMs/Windows/combase-shim/combase.def
+    fi
+
+    genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+
+    if is_running; then
+        cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
+        sleep 1.5
+    fi
+    echo "Synchronized binaries to $EXCHANGE_ISO."
+}
+
+cmd_run() {
+    if ! is_running; then
+        echo "VM is not running. Starting VM..."
+        cmd_start
+        echo "Waiting for VM to reach desktop..."
+        sleep 25
+    fi
+
+    local user_cmd="$*"
+    if [[ -z "$user_cmd" ]]; then
+        echo "Usage: ./scripts/win-vm run <command...>" >&2
+        return 1
+    fi
+
+    mkdir -p "$EXCHANGE_DIR"
+    cat <<EOF > "$EXCHANGE_DIR/run.bat"
+@echo off
+if not exist "C:\Windows\System32\combase.dll" (
+    copy /y "%~dp0combase.dll" "C:\Windows\System32\\" > nul 2>&1
+)
+cd /d "%~dp0"
+echo ---CTB_START--- > COM1
+$user_cmd >> COM1 2>&1
+echo. >> COM1
+echo ---CTB_EXIT:%ERRORLEVEL%--- >> COM1
+EOF
+
+    cmd_sync_binaries
+
+    local start_offset=0
+    if [[ -f "$SERIAL_LOG" ]]; then
+        start_offset=$(stat -c%s "$SERIAL_LOG")
+    else
+        touch "$SERIAL_LOG"
+    fi
+
+    cmd_send_keys "meta_l-r"
+    sleep 1.2
+    cmd_type "cmd /c d:\\run.bat\n"
+
+    python3 -c "
+import sys, time
+
+log_path = '$SERIAL_LOG'
+start_offset = int(sys.argv[1])
+timeout = 180
+
+start_time = time.time()
+started = False
+exit_code = None
+
+with open(log_path, 'r', errors='replace') as f:
+    f.seek(start_offset)
+    while True:
+        line = f.readline()
+        if line:
+            clean_line = line.strip()
+            if '---CTB_START---' in clean_line:
+                started = True
+                continue
+            if '---CTB_EXIT:' in clean_line:
+                part = clean_line.split('---CTB_EXIT:')[1].split('---')[0]
+                try:
+                    exit_code = int(part)
+                except ValueError:
+                    exit_code = 1
+                break
+            if started:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+        else:
+            if time.time() - start_time > timeout:
+                sys.stderr.write('Timeout waiting for command to finish in VM.\n')
+                sys.exit(124)
+            time.sleep(0.2)
+
+sys.exit(exit_code if exit_code is not None else 1)
+" "$start_offset"
+}
+
+cmd_test() {
+    local reset="false"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --reset)
+                reset="true"
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+
+    if [[ "$reset" == "true" ]]; then
+        if is_running; then
+            cmd_stop
+        fi
+        cmd_snapshot revert "base-state"
+    fi
+
+    if ! is_running; then
+        cmd_start
+        echo "Waiting for VM to reach desktop..."
+        sleep 25
+    fi
+
+    echo "=== Running Windows Smoke Tests in VM ==="
+    echo "1. Testing ctoolbox-installer.exe --version..."
+    cmd_run "ctoolbox-installer.exe --version"
+    echo ""
+    echo "2. Testing ctoolbox-installer.exe --help..."
+    cmd_run "ctoolbox-installer.exe --help"
+    echo ""
+    if [[ -f "target/x86_64-win7-windows-gnu/release/ctoolbox.exe" || -f "target/x86_64-win7-windows-gnu/debug/ctoolbox.exe" ]]; then
+        echo "3. Testing ctoolbox.exe --version..."
+        cmd_run "ctoolbox.exe --version"
+        echo ""
+        echo "4. Testing ctoolbox.exe --help..."
+        cmd_run "ctoolbox.exe --help"
+        echo ""
+    fi
+    echo "=== Windows VM Tests Completed Successfully ==="
 }
 
 action="${1:-}"
@@ -291,8 +622,23 @@ case "$action" in
     send-keys)
         cmd_send_keys "$@"
         ;;
+    type)
+        cmd_type "$@"
+        ;;
     monitor)
         cmd_monitor "$@"
+        ;;
+    snapshot)
+        cmd_snapshot "$@"
+        ;;
+    sync-binaries)
+        cmd_sync_binaries
+        ;;
+    run)
+        cmd_run "$@"
+        ;;
+    test)
+        cmd_test "$@"
         ;;
     *)
         usage
