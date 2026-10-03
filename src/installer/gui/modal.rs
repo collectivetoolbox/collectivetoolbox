@@ -92,11 +92,9 @@ impl Modal {
             if !self.is_open {
                 self.just_opened = true;
             }
-            (*self.gui_state.modals_open.blocking_lock())
-                .push((self.id, self.modal_type.clone()));
+            self.gui_state.add_modal(self.id, self.modal_type.clone());
         } else {
-            (*self.gui_state.modals_open.blocking_lock())
-                .retain(|&(id, _)| id != self.id);
+            self.gui_state.remove_modal(self.id);
             self.just_opened = false;
         }
         self.is_open = open;

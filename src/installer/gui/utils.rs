@@ -26,11 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::install::ThemePreference;
 use egui::{Context, Id, Pos2, Vec2};
-use tokio::sync::Mutex;
 
 // Re-export access key functionality from the dedicated module
 pub use crate::gui::access_key::{
@@ -64,8 +63,78 @@ impl Default for GuiState {
 
 impl GuiState {
     pub fn has_open_modal(&self, modal_type: &str) -> bool {
-        let modals_open = self.modals_open.blocking_lock();
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        let modals_open = self
+            .modals_open
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         modals_open.iter().any(|(_, t)| t == modal_type)
+    }
+
+    pub fn add_modal(&self, id: Id, modal_type: String) {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        let mut modals_open = self
+            .modals_open
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        modals_open.push((id, modal_type));
+    }
+
+    pub fn remove_modal(&self, id: Id) {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        let mut modals_open = self
+            .modals_open
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        modals_open.retain(|&(modal_id, _)| modal_id != id);
+    }
+
+    pub fn theme_preference(&self) -> ThemePreference {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .theme_preference
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn set_theme_preference(&self, pref: ThemePreference) {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .theme_preference
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = pref;
+    }
+
+    pub fn system_theme_detection_attempted(&self) -> bool {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .system_theme_detection_attempted
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn set_system_theme_detection_attempted(&self, attempted: bool) {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .system_theme_detection_attempted
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = attempted;
+    }
+
+    pub fn system_theme(&self) -> Option<dark_light::Mode> {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .system_theme
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn set_system_theme(&self, theme: Option<dark_light::Mode>) {
+        // Reason for fallback: if a mutex was poisoned by a panic in a prior frame, recover the inner data rather than crashing the UI thread
+        *self
+            .system_theme
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = theme;
     }
 }
 

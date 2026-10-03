@@ -35,18 +35,18 @@ use egui::{Color32, Context, FontData, FontDefinitions, FontFamily, Visuals};
 
 /// Detects and caches the system theme, if it has not already been detected.
 pub(crate) fn detect_system_theme_if_needed(state: &mut GuiState) {
-    if *state.system_theme_detection_attempted.blocking_lock() {
+    if state.system_theme_detection_attempted() {
         return;
     }
 
-    *state.system_theme_detection_attempted.blocking_lock() = true;
-    *state.system_theme.blocking_lock() = dark_light::detect().ok();
+    state.set_system_theme_detection_attempted(true);
+    state.set_system_theme(dark_light::detect().ok());
 }
 
 /// Updates the egui visuals and accessibility styles based on the current
 /// theme preference and system theme.
 pub(crate) fn update_theme(gui_state: &mut GuiState, ctx: &Context) {
-    let theme_preference = *gui_state.theme_preference.blocking_lock();
+    let theme_preference = gui_state.theme_preference();
     if theme_preference == ThemePreference::Auto {
         detect_system_theme_if_needed(gui_state);
     }
@@ -55,7 +55,7 @@ pub(crate) fn update_theme(gui_state: &mut GuiState, ctx: &Context) {
         ThemePreference::Light => false,
         ThemePreference::Dark => true,
         ThemePreference::Auto => {
-            match *gui_state.system_theme.blocking_lock() {
+            match gui_state.system_theme() {
                 Some(dark_light::Mode::Dark) => true,
                 Some(dark_light::Mode::Light) => false,
                 Some(dark_light::Mode::Unspecified) | None => false,
@@ -252,4 +252,42 @@ pub(crate) fn get_fonts() -> FontDefinitions {
     monospace.push("Emoji-Icon".to_owned());
 
     fonts
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test("tokio")]
+    async fn test_theme_and_gui_state_in_tokio_runtime() {
+        let mut gui_state = GuiState::default();
+        let ctx = Context::default();
+
+        // Testing update_theme inside a tokio runtime (which previously panicked)
+        update_theme(&mut gui_state, &ctx);
+
+        gui_state.set_theme_preference(ThemePreference::Light);
+        assert_eq!(gui_state.theme_preference(), ThemePreference::Light);
+        update_theme(&mut gui_state, &ctx);
+
+        gui_state.set_theme_preference(ThemePreference::Dark);
+        assert_eq!(gui_state.theme_preference(), ThemePreference::Dark);
+        update_theme(&mut gui_state, &ctx);
+
+        // Test modal tracking methods
+        let modal_id = egui::Id::new("test_modal");
+        assert!(!gui_state.has_open_modal("test_type"));
+        gui_state.add_modal(modal_id, "test_type".to_string());
+        assert!(gui_state.has_open_modal("test_type"));
+        gui_state.remove_modal(modal_id);
+        assert!(!gui_state.has_open_modal("test_type"));
+    }
 }

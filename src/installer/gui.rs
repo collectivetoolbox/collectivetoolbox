@@ -421,7 +421,7 @@ impl InstallerApp {
 
     fn set_theme_preference(&mut self, theme_preference: ThemePreference) {
         self.theme_preference = theme_preference;
-        *self.gui_state.theme_preference.blocking_lock() = theme_preference;
+        self.gui_state.set_theme_preference(theme_preference);
         self.state.config.theme = theme_preference;
     }
 
