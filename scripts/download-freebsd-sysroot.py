@@ -215,12 +215,13 @@ def pager(text, ask=input, page_size=50):
 
 
 def extract_license_docblock(text):
-    text_len = len(text)
-    pos = 0
     blocks = []
-    while pos < text_len:
-        while pos < text_len and text[pos].isspace():
-            pos += 1
+    pos = 0
+    text_len = len(text)
+    while True:
+        m_ws = re.compile(r"\s+").match(text, pos)
+        if m_ws:
+            pos = m_ws.end()
         if pos >= text_len:
             break
         if text.startswith("/*", pos):
@@ -237,24 +238,18 @@ def extract_license_docblock(text):
             )):
                 blocks.append(c)
         elif text.startswith("//", pos):
-            end = text.find("\n", pos)
-            if end == -1:
-                end = text_len
-            line = text[pos + 2:end].strip()
-            pos = end
-            lines = [line] if line and not ("===--" in line) else []
+            lines = []
             while pos < text_len:
-                next_nl = text.find("\n", pos)
-                if next_nl == -1:
-                    next_nl = text_len
-                l = text[pos:next_nl].strip()
-                if l.startswith("//"):
-                    pos = next_nl
-                    sub = l[2:].strip()
-                    if not ("===--" in sub) and sub:
-                        lines.append(sub)
-                elif l == "":
-                    pos = next_nl
+                m_line = re.compile(r"[ \t]*//[^\r\n]*").match(text, pos)
+                if m_line:
+                    line = m_line.group(0).strip().lstrip("/- ").strip()
+                    if line and not ("===--" in line):
+                        lines.append(line)
+                    pos = m_line.end()
+                    if pos < text_len and text[pos] == "\r":
+                        pos += 1
+                    if pos < text_len and text[pos] == "\n":
+                        pos += 1
                 else:
                     break
             c = " ".join(lines)
@@ -264,24 +259,18 @@ def extract_license_docblock(text):
             )):
                 blocks.append(c)
         elif text.startswith("#", pos):
-            end = text.find("\n", pos)
-            if end == -1:
-                end = text_len
-            line = text[pos + 1:end].strip()
-            pos = end
-            lines = [line] if line else []
+            lines = []
             while pos < text_len:
-                next_nl = text.find("\n", pos)
-                if next_nl == -1:
-                    next_nl = text_len
-                l = text[pos:next_nl].strip()
-                if l.startswith("#"):
-                    pos = next_nl
-                    sub = l[1:].strip()
-                    if sub:
-                        lines.append(sub)
-                elif l == "":
-                    pos = next_nl
+                m_line = re.compile(r"[ \t]*#[^\r\n]*").match(text, pos)
+                if m_line:
+                    line = m_line.group(0).strip().lstrip("#").strip()
+                    if line:
+                        lines.append(line)
+                    pos = m_line.end()
+                    if pos < text_len and text[pos] == "\r":
+                        pos += 1
+                    if pos < text_len and text[pos] == "\n":
+                        pos += 1
                 else:
                     break
             c = " ".join(lines)

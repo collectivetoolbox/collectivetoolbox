@@ -390,6 +390,91 @@ class FreeBSDSysrootTests(unittest.TestCase):
                 for output in outputs:
                     self.assertEqual((output / self.entry["destination"]).read_bytes(), self.raw)
 
+    def test_numbered_license_selection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            entry = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
+            manifest = dict(self.manifest, files=[entry])
+            SYSROOT.save_manifest(path, manifest)
+            answers = iter(["a", "6", "Reviewer: numbered", "yes", ""])
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
+            approved = json.loads(path.read_text())["files"][0]
+            self.assertEqual(approved["decision"], "approved")
+            self.assertEqual(approved["licenses"], ["BSD-2-Clause"])
+
+            path2 = Path(temporary) / "review2.json"
+            entry2 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
+            SYSROOT.save_manifest(path2, dict(self.manifest, files=[entry2]))
+            answers2 = iter(["6, 7", "Reviewer: direct number", "yes", ""])
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw):
+                SYSROOT.review_manifest(path2, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers2))
+            approved2 = json.loads(path2.read_text())["files"][0]
+            self.assertEqual(approved2["decision"], "approved")
+            self.assertEqual(approved2["licenses"], ["BSD-2-Clause", "BSD-3-Clause"])
+
+    def test_pager_pagination_and_quit(self):
+        lines = [f"// Line {i}\n" for i in range(120)]
+        long_raw = ("/* SPDX-License-Identifier: BSD-2-Clause */\n/* Copyright Author */\n" + "".join(lines)).encode("utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            entry = SYSROOT.draft_entry("freebsd", self.entry["path"], long_raw, "source")
+            SYSROOT.save_manifest(path, dict(self.manifest, files=[entry]))
+            answers = iter(["v", "q", "6", "Reviewer: paged", "yes", ""])
+            with patch.object(SYSROOT, "read_blob", return_value=long_raw):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
+            approved = json.loads(path.read_text())["files"][0]
+            self.assertEqual(approved["decision"], "approved")
+
+    def test_docblock_inheritance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            raw_a = (
+                b"/* SPDX-License-Identifier: BSD-2-Clause */\n"
+                b"/* Copyright Shared Author; license terms. */\n"
+                b"int func_a(void);\n"
+            )
+            raw_b = (
+                b"/* SPDX-License-Identifier: BSD-2-Clause */\n"
+                b"/* Copyright Shared Author; license terms. */\n"
+                b"int func_b(void);\n"
+            )
+            entry_a = SYSROOT.draft_entry("freebsd", "include/a.h", raw_a, "source")
+            entry_b = SYSROOT.draft_entry("freebsd", "include/b.h", raw_b, "source")
+            manifest = dict(self.manifest, files=[entry_a, entry_b])
+            SYSROOT.save_manifest(path, manifest)
+
+            def mock_blob(repo, commit, p):
+                return raw_a if p == "include/a.h" else raw_b
+
+            answers = iter(["6", "Reviewer: docblock test", "yes", ""])
+            with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
+
+            data = json.loads(path.read_text())
+            file_a = next(f for f in data["files"] if f["path"] == "include/a.h")
+            file_b = next(f for f in data["files"] if f["path"] == "include/b.h")
+            self.assertEqual(file_a["decision"], "approved")
+            self.assertEqual(file_b["decision"], "approved")
+            self.assertEqual(file_b["licenses"], ["BSD-2-Clause"])
+            self.assertIn("inherited from include/a.h", file_b["review"])
+
+    def test_unneeded_candidates_pruned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            entry_needed = SYSROOT.draft_entry("freebsd", "include/test.h", self.raw, "source")
+            entry_unneeded = SYSROOT.draft_entry("freebsd", "lib/libc/gen/foo.c", b"int foo(void) {}\n", "source")
+            manifest = dict(self.manifest, files=[entry_needed, entry_unneeded])
+            SYSROOT.save_manifest(path, manifest)
+
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: "q")
+
+            data = json.loads(path.read_text())
+            paths = [f["path"] for f in data["files"]]
+            self.assertIn("include/test.h", paths)
+            self.assertNotIn("lib/libc/gen/foo.c", paths)
+
 
 if __name__ == "__main__":
     unittest.main()
