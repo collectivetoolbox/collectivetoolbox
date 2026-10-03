@@ -513,7 +513,7 @@ EOF
     cmd_send_keys "ctrl-a" "backspace"
     sleep 0.2
     cmd_type "cmd /c d:\\run.bat"
-    sleep 0.4
+    sleep 0.8
     cmd_send_keys "ret"
 
     python3 -c "

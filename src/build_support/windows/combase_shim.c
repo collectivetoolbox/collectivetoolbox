@@ -274,7 +274,15 @@ static HRESULT WINAPI resolve_RoGetActivationFactory(void *activatableClassId, c
 
 static HRESULT WINAPI fallback_RoInitialize(int initType) {
     (void)initType;
-    return CoInitializeEx(NULL, 0 /* COINIT_MULTITHREADED */);
+    HMODULE hMod = get_com_module();
+    if (hMod) {
+        typedef HRESULT (WINAPI *PFN_CoInitEx)(LPVOID, DWORD);
+        PFN_CoInitEx fn = (PFN_CoInitEx)(void *)GetProcAddress(hMod, "CoInitializeEx");
+        if (fn) {
+            return fn(NULL, 0 /* COINIT_MULTITHREADED */);
+        }
+    }
+    return S_OK;
 }
 
 static HRESULT WINAPI resolve_RoInitialize(int initType) {
@@ -291,7 +299,14 @@ static HRESULT WINAPI resolve_RoInitialize(int initType) {
 }
 
 static void WINAPI fallback_RoUninitialize(void) {
-    CoUninitialize();
+    HMODULE hMod = get_com_module();
+    if (hMod) {
+        typedef void (WINAPI *PFN_CoUninit)(void);
+        PFN_CoUninit fn = (PFN_CoUninit)(void *)GetProcAddress(hMod, "CoUninitialize");
+        if (fn) {
+            fn();
+        }
+    }
 }
 
 static void WINAPI resolve_RoUninitialize(void) {
