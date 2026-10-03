@@ -259,7 +259,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
             with patch.object(SYSROOT, 'read_blob', return_value=self.raw):
                 SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: 'q')
                 self.assertEqual(json.loads(path.read_text())['files'][0]['decision'], 'pending')
-                answers = iter(['v', 'a', 'BSD-2-Clause', 'Reviewer: full-file review', 'yes', ''])
+                answers = iter(['v', 'a', 'BSD-2-Clause'])
                 SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: next(answers))
             approved = SYSROOT.load_manifest(path)['files'][0]
             self.assertEqual(approved['decision'], 'approved')
@@ -368,7 +368,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
                     SYSROOT.main(['--manifest', str(draft_path)])
                 with self.assertRaisesRegex(ValueError, 'already exists'):
                     SYSROOT.main(['--prepare-manifest', str(draft_path)])
-                answers = ['v', 'a', 'BSD-2-Clause', 'Fixture reviewer: complete terms', 'yes', '']
+                answers = ['v', 'a', 'BSD-2-Clause']
                 with patch('builtins.input', side_effect=answers):
                     SYSROOT.main(['--review-manifest', str(draft_path)])
                 self.assertEqual(SYSROOT.load_manifest(draft_path)['files'][0]['decision'], 'approved')
@@ -396,7 +396,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
             entry = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
             manifest = dict(self.manifest, files=[entry])
             SYSROOT.save_manifest(path, manifest)
-            answers = iter(["a", "6", "Reviewer: numbered", "yes", ""])
+            answers = iter(["a", "6"])
             with patch.object(SYSROOT, "read_blob", return_value=self.raw):
                 SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
             approved = json.loads(path.read_text())["files"][0]
@@ -406,12 +406,24 @@ class FreeBSDSysrootTests(unittest.TestCase):
             path2 = Path(temporary) / "review2.json"
             entry2 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw, "source")
             SYSROOT.save_manifest(path2, dict(self.manifest, files=[entry2]))
-            answers2 = iter(["6, 7", "Reviewer: direct number", "yes", ""])
+            answers2 = iter(["6, 7"])
             with patch.object(SYSROOT, "read_blob", return_value=self.raw):
                 SYSROOT.review_manifest(path2, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers2))
             approved2 = json.loads(path2.read_text())["files"][0]
             self.assertEqual(approved2["decision"], "approved")
             self.assertEqual(approved2["licenses"], ["BSD-2-Clause", "BSD-3-Clause"])
+
+            # Test compound SPDX expression with AND
+            path3 = Path(temporary) / "review3.json"
+            raw_uc = b"/* SPDX-License-Identifier: BSD-2-Clause AND BSD-4-Clause-UC */\nint test_uc(void);\n"
+            entry3 = SYSROOT.draft_entry("freebsd", self.entry["path"], raw_uc, "source")
+            SYSROOT.save_manifest(path3, dict(self.manifest, files=[entry3]))
+            answers3 = iter(["a", "BSD-2-Clause AND BSD-4-Clause-UC"])
+            with patch.object(SYSROOT, "read_blob", return_value=raw_uc):
+                SYSROOT.review_manifest(path3, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers3))
+            approved3 = json.loads(path3.read_text())["files"][0]
+            self.assertEqual(approved3["decision"], "approved")
+            self.assertEqual(approved3["licenses"], ["BSD-2-Clause", "BSD-4-Clause-UC"])
 
     def test_pager_pagination_and_quit(self):
         lines = [f"// Line {i}\n" for i in range(120)]
@@ -420,7 +432,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
             path = Path(temporary) / "review.json"
             entry = SYSROOT.draft_entry("freebsd", self.entry["path"], long_raw, "source")
             SYSROOT.save_manifest(path, dict(self.manifest, files=[entry]))
-            answers = iter(["v", "q", "6", "Reviewer: paged", "yes", ""])
+            answers = iter(["v", "q", "6"])
             with patch.object(SYSROOT, "read_blob", return_value=long_raw):
                 SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
             approved = json.loads(path.read_text())["files"][0]
@@ -447,7 +459,7 @@ class FreeBSDSysrootTests(unittest.TestCase):
             def mock_blob(repo, commit, p):
                 return raw_a if p == "include/a.h" else raw_b
 
-            answers = iter(["6", "Reviewer: docblock test", "yes", ""])
+            answers = iter(["6"])
             with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
                 SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
 

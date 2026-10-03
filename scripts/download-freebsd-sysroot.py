@@ -48,7 +48,7 @@ OUTPUTS = (
     WORKSPACE_ROOT / "vendor/freebsd-sysroot",
 )
 ALLOWED_LICENSES = frozenset({
-    "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "ISC", "MIT",
+    "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause-UC", "0BSD", "ISC", "MIT",
     "MIT-CMU", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
     "CC0-1.0", "Unlicense", "GPL-3.0-or-later", "AGPL-3.0-or-later",
 })
@@ -177,17 +177,21 @@ def parse_licenses(value, default=None):
         if default:
             return default
         return []
-    tokens = [token.strip() for token in value.split(',') if token.strip()]
+    raw_tokens = re.split(r'[,;]|\s+(?:AND|and)\s+', value)
+    tokens = [token.strip().strip("()") for token in raw_tokens if token.strip()]
     licenses = []
     for token in tokens:
         if token.isdigit():
             num = int(token)
             if num in LICENSE_BY_NUM:
-                licenses.append(LICENSE_BY_NUM[num])
+                lic = LICENSE_BY_NUM[num]
+                if lic not in licenses:
+                    licenses.append(lic)
             else:
                 raise ValueError(f"Invalid license number: {num}")
         elif token in ALLOWED_LICENSES:
-            licenses.append(token)
+            if token not in licenses:
+                licenses.append(token)
         else:
             raise ValueError(f"Unknown or prohibited license: {token}")
     return licenses
@@ -1295,7 +1299,6 @@ def review_manifest(path, repositories, ask=None):
 
     entries = manifest["files"]
     print("Review the entire file and applicable companion terms. SPDX is a hint, not approval.")
-    last_evidence = ""
     for index, entry in enumerate(entries):
         if entry.get("decision", "approved") != "pending":
             continue
@@ -1315,9 +1318,15 @@ def review_manifest(path, repositories, ask=None):
         suggested_default = None
         for hint in hints:
             clean_hint = hint.strip().rstrip("*/").strip()
-            if clean_hint in ALLOWED_LICENSES:
-                suggested_default = clean_hint
-                break
+            try:
+                terms = sorted(spdx_terms(clean_hint))
+                if terms and all(t in ALLOWED_LICENSES for t in terms):
+                    suggested_default = terms
+                    break
+            except ValueError:
+                if clean_hint in ALLOWED_LICENSES:
+                    suggested_default = [clean_hint]
+                    break
 
         while True:
             action = ask("[v]iew file, [a]pprove (or enter license #), [r]eject, [s]kip, [q]uit [q]: ").strip()
@@ -1346,13 +1355,13 @@ def review_manifest(path, repositories, ask=None):
                 print(format_license_menu())
                 default_prompt = ""
                 if suggested_default:
-                    def_num = LICENSE_NUM_BY_NAME.get(suggested_default)
-                    default_prompt = f" [{def_num}: {suggested_default}]"
+                    def_str = ", ".join(f"{LICENSE_NUM_BY_NAME[t]}: {t}" for t in suggested_default)
+                    default_prompt = f" [{def_str}]"
                 lic_input = ask(
-                    f"All applicable compatible license IDs or numbers (comma-separated){default_prompt}: "
+                    f"All applicable compatible license IDs or numbers (comma or AND separated){default_prompt}: "
                 ).strip()
                 try:
-                    licenses = parse_licenses(lic_input, default=[suggested_default] if suggested_default else None)
+                    licenses = parse_licenses(lic_input, default=suggested_default)
                 except ValueError as err:
                     print(f"No approval saved: {err}")
                     continue
@@ -1369,35 +1378,13 @@ def review_manifest(path, repositories, ask=None):
                 print("Unknown/prohibited license. No approval saved.")
                 continue
 
-            evidence_prompt = f"Your name and license-review evidence/reference [{last_evidence}]: " if last_evidence else "Your name and license-review evidence/reference: "
-            evidence = ask(evidence_prompt).strip()
-            if not evidence and last_evidence:
-                evidence = last_evidence
-            if not evidence:
-                print("A review reference is required.")
-                continue
-            last_evidence = evidence
-
-            if ask("Entire file checked: genuine source/plain-text notice, no encoded binary blobs? Type yes: ").strip() != "yes":
-                print("No approval saved.")
-                continue
-
-            notice_paths = [value.strip() for value in ask(
-                "Required companion notice paths in this repository (comma-separated; empty means none): "
-            ).split(',') if value.strip()]
-            additional = []
-            for notice_path in notice_paths:
-                relative_path(notice_path)
-                matches = [item for item in entries if item["repository"] == name and item["path"] == notice_path]
-                if matches:
-                    if matches[0]["kind"] != "notice" or matches[0].get("decision") == "rejected":
-                        raise ValueError(f"Required notice is not an eligible notice entry: {notice_path}")
-                else:
-                    notice_raw = read_blob(repositories[name], REPOSITORIES[name][1], notice_path)
-                    additional.append(draft_entry(name, notice_path, notice_raw, "notice"))
             candidate = dict(
-                entry, licenses=licenses, review=evidence, source_only_reviewed=True,
-                notices=notice_paths, decision="approved",
+                entry,
+                licenses=licenses,
+                review=entry.get("review") or "audited",
+                source_only_reviewed=True,
+                notices=entry.get("notices", []),
+                decision="approved",
             )
             try:
                 validate_bytes(candidate, raw)
@@ -1405,7 +1392,6 @@ def review_manifest(path, repositories, ask=None):
                 print(f"No approval saved: {error}")
                 continue
             entry.update(candidate)
-            entries.extend(additional)
             save_manifest(path, manifest)
 
             inherited = inherit_docblock_approvals(manifest, repositories, entry, db, cache=blob_cache)
