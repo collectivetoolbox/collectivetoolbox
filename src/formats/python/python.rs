@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Python language.
+//! Python language support and embedded interpreter.
 
 #[expect(
     unused_imports,
@@ -26,10 +26,79 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use rustpython::{Interpreter, InterpreterBuilder, InterpreterBuilderExt};
+use rustpython_vm::VirtualMachine;
+use std::path::Path;
+
 static PYTHON_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_python_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&PYTHON_DATA_DIR, key)
+}
+
+/// Create a newly initialized Python interpreter with standard library modules.
+pub fn create_interpreter() -> Interpreter {
+    InterpreterBuilder::new().init_stdlib().build()
+}
+
+/// Helper to convert a Python exception into an anyhow::Error.
+fn py_err_to_anyhow(vm: &VirtualMachine, exc: rustpython_vm::PyBaseExceptionRef) -> anyhow::Error {
+    let mut buf = Vec::new();
+    let _ = vm.write_exception(&mut buf, &exc);
+    if buf.is_empty() {
+        anyhow::anyhow!("Python exception occurred")
+    } else {
+        anyhow::anyhow!("{}", String::from_utf8_lossy(&buf))
+    }
+}
+
+/// Run a snippet of Python code.
+pub fn run_python_code(code: &str) -> Result<()> {
+    let interp = create_interpreter();
+    interp.enter(|vm| {
+        vm.run_simple_string(code)
+            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+        Ok(())
+    })
+}
+
+/// Evaluate a Python expression and return its string representation.
+pub fn eval_python_expression(expr: &str) -> Result<String> {
+    let interp = create_interpreter();
+    interp.enter(|vm| {
+        let scope = vm.new_scope_with_builtins();
+        let result = vm
+            .run_block_expr(scope, expr)
+            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+        let repr = result
+            .str(vm)
+            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+        Ok(repr.as_str().to_owned())
+    })
+}
+
+/// Run a Python script file with arguments.
+pub fn run_python_script(script_path: &Path, args: &[&str]) -> Result<()> {
+    let script_str = script_path
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("Invalid script path"))?;
+
+    let interp = create_interpreter();
+    interp.enter(|vm| {
+        let scope = vm.new_scope_with_builtins();
+        let mut argv_list = vec![vm.ctx.new_str(script_str).into()];
+        for arg in args {
+            argv_list.push(vm.ctx.new_str(*arg).into());
+        }
+        let sys_argv = vm.ctx.new_list(argv_list);
+        vm.sys_module
+            .set_attr("argv", sys_argv, vm)
+            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+
+        vm.run_script(scope, script_str)
+            .map_err(|exc| py_err_to_anyhow(vm, exc))?;
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -44,9 +113,29 @@ pub(crate) fn get_python_data(key: &str) -> Option<Vec<u8>> {
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
-    use crate::utilities::{assert_vec_u8_eq, assert_vec_u8_ok_eq};
-    use ctb_formats_utilities::assert_string_ok_eq;
-
     use super::*;
 
+    #[crate::ctb_test]
+    fn test_eval_simple_expression() -> Result<()> {
+        let res = eval_python_expression("2 + 2")?;
+        assert_eq!(res, "4");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_run_python_code_with_imports() -> Result<()> {
+        let code = r#"
+import json
+data = json.loads('{"hello": "world"}')
+assert data["hello"] == "world"
+"#;
+        run_python_code(code)?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_python_data_dir() {
+        let data = get_python_data("nonexistent");
+        assert!(data.is_none());
+    }
 }

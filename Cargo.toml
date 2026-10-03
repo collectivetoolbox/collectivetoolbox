@@ -5,7 +5,14 @@ edition = "2024"
 license = "AGPL-3.0-or-later AND AGPL-3.0-only AND GPL-3.0-only AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND LGPL-3.0-only AND Unicode-3.0 AND PSF-2.0 AND 0BSD AND WTFPL AND X11 AND MPL-2.0 AND LGPL-2.1-or-later AND GPL-1.0-or-later AND BSD-2-Clause-Darwin"
 
 [workspace]
-exclude = ["assets/web/vendor/v86", "vendor/v86", "built/v86_build_tmp/v86", "built/v86_build_tmp/v86/src/rust"]
+exclude = [
+    "assets/web/vendor/v86",
+    "vendor/v86",
+    "built/v86_build_tmp/v86",
+    "built/v86_build_tmp/v86/src/rust",
+    "vendor/RustPython-f51f27c949a5675a5902e55e32139abbf852dfc5",
+    "vendor/upstream-for-reference/RustPython-f51f27c949a5675a5902e55e32139abbf852dfc5",
+]
 
 [package.metadata.winresource]
 # Not sure if there's any way to make this respect the branding switch. It may need its own patch.
@@ -131,6 +138,7 @@ ctb-formats-pan = { path = "src/formats/pan" }
 ctb-formats-perl = { path = "src/formats/perl" }
 ctb-formats-pdf = { path = "src/formats/pdf" }
 ctb-formats-pem = { path = "src/formats/pem" }
+ctb-formats-python = { path = "src/formats/python" }
 ctb-formats-rust = { path = "src/formats/rust" }
 ctb-formats-stagel = { path = "src/formats/stagel" }
 ctb-formats-string = { path = "src/formats/string" }

@@ -17,741 +17,244 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
+"""Copy individually reviewed upstream sources, without synthesizing ABI headers."""
+
+import argparse
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
-import sys
+import tempfile
+import unicodedata
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
-workspace_root = os.path.realpath(os.path.join(script_dir, ".."))
-os.chdir(workspace_root)
 
-# Pinned commits:
-# 1. FreeBSD 13.4-RELEASE (release/13.4.0) for system headers, CSU startfiles, and library sources.
-FREEBSD_REPO = "https://github.com/freebsd/freebsd-src.git"
-FREEBSD_COMMIT = "c876eaf40915f213dc07f74e730ee6a2a9de7ba1"
-
-# 2. LLVM Project (release/19.x) for clean, permissive POSIX definitions and types under Apache-2.0 w/ LLVM Exception.
-LLVM_REPO = "https://github.com/llvm/llvm-project.git"
-LLVM_COMMIT = "92ee37966563310901951b1b5a89bcbafbcea767"
-
-TARGET_SYSROOT_DIR = os.path.join(workspace_root, "vendor/upstream-for-reference/freebsd-sysroot")
-FINAL_SYSROOT_DIR = os.path.join(workspace_root, "vendor/freebsd-sysroot")
-TMP_DIR = os.path.join(workspace_root, "built/freebsd_sysroot_tmp")
-
-for req_cmd in ["git", "python3", "clang", "lld", "ar"]:
-    if not shutil.which(req_cmd):
-        sys.exit(f"error: {req_cmd} is required to build the FreeBSD sysroot")
-
-print("0. Cleaning existing sysroot directories...")
-for d in [TARGET_SYSROOT_DIR, FINAL_SYSROOT_DIR, TMP_DIR]:
-    if os.path.isdir(d):
-        for root, dirs, files in os.walk(d):
-            for entry in dirs + files:
-                try:
-                    os.chmod(os.path.join(root, entry), 0o777)
-                except OSError:
-                    pass
-        shutil.rmtree(d, ignore_errors=True)
-
-os.makedirs(TMP_DIR, exist_ok=True)
-os.makedirs(os.path.join(TARGET_SYSROOT_DIR, "usr/include"), exist_ok=True)
-os.makedirs(os.path.join(TARGET_SYSROOT_DIR, "usr/lib"), exist_ok=True)
-
-print("1. Downloading upstream source files (FreeBSD and LLVM permissive sources)...")
-subprocess.run(["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse", FREEBSD_REPO, os.path.join(TMP_DIR, "freebsd")], check=True)
-freebsd_dir = os.path.join(TMP_DIR, "freebsd")
-subprocess.run(["git", "fetch", "--depth", "1", "origin", FREEBSD_COMMIT], cwd=freebsd_dir, check=True)
-subprocess.run(["git", "checkout", FREEBSD_COMMIT], cwd=freebsd_dir, check=True)
-subprocess.run([
-    "git", "sparse-checkout", "set",
-    "include",
-    "sys/sys",
-    "sys/amd64/include",
-    "sys/x86/include",
-    "sys/arm64/include",
-    "sys/net",
-    "sys/netinet",
-    "sys/netinet6",
-    "sys/vm",
-    "sys/ufs/ufs",
-    "sys/fs/devfs",
-    "sys/fs/fdescfs",
-    "sys/fs/nullfs",
-    "sys/fs/procfs",
-    "contrib/libc-vis",
-    "sys/kern",
-    "lib/csu",
-    "lib/libc",
-    "lib/libthr",
-    "lib/msun",
-    "lib/libprocstat",
-    "lib/libutil",
-    "lib/libkvm",
-    "lib/libmemstat",
-    "lib/libdevstat",
-    "lib/libgeom",
-    "contrib/libexecinfo",
-], cwd=freebsd_dir, check=True)
-
-subprocess.run(["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse", LLVM_REPO, os.path.join(TMP_DIR, "llvm")], check=True)
-llvm_dir = os.path.join(TMP_DIR, "llvm")
-subprocess.run(["git", "fetch", "--depth", "1", "origin", LLVM_COMMIT], cwd=llvm_dir, check=True)
-subprocess.run(["git", "checkout", LLVM_COMMIT], cwd=llvm_dir, check=True)
-subprocess.run(["git", "sparse-checkout", "set", "libc/include", "clang/lib/Headers"], cwd=llvm_dir, check=True)
-
-print("2. Auditing and filtering downloaded sources BEFORE generation (deleting incompatible/missing licenses)...")
-import os, re
-
-ALLOWED_EXACT_SPDX = {
-    'BSD-2-Clause',
-    'BSD-3-Clause',
-    'BSD-1-Clause',
-    'Apache-2.0 WITH LLVM-exception',
-    '0BSD',
-    'ISC',
-    'MIT',
-    'BSD-3-Clause AND BSD-2-Clause',
-    'BSD-2-Clause AND BSD-3-Clause',
-    'BSD-3-Clause AND MIT-CMU',
-    '(BSD-3-Clause AND MIT-CMU)',
-    '(ISC AND BSD-3-Clause)',
-    '(BSD-3-Clause AND ISC)',
-    '(BSD-2-Clause AND ISC)',
+WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORIES = {
+    "freebsd": (
+        "https://github.com/freebsd/freebsd-src.git",
+        "c876eaf40915f213dc07f74e730ee6a2a9de7ba1",
+    ),
+    "llvm": (
+        "https://github.com/llvm/llvm-project.git",
+        "92ee37966563310901951b1b5a89bcbafbcea767",
+    ),
 }
+OUTPUTS = (
+    WORKSPACE_ROOT / "vendor/upstream-for-reference/freebsd-sysroot",
+    WORKSPACE_ROOT / "vendor/freebsd-sysroot",
+)
+ALLOWED_LICENSES = frozenset({
+    "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "ISC", "MIT",
+    "MIT-CMU", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
+    "CC0-1.0", "Unlicense", "GPL-3.0-only", "GPL-3.0-or-later",
+    "AGPL-3.0-only", "AGPL-3.0-or-later",
+})
+SOURCE_SUFFIXES = frozenset({".h", ".c", ".S", ".s", ".inc", ".def", ".yaml"})
+BINARY_SIGNATURES = (
+    b"\x7fELF", b"!<arch>\n", b"!<thin>\n", b"MZ", b"\x89PNG", b"GIF87a",
+    b"GIF89a", b"%PDF-", b"PK\x03\x04", b"\x1f\x8b", b"\xfd7zXZ",
+    b"\xfe\xed\xfa\xce", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf",
+    b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe",
+)
 
-def is_permissive_bsd_license(content):
-    return (
-        'Redistribution and use in source and binary forms' in content
-        and 'All advertising materials' not in content
-        and 'GPL' not in content
-        and 'CDDL' not in content
-        and 'Beerware' not in content
-        and 'RSA' not in content
-        and '4. Neither the name' not in content
-    )
 
-for repo_root in [os.path.join(TMP_DIR, 'freebsd'), os.path.join(TMP_DIR, 'llvm')]:
-    total = 0
-    kept = 0
-    deleted = 0
-    for root, dirs, files in os.walk(repo_root, topdown=False):
-        if '/.git' in root or root.endswith('/.git'):
-            continue
-        for f in files:
-            p = os.path.join(root, f)
-            total += 1
-            with open(p, 'rb') as fp:
-                raw = fp.read()
-            content = raw.decode('latin1', errors='replace')
-            if (
-                'All advertising materials' in content
-                or 'BSD-4-Clause' in content
-                or 'Beerware' in content
-                or 'RSA-MD' in content
-                or 'CDDL' in content
-                or 'GPL' in content
-            ):
-                os.remove(p)
-                deleted += 1
-                continue
+def relative_path(value):
+    if not isinstance(value, str) or not value:
+        raise ValueError("Expected a nonempty relative POSIX path")
+    path = PurePosixPath(value)
+    if path.is_absolute() or any(part in {".", ".."} for part in value.split("/")):
+        raise ValueError(f"Unsafe path: {value!r}")
+    if str(path) != value or "\\" in value or any(ord(char) < 32 for char in value):
+        raise ValueError(f"Noncanonical path: {value!r}")
+    return path
 
-            m = re.search(r'SPDX-License-Identifier:\s*([^\r\n*\/]+)', content)
-            if m:
-                spdx = m.group(1).strip()
-                spdx = re.sub(r'[\*\/]+$', '', spdx).strip()
-                spdx_norm = spdx.strip('()').strip()
-                if (
-                    '4-Clause' in spdx
-                    or ' OR ' in spdx
-                    or (spdx not in ALLOWED_EXACT_SPDX and spdx_norm not in ALLOWED_EXACT_SPDX)
-                ):
-                    os.remove(p)
-                    deleted += 1
-                else:
-                    kept += 1
-            elif is_permissive_bsd_license(content):
-                kept += 1
-            else:
-                os.remove(p)
-                deleted += 1
-        if os.path.isdir(root) and not os.listdir(root):
-            os.rmdir(root)
-    print(f'Audited {repo_root}: kept {kept}, deleted {deleted} of {total} candidate files')
 
-print(f"3. Copying audited FreeBSD headers into {TARGET_SYSROOT_DIR}/usr/include...")
-import os, shutil
+def unique_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON key: {key}")
+        result[key] = value
+    return result
 
-src = os.path.join(TMP_DIR, 'freebsd')
-dst = os.path.join(TARGET_SYSROOT_DIR, 'usr/include')
 
-mappings = [
-    ('include', ''),
-    ('include/arpa', 'arpa'),
-    ('include/protocols', 'protocols'),
-    ('include/rpc', 'rpc'),
-    ('include/rpcsvc', 'rpcsvc'),
-    ('include/ssp', 'ssp'),
-    ('include/xlocale', 'xlocale'),
-    ('sys/sys', 'sys'),
-    ('sys/amd64/include', 'machine'),
-    ('sys/x86/include', 'x86'),
-    ('sys/net', 'net'),
-    ('sys/netinet', 'netinet'),
-    ('sys/netinet6', 'netinet6'),
-    ('sys/vm', 'vm'),
-    ('sys/ufs/ufs', 'ufs/ufs'),
-    ('sys/fs/devfs', 'fs/devfs'),
-    ('sys/fs/fdescfs', 'fs/fdescfs'),
-    ('sys/fs/nullfs', 'fs/nullfs'),
-    ('sys/fs/procfs', 'fs/procfs'),
-    ('lib/libgeom', ''),
-]
-
-for src_sub, dst_sub in mappings:
-    src_dir = os.path.join(src, src_sub)
-    target_dir = os.path.join(dst, dst_sub) if dst_sub else dst
-    if not os.path.isdir(src_dir):
-        continue
-    os.makedirs(target_dir, exist_ok=True)
-    for entry in os.listdir(src_dir):
-        full_src = os.path.join(src_dir, entry)
-        if os.path.isfile(full_src) and entry.endswith('.h'):
-            with open(full_src, 'r', encoding='latin1') as fp:
-                txt = fp.read()
-            if 'SPDX-License-Identifier:' in txt or 'Redistribution and use in source and binary forms' in txt:
-                shutil.copy2(full_src, os.path.join(target_dir, entry))
-
-vis_src = os.path.join(src, 'contrib/libc-vis/vis.h')
-if os.path.isfile(vis_src):
-    with open(vis_src, 'r', encoding='latin1') as fp:
-        if 'SPDX-License-Identifier:' in fp.read():
-            shutil.copy2(vis_src, os.path.join(dst, 'vis.h'))
-
-print("4. Generating derived headers from audited sources through string/file manipulation...")
-import os, re, shutil
-
-freebsd_src = os.path.join(TMP_DIR, 'freebsd')
-llvm_src = os.path.join(TMP_DIR, 'llvm')
-dst = os.path.join(TARGET_SYSROOT_DIR, 'usr/include')
-
-os.makedirs(os.path.join(dst, 'x86'), exist_ok=True)
-os.makedirs(os.path.join(dst, 'machine'), exist_ok=True)
-os.makedirs(os.path.join(dst, 'sys'), exist_ok=True)
-os.makedirs(os.path.join(dst, 'xlocale'), exist_ok=True)
-
-def extract_license_block(file_path):
-    if not os.path.isfile(file_path):
-        return ''
-    with open(file_path, 'r', encoding='latin1', errors='replace') as fp:
-        txt = fp.read()
-    m = re.search(r'(/\*.*?\*/|//(?:[^\n]*\n)+)', txt, re.DOTALL)
-    if m:
-        return m.group(1).strip()
-    return ''
-
-def combine_licenses(*blocks):
-    seen = set()
-    res = []
-    for b in blocks:
-        b = b.strip()
-        if b and b not in seen:
-            seen.add(b)
-            res.append(b)
-    return '\n\n'.join(res)
-
-def extract_signatures_from_c(src_text):
-    sigs = []
-    pattern = re.compile(r'^(int|void|pthread_t|void\s*\*)\s*\n([_a-zA-Z][_a-zA-Z0-9]*)\s*\(', re.MULTILINE)
-    for m in pattern.finditer(src_text):
-        ret_type = m.group(1).strip()
-        fn_name = m.group(2).strip()
-        start = m.end() - 1
-        depth = 0
-        end = -1
-        for i in range(start, len(src_text)):
-            if src_text[i] == '(':
-                depth += 1
-            elif src_text[i] == ')':
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-        if end != -1:
-            params = src_text[start+1:end-1].strip()
-            params = ' '.join(params.split())
-            name = fn_name.lstrip('_')
-            sigs.append(f'{ret_type}\t{name}({params});')
-    return sigs
-
-def parse_yaml_functions(yaml_text):
-    funcs = []
-    blocks = yaml_text.split('  - name: ')
-    for b in blocks[1:]:
-        lines = b.strip().split('\n')
-        name = lines[0].strip()
-        ret_m = re.search(r'return_type:\s*(.+)', b)
-        ret = ret_m.group(1).strip() if ret_m else 'int'
-        args = []
-        in_args = False
-        for l in lines:
-            if 'arguments:' in l:
-                in_args = True
-                continue
-            if in_args:
-                if l.strip().startswith('- type:'):
-                    arg_type = l.split('- type:')[1].strip().strip('\"\'')
-                    args.append(arg_type)
-                elif not l.startswith('      ') and not l.startswith('    -'):
-                    break
-        arg_str = ', '.join(args) if args else 'void'
-        funcs.append(f'{ret}\t{name}({arg_str});')
-    return funcs
-
-# A. Forwarding headers in machine/ -> x86/
-x86_dir = os.path.join(dst, 'x86')
-machine_dir = os.path.join(dst, 'machine')
-if os.path.isdir(x86_dir):
-    for fname in os.listdir(x86_dir):
-        if fname.endswith('.h'):
-            target_f = os.path.join(x86_dir, fname)
-            mpath = os.path.join(machine_dir, fname)
-            if not os.path.exists(mpath):
-                lic = extract_license_block(target_f)
-                with open(mpath, 'w') as fp:
-                    if lic:
-                        fp.write(lic + '\n\n')
-                    fp.write(f'#pragma once\n#include <x86/{fname}>\n')
-
-# B. Forwarding headers in usr/include for sys/ and machine/
-sys_dir = os.path.join(dst, 'sys')
-sys_links = [
-    'aio.h', 'errno.h', 'fcntl.h', 'linker_set.h', 'poll.h',
-    'stdatomic.h', 'stdint.h', 'syslog.h', 'ucontext.h', '_semaphore.h',
-    'param.h', 'signal.h',
-]
-for name in sys_links:
-    path = os.path.join(dst, name)
-    target = os.path.join(sys_dir, name)
-    if not os.path.exists(path) and os.path.isfile(target):
-        lic = extract_license_block(target)
-        with open(path, 'w') as fp:
-            if lic:
-                fp.write(lic + '\n\n')
-            fp.write(f'#pragma once\n#include <sys/{name}>\n')
-
-mach_links = ['float.h', 'floatingpoint.h', 'stdarg.h']
-for name in mach_links:
-    path = os.path.join(dst, name)
-    target = os.path.join(machine_dir, name)
-    if not os.path.exists(path) and os.path.isfile(target):
-        lic = extract_license_block(target)
-        with open(path, 'w') as fp:
-            if lic:
-                fp.write(lic + '\n\n')
-            fp.write(f'#pragma once\n#include <machine/{name}>\n')
-
-# C. osreldate.h: derived through line extraction from sys/sys/param.h
-param_h_path = os.path.join(freebsd_src, 'sys/sys/param.h')
-lic_param = extract_license_block(param_h_path)
-version_lines = []
-if os.path.isfile(param_h_path):
-    with open(param_h_path, 'r', encoding='latin1') as fp:
-        for line in fp:
-            if line.startswith('#define') and '__FreeBSD_version' in line:
-                version_lines.append(line.strip())
-
-with open(os.path.join(dst, 'osreldate.h'), 'w') as fp:
-    if lic_param:
-        fp.write(lic_param + '\n\n')
-    fp.write('#pragma once\n#include <sys/cdefs.h>\n\n')
-    for vl in version_lines:
-        fp.write(f'#ifndef __FreeBSD_version\n{vl}\n#endif\n')
-
-# D. sys/syscall.h and syscall.h: derived through line extraction from LLVM libc sys/syscall.h.def
-llvm_syscall = os.path.join(llvm_src, 'libc/include/sys/syscall.h.def')
-lic_syscalls = extract_license_block(llvm_syscall)
-syscall_lines = []
-if os.path.isfile(llvm_syscall):
-    with open(llvm_syscall, 'r', encoding='latin1') as fp:
-        for line in fp:
-            if line.startswith('#define SYS_'):
-                syscall_lines.append(line.strip())
-
-with open(os.path.join(dst, 'sys/syscall.h'), 'w') as fp:
-    if lic_syscalls:
-        fp.write(lic_syscalls + '\n\n')
-    fp.write('#pragma once\n\n')
-    for sline in syscall_lines:
-        fp.write(sline + '\n')
-
-with open(os.path.join(dst, 'syscall.h'), 'w') as fp:
-    if lic_syscalls:
-        fp.write(lic_syscalls + '\n\n')
-    fp.write('#pragma once\n#include <sys/syscall.h>\n')
-
-# E. Copy LLVM libc types and macros into sysroot for clean POSIX compliance
-for subdir in ['llvm-libc-macros', 'llvm-libc-types']:
-    sdir = os.path.join(llvm_src, 'libc/include', subdir)
-    ddir = os.path.join(dst, subdir)
-    if os.path.isdir(sdir):
-        os.makedirs(ddir, exist_ok=True)
-        for root, dirs, files in os.walk(sdir):
-            for f in files:
-                if f.endswith('.h'):
-                    sf = os.path.join(root, f)
-                    rel = os.path.relpath(sf, sdir)
-                    tf = os.path.join(ddir, rel)
-                    os.makedirs(os.path.dirname(tf), exist_ok=True)
-                    shutil.copy2(sf, tf)
-
-# F. sys/_pthreadtypes.h: derived through regex extraction from thr_private.h
-thr_private_f = os.path.join(freebsd_src, 'lib/libthr/thread/thr_private.h')
-lic_thr_priv = extract_license_block(thr_private_f)
-struct_names = []
-if os.path.isfile(thr_private_f):
-    with open(thr_private_f, 'r', encoding='latin1') as fp:
-        for line in fp:
-            m = re.match(r'^\s*struct\s+(pthread\w*)\s*[{;]', line)
-            if m:
-                sname = m.group(1)
-                if sname not in struct_names and sname != 'pthread_key':
-                    struct_names.append(sname)
-
-pthread_type_lines = []
-for sname in struct_names:
-    pthread_type_lines.append(f'struct {sname};')
-    tname = sname + '_t'
-    if sname == 'pthread':
-        tname = 'pthread_t'
-    elif sname == 'pthread_mutex_attr':
-        tname = 'pthread_mutexattr_t'
-    elif sname == 'pthread_cond_attr':
-        tname = 'pthread_condattr_t'
-    pthread_type_lines.append(f'typedef struct {sname} *{tname};')
-
-pthread_type_lines.append('typedef int pthread_key_t;')
-pthread_type_lines.append('struct pthread_once { int state; void *mutex; };')
-pthread_type_lines.append('typedef struct pthread_once pthread_once_t;')
-
-with open(os.path.join(dst, 'sys/_pthreadtypes.h'), 'w') as fp:
-    if lic_thr_priv:
-        fp.write(lic_thr_priv + '\n\n')
-    fp.write('#pragma once\n\n' + '\n'.join(pthread_type_lines) + '\n')
-
-# G. pthread.h: derived through string extraction from LLVM macros, types, and libthr thr_*.c
-llvm_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/pthread-macros.h')
-lic_llvm_macros = extract_license_block(llvm_macros)
-pthread_macros = []
-if os.path.isfile(llvm_macros):
-    with open(llvm_macros, 'r', encoding='latin1') as fp:
-        for line in fp:
-            if line.startswith('#define PTHREAD_'):
-                pthread_macros.append(line.strip())
-
-thr_create_f = os.path.join(freebsd_src, 'lib/libthr/thread/thr_create.c')
-lic_thr = extract_license_block(thr_create_f)
-
-thr_prototypes = set()
-yaml_pthread = os.path.join(llvm_src, 'libc/include/pthread.yaml')
-if os.path.isfile(yaml_pthread):
-    with open(yaml_pthread, 'r', encoding='latin1') as fp:
-        for fn in parse_yaml_functions(fp.read()):
-            if 'pthread_' in fn:
-                thr_prototypes.add(fn)
-
-thr_dir = os.path.join(freebsd_src, 'lib/libthr/thread')
-if os.path.isdir(thr_dir):
-    for f in sorted(os.listdir(thr_dir)):
-        if f.startswith('thr_') and f.endswith('.c'):
-            p = os.path.join(thr_dir, f)
-            with open(p, 'r', encoding='latin1') as fp:
-                for sig in extract_signatures_from_c(fp.read()):
-                    if '\tpthread_' in sig:
-                        thr_prototypes.add(sig)
-
-pthread_all_lic = combine_licenses(lic_llvm_macros, lic_thr)
-
-with open(os.path.join(dst, 'pthread.h'), 'w') as fp:
-    if pthread_all_lic:
-        fp.write(pthread_all_lic + '\n\n')
-    fp.write('#pragma once\n\n')
-    fp.write('#include <sys/cdefs.h>\n')
-    fp.write('#include <time.h>\n')
-    fp.write('#include <sched.h>\n')
-    fp.write('#include <sys/_pthreadtypes.h>\n\n')
-    for mline in pthread_macros:
-        fp.write(mline + '\n')
-    fp.write('\n__BEGIN_DECLS\n')
-    for proto in sorted(thr_prototypes):
-        fp.write(proto + '\n')
-    fp.write('__END_DECLS\n')
-
-# H. sched.h & sys/sched.h: derived through string extraction from LLVM sched macros and types
-llvm_sched = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/sched-macros.h')
-lic_llvm_sched = extract_license_block(llvm_sched)
-sched_macros = []
-if os.path.isfile(llvm_sched):
-    with open(llvm_sched, 'r', encoding='latin1') as fp:
-        for line in fp:
-            if line.startswith('#define SCHED_'):
-                sched_macros.append(line.strip())
-
-sched_param_f = os.path.join(llvm_src, 'libc/include/llvm-libc-types/struct_sched_param.h')
-lic_sched_param = extract_license_block(sched_param_f)
-sched_param_lines = []
-if os.path.isfile(sched_param_f):
-    with open(sched_param_f, 'r', encoding='latin1') as fp:
-        copy = False
-        for line in fp:
-            if 'struct sched_param {' in line:
-                copy = True
-            if copy:
-                sched_param_lines.append(line)
-                if line.strip().startswith('};'):
-                    break
-
-sched_functions = set()
-yaml_sched = os.path.join(llvm_src, 'libc/include/sched.yaml')
-if os.path.isfile(yaml_sched):
-    with open(yaml_sched, 'r', encoding='latin1') as fp:
-        for fn in parse_yaml_functions(fp.read()):
-            if 'sched_' in fn:
-                sched_functions.add(fn)
-
-sched_all_lic = combine_licenses(lic_llvm_sched, lic_sched_param)
-
-with open(os.path.join(dst, 'sys/sched.h'), 'w') as fp:
-    if sched_all_lic:
-        fp.write(sched_all_lic + '\n\n')
-    fp.write('#pragma once\n\n')
-    for sline in sched_macros:
-        fp.write(sline + '\n')
-    fp.write('\n' + ''.join(sched_param_lines) + '\n')
-    fp.write('#include <sys/cdefs.h>\n')
-    fp.write('#include <sys/_types.h>\n')
-    fp.write('#include <sys/_timespec.h>\n')
-    fp.write('\n__BEGIN_DECLS\n')
-    for sfn in sorted(sched_functions):
-        fp.write(sfn + '\n')
-    fp.write('__END_DECLS\n')
-
-with open(os.path.join(dst, 'sched.h'), 'w') as fp:
-    if sched_all_lic:
-        fp.write(sched_all_lic + '\n\n')
-    fp.write('#pragma once\n#include <sys/sched.h>\n')
-
-# I. x86/_types.h, machine/_types.h: derived through string/regex extraction from clang stdint.h
-stdint_h = os.path.join(llvm_src, 'clang/lib/Headers/stdint.h')
-sys_types_h = os.path.join(freebsd_src, 'sys/sys/types.h')
-
-lic_clang = extract_license_block(stdint_h)
-lic_sys_types = extract_license_block(sys_types_h)
-types_all_lic = combine_licenses(lic_clang, lic_sys_types)
-
-extracted_types = []
-if os.path.isfile(stdint_h):
-    with open(stdint_h, 'r', encoding='latin1') as fp:
-        for line in fp:
-            line = line.strip()
-            if line.startswith('typedef ') and line.endswith(';'):
-                m = re.match(r'typedef\s+(.+)\s+([u]?int[^;\s]*_t);', line)
-                if m:
-                    base_type = m.group(1).strip()
-                    tname = '__' + m.group(2).strip()
-                    if any(w in tname for w in ['8', '16', '32', '64', 'ptr', 'max']):
-                        if not any(w in tname for w in ['24', '40', '48', '56']):
-                            if '__int_least' in base_type or '__uint_least' in base_type:
-                                w_m = re.search(r'\d+', base_type)
-                                if w_m:
-                                    width = w_m.group(0)
-                                    sign = 'UINT' if 'uint' in base_type else 'INT'
-                                    base_type = f'__{sign}{width}_TYPE__'
-                            extracted_types.append(f'typedef {base_type}\t{tname};')
-
-extra_types = [
-    'typedef __INT32_TYPE__\t__clock_t;',
-    'typedef __INT64_TYPE__\t__critical_t;',
-    'typedef double\t__double_t;',
-    'typedef float\t__float_t;',
-    'typedef __INTPTR_TYPE__\t__intfptr_t;',
-    'typedef __UINTPTR_TYPE__\t__uintfptr_t;',
-    'typedef __PTRDIFF_TYPE__\t__ptrdiff_t;',
-    'typedef __INT64_TYPE__\t__register_t;',
-    'typedef __INT64_TYPE__\t__segsz_t;',
-    'typedef __SIZE_TYPE__\t__size_t;',
-    'typedef __INT64_TYPE__\t__ssize_t;',
-    'typedef __INT64_TYPE__\t__time_t;',
-    'typedef __UINT64_TYPE__\t__u_register_t;',
-    'typedef __UINT64_TYPE__\t__vm_offset_t;',
-    'typedef __UINT64_TYPE__\t__vm_paddr_t;',
-    'typedef __UINT64_TYPE__\t__vm_size_t;',
-    'typedef int\t___wchar_t;',
-    '#define __WCHAR_MIN 0',
-    '#define __WCHAR_MAX __INT_MAX',
-]
-extracted_types.extend(extra_types)
-
-with open(os.path.join(dst, 'x86/_types.h'), 'w') as fp:
-    if types_all_lic:
-        fp.write(types_all_lic + '\n\n')
-    fp.write('#pragma once\n#include <machine/_limits.h>\n\n' + '\n'.join(extracted_types) + '\n')
-
-with open(os.path.join(dst, 'machine/_types.h'), 'w') as fp:
-    if types_all_lic:
-        fp.write(types_all_lic + '\n\n')
-    fp.write('#pragma once\n#include <x86/_types.h>\n')
-
-# J. x86/_stdint.h, machine/_stdint.h: derived through forwarding to clean LLVM libc stdint-macros.h
-llvm_stdint_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/stdint-macros.h')
-lic_stdint = extract_license_block(llvm_stdint_macros)
-
-with open(os.path.join(dst, 'x86/_stdint.h'), 'w') as fp:
-    if lic_stdint:
-        fp.write(lic_stdint + '\n\n')
-    fp.write('#pragma once\n#include <machine/_limits.h>\n#include <llvm-libc-macros/stdint-macros.h>\n')
-
-with open(os.path.join(dst, 'machine/_stdint.h'), 'w') as fp:
-    if lic_stdint:
-        fp.write(lic_stdint + '\n\n')
-    fp.write('#pragma once\n#include <x86/_stdint.h>\n')
-
-# K. machine/_align.h, machine/param.h: derived through string substitution from sys/arm64 clean 2-clause BSD sources
-arm64_align = os.path.join(freebsd_src, 'sys/arm64/include/_align.h')
-arm64_param = os.path.join(freebsd_src, 'sys/arm64/include/param.h')
-
-if os.path.isfile(arm64_align):
-    with open(arm64_align, 'r', encoding='latin1') as fp:
-        align_content = fp.read()
-    lic_align = extract_license_block(arm64_align)
-    with open(os.path.join(dst, 'machine/_align.h'), 'w') as fp:
-        if lic_align:
-            fp.write(lic_align + '\n\n')
-        for line in align_content.split('\n'):
-            if line.startswith('#define') and ('_ALIGN' in line or '_ALIGNBYTES' in line):
-                fp.write(line + '\n')
-
-    with open(os.path.join(dst, 'x86/_align.h'), 'w') as fp:
-        if lic_align:
-            fp.write(lic_align + '\n\n')
-        fp.write('#pragma once\n#include <machine/_align.h>\n')
-
-if os.path.isfile(arm64_param):
-    with open(arm64_param, 'r', encoding='latin1') as fp:
-        param_content = fp.read()
-    lic_param = extract_license_block(arm64_param)
-    param_adapted = param_content.replace('arm64', 'amd64').replace('aarch64', 'amd64').replace('armv7', 'i386')
-    with open(os.path.join(dst, 'machine/param.h'), 'w') as fp:
-        if lic_param:
-            fp.write(lic_param + '\n\n')
-        fp.write(param_adapted)
-
-# L. xlocale/_strings.h: extract from FreeBSD include/xlocale/_strings.h
-xstrings_src = os.path.join(freebsd_src, 'include/xlocale/_strings.h')
-if os.path.isfile(xstrings_src):
-    lic_xstrings = extract_license_block(xstrings_src)
-    with open(xstrings_src, 'r', encoding='latin1') as fp:
-        xstrings_content = fp.read()
-    with open(os.path.join(dst, 'xlocale/_strings.h'), 'w') as fp:
-        if lic_xstrings:
-            fp.write(lic_xstrings + '\n\n')
-        body = re.sub(r'/\*.*?\*/', '', xstrings_content, flags=re.DOTALL).strip()
-        fp.write(body + '\n')
-
-print('Derived headers successfully generated from audited sources.')
-
-print("7. Auditing all output headers and verifying license provenance...")
-import os, re
-
-sysroot = TARGET_SYSROOT_DIR
-inc_dir = os.path.join(sysroot, 'usr/include')
-
-total = 0
-passed = 0
-failed = []
-
-def is_permissive_bsd_license(content):
-    return (
-        'Redistribution and use in source and binary forms' in content
-        and 'All advertising materials' not in content
-        and 'GPL' not in content
-        and 'CDDL' not in content
-        and 'Beerware' not in content
-        and 'RSA' not in content
-        and '4. Neither the name' not in content
-    )
-
-for root, dirs, files in os.walk(inc_dir):
-    for f in files:
-        if not f.endswith('.h'):
-            continue
-        total += 1
-        p = os.path.join(root, f)
-        with open(p, 'rb') as fp:
-            raw = fp.read()
-        content = raw.decode('latin1', errors='replace')
-        m = re.search(r'SPDX-License-Identifier:\s*([^\r\n*\/]+)', content)
-        if m:
-            spdx = m.group(1).strip()
-            if 'AGPL' in spdx or 'Collective Toolbox' in content:
-                failed.append((os.path.relpath(p, inc_dir), 'Found unwanted Collective Toolbox AGPL license'))
-                continue
-            if '4-Clause' in spdx or 'All advertising materials' in content or 'GPL' in spdx or 'CDDL' in spdx or 'Beerware' in spdx or 'RSA' in spdx:
-                failed.append((os.path.relpath(p, inc_dir), f'Incompatible license: {spdx}'))
-                continue
-            passed += 1
-        elif is_permissive_bsd_license(content):
-            if 'AGPL' in content or 'Collective Toolbox' in content:
-                failed.append((os.path.relpath(p, inc_dir), 'Found unwanted Collective Toolbox AGPL license'))
-                continue
-            passed += 1
+def load_manifest(path):
+    manifest = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique_keys)
+    if not isinstance(manifest, dict) or set(manifest) != {"version", "commits", "files"}:
+        raise ValueError("Manifest must contain exactly version, commits, and files")
+    if type(manifest["version"]) is not int or manifest["version"] != 1:
+        raise ValueError("Unsupported manifest version")
+    if manifest["commits"] != {name: commit for name, (_, commit) in REPOSITORIES.items()}:
+        raise ValueError("Manifest must match both pinned upstream commits")
+    entries = manifest["files"]
+    if not isinstance(entries, list) or not entries:
+        raise ValueError("No reviewed files: refusing to generate an empty sysroot")
+    destinations = set()
+    required_keys = {
+        "repository", "path", "destination", "sha256", "kind", "licenses",
+        "review", "source_only_reviewed", "notices",
+    }
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != required_keys:
+            raise ValueError(f"File entry must contain exactly {sorted(required_keys)}")
+        if not isinstance(entry["repository"], str) or entry["repository"] not in REPOSITORIES:
+            raise ValueError("Unknown upstream repository")
+        relative_path(entry["path"])
+        destination = relative_path(entry["destination"])
+        if destination in destinations:
+            raise ValueError(f"Duplicate destination: {destination}")
+        if any(other in destination.parents or destination in other.parents for other in destinations):
+            raise ValueError(f"Overlapping destinations: {destination}")
+        destinations.add(destination)
+        if not isinstance(entry["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
+            raise ValueError("Each file requires its reviewed SHA-256 digest")
+        licenses = entry["licenses"]
+        if not isinstance(licenses, list) or not licenses or any(
+            not isinstance(license_id, str) or license_id not in ALLOWED_LICENSES
+            for license_id in licenses
+        ):
+            raise ValueError(f"Unknown or incompatible reviewed license: {licenses!r}")
+        if not isinstance(entry["review"], str) or not entry["review"].strip():
+            raise ValueError("Each file requires an explicit license review reference")
+        if entry["source_only_reviewed"] is not True:
+            raise ValueError("Each file must be reviewed for embedded binary blobs")
+        if entry["kind"] == "source":
+            if destination.suffix not in SOURCE_SUFFIXES:
+                raise ValueError(f"Not a supported source filename: {destination}")
+            if not (destination.is_relative_to("usr/include") or destination.is_relative_to("src")):
+                raise ValueError("Source destinations must be under usr/include or src")
+            if destination.is_relative_to("usr/include") and destination.suffix != ".h":
+                raise ValueError("Only headers may be installed under usr/include")
+        elif entry["kind"] == "notice":
+            if not destination.is_relative_to("share/licenses"):
+                raise ValueError("License notices must be installed under share/licenses")
         else:
-            failed.append((os.path.relpath(p, inc_dir), 'Missing SPDX identifier or compatible license'))
+            raise ValueError("Only source and notice files are permitted")
+        if not isinstance(entry["notices"], list):
+            raise ValueError("notices must list all required companion notice files")
+        for notice in entry["notices"]:
+            relative_path(notice)
+    notices = {
+        (entry["repository"], entry["path"])
+        for entry in entries if entry["kind"] == "notice"
+    }
+    for entry in entries:
+        if any((entry["repository"], path) not in notices for path in entry["notices"]):
+            raise ValueError(f"Missing reviewed companion notice for {entry['path']}")
+    return manifest
 
-print(f'Sysroot audit: {passed} of {total} header files verified clean and license-compliant.')
-if failed:
-    for rel, err in failed:
-        print(f'  FAIL: {rel} ({err})')
-    raise SystemExit('Sysroot license audit failed!')
 
-provenance_checks = [
-    ('pthread.h', ['Apache-2.0 WITH LLVM-exception', 'BSD-2-Clause']),
-    ('sched.h', ['Apache-2.0 WITH LLVM-exception']),
-    ('osreldate.h', ['BSD-3-Clause']),
-    ('sys/syscall.h', ['Apache-2.0 WITH LLVM-exception']),
-    ('machine/_types.h', ['Apache-2.0 WITH LLVM-exception']),
-    ('machine/_stdint.h', ['Apache-2.0 WITH LLVM-exception']),
-    ('sys/_pthreadtypes.h', ['BSD-2-Clause']),
-    ('machine/_align.h', ['Redistribution and use in source and binary forms']),
-    ('machine/param.h', ['Redistribution and use in source and binary forms']),
-]
+def validate_bytes(entry, raw):
+    if hashlib.sha256(raw).hexdigest() != entry["sha256"]:
+        raise ValueError(f"Reviewed digest mismatch: {entry['path']}")
+    if raw.startswith(BINARY_SIGNATURES):
+        raise ValueError(f"Binary file: {entry['path']}")
+    text = raw.decode("utf-8", errors="strict")
+    if not text.strip() or any(
+        unicodedata.category(char) == "Cc" and char not in "\t\r\n\f"
+        for char in text
+    ):
+        raise ValueError(f"Empty or non-text file: {entry['path']}")
+    for expression in re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text):
+        expression = expression.strip()
+        if expression.endswith("*/"):
+            expression = expression[:-2].rstrip()
+        terms = expression.split(" AND ")
+        if any(term not in entry["licenses"] for term in terms):
+            raise ValueError(f"Unreviewed SPDX expression in {entry['path']}: {expression}")
 
-for rel_f, expected_snippets in provenance_checks:
-    p = os.path.join(inc_dir, rel_f)
-    if not os.path.isfile(p):
-        raise SystemExit(f'Provenance error: expected derived file {rel_f} missing')
-    with open(p, 'r', encoding='latin1') as fp:
-        txt = fp.read()
-    for snip in expected_snippets:
-        if snip not in txt:
-            raise SystemExit(f'Provenance error: {rel_f} missing expected source license snippet: {snip}')
 
-print('Provenance verification: All derived headers verified to preserve full source licensing headers.')
+def git(repository, *arguments):
+    return subprocess.run(
+        ["git", "--git-dir", str(repository), *arguments],
+        check=True, stdout=subprocess.PIPE,
+    ).stdout
 
-print(f"8. Mirroring complete generated sysroot to {FINAL_SYSROOT_DIR}...")
-if os.path.exists(FINAL_SYSROOT_DIR):
-    shutil.rmtree(FINAL_SYSROOT_DIR, ignore_errors=True)
-shutil.copytree(TARGET_SYSROOT_DIR, FINAL_SYSROOT_DIR, symlinks=True)
 
-print("9. Cleaning temporary download directory...")
-if os.path.isdir(TMP_DIR):
-    for root, dirs, files in os.walk(TMP_DIR):
-        for entry in dirs + files:
+def read_blob(repository, commit, path):
+    records = git(repository, "ls-tree", "-z", commit, "--", f":(literal){path}").split(b"\0")
+    records = [record for record in records if record]
+    if len(records) != 1:
+        raise ValueError(f"Expected one tracked file: {path}")
+    metadata, filename = records[0].split(b"\t", 1)
+    mode, kind, object_id = metadata.split()
+    if mode != b"100644" or kind != b"blob" or filename.decode("utf-8") != path:
+        raise ValueError(f"Not a regular, non-executable upstream source file: {path}")
+    return git(repository, "cat-file", "blob", object_id.decode("ascii"))
+
+
+def stage_sysroot(manifest, repositories, destination):
+    for entry in manifest["files"]:
+        commit = REPOSITORIES[entry["repository"]][1]
+        raw = read_blob(repositories[entry["repository"]], commit, entry["path"])
+        validate_bytes(entry, raw)
+        target = destination / entry["destination"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+    (destination / "reviewed-manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
+
+
+def publish(staged, outputs):
+    for output in outputs:
+        if output.is_symlink() or (output.exists() and not output.is_dir()):
+            raise ValueError(f"Refusing to replace a non-directory output: {output}")
+        if any(parent.is_symlink() for parent in output.parents):
+            raise ValueError(f"Refusing a symlinked output parent: {output}")
+    for output in outputs:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".freebsd-sysroot-", dir=output.parent) as temporary:
+            replacement = Path(temporary) / "sysroot"
+            shutil.copytree(staged, replacement)
+            backup = Path(temporary) / "previous"
+            if output.exists():
+                output.rename(backup)
             try:
-                os.chmod(os.path.join(root, entry), 0o777)
+                replacement.rename(output)
             except OSError:
-                pass
-    shutil.rmtree(TMP_DIR, ignore_errors=True)
+                if backup.exists():
+                    backup.rename(output)
+                raise
 
-print(f"FreeBSD sysroot successfully downloaded, audited, generated, and vendored at: {FINAL_SYSROOT_DIR}")
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--manifest", type=Path, required=True,
+        help="Hash-pinned, file-level license review (see docs/freebsd-sysroot.md)",
+    )
+    arguments = parser.parse_args(argv)
+    manifest = load_manifest(arguments.manifest)
+    if not shutil.which("git"):
+        raise ValueError("git is required to download reviewed upstream sources")
+    build_dir = WORKSPACE_ROOT / "built"
+    build_dir.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="freebsd-sysroot-", dir=build_dir) as temporary:
+        temporary = Path(temporary)
+        repositories = {}
+        for name, (url, commit) in REPOSITORIES.items():
+            repository = temporary / name
+            git(repository, "init", "--bare")
+            git(repository, "remote", "add", "origin", url)
+            git(repository, "config", "remote.origin.promisor", "true")
+            git(repository, "config", "remote.origin.partialclonefilter", "blob:none")
+            git(repository, "fetch", "--depth=1", "--filter=blob:none", "origin", commit)
+            resolved = git(repository, "rev-parse", "FETCH_HEAD").decode("ascii").strip()
+            if resolved != commit:
+                raise ValueError(f"Upstream commit mismatch: {name}")
+            repositories[name] = repository
+        staged = temporary / "sysroot"
+        staged.mkdir()
+        stage_sysroot(manifest, repositories, staged)
+        publish(staged, OUTPUTS)
+    print("Reviewed source files and notices copied verbatim; no binaries or derived headers generated.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+        raise SystemExit(f"error: {error}") from error

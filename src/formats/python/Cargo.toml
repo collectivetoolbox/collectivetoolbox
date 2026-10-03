@@ -1,15 +1,26 @@
 [package]
-name = "ctb-formats-x86"
+name = "ctb-formats-python"
 edition = "2024"
 
 [lib]
-path="x86.rs"
+path = "python.rs"
 crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 include_dir = { version = "0.7.4", features = ["glob"] }
+
+rustpython = { path = "../../../vendor/RustPython-f51f27c949a5675a5902e55e32139abbf852dfc5", default-features = false, features = [
+    "threading",
+    "stdlib",
+    "stdio",
+    "importlib",
+    "ssl-rustls",
+    "host_env",
+    "freeze-stdlib",
+] }
+rustpython-vm = { path = "../../../vendor/RustPython-f51f27c949a5675a5902e55e32139abbf852dfc5/crates/vm", default-features = false }
 
 [lints]
 workspace = true
