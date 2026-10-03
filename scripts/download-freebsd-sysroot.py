@@ -667,9 +667,61 @@ def validate_bytes(entry, raw):
         expression = expression.strip()
         if expression.endswith("*/"):
             expression = expression[:-2].rstrip()
-        terms = expression.split(" AND ")
+        terms = spdx_terms(expression)
         if any(term not in entry["licenses"] for term in terms):
             raise ValueError(f"Unreviewed SPDX expression in {entry['path']}: {expression}")
+
+
+def spdx_terms(expression):
+    token_pattern = re.compile(
+        '(?:' + '|'.join(re.escape(value) for value in sorted(ALLOWED_LICENSES, key=len, reverse=True))
+        + r'|AND)(?=\s|[()]|$)|[()]'
+    )
+    tokens = []
+    position = 0
+    while position < len(expression):
+        if expression[position].isspace():
+            position += 1
+            continue
+        match = token_pattern.match(expression, position)
+        if not match:
+            raise ValueError(f"Unsupported or prohibited SPDX expression: {expression}")
+        tokens.append(match.group())
+        position = match.end()
+    position = 0
+
+    def parse_group(depth):
+        nonlocal position
+        if depth > 32:
+            raise ValueError("SPDX expression nested too deeply")
+        terms = set()
+        need_term = True
+        while position < len(tokens):
+            token = tokens[position]
+            if token == ')':
+                break
+            if need_term:
+                if token == '(':
+                    position += 1
+                    terms.update(parse_group(depth + 1))
+                    if position >= len(tokens) or tokens[position] != ')':
+                        raise ValueError(f"Unbalanced SPDX expression: {expression}")
+                elif token in ALLOWED_LICENSES:
+                    terms.add(token)
+                else:
+                    raise ValueError(f"Malformed SPDX expression: {expression}")
+            elif token != 'AND':
+                raise ValueError(f"Malformed SPDX expression: {expression}")
+            need_term = not need_term
+            position += 1
+        if need_term:
+            raise ValueError(f"Incomplete SPDX expression: {expression}")
+        return terms
+
+    terms = parse_group(0)
+    if position != len(tokens):
+        raise ValueError(f"Unbalanced SPDX expression: {expression}")
+    return terms
 
 
 def validate_text(raw, path):

@@ -94,6 +94,22 @@ class FreeBSDSysrootTests(unittest.TestCase):
             with self.assertRaises((ValueError, UnicodeError)):
                 SYSROOT.validate_bytes(entry, raw)
 
+    def test_grouped_compatible_spdx_and_expressions(self):
+        self.assertEqual(
+            SYSROOT.spdx_terms('(BSD-3-Clause AND (BSD-2-Clause AND ISC))'),
+            {'BSD-3-Clause', 'BSD-2-Clause', 'ISC'},
+        )
+        self.assertEqual(SYSROOT.spdx_terms('Apache-2.0 WITH LLVM-exception'), {
+            'Apache-2.0 WITH LLVM-exception',
+        })
+        for expression in (
+            '(BSD-2-Clause', 'BSD-2-Clause)', '()', 'BSD-2-Clause AND',
+            '(BSD-2-Clause OR BSD-4-Clause)', 'BSD-2-Clause AND LicenseRef-Unknown',
+            'BSD-2-ClauseANDMIT', 'GPL-3.0-only', 'AGPL-3.0-only',
+        ):
+            with self.subTest(expression=expression), self.assertRaises(ValueError):
+                SYSROOT.spdx_terms(expression)
+
     def test_digest_mismatch_rejected(self):
         with self.assertRaises(ValueError):
             SYSROOT.validate_bytes(self.entry, self.raw + b"/* new terms */")
@@ -203,6 +219,70 @@ class FreeBSDSysrootTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Required generation input'):
                 SYSROOT.generate_reviewed_headers(manifest, destination)
 
+    def test_generated_header_includes_companion_notices(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+            raw = b'Companion copyright and complete terms. Literal */ and final backslash \\\n'
+            notice = dict(
+                self.entry, path='COPYING', destination='share/licenses/freebsd/COPYING',
+                kind='notice', sha256=hashlib.sha256(raw).hexdigest(),
+            )
+            target = destination / notice['destination']
+            target.parent.mkdir(parents=True)
+            target.write_bytes(raw)
+            manifest['files'].append(notice)
+            for entry in manifest['files']:
+                if entry['path'] == 'lib/libthr/thread/thr_join.c':
+                    entry['notices'] = ['COPYING']
+            SYSROOT.generate_reviewed_headers(manifest, destination)
+            text = (destination / 'usr/include/pthread.h').read_text()
+            self.assertIn('Companion copyright and complete terms. Literal */', text)
+            self.assertIn('// End provenance source', text)
+            self.assertEqual(target.read_bytes(), raw)
+
+    def test_review_can_quit_resume_view_and_approve(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'review.json'
+            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw, 'source')
+            manifest = dict(self.manifest, files=[entry])
+            SYSROOT.save_manifest(path, manifest)
+            with self.assertRaisesRegex(ValueError, 'Pending review'):
+                SYSROOT.load_manifest(path)
+            with patch.object(SYSROOT, 'read_blob', return_value=self.raw):
+                SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: 'q')
+                self.assertEqual(json.loads(path.read_text())['files'][0]['decision'], 'pending')
+                answers = iter(['v', 'a', 'BSD-2-Clause', 'Reviewer: full-file review', 'yes', ''])
+                SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: next(answers))
+            approved = SYSROOT.load_manifest(path)['files'][0]
+            self.assertEqual(approved['decision'], 'approved')
+            self.assertTrue(approved['source_only_reviewed'])
+
+    def test_review_does_not_approve_prohibited_license(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'review.json'
+            entry = SYSROOT.draft_entry('freebsd', self.entry['path'], self.raw, 'source')
+            SYSROOT.save_manifest(path, dict(self.manifest, files=[entry]))
+            for license_id in ('GPL-3.0-only', 'AGPL-3.0-only'):
+                answers = iter(['a', license_id, 'q'])
+                with patch.object(SYSROOT, 'read_blob', return_value=self.raw):
+                    SYSROOT.review_manifest(path, {'freebsd': Path('unused')}, ask=lambda prompt: next(answers))
+                self.assertEqual(json.loads(path.read_text())['files'][0]['decision'], 'pending')
+
+    def test_rejected_optional_file_is_not_selected(self):
+        manifest = copy.deepcopy(self.manifest)
+        rejected = dict(self.entry, path='include/rejected.h', decision='rejected', licenses=[])
+        manifest['files'].append(rejected)
+        self.assertEqual(self.load(manifest)['files'], [self.entry])
+
+    def test_draft_does_not_infer_license_approval(self):
+        draft = SYSROOT.draft_entry('freebsd', 'include/test.h', self.raw, 'source')
+        self.assertEqual(draft['decision'], 'pending')
+        self.assertEqual(draft['licenses'], [])
+        self.assertFalse(draft['source_only_reviewed'])
+        binary = SYSROOT.draft_entry('freebsd', 'include/blob.h', b'GIF89a' + self.raw, 'source')
+        self.assertEqual(binary['decision'], 'rejected')
+
     def test_missing_manifest_has_no_download_or_deletion(self):
         with patch.object(SYSROOT, "git") as git, patch.object(SYSROOT, "publish") as publish:
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
@@ -270,6 +350,21 @@ class FreeBSDSysrootTests(unittest.TestCase):
                 patch.object(SYSROOT, "OUTPUTS", outputs),
                 patch.object(SYSROOT, "generate_reviewed_headers") as generate,
             ):
+                draft_path = root / 'draft.json'
+                SYSROOT.main(['--prepare-manifest', str(draft_path)])
+                draft = json.loads(draft_path.read_text())
+                self.assertEqual(len(draft['files']), 1)
+                self.assertEqual(draft['files'][0]['decision'], 'pending')
+                self.assertEqual(draft['files'][0]['licenses'], [])
+                self.assertEqual(draft['files'][0]['sha256'], self.entry['sha256'])
+                with self.assertRaisesRegex(ValueError, 'Pending review'):
+                    SYSROOT.main(['--manifest', str(draft_path)])
+                with self.assertRaisesRegex(ValueError, 'already exists'):
+                    SYSROOT.main(['--prepare-manifest', str(draft_path)])
+                answers = ['v', 'a', 'BSD-2-Clause', 'Fixture reviewer: complete terms', 'yes', '']
+                with patch('builtins.input', side_effect=answers):
+                    SYSROOT.main(['--review-manifest', str(draft_path)])
+                self.assertEqual(SYSROOT.load_manifest(draft_path)['files'][0]['decision'], 'approved')
                 SYSROOT.main(["--manifest", str(path)])
                 generate.assert_called_once()
                 for output in outputs:
