@@ -430,6 +430,17 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertEqual(approved3["decision"], "approved")
             self.assertEqual(approved3["licenses"], ["BSD-2-Clause", "BSD-4-Clause-UC"])
 
+            # Test CMU-Mach input
+            path4 = Path(temporary) / "review4.json"
+            entry4 = SYSROOT.draft_entry("freebsd", self.entry["path"], self.raw_no_spdx, "source")
+            SYSROOT.save_manifest(path4, dict(self.manifest, files=[entry4]))
+            answers4 = iter(["a", "CMU-Mach"])
+            with patch.object(SYSROOT, "read_blob", return_value=self.raw_no_spdx):
+                SYSROOT.review_manifest(path4, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers4))
+            approved4 = json.loads(path4.read_text())["files"][0]
+            self.assertEqual(approved4["decision"], "approved")
+            self.assertEqual(approved4["licenses"], ["CMU-Mach"])
+
     def test_pager_pagination_and_quit(self):
         lines = [f"// Line {i}\n" for i in range(120)]
         long_raw = ("/* Copyright Author */\n" + "".join(lines)).encode("utf-8")
@@ -568,6 +579,45 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertEqual(gssapi["notices"], ["COPYRIGHT"])
             self.assertIn("Inherited tree notice from COPYRIGHT", gssapi["review"])
             SYSROOT.load_manifest(path)
+
+    def test_incompatible_spdx_entries_pruned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            raw_bad = b"/* SPDX-License-Identifier: BSD-4-Clause */\nint link(void);\n"
+            entry_bad = SYSROOT.draft_entry("freebsd", "include/link.h", raw_bad, "source")
+            manifest = dict(self.manifest, files=[self.entry, entry_bad])
+            SYSROOT.save_manifest(path, manifest)
+
+            def mock_blob(repo, commit, p):
+                return self.raw if p == self.entry["path"] else raw_bad
+
+            with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: self.fail("Prompted on bad SPDX!"))
+
+            data = json.loads(path.read_text())
+            paths = [f["path"] for f in data["files"]]
+            self.assertIn(self.entry["path"], paths)
+            self.assertNotIn("include/link.h", paths)
+
+    def test_instant_rejection_without_reason_prompt(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "review.json"
+            entry = SYSROOT.draft_entry("freebsd", "include/rej.h", self.raw_no_spdx, "source")
+            manifest = dict(self.manifest, files=[self.entry, entry])
+            SYSROOT.save_manifest(path, manifest)
+
+            answers = iter(["r"])
+
+            def mock_blob(repo, commit, p):
+                return self.raw if p == self.entry["path"] else self.raw_no_spdx
+
+            with patch.object(SYSROOT, "read_blob", side_effect=mock_blob):
+                SYSROOT.review_manifest(path, {"freebsd": Path("unused")}, ask=lambda prompt: next(answers))
+
+            data = json.loads(path.read_text())
+            rejected = next(f for f in data["files"] if f["path"] == "include/rej.h")
+            self.assertEqual(rejected["decision"], "rejected")
+            self.assertIn("incompatible", rejected["review"])
 
 
 if __name__ == "__main__":

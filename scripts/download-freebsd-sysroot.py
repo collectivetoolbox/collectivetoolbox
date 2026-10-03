@@ -49,8 +49,8 @@ OUTPUTS = (
 )
 ALLOWED_LICENSES = frozenset({
     "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause-UC", "0BSD", "ISC", "MIT",
-    "MIT-CMU", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
-    "CC0-1.0", "Unlicense", "GPL-3.0-or-later", "AGPL-3.0-or-later",
+    "MIT-CMU", "CMU-Mach", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
+    "CC0-1.0", "Unlicense", "GPL-3.0-or-later", "AGPL-3.0-or-later", "HPND-sell-variant", "LicenseRef-Cronyx-Vakulenko", "LicenseRef-MIT-ModernStyle-ANU", "LicenseRef-BSD-Boulet", "LicenseRef-MIT-CMU-Delaware", "NCSA"
 })
 SORTED_LICENSES = sorted(ALLOWED_LICENSES)
 LICENSE_BY_NUM = {i + 1: lic for i, lic in enumerate(SORTED_LICENSES)}
@@ -1241,6 +1241,8 @@ def prepare_manifest(path, repositories):
             git(repository, "fetch", "--quiet", "--no-write-fetch-head", "origin", *object_ids[offset:offset + 500])
         for filename, (object_id, kind) in sorted(selected.items()):
             raw = git(repository, "cat-file", "blob", object_id)
+            if has_incompatible_spdx(raw, filename):
+                continue
             entries.append(draft_entry(name, filename, raw, kind))
     manifest = {
         "version": 1,
@@ -1336,6 +1338,60 @@ def auto_approve_spdx_entries(manifest, repositories, cache=None):
     return auto_approved
 
 
+def has_incompatible_spdx(raw, path):
+    try:
+        text = validate_text(raw, path)
+    except Exception:
+        return False
+    hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
+    if not hints:
+        return False
+    for hint in hints:
+        clean = hint.strip().rstrip("*/").strip()
+        try:
+            terms = spdx_terms(clean)
+            if not all(t in ALLOWED_LICENSES for t in terms):
+                return True
+        except ValueError:
+            return True
+    return False
+
+
+def prune_incompatible_spdx_entries(manifest, repositories, cache=None):
+    if cache is None:
+        cache = {}
+    kept = []
+    pruned_count = 0
+    for entry in manifest["files"]:
+        if entry.get("decision") == "approved":
+            kept.append(entry)
+            continue
+        repo_name = entry.get("repository")
+        repo = repositories.get(repo_name)
+        if not repo:
+            kept.append(entry)
+            continue
+        path_str = entry["path"]
+        if path_str in cache:
+            raw, db = cache[path_str]
+        else:
+            raw = read_blob(repo, REPOSITORIES[repo_name][1], path_str)
+            try:
+                db = extract_license_docblock(validate_text(raw, path_str))
+            except Exception:
+                db = None
+            cache[path_str] = (raw, db)
+
+        if has_incompatible_spdx(raw, path_str):
+            pruned_count += 1
+            continue
+        kept.append(entry)
+
+    if pruned_count:
+        manifest["files"] = kept
+    return pruned_count
+
+
 def find_nearest_notice(manifest, entry):
     if entry.get("kind") == "notice":
         return None
@@ -1369,6 +1425,11 @@ def review_manifest(path, repositories, ask=None):
         save_manifest(path, manifest)
 
     blob_cache = {}
+    incompatible_pruned = prune_incompatible_spdx_entries(manifest, repositories, cache=blob_cache)
+    if incompatible_pruned:
+        print(f"Pruned {incompatible_pruned} file(s) with incompatible SPDX license identifiers.")
+        save_manifest(path, manifest)
+
     auto_approved = auto_approve_spdx_entries(manifest, repositories, cache=blob_cache)
     if auto_approved:
         print(f"Auto-approved {auto_approved} file(s) with compatible SPDX-License-Identifier.")
@@ -1462,13 +1523,10 @@ def review_manifest(path, repositories, ask=None):
             if action_lower == "s":
                 break
             if action_lower == "r":
-                reason = ask("Reason for rejection: ").strip()
-                if not reason:
-                    print("Rejection reason is required.")
-                    continue
                 entry["decision"] = "rejected"
-                entry["review"] = reason
+                entry["review"] = "incompatible license or prohibited content"
                 save_manifest(path, manifest)
+                print(f"Rejected {entry['path']}.")
                 break
 
             licenses = None
