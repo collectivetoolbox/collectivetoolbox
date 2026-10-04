@@ -46,6 +46,7 @@ Commands:
   js-lint                    Lint JavaScript and TypeScript sources
   ts-check                   Type-check TypeScript code
   js-test                    Run JavaScript tests
+  python                     Run the embedded Python interpreter or execute Python scripts
   validate-docker-image      Validate a docker save image tarball
   csc                        Checksummed copy with rsync-compatible path resolution and an extra verification step
   cp                         Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
@@ -1642,6 +1643,32 @@ Arguments:
 
 Options:
   -h, --help  Print help
+```
+
+### `ctoolbox python`
+
+```text
+Run the embedded Python interpreter or execute Python scripts
+
+Usage: ctoolbox python [OPTIONS] [SCRIPT] [ARGS]...
+
+Arguments:
+  [SCRIPT]   Python script file, or '-' to read from stdin
+  [ARGS]...  Arguments passed to the Python program in sys.argv[1:]
+
+Options:
+  -c <COMMAND>  Program passed in as string (terminates option list)
+  -m <MODULE>   Run library module as a script (terminates option list)
+  -B            Don't write .pyc files on import
+  -u            Force the stdout and stderr streams to be unbuffered
+  -i            Inspect interactively after running script
+  -I            Isolate Python from the user's environment
+  -E            Ignore PYTHON* environment variables
+  -q            Don't print version and copyright messages on interactive startup
+  -s            Don't add user site directory to sys.path
+  -S            Don't imply 'import site' on initialization
+  -v...         Verbose (trace import statements)
+  -h, --help    Print help
 ```
 
 ### `ctoolbox range_gen`

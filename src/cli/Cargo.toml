@@ -16,6 +16,7 @@ ctb-formats-javascript = { path = "../formats/javascript" }
 ctb-formats-pan = { path = "../formats/pan" }
 ctb-formats-stagel = { path = "../formats/stagel" }
 ctb-formats-pdf = { path = "../formats/pdf" }
+ctb-formats-python = { path = "../formats/python" }
 ctb-formats-warc = { path = "../formats/warc" }
 ctb-formats-wfscan = { path = "../formats/wfscan" }
 ctb-formats-checksum = { path = "../formats/checksum" }

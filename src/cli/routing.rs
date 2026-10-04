@@ -518,6 +518,13 @@ pub enum Command {
         #[command(flatten)]
         args: ctb_formats_javascript::js_test::JsTestArgs,
     },
+    /// Run the embedded Python interpreter or execute Python scripts.
+    #[command(
+        name = "python",
+        trailing_var_arg = true,
+        allow_hyphen_values = true
+    )]
+    Python(ctb_formats_python::cli::PythonArgs),
     /// Validate a docker save image tarball
     #[command(name = "validate-docker-image")]
     ValidateDockerImage {
@@ -1190,6 +1197,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             stderr: Vec::new(),
             exit_code: ctb_formats_javascript::js_test::run_test_args(args)?,
         }),
+        Command::Python(args) => ctb_formats_python::cli::run_python_cli(args),
         Command::ValidateDockerImage { file, strict } => {
             ctb_formats_docker::cli::run_validate_docker_image(
                 file.as_deref(),

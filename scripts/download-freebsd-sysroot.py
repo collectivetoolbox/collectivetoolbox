@@ -46,7 +46,6 @@ REPOSITORIES = {
     ),
 }
 OUTPUTS = (
-    WORKSPACE_ROOT / "vendor/upstream-for-reference/freebsd-sysroot",
     WORKSPACE_ROOT / "vendor/freebsd-sysroot",
 )
 ALLOWED_LICENSES = frozenset({
@@ -82,10 +81,29 @@ MAPPED_DIRECTORIES = frozenset({
 })
 SPECIAL_FREEBSD_SOURCES = frozenset({
     "contrib/libc-vis/vis.h",
+    "contrib/libexecinfo/backtrace.c",
+    "lib/csu/amd64/crt.h",
+    "lib/csu/amd64/crt1_c.c",
+    "lib/csu/amd64/crti.S",
+    "lib/csu/amd64/crtn.S",
+    "lib/csu/amd64/reloc.c",
+    "lib/csu/common/crtbegin.c",
+    "lib/csu/common/crtend.c",
+    "lib/csu/common/ignore_init.c",
+    "lib/libc/gen/getgrent.c",
+    "lib/libc/include/compat.h",
+    "lib/libc/include/libc_private.h",
+    "lib/libdevstat/devstat.c",
+    "lib/libgeom/geom_ctl.c",
+    "lib/libkvm/kvm.c",
+    "lib/libmemstat/memstat.c",
+    "lib/msun/amd64/fenv.c",
+    "lib/libprocstat/core.c",
+    "lib/libthr/thread/thr_create.c",
+    "lib/libthr/thread/thr_private.h",
+    "lib/libutil/auth.c",
     "sys/arm64/include/_align.h",
     "sys/arm64/include/param.h",
-    "lib/libthr/thread/thr_private.h",
-    "lib/libthr/thread/thr_create.c",
 })
 SPECIAL_LLVM_SOURCES = frozenset({
     "libc/include/sys/syscall.h.def",

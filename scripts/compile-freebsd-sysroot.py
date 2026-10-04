@@ -19,6 +19,7 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -29,12 +30,32 @@ os.chdir(workspace_root)
 TMP_DIR = os.environ.get(
     "TMP_DIR", os.path.join(workspace_root, "built/freebsd_sysroot_tmp")
 )
+source_sysroot = os.path.join(workspace_root, "vendor/freebsd-sysroot")
+
 TARGET_SYSROOT_DIR = os.environ.get(
     "TARGET_SYSROOT_DIR",
-    os.path.join(workspace_root, "vendor/upstream-for-reference/freebsd-sysroot"),
+    os.path.join(workspace_root, "built/freebsd-sysroot"),
 )
 
+if os.path.isdir(source_sysroot) and os.path.realpath(source_sysroot) != os.path.realpath(TARGET_SYSROOT_DIR):
+    print(f"Copying sysroot from {source_sysroot} to {TARGET_SYSROOT_DIR}...")
+    os.makedirs(TARGET_SYSROOT_DIR, exist_ok=True)
+    shutil.copytree(
+        source_sysroot,
+        TARGET_SYSROOT_DIR,
+        dirs_exist_ok=True,
+        symlinks=True,
+    )
+elif not os.path.isdir(TARGET_SYSROOT_DIR):
+    sys.exit(
+        f"error: source FreeBSD sysroot not found in vendor/ and target sysroot {TARGET_SYSROOT_DIR} does not exist"
+    )
+
 src = os.path.join(TMP_DIR, "freebsd")
+if not os.path.isdir(src):
+    alt_src = os.path.join(TARGET_SYSROOT_DIR, "src/freebsd")
+    if os.path.isdir(alt_src):
+        src = alt_src
 sysroot = TARGET_SYSROOT_DIR
 lib_dir = os.path.join(sysroot, "usr/lib")
 os.makedirs(lib_dir, exist_ok=True)

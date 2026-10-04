@@ -31,6 +31,9 @@ use rustpython::{Interpreter, InterpreterBuilder, InterpreterBuilderExt};
 use rustpython_vm::{VirtualMachine, builtins::PyBaseExceptionRef};
 use std::path::Path;
 
+pub mod cli;
+pub use cli::{PythonArgs, run_python_cli};
+
 static PYTHON_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_python_data(key: &str) -> Option<Vec<u8>> {
