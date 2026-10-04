@@ -1021,7 +1021,30 @@ def read_blob(repository, commit, path):
     return git(repository, "cat-file", "blob", object_id.decode("ascii"))
 
 
+def prefetch_manifest_blobs(manifest, repositories):
+    by_repo = {}
+    for entry in manifest.get("files", []):
+        by_repo.setdefault(entry["repository"], set()).add(entry["path"])
+    for name, paths in by_repo.items():
+        if name not in repositories:
+            continue
+        repo = repositories[name]
+        commit = REPOSITORIES[name][1]
+        object_ids = set()
+        for record in git(repo, "ls-tree", "-r", "-z", commit).split(b"\0"):
+            if not record:
+                continue
+            metadata, filename = record.split(b"\t", 1)
+            mode, kind, object_id = metadata.split()
+            if mode == b"100644" and kind == b"blob" and filename.decode("utf-8") in paths:
+                object_ids.add(object_id.decode("ascii"))
+        sorted_ids = sorted(object_ids)
+        for offset in range(0, len(sorted_ids), 500):
+            git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *sorted_ids[offset:offset + 500])
+
+
 def stage_sysroot(manifest, repositories, destination):
+    prefetch_manifest_blobs(manifest, repositories)
     for entry in manifest["files"]:
         commit = REPOSITORIES[entry["repository"]][1]
         raw = read_blob(repositories[entry["repository"]], commit, entry["path"])
@@ -1424,6 +1447,7 @@ def review_manifest(path, repositories, ask=None):
         print(f"Pruned {pruned_count} files not included/used in the sysroot.")
         save_manifest(path, manifest)
 
+    prefetch_manifest_blobs(manifest, repositories)
     blob_cache = {}
     incompatible_pruned = prune_incompatible_spdx_entries(manifest, repositories, cache=blob_cache)
     if incompatible_pruned:
@@ -1625,16 +1649,15 @@ def main(argv=None):
         raise ValueError("git is required to download reviewed upstream sources")
     build_dir = WORKSPACE_ROOT / "built"
     build_dir.mkdir(exist_ok=True)
-    if arguments.prepare_manifest or arguments.review_manifest:
-        repositories = download_repositories(build_dir / "freebsd-sysroot-review")
-        if arguments.prepare_manifest:
-            prepare_manifest(arguments.prepare_manifest, repositories)
-        else:
-            review_manifest(arguments.review_manifest, repositories)
+    repositories = download_repositories(build_dir / "freebsd-sysroot-review")
+    if arguments.prepare_manifest:
+        prepare_manifest(arguments.prepare_manifest, repositories)
+        return
+    if arguments.review_manifest:
+        review_manifest(arguments.review_manifest, repositories)
         return
     with tempfile.TemporaryDirectory(prefix="freebsd-sysroot-", dir=build_dir) as temporary:
         temporary = Path(temporary)
-        repositories = download_repositories(temporary / "repositories")
         staged = temporary / "sysroot"
         staged.mkdir()
         stage_sysroot(manifest, repositories, staged)
