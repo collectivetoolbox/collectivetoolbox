@@ -46,6 +46,7 @@ REPOSITORIES = {
     ),
 }
 OUTPUTS = (
+    WORKSPACE_ROOT / "vendor/upstream-for-reference/freebsd-sysroot",
     WORKSPACE_ROOT / "vendor/freebsd-sysroot",
 )
 ALLOWED_LICENSES = frozenset({
