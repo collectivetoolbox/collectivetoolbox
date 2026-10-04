@@ -47,6 +47,28 @@ OUTPUTS = (
     WORKSPACE_ROOT / "vendor/upstream-for-reference/freebsd-sysroot",
     WORKSPACE_ROOT / "vendor/freebsd-sysroot",
 )
+# License notice prepended to generated headers, attributing this script as
+# their generator. Mirrors this file's own license header.
+TOOL_NOTICE = """\
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This file is part of Collective Toolbox, a database and document workspace and utilities.
+// Copyright (C) 2026 Collective Toolbox Developers
+// Contact: info@collectivetoolbox.com
+//
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option) any
+// later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+// A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License along
+// with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""
 ALLOWED_LICENSES = frozenset({
     "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause-UC", "0BSD", "ISC", "MIT",
     "MIT-CMU", "CMU-Mach", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
@@ -331,7 +353,30 @@ def inherit_docblock_approvals(manifest, repositories, approved_entry, approved_
 
 
 
-def generate_headers(source_root, destination, notices):
+class GenerationSources:
+    """Tracks which reviewed inputs contribute to each generated header.
+
+    Every staged source whose license block is fetched while output headers
+    are being written is recorded, so the final verification pass can require
+    that each generated header embeds provenance for all of its contributors.
+    """
+
+    def __init__(self, lookup):
+        self._lookup = lookup
+        self.reads = {}
+        self._outputs = ()
+
+    def writing(self, *outputs):
+        self._outputs = outputs
+
+    def license_block(self, file_path):
+        keys, block = self._lookup(Path(file_path))
+        for output in self._outputs:
+            self.reads.setdefault(output, set()).update(keys)
+        return block
+
+
+def generate_headers(source_root, destination, sources):
     TMP_DIR = str(source_root)
     TARGET_SYSROOT_DIR = str(destination)
     print(f"3. Copying audited FreeBSD headers into {TARGET_SYSROOT_DIR}/usr/include...")
@@ -391,7 +436,7 @@ def generate_headers(source_root, destination, notices):
     os.makedirs(os.path.join(dst, 'xlocale'), exist_ok=True)
 
     def extract_license_block(file_path):
-        return notices(Path(file_path))
+        return sources.license_block(file_path)
 
     def combine_licenses(*blocks):
         seen = set()
@@ -460,6 +505,7 @@ def generate_headers(source_root, destination, notices):
                 target_f = os.path.join(x86_dir, fname)
                 mpath = os.path.join(machine_dir, fname)
                 if not os.path.exists(mpath):
+                    sources.writing(f'machine/{fname}')
                     lic = extract_license_block(target_f)
                     with open(mpath, 'w', encoding='utf-8') as fp:
                         if lic:
@@ -477,6 +523,7 @@ def generate_headers(source_root, destination, notices):
         path = os.path.join(dst, name)
         target = os.path.join(sys_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
+            sources.writing(name)
             lic = extract_license_block(target)
             with open(path, 'w', encoding='utf-8') as fp:
                 if lic:
@@ -488,6 +535,7 @@ def generate_headers(source_root, destination, notices):
         path = os.path.join(dst, name)
         target = os.path.join(machine_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
+            sources.writing(name)
             lic = extract_license_block(target)
             with open(path, 'w', encoding='utf-8') as fp:
                 if lic:
@@ -496,6 +544,7 @@ def generate_headers(source_root, destination, notices):
 
     # C. osreldate.h: derived through line extraction from sys/sys/param.h
     param_h_path = os.path.join(freebsd_src, 'sys/sys/param.h')
+    sources.writing('osreldate.h')
     lic_param = extract_license_block(param_h_path)
     version_lines = []
     if os.path.isfile(param_h_path):
@@ -513,6 +562,7 @@ def generate_headers(source_root, destination, notices):
 
     # D. sys/syscall.h and syscall.h: derived through line extraction from LLVM libc sys/syscall.h.def
     llvm_syscall = os.path.join(llvm_src, 'libc/include/sys/syscall.h.def')
+    sources.writing('sys/syscall.h', 'syscall.h')
     lic_syscalls = extract_license_block(llvm_syscall)
     syscall_lines = []
     if os.path.isfile(llvm_syscall):
@@ -550,6 +600,7 @@ def generate_headers(source_root, destination, notices):
 
     # F. sys/_pthreadtypes.h: derived through regex extraction from thr_private.h
     thr_private_f = os.path.join(freebsd_src, 'lib/libthr/thread/thr_private.h')
+    sources.writing('sys/_pthreadtypes.h')
     lic_thr_priv = extract_license_block(thr_private_f)
     struct_names = []
     if os.path.isfile(thr_private_f):
@@ -584,6 +635,7 @@ def generate_headers(source_root, destination, notices):
 
     # G. pthread.h: derived through string extraction from LLVM macros, types, and libthr thr_*.c
     llvm_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/pthread-macros.h')
+    sources.writing('pthread.h')
     lic_llvm_macros = extract_license_block(llvm_macros)
     pthread_macros = []
     if os.path.isfile(llvm_macros):
@@ -612,10 +664,21 @@ def generate_headers(source_root, destination, notices):
                 p = os.path.join(thr_dir, f)
                 contributes = False
                 with open(p, 'r', encoding='utf-8') as fp:
-                    for sig in extract_signatures_from_c(fp.read()):
-                        if '\tpthread_' in sig:
-                            thr_prototypes.add(sig)
-                            contributes = True
+                    thr_text = fp.read()
+                extracted_names = set()
+                for sig in extract_signatures_from_c(thr_text):
+                    if '\tpthread_' in sig:
+                        thr_prototypes.add(sig)
+                        contributes = True
+                        extracted_names.add(sig.split('\t', 1)[1].split('(', 1)[0])
+                # Surface pthread definitions the signature extractor does not
+                # handle, so upstream changes cannot silently shrink pthread.h.
+                for match in re.finditer(
+                    r'^[A-Za-z_][\w\s\*]*\n(_?pthread\w*)\s*\(', thr_text, re.MULTILINE
+                ):
+                    skipped_name = match.group(1).lstrip('_')
+                    if skipped_name not in extracted_names:
+                        print(f'  note: skipped pthread definition {skipped_name} in {f} (unhandled signature shape)')
                 if contributes:
                     pthread_licenses.append(extract_license_block(p))
 
@@ -638,6 +701,7 @@ def generate_headers(source_root, destination, notices):
 
     # H. sched.h & sys/sched.h: derived through string extraction from LLVM sched macros and types
     llvm_sched = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/sched-macros.h')
+    sources.writing('sys/sched.h', 'sched.h')
     lic_llvm_sched = extract_license_block(llvm_sched)
     sched_macros = []
     if os.path.isfile(llvm_sched):
@@ -696,6 +760,7 @@ def generate_headers(source_root, destination, notices):
     stdint_h = os.path.join(llvm_src, 'clang/lib/Headers/stdint.h')
     sys_types_h = os.path.join(freebsd_src, 'sys/sys/types.h')
 
+    sources.writing('x86/_types.h', 'machine/_types.h')
     lic_clang = extract_license_block(stdint_h)
     lic_sys_types = extract_license_block(sys_types_h)
     types_all_lic = combine_licenses(lic_clang, lic_sys_types)
@@ -755,6 +820,7 @@ def generate_headers(source_root, destination, notices):
 
     # J. x86/_stdint.h, machine/_stdint.h: derived through forwarding to clean LLVM libc stdint-macros.h
     llvm_stdint_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/stdint-macros.h')
+    sources.writing('x86/_stdint.h', 'machine/_stdint.h')
     lic_stdint = extract_license_block(llvm_stdint_macros)
 
     with open(os.path.join(dst, 'x86/_stdint.h'), 'w', encoding='utf-8') as fp:
@@ -774,6 +840,7 @@ def generate_headers(source_root, destination, notices):
     if os.path.isfile(arm64_align):
         with open(arm64_align, 'r', encoding='utf-8') as fp:
             align_content = fp.read()
+        sources.writing('machine/_align.h', 'x86/_align.h')
         lic_align = extract_license_block(arm64_align)
         with open(os.path.join(dst, 'machine/_align.h'), 'w', encoding='utf-8') as fp:
             if lic_align:
@@ -790,6 +857,7 @@ def generate_headers(source_root, destination, notices):
     if os.path.isfile(arm64_param):
         with open(arm64_param, 'r', encoding='utf-8') as fp:
             param_content = fp.read()
+        sources.writing('machine/param.h')
         lic_param = extract_license_block(arm64_param)
         parts = re.split(
             r"(\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//[^\r\n]*)",
@@ -808,6 +876,7 @@ def generate_headers(source_root, destination, notices):
     # L. xlocale/_strings.h: extract from FreeBSD include/xlocale/_strings.h
     xstrings_src = os.path.join(freebsd_src, 'include/xlocale/_strings.h')
     if os.path.isfile(xstrings_src):
+        sources.writing('xlocale/_strings.h')
         lic_xstrings = extract_license_block(xstrings_src)
         with open(xstrings_src, 'r', encoding='utf-8') as fp:
             xstrings_content = fp.read()
@@ -1090,7 +1159,7 @@ def generate_reviewed_headers(manifest, destination):
     for key in entries:
         blocks[key] = archive(key)
 
-    def notices(path):
+    def lookup(path):
         if not path.is_file():
             raise ValueError(f"Required generation input missing or not approved: {path}")
         raw = path.read_bytes()
@@ -1098,23 +1167,31 @@ def generate_reviewed_headers(manifest, destination):
         keys = by_hash.get(digest)
         if not keys:
             raise ValueError(f"Unreviewed generation input: {path}")
-        return '\n'.join(blocks[key] for key in keys)
+        return keys, '\n'.join(blocks[key] for key in keys)
 
     source_root = destination / "src"
     for repository, path in (
         ("llvm", "libc/include/pthread.yaml"),
         ("llvm", "libc/include/sched.yaml"),
+        ("llvm", "libc/include/sys/syscall.h.def"),
+        ("llvm", "libc/include/llvm-libc-macros/pthread-macros.h"),
+        ("llvm", "libc/include/llvm-libc-macros/sched-macros.h"),
+        ("llvm", "libc/include/llvm-libc-macros/stdint-macros.h"),
+        ("llvm", "libc/include/llvm-libc-types/struct_sched_param.h"),
+        ("llvm", "clang/lib/Headers/stdint.h"),
+        ("freebsd", "sys/sys/param.h"),
+        ("freebsd", "sys/sys/types.h"),
         ("freebsd", "sys/arm64/include/_align.h"),
         ("freebsd", "sys/arm64/include/param.h"),
         ("freebsd", "include/xlocale/_strings.h"),
+        ("freebsd", "lib/libthr/thread/thr_private.h"),
+        ("freebsd", "lib/libthr/thread/thr_create.c"),
     ):
         if (repository, path) not in entries:
             raise ValueError(f"Required generation input missing or not approved: {repository}/{path}")
-    generate_headers(source_root, destination, notices)
+    sources = GenerationSources(lookup)
+    generate_headers(source_root, destination, sources)
     provenance = {}
-    tool_notice = '\n'.join(
-        '// ' + line for line in Path(__file__).read_text(encoding="utf-8").splitlines()[1:18]
-    ) + '\n\n'
     for path in sorted((destination / "usr/include").rglob("*")):
         if not path.is_file():
             continue
@@ -1131,7 +1208,14 @@ def generate_reviewed_headers(manifest, destination):
                     keys.append(key)
             if not keys:
                 raise ValueError(f"Generated header has no reviewed contributors: {path}")
-            path.write_bytes(tool_notice.encode("utf-8") + raw)
+            generated_name = str(path.relative_to(destination / "usr/include"))
+            recorded = sources.reads.get(generated_name)
+            if recorded is None:
+                raise ValueError(f"Generated header has no tracked generation inputs: {path}")
+            missing = [key for key in recorded if key not in keys]
+            if missing:
+                raise ValueError(f"Missing contributor provenance in {path}: {missing}")
+            path.write_bytes(TOOL_NOTICE.encode("utf-8") + raw)
         provenance[str(path.relative_to(destination))] = [
             {"repository": key[0], "path": key[1], "sha256": entries[key]["sha256"]}
             for key in keys
