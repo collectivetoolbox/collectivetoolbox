@@ -682,22 +682,30 @@ cmd_test_suite() {
         export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
         local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
 
-        local build_profile="debug"
         if [[ "$release" == "true" ]]; then
-            build_profile="release"
-        fi
-
-        local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
-        if [[ "$release" == "true" ]]; then
-            cargo_args+=(--release)
-        fi
-        if [[ -n "$crate_filter" ]]; then
-            cargo_args+=(-p "$crate_filter")
+            local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release)
+            if [[ -n "$crate_filter" ]]; then
+                cargo_args+=(-p "$crate_filter")
+            else
+                cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
+            fi
+            RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
         else
-            cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
-        fi
+            # Default ctb-formats-javascript to release mode for fast VM execution (16m vs 2.3h)
+            if [[ -z "$crate_filter" || "$crate_filter" == "ctb-formats-javascript" ]]; then
+                echo "--- Building ctb-formats-javascript in release mode (fast VM execution) ---"
+                RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release -p ctb-formats-javascript
+            fi
 
-        RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
+            if [[ -n "$crate_filter" ]]; then
+                if [[ "$crate_filter" != "ctb-formats-javascript" ]]; then
+                    RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 -p "$crate_filter"
+                fi
+            else
+                RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 \
+                    --workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui --exclude ctb-formats-javascript
+            fi
+        fi
     fi
 
     echo "=== Packaging Tests and Fixtures for VM Exchange ==="
@@ -719,25 +727,47 @@ crate_filter = '$crate_filter'
 crate_prefix = crate_filter.replace('-', '_') if crate_filter else None
 exchange_dir = '$EXCHANGE_DIR/tests'
 
-fingerprints = glob.glob(f'target/{target}/{build_profile}/.fingerprint/*')
+js_crate_bases = {'ctb_formats_javascript', 'js_lint', 'js_test', 'ts_check'}
+
+profiles_to_scan = [build_profile]
+if build_profile == 'debug' and (not crate_filter or crate_filter == 'ctb-formats-javascript'):
+    profiles_to_scan.append('release')
+
 test_hashes = set()
-for fp in fingerprints:
-    m = re.search(r'-([0-9a-f]{16})$', fp)
-    if not m:
-        continue
-    h = m.group(1)
-    for fname in os.listdir(fp):
-        if fname.startswith('test-') and not fname.endswith('.json'):
-            test_hashes.add(h)
-            break
+for prof in profiles_to_scan:
+    fingerprints = glob.glob(f'target/{target}/{prof}/.fingerprint/*')
+    for fp in fingerprints:
+        m = re.search(r'-([0-9a-f]{16})$', fp)
+        if not m:
+            continue
+        h = m.group(1)
+        for fname in os.listdir(fp):
+            if fname.startswith('test-') and not fname.endswith('.json'):
+                test_hashes.add(h)
+                break
 
 import concurrent.futures
 
-all_exes = glob.glob(f'target/{target}/{build_profile}/deps/*.exe')
+all_exes = []
+if build_profile == 'release':
+    for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
+        all_exes.append((exe, 'release'))
+else:
+    for exe in glob.glob(f'target/{target}/debug/deps/*.exe'):
+        bname = os.path.basename(exe)
+        m = re.search(r'^(.*)-([0-9a-f]{16})\.exe$', bname)
+        if m and m.group(1) in js_crate_bases:
+            continue
+        all_exes.append((exe, 'debug'))
+    if not crate_filter or crate_filter == 'ctb-formats-javascript':
+        for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
+            bname = os.path.basename(exe)
+            m = re.search(r'^(.*)-([0-9a-f]{16})\.exe$', bname)
+            if m and m.group(1) in js_crate_bases:
+                all_exes.append((exe, 'release'))
 
-# Group test executables by crate name, keeping only the newest build
 valid_exes = {}
-for exe in sorted(all_exes):
+for exe, prof in sorted(all_exes):
     bname = os.path.basename(exe)
     if crate_prefix and not bname.startswith(f'{crate_prefix}-'):
         continue
@@ -894,7 +924,7 @@ for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     if "%%~nF" NEQ "!JS_NAME!" (
         set /a TOTAL+=1
         echo === RUN %%~nF === >> COM1
-        "%%F" $test_filter --nocapture --test-threads 3 >> COM1 2>&1
+        "%%F" $test_filter --nocapture --test-threads 2 >> COM1 2>&1
         if !ERRORLEVEL! EQU 0 (
             set /a PASSED+=1
             echo === PASS %%~nF === >> COM1
