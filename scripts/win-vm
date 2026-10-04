@@ -76,11 +76,12 @@ Execution & Testing:
   test [--reset]            Run the Windows smoke tests in the VM
   test-suite [options]      Compile, package, and execute the full test suite in VM
                             Options:
+                              --release        Compile and package tests in release mode
                               --reset          Revert to base-state snapshot first
                               --crate <name>   Test only a specific package/crate
                               --filter <pat>   Test filter pattern
                               --no-build       Skip build; use existing binaries
-                              --timeout <sec>  Timeout waiting for test suite (default: 1800)
+                              --timeout <sec>  Timeout waiting for test suite (default: 14400)
 
 Interactive / Inspection:
   screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
@@ -615,6 +616,7 @@ cmd_test() {
 
 cmd_test_suite() {
     local reset="false"
+    local release="false"
     local crate_filter=""
     local test_filter=""
     local no_build="false"
@@ -622,6 +624,9 @@ cmd_test_suite() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --release)
+                release="true"
+                ;;
             --reset)
                 reset="true"
                 ;;
@@ -677,7 +682,15 @@ cmd_test_suite() {
         export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
         local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
 
+        local build_profile="debug"
+        if [[ "$release" == "true" ]]; then
+            build_profile="release"
+        fi
+
         local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
+        if [[ "$release" == "true" ]]; then
+            cargo_args+=(--release)
+        fi
         if [[ -n "$crate_filter" ]]; then
             cargo_args+=(-p "$crate_filter")
         else
@@ -691,16 +704,22 @@ cmd_test_suite() {
     remove_if_exists "$EXCHANGE_DIR"
     mkdir -p "$EXCHANGE_DIR/tests"
 
+    local build_profile="debug"
+    if [[ "$release" == "true" ]]; then
+        build_profile="release"
+    fi
+
     local binary_count=0
     binary_count=$(python3 -c "
 import glob, os, re, shutil, subprocess, sys
 
 target = '$target'
+build_profile = '$build_profile'
 crate_filter = '$crate_filter'
 crate_prefix = crate_filter.replace('-', '_') if crate_filter else None
 exchange_dir = '$EXCHANGE_DIR/tests'
 
-fingerprints = glob.glob(f'target/{target}/debug/.fingerprint/*')
+fingerprints = glob.glob(f'target/{target}/{build_profile}/.fingerprint/*')
 test_hashes = set()
 for fp in fingerprints:
     m = re.search(r'-([0-9a-f]{16})$', fp)
@@ -714,7 +733,7 @@ for fp in fingerprints:
 
 import concurrent.futures
 
-all_exes = glob.glob(f'target/{target}/debug/deps/*.exe')
+all_exes = glob.glob(f'target/{target}/{build_profile}/deps/*.exe')
 
 def process_exe(exe):
     bname = os.path.basename(exe)
@@ -736,7 +755,7 @@ print(count)
 ")
 
     if [[ "$binary_count" -eq 0 ]]; then
-        echo "No test binaries found in target/$target/debug/deps/!" >&2
+        echo "No test binaries found in target/$target/$build_profile/deps/!" >&2
         return 1
     fi
 
@@ -780,8 +799,11 @@ print(count)
 
     cat <<EOF > "$EXCHANGE_DIR/run_js.bat"
 @echo off
-"%~1" ${filter_arg}--nocapture --test-threads 2 > "%TEMP%\js_test.log" 2>&1
-echo %ERRORLEVEL% > "%TEMP%\js_test.done"
+echo [JS Runner Started at %TIME%] >> COM1
+"%~1" ${filter_arg}--nocapture --test-threads 1 > "%TEMP%\js_test.log" 2>&1
+set JS_RUN_EXIT=%ERRORLEVEL%
+echo [JS Runner Finished at %TIME% ExitCode: %JS_RUN_EXIT%] >> COM1
+echo %JS_RUN_EXIT% > "%TEMP%\js_test.done"
 EOF
 
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
@@ -810,7 +832,7 @@ netsh advfirewall set allprofiles state off >nul 2>&1
 echo 1 > "%TEMP%\watchdog.run"
 start /B cmd /c "for /L %%i in () do (if not exist "%TEMP%\watchdog.run" exit & taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
 
-:: Look for ctb_formats_javascript to run in parallel in the background
+:: Look for ctb_formats_javascript
 set "JS_EXE="
 set "JS_NAME="
 for %%J in ("%CTB_WIN_TEST_ROOT%tests\ctb_formats_javascript-*.exe") do (
@@ -818,16 +840,43 @@ for %%J in ("%CTB_WIN_TEST_ROOT%tests\ctb_formats_javascript-*.exe") do (
     set "JS_NAME=%%~nJ"
 )
 
-if defined JS_EXE (
-    del /f /q "%TEMP%\js_test.done" "%TEMP%\js_test.log" >nul 2>&1
-    echo === SPAWNING BACKGROUND !JS_NAME! === >> COM1
-    start "ctb_formats_javascript" /B cmd /c "%CTB_WIN_TEST_ROOT%run_js.bat" "!JS_EXE!"
+:: Count other tests
+set OTHER_COUNT=0
+for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
+    if "%%~nF" NEQ "!JS_NAME!" (
+        set /a OTHER_COUNT+=1
+    )
 )
 
 echo ---SUITE_START--- > COM1
 set TOTAL=0
 set PASSED=0
 set FAILED=0
+
+:: If JS is the only test, run directly in foreground to COM1
+if defined JS_EXE (
+    if !OTHER_COUNT! EQU 0 (
+        set /a TOTAL+=1
+        echo === RUN !JS_NAME! === >> COM1
+        "!JS_EXE!" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
+        if !ERRORLEVEL! EQU 0 (
+            set /a PASSED+=1
+            echo === PASS !JS_NAME! === >> COM1
+        ) else (
+            set /a FAILED+=1
+            echo === FAIL !JS_NAME! [EXIT:!ERRORLEVEL!] === >> COM1
+        )
+        echo. >> COM1
+        goto suite_end
+    )
+)
+
+:: If there are other tests, run JS in background in parallel
+if defined JS_EXE (
+    del /f /q "%TEMP%\js_test.done" "%TEMP%\js_test.log" >nul 2>&1
+    echo === SPAWNING BACKGROUND !JS_NAME! === >> COM1
+    start "ctb_formats_javascript" /B cmd /c "%CTB_WIN_TEST_ROOT%run_js.bat" "!JS_EXE!"
+)
 
 for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     if "%%~nF" NEQ "!JS_NAME!" (
@@ -850,7 +899,7 @@ if defined JS_EXE (
     :wait_js
     if not exist "%TEMP%\js_test.done" (
         ping -n 15 127.0.0.1 >nul
-        echo [Waiting for !JS_NAME! to complete...] >> COM1
+        echo [Waiting for !JS_NAME! to complete at %TIME%...] >> COM1
         goto wait_js
     )
     set /p JS_EXIT=<"%TEMP%\js_test.done"
@@ -868,6 +917,7 @@ if defined JS_EXE (
     echo. >> COM1
 )
 
+:suite_end
 del /f /q "%TEMP%\watchdog.run" >nul 2>&1
 del /f /q "%TEMP%\js_test.done" >nul 2>&1
 del /f /q "%TEMP%\js_test.log" >nul 2>&1
