@@ -168,10 +168,6 @@ pub fn run_tsc(args: &[String]) -> Result<TscRunResult> {
                     "run_tsc heartbeat: still executing tsc.js (elapsed: {}s)...",
                     ticks
                 );
-                eprintln!(
-                    "run_tsc heartbeat: still executing tsc.js (elapsed: {}s)...",
-                    ticks
-                );
             }
         });
 
