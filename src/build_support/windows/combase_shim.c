@@ -60,6 +60,7 @@ typedef BOOL (WINAPI *PFN_RoOriginateError)(HRESULT error, void *message);
 typedef HRESULT (WINAPI *PFN_PathCchStripPrefix)(WCHAR *pszPath, SIZE_T cchPath);
 typedef HRESULT (WINAPI *PFN_PathCchSkipRoot)(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
 typedef HRESULT (WINAPI *PFN_CopyFile2)(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters);
+typedef VOID (WINAPI *PFN_GetCurrentThreadStackLimits)(PULONG_PTR LowLimit, PULONG_PTR HighLimit);
 
 // Forward declarations of initial resolver stubs
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb);
@@ -79,6 +80,7 @@ static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message);
 static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath);
 static HRESULT WINAPI resolve_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
 static HRESULT WINAPI resolve_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters);
+static VOID WINAPI resolve_GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimit);
 
 // ============================================================================
 // __imp_ Function Pointers (imported by raw-dylib / linkers)
@@ -101,6 +103,7 @@ PFN_RoOriginateError __imp_RoOriginateError = resolve_RoOriginateError;
 PFN_PathCchStripPrefix __imp_PathCchStripPrefix = resolve_PathCchStripPrefix;
 PFN_PathCchSkipRoot __imp_PathCchSkipRoot = resolve_PathCchSkipRoot;
 PFN_CopyFile2 __imp_CopyFile2 = resolve_CopyFile2;
+PFN_GetCurrentThreadStackLimits __imp_GetCurrentThreadStackLimits = resolve_GetCurrentThreadStackLimits;
 
 // ============================================================================
 // Direct Function Stubs (for call <symbol>)
@@ -172,6 +175,10 @@ HRESULT WINAPI PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd) 
 
 HRESULT WINAPI CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters) {
     return __imp_CopyFile2(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
+}
+
+VOID WINAPI GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimit) {
+    __imp_GetCurrentThreadStackLimits(LowLimit, HighLimit);
 }
 
 // ============================================================================
@@ -658,5 +665,31 @@ static HRESULT WINAPI resolve_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwsz
     }
     __imp_CopyFile2 = fn;
     return fn(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+static VOID WINAPI fallback_GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimit) {
+    PNT_TIB tib = (PNT_TIB)NtCurrentTeb();
+    if (LowLimit) {
+        *LowLimit = (ULONG_PTR)tib->StackLimit;
+    }
+    if (HighLimit) {
+        *HighLimit = (ULONG_PTR)tib->StackBase;
+    }
+}
+#pragma GCC diagnostic pop
+
+static VOID WINAPI resolve_GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimit) {
+    HMODULE hMod = GetModuleHandleA("kernel32.dll");
+    FARPROC proc = hMod ? GetProcAddress(hMod, "GetCurrentThreadStackLimits") : NULL;
+    PFN_GetCurrentThreadStackLimits fn;
+    if (proc) {
+        fn = (PFN_GetCurrentThreadStackLimits)(void *)proc;
+    } else {
+        fn = fallback_GetCurrentThreadStackLimits;
+    }
+    __imp_GetCurrentThreadStackLimits = fn;
+    fn(LowLimit, HighLimit);
 }
 
