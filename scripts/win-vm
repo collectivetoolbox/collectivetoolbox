@@ -837,16 +837,6 @@ print(count)
         filter_arg="$test_filter "
     fi
 
-    cat <<EOF > "$EXCHANGE_DIR/run_js.bat"
-@echo off
-set "RUST_LOG=info"
-echo [JS Runner Started at %TIME%] >> COM1
-"%~1" ${filter_arg}--nocapture --test-threads 1 > "%TEMP%\js_test.log" 2>&1
-set JS_RUN_EXIT=%ERRORLEVEL%
-echo [JS Runner Finished at %TIME% ExitCode: %JS_RUN_EXIT%] >> COM1
-echo %JS_RUN_EXIT% > "%TEMP%\js_test.done"
-EOF
-
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
 @echo off
 setlocal enabledelayedexpansion
@@ -874,95 +864,31 @@ netsh advfirewall set allprofiles state off >nul 2>&1
 echo 1 > "%TEMP%\watchdog.run"
 start /B cmd /c "for /L %%i in () do (if not exist "%TEMP%\watchdog.run" exit & taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
 
-:: Look for ctb_formats_javascript
-set "JS_EXE="
-set "JS_NAME="
-for %%J in ("%CTB_WIN_TEST_ROOT%tests\ctb_formats_javascript-*.exe") do (
-    set "JS_EXE=%%J"
-    set "JS_NAME=%%~nJ"
-)
-
-:: Count other tests
-set OTHER_COUNT=0
-for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
-    if "%%~nF" NEQ "!JS_NAME!" (
-        set /a OTHER_COUNT+=1
-    )
-)
-
 echo ---SUITE_START--- > COM1
 set TOTAL=0
 set PASSED=0
 set FAILED=0
 
-:: If JS is the only test, run directly in foreground to COM1
-if defined JS_EXE (
-    if !OTHER_COUNT! EQU 0 (
-        set /a TOTAL+=1
-        echo === RUN !JS_NAME! === >> COM1
-        "!JS_EXE!" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
-        if !ERRORLEVEL! EQU 0 (
-            set /a PASSED+=1
-            echo === PASS !JS_NAME! === >> COM1
-        ) else (
-            set /a FAILED+=1
-            echo === FAIL !JS_NAME! [EXIT:!ERRORLEVEL!] === >> COM1
-        )
-        echo. >> COM1
-        goto suite_end
-    )
-)
-
-:: If there are other tests, run JS in background in parallel
-if defined JS_EXE (
-    del /f /q "%TEMP%\js_test.done" "%TEMP%\js_test.log" >nul 2>&1
-    echo === SPAWNING BACKGROUND !JS_NAME! === >> COM1
-    start "ctb_formats_javascript" /B cmd /c "%CTB_WIN_TEST_ROOT%run_js.bat" "!JS_EXE!"
-)
-
 for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
-    if "%%~nF" NEQ "!JS_NAME!" (
-        set /a TOTAL+=1
-        echo === RUN %%~nF === >> COM1
-        "%%F" $test_filter --nocapture --test-threads 2 >> COM1 2>&1
-        if !ERRORLEVEL! EQU 0 (
-            set /a PASSED+=1
-            echo === PASS %%~nF === >> COM1
-        ) else (
-            set /a FAILED+=1
-            echo === FAIL %%~nF [EXIT:!ERRORLEVEL!] === >> COM1
-        )
-        echo. >> COM1
-    )
-)
-
-if defined JS_EXE (
-    echo === AWAITING BACKGROUND !JS_NAME! === >> COM1
-    :wait_js
-    if not exist "%TEMP%\js_test.done" (
-        ping -n 15 127.0.0.1 >nul
-        echo [Waiting for !JS_NAME! to complete at %TIME%...] >> COM1
-        goto wait_js
-    )
-    set /p JS_EXIT=<"%TEMP%\js_test.done"
     set /a TOTAL+=1
-    echo === RUN !JS_NAME! === >> COM1
-    type "%TEMP%\js_test.log" >> COM1
-    echo. >> COM1
-    if "!JS_EXIT!" EQU "0" (
+    echo === RUN %%~nF === >> COM1
+    echo %%~nF | findstr /i "ctb_formats_javascript" >nul
+    if !ERRORLEVEL! EQU 0 (
+        "%%F" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
+    ) else (
+        "%%F" $test_filter --nocapture --test-threads 3 >> COM1 2>&1
+    )
+    if !ERRORLEVEL! EQU 0 (
         set /a PASSED+=1
-        echo === PASS !JS_NAME! === >> COM1
+        echo === PASS %%~nF === >> COM1
     ) else (
         set /a FAILED+=1
-        echo === FAIL !JS_NAME! [EXIT:!JS_EXIT!] === >> COM1
+        echo === FAIL %%~nF [EXIT:!ERRORLEVEL!] === >> COM1
     )
     echo. >> COM1
 )
 
-:suite_end
 del /f /q "%TEMP%\watchdog.run" >nul 2>&1
-del /f /q "%TEMP%\js_test.done" >nul 2>&1
-del /f /q "%TEMP%\js_test.log" >nul 2>&1
 echo ---SUITE_END:TOTAL=!TOTAL!,PASSED=!PASSED!,FAILED=!FAILED!--- >> COM1
 EOF
 
@@ -976,7 +902,14 @@ EOF
         sleep 3.0
     fi
 
+    local log_dir="$REPO_ROOT/ci-logs/Windows"
+    mkdir -p "$log_dir"
+    local log_ts
+    log_ts="$(date +%Y%m%d-%H%M%S)"
+    local suite_log="$log_dir/Windows-${log_ts}.log"
+
     echo "=== Executing Test Suite in Windows 7 VM ==="
+    echo "Streaming VM test output to $suite_log..."
     local start_offset=0
     if [[ -f "$SERIAL_LOG" ]]; then
         start_offset=$(stat -c%s "$SERIAL_LOG")
@@ -1000,6 +933,14 @@ import sys, time, re
 log_path = sys.argv[1]
 start_offset = int(sys.argv[2])
 timeout = int(sys.argv[3])
+suite_log_path = sys.argv[4] if len(sys.argv) > 4 else None
+
+suite_log_file = None
+if suite_log_path:
+    try:
+        suite_log_file = open(suite_log_path, 'w', errors='replace', buffering=1)
+    except Exception as e:
+        sys.stderr.write(f'Warning: Could not open {suite_log_path}: {e}\n')
 
 start_time = time.time()
 last_output_time = start_time
@@ -1012,6 +953,13 @@ failing_binaries = []
 passing_binaries = []
 current_binary = ''
 
+def write_out(text):
+    sys.stdout.write(text)
+    sys.stdout.flush()
+    if suite_log_file:
+        suite_log_file.write(text)
+        suite_log_file.flush()
+
 with open(log_path, 'r', errors='replace') as f:
     f.seek(start_offset)
     while True:
@@ -1021,7 +969,7 @@ with open(log_path, 'r', errors='replace') as f:
             clean = line.strip()
             if '---SUITE_START---' in clean:
                 started = True
-                print('>>> Windows 7 VM Test Suite Started <<<', flush=True)
+                write_out('>>> Windows 7 VM Test Suite Started <<<\n')
                 continue
             if '---SUITE_END:' in clean:
                 m = re.search(r'TOTAL=(\d+),PASSED=(\d+),FAILED=(\d+)', clean)
@@ -1041,37 +989,47 @@ with open(log_path, 'r', errors='replace') as f:
                 if m_fail:
                     failing_binaries.append((m_fail.group(1), m_fail.group(2) or 'unknown'))
 
-                sys.stdout.write(line)
-                sys.stdout.flush()
+                write_out(line)
         else:
             now = time.time()
             if now - start_time > timeout:
-                sys.stderr.write(f'\n[TIMEOUT] Test suite exceeded {timeout} seconds in VM.\n')
+                msg = f'\n[TIMEOUT] Test suite exceeded {timeout} seconds in VM.\n'
+                write_out(msg)
+                if suite_log_file:
+                    suite_log_file.close()
                 sys.exit(124)
             if started and now - last_heartbeat_time >= 30:
                 elapsed_min = int((now - start_time) / 60)
                 elapsed_sec = int((now - start_time) % 60)
                 silence_sec = int(now - last_output_time)
-                print(f'[Heartbeat {elapsed_min:02d}:{elapsed_sec:02d}] Active: {current_binary} (no output for {silence_sec}s | passed: {len(passing_binaries)}, failed: {len(failing_binaries)})', flush=True)
+                hb = f'[Heartbeat {elapsed_min:02d}:{elapsed_sec:02d}] Active: {current_binary} (no output for {silence_sec}s | passed: {len(passing_binaries)}, failed: {len(failing_binaries)})\n'
+                write_out(hb)
                 last_heartbeat_time = now
             time.sleep(0.2)
 
-print('\n' + '=' * 60)
-print('             WINDOWS 7 VM TEST SUITE SUMMARY')
-print('=' * 60)
+summary = []
+summary.append('\n' + '=' * 60 + '\n')
+summary.append('             WINDOWS 7 VM TEST SUITE SUMMARY\n')
+summary.append('=' * 60 + '\n')
 if failing_binaries:
-    print(f'FAILED TEST BINARIES ({len(failing_binaries)}):')
+    summary.append(f'FAILED TEST BINARIES ({len(failing_binaries)}):\n')
     for name, code in failing_binaries:
-        print(f'  [X] {name} (exit code: {code})')
+        summary.append(f'  [X] {name} (exit code: {code})\n')
 else:
-    print('NO TEST FAILURES DETECTED!')
+    summary.append('NO TEST FAILURES DETECTED!\n')
 
-print(f'PASSED TEST BINARIES: {len(passing_binaries)}')
-print(f'TOTAL: {suite_total} | PASSED: {suite_passed} | FAILED: {suite_failed}')
-print('=' * 60)
+summary.append(f'PASSED TEST BINARIES: {len(passing_binaries)}\n')
+summary.append(f'TOTAL: {suite_total} | PASSED: {suite_passed} | FAILED: {suite_failed}\n')
+summary.append('=' * 60 + '\n')
+
+for line in summary:
+    write_out(line)
+
+if suite_log_file:
+    suite_log_file.close()
 
 sys.exit(0 if suite_failed == 0 and len(failing_binaries) == 0 else 1)
-" "$SERIAL_LOG" "$start_offset" "$timeout" || py_exit=$?
+" "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" || py_exit=$?
 
     trap - EXIT INT TERM
     if is_running; then

@@ -59,6 +59,7 @@ typedef BOOL (WINAPI *PFN_RoOriginateErrorW)(HRESULT error, UINT cchMax, const W
 typedef BOOL (WINAPI *PFN_RoOriginateError)(HRESULT error, void *message);
 typedef HRESULT (WINAPI *PFN_PathCchStripPrefix)(WCHAR *pszPath, SIZE_T cchPath);
 typedef HRESULT (WINAPI *PFN_PathCchSkipRoot)(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
+typedef HRESULT (WINAPI *PFN_CopyFile2)(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters);
 
 // Forward declarations of initial resolver stubs
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb);
@@ -77,6 +78,7 @@ static BOOL WINAPI resolve_RoOriginateErrorW(HRESULT error, UINT cchMax, const W
 static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message);
 static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath);
 static HRESULT WINAPI resolve_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
+static HRESULT WINAPI resolve_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters);
 
 // ============================================================================
 // __imp_ Function Pointers (imported by raw-dylib / linkers)
@@ -98,6 +100,7 @@ PFN_RoOriginateErrorW __imp_RoOriginateErrorW = resolve_RoOriginateErrorW;
 PFN_RoOriginateError __imp_RoOriginateError = resolve_RoOriginateError;
 PFN_PathCchStripPrefix __imp_PathCchStripPrefix = resolve_PathCchStripPrefix;
 PFN_PathCchSkipRoot __imp_PathCchSkipRoot = resolve_PathCchSkipRoot;
+PFN_CopyFile2 __imp_CopyFile2 = resolve_CopyFile2;
 
 // ============================================================================
 // Direct Function Stubs (for call <symbol>)
@@ -165,6 +168,10 @@ HRESULT WINAPI PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath) {
 
 HRESULT WINAPI PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd) {
     return __imp_PathCchSkipRoot(pszPath, ppszRootEnd);
+}
+
+HRESULT WINAPI CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters) {
+    return __imp_CopyFile2(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
 }
 
 // ============================================================================
@@ -623,5 +630,33 @@ static HRESULT WINAPI resolve_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR 
     }
     __imp_PathCchSkipRoot = fn;
     return fn(pszPath, ppszRootEnd);
+}
+
+static HRESULT WINAPI fallback_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters) {
+    DWORD copyFlags = 0;
+    BOOL *pfCancel = NULL;
+    if (pExtendedParameters) {
+        copyFlags = pExtendedParameters->dwCopyFlags;
+        pfCancel = pExtendedParameters->pfCancel;
+    }
+    BOOL ok = CopyFileExW(pwszExistingFileName, pwszNewFileName, NULL, NULL, pfCancel, copyFlags);
+    if (ok) {
+        return S_OK;
+    }
+    DWORD err = GetLastError();
+    return HRESULT_FROM_WIN32(err);
+}
+
+static HRESULT WINAPI resolve_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwszNewFileName, COPYFILE2_EXTENDED_PARAMETERS *pExtendedParameters) {
+    HMODULE hMod = GetModuleHandleA("kernel32.dll");
+    FARPROC proc = hMod ? GetProcAddress(hMod, "CopyFile2") : NULL;
+    PFN_CopyFile2 fn;
+    if (proc) {
+        fn = (PFN_CopyFile2)(void *)proc;
+    } else {
+        fn = fallback_CopyFile2;
+    }
+    __imp_CopyFile2 = fn;
+    return fn(pwszExistingFileName, pwszNewFileName, pExtendedParameters);
 }
 

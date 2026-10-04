@@ -214,7 +214,7 @@ fn is_pan_file(file_path: &Path) -> bool {
     file_path
         .components()
         .any(|c| c.as_os_str() == "pan" || c.as_os_str() == "pan.rs")
-        && file_path.to_string_lossy().contains("formats/pan")
+        && file_path.to_string_lossy().replace('\\', "/").contains("formats/pan")
 }
 
 /// Determine whether a file is in the formats detection module. `detection.rs` or in
@@ -2285,7 +2285,7 @@ mod tests {
         assert!(has_generate_fixtures, "find_files must include generate-compression-fixtures in shell_files");
 
         let patch_scm_count = scm_files.iter().filter(|p| {
-            p.to_string_lossy().contains("scripts/guix/patches")
+            p.to_string_lossy().replace('\\', "/").contains("scripts/guix/patches")
         }).count();
         assert!(
             patch_scm_count >= 80,
