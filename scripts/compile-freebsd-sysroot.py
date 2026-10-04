@@ -32,8 +32,14 @@ source_sysroot = os.path.join(workspace_root, "vendor/freebsd-sysroot")
 sysroot = os.path.join(workspace_root, "built/freebsd-sysroot")
 
 if os.path.isdir(source_sysroot) and os.path.realpath(source_sysroot) != os.path.realpath(sysroot):
+    if os.path.lexists(sysroot):
+        print(f"Cleaning existing sysroot at {sysroot}...")
+        if os.path.islink(sysroot) or not os.path.isdir(sysroot):
+            os.unlink(sysroot)
+        else:
+            shutil.rmtree(sysroot)
     print(f"Copying sysroot from {source_sysroot} to {sysroot}...")
-    os.makedirs(sysroot, exist_ok=True)
+    os.makedirs(os.path.dirname(sysroot), exist_ok=True)
     shutil.copytree(
         source_sysroot,
         sysroot,
