@@ -20,6 +20,7 @@
 """Prepare, review, and generate a source-only FreeBSD/LLVM sysroot."""
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -33,6 +34,7 @@ import unicodedata
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
+os.chdir(WORKSPACE_ROOT)
 REPOSITORIES = {
     "freebsd": (
         "https://github.com/freebsd/freebsd-src.git",
@@ -47,28 +49,6 @@ OUTPUTS = (
     WORKSPACE_ROOT / "vendor/upstream-for-reference/freebsd-sysroot",
     WORKSPACE_ROOT / "vendor/freebsd-sysroot",
 )
-# License notice prepended to generated headers, attributing this script as
-# their generator. Mirrors this file's own license header.
-TOOL_NOTICE = """\
-// SPDX-License-Identifier: AGPL-3.0-or-later
-//
-// This file is part of Collective Toolbox, a database and document workspace and utilities.
-// Copyright (C) 2026 Collective Toolbox Developers
-// Contact: info@collectivetoolbox.com
-//
-// This program is free software: you can redistribute it and/or modify it under
-// the terms of the GNU Affero General Public License as published by the Free
-// Software Foundation, either version 3 of the License, or (at your option) any
-// later version.
-//
-// This program is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-// A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License along
-// with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-"""
 ALLOWED_LICENSES = frozenset({
     "BSD-1-Clause", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause-UC", "0BSD", "ISC", "MIT",
     "MIT-CMU", "CMU-Mach", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "Zlib",
@@ -353,27 +333,110 @@ def inherit_docblock_approvals(manifest, repositories, approved_entry, approved_
 
 
 
+def extract_signatures_from_c(src_text, filename=""):
+    """Extract C function prototypes from source text.
+
+    Finds function definitions (single-line or multi-line) with any C return type
+    that define `_?pthread_` functions, and converts them to declaration signatures.
+    Also detects any candidate `pthread_` function definitions that could not be parsed
+    or whose signatures were unhandled, returning them as a list of skipped definitions
+    so callers can fail loudly rather than silently shrinking generated headers.
+    """
+    clean = re.sub(r'/\*.*?\*/|//[^\r\n]*', '', src_text, flags=re.DOTALL)
+    sigs = []
+    extracted_names = set()
+    skipped = []
+
+    pattern = re.compile(
+        r'(?:^|[;}]\s*)\n?\s*'
+        r'((?:(?:const|volatile|unsigned|signed|struct|enum|static|inline|extern|__dead2|__unused)\s+)*[a-zA-Z_][a-zA-Z0-9_]*'
+        r'(?:\s*\*+\s*|\s+))'
+        r'(_?pthread_[a-zA-Z0-9_]+)\s*\(',
+        re.MULTILINE
+    )
+
+    for m in pattern.finditer(clean):
+        raw_ret = m.group(1)
+        fn_name = m.group(2)
+        start = m.end() - 1
+        depth = 0
+        end = -1
+        for i in range(start, len(clean)):
+            if clean[i] == '(':
+                depth += 1
+            elif clean[i] == ')':
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        if end == -1:
+            skipped.append((fn_name, 'unclosed parameter list', filename))
+            continue
+
+        tail = clean[end:].lstrip()
+        if not tail.startswith('{'):
+            # Forward declaration/prototype ending with semicolon, not a function definition body
+            continue
+
+        ret_type = ' '.join(raw_ret.split())
+        params = ' '.join(clean[start+1:end-1].split())
+        name = fn_name.lstrip('_')
+        sigs.append(f'{ret_type}\t{name}({params});')
+        extracted_names.add(fn_name)
+        extracted_names.add(name)
+
+    # Detect any candidate pthread definitions that the extractor missed or could not parse
+    candidate_pattern = re.compile(r'\b(_?pthread_[a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{')
+    for m in candidate_pattern.finditer(clean):
+        cand_name = m.group(1)
+        if cand_name not in extracted_names and cand_name.lstrip('_') not in extracted_names:
+            skipped.append((cand_name, 'unhandled signature shape', filename))
+
+    return sigs, skipped
+
+
 class GenerationSources:
     """Tracks which reviewed inputs contribute to each generated header.
 
-    Every staged source whose license block is fetched while output headers
-    are being written is recorded, so the final verification pass can require
-    that each generated header embeds provenance for all of its contributors.
+    Every source file read during header generation must be read through
+    read_with_license(path) within an active writing(*output_names) context.
+    This records the source file's provenance keys for all active outputs,
+    and returns both the text of the source file and its formatted license block.
+    The final verification pass enforces that every generated header contains
+    the complete license block / provenance marker for all recorded source inputs.
     """
 
     def __init__(self, lookup):
         self._lookup = lookup
         self.reads = {}
-        self._outputs = ()
+        self._active_outputs = ()
 
+    @contextlib.contextmanager
     def writing(self, *outputs):
-        self._outputs = outputs
+        if not outputs:
+            raise ValueError("writing() requires at least one output header path")
+        previous = self._active_outputs
+        self._active_outputs = outputs
+        for output in outputs:
+            self.reads.setdefault(output, set())
+        try:
+            yield
+        finally:
+            self._active_outputs = previous
 
-    def license_block(self, file_path):
-        keys, block = self._lookup(Path(file_path))
-        for output in self._outputs:
-            self.reads.setdefault(output, set()).update(keys)
-        return block
+    def read_with_license(self, file_path):
+        if not self._active_outputs:
+            raise RuntimeError(
+                f"read_with_license({file_path}) called without an active writing context. "
+                "All source reads must occur within a 'with sources.writing(...):' block."
+            )
+        path = Path(file_path)
+        keys, block = self._lookup(path)
+        for output in self._active_outputs:
+            self.reads[output].update(keys)
+        raw = path.read_bytes()
+        text = validate_text(raw, str(path))
+        return text, block
 
 
 def generate_headers(source_root, destination, sources):
@@ -435,8 +498,8 @@ def generate_headers(source_root, destination, sources):
     os.makedirs(os.path.join(dst, 'sys'), exist_ok=True)
     os.makedirs(os.path.join(dst, 'xlocale'), exist_ok=True)
 
-    def extract_license_block(file_path):
-        return sources.license_block(file_path)
+    def read_with_license(file_path):
+        return sources.read_with_license(file_path)
 
     def combine_licenses(*blocks):
         seen = set()
@@ -447,30 +510,6 @@ def generate_headers(source_root, destination, sources):
                 seen.add(b)
                 res.append(b)
         return '\n\n'.join(res)
-
-    def extract_signatures_from_c(src_text):
-        sigs = []
-        pattern = re.compile(r'^(int|void|pthread_t|void\s*\*)\s*\n([_a-zA-Z][_a-zA-Z0-9]*)\s*\(', re.MULTILINE)
-        for m in pattern.finditer(src_text):
-            ret_type = m.group(1).strip()
-            fn_name = m.group(2).strip()
-            start = m.end() - 1
-            depth = 0
-            end = -1
-            for i in range(start, len(src_text)):
-                if src_text[i] == '(':
-                    depth += 1
-                elif src_text[i] == ')':
-                    depth -= 1
-                    if depth == 0:
-                        end = i + 1
-                        break
-            if end != -1:
-                params = src_text[start+1:end-1].strip()
-                params = ' '.join(params.split())
-                name = fn_name.lstrip('_')
-                sigs.append(f'{ret_type}\t{name}({params});')
-        return sigs
 
     def parse_yaml_functions(yaml_text):
         funcs = []
@@ -500,17 +539,17 @@ def generate_headers(source_root, destination, sources):
     x86_dir = os.path.join(dst, 'x86')
     machine_dir = os.path.join(dst, 'machine')
     if os.path.isdir(x86_dir):
-        for fname in os.listdir(x86_dir):
+        for fname in sorted(os.listdir(x86_dir)):
             if fname.endswith('.h'):
                 target_f = os.path.join(x86_dir, fname)
                 mpath = os.path.join(machine_dir, fname)
                 if not os.path.exists(mpath):
-                    sources.writing(f'machine/{fname}')
-                    lic = extract_license_block(target_f)
-                    with open(mpath, 'w', encoding='utf-8') as fp:
-                        if lic:
-                            fp.write(lic + '\n\n')
-                        fp.write(f'#pragma once\n#include <x86/{fname}>\n')
+                    with sources.writing(f'machine/{fname}'):
+                        _, lic = read_with_license(target_f)
+                        with open(mpath, 'w', encoding='utf-8') as fp:
+                            if lic:
+                                fp.write(lic + '\n\n')
+                            fp.write(f'#pragma once\n#include <x86/{fname}>\n')
 
     # B. Forwarding headers in usr/include for sys/ and machine/
     sys_dir = os.path.join(dst, 'sys')
@@ -523,65 +562,63 @@ def generate_headers(source_root, destination, sources):
         path = os.path.join(dst, name)
         target = os.path.join(sys_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
-            sources.writing(name)
-            lic = extract_license_block(target)
-            with open(path, 'w', encoding='utf-8') as fp:
-                if lic:
-                    fp.write(lic + '\n\n')
-                fp.write(f'#pragma once\n#include <sys/{name}>\n')
+            with sources.writing(name):
+                _, lic = read_with_license(target)
+                with open(path, 'w', encoding='utf-8') as fp:
+                    if lic:
+                        fp.write(lic + '\n\n')
+                    fp.write(f'#pragma once\n#include <sys/{name}>\n')
 
     mach_links = ['float.h', 'floatingpoint.h', 'stdarg.h']
     for name in mach_links:
         path = os.path.join(dst, name)
         target = os.path.join(machine_dir, name)
         if not os.path.exists(path) and os.path.isfile(target):
-            sources.writing(name)
-            lic = extract_license_block(target)
-            with open(path, 'w', encoding='utf-8') as fp:
-                if lic:
-                    fp.write(lic + '\n\n')
-                fp.write(f'#pragma once\n#include <machine/{name}>\n')
+            with sources.writing(name):
+                _, lic = read_with_license(target)
+                with open(path, 'w', encoding='utf-8') as fp:
+                    if lic:
+                        fp.write(lic + '\n\n')
+                    fp.write(f'#pragma once\n#include <machine/{name}>\n')
 
     # C. osreldate.h: derived through line extraction from sys/sys/param.h
     param_h_path = os.path.join(freebsd_src, 'sys/sys/param.h')
-    sources.writing('osreldate.h')
-    lic_param = extract_license_block(param_h_path)
-    version_lines = []
     if os.path.isfile(param_h_path):
-        with open(param_h_path, 'r', encoding='utf-8') as fp:
-            for line in fp:
+        with sources.writing('osreldate.h'):
+            param_text, lic_param = read_with_license(param_h_path)
+            version_lines = []
+            for line in param_text.splitlines():
                 if line.startswith('#define') and '__FreeBSD_version' in line:
                     version_lines.append(line.strip())
 
-    with open(os.path.join(dst, 'osreldate.h'), 'w', encoding='utf-8') as fp:
-        if lic_param:
-            fp.write(lic_param + '\n\n')
-        fp.write('#pragma once\n#include <sys/cdefs.h>\n\n')
-        for vl in version_lines:
-            fp.write(f'#ifndef __FreeBSD_version\n{vl}\n#endif\n')
+            with open(os.path.join(dst, 'osreldate.h'), 'w', encoding='utf-8') as fp:
+                if lic_param:
+                    fp.write(lic_param + '\n\n')
+                fp.write('#pragma once\n#include <sys/cdefs.h>\n\n')
+                for vl in version_lines:
+                    fp.write(f'#ifndef __FreeBSD_version\n{vl}\n#endif\n')
 
     # D. sys/syscall.h and syscall.h: derived through line extraction from LLVM libc sys/syscall.h.def
     llvm_syscall = os.path.join(llvm_src, 'libc/include/sys/syscall.h.def')
-    sources.writing('sys/syscall.h', 'syscall.h')
-    lic_syscalls = extract_license_block(llvm_syscall)
-    syscall_lines = []
     if os.path.isfile(llvm_syscall):
-        with open(llvm_syscall, 'r', encoding='utf-8') as fp:
-            for line in fp:
+        with sources.writing('sys/syscall.h', 'syscall.h'):
+            syscall_text, lic_syscalls = read_with_license(llvm_syscall)
+            syscall_lines = []
+            for line in syscall_text.splitlines():
                 if line.startswith('#define SYS_'):
                     syscall_lines.append(line.strip())
 
-    with open(os.path.join(dst, 'sys/syscall.h'), 'w', encoding='utf-8') as fp:
-        if lic_syscalls:
-            fp.write(lic_syscalls + '\n\n')
-        fp.write('#pragma once\n\n')
-        for sline in syscall_lines:
-            fp.write(sline + '\n')
+            with open(os.path.join(dst, 'sys/syscall.h'), 'w', encoding='utf-8') as fp:
+                if lic_syscalls:
+                    fp.write(lic_syscalls + '\n\n')
+                fp.write('#pragma once\n\n')
+                for sline in syscall_lines:
+                    fp.write(sline + '\n')
 
-    with open(os.path.join(dst, 'syscall.h'), 'w', encoding='utf-8') as fp:
-        if lic_syscalls:
-            fp.write(lic_syscalls + '\n\n')
-        fp.write('#pragma once\n#include <sys/syscall.h>\n')
+            with open(os.path.join(dst, 'syscall.h'), 'w', encoding='utf-8') as fp:
+                if lic_syscalls:
+                    fp.write(lic_syscalls + '\n\n')
+                fp.write('#pragma once\n#include <sys/syscall.h>\n')
 
     # E. Copy LLVM libc types and macros into sysroot for clean POSIX compliance
     for subdir in ['llvm-libc-macros', 'llvm-libc-types']:
@@ -600,123 +637,126 @@ def generate_headers(source_root, destination, sources):
 
     # F. sys/_pthreadtypes.h: derived through regex extraction from thr_private.h
     thr_private_f = os.path.join(freebsd_src, 'lib/libthr/thread/thr_private.h')
-    sources.writing('sys/_pthreadtypes.h')
-    lic_thr_priv = extract_license_block(thr_private_f)
-    struct_names = []
     if os.path.isfile(thr_private_f):
-        with open(thr_private_f, 'r', encoding='utf-8') as fp:
-            for line in fp:
+        with sources.writing('sys/_pthreadtypes.h'):
+            thr_priv_text, lic_thr_priv = read_with_license(thr_private_f)
+            struct_names = []
+            for line in thr_priv_text.splitlines():
                 m = re.match(r'^\s*struct\s+(pthread\w*)\s*[{;]', line)
                 if m:
                     sname = m.group(1)
                     if sname not in struct_names and sname != 'pthread_key':
                         struct_names.append(sname)
 
-    pthread_type_lines = []
-    for sname in struct_names:
-        pthread_type_lines.append(f'struct {sname};')
-        tname = sname + '_t'
-        if sname == 'pthread':
-            tname = 'pthread_t'
-        elif sname == 'pthread_mutex_attr':
-            tname = 'pthread_mutexattr_t'
-        elif sname == 'pthread_cond_attr':
-            tname = 'pthread_condattr_t'
-        pthread_type_lines.append(f'typedef struct {sname} *{tname};')
+            pthread_type_lines = []
+            for sname in struct_names:
+                pthread_type_lines.append(f'struct {sname};')
+                tname = sname + '_t'
+                if sname == 'pthread':
+                    tname = 'pthread_t'
+                elif sname == 'pthread_mutex_attr':
+                    tname = 'pthread_mutexattr_t'
+                elif sname == 'pthread_cond_attr':
+                    tname = 'pthread_condattr_t'
+                pthread_type_lines.append(f'typedef struct {sname} *{tname};')
 
-    pthread_type_lines.append('typedef int pthread_key_t;')
-    pthread_type_lines.append('struct pthread_once { int state; void *mutex; };')
-    pthread_type_lines.append('typedef struct pthread_once pthread_once_t;')
+            pthread_type_lines.append('typedef int pthread_key_t;')
+            pthread_type_lines.append('struct pthread_once { int state; void *mutex; };')
+            pthread_type_lines.append('typedef struct pthread_once pthread_once_t;')
 
-    with open(os.path.join(dst, 'sys/_pthreadtypes.h'), 'w', encoding='utf-8') as fp:
-        if lic_thr_priv:
-            fp.write(lic_thr_priv + '\n\n')
-        fp.write('#pragma once\n\n' + '\n'.join(pthread_type_lines) + '\n')
+            with open(os.path.join(dst, 'sys/_pthreadtypes.h'), 'w', encoding='utf-8') as fp:
+                if lic_thr_priv:
+                    fp.write(lic_thr_priv + '\n\n')
+                fp.write('#pragma once\n\n' + '\n'.join(pthread_type_lines) + '\n')
 
     # G. pthread.h: derived through string extraction from LLVM macros, types, and libthr thr_*.c
-    llvm_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/pthread-macros.h')
-    sources.writing('pthread.h')
-    lic_llvm_macros = extract_license_block(llvm_macros)
-    pthread_macros = []
-    if os.path.isfile(llvm_macros):
-        with open(llvm_macros, 'r', encoding='utf-8') as fp:
-            for line in fp:
+    with sources.writing('pthread.h'):
+        llvm_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/pthread-macros.h')
+        pthread_licenses = []
+        pthread_macros = []
+        if os.path.isfile(llvm_macros):
+            macros_text, lic_llvm_macros = read_with_license(llvm_macros)
+            pthread_licenses.append(lic_llvm_macros)
+            for line in macros_text.splitlines():
                 if line.startswith('#define PTHREAD_'):
                     pthread_macros.append(line.strip())
 
-    thr_create_f = os.path.join(freebsd_src, 'lib/libthr/thread/thr_create.c')
-    lic_thr = extract_license_block(thr_create_f)
-    pthread_licenses = [lic_llvm_macros, lic_thr]
-
-    thr_prototypes = set()
-    yaml_pthread = os.path.join(llvm_src, 'libc/include/pthread.yaml')
-    if os.path.isfile(yaml_pthread):
-        pthread_licenses.append(extract_license_block(yaml_pthread))
-        with open(yaml_pthread, 'r', encoding='utf-8') as fp:
-            for fn in parse_yaml_functions(fp.read()):
+        thr_prototypes = set()
+        yaml_pthread = os.path.join(llvm_src, 'libc/include/pthread.yaml')
+        if os.path.isfile(yaml_pthread):
+            yaml_text, lic_yaml = read_with_license(yaml_pthread)
+            pthread_licenses.append(lic_yaml)
+            for fn in parse_yaml_functions(yaml_text):
                 if 'pthread_' in fn:
                     thr_prototypes.add(fn)
 
-    thr_dir = os.path.join(freebsd_src, 'lib/libthr/thread')
-    if os.path.isdir(thr_dir):
-        for f in sorted(os.listdir(thr_dir)):
-            if f.startswith('thr_') and f.endswith('.c'):
-                p = os.path.join(thr_dir, f)
-                contributes = False
-                with open(p, 'r', encoding='utf-8') as fp:
-                    thr_text = fp.read()
-                extracted_names = set()
-                for sig in extract_signatures_from_c(thr_text):
-                    if '\tpthread_' in sig:
-                        thr_prototypes.add(sig)
-                        contributes = True
-                        extracted_names.add(sig.split('\t', 1)[1].split('(', 1)[0])
-                # Surface pthread definitions the signature extractor does not
-                # handle, so upstream changes cannot silently shrink pthread.h.
-                for match in re.finditer(
-                    r'^[A-Za-z_][\w\s\*]*\n(_?pthread\w*)\s*\(', thr_text, re.MULTILINE
-                ):
-                    skipped_name = match.group(1).lstrip('_')
-                    if skipped_name not in extracted_names:
-                        print(f'  note: skipped pthread definition {skipped_name} in {f} (unhandled signature shape)')
-                if contributes:
-                    pthread_licenses.append(extract_license_block(p))
+        thr_dir = os.path.join(freebsd_src, 'lib/libthr/thread')
+        total_extracted_thr = 0
+        total_skipped_thr = []
+        if os.path.isdir(thr_dir):
+            for f in sorted(os.listdir(thr_dir)):
+                if f.startswith('thr_') and f.endswith('.c'):
+                    p = os.path.join(thr_dir, f)
+                    thr_text, lic_thr = read_with_license(p)
+                    extracted, skipped = extract_signatures_from_c(thr_text, f)
+                    if skipped:
+                        total_skipped_thr.extend(skipped)
+                    for sig in extracted:
+                        if '\tpthread_' in sig:
+                            thr_prototypes.add(sig)
+                            total_extracted_thr += 1
+                    pthread_licenses.append(lic_thr)
 
-    pthread_all_lic = combine_licenses(*pthread_licenses)
+            print(
+                f"  Extracted {total_extracted_thr} pthread definitions from libthr "
+                f"({len(total_skipped_thr)} skipped)."
+            )
+            if total_skipped_thr:
+                for name, reason, fname in total_skipped_thr:
+                    print(f"  ERROR: skipped pthread definition '{name}' in {fname} ({reason})")
+                raise ValueError(
+                    f"Failed to extract {len(total_skipped_thr)} pthread definition(s) from {thr_dir}: "
+                    f"{[item[0] for item in total_skipped_thr]}"
+                )
 
-    with open(os.path.join(dst, 'pthread.h'), 'w', encoding='utf-8') as fp:
-        if pthread_all_lic:
-            fp.write(pthread_all_lic + '\n\n')
-        fp.write('#pragma once\n\n')
-        fp.write('#include <sys/cdefs.h>\n')
-        fp.write('#include <time.h>\n')
-        fp.write('#include <sched.h>\n')
-        fp.write('#include <sys/_pthreadtypes.h>\n\n')
-        for mline in pthread_macros:
-            fp.write(mline + '\n')
-        fp.write('\n__BEGIN_DECLS\n')
-        for proto in sorted(thr_prototypes):
-            fp.write(proto + '\n')
-        fp.write('__END_DECLS\n')
+        pthread_all_lic = combine_licenses(*pthread_licenses)
+
+        with open(os.path.join(dst, 'pthread.h'), 'w', encoding='utf-8') as fp:
+            if pthread_all_lic:
+                fp.write(pthread_all_lic + '\n\n')
+            fp.write('#pragma once\n\n')
+            fp.write('#include <sys/cdefs.h>\n')
+            fp.write('#include <time.h>\n')
+            fp.write('#include <sched.h>\n')
+            fp.write('#include <sys/_pthreadtypes.h>\n\n')
+            for mline in pthread_macros:
+                fp.write(mline + '\n')
+            fp.write('\n__BEGIN_DECLS\n')
+            for proto in sorted(thr_prototypes):
+                fp.write(proto + '\n')
+            fp.write('__END_DECLS\n')
 
     # H. sched.h & sys/sched.h: derived through string extraction from LLVM sched macros and types
     llvm_sched = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/sched-macros.h')
-    sources.writing('sys/sched.h', 'sched.h')
-    lic_llvm_sched = extract_license_block(llvm_sched)
-    sched_macros = []
-    if os.path.isfile(llvm_sched):
-        with open(llvm_sched, 'r', encoding='utf-8') as fp:
-            for line in fp:
+    sched_param_f = os.path.join(llvm_src, 'libc/include/llvm-libc-types/struct_sched_param.h')
+    yaml_sched = os.path.join(llvm_src, 'libc/include/sched.yaml')
+
+    with sources.writing('sys/sched.h', 'sched.h'):
+        sched_licenses = []
+        sched_macros = []
+        if os.path.isfile(llvm_sched):
+            sched_text, lic_llvm_sched = read_with_license(llvm_sched)
+            sched_licenses.append(lic_llvm_sched)
+            for line in sched_text.splitlines():
                 if line.startswith('#define SCHED_'):
                     sched_macros.append(line.strip())
 
-    sched_param_f = os.path.join(llvm_src, 'libc/include/llvm-libc-types/struct_sched_param.h')
-    lic_sched_param = extract_license_block(sched_param_f)
-    sched_param_lines = []
-    if os.path.isfile(sched_param_f):
-        with open(sched_param_f, 'r', encoding='utf-8') as fp:
+        sched_param_lines = []
+        if os.path.isfile(sched_param_f):
+            param_text, lic_sched_param = read_with_license(sched_param_f)
+            sched_licenses.append(lic_sched_param)
             copy = False
-            for line in fp:
+            for line in param_text.splitlines(keepends=True):
                 if 'struct sched_param {' in line:
                     copy = True
                 if copy:
@@ -724,167 +764,158 @@ def generate_headers(source_root, destination, sources):
                     if line.strip().startswith('};'):
                         break
 
-    sched_functions = set()
-    lic_sched_yaml = ''
-    yaml_sched = os.path.join(llvm_src, 'libc/include/sched.yaml')
-    if os.path.isfile(yaml_sched):
-        lic_sched_yaml = extract_license_block(yaml_sched)
-        with open(yaml_sched, 'r', encoding='utf-8') as fp:
-            for fn in parse_yaml_functions(fp.read()):
+        sched_functions = set()
+        if os.path.isfile(yaml_sched):
+            yaml_text, lic_sched_yaml = read_with_license(yaml_sched)
+            sched_licenses.append(lic_sched_yaml)
+            for fn in parse_yaml_functions(yaml_text):
                 if 'sched_' in fn:
                     sched_functions.add(fn)
 
-    sched_all_lic = combine_licenses(lic_llvm_sched, lic_sched_param, lic_sched_yaml)
+        sched_all_lic = combine_licenses(*sched_licenses)
 
-    with open(os.path.join(dst, 'sys/sched.h'), 'w', encoding='utf-8') as fp:
-        if sched_all_lic:
-            fp.write(sched_all_lic + '\n\n')
-        fp.write('#pragma once\n\n')
-        for sline in sched_macros:
-            fp.write(sline + '\n')
-        fp.write('\n' + ''.join(sched_param_lines) + '\n')
-        fp.write('#include <sys/cdefs.h>\n')
-        fp.write('#include <sys/_types.h>\n')
-        fp.write('#include <sys/_timespec.h>\n')
-        fp.write('\n__BEGIN_DECLS\n')
-        for sfn in sorted(sched_functions):
-            fp.write(sfn + '\n')
-        fp.write('__END_DECLS\n')
+        with open(os.path.join(dst, 'sys/sched.h'), 'w', encoding='utf-8') as fp:
+            if sched_all_lic:
+                fp.write(sched_all_lic + '\n\n')
+            fp.write('#pragma once\n\n')
+            for sline in sched_macros:
+                fp.write(sline + '\n')
+            fp.write('\n' + ''.join(sched_param_lines) + '\n')
+            fp.write('#include <sys/cdefs.h>\n')
+            fp.write('#include <sys/_types.h>\n')
+            fp.write('#include <sys/_timespec.h>\n')
+            fp.write('\n__BEGIN_DECLS\n')
+            for sfn in sorted(sched_functions):
+                fp.write(sfn + '\n')
+            fp.write('__END_DECLS\n')
 
-    with open(os.path.join(dst, 'sched.h'), 'w', encoding='utf-8') as fp:
-        if sched_all_lic:
-            fp.write(sched_all_lic + '\n\n')
-        fp.write('#pragma once\n#include <sys/sched.h>\n')
+        with open(os.path.join(dst, 'sched.h'), 'w', encoding='utf-8') as fp:
+            if sched_all_lic:
+                fp.write(sched_all_lic + '\n\n')
+            fp.write('#pragma once\n#include <sys/sched.h>\n')
 
     # I. x86/_types.h, machine/_types.h: derived through string/regex extraction from clang stdint.h
     stdint_h = os.path.join(llvm_src, 'clang/lib/Headers/stdint.h')
     sys_types_h = os.path.join(freebsd_src, 'sys/sys/types.h')
 
-    sources.writing('x86/_types.h', 'machine/_types.h')
-    lic_clang = extract_license_block(stdint_h)
-    lic_sys_types = extract_license_block(sys_types_h)
-    types_all_lic = combine_licenses(lic_clang, lic_sys_types)
+    with sources.writing('x86/_types.h', 'machine/_types.h'):
+        stdint_text, lic_clang = read_with_license(stdint_h)
+        sys_types_text, lic_sys_types = read_with_license(sys_types_h)
+        types_all_lic = combine_licenses(lic_clang, lic_sys_types)
 
-    extracted_types = []
-    if os.path.isfile(stdint_h):
-        with open(stdint_h, 'r', encoding='utf-8') as fp:
-            for line in fp:
-                line = line.strip()
-                if line.startswith('typedef ') and line.endswith(';'):
-                    m = re.match(r'typedef\s+(.+)\s+([u]?int[^;\s]*_t);', line)
-                    if m:
-                        base_type = m.group(1).strip()
-                        tname = '__' + m.group(2).strip()
-                        if any(w in tname for w in ['8', '16', '32', '64', 'ptr', 'max']):
-                            if not any(w in tname for w in ['24', '40', '48', '56']):
-                                if '__int_least' in base_type or '__uint_least' in base_type:
-                                    w_m = re.search(r'\d+', base_type)
-                                    if w_m:
-                                        width = w_m.group(0)
-                                        sign = 'UINT' if 'uint' in base_type else 'INT'
-                                        base_type = f'__{sign}{width}_TYPE__'
-                                extracted_types.append(f'typedef {base_type}\t{tname};')
+        extracted_types = []
+        for line in stdint_text.splitlines():
+            line = line.strip()
+            if line.startswith('typedef ') and line.endswith(';'):
+                m = re.match(r'typedef\s+(.+)\s+([u]?int[^;\s]*_t);', line)
+                if m:
+                    base_type = m.group(1).strip()
+                    tname = '__' + m.group(2).strip()
+                    if any(w in tname for w in ['8', '16', '32', '64', 'ptr', 'max']):
+                        if not any(w in tname for w in ['24', '40', '48', '56']):
+                            if '__int_least' in base_type or '__uint_least' in base_type:
+                                w_m = re.search(r'\d+', base_type)
+                                if w_m:
+                                    width = w_m.group(0)
+                                    sign = 'UINT' if 'uint' in base_type else 'INT'
+                                    base_type = f'__{sign}{width}_TYPE__'
+                            extracted_types.append(f'typedef {base_type}\t{tname};')
 
-    extra_types = [
-        'typedef __INT32_TYPE__\t__clock_t;',
-        'typedef __INT64_TYPE__\t__critical_t;',
-        'typedef double\t__double_t;',
-        'typedef float\t__float_t;',
-        'typedef __INTPTR_TYPE__\t__intfptr_t;',
-        'typedef __UINTPTR_TYPE__\t__uintfptr_t;',
-        'typedef __PTRDIFF_TYPE__\t__ptrdiff_t;',
-        'typedef __INT64_TYPE__\t__register_t;',
-        'typedef __INT64_TYPE__\t__segsz_t;',
-        'typedef __SIZE_TYPE__\t__size_t;',
-        'typedef __INT64_TYPE__\t__ssize_t;',
-        'typedef __INT64_TYPE__\t__time_t;',
-        'typedef __UINT64_TYPE__\t__u_register_t;',
-        'typedef __UINT64_TYPE__\t__vm_offset_t;',
-        'typedef __UINT64_TYPE__\t__vm_paddr_t;',
-        'typedef __UINT64_TYPE__\t__vm_size_t;',
-        'typedef int\t___wchar_t;',
-        '#define __WCHAR_MIN 0',
-        '#define __WCHAR_MAX __INT_MAX',
-    ]
-    extracted_types.extend(extra_types)
+        extra_types = [
+            'typedef __INT32_TYPE__\t__clock_t;',
+            'typedef __INT64_TYPE__\t__critical_t;',
+            'typedef double\t__double_t;',
+            'typedef float\t__float_t;',
+            'typedef __INTPTR_TYPE__\t__intfptr_t;',
+            'typedef __UINTPTR_TYPE__\t__uintfptr_t;',
+            'typedef __PTRDIFF_TYPE__\t__ptrdiff_t;',
+            'typedef __INT64_TYPE__\t__register_t;',
+            'typedef __INT64_TYPE__\t__segsz_t;',
+            'typedef __SIZE_TYPE__\t__size_t;',
+            'typedef __INT64_TYPE__\t__ssize_t;',
+            'typedef __INT64_TYPE__\t__time_t;',
+            'typedef __UINT64_TYPE__\t__u_register_t;',
+            'typedef __UINT64_TYPE__\t__vm_offset_t;',
+            'typedef __UINT64_TYPE__\t__vm_paddr_t;',
+            'typedef __UINT64_TYPE__\t__vm_size_t;',
+            'typedef int\t___wchar_t;',
+            '#define __WCHAR_MIN 0',
+            '#define __WCHAR_MAX __INT_MAX',
+        ]
+        extracted_types.extend(extra_types)
 
-    with open(os.path.join(dst, 'x86/_types.h'), 'w', encoding='utf-8') as fp:
-        if types_all_lic:
-            fp.write(types_all_lic + '\n\n')
-        fp.write('#pragma once\n#include <machine/_limits.h>\n\n' + '\n'.join(extracted_types) + '\n')
+        with open(os.path.join(dst, 'x86/_types.h'), 'w', encoding='utf-8') as fp:
+            if types_all_lic:
+                fp.write(types_all_lic + '\n\n')
+            fp.write('#pragma once\n#include <machine/_limits.h>\n\n' + '\n'.join(extracted_types) + '\n')
 
-    with open(os.path.join(dst, 'machine/_types.h'), 'w', encoding='utf-8') as fp:
-        if types_all_lic:
-            fp.write(types_all_lic + '\n\n')
-        fp.write('#pragma once\n#include <x86/_types.h>\n')
+        with open(os.path.join(dst, 'machine/_types.h'), 'w', encoding='utf-8') as fp:
+            if types_all_lic:
+                fp.write(types_all_lic + '\n\n')
+            fp.write('#pragma once\n#include <x86/_types.h>\n')
 
     # J. x86/_stdint.h, machine/_stdint.h: derived through forwarding to clean LLVM libc stdint-macros.h
     llvm_stdint_macros = os.path.join(llvm_src, 'libc/include/llvm-libc-macros/stdint-macros.h')
-    sources.writing('x86/_stdint.h', 'machine/_stdint.h')
-    lic_stdint = extract_license_block(llvm_stdint_macros)
+    if os.path.isfile(llvm_stdint_macros):
+        with sources.writing('x86/_stdint.h', 'machine/_stdint.h'):
+            _, lic_stdint = read_with_license(llvm_stdint_macros)
 
-    with open(os.path.join(dst, 'x86/_stdint.h'), 'w', encoding='utf-8') as fp:
-        if lic_stdint:
-            fp.write(lic_stdint + '\n\n')
-        fp.write('#pragma once\n#include <machine/_limits.h>\n#include <llvm-libc-macros/stdint-macros.h>\n')
+            with open(os.path.join(dst, 'x86/_stdint.h'), 'w', encoding='utf-8') as fp:
+                if lic_stdint:
+                    fp.write(lic_stdint + '\n\n')
+                fp.write('#pragma once\n#include <machine/_limits.h>\n#include <llvm-libc-macros/stdint-macros.h>\n')
 
-    with open(os.path.join(dst, 'machine/_stdint.h'), 'w', encoding='utf-8') as fp:
-        if lic_stdint:
-            fp.write(lic_stdint + '\n\n')
-        fp.write('#pragma once\n#include <x86/_stdint.h>\n')
+            with open(os.path.join(dst, 'machine/_stdint.h'), 'w', encoding='utf-8') as fp:
+                if lic_stdint:
+                    fp.write(lic_stdint + '\n\n')
+                fp.write('#pragma once\n#include <x86/_stdint.h>\n')
 
     # K. machine/_align.h, machine/param.h: derived through string substitution from sys/arm64 clean 2-clause BSD sources
     arm64_align = os.path.join(freebsd_src, 'sys/arm64/include/_align.h')
     arm64_param = os.path.join(freebsd_src, 'sys/arm64/include/param.h')
 
     if os.path.isfile(arm64_align):
-        with open(arm64_align, 'r', encoding='utf-8') as fp:
-            align_content = fp.read()
-        sources.writing('machine/_align.h', 'x86/_align.h')
-        lic_align = extract_license_block(arm64_align)
-        with open(os.path.join(dst, 'machine/_align.h'), 'w', encoding='utf-8') as fp:
-            if lic_align:
-                fp.write(lic_align + '\n\n')
-            for line in align_content.split('\n'):
-                if line.startswith('#define') and ('_ALIGN' in line or '_ALIGNBYTES' in line):
-                    fp.write(line + '\n')
+        with sources.writing('machine/_align.h', 'x86/_align.h'):
+            align_content, lic_align = read_with_license(arm64_align)
+            with open(os.path.join(dst, 'machine/_align.h'), 'w', encoding='utf-8') as fp:
+                if lic_align:
+                    fp.write(lic_align + '\n\n')
+                for line in align_content.splitlines():
+                    if line.startswith('#define') and ('_ALIGN' in line or '_ALIGNBYTES' in line):
+                        fp.write(line + '\n')
 
-        with open(os.path.join(dst, 'x86/_align.h'), 'w', encoding='utf-8') as fp:
-            if lic_align:
-                fp.write(lic_align + '\n\n')
-            fp.write('#pragma once\n#include <machine/_align.h>\n')
+            with open(os.path.join(dst, 'x86/_align.h'), 'w', encoding='utf-8') as fp:
+                if lic_align:
+                    fp.write(lic_align + '\n\n')
+                fp.write('#pragma once\n#include <machine/_align.h>\n')
 
     if os.path.isfile(arm64_param):
-        with open(arm64_param, 'r', encoding='utf-8') as fp:
-            param_content = fp.read()
-        sources.writing('machine/param.h')
-        lic_param = extract_license_block(arm64_param)
-        parts = re.split(
-            r"(\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//[^\r\n]*)",
-            param_content, flags=re.DOTALL,
-        )
-        param_adapted = ''.join(
-            part if part.startswith(('/*', '//')) else
-            part.replace('arm64', 'amd64').replace('aarch64', 'amd64').replace('armv7', 'i386')
-            for part in parts
-        )
-        with open(os.path.join(dst, 'machine/param.h'), 'w', encoding='utf-8') as fp:
-            if lic_param:
-                fp.write(lic_param + '\n\n')
-            fp.write(param_adapted)
+        with sources.writing('machine/param.h'):
+            param_content, lic_param = read_with_license(arm64_param)
+            parts = re.split(
+                r"(\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'|/\*.*?\*/|//[^\r\n]*)",
+                param_content, flags=re.DOTALL,
+            )
+            param_adapted = ''.join(
+                part if part.startswith(('/*', '//')) else
+                part.replace('arm64', 'amd64').replace('aarch64', 'amd64').replace('armv7', 'i386')
+                for part in parts
+            )
+            with open(os.path.join(dst, 'machine/param.h'), 'w', encoding='utf-8') as fp:
+                if lic_param:
+                    fp.write(lic_param + '\n\n')
+                fp.write(param_adapted)
 
     # L. xlocale/_strings.h: extract from FreeBSD include/xlocale/_strings.h
     xstrings_src = os.path.join(freebsd_src, 'include/xlocale/_strings.h')
     if os.path.isfile(xstrings_src):
-        sources.writing('xlocale/_strings.h')
-        lic_xstrings = extract_license_block(xstrings_src)
-        with open(xstrings_src, 'r', encoding='utf-8') as fp:
-            xstrings_content = fp.read()
-        with open(os.path.join(dst, 'xlocale/_strings.h'), 'w', encoding='utf-8') as fp:
-            if lic_xstrings:
-                fp.write(lic_xstrings + '\n\n')
-            body = re.sub(r'/\*.*?\*/', '', xstrings_content, flags=re.DOTALL).strip()
-            fp.write(body + '\n')
+        with sources.writing('xlocale/_strings.h'):
+            xstrings_content, lic_xstrings = read_with_license(xstrings_src)
+            with open(os.path.join(dst, 'xlocale/_strings.h'), 'w', encoding='utf-8') as fp:
+                if lic_xstrings:
+                    fp.write(lic_xstrings + '\n\n')
+                body = re.sub(r'/\*.*?\*/', '', xstrings_content, flags=re.DOTALL).strip()
+                fp.write(body + '\n')
 
     print('Derived headers successfully generated from audited sources.')
 
@@ -1097,10 +1128,16 @@ def prefetch_manifest_blobs(manifest, repositories):
     for name, paths in by_repo.items():
         if name not in repositories:
             continue
-        repo = repositories[name]
+        repo = Path(repositories[name])
+        if not repo.exists():
+            continue
         commit = REPOSITORIES[name][1]
         object_ids = set()
-        for record in git(repo, "ls-tree", "-r", "-z", commit).split(b"\0"):
+        try:
+            tree_output = git(repo, "ls-tree", "-r", "-z", commit)
+        except Exception:
+            continue
+        for record in tree_output.split(b"\0"):
             if not record:
                 continue
             metadata, filename = record.split(b"\t", 1)
@@ -1109,7 +1146,10 @@ def prefetch_manifest_blobs(manifest, repositories):
                 object_ids.add(object_id.decode("ascii"))
         sorted_ids = sorted(object_ids)
         for offset in range(0, len(sorted_ids), 500):
-            git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *sorted_ids[offset:offset + 500])
+            try:
+                git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *sorted_ids[offset:offset + 500])
+            except Exception:
+                pass
 
 
 def stage_sysroot(manifest, repositories, destination):
@@ -1212,10 +1252,11 @@ def generate_reviewed_headers(manifest, destination):
             recorded = sources.reads.get(generated_name)
             if recorded is None:
                 raise ValueError(f"Generated header has no tracked generation inputs: {path}")
+            if not recorded:
+                raise ValueError(f"Generated header has no recorded source reads: {path}")
             missing = [key for key in recorded if key not in keys]
             if missing:
                 raise ValueError(f"Missing contributor provenance in {path}: {missing}")
-            path.write_bytes(TOOL_NOTICE.encode("utf-8") + raw)
         provenance[str(path.relative_to(destination))] = [
             {"repository": key[0], "path": key[1], "sha256": entries[key]["sha256"]}
             for key in keys

@@ -1,4 +1,21 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
 import contextlib
@@ -253,6 +270,73 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertIn('Companion copyright and complete terms. Literal */', text)
             self.assertIn('// End provenance source', text)
             self.assertEqual(target.read_bytes(), raw)
+
+    def test_derived_headers_do_not_prepend_tool_agpl_notice(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+            SYSROOT.generate_reviewed_headers(manifest, destination)
+            include = destination / "usr/include"
+            for header in include.rglob("*.h"):
+                text = header.read_text(encoding="utf-8")
+                self.assertNotIn("SPDX-License-Identifier: AGPL-3.0-or-later", text)
+                self.assertNotIn("This file is part of Collective Toolbox", text)
+
+    def test_read_with_license_outside_writing_context_fails(self):
+        dummy_lookup = lambda path: ([("freebsd", "test.h")], "// block")
+        sources = SYSROOT.GenerationSources(dummy_lookup)
+        with self.assertRaisesRegex(RuntimeError, "active writing context"):
+            sources.read_with_license(Path("some/path"))
+
+    def test_missing_contributor_provenance_detected_and_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+
+            orig_generate = SYSROOT.generate_headers
+            def broken_generate(source_root, dst, sources):
+                orig_generate(source_root, dst, sources)
+                # Intentionally strip the provenance block from a derived header
+                pthread_path = dst / "usr/include/pthread.h"
+                lines = pthread_path.read_text(encoding="utf-8").splitlines()
+                # Remove the join provenance marker
+                stripped = [l for l in lines if "thr_join.c" not in l]
+                pthread_path.write_text("\n".join(stripped) + "\n", encoding="utf-8")
+
+            with patch.object(SYSROOT, "generate_headers", side_effect=broken_generate):
+                with self.assertRaisesRegex(ValueError, "Missing contributor provenance"):
+                    SYSROOT.generate_reviewed_headers(manifest, destination)
+
+    def test_single_line_and_non_whitelist_pthread_definitions_extracted(self):
+        c_source = (
+            "/* Comment with pthread_fake() { */\n"
+            "int pthread_single_line(int x) { return x; }\n"
+            "void * pthread_ptr_return(void *arg) { return arg; }\n"
+            "unsigned long\n_pthread_multiline(void)\n{\n  return 0;\n}\n"
+        )
+        sigs, skipped = SYSROOT.extract_signatures_from_c(c_source, "thr_sample.c")
+        self.assertEqual(len(skipped), 0)
+        self.assertIn("int\tpthread_single_line(int x);", sigs)
+        self.assertIn("void *\tpthread_ptr_return(void *arg);", sigs)
+        self.assertIn("unsigned long\tpthread_multiline(void);", sigs)
+
+    def test_unhandled_pthread_definition_fails_run(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary)
+            manifest = self.generator_fixture(destination)
+            # Add an unhandled signature shape to thr_create.c
+            target = destination / "src/freebsd/lib/libthr/thread/thr_create.c"
+            raw = (
+                "/* SPDX-License-Identifier: BSD-2-Clause */\n"
+                "/* Copyright author */\n"
+                "pthread_broken(void) { }\n"
+            ).encode("utf-8")
+            target.write_bytes(raw)
+            for entry in manifest["files"]:
+                if entry["path"] == "lib/libthr/thread/thr_create.c":
+                    entry["sha256"] = hashlib.sha256(raw).hexdigest()
+            with self.assertRaisesRegex(ValueError, "Failed to extract 1 pthread definition"):
+                SYSROOT.generate_reviewed_headers(manifest, destination)
 
     def test_review_can_quit_resume_view_and_approve(self):
         with tempfile.TemporaryDirectory() as temporary:
