@@ -91,6 +91,7 @@ supported_platforms=(
     "linux-x86"
     "windows-x64"
     "linux-x64"
+    "freebsd-x64"
     # Should work in principle, but not actively tested and not built in CI:
     # "linux-x64-gnu"
     # "linux-x86-gnu"
@@ -116,6 +117,19 @@ detect_platform() {
                 ;;
             *)
                 echo "Unsupported Windows architecture for auto-detect: $arch" >&2
+                exit 1
+                ;;
+        esac
+    fi
+
+    if [[ "$os" == "FreeBSD" ]]; then
+        case "$arch" in
+            amd64|x86_64)
+                printf '%s' "freebsd-x64"
+                return 0
+                ;;
+            *)
+                echo "Unsupported FreeBSD architecture for auto-detect: $arch" >&2
                 exit 1
                 ;;
         esac
@@ -244,16 +258,19 @@ while [[ $# -gt 0 ]]; do
         --offline)
             offline="--offline"
             ;;
-        --*)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
         --platforms|--list-platforms|list-platforms|platforms)
             list_platforms
             exit 0
             ;;
+        --*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
         windows-amd64)
             requested_platforms+=("windows-x64")
+            ;;
+        freebsd-amd64)
+            requested_platforms+=("freebsd-x64")
             ;;
         *)
             requested_platforms+=("$1")
@@ -287,6 +304,9 @@ cp .cargo/config.default.toml .cargo/config.toml
 
 if [[ "$offline" == "--offline" ]]; then
     cat .cargo/config.vendored.toml >> .cargo/config.toml
+    find vendor -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | while read -r file; do
+        mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"
+    done
 fi
 
 if [[ -f ~/"ctb-deploy.branding-enabled" ]]; then
@@ -356,6 +376,8 @@ for p in "${platforms[@]}"; do
     elif [[ "$p" == "windows-x64" ]]; then
         # target="x86_64-pc-windows-gnu"
         target="x86_64-win7-windows-gnu"
+    elif [[ "$p" == "freebsd-x64" ]]; then
+        target="x86_64-unknown-freebsd"
     elif [[ "$p" == "mac-x64" ]]; then
         target="x86_64-apple-darwin"
     elif [[ "$p" == "mac-arm64" ]]; then
@@ -380,6 +402,13 @@ for p in "${platforms[@]}"; do
         x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
             src/build_support/windows/combase_shim.c -o "target/$target/combase_shim.o"
         target_rustflags="$target_rustflags -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$PWD/target/$target/combase_shim.o"
+    fi
+
+    if [[ "$target" == "x86_64-unknown-freebsd" ]]; then
+        if [[ ! -f "built/freebsd-sysroot/usr/lib/crt1.o" ]]; then
+            echo "=== Compiling FreeBSD sysroot using Python interpreter ==="
+            ./scripts/compile-freebsd-sysroot ${offline} || exit 1
+        fi
     fi
 
     # Try to set build concurrency to something reasonable
@@ -429,6 +458,9 @@ for p in "${platforms[@]}"; do
         if [[ "$target" == *windows* ]]; then
             test_exclude=(--exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
         fi
+        if [[ "$target" == *freebsd* ]]; then
+            test_exclude=(--exclude ctb-nopersonality)
+        fi
 
         extra_test_args=()
         if [[ "$target" == *windows* ]]; then
@@ -443,6 +475,10 @@ for p in "${platforms[@]}"; do
                 extra_test_args=(--no-run)
                 echo "Could not find WINE to run tests."
                 exit 1
+            fi
+        elif [[ "$target" == *freebsd* ]]; then
+            if [[ "$(uname -s)" != "FreeBSD" ]]; then
+                extra_test_args=(--no-run)
             fi
         fi
 

@@ -3471,6 +3471,7 @@ dependencies = [
 name = "ctb-formats-python"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "clap",
  "ctb-formats-utilities",
  "ctb-utilities",

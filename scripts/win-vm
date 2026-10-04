@@ -983,6 +983,21 @@ sys.exit(0 if suite_failed == 0 and len(failing_binaries) == 0 else 1)
 
     trap - EXIT INT TERM
     if is_running; then
+        if [[ "${py_exit:-0}" -ne 0 ]]; then
+            mkdir -p "$REPO_ROOT/ci-logs"
+            local ts
+            ts="$(date +%Y%m%d-%H%M%S)"
+            local screen_path="$REPO_ROOT/ci-logs/vm-timeout-${ts}.png"
+            echo "Capturing VM screen before shutdown to $screen_path..."
+            cmd_screenshot "$screen_path" 2>/dev/null || true
+            if [[ -f "$screen_path" ]]; then
+                cp "$screen_path" "$REPO_ROOT/ci-logs/vm-timeout-latest.png" 2>/dev/null || true
+            fi
+            if [[ -f "$SERIAL_LOG" ]]; then
+                echo "Exporting serial error log to ci-logs/vm-timeout-serial.log..."
+                tail -n 1000 "$SERIAL_LOG" > "$REPO_ROOT/ci-logs/vm-timeout-serial.log" 2>/dev/null || true
+            fi
+        fi
         echo "Stopping Windows VM..."
         cmd_stop
     fi

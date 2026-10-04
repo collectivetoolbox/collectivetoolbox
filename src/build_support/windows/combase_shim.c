@@ -58,6 +58,7 @@ typedef int (WINAPI *PFN_GetHostNameW)(WCHAR *name, int namelen);
 typedef BOOL (WINAPI *PFN_RoOriginateErrorW)(HRESULT error, UINT cchMax, const WCHAR *message);
 typedef BOOL (WINAPI *PFN_RoOriginateError)(HRESULT error, void *message);
 typedef HRESULT (WINAPI *PFN_PathCchStripPrefix)(WCHAR *pszPath, SIZE_T cchPath);
+typedef HRESULT (WINAPI *PFN_PathCchSkipRoot)(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
 
 // Forward declarations of initial resolver stubs
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb);
@@ -75,6 +76,7 @@ static int WINAPI resolve_GetHostNameW(WCHAR *name, int namelen);
 static BOOL WINAPI resolve_RoOriginateErrorW(HRESULT error, UINT cchMax, const WCHAR *message);
 static BOOL WINAPI resolve_RoOriginateError(HRESULT error, void *message);
 static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath);
+static HRESULT WINAPI resolve_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd);
 
 // ============================================================================
 // __imp_ Function Pointers (imported by raw-dylib / linkers)
@@ -95,6 +97,7 @@ PFN_GetHostNameW __imp_GetHostNameW = resolve_GetHostNameW;
 PFN_RoOriginateErrorW __imp_RoOriginateErrorW = resolve_RoOriginateErrorW;
 PFN_RoOriginateError __imp_RoOriginateError = resolve_RoOriginateError;
 PFN_PathCchStripPrefix __imp_PathCchStripPrefix = resolve_PathCchStripPrefix;
+PFN_PathCchSkipRoot __imp_PathCchSkipRoot = resolve_PathCchSkipRoot;
 
 // ============================================================================
 // Direct Function Stubs (for call <symbol>)
@@ -158,6 +161,10 @@ BOOL WINAPI RoOriginateError(HRESULT error, void *message) {
 
 HRESULT WINAPI PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath) {
     return __imp_PathCchStripPrefix(pszPath, cchPath);
+}
+
+HRESULT WINAPI PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd) {
+    return __imp_PathCchSkipRoot(pszPath, ppszRootEnd);
 }
 
 // ============================================================================
@@ -532,5 +539,89 @@ static HRESULT WINAPI resolve_PathCchStripPrefix(WCHAR *pszPath, SIZE_T cchPath)
     }
     __imp_PathCchStripPrefix = fn;
     return fn(pszPath, cchPath);
+}
+
+static HRESULT WINAPI fallback_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd) {
+    if (!pszPath || !ppszRootEnd) {
+        return (HRESULT)0x80070057L; // E_INVALIDARG
+    }
+    HMODULE hShlwapi = GetModuleHandleA("shlwapi.dll");
+    if (!hShlwapi) hShlwapi = LoadLibraryA("shlwapi.dll");
+    if (hShlwapi) {
+        typedef const WCHAR * (WINAPI *PFN_PathSkipRootW)(const WCHAR *);
+        PFN_PathSkipRootW pfn = (PFN_PathSkipRootW)(void *)GetProcAddress(hShlwapi, "PathSkipRootW");
+        if (pfn) {
+            const WCHAR *res = pfn(pszPath);
+            if (res) {
+                *ppszRootEnd = res;
+                return S_OK;
+            }
+        }
+    }
+
+    const WCHAR *p = pszPath;
+    if ((p[0] == L'\\' || p[0] == L'/') &&
+        (p[1] == L'\\' || p[1] == L'/') &&
+        (p[2] == L'?' || p[2] == L'.') &&
+        (p[3] == L'\\' || p[3] == L'/')) {
+        p += 4;
+        if ((p[0] == L'U' || p[0] == L'u') &&
+            (p[1] == L'N' || p[1] == L'n') &&
+            (p[2] == L'C' || p[2] == L'c') &&
+            (p[3] == L'\\' || p[3] == L'/')) {
+            p += 4;
+            while (*p && *p != L'\\' && *p != L'/') p++;
+            if (*p) p++;
+            while (*p && *p != L'\\' && *p != L'/') p++;
+            if (*p) p++;
+            *ppszRootEnd = p;
+            return S_OK;
+        }
+    }
+
+    if (((pszPath[0] >= L'A' && pszPath[0] <= L'Z') || (pszPath[0] >= L'a' && pszPath[0] <= L'z')) &&
+        pszPath[1] == L':') {
+        if (pszPath[2] == L'\\' || pszPath[2] == L'/') {
+            *ppszRootEnd = pszPath + 3;
+        } else {
+            *ppszRootEnd = pszPath + 2;
+        }
+        return S_OK;
+    }
+
+    if ((pszPath[0] == L'\\' || pszPath[0] == L'/') &&
+        (pszPath[1] == L'\\' || pszPath[1] == L'/')) {
+        p = pszPath + 2;
+        while (*p && *p != L'\\' && *p != L'/') p++;
+        if (*p) p++;
+        while (*p && *p != L'\\' && *p != L'/') p++;
+        if (*p) p++;
+        *ppszRootEnd = p;
+        return S_OK;
+    }
+
+    if (pszPath[0] == L'\\' || pszPath[0] == L'/') {
+        *ppszRootEnd = pszPath + 1;
+        return S_OK;
+    }
+
+    *ppszRootEnd = pszPath;
+    return (HRESULT)0x80070057L; // E_INVALIDARG
+}
+
+static HRESULT WINAPI resolve_PathCchSkipRoot(const WCHAR *pszPath, const WCHAR **ppszRootEnd) {
+    HMODULE hMod = GetModuleHandleA("kernelbase.dll");
+    if (!hMod) hMod = GetModuleHandleA("api-ms-win-core-path-l1-1-0.dll");
+    if (!hMod) hMod = LoadLibraryA("api-ms-win-core-path-l1-1-0.dll");
+    if (!hMod) hMod = LoadLibraryA("kernelbase.dll");
+    FARPROC proc = hMod ? GetProcAddress(hMod, "PathCchSkipRoot") : NULL;
+    PFN_PathCchSkipRoot fn;
+    if (proc) {
+        fn = (PFN_PathCchSkipRoot)(void *)proc;
+    } else {
+        fn = fallback_PathCchSkipRoot;
+    }
+    __imp_PathCchSkipRoot = fn;
+    return fn(pszPath, ppszRootEnd);
 }
 

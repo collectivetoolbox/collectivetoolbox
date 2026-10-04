@@ -6,7 +6,12 @@ edition = "2024"
 path = "python.rs"
 crate-type = ["lib"]
 
+[[bin]]
+name = "ctb-python"
+path = "bin/main.rs"
+
 [dependencies]
+anyhow = "1.0.100"
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 include_dir = { version = "0.7.4", features = ["glob"] }

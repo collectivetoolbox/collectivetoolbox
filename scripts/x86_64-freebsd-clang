@@ -34,6 +34,7 @@ pick_first_dir() {
 sysroot="${CTB_FREEBSD_SYSROOT:-}"
 if [ -z "$sysroot" ]; then
     sysroot="$(pick_first_dir \
+        "$workspace_root/built/freebsd-sysroot" \
         "$workspace_root/vendor/freebsd-sysroot" \
         "$workspace_root/vendor/upstream-for-reference/freebsd-sysroot" \
         /usr/local/freebsd-sysroot \

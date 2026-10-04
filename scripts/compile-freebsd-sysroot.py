@@ -160,22 +160,47 @@ for soname, link_name, src_target in libraries:
     version_map = os.path.join(lib_dir, f'{soname}.map')
     if soname == 'libc.so.7':
         compat_h = os.path.join(src, 'lib/libc/include/compat.h')
+        version_syms = {
+            'FBSD_1.0': [
+                'fstat', 'stat', 'lstat', 'readdir', 'mknod', 'rand', 'srand',
+                'glob', 'globfree', 'wait4', 'kevent', 'qsort_r', 'statfs',
+                'fstatfs', 'getmntinfo',
+            ],
+            'FBSD_1.1': ['fstatat', 'mknodat'],
+            'FBSD_1.5': ['readdir_r'],
+        }
+        compat_lic = ''
         if os.path.exists(compat_h):
             with open(compat_h) as fp:
                 compat_txt = fp.read()
-            compat_syms = sorted(set(re.findall(r'__sym_compat\s*\(\s*([a-zA-Z0-9_]+)', compat_txt)))
             compat_lic = extract_license_block(compat_h)
-            with open(version_map, 'w') as fp:
-                fp.write('FBSD_1.5 {\n    global:\n')
-                for s in compat_syms:
+            for m in re.finditer(r'__sym_compat\s*\(\s*([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*([a-zA-Z0-9_.]+)\)', compat_txt):
+                sym, ver = m.group(1), m.group(2)
+                version_syms.setdefault(ver, []).append(sym)
+
+        with open(version_map, 'w') as fp:
+            prev_ver = None
+            for ver in ['FBSD_1.0', 'FBSD_1.1', 'FBSD_1.2', 'FBSD_1.3', 'FBSD_1.4', 'FBSD_1.5', 'FBSD_1.6', 'FBSD_1.7']:
+                syms = sorted(set(version_syms.get(ver, [])))
+                if not syms and not prev_ver:
+                    continue
+                inherit = f' {prev_ver};' if prev_ver else ''
+                fp.write(f'{ver} {{\n    global:\n')
+                for s in syms:
                     fp.write(f'        {s};\n')
-                fp.write('};\n')
-            with open(c_stub, 'w') as fp:
-                if compat_lic:
-                    fp.write(compat_lic + '\n')
-                for s in compat_syms:
-                    fp.write(f'void {s}(void) {{}}\n')
-            extra_ld_args.append(f'-Wl,--version-script={version_map}')
+                if inherit:
+                    fp.write(f'}}{inherit}\n')
+                else:
+                    fp.write('};\n')
+                prev_ver = ver
+
+        all_syms = sorted(set(s for sym_list in version_syms.values() for s in sym_list))
+        with open(c_stub, 'w') as fp:
+            if compat_lic:
+                fp.write(compat_lic + '\n')
+            for s in all_syms:
+                fp.write(f'void {s}(void) {{}}\n')
+        extra_ld_args.append(f'-Wl,--version-script={version_map}')
     else:
         with open(c_stub, 'w') as fp:
             if lic_header:
