@@ -2,7 +2,9 @@
 name = "ctoolbox"
 version = "0.1.49"
 edition = "2024"
-license = "AGPL-3.0-or-later AND AGPL-3.0-only AND GPL-3.0-only AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND LGPL-3.0-only AND Unicode-3.0 AND PSF-2.0 AND 0BSD AND WTFPL AND X11 AND MPL-2.0 AND LGPL-2.1-or-later AND GPL-1.0-or-later AND BSD-2-Clause-Darwin"
+license = "AGPL-3.0-or-later AND AGPL-3.0-only AND GPL-3.0-only AND MIT AND OFL-1.1 AND GPL-3.0-or-later AND  CC-BY-SA-3.0 AND Apache-2.0 AND Unlicense AND CC0-1.0 AND BSD-3-Clause AND Artistic-2.0 AND CC-BY-4.0 AND GPL-2.0-or-later AND BSD-2-Clause AND LGPL-3.0-only AND Unicode-3.0 AND PSF-2.0 AND 0BSD AND WTFPL AND X11 AND MPL-2.0 AND LGPL-2.1-or-later AND GPL-1.0-or-later AND BSD-2-Clause-Darwin AND BSD-1-Clause AND BSD-4-Clause-UC AND ISC AND MIT-CMU AND CMU-Mach AND (Apache-2.0 WITH LLVM-exception) AND HPND-sell-variant AND LicenseRef-MIT-ModernStyle-ANU AND LicenseRef-MIT-CMU-Delaware AND NCSA"
+
+# The following were added for the FreeBSD sysroot, and unless new code is subsequently added that uses them only are used in the code for FreeBSD builds: BSD-1-Clause AND BSD-4-Clause-UC AND ISC AND MIT-CMU AND CMU-Mach AND (Apache-2.0 WITH LLVM-exception) AND HPND-sell-variant AND LicenseRef-MIT-ModernStyle-ANU AND LicenseRef-MIT-CMU-Delaware AND NCSA
 
 [workspace]
 exclude = [

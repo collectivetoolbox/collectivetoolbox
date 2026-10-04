@@ -155,6 +155,10 @@ With the caveat that this software is unfinished:
 | Firefox | Broken because of https://bugzil.la/1360870; https://bugzil.la/1320796 |
 | PWA (iOS/Android) | No blockers, but unimplemented |
 
+Development note:
+- FreeBSD sysroot:
+`./scripts/download-freebsd-sysroot.py --manifest vendor/freebsd-sysroot-manifest.json` recreates it.
+
 ### Pregenerated and blobs
 
 Not comprehensive. I'm letting auto-generated *library bindings* slide as that seems like a different case.

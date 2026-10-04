@@ -630,9 +630,10 @@ def generate_headers(source_root, destination, sources):
             with open(os.path.join(dst, 'sys/syscall.h'), 'w', encoding='utf-8') as fp:
                 if lic_syscalls:
                     fp.write(lic_syscalls + '\n\n')
-                fp.write('#pragma once\n\n')
+                fp.write('#pragma once\n\n#if defined(__linux__)\n\n')
                 for sline in syscall_lines:
                     fp.write(sline + '\n')
+                fp.write('\n#endif // __linux__\n')
 
             with open(os.path.join(dst, 'syscall.h'), 'w', encoding='utf-8') as fp:
                 if lic_syscalls:
@@ -696,9 +697,21 @@ def generate_headers(source_root, destination, sources):
         if os.path.isfile(llvm_macros):
             macros_text, lic_llvm_macros = read_with_license(llvm_macros)
             pthread_licenses.append(lic_llvm_macros)
+            clean_macros = []
+            seen_macros = set()
             for line in macros_text.splitlines():
                 if line.startswith('#define PTHREAD_'):
-                    pthread_macros.append(line.strip())
+                    mline = line.strip()
+                    if mline.endswith('\\'):
+                        macro_name = mline.split()[1]
+                        if macro_name in ('PTHREAD_MUTEX_INITIALIZER', 'PTHREAD_COND_INITIALIZER', 'PTHREAD_RWLOCK_INITIALIZER'):
+                            mline = f'#define {macro_name} NULL'
+                        else:
+                            continue
+                    if mline not in seen_macros:
+                        seen_macros.add(mline)
+                        clean_macros.append(mline)
+            pthread_macros = clean_macros
 
         thr_prototypes = set()
         yaml_pthread = os.path.join(llvm_src, 'libc/include/pthread.yaml')
@@ -707,6 +720,12 @@ def generate_headers(source_root, destination, sources):
             pthread_licenses.append(lic_yaml)
             for fn in parse_yaml_functions(yaml_text):
                 if 'pthread_' in fn:
+                    if '__pthread_start_t' in fn:
+                        continue
+                    if 'pthread_barrier_init' in fn and ', int);' in fn:
+                        continue
+                    if '__atfork_callback_t' in fn:
+                        fn = fn.replace('__atfork_callback_t', 'void (*)(void)')
                     thr_prototypes.add(fn)
 
         thr_dir = os.path.join(freebsd_src, 'lib/libthr/thread')
@@ -747,7 +766,16 @@ def generate_headers(source_root, destination, sources):
             fp.write('#include <sys/cdefs.h>\n')
             fp.write('#include <time.h>\n')
             fp.write('#include <sched.h>\n')
-            fp.write('#include <sys/_pthreadtypes.h>\n\n')
+            fp.write('#include <sys/_pthreadtypes.h>\n')
+            fp.write('#include <sys/_cpuset.h>\n')
+            fp.write('#include <sys/_sigset.h>\n')
+            fp.write('#ifndef _SIGSET_T_DECLARED\n')
+            fp.write('#define _SIGSET_T_DECLARED\n')
+            fp.write('typedef __sigset_t sigset_t;\n')
+            fp.write('#endif\n')
+            fp.write('#include <llvm-libc-types/pthread_id_np_t.h>\n')
+            fp.write('#include <llvm-libc-types/__pthread_once_func_t.h>\n')
+            fp.write('#include <llvm-libc-types/__pthread_tss_dtor_t.h>\n\n')
             for mline in pthread_macros:
                 fp.write(mline + '\n')
             fp.write('\n__BEGIN_DECLS\n')
@@ -803,6 +831,7 @@ def generate_headers(source_root, destination, sources):
             fp.write('#include <sys/cdefs.h>\n')
             fp.write('#include <sys/_types.h>\n')
             fp.write('#include <sys/_timespec.h>\n')
+            fp.write('#include <llvm-libc-types/cpu_set_t.h>\n')
             fp.write('\n__BEGIN_DECLS\n')
             for sfn in sorted(sched_functions):
                 fp.write(sfn + '\n')
