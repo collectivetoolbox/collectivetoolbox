@@ -1135,7 +1135,8 @@ def prefetch_manifest_blobs(manifest, repositories):
         object_ids = set()
         try:
             tree_output = git(repo, "ls-tree", "-r", "-z", commit)
-        except Exception:
+        except Exception as exc:
+            print(f"Warning: failed to inspect tree for prefetching in {name} ({commit}): {exc}", file=sys.stderr)
             continue
         for record in tree_output.split(b"\0"):
             if not record:
@@ -1146,10 +1147,14 @@ def prefetch_manifest_blobs(manifest, repositories):
                 object_ids.add(object_id.decode("ascii"))
         sorted_ids = sorted(object_ids)
         for offset in range(0, len(sorted_ids), 500):
+            batch = sorted_ids[offset:offset + 500]
             try:
-                git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *sorted_ids[offset:offset + 500])
-            except Exception:
-                pass
+                git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *batch)
+            except Exception as exc:
+                print(
+                    f"Warning: failed to prefetch batch of {len(batch)} blob(s) in {name}: {exc}",
+                    file=sys.stderr,
+                )
 
 
 def stage_sysroot(manifest, repositories, destination):

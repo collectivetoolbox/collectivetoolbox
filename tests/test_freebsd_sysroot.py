@@ -703,6 +703,31 @@ class FreeBSDSysrootTests(unittest.TestCase):
             self.assertEqual(rejected["decision"], "rejected")
             self.assertIn("incompatible", rejected["review"])
 
+    def test_prefetch_manifest_blobs_logs_warning_on_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            repo_path = Path(temporary) / "repo"
+            repo_path.mkdir()
+            manifest = {
+                "files": [
+                    {"repository": "freebsd", "path": "include/test.h"},
+                ]
+            }
+            fake_tree = b"100644 blob " + b"a" * 40 + b"\tinclude/test.h\0"
+            def fake_git(repo, *args):
+                if args[0] == "ls-tree":
+                    return fake_tree
+                if args[0] == "fetch":
+                    raise subprocess.CalledProcessError(1, ["git", "fetch"])
+                return b""
+
+            stderr_buf = io.StringIO()
+            with patch.object(SYSROOT, "git", side_effect=fake_git), \
+                 contextlib.redirect_stderr(stderr_buf):
+                SYSROOT.prefetch_manifest_blobs(manifest, {"freebsd": repo_path})
+
+            output = stderr_buf.getvalue()
+            self.assertIn("Warning: failed to prefetch batch of 1 blob(s)", output)
+
 
 if __name__ == "__main__":
     unittest.main()
