@@ -735,13 +735,23 @@ import concurrent.futures
 
 all_exes = glob.glob(f'target/{target}/{build_profile}/deps/*.exe')
 
-def process_exe(exe):
+# Group test executables by crate name, keeping only the newest build
+valid_exes = {}
+for exe in sorted(all_exes):
     bname = os.path.basename(exe)
     if crate_prefix and not bname.startswith(f'{crate_prefix}-'):
-        return False
-    m = re.search(r'-([0-9a-f]{16})\.exe$', bname)
-    if not m or m.group(1) not in test_hashes:
-        return False
+        continue
+    m = re.search(r'^(.*)-([0-9a-f]{16})\.exe$', bname)
+    if not m or m.group(2) not in test_hashes:
+        continue
+    base = m.group(1)
+    mtime = os.path.getmtime(exe)
+    if base not in valid_exes or mtime > valid_exes[base][1]:
+        valid_exes[base] = (exe, mtime)
+
+def process_exe(item):
+    base, (exe, _) = item
+    bname = os.path.basename(exe)
     dest = os.path.join(exchange_dir, bname)
     shutil.copyfile(exe, dest)
     shutil.copymode(exe, dest)
@@ -749,7 +759,7 @@ def process_exe(exe):
     return True
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-    count = sum(1 for ok in executor.map(process_exe, sorted(all_exes)) if ok)
+    count = sum(1 for ok in executor.map(process_exe, sorted(valid_exes.items())) if ok)
 
 print(count)
 ")
@@ -799,6 +809,7 @@ print(count)
 
     cat <<EOF > "$EXCHANGE_DIR/run_js.bat"
 @echo off
+set "RUST_LOG=info"
 echo [JS Runner Started at %TIME%] >> COM1
 "%~1" ${filter_arg}--nocapture --test-threads 1 > "%TEMP%\js_test.log" 2>&1
 set JS_RUN_EXIT=%ERRORLEVEL%
@@ -809,6 +820,7 @@ EOF
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
 @echo off
 setlocal enabledelayedexpansion
+set "RUST_LOG=info"
 set "TEST_DRIVE=%~dp0"
 if "%CTB_WIN_TEST_ROOT%"=="" set "CTB_WIN_TEST_ROOT=%TEST_DRIVE%"
 set "PATH=%CTB_WIN_TEST_ROOT%;%PATH%"
