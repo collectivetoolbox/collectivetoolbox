@@ -33,7 +33,6 @@
        ((#:configure-flags flags ''())
         #~(list "-Dinstalled_tests=false"
                 "-Dgtk_doc=false"
-                "-Ddocumentation=false"
                 "-Dintrospection=disabled"
                 "-Dglycin=disabled"
                 "-Dothers=enabled"

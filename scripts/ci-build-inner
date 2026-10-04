@@ -20,6 +20,8 @@ set -euxo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
+# Ensure git trusts the repository directory when running in container
+git config --global --add safe.directory '*' || true
 
 # Ensure robust DNS resolution inside the container
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
