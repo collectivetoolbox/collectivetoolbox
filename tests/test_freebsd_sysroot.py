@@ -728,6 +728,58 @@ class FreeBSDSysrootTests(unittest.TestCase):
             output = stderr_buf.getvalue()
             self.assertIn("Warning: failed to prefetch batch of 1 blob(s)", output)
 
+    def test_audit_manifest_at_startup_fills_missing_and_enforces_review(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = root / "upstream"
+            repository.mkdir()
+            subprocess.run(["git", "init", "--quiet", str(repository)], check=True)
+            subprocess.run([
+                "git", "-C", str(repository), "config", "uploadpack.allowFilter", "true",
+            ], check=True)
+            (repository / "include").mkdir()
+            (repository / "include/spdx.h").write_bytes(self.raw)
+            (repository / "include/pending.h").write_bytes(self.raw_no_spdx)
+            subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+            subprocess.run([
+                "git", "-C", str(repository), "-c", "user.name=Test", "-c",
+                "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
+                "commit", "--quiet", "-m", "fixture",
+            ], check=True)
+            commit = subprocess.check_output([
+                "git", "-C", str(repository), "rev-parse", "HEAD",
+            ], text=True).strip()
+            repositories = {"freebsd": (repository.as_uri(), commit)}
+            outputs = (root / "reference/sysroot", root / "final/sysroot")
+            manifest = {
+                "version": 1,
+                "commits": {"freebsd": commit},
+                "files": [],
+            }
+            path = root / "manifest.json"
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+            with (
+                patch.object(SYSROOT, "WORKSPACE_ROOT", root),
+                patch.object(SYSROOT, "REPOSITORIES", repositories),
+                patch.object(SYSROOT, "OUTPUTS", outputs),
+                patch.object(SYSROOT, "generate_reviewed_headers"),
+            ):
+                with self.assertRaisesRegex(ValueError, "Pending review.*pending.h"):
+                    SYSROOT.main(["--manifest", str(path)])
+
+                updated = json.loads(path.read_text())
+                file_map = {f["path"]: f for f in updated["files"]}
+                self.assertIn("include/spdx.h", file_map)
+                self.assertEqual(file_map["include/spdx.h"]["decision"], "approved")
+                self.assertEqual(file_map["include/spdx.h"]["licenses"], ["BSD-2-Clause"])
+                self.assertIn("include/pending.h", file_map)
+                self.assertEqual(file_map["include/pending.h"]["decision"], "pending")
+
+                with patch("builtins.input", side_effect=["v", "a", "BSD-2-Clause"]):
+                    SYSROOT.main(["--review-manifest", str(path)])
+
+                SYSROOT.main(["--manifest", str(path)])
+
 
 if __name__ == "__main__":
     unittest.main()

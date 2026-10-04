@@ -1380,21 +1380,67 @@ def draft_entry(repository, path, raw, kind):
     return entry
 
 
-def prepare_manifest(path, repositories):
-    if path.exists() or path.is_symlink():
-        raise ValueError(f"Manifest already exists: {path}; use --review-manifest to resume")
-    entries = []
+def derive_spdx_status(entry, raw):
+    try:
+        text = validate_text(raw, entry["path"])
+    except Exception:
+        return entry
+    hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
+    if not hints:
+        return entry
+    all_terms = set()
+    for hint in hints:
+        clean = hint.strip().rstrip("*/").strip()
+        try:
+            terms = spdx_terms(clean)
+            if not all(t in ALLOWED_LICENSES for t in terms):
+                return entry
+            all_terms.update(terms)
+        except Exception:
+            return entry
+
+    if all_terms:
+        matched_terms = sorted(all_terms)
+        candidate = dict(
+            entry,
+            licenses=matched_terms,
+            review=f"SPDX-License-Identifier: {' AND '.join(matched_terms)}",
+            source_only_reviewed=True,
+            notices=[],
+            decision="approved",
+        )
+        try:
+            validate_bytes(candidate, raw)
+            return candidate
+        except ValueError:
+            pass
+    return entry
+
+
+def scan_repository_records(repositories):
+    selected_by_repo = {}
     for name, repository in repositories.items():
+        repo_path = Path(repository)
+        if not repo_path.exists():
+            continue
         commit = REPOSITORIES[name][1]
+        try:
+            tree_output = git(repo_path, "ls-tree", "-r", "-z", commit)
+        except Exception as exc:
+            print(f"Warning: failed to list tree for {name} ({commit}): {exc}", file=sys.stderr)
+            continue
         records = []
-        for record in git(repository, "ls-tree", "-r", "-z", commit).split(b'\0'):
+        for record in tree_output.split(b'\0'):
             if not record:
                 continue
             metadata, filename = record.split(b'\t', 1)
             mode, kind, object_id = metadata.split()
             if mode == b"100644" and kind == b"blob":
                 filename = filename.decode("utf-8")
-                relative_path(filename)
+                try:
+                    relative_path(filename)
+                except ValueError:
+                    continue
                 records.append((filename, object_id.decode("ascii")))
         selected = {}
         ancestors = {PurePosixPath('.')}
@@ -1408,6 +1454,85 @@ def prepare_manifest(path, repositories):
                 r"(?:LICENSE|LICENCE|COPYING|COPYRIGHT|NOTICE)(?:[._-].*)?", notice_path.name.upper(),
             ):
                 selected[filename] = (object_id, "notice")
+        selected_by_repo[name] = selected
+    return selected_by_repo
+
+
+def audit_and_sync_manifest(manifest_path, repositories, selected_by_repo=None):
+    manifest = read_review_manifest(manifest_path)
+    original_entries = list(manifest["files"])
+    pruned_entries = prune_unneeded_entries(original_entries)
+    if len(pruned_entries) < len(original_entries):
+        manifest["files"] = pruned_entries
+
+    if selected_by_repo is None:
+        selected_by_repo = scan_repository_records(repositories)
+
+    existing_by_repo = {}
+    for entry in manifest["files"]:
+        existing_by_repo.setdefault(entry["repository"], {})[entry["path"]] = entry
+
+    missing_by_repo = {}
+    for repo_name, selected in selected_by_repo.items():
+        existing = existing_by_repo.get(repo_name, {})
+        for path_str, (object_id, kind) in selected.items():
+            if path_str not in existing:
+                missing_by_repo.setdefault(repo_name, {})[path_str] = (object_id, kind)
+
+    added_entries = []
+    auto_approved_count = 0
+    pending_count = 0
+
+    for repo_name, missing in missing_by_repo.items():
+        repo = repositories.get(repo_name)
+        if not repo or not Path(repo).exists():
+            continue
+        object_ids = sorted({oid for oid, _ in missing.values()})
+        for offset in range(0, len(object_ids), 500):
+            try:
+                git(repo, "fetch", "--quiet", "--no-write-fetch-head", "origin", *object_ids[offset:offset + 500])
+            except Exception as exc:
+                print(f"Warning: failed to fetch batch of objects in {repo_name}: {exc}", file=sys.stderr)
+        for path_str, (object_id, kind) in sorted(missing.items()):
+            try:
+                raw = git(repo, "cat-file", "blob", object_id)
+            except Exception as exc:
+                print(f"Warning: failed to read blob for {repo_name}/{path_str}: {exc}", file=sys.stderr)
+                continue
+            if has_incompatible_spdx(raw, path_str):
+                continue
+            entry = draft_entry(repo_name, path_str, raw, kind)
+            entry = derive_spdx_status(entry, raw)
+            if entry.get("decision") == "approved":
+                auto_approved_count += 1
+            else:
+                pending_count += 1
+            added_entries.append(entry)
+
+    if added_entries:
+        manifest["files"].extend(added_entries)
+        manifest["files"].sort(key=lambda e: (e["repository"], e["path"]))
+
+    if added_entries or len(pruned_entries) < len(original_entries):
+        save_manifest(manifest_path, manifest)
+        if added_entries:
+            print(
+                f"Manifest audit: added {len(added_entries)} missing file(s) to {manifest_path.name} "
+                f"({auto_approved_count} auto-approved via SPDX, {pending_count} pending review)."
+            )
+        else:
+            print(f"Manifest audit: pruned {len(original_entries) - len(pruned_entries)} unneeded file(s).")
+
+    return manifest
+
+
+def prepare_manifest(path, repositories):
+    if path.exists() or path.is_symlink():
+        raise ValueError(f"Manifest already exists: {path}; use --review-manifest to resume")
+    selected_by_repo = scan_repository_records(repositories)
+    entries = []
+    for name, selected in selected_by_repo.items():
+        repository = repositories[name]
         object_ids = sorted({object_id for object_id, _ in selected.values()})
         for offset in range(0, len(object_ids), 500):
             git(repository, "fetch", "--quiet", "--no-write-fetch-head", "origin", *object_ids[offset:offset + 500])
@@ -1435,8 +1560,8 @@ def read_review_manifest(path):
         raise ValueError("Unsupported manifest version")
     if manifest["commits"] != {name: commit for name, (_, commit) in REPOSITORIES.items()}:
         raise ValueError("Manifest must match the pinned upstream commits")
-    if not isinstance(manifest["files"], list) or not manifest["files"]:
-        raise ValueError("No candidate files in manifest")
+    if not isinstance(manifest["files"], list):
+        raise ValueError("Manifest files must be a list")
     seen = set()
     for entry in manifest["files"]:
         if not isinstance(entry, dict) or entry.get("repository") not in REPOSITORIES:
@@ -1474,37 +1599,9 @@ def auto_approve_spdx_entries(manifest, repositories, cache=None):
                 db = None
             cache[path_str] = (raw, db)
 
-        try:
-            text = validate_text(raw, path_str)
-        except Exception:
-            continue
-
-        hints = re.findall(r"SPDX-License-Identifier:[ \t]*([^\r\n]*)", text)
-        matched_terms = None
-        for hint in hints:
-            clean = hint.strip().rstrip("*/").strip()
-            try:
-                terms = sorted(spdx_terms(clean))
-                if terms and all(t in ALLOWED_LICENSES for t in terms):
-                    matched_terms = terms
-                    break
-            except Exception:
-                pass
-
-        if matched_terms:
-            candidate = dict(
-                entry,
-                licenses=matched_terms,
-                review=f"SPDX-License-Identifier: {' AND '.join(matched_terms)}",
-                source_only_reviewed=True,
-                notices=[],
-                decision="approved",
-            )
-            try:
-                validate_bytes(candidate, raw)
-            except ValueError:
-                continue
-            entry.update(candidate)
+        new_entry = derive_spdx_status(entry, raw)
+        if new_entry.get("decision") == "approved":
+            entry.update(new_entry)
             auto_approved += 1
 
     return auto_approved
@@ -1588,13 +1685,7 @@ def find_nearest_notice(manifest, entry):
 def review_manifest(path, repositories, ask=None):
     if ask is None:
         ask = input
-    manifest = read_review_manifest(path)
-    original_count = len(manifest["files"])
-    manifest["files"] = prune_unneeded_entries(manifest["files"])
-    if len(manifest["files"]) < original_count:
-        pruned_count = original_count - len(manifest["files"])
-        print(f"Pruned {pruned_count} files not included/used in the sysroot.")
-        save_manifest(path, manifest)
+    manifest = audit_and_sync_manifest(path, repositories)
 
     prefetch_manifest_blobs(manifest, repositories)
     blob_cache = {}
@@ -1787,13 +1878,18 @@ def main(argv=None):
     commands.add_argument("--review-manifest", type=Path, metavar="FILE", help="review files one by one; saves progress and resumes")
     commands.add_argument("--manifest", type=Path, metavar="FILE", help="generate sysroot using completed review decisions")
     arguments = parser.parse_args(argv)
-    manifest = None
-    if arguments.manifest:
-        manifest = load_manifest(arguments.manifest)
+
     if arguments.prepare_manifest and (arguments.prepare_manifest.exists() or arguments.prepare_manifest.is_symlink()):
         raise ValueError("Manifest already exists; use --review-manifest to resume")
-    if arguments.review_manifest:
-        read_review_manifest(arguments.review_manifest)
+
+    manifest_path = arguments.manifest or arguments.review_manifest
+    if manifest_path:
+        if not manifest_path.exists():
+            raise ValueError(f"Manifest does not exist: {manifest_path}")
+        if manifest_path.is_symlink():
+            raise ValueError(f"Refusing to use symlinked manifest: {manifest_path}")
+        read_review_manifest(manifest_path)
+
     if not shutil.which("git"):
         raise ValueError("git is required to download reviewed upstream sources")
     build_dir = WORKSPACE_ROOT / "built"
@@ -1802,9 +1898,24 @@ def main(argv=None):
     if arguments.prepare_manifest:
         prepare_manifest(arguments.prepare_manifest, repositories)
         return
+
+    selected_by_repo = scan_repository_records(repositories)
+    audit_and_sync_manifest(manifest_path, repositories, selected_by_repo=selected_by_repo)
+
     if arguments.review_manifest:
         review_manifest(arguments.review_manifest, repositories)
         return
+
+    manifest = load_manifest(arguments.manifest)
+    approved_keys = {(e["repository"], e["path"]) for e in manifest["files"]}
+    for repo_name, selected in selected_by_repo.items():
+        for path_str, (_, kind) in selected.items():
+            if kind == "source" and (repo_name, path_str) not in approved_keys:
+                if repo_name == "freebsd" and path_str in SPECIAL_FREEBSD_SOURCES:
+                    raise ValueError(f"Required source file is not approved in manifest: {repo_name}/{path_str}")
+                if repo_name == "llvm" and path_str in SPECIAL_LLVM_SOURCES:
+                    raise ValueError(f"Required source file is not approved in manifest: {repo_name}/{path_str}")
+
     with tempfile.TemporaryDirectory(prefix="freebsd-sysroot-", dir=build_dir) as temporary:
         temporary = Path(temporary)
         staged = temporary / "sysroot"
