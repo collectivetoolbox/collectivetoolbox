@@ -58,6 +58,7 @@ The rationale for this is that what's critical to your operator is an honest ass
 - All dependencies, including any build-time dependencies such as libraries or sysroots that are linked to the final binaries, MUST be under AGPL-3+-compatible licenses. Pre-compiled binaries are prohibited, with rare exceptions: the v86 VM and `tsc` compiler that are slow to build are precompiled and captured in the CI Docker image; and some dependencies in vendor/ctb-vendored still contain blobs at this time.
 - The files in `vendor/upstream-for-reference` are for reference only and must not be used or compiled except for generating diffs. The copies to use are in the enclosing `vendor/` folder.
 - Any important or nontrivial code should have test coverage.
+- Avoid the use of environment variables unless it's actually necessary and useful, and there isn't a neater approach like a CLI flag.
 - The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
 - Panicing unwrap, expect, etc. should not be introduced in new code.
 - Indexing that may panic is prohibited by Clippy lints.
