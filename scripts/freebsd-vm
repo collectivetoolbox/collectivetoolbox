@@ -24,6 +24,9 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 REPO_ROOT="$(pwd)"
+
+source "$SCRIPT_DIR/vm-common.sh"
+
 DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/FreeBSD/freebsd.qcow2"
 SSH_KEY="$REPO_ROOT/ci-logs/VMs/FreeBSD/id_ed25519"
 SOCKET_DIR="/tmp/ctb-freebsd-vm"
@@ -37,14 +40,6 @@ EXCHANGE_ISO="/tmp/ctb-freebsd-exchange.iso"
 DEFAULT_SSH_PORT="2223"
 
 mkdir -p "$SOCKET_DIR"
-
-remove_if_exists() {
-    for path in "$@"; do
-        if [[ -e "$path" || -L "$path" || -S "$path" ]]; then
-            rm -r "$path"
-        fi
-    done
-}
 
 usage() {
     cat <<EOF
@@ -62,8 +57,8 @@ VM Lifecycle:
                    --vnc-port P     Also listen on TCP port P for VNC (e.g. 5902)
                    --image PATH     Use a custom qcow2 image (default: ci-logs/VMs/FreeBSD/freebsd.qcow2)
                    --iso PATH       Attach a custom CD-ROM ISO (default: /tmp/ctb-freebsd-exchange.iso)
-                   --mem MB         Memory in MB (default: 2048)
-                   --smp CORES      CPU cores (default: 2)
+                   --mem MB         Memory in MB (default: 4096)
+                   --smp CORES      CPU cores (default: 4)
 
   stop           Stop the running VM (graceful ACPI shutdown, or --force)
   status         Check if the VM is running and display resource usage
@@ -77,8 +72,21 @@ Snapshot Management:
 Execution & Testing:
   run <command...>          Execute a command in the VM (via SSH or serial) and stream output
   ssh [command...]          Connect directly to the VM via SSH or run an SSH command
-  test [--reset]            Run the FreeBSD & ZFS validation smoke test suite in the VM
   sync-binaries             Package binaries and fixtures into exchange ISO and hot-swap
+  test [options]            Run the FreeBSD & ZFS validation smoke test suite in the VM
+                            Options:
+                              --release        (default) Use release mode ctoolbox binary
+                              --debug          Use debug mode ctoolbox binary
+                              --reset          Revert to base-state snapshot first
+  test-suite [options]      Compile, package, and execute the full test suite in VM
+                            Options:
+                              --release        (default) Compile and package tests in release mode
+                              --debug          Compile and package tests in debug mode
+                              --reset          Revert to base-state snapshot first
+                              --crate <name>   Test only a specific package/crate
+                              --filter <pat>   Test filter pattern
+                              --no-build       Skip build; use existing binaries
+                              --timeout <sec>  Timeout waiting for test suite (default: 14400)
 
 Interactive / Inspection:
   screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/freebsd-screen.png)
@@ -88,23 +96,16 @@ Interactive / Inspection:
 
 Examples:
   ./scripts/freebsd-vm start --net
-  ./scripts/freebsd-vm run zpool status
-  ./scripts/freebsd-vm run zfs list
   ./scripts/freebsd-vm test
+  ./scripts/freebsd-vm test-suite --release
+  ./scripts/freebsd-vm run zpool status
   ./scripts/freebsd-vm screenshot
   ./scripts/freebsd-vm stop
 EOF
 }
 
 is_running() {
-    if [[ -f "$PID_FILE" ]]; then
-        local pid
-        pid="$(cat "$PID_FILE")"
-        if kill -0 "$pid" 2>/dev/null; then
-            return 0
-        fi
-    fi
-    return 1
+    vm_is_running "$PID_FILE"
 }
 
 cmd_start() {
@@ -118,8 +119,8 @@ cmd_start() {
     local vnc_args=("-vnc" "unix:$VNC_SOCK")
     local image="$DEFAULT_IMAGE"
     local iso="$EXCHANGE_ISO"
-    local mem="2048"
-    local smp="2"
+    local mem="4096"
+    local smp="4"
     local ssh_port="$DEFAULT_SSH_PORT"
 
     while [[ $# -gt 0 ]]; do
@@ -199,7 +200,7 @@ cmd_start() {
         -M pc
         -cpu max
         -m "$mem"
-        -smp "$smp"
+        -smp "$smp,cores=$smp,sockets=1"
         -device ahci,id=ahci0
         -drive "file=$image,if=none,id=drive0,format=qcow2"
         -device ide-hd,bus=ahci0.0,drive=drive0
@@ -235,240 +236,81 @@ cmd_start() {
 }
 
 cmd_stop() {
-    if ! is_running; then
-        echo "VM is not running."
-        remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
-        return 0
-    fi
-
     local force="false"
     if [[ "${1:-}" == "--force" ]]; then
         force="true"
     fi
-
-    local pid
-    pid="$(cat "$PID_FILE")"
-
-    if [[ "$force" == "true" ]]; then
-        echo "Terminating VM (PID $pid)..."
-        kill -9 "$pid" 2>/dev/null || true
-    else
-        echo "Sending ACPI shutdown to VM (PID $pid)..."
-        cmd_monitor "system_powerdown" >/dev/null 2>&1 || kill -15 "$pid" 2>/dev/null || true
-        for _ in $(seq 1 15); do
-            if ! kill -0 "$pid" 2>/dev/null; then
-                break
-            fi
-            sleep 1
-        done
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "VM did not shut down gracefully; stopping forcefully..."
-            kill -9 "$pid" 2>/dev/null || true
-        fi
-    fi
-
-    remove_if_exists "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK"
-    echo "VM stopped."
+    vm_cmd_stop "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK" "$force" "FreeBSD VM"
 }
 
 cmd_status() {
-    if is_running; then
-        local pid
-        pid="$(cat "$PID_FILE")"
-        echo "VM is running (PID: $pid)"
-        ps -o pid,user,%cpu,%mem,rss,cmd -p "$pid"
-    else
-        echo "VM is not running."
-    fi
+    vm_cmd_status "$PID_FILE" "FreeBSD VM"
 }
 
 cmd_monitor() {
-    local cmd="$*"
-    if [[ ! -S "$MONITOR_SOCK" ]]; then
-        echo "Error: Monitor socket $MONITOR_SOCK not found or VM not running." >&2
-        return 1
-    fi
-    python3 -c "
-import socket, sys
-s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-s.connect('$MONITOR_SOCK')
-s.recv(1024)
-s.sendall(sys.argv[1].encode() + b'\n')
-import time; time.sleep(0.3)
-print(s.recv(4096).decode(errors='replace').strip())
-s.close()
-" "$cmd"
+    vm_cmd_monitor "$MONITOR_SOCK" "$@"
 }
 
 cmd_screenshot() {
     local out_path="${1:-/tmp/freebsd-screen.png}"
-    local tmp_ppm="/tmp/freebsd-screen-tmp-$$.ppm"
-
-    if [[ ! -S "$MONITOR_SOCK" ]]; then
-        echo "Error: Monitor socket not found or VM not running." >&2
-        return 1
-    fi
-
-    cmd_monitor "screendump $tmp_ppm" >/dev/null
-    sleep 0.5
-
-    if [[ -f "$tmp_ppm" ]]; then
-        ffmpeg -y -i "$tmp_ppm" "$out_path" 2>/dev/null || convert "$tmp_ppm" "$out_path"
-        remove_if_exists "$tmp_ppm"
-        echo "Screenshot saved to $out_path"
-    else
-        echo "Error: Failed to capture screen dump." >&2
-        return 1
-    fi
+    vm_cmd_screenshot "$MONITOR_SOCK" "$out_path"
 }
 
 cmd_send_keys() {
-    for key in "$@"; do
-        cmd_monitor "sendkey $key" >/dev/null
-        sleep 0.2
-    done
+    vm_cmd_send_keys "$MONITOR_SOCK" "$@"
 }
 
 cmd_type() {
-    local text="$*"
-    if [[ ! -S "$MONITOR_SOCK" ]]; then
-        echo "Error: Monitor socket not found or VM not running." >&2
-        return 1
-    fi
-    python3 -c "
-import socket, sys, time
-
-monitor_sock = '$MONITOR_SOCK'
-text = sys.argv[1]
-
-s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-s.connect(monitor_sock)
-s.recv(1024)
-
-def send(key):
-    s.sendall(f'sendkey {key}\n'.encode())
-    time.sleep(0.04)
-
-key_map = {
-    ':': 'shift-semicolon',
-    ';': 'semicolon',
-    '\\\\': 'backslash',
-    '/': 'slash',
-    '.': 'dot',
-    ',': 'comma',
-    '-': 'minus',
-    '_': 'shift-minus',
-    '=': 'equal',
-    '+': 'shift-equal',
-    ' ': 'spc',
-    '>': 'shift-dot',
-    '<': 'shift-comma',
-    '*': 'shift-8',
-    '\"': 'shift-apostrophe',
-    \"'\": 'apostrophe',
-    '|': 'shift-backslash',
-    '[': 'bracket_left',
-    ']': 'bracket_right',
-    '{': 'shift-bracket_left',
-    '}': 'shift-bracket_right',
-    '(': 'shift-9',
-    ')': 'shift-0',
-    '&': 'shift-7',
-    '%': 'shift-5',
-    '$': 'shift-4',
-    '#': 'shift-3',
-    '@': 'shift-2',
-    '!': 'shift-1',
-    '?': 'shift-slash',
-    '~': 'shift-grave_accent',
-    '\`': 'grave_accent',
-    '\n': 'ret',
-}
-
-for ch in text:
-    if ch in key_map:
-        send(key_map[ch])
-    elif ch.isupper():
-        send(f'shift-{ch.lower()}')
-    elif ch.isdigit() or ch.islower():
-        send(ch)
-    else:
-        send(ch)
-
-s.close()
-" "$text"
+    vm_cmd_type "$MONITOR_SOCK" "$*"
 }
 
 cmd_snapshot() {
     local subcmd="${1:-list}"
     shift || true
-
     local image="$DEFAULT_IMAGE"
-
-    case "$subcmd" in
-        list)
-            qemu-img snapshot -l "$image"
-            ;;
-        create)
-            local name="${1:-}"
-            if [[ -z "$name" ]]; then
-                echo "Usage: ./scripts/freebsd-vm snapshot create <name>" >&2
-                return 1
-            fi
-            if is_running; then
-                echo "VM is currently running. Creating live snapshot '$name'..."
-                cmd_monitor "savevm $name"
-            else
-                echo "Creating disk snapshot '$name' on $image..."
-                qemu-img snapshot -c "$name" "$image"
-            fi
-            echo "Snapshot '$name' created."
-            ;;
-        revert)
-            local name="${1:-}"
-            if [[ -z "$name" ]]; then
-                echo "Usage: ./scripts/freebsd-vm snapshot revert <name>" >&2
-                return 1
-            fi
-            if is_running; then
-                echo "Stopping VM before reverting snapshot..."
-                cmd_stop
-            fi
-            echo "Reverting $image to snapshot '$name'..."
-            qemu-img snapshot -a "$name" "$image"
-            echo "Successfully reverted to snapshot '$name'."
-            ;;
-        delete)
-            local name="${1:-}"
-            if [[ -z "$name" ]]; then
-                echo "Usage: ./scripts/freebsd-vm snapshot delete <name>" >&2
-                return 1
-            fi
-            echo "Deleting snapshot '$name' from $image..."
-            qemu-img snapshot -d "$name" "$image"
-            echo "Snapshot '$name' deleted."
-            ;;
-        *)
-            echo "Unknown snapshot subcommand: $subcmd" >&2
-            echo "Supported: list, create, revert, delete" >&2
-            return 1
-            ;;
-    esac
+    vm_cmd_snapshot "$MONITOR_SOCK" "$PID_FILE" "$image" "$subcmd" "$@"
 }
 
 cmd_sync_binaries() {
+    local release="true"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --release)
+                release="true"
+                ;;
+            --debug)
+                release="false"
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+
     mkdir -p "$EXCHANGE_DIR"
 
-    local ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    local build_profile="release"
+    if [[ "$release" != "true" ]]; then
+        build_profile="debug"
+    fi
+
+    local ctb_bin="target/x86_64-unknown-freebsd/$build_profile/ctoolbox"
+    if [[ ! -f "$ctb_bin" ]]; then
+        ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    fi
     if [[ ! -f "$ctb_bin" ]]; then
         ctb_bin="target/x86_64-unknown-freebsd/debug/ctoolbox"
     fi
+
     if [[ -f "$ctb_bin" ]]; then
+        echo "Copying $ctb_bin to exchange image..."
         cp "$ctb_bin" "$EXCHANGE_DIR/ctoolbox"
         chmod +x "$EXCHANGE_DIR/ctoolbox"
     fi
 
-    genisoimage -J -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+    vm_package_fixtures "$EXCHANGE_DIR" "$REPO_ROOT"
+
+    genisoimage -iso-level 3 -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
 
     if is_running; then
         cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
@@ -594,32 +436,13 @@ sys.exit(exit_code if exit_code is not None else 1)
 " "$start_offset"
 }
 
-cmd_test() {
-    local reset="false"
-    while [[ $# -gt 0 ]]; do
-        case "$1" in
-            --reset)
-                reset="true"
-                ;;
-            *)
-                ;;
-        esac
-        shift
-    done
-
-    if [[ "$reset" == "true" ]]; then
-        if is_running; then
-            cmd_stop
-        fi
-        cmd_snapshot revert "base-state"
+_run_smoke_tests() {
+    local release="$1"
+    local build_profile="release"
+    if [[ "$release" != "true" ]]; then
+        build_profile="debug"
     fi
 
-    if ! is_running; then
-        cmd_start --net
-        wait_for_ssh "$DEFAULT_SSH_PORT" 45
-    fi
-
-    echo "=== Running FreeBSD & ZFS Smoke Tests in VM ==="
     echo "1. Checking FreeBSD version and kernel..."
     cmd_run "uname -a && freebsd-version -k -u"
     echo ""
@@ -660,19 +483,307 @@ cmd_test() {
     '
     echo ""
 
-    local ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    local ctb_bin="target/x86_64-unknown-freebsd/$build_profile/ctoolbox"
+    if [[ ! -f "$ctb_bin" ]]; then
+        ctb_bin="target/x86_64-unknown-freebsd/release/ctoolbox"
+    fi
     if [[ ! -f "$ctb_bin" ]]; then
         ctb_bin="target/x86_64-unknown-freebsd/debug/ctoolbox"
     fi
     if [[ -f "$ctb_bin" ]]; then
-        echo "5. Verifying ctoolbox binary execution in FreeBSD VM..."
+        echo "5. Verifying ctoolbox binary execution in FreeBSD VM (from $ctb_bin)..."
         scp -q -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
             -P "$DEFAULT_SSH_PORT" "$ctb_bin" root@127.0.0.1:/tmp/ctoolbox-test
         cmd_run 'chmod +x /tmp/ctoolbox-test && /tmp/ctoolbox-test --version && /tmp/ctoolbox-test hex2dec ff && rm /tmp/ctoolbox-test'
         echo ""
+    else
+        echo "Warning: No ctoolbox binary found at target/x86_64-unknown-freebsd/$build_profile/ctoolbox."
     fi
 
     echo "=== FreeBSD & ZFS VM Tests Completed Successfully ==="
+}
+
+cmd_test() {
+    local reset="false"
+    local release="true"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --release)
+                release="true"
+                ;;
+            --debug)
+                release="false"
+                ;;
+            --reset)
+                reset="true"
+                ;;
+            *)
+                ;;
+        esac
+        shift
+    done
+
+    local log_dir="$REPO_ROOT/ci-logs/FreeBSD"
+    mkdir -p "$log_dir"
+    local log_ts
+    log_ts="$(date +%Y%m%d-%H%M%S)"
+    local test_log="$log_dir/FreeBSD-${log_ts}.log"
+
+    echo "=== Running FreeBSD & ZFS Smoke Tests in VM ==="
+    echo "Streaming VM test output to $test_log..."
+
+    if [[ "$reset" == "true" ]]; then
+        if is_running; then
+            cmd_stop
+        fi
+        cmd_snapshot revert "base-state"
+    fi
+
+    if ! is_running; then
+        cmd_start --net
+        wait_for_ssh "$DEFAULT_SSH_PORT" 45
+    fi
+
+    local test_exit=0
+    _run_smoke_tests "$release" 2>&1 | tee -a "$test_log" || test_exit=$?
+
+    if [[ "$test_exit" -ne 0 ]]; then
+        vm_capture_failure_artifacts "$MONITOR_SOCK" "$SERIAL_LOG" "$log_dir" "FreeBSD"
+    fi
+
+    return "$test_exit"
+}
+
+cmd_test_suite() {
+    local reset="false"
+    local release="true"
+    local crate_filter=""
+    local test_filter=""
+    local no_build="false"
+    local timeout="14400"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --release)
+                release="true"
+                ;;
+            --debug)
+                release="false"
+                ;;
+            --reset)
+                reset="true"
+                ;;
+            --crate)
+                shift
+                crate_filter="${1:-}"
+                ;;
+            --filter)
+                shift
+                test_filter="${1:-}"
+                ;;
+            --no-build)
+                no_build="true"
+                ;;
+            --timeout)
+                shift
+                timeout="${1:-14400}"
+                ;;
+            *)
+                echo "Unknown option for test-suite: $1" >&2
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    trap 'if is_running; then cmd_stop; fi' EXIT INT TERM
+
+    if [[ "$reset" == "true" ]]; then
+        if is_running; then
+            cmd_stop
+        fi
+        cmd_snapshot revert "base-state"
+    fi
+
+    if ! is_running; then
+        cmd_start --net
+        wait_for_ssh "$DEFAULT_SSH_PORT" 45
+    fi
+
+    local target="x86_64-unknown-freebsd"
+    local build_profile="debug"
+    if [[ "$release" == "true" ]]; then
+        build_profile="release"
+    fi
+
+    if [[ "$no_build" != "true" ]]; then
+        if [[ ! -f "built/freebsd-sysroot/usr/lib/crt1.o" && ! -f "vendor/freebsd-sysroot/usr/lib/crt1.o" ]]; then
+            echo "=== Compiling FreeBSD sysroot using Python interpreter ==="
+            ./scripts/compile-freebsd-sysroot || exit 1
+        fi
+
+        echo "=== Compiling Test Binaries for $target (profile: $build_profile) ==="
+        local cargo_args=(test --no-run --target "$target" --jobs 4)
+        if [[ "$release" == "true" ]]; then
+            cargo_args+=(--release)
+        fi
+        if [[ -n "$crate_filter" ]]; then
+            cargo_args+=(-p "$crate_filter")
+        else
+            cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
+        fi
+        cargo "${cargo_args[@]}"
+    fi
+
+    echo "=== Packaging Tests and Fixtures for FreeBSD VM Exchange ==="
+    remove_if_exists "$EXCHANGE_DIR"
+    mkdir -p "$EXCHANGE_DIR/tests"
+
+    local binary_count=0
+    binary_count=$(python3 -c "
+import glob, os, re, shutil, subprocess, sys
+
+target = '$target'
+build_profile = '$build_profile'
+crate_filter = '$crate_filter'
+crate_prefix = crate_filter.replace('-', '_') if crate_filter else None
+exchange_dir = '$EXCHANGE_DIR/tests'
+
+fingerprints = glob.glob(f'target/{target}/{build_profile}/.fingerprint/*')
+test_hashes = set()
+for fp in fingerprints:
+    m = re.search(r'-([0-9a-f]{16})$', fp)
+    if not m:
+        continue
+    h = m.group(1)
+    for fname in os.listdir(fp):
+        if fname.startswith('test-') and not fname.endswith('.json'):
+            test_hashes.add(h)
+            break
+
+import concurrent.futures
+
+all_exes = [
+    exe for exe in glob.glob(f'target/{target}/{build_profile}/deps/*')
+    if not exe.endswith('.d') and not exe.endswith('.rlib') and not exe.endswith('.rmeta') and not exe.endswith('.so') and os.path.isfile(exe)
+]
+
+valid_exes = {}
+for exe in sorted(all_exes):
+    bname = os.path.basename(exe)
+    if crate_prefix and not bname.startswith(f'{crate_prefix}-'):
+        continue
+    m = re.search(r'^(.*)-([0-9a-f]{16})$', bname)
+    if not m or m.group(2) not in test_hashes:
+        continue
+    base = m.group(1)
+    mtime = os.path.getmtime(exe)
+    if base not in valid_exes or mtime > valid_exes[base][1]:
+        valid_exes[base] = (exe, mtime)
+
+def process_exe(item):
+    base, (exe, _) = item
+    bname = os.path.basename(exe)
+    dest = os.path.join(exchange_dir, bname)
+    shutil.copyfile(exe, dest)
+    shutil.copymode(exe, dest)
+    subprocess.run(['strip', dest], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return True
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    count = sum(1 for ok in executor.map(process_exe, sorted(valid_exes.items())) if ok)
+
+print(count)
+")
+
+    if [[ "$binary_count" -eq 0 ]]; then
+        echo "No test binaries found in target/$target/$build_profile/deps/!" >&2
+        return 1
+    fi
+
+    vm_package_fixtures "$EXCHANGE_DIR" "$REPO_ROOT"
+
+    echo "Generating in-VM test runner script..."
+    local filter_arg=""
+    if [[ -n "$test_filter" ]]; then
+        filter_arg="$test_filter "
+    fi
+
+    cat <<EOF > "$EXCHANGE_DIR/run_suite.sh"
+#!/bin/sh
+set -u
+TEST_ROOT="\$(dirname "\$0")"
+[ -d "\$TEST_ROOT/tests" ] || TEST_ROOT="/mnt"
+cd "\$TEST_ROOT"
+export CTB_HOST_WORKSPACE_ROOT="\$TEST_ROOT"
+export RUST_BACKTRACE=1
+echo "---SUITE_START---"
+TOTAL=0
+PASSED=0
+FAILED=0
+for f in "\$TEST_ROOT"/tests/*; do
+    [ -f "\$f" ] && [ -x "\$f" ] || continue
+    bname="\$(basename "\$f")"
+    TOTAL=\$((TOTAL + 1))
+    echo "=== RUN \$bname ==="
+    if "\$f" ${filter_arg}--nocapture; then
+        PASSED=\$((PASSED + 1))
+        echo "=== PASS \$bname ==="
+    else
+        code=\$?
+        FAILED=\$((FAILED + 1))
+        echo "=== FAIL \$bname [EXIT:\$code] ==="
+    fi
+    echo ""
+done
+echo "---SUITE_END:TOTAL=\$TOTAL,PASSED=\$PASSED,FAILED=\$FAILED---"
+EOF
+    chmod +x "$EXCHANGE_DIR/run_suite.sh"
+
+    echo "Creating exchange ISO with $binary_count test binaries and fixtures..."
+    genisoimage -iso-level 3 -J -joliet-long -r -o "$EXCHANGE_ISO" "$EXCHANGE_DIR" >/dev/null 2>&1
+
+    if is_running; then
+        cmd_monitor "eject -f cdrom0" >/dev/null 2>&1 || true
+        sleep 0.5
+        cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
+        sleep 2.0
+    fi
+
+    local log_dir="$REPO_ROOT/ci-logs/FreeBSD"
+    mkdir -p "$log_dir"
+    local log_ts
+    log_ts="$(date +%Y%m%d-%H%M%S)"
+    local suite_log="$log_dir/FreeBSD-${log_ts}.log"
+
+    echo "=== Executing Test Suite in FreeBSD VM ==="
+    echo "Streaming VM test output to $suite_log..."
+    local start_offset=0
+    if [[ -f "$SERIAL_LOG" ]]; then
+        start_offset=$(stat -c%s "$SERIAL_LOG")
+    else
+        touch "$SERIAL_LOG"
+    fi
+
+    if is_ssh_available "$DEFAULT_SSH_PORT"; then
+        cmd_ssh "mount -t cd9660 /dev/cd0 /mnt 2>/dev/null || true; /mnt/run_suite.sh" >> "$SERIAL_LOG" 2>&1 &
+    else
+        cmd_type "mount -t cd9660 /dev/cd0 /mnt 2>/dev/null || true; /mnt/run_suite.sh\n"
+    fi
+
+    local py_exit=0
+    vm_stream_suite_output "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" "FreeBSD" || py_exit=$?
+
+    trap - EXIT INT TERM
+    if is_running; then
+        if [[ "${py_exit:-0}" -ne 0 ]]; then
+            vm_capture_failure_artifacts "$MONITOR_SOCK" "$SERIAL_LOG" "$log_dir" "FreeBSD"
+        fi
+        echo "Stopping FreeBSD VM..."
+        cmd_stop
+    fi
+    return ${py_exit:-0}
 }
 
 action="${1:-}"
@@ -704,7 +815,7 @@ case "$action" in
         cmd_snapshot "$@"
         ;;
     sync-binaries)
-        cmd_sync_binaries
+        cmd_sync_binaries "$@"
         ;;
     ssh)
         cmd_ssh "$@"
@@ -714,6 +825,9 @@ case "$action" in
         ;;
     test)
         cmd_test "$@"
+        ;;
+    test-suite)
+        cmd_test_suite "$@"
         ;;
     -h|--help|help)
         usage
