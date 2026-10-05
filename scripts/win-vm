@@ -76,7 +76,8 @@ Execution & Testing:
   test [--reset]            Run the Windows smoke tests in the VM
   test-suite [options]      Compile, package, and execute the full test suite in VM
                             Options:
-                              --release        Compile and package tests in release mode
+                              --release        (default) Compile and package tests in release mode
+                              --debug          Compile and package tests in debug mode
                               --reset          Revert to base-state snapshot first
                               --crate <name>   Test only a specific package/crate
                               --filter <pat>   Test filter pattern
@@ -616,7 +617,7 @@ cmd_test() {
 
 cmd_test_suite() {
     local reset="false"
-    local release="false"
+    local release="true"
     local crate_filter=""
     local test_filter=""
     local no_build="false"
@@ -626,6 +627,9 @@ cmd_test_suite() {
         case "$1" in
             --release)
                 release="true"
+                ;;
+            --debug)
+                release="false"
                 ;;
             --reset)
                 reset="true"
@@ -677,35 +681,21 @@ cmd_test_suite() {
         x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
             src/build_support/windows/combase_shim.c -o "$shim_obj"
 
-        echo "=== Compiling Test Binaries for $target ==="
+        echo "=== Compiling Test Binaries for $target (profile: $(if [[ "$release" == "true" ]]; then echo "release"; else echo "debug"; fi)) ==="
         export RUSTC_BOOTSTRAP=1
         export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
         local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
 
+        local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
         if [[ "$release" == "true" ]]; then
-            local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release)
-            if [[ -n "$crate_filter" ]]; then
-                cargo_args+=(-p "$crate_filter")
-            else
-                cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
-            fi
-            RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
-        else
-            # Default ctb-formats-javascript to release mode for fast VM execution (16m vs 2.3h)
-            if [[ -z "$crate_filter" || "$crate_filter" == "ctb-formats-javascript" ]]; then
-                echo "--- Building ctb-formats-javascript in release mode (fast VM execution) ---"
-                RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release -p ctb-formats-javascript
-            fi
-
-            if [[ -n "$crate_filter" ]]; then
-                if [[ "$crate_filter" != "ctb-formats-javascript" ]]; then
-                    RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 -p "$crate_filter"
-                fi
-            else
-                RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 \
-                    --workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui --exclude ctb-formats-javascript
-            fi
+            cargo_args+=(--release)
         fi
+        if [[ -n "$crate_filter" ]]; then
+            cargo_args+=(-p "$crate_filter")
+        else
+            cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
+        fi
+        RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
     fi
 
     echo "=== Packaging Tests and Fixtures for VM Exchange ==="
@@ -727,47 +717,24 @@ crate_filter = '$crate_filter'
 crate_prefix = crate_filter.replace('-', '_') if crate_filter else None
 exchange_dir = '$EXCHANGE_DIR/tests'
 
-js_crate_bases = {'ctb_formats_javascript', 'js_lint', 'js_test', 'ts_check'}
-
-profiles_to_scan = [build_profile]
-if build_profile == 'debug' and (not crate_filter or crate_filter == 'ctb-formats-javascript'):
-    profiles_to_scan.append('release')
-
+fingerprints = glob.glob(f'target/{target}/{build_profile}/.fingerprint/*')
 test_hashes = set()
-for prof in profiles_to_scan:
-    fingerprints = glob.glob(f'target/{target}/{prof}/.fingerprint/*')
-    for fp in fingerprints:
-        m = re.search(r'-([0-9a-f]{16})$', fp)
-        if not m:
-            continue
-        h = m.group(1)
-        for fname in os.listdir(fp):
-            if fname.startswith('test-') and not fname.endswith('.json'):
-                test_hashes.add(h)
-                break
+for fp in fingerprints:
+    m = re.search(r'-([0-9a-f]{16})$', fp)
+    if not m:
+        continue
+    h = m.group(1)
+    for fname in os.listdir(fp):
+        if fname.startswith('test-') and not fname.endswith('.json'):
+            test_hashes.add(h)
+            break
 
 import concurrent.futures
 
-all_exes = []
-if build_profile == 'release':
-    for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
-        all_exes.append((exe, 'release'))
-else:
-    for exe in glob.glob(f'target/{target}/debug/deps/*.exe'):
-        bname = os.path.basename(exe)
-        m = re.search(r'^(.*)-([0-9a-f]{16})\.exe$', bname)
-        if m and m.group(1) in js_crate_bases:
-            continue
-        all_exes.append((exe, 'debug'))
-    if not crate_filter or crate_filter == 'ctb-formats-javascript':
-        for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
-            bname = os.path.basename(exe)
-            m = re.search(r'^(.*)-([0-9a-f]{16})\.exe$', bname)
-            if m and m.group(1) in js_crate_bases:
-                all_exes.append((exe, 'release'))
+all_exes = glob.glob(f'target/{target}/{build_profile}/deps/*.exe')
 
 valid_exes = {}
-for exe, prof in sorted(all_exes):
+for exe in sorted(all_exes):
     bname = os.path.basename(exe)
     if crate_prefix and not bname.startswith(f'{crate_prefix}-'):
         continue
