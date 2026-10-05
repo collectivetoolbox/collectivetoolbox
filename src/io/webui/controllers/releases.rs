@@ -1388,12 +1388,23 @@ mod tests {
         std::os::unix::fs::symlink(manifest_filename, &latest_manifest_path)
             .unwrap();
         #[cfg(windows)]
-        if let Err(_) =
-            std::os::windows::fs::symlink_file(manifest_filename, &latest_manifest_path)
         {
-            let latest_sig_path =
-                releases_dir.join("ctb-linux-x64-latest.json.sig");
-            fs::copy(&sig_path, &latest_sig_path).unwrap();
+            let res = if ctb_utilities::environment::is_wine() {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "wine symlinks not supported",
+                ))
+            } else {
+                std::os::windows::fs::symlink_file(
+                    manifest_filename,
+                    &latest_manifest_path,
+                )
+            };
+            if res.is_err() {
+                let latest_sig_path =
+                    releases_dir.join("ctb-linux-x64-latest.json.sig");
+                fs::copy(&sig_path, &latest_sig_path).unwrap();
+            }
         }
 
         // Request latest.json.sig
