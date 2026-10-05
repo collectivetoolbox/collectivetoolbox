@@ -51,7 +51,7 @@ pub use ctb_formats_utilities::format_id::FormatId;
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
     is_debug_build, is_official_public_website, is_official_signed_build, is_public_website,
-    reset_process_role_for_testing, set_process_role,
+    is_wine, reset_process_role_for_testing, set_process_role,
 };
 
 /// Is a lightweight CLI command running (without workspace boot)?

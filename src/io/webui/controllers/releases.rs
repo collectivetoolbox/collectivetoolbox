@@ -1389,7 +1389,7 @@ mod tests {
             .unwrap();
         #[cfg(windows)]
         if let Err(_) =
-            std::os::windows::fs::symlink_file(&manifest_path, &latest_manifest_path)
+            std::os::windows::fs::symlink_file(manifest_filename, &latest_manifest_path)
         {
             let latest_sig_path =
                 releases_dir.join("ctb-linux-x64-latest.json.sig");

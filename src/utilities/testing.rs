@@ -188,24 +188,28 @@ fn resolve_manifest_fixture_dir(manifest_dir: &str) -> PathBuf {
     {
         if let Some(rel) = manifest_dir.strip_prefix(HOST_WORKSPACE_ROOT) {
             let clean_rel = rel.trim_start_matches(['/', '\\']);
-            let win_root = if let Ok(val) = std::env::var("CTB_WIN_TEST_ROOT") {
-                Some(PathBuf::from(val))
-            } else if !DEFAULT_WIN_TEST_ROOT.is_empty() {
-                Some(PathBuf::from(DEFAULT_WIN_TEST_ROOT))
-            } else if let Ok(exe) = std::env::current_exe() {
-                let mut root = None;
-                let mut cur = exe.as_path();
-                while let Some(parent) = cur.parent() {
-                    if parent.join(".ctoolbox_workspace_root").is_file() {
-                        root = Some(parent.to_path_buf());
-                        break;
+            let win_root = std::env::var("CTB_WIN_TEST_ROOT")
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(PathBuf::from)
+                .or_else(|| {
+                    if !DEFAULT_WIN_TEST_ROOT.is_empty() {
+                        Some(PathBuf::from(DEFAULT_WIN_TEST_ROOT))
+                    } else if let Ok(exe) = std::env::current_exe() {
+                        let mut root = None;
+                        let mut cur = exe.as_path();
+                        while let Some(parent) = cur.parent() {
+                            if parent.join(".ctoolbox_workspace_root").is_file() {
+                                root = Some(parent.to_path_buf());
+                                break;
+                            }
+                            cur = parent;
+                        }
+                        root
+                    } else {
+                        None
                     }
-                    cur = parent;
-                }
-                root
-            } else {
-                None
-            };
+                });
             if let Some(mut normalized) = win_root {
                 for comp in std::path::Path::new(clean_rel).components() {
                     match comp {

@@ -483,7 +483,9 @@ impl PcSettings {
             .context("Failed to read settings file")?;
 
         // Release lock before parsing
-        file.unlock()?;
+        if !crate::environment::is_wine() {
+            file.unlock()?;
+        }
 
         if contents.trim().is_empty() {
             anyhow::bail!("Settings file is empty");
@@ -526,7 +528,9 @@ impl PcSettings {
         file.read_to_string(&mut contents)
             .context("Failed to read settings file")?;
 
-        file.unlock()?;
+        if !crate::environment::is_wine() {
+            file.unlock()?;
+        }
 
         if contents.trim().is_empty() {
             anyhow::bail!("Settings file is empty");
@@ -691,8 +695,11 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
+    static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[crate::ctb_test]
     fn test_save_and_load_settings() -> Result<()> {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
         let settings = PcSettings {
             show_users: MaybeValue::Value(false),
@@ -717,6 +724,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apply_patch_preserves_nulls() -> Result<()> {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
 
         let settings = PcSettings {
@@ -741,6 +749,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_domain_name_sanitization() -> Result<()> {
+        let _guard = TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let old_settings = PcSettings::load()?;
         let settings = PcSettings {
             domain_name: MaybeOption::Value(

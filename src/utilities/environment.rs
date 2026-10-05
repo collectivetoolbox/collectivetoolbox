@@ -102,6 +102,37 @@ pub fn is_in_test() -> bool {
     crate::utilities::testing::is_in_test()
 }
 
+/// Returns whether the process is currently running under the Wine compatibility
+/// layer on Windows.
+pub fn is_wine() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        static IS_WINE: OnceLock<bool> = OnceLock::new();
+        *IS_WINE.get_or_init(|| {
+            #[expect(
+                unsafe_code,
+                reason = "calls Win32 API to check for Wine ntdll export"
+            )]
+            unsafe {
+                use windows_sys::Win32::System::LibraryLoader::{
+                    GetModuleHandleA, GetProcAddress,
+                };
+                let ntdll = GetModuleHandleA(c"ntdll.dll".as_ptr().cast());
+                if ntdll.is_null() {
+                    false
+                } else {
+                    GetProcAddress(ntdll, c"wine_get_version".as_ptr().cast())
+                        .is_some()
+                }
+            }
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
 /// Is this instance serving the public website and network services?
 pub fn is_public_website() -> bool {
     get_bool_setting(PcSettingBoolKey::ServePublicWebSiteOnly)
