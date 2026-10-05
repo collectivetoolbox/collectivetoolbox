@@ -634,3 +634,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228849,f625,szip (Michael Schindler) version 1.05X,0,BN,,!Cx,.Formats:compression,"@ident(""Szip105""), @based_on(623)",,.sz,,,,,,,,
 2228850,f626,szip (Michael Schindler) version 1.10 (alpha),0,BN,,!Cx,.Formats:compression,"@ident(""Szip110""), @based_on(623)",,.sz,,,,,,,,
 2228851,f627,szip (Michael Schindler) version 1.11+,0,BN,,!Cx,.Formats:compression,"@ident(""Szip111""), @nick(""szip111""), @nick(""szip-1.11""), @based_on(623), @magic_name(""SZip archive data"")",,.sz,,,,2,2,2,,
+2228852,f628,Wine compatibility layer,0,BN,,!Cx,.Formats:userspace,"@ident(""Wine""), @title(""Wine""), @implies(f586)",,,,,,,,,,

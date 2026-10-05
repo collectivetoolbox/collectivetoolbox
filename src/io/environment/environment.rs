@@ -51,7 +51,7 @@ pub use ctb_formats_utilities::format_id::FormatId;
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
     is_debug_build, is_official_public_website, is_official_signed_build, is_public_website,
-    is_wine, reset_process_role_for_testing, set_process_role,
+    reset_process_role_for_testing, set_process_role,
 };
 
 /// Is a lightweight CLI command running (without workspace boot)?
@@ -190,6 +190,7 @@ fn detect_system_time_resolution() -> Result<u128> {
         return Ok(100);
     }
 
+    #[cfg(not(target_os = "windows"))]
     sample_system_time_resolution()
 }
 
@@ -465,6 +466,13 @@ pub fn is_linux() -> bool {
 /// Is running on Windows?
 pub fn is_windows() -> bool {
     capture_quick_arc().is_windows()
+}
+
+/// Is running under the Wine compatibility layer on Windows?
+///
+/// Honors active [`EnvironmentScope`] and [`GlobalEnvironmentScope`].
+pub fn is_wine() -> bool {
+    capture_quick_arc().is_wine()
 }
 
 /// Is running on macOS (not classic)?
@@ -890,6 +898,11 @@ impl EnvDescription {
     }
 
     #[must_use]
+    pub fn is_wine(&self) -> bool {
+        self.has_format(FormatId::Wine)
+    }
+
+    #[must_use]
     pub fn is_mac_os_10_or_newer(&self) -> bool {
         self.has_format(FormatId::MacOsDarwin)
     }
@@ -1228,17 +1241,22 @@ pub fn capture_quick_arc() -> Arc<EnvDescription> {
     }
 
     let current_epoch = OPERATION_EPOCH.load(Ordering::Relaxed);
-    EPOCH_CACHE.with(|cache| {
-        let mut borrow = cache.borrow_mut();
+    if let Some(env) = EPOCH_CACHE.with(|cache| {
+        let borrow = cache.borrow();
         if borrow.0 == current_epoch {
-            if let Some(ref env) = borrow.1 {
-                return Arc::clone(env);
-            }
+            borrow.1.as_ref().map(Arc::clone)
+        } else {
+            None
         }
-        let fresh = Arc::new(capture_quick());
-        *borrow = (current_epoch, Some(Arc::clone(&fresh)));
-        fresh
-    })
+    }) {
+        return env;
+    }
+
+    let fresh = Arc::new(capture_quick());
+    EPOCH_CACHE.with(|cache| {
+        *cache.borrow_mut() = (current_epoch, Some(Arc::clone(&fresh)));
+    });
+    fresh
 }
 
 #[cfg(test)]
@@ -1306,6 +1324,7 @@ mod tests {
         assert_eq!(desc, deserialized);
         assert_eq!(deserialized.is_linux(), desc.is_linux());
         assert_eq!(deserialized.is_windows(), desc.is_windows());
+        assert_eq!(deserialized.is_wine(), desc.is_wine());
 
         // Test semver parsing helper
         let semver = desc.ctb_version_semver();
@@ -1334,6 +1353,21 @@ mod tests {
         let reserialized = parsed.to_json().expect("reserialization failed");
         assert!(reserialized.contains("\"future_flag\":true"));
         assert!(reserialized.contains("\"future_num\":42"));
+    }
+
+    #[crate::ctb_test]
+    fn test_is_wine_scope_and_format() {
+        let mut desc = EnvDescription::default();
+        assert!(!desc.is_wine());
+
+        desc.additional_support.push(FormatId::Wine);
+        assert!(desc.is_wine());
+
+        let env_arc = Arc::new(desc);
+        with_environment_scope(env_arc, || {
+            assert!(is_wine());
+            assert!(capture_quick_arc().is_wine());
+        });
     }
 
     #[crate::ctb_test]

@@ -1337,6 +1337,8 @@ pub enum FormatId {
     Szip110,
     /// szip (Michael Schindler) version 1.11+ (Short 627, Category: compression)
     Szip111,
+    /// Wine compatibility layer (Short 628, Category: userspace)
+    Wine,
 }
 
 impl FormatId {
@@ -1960,7 +1962,8 @@ impl FormatId {
             | Self::Csur
             | Self::Ucsur => FormatCategory::UnicodePua,
             Self::GnuStep
-            | Self::BionicUserspace => FormatCategory::Userspace,
+            | Self::BionicUserspace
+            | Self::Wine => FormatCategory::Userspace,
             Self::Win32Subsystem => FormatCategory::UserspaceLibraries,
             Self::BusyBoxUtilities
             | Self::GnuUtilities => FormatCategory::UserspaceUtilities,
@@ -2609,6 +2612,7 @@ impl FormatId {
             "szip105" => Some(Self::Szip105),
             "szip110" => Some(Self::Szip110),
             "szip111" | "szip-1.11" => Some(Self::Szip111),
+            "wine" => Some(Self::Wine),
             _ => None,
         }
     }
@@ -3245,6 +3249,7 @@ impl FormatId {
             Self::Szip105 => "Szip105",
             Self::Szip110 => "Szip110",
             Self::Szip111 => "Szip111",
+            Self::Wine => "Wine",
         }
     }
 
@@ -3270,6 +3275,7 @@ impl FormatId {
             Self::TvOs => Some("tvOS"),
             Self::VisionOs => Some("visionOS"),
             Self::NextStep => Some("NeXTSTEP / OPENSTEP"),
+            Self::Wine => Some("Wine"),
             _ => None,
         }
     }
@@ -3422,6 +3428,7 @@ impl FormatId {
             Self::UuidOid => &[Self::Text, Self::Uuid],
             Self::IpV4String => &[Self::IpAddr, Self::IpV4, Self::Text],
             Self::IpV6String => &[Self::IpAddr, Self::IpV6, Self::Text],
+            Self::Wine => &[Self::Win32Subsystem],
             _ => &[],
         }
     }
@@ -4058,6 +4065,7 @@ impl FormatId {
             Self::Szip105 => "f625",
             Self::Szip110 => "f626",
             Self::Szip111 => "f627",
+            Self::Wine => "f628",
         }
     }
 
@@ -4694,6 +4702,7 @@ impl FormatId {
             "f625" => Some(Self::Szip105),
             "f626" => Some(Self::Szip110),
             "f627" => Some(Self::Szip111),
+            "f628" => Some(Self::Wine),
             _ => None,
         }
     }
@@ -5330,6 +5339,7 @@ impl FormatId {
             Self::Szip105 => Some(2228849_u128),
             Self::Szip110 => Some(2228850_u128),
             Self::Szip111 => Some(2228851_u128),
+            Self::Wine => Some(2228852_u128),
         }
     }
 
@@ -5978,6 +5988,7 @@ impl FormatId {
             2228849_u128 => Some(Self::Szip105),
             2228850_u128 => Some(Self::Szip110),
             2228851_u128 => Some(Self::Szip111),
+            2228852_u128 => Some(Self::Wine),
             _ => None,
         }
     }
@@ -7239,3 +7250,5 @@ pub const DC_SZIP105: DcChar = DcChar::from_format(625);
 pub const DC_SZIP110: DcChar = DcChar::from_format(626);
 /// DcChar constant for Format `Szip111` (Short f627, Category: compression): szip (Michael Schindler) version 1.11+
 pub const DC_SZIP111: DcChar = DcChar::from_format(627);
+/// DcChar constant for Format `Wine` (Short f628, Category: userspace): Wine compatibility layer
+pub const DC_WINE: DcChar = DcChar::from_format(628);

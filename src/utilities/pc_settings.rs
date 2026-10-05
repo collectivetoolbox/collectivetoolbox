@@ -450,8 +450,10 @@ impl PcSettings {
     fn settings_path() -> anyhow::Result<PathBuf> {
         let mut path = get_storage_dir()?.join("config");
         std::fs::create_dir_all(&path)?;
-        let filename = if is_in_test() {
-            format!("{}_pc_settings.json", get_current_test_name())
+        let filename = if let Some(test_name) =
+            ctb_utilities::testing::try_get_current_test_name()
+        {
+            format!("{test_name}_pc_settings.json")
         } else {
             "pc_settings.json".to_string()
         };

@@ -151,7 +151,11 @@ pub fn detect_identity() -> EnvironmentIdentity {
     }
 
     // 2. Kernel & OS probing
-    let kernel_version = probe_linux_procfs(&mut detected);
+    let kernel_version = if ctb_utilities::environment::is_wine() {
+        None
+    } else {
+        probe_linux_procfs(&mut detected)
+    };
 
     if cfg!(target_os = "android") {
         detected.push(FormatId::Android);
@@ -203,6 +207,9 @@ pub fn detect_identity() -> EnvironmentIdentity {
     }
     if env::var_os("WINDIR").is_some() || env::var_os("SYSTEMROOT").is_some() {
         detected.push(FormatId::Win32Subsystem);
+    }
+    if ctb_utilities::environment::is_wine() {
+        detected.push(FormatId::Wine);
     }
     // Note: Detecting a package manager on the host system indicates its presence in
     // the environment, but does not guarantee that ctoolbox itself was installed

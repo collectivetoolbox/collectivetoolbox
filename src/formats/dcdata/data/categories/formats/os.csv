@@ -75,3 +75,4 @@ Import/export/tests support columns meaning:
 2228810,586,Win32Subsystem,Windows user-mode API subsystem for Win32 applications,userspace_libraries,,,,,,,,,,,,
 2228811,587,GnuUtilities,GNU utilities,userspace_utilities,,,,,,,,,,,,
 2228812,588,BionicUserspace,Bionic userspace,userspace,@implies(f585),,,,,,,,,,,
+2228852,628,Wine,Wine compatibility layer,userspace,"@title(""Wine""), @implies(f586)",,,,,,,,,,,
