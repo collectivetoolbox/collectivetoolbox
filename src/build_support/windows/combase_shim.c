@@ -671,11 +671,25 @@ static HRESULT WINAPI resolve_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pwsz
 #pragma GCC diagnostic ignored "-Warray-bounds"
 static VOID WINAPI fallback_GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimit) {
     PNT_TIB tib = (PNT_TIB)NtCurrentTeb();
+    ULONG_PTR stack_base = (ULONG_PTR)tib->StackBase;
+    ULONG_PTR stack_limit = (ULONG_PTR)tib->StackLimit;
+
+    // Under Windows NT, tib->StackLimit is the committed page boundary, not the
+    // allocation base of the stack reservation. Query the allocation base of the
+    // stack using VirtualQuery on the current stack frame.
+    MEMORY_BASIC_INFORMATION mbi;
+    if (VirtualQuery(&mbi, &mbi, sizeof(mbi)) != 0 && mbi.AllocationBase != NULL) {
+        stack_limit = (ULONG_PTR)mbi.AllocationBase;
+    } else if (stack_base > 0x100000) {
+        // Fallback: estimate 1MB stack size below StackBase if VirtualQuery fails
+        stack_limit = stack_base - 0x100000;
+    }
+
     if (LowLimit) {
-        *LowLimit = (ULONG_PTR)tib->StackLimit;
+        *LowLimit = stack_limit;
     }
     if (HighLimit) {
-        *HighLimit = (ULONG_PTR)tib->StackBase;
+        *HighLimit = stack_base;
     }
 }
 #pragma GCC diagnostic pop

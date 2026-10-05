@@ -88,6 +88,7 @@ fn main() -> Result<()> {
     };
     println!("cargo:rustc-env=CTB_HOST_WORKSPACE_ROOT={workspace_root}");
 
+    // Reason for fallback: optional test root environment variable defaults to empty string if unset
     let win_root = std::env::var("CTB_WIN_TEST_ROOT").unwrap_or_default();
     println!("cargo:rustc-env=CTB_WIN_TEST_ROOT={win_root}");
 

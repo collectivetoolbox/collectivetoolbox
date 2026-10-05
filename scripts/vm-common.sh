@@ -321,6 +321,12 @@ vm_package_fixtures() {
         mkdir -p "$exchange_dir/vendor/v86"
         cp -r "$repo_root/vendor/v86/gen" "$exchange_dir/vendor/v86/"
     fi
+
+    if [[ -d "$repo_root/src/io/webui/tls_rustls_vendored/fixtures" ]]; then
+        echo "Packaging tls_rustls_vendored/fixtures..."
+        mkdir -p "$exchange_dir/tls_rustls_vendored"
+        cp -r "$repo_root/src/io/webui/tls_rustls_vendored/fixtures" "$exchange_dir/tls_rustls_vendored/"
+    fi
 }
 
 vm_stream_suite_output() {

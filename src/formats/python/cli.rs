@@ -184,6 +184,7 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
             }
             PythonRunMode::Module(module) => {
                 if !vm.state.config.settings.safe_path {
+                    // Reason for fallback: module execution mode prepends current working directory to sys.path, falling back to empty string if directory cannot be determined or is non-UTF-8
                     let cwd = std::env::current_dir()
                         .ok()
                         .and_then(|p| p.to_str().map(|s| s.to_owned()))
@@ -205,6 +206,7 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
                         .map(drop)?;
                 } else {
                     if !vm.state.config.settings.safe_path {
+                        // Reason for fallback: script execution prepends the script directory to sys.path, falling back to empty string when script has no parent directory or is non-UTF-8
                         let dir = Path::new(path)
                             .parent()
                             .and_then(|p| p.to_str())
@@ -238,6 +240,7 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
         Ok(())
     });
 
+    // Reason for fallback: exit code from Python VM exceeding i32 range defaults to exit status 1
     let code = i32::try_from(exit_code).unwrap_or(1);
     Ok(code)
 }

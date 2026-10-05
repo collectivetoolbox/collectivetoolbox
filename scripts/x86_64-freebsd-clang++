@@ -18,5 +18,8 @@
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 set -euo pipefail
 
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+cd - >/dev/null || exit 1
+
 script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 exec "$script_dir/x86_64-freebsd-clang" --cxx "$@"

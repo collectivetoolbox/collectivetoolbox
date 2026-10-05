@@ -190,8 +190,28 @@ mod tests {
     use super::*;
     use std::io;
 
+    fn ensure_fixtures() {
+        let dir = std::path::Path::new("tls_rustls_vendored/fixtures");
+        if !dir.exists() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let cert_path = dir.join("cert.pem");
+        if !cert_path.exists() {
+            if let Some(bytes) = get_tls_rustls_vendored_data("fixtures/cert.pem") {
+                let _ = std::fs::write(&cert_path, bytes);
+            }
+        }
+        let key_path = dir.join("key.pem");
+        if !key_path.exists() {
+            if let Some(bytes) = get_tls_rustls_vendored_data("fixtures/key.pem") {
+                let _ = std::fs::write(&key_path, bytes);
+            }
+        }
+    }
+
     #[crate::ctb_test("tokio")]
     async fn from_pem_file_not_found() {
+        ensure_fixtures();
         let err = RustlsConfig::from_pem_file(
             "tls_rustls_vendored/fixtures/missing.pem",
             "tls_rustls_vendored/fixtures/key.pem",
@@ -200,9 +220,11 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string().starts_with(
-                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-            )
+            err.to_string()
+                .replace('\\', "/")
+                .starts_with(
+                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+                )
         );
 
         let err = RustlsConfig::from_pem_file(
@@ -223,6 +245,7 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn from_pem_file_chain_file_not_found() {
+        ensure_fixtures();
         let err = RustlsConfig::from_pem_chain_file(
             "tls_rustls_vendored/fixtures/missing.pem",
             "tls_rustls_vendored/fixtures/key.pem",

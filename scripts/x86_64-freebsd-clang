@@ -18,8 +18,9 @@
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 set -euo pipefail
 
-script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-workspace_root="$(readlink -f "$script_dir/..")"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+workspace_root="$(pwd)"
+cd - >/dev/null || exit 1
 
 pick_first_dir() {
     for candidate in "$@"; do

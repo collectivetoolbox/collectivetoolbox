@@ -548,11 +548,12 @@ candidate_files = []
 if build_profile == 'debug':
     for exe in glob.glob(f'target/{target}/debug/deps/*.exe'):
         bname = os.path.basename(exe)
-        if not bname.startswith('ctb_formats_javascript'):
+        js_binaries = ('ctb_formats_javascript', 'js_lint', 'js_test', 'ts_check')
+        if not any(bname.startswith(p) for p in js_binaries):
             candidate_files.append((exe, debug_hashes))
     for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
         bname = os.path.basename(exe)
-        if bname.startswith('ctb_formats_javascript'):
+        if any(bname.startswith(p) for p in js_binaries):
             candidate_files.append((exe, release_hashes))
 else:
     for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
@@ -610,6 +611,8 @@ mkdir "C:\workspaces" >nul 2>&1
 rmdir "C:\workspaces\ctoolbox" >nul 2>&1
 mklink /J "C:\workspaces\ctoolbox" "%CTB_WIN_TEST_ROOT%" >nul 2>&1
 cd /d "%TEMP%"
+rmdir "%TEMP%\tls_rustls_vendored" >nul 2>&1
+if exist "%CTB_WIN_TEST_ROOT%tls_rustls_vendored" mklink /J "%TEMP%\tls_rustls_vendored" "%CTB_WIN_TEST_ROOT%tls_rustls_vendored" >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1
 reg add "HKCU\Software\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f >nul 2>&1
 reg add "HKCU\Software\Policies\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f >nul 2>&1

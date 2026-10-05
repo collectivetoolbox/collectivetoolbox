@@ -721,10 +721,25 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
                 if asset.is_none() {
                     // Reason for fallback: when v86_images.rsrc is omitted (e.g. in test runners / test VMs),
                     // fallback to loading vendor images from disk for testing only.
-                    let local_path =
-                        std::path::Path::new("vendor/v86_images").join(tail);
-                    if let Ok(bytes) = std::fs::read(&local_path) {
-                        asset = Some(bytes);
+                    let mut candidate_paths = vec![
+                        std::path::PathBuf::from("vendor/v86_images").join(tail),
+                    ];
+                    if let Ok(root) = std::env::var("CTB_WIN_TEST_ROOT") {
+                        candidate_paths.push(
+                            std::path::PathBuf::from(root)
+                                .join("vendor/v86_images")
+                                .join(tail),
+                        );
+                    }
+                    candidate_paths.push(
+                        std::path::PathBuf::from(r"C:\workspaces\ctoolbox\vendor\v86_images")
+                            .join(tail),
+                    );
+                    for path in candidate_paths {
+                        if let Ok(bytes) = std::fs::read(&path) {
+                            asset = Some(bytes);
+                            break;
+                        }
                     }
                 }
             }

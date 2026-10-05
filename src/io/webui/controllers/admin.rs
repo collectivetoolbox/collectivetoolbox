@@ -325,6 +325,7 @@ mod tests {
             .open(&token_file)
             .unwrap();
         file.set_modified(stale_time).unwrap();
+        drop(file);
 
         let req_stale = Request::builder()
             .method(Method::POST)
