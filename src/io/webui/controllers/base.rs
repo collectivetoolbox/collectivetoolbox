@@ -717,6 +717,16 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
                 .or_else(|| path.strip_prefix("v86_images/"))
             {
                 asset = get_asset(format!("images/{tail}").as_str());
+                #[cfg(test)]
+                if asset.is_none() {
+                    // Reason for fallback: when v86_images.rsrc is omitted (e.g. in test runners / test VMs),
+                    // fallback to loading vendor images from disk for testing only.
+                    let local_path =
+                        std::path::Path::new("vendor/v86_images").join(tail);
+                    if let Ok(bytes) = std::fs::read(&local_path) {
+                        asset = Some(bytes);
+                    }
+                }
             }
         }
     }
