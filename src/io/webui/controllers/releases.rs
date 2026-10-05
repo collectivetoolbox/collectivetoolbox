@@ -1387,8 +1387,14 @@ mod tests {
         #[cfg(unix)]
         std::os::unix::fs::symlink(manifest_filename, &latest_manifest_path)
             .unwrap();
-        #[cfg(not(unix))]
-        fs::write(&latest_manifest_path, "{}").unwrap();
+        #[cfg(windows)]
+        if let Err(_) =
+            std::os::windows::fs::symlink_file(&manifest_path, &latest_manifest_path)
+        {
+            let latest_sig_path =
+                releases_dir.join("ctb-linux-x64-latest.json.sig");
+            fs::copy(&sig_path, &latest_sig_path).unwrap();
+        }
 
         // Request latest.json.sig
         let resp = test_app

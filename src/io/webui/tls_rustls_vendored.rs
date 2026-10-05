@@ -213,9 +213,11 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string().starts_with(
-                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-            )
+            err.to_string()
+                .replace('\\', "/")
+                .starts_with(
+                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+                )
         );
     }
 
@@ -229,9 +231,11 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string().starts_with(
-                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-            )
+            err.to_string()
+                .replace('\\', "/")
+                .starts_with(
+                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+                )
         );
 
         let err = RustlsConfig::from_pem_chain_file(
@@ -242,9 +246,11 @@ mod tests {
         .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         assert!(
-            err.to_string().starts_with(
-                "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-            )
+            err.to_string()
+                .replace('\\', "/")
+                .starts_with(
+                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
+                )
         );
     }
 }

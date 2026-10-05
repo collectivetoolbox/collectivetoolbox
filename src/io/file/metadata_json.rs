@@ -334,7 +334,10 @@ mod tests {
         let dst_dir = temp.path().join("test_dir_restored");
         let receipt =
             rematerialize_from_metadata_json(&json_str, &dst_dir).unwrap();
-        assert_eq!(receipt.destination_path, dst_dir);
+        assert_eq!(
+            std::fs::canonicalize(&receipt.destination_path).unwrap(),
+            std::fs::canonicalize(&dst_dir).unwrap()
+        );
         assert!(dst_dir.is_dir());
     }
 

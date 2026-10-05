@@ -125,6 +125,8 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
     let (run_mode, argv) = determine_run_mode(&args);
 
     let mut settings = rustpython_vm::Settings::default();
+    settings.stdio_encoding = Some("utf-8".to_string());
+    settings.utf8_mode = 1;
     if args.dont_write_bytecode {
         settings.write_bytecode = false;
     }

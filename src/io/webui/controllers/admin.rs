@@ -317,11 +317,14 @@ mod tests {
 
         // 3. Request with a stale token (mtime set to 10 minutes ago) should be rejected
         std::fs::write(&token_file, "my_secure_stale_token").unwrap();
-        let path_str = token_file.to_str().unwrap();
-        let status = std::process::Command::new("touch")
-            .args(["-m", "-d", "10 minutes ago", path_str])
-            .status();
-        status.unwrap();
+        let stale_time = std::time::SystemTime::now()
+            .checked_sub(std::time::Duration::from_secs(600))
+            .unwrap();
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&token_file)
+            .unwrap();
+        file.set_modified(stale_time).unwrap();
 
         let req_stale = Request::builder()
             .method(Method::POST)

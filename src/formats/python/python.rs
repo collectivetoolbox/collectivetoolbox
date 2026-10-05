@@ -42,7 +42,13 @@ pub(crate) fn get_python_data(key: &str) -> Option<Vec<u8>> {
 
 /// Create a newly initialized Python interpreter with standard library modules.
 pub fn create_interpreter() -> Interpreter {
-    InterpreterBuilder::new().init_stdlib().build()
+    let mut settings = rustpython_vm::Settings::default();
+    settings.stdio_encoding = Some("utf-8".to_string());
+    settings.utf8_mode = 1;
+    InterpreterBuilder::new()
+        .settings(settings)
+        .init_stdlib()
+        .build()
 }
 
 /// Helper to convert a Python exception into an anyhow::Error.

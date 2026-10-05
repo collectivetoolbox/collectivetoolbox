@@ -310,6 +310,14 @@ vm_package_fixtures() {
         cp "$repo_root/built/ctoolbox.rsrc" "$exchange_dir/ctoolbox.rsrc"
     fi
 
+    if [[ -f "$repo_root/built/v86_images.rsrc" ]]; then
+        echo "Packaging v86 resource bundle (built/v86_images.rsrc)..."
+        mkdir -p "$exchange_dir/built" "$exchange_dir/tests"
+        cp "$repo_root/built/v86_images.rsrc" "$exchange_dir/built/v86_images.rsrc"
+        cp "$repo_root/built/v86_images.rsrc" "$exchange_dir/tests/v86_images.rsrc"
+        cp "$repo_root/built/v86_images.rsrc" "$exchange_dir/v86_images.rsrc"
+    fi
+
     if [[ -d "$repo_root/vendor/v86/gen" ]]; then
         echo "Packaging vendor/v86/gen for v86 tests..."
         mkdir -p "$exchange_dir/vendor/v86"
