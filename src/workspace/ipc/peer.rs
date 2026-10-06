@@ -106,6 +106,14 @@ impl IpcPeer {
 
                 match msg {
                     Message::Request(req) => {
+                        let req_service = req.method.service.clone();
+                        let req_method = req.method.method.clone();
+                        debug_fmt!(
+                            "[peer] received Request id={} {}.{}",
+                            req.id,
+                            req_service,
+                            req_method
+                        );
                         // Important: request handlers may perform outbound
                         // calls (and await responses) over the same session.
                         // If we await the handler inline here, the receive
@@ -137,6 +145,11 @@ impl IpcPeer {
                                 }
                             };
 
+                            debug_fmt!(
+                                "[peer] sending Response for request_id={} ok={}",
+                                request_id,
+                                resp.ok
+                            );
                             let _guard = peer.send_lock.lock().await;
                             if let Err(e) = peer
                                 .session
@@ -146,11 +159,21 @@ impl IpcPeer {
                                 tracing::warn!(
                                     "[peer] send error (response) for request_id={request_id}: {e:#}"
                                 );
+                            } else {
+                                debug_fmt!(
+                                    "[peer] sent Response for request_id={}",
+                                    request_id
+                                );
                             }
                         });
                     }
                     Message::Response(resp) => {
                         let id = resp.id;
+                        debug_fmt!(
+                            "[peer] received Response for request_id={} ok={}",
+                            id,
+                            resp.ok
+                        );
                         if let Some(sender) =
                             peer.inflight.lock().await.remove(&id)
                         {
@@ -221,13 +244,19 @@ impl IpcPeer {
         let (tx, rx) = oneshot::channel();
         self.inflight.lock().await.insert(id, tx);
 
+        let method_str = format!("{}.{}", method.service, method.method);
+        debug_fmt!("[peer] call() sending request id={} for {}", id, method_str);
         let req = Request { id, method, args };
         let _guard = self.send_lock.lock().await;
         self.session.send(&Message::Request(req)).await?;
+        drop(_guard);
 
-        rx.await.map_err(|e| {
+        debug_fmt!("[peer] call() waiting for response on rx for id={}", id);
+        let res = rx.await.map_err(|e| {
             anyhow::anyhow!("response waiter dropped for id={id}: {e}").into()
-        })
+        });
+        debug_fmt!("[peer] call() rx returned for id={}", id);
+        res
     }
 
     #[cfg(unix)]

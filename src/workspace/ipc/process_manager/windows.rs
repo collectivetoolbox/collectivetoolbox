@@ -208,6 +208,49 @@ impl ProcessManager for TokioProcessManager {
 
         Ok(())
     }
+
+    async fn wait_for_exit(
+        &self,
+        pid: ProcessId,
+        timeout: Duration,
+    ) -> Result<bool, Error> {
+        let is_tree_gone = |inner: &Inner| -> bool {
+            let mut stack = vec![pid];
+            while let Some(cur) = stack.pop() {
+                if inner.children.contains_key(&cur) {
+                    return false;
+                }
+                for (child_pid, entry) in &inner.children {
+                    if entry.handle.parent == Some(cur) {
+                        stack.push(*child_pid);
+                    }
+                }
+            }
+            true
+        };
+
+        let step = Duration::from_millis(20);
+        let mut waited = Duration::from_millis(0);
+        loop {
+            {
+                let inner = self.inner.lock().await;
+                if is_tree_gone(&inner) {
+                    return Ok(true);
+                }
+            }
+            if waited >= timeout {
+                break;
+            }
+            sleep(step).await;
+            let Some(next_waited) = waited.checked_add(step) else {
+                return Err(Self::to_err(anyhow!("timeout duration overflow")));
+            };
+            waited = next_waited;
+        }
+
+        let inner = self.inner.lock().await;
+        Ok(is_tree_gone(&inner))
+    }
 }
 
 #[cfg(test)]

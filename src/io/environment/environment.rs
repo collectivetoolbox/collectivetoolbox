@@ -294,6 +294,9 @@ pub fn cached_local_ipv6_u128() -> u128 {
 }
 
 fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
+    if ctb_utilities::environment::is_wine() {
+        bail!("Skipping remote IP endpoint query under Wine");
+    }
     let url_string = url.to_string();
     let handle = std::thread::spawn(
         move || -> Result<(IpAddr, u128, u128, u128)> {
