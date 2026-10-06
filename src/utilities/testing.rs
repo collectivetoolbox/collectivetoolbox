@@ -170,7 +170,7 @@ pub fn is_in_test() -> bool {
         return true;
     }
     if let Ok(exe) = std::env::current_exe() {
-        let path_str = exe.to_string_lossy();
+        let path_str = exe.to_string_lossy().replace('\\', "/");
         if (path_str.contains("/target/") && path_str.contains("/deps/"))
             || path_str.contains("test")
         {

@@ -1273,6 +1273,8 @@ pub fn capture_quick_arc() -> Arc<EnvDescription> {
 mod tests {
     use super::*;
 
+    static ENV_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[crate::ctb_test]
     fn test_is_official_signed_build_defaults_to_false() {
         assert!(!is_official_signed_build());
@@ -1280,6 +1282,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_os_and_environment_detection() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if is_linux() {
             assert!(!is_windows());
             assert!(!is_mac_os_10_or_newer());
@@ -1440,6 +1443,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_env_cache_reset() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         // Calling env_cache_reset flushes and refills caches
         env_cache_reset();
 
@@ -1457,6 +1461,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_capture_quick_arc() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         // Repeated calls within the same epoch share the exact same Arc
         let arc1 = capture_quick_arc();
         let arc2 = capture_quick_arc();
@@ -1499,12 +1504,10 @@ mod tests {
         }
     }
 
-    static ENV_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_looks_like_gnustep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap();
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
             env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
@@ -1519,7 +1522,7 @@ mod tests {
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_looks_like_nextstep_or_openstep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap();
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let original_path = env::var("PATH").ok();
         // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
@@ -1539,7 +1542,7 @@ mod tests {
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_detect_identity_gnustep_and_nextstep() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap();
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let original_path = env::var("PATH").ok();
         let original_term = env::var("TERM_PROGRAM").ok();
         // SAFETY: Test runs with mutex lock and restores variables
@@ -1612,7 +1615,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_environment_identity_and_capabilities() {
-        let _lock = ENV_TEST_MUTEX.lock().unwrap();
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let ident = identity();
         let caps = capabilities();
         let formats = all_format_ids();
@@ -1683,6 +1686,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_capture_quick_uses_detection() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_quick_env_cache();
         let desc = EnvDescription::capture_quick();
         let ident = desc.identity();
         let caps = desc.capabilities();

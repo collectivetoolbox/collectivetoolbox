@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [[bin]]
 name = "validate-data-tables"
 path = "bin/validate_data_tables.rs"
+test = false
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }

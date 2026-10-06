@@ -1037,11 +1037,24 @@ fn _parse_base_string(
         "Unsupported to_base {to_base} for alphabet {to_alphabet:?}"
     );
     let mut log = FormatLog::default();
+    let mut out: Vec<String> = Vec::new();
+
+    if s.is_empty() && from_base == 1 {
+        let nat = int_from_base_str_big_alphabet(
+            "",
+            from_base,
+            from_alphabet,
+        )?;
+        let formatted =
+            int_to_base_str_big_alphabet(nat, to_base, to_alphabet)?;
+        out.push(formatted);
+        return Ok((out, log));
+    }
+
     let chars: Vec<char> = s.chars().collect();
     let mut i = 0;
     let mut in_num = false;
     let mut num_chars: String = String::new();
-    let mut out: Vec<String> = Vec::new();
     let max_digits =
         get_digits_needed(Natural::from(limit), from_base, from_alphabet)?;
     let max_digits: usize = usize::try_from(&max_digits).map_err(|e| {
@@ -1203,6 +1216,8 @@ fn _format_base_string(
             get_digits_needed(Natural::from(limit), base, to_alphabet)?;
         u32::try_from(&max_digits)
             .map_err(|e| anyhow!("Padding to more than 32 bits of digits is not supported just because it seems unnecessary, but could be increased: {e:?}"))?
+    } else if pad.pad_l <= 1 {
+        0
     } else {
         pad.pad_l
     };
@@ -1213,7 +1228,7 @@ fn _format_base_string(
         );
         bail!("Incompatible padding and limit settings");
     }
-    if (pad.pad_fit) && (limit == 1) {
+    if (pad.pad_fit) && (limit == 1) && (base != 1) {
         log.import_warning(0, "Padding to fit limit was requested, but limit was set to 1. 0 is always shown as 0 anyway, so the padding option will do nothing.");
     }
     if (pad.pad_fit) && (pad.pad_l > 1) {
@@ -1224,8 +1239,6 @@ fn _format_base_string(
         log.import_error(0, "Padding to fit limit was requested, but a separate padding width was also requested. Please set one or the other.");
         bail!("Multiple padding configurations given");
     }
-
-    let padded_width = std::cmp::max(pad.pad_l, padded_width);
 
     let mut out: String = String::new();
     for (index, token) in tokens.iter().enumerate() {
@@ -1624,5 +1637,69 @@ mod tests {
         let (res, _) =
             base_to_base_string("BABA", 64, 10, &b64_2digit_limit).unwrap();
         assert_eq!(res, "64 64");
+    }
+
+    #[crate::ctb_test]
+    fn test_base1_unary_formatting_and_parsing() {
+        let default_settings = BaseStringFormatSettings::default();
+
+        // Single number conversions
+        let (res0, _) =
+            base_to_base_string("0", 10, 1, &default_settings).unwrap();
+        assert_eq!(res0, "");
+
+        let (res1, _) =
+            base_to_base_string("1", 10, 1, &default_settings).unwrap();
+        assert_eq!(res1, "0");
+
+        let (res2, _) =
+            base_to_base_string("2", 10, 1, &default_settings).unwrap();
+        assert_eq!(res2, "00");
+
+        let (res3, _) =
+            base_to_base_string("3", 10, 1, &default_settings).unwrap();
+        assert_eq!(res3, "000");
+
+        // Converting back from base 1 to base 10
+        let (dec0, _) =
+            base_to_base_string("", 1, 10, &default_settings).unwrap();
+        assert_eq!(dec0, "0");
+
+        let (dec1, _) =
+            base_to_base_string("0", 1, 10, &default_settings).unwrap();
+        assert_eq!(dec1, "1");
+
+        let (dec2, _) =
+            base_to_base_string("00", 1, 10, &default_settings).unwrap();
+        assert_eq!(dec2, "2");
+
+        let (dec3, _) =
+            base_to_base_string("000", 1, 10, &default_settings).unwrap();
+        assert_eq!(dec3, "3");
+
+        // Multiple numbers in a string: "0 1 2 3" -> " 0 00 000"
+        let (multi, _) =
+            base_to_base_string("0 1 2 3", 10, 1, &default_settings).unwrap();
+        assert_eq!(multi, " 0 00 000");
+
+        // Explicit pad_l > 1 in base 1
+        let pad4_settings = BaseStringFormatSettings {
+            pad: BaseConversionPaddingMode {
+                pad_l: 4,
+                pad_fit: false,
+            },
+            ..Default::default()
+        };
+        let (padded0, _) =
+            base_to_base_string("0", 10, 1, &pad4_settings).unwrap();
+        assert_eq!(padded0, "0000");
+
+        let (padded2, _) =
+            base_to_base_string("2", 10, 1, &pad4_settings).unwrap();
+        assert_eq!(padded2, "0000");
+
+        let (padded5, _) =
+            base_to_base_string("5", 10, 1, &pad4_settings).unwrap();
+        assert_eq!(padded5, "00000");
     }
 }

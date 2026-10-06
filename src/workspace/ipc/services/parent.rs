@@ -118,12 +118,15 @@ pub(crate) async fn dispatch_parent(
                 Ok(req) => req,
                 Err(resp) => return Ok(resp),
             };
-            router
+            debug_fmt!("[parent] dispatch_parent: calling messenger.request_spawn_child");
+            let resp = router
                 .handle_service_call(
                     messenger.request_spawn_child(req_ctx.clone(), req),
                     request.id,
                 )
-                .await
+                .await;
+            debug_fmt!("[parent] dispatch_parent: finished handle_service_call for request_spawn_child: ok={}", resp.as_ref().map(|r| r.ok).unwrap_or(false));
+            resp
         }
         METHOD_PROXY_CALL => {
             let req: ProxyCallRequest = match IpcRouter::decode_request(

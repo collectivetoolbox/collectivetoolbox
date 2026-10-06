@@ -95,11 +95,13 @@ pub async fn test_simple_nested_document(
     settings: RenderSettings,
 ) -> Result<i32> {
     let ipc = ipc!();
-
+    debug_fmt!("[runtime] test_simple_nested_document ENTERED, calling request_spawn_renderer...");
     let renderer = ipc.request_spawn_renderer(None).await?;
+    debug_fmt!("[runtime] spawned renderer, calling render_from_string...");
     let response_str = renderer
         .render_from_string(document.as_str(), settings)
         .await?;
+    debug_fmt!("[runtime] render_from_string returned: {:?}", response_str);
     let subruntime = ipc.request_spawn_runtime(None).await?;
     let subruntime_response = subruntime
         .test_prepend(

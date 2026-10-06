@@ -126,9 +126,12 @@ impl ParentMessenger for ChannelParentMessenger {
                 Error::Internal(format!("channel send failed: {e}"))
             })?;
 
-        response_rx.await.map_err(|e| {
+        debug_fmt!("[channel] request_spawn_child: awaiting response_rx...");
+        let resp = response_rx.await.map_err(|e| {
             Error::Internal(format!("spawn response channel closed: {e}"))
-        })
+        })?;
+        debug_fmt!("[channel] request_spawn_child: received response_rx: accepted={}", resp.accepted);
+        Ok(resp)
     }
 
     async fn proxy_call(

@@ -108,7 +108,9 @@ impl ProcessManager for TokioProcessManager {
                 command.current_dir(cwd);
             }
         });
-        cmd.wrap(JobObject);
+        if !ctb_utilities::environment::is_wine() {
+            cmd.wrap(JobObject);
+        }
 
         let mut child = cmd
             .spawn()

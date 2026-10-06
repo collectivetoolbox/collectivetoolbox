@@ -534,6 +534,52 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_run_base2base_base1() {
+        let base_args = BaseArgs::default();
+
+        let test_cases_to_base1 = [
+            ("0", ""),
+            ("1", "0"),
+            ("2", "00"),
+            ("3", "000"),
+        ];
+        for (input, expected) in test_cases_to_base1 {
+            let args = vec!["10".to_string(), "1".to_string(), input.to_string()];
+            let res = run_base2base(&args, &base_args).unwrap();
+            match res {
+                ToolResult::Immediate {
+                    stdout, exit_code, ..
+                } => {
+                    assert_eq!(exit_code, 0);
+                    // Output has trailing newline
+                    assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
+                }
+                _ => panic!("Expected immediate result"),
+            }
+        }
+
+        let test_cases_from_base1 = [
+            ("", "0"),
+            ("0", "1"),
+            ("00", "2"),
+            ("000", "3"),
+        ];
+        for (input, expected) in test_cases_from_base1 {
+            let args = vec!["1".to_string(), "10".to_string(), input.to_string()];
+            let res = run_base2base(&args, &base_args).unwrap();
+            match res {
+                ToolResult::Immediate {
+                    stdout, exit_code, ..
+                } => {
+                    assert_eq!(exit_code, 0);
+                    assert_eq!(String::from_utf8(stdout).unwrap(), format!("{expected}\n"));
+                }
+                _ => panic!("Expected immediate result"),
+            }
+        }
+    }
+
+    #[crate::ctb_test]
     fn test_run_base_convert_bytes_shortcut() {
         let base_args = BaseArgs {
             bytes: true,

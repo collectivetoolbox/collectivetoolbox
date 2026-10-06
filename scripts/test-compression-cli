@@ -233,7 +233,7 @@ diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_deflate.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.ctblib.zz" -o "$TMP_DIR/fixture_zz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_zz.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.z" -o "$TMP_DIR/fixture_z.pan" --force
+$CARGO_CMD decompress "$FIXTURE_RAW.pack.z" -o "$TMP_DIR/fixture_z.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_z.pan"
 
 $CARGO_CMD decompress "$FIXTURE_RAW.old.z" -o "$TMP_DIR/fixture_old_z.pan" --force

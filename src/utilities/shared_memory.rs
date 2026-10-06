@@ -365,8 +365,12 @@ impl BlobAllocator for SharedMemoryBlobs {
                 }
                 #[cfg(windows)]
                 {
-                    let handle = windows::create_file_mapping(size)?;
-                    SharedBlobDescriptor::WindowsHandle(handle)
+                    if crate::environment::is_wine() {
+                        self.create_tempfile_blob(size, &token)?
+                    } else {
+                        let handle = windows::create_file_mapping(size)?;
+                        SharedBlobDescriptor::WindowsHandle(handle)
+                    }
                 }
                 #[cfg(not(any(unix, windows)))]
                 {
