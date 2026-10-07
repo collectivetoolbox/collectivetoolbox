@@ -661,7 +661,7 @@ netsh advfirewall set allprofiles state off >nul 2>&1
 
 :: Background watchdog to kill any WerFault crash dialogs immediately
 echo 1 > "%TEMP%\watchdog.run"
-start /B cmd /c "for /L %%i in () do (if not exist "%TEMP%\watchdog.run" exit & taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
+start /B cmd /Q /c "for /L %%i in () do (if not exist "%TEMP%\watchdog.run" exit & taskkill /F /IM WerFault.exe /IM WerFaultSecure.exe >nul 2>&1 & ping -n 2 127.0.0.1 >nul)"
 
 echo ---SUITE_START--- > COM1
 set TOTAL=0
@@ -671,23 +671,18 @@ set FAILED=0
 for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     set /a TOTAL+=1
     echo === RUN %%~nF === >> COM1
-    echo %%~nF | findstr /b /i "standalone_" >nul
-    if !ERRORLEVEL! EQU 0 (
-        "%%F" >> COM1 2>&1
-    ) else (
-        echo %%~nF | findstr /i "ctb_formats_javascript" >nul
-        if !ERRORLEVEL! EQU 0 (
-            "%%F" $test_filter --include-ignored --nocapture --test-threads 1 >> COM1 2>&1
-        ) else (
-            "%%F" $test_filter --include-ignored --nocapture --test-threads 3 >> COM1 2>&1
-        )
-    )
-    if !ERRORLEVEL! EQU 0 (
+    set TEST_NAME=%%~nF
+    set TEST_ARGS=$test_filter --include-ignored --nocapture --test-threads 3
+    if "!TEST_NAME:~0,22!"=="ctb_formats_javascript" set TEST_ARGS=$test_filter --include-ignored --nocapture --test-threads 1
+    if "!TEST_NAME:~0,11!"=="standalone_" set TEST_ARGS=
+    "%%F" !TEST_ARGS! >> COM1 2>&1
+    set TEST_EXIT=!ERRORLEVEL!
+    if !TEST_EXIT! EQU 0 (
         set /a PASSED+=1
         echo === PASS %%~nF === >> COM1
     ) else (
         set /a FAILED+=1
-        echo === FAIL %%~nF [EXIT:!ERRORLEVEL!] === >> COM1
+        echo === FAIL %%~nF [EXIT:!TEST_EXIT!] === >> COM1
     )
     echo. >> COM1
 )
