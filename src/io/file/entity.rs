@@ -883,7 +883,7 @@ impl FileEntity {
         let streams = match read_and_hash_streams(path) {
             Ok(s) => s,
             Err(e) => {
-                metadata.push_warning(format!("Failed to read attached streams: {e}"));
+                metadata.push_warning(format!("Failed to read attached streams: {e:#}"));
                 Vec::new()
             }
         };

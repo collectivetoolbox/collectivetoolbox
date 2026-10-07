@@ -1635,6 +1635,8 @@ mod tests {
         assert_eq!(actual_ts, expected_ts);
         assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
         assert_eq!(recorded.streams, original.streams);
+        assert!(recorded.metadata.errors.iter().any(|error| error.starts_with("Materialization failed:")));
+        assert!(snapshot.errors.iter().any(|error| matches!(error.stage, JournalErrorStage::Materialize)));
     }
 
     #[crate::ctb_test]

@@ -245,14 +245,24 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
         let s = std::str::from_utf8(raw_bytes)
             .context("Relative path bytes are not valid UTF-8 for current platform")?;
 
-        for c in s.chars() {
-            if matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') {
-                anyhow::bail!("Path contains character '{c}' which is incompatible with target platform");
+        let normalized = PathBuf::from(s.replace('/', "\\"));
+        for component in normalized.components() {
+            match component {
+                std::path::Component::Normal(name) => {
+                    for character in name.to_str().context("Invalid Windows path component")?.chars() {
+                        if matches!(character, '\0' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                            anyhow::bail!("Path contains character '{character}' which is incompatible with target platform");
+                        }
+                    }
+                }
+                std::path::Component::Prefix(_) => {
+                    anyhow::ensure!(origin_is_windows, "A non-Windows source path contains a Windows path prefix");
+                }
+                _ => {}
             }
         }
 
-        let normalized = s.replace('/', "\\");
-        Ok(PathBuf::from(normalized))
+        Ok(normalized)
     }
 
     #[cfg(all(not(unix), not(windows)))]

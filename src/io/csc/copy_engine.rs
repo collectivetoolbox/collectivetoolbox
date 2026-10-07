@@ -99,28 +99,33 @@ fn handle_item_error(
     let os_error = err
         .downcast_ref::<std::io::Error>()
         .and_then(std::io::Error::raw_os_error);
+    let error_message = format!("{err:#}");
     let err_record = JournalErrorRecord {
         path: src_path.to_path_buf(),
         raw_path: src_path.as_os_str().as_encoded_bytes().to_vec(),
         stage,
-        error_message: err.to_string(),
+        error_message: error_message.clone(),
         os_error,
         timestamp_sec: now_sec,
     };
-    let _ = journal.record_error(&err_record);
+    journal.record_error(&err_record)
+        .with_context(|| format!("Failed to journal copy failure: {error_message}"))?;
     if args.continue_on_error {
         stats.files_failed = stats.files_failed.saturating_add(1);
         Ok(None)
     } else {
-        let _ = journal.mark_failed(&err.to_string());
+        journal.mark_failed(&error_message)
+            .with_context(|| format!("Failed to mark failed copy: {error_message}"))?;
         Err(err)
     }
 }
 
-fn record_entity_warnings(entity: &FileEntity, journal: &mut JournalWriter) {
+fn record_entity_warnings(entity: &FileEntity, journal: &mut JournalWriter) -> Result<()> {
     for warning in &entity.metadata.warnings {
-        let _ = journal.record_warning("FileReadWarning", warning);
+        journal.record_warning("FileReadWarning", warning)?;
+        warn_fmt!("{}: {}", entity.identity.display_path(), warning);
     }
+    Ok(())
 }
 
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
@@ -253,7 +258,7 @@ pub fn execute_copy_pipeline(
                     &apple_read_options,
                 ) {
                     Ok(e) => {
-                        record_entity_warnings(&e, journal);
+                        record_entity_warnings(&e, journal)?;
                         e
                     }
                     Err(e) => {
@@ -291,6 +296,7 @@ pub fn execute_copy_pipeline(
                         rel_dir,
                         options.path_policy,
                     ) {
+                        record_materialization_failure(journal, &dest_dir.root_path().join(rel_dir), &dir_entity, &e)?;
                         let _ = handle_item_error(
                             &curr_src,
                             JournalErrorStage::Materialize,
@@ -387,7 +393,7 @@ pub fn execute_copy_pipeline(
                             &apple_read_options,
                         ) {
                             Ok(e) => {
-                                record_entity_warnings(&e, journal);
+                                record_entity_warnings(&e, journal)?;
                                 e
                             }
                             Err(e) => {
@@ -491,7 +497,7 @@ pub fn execute_copy_pipeline(
             if src_meta.is_symlink() {
                 let mut sym_entity = match FileEntity::from_filesystem(src_root, None) {
                     Ok(e) => {
-                        record_entity_warnings(&e, journal);
+                        record_entity_warnings(&e, journal)?;
                         e
                     }
                     Err(e) => {
@@ -573,6 +579,7 @@ pub fn execute_copy_pipeline(
         };
 
         if let Err(e) = materialize_entity(&entity, None, &dest_dir, &options) {
+            record_materialization_failure(journal, dest_path, &entity, &e)?;
             let _ = handle_item_error(
                 &symlink_item.src_path,
                 JournalErrorStage::Materialize,
@@ -588,10 +595,12 @@ pub fn execute_copy_pipeline(
             let dest_target = match std::fs::read_link(dest_path) {
                 Ok(t) => t,
                 Err(e) => {
+                    let error = anyhow::Error::new(e);
+                    record_materialization_failure(journal, dest_path, &entity, &error)?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
-                        e.into(),
+                        error,
                         args,
                         journal,
                         &mut stats,
@@ -617,6 +626,7 @@ pub fn execute_copy_pipeline(
                         "Target filesystem altered or normalized symlink target for {}",
                         dest_path.display()
                     );
+                    record_materialization_failure(journal, dest_path, &entity, &err)?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
                         JournalErrorStage::Materialize,
@@ -644,6 +654,7 @@ pub fn execute_copy_pipeline(
                 let expected_refs: Vec<&[u8]> =
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
                 if let Err(e) = verify_directory_filenames_exact(&fixup.dest_path, &expected_refs) {
+                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -656,6 +667,7 @@ pub fn execute_copy_pipeline(
                 }
 
                 if let Err(e) = write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless) {
+                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -674,6 +686,7 @@ pub fn execute_copy_pipeline(
                     true,
                     strict_lossless,
                 ) {
+                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -691,6 +704,7 @@ pub fn execute_copy_pipeline(
                     args.should_check_atime(),
                     args.should_check_ctime(),
                 ) {
+                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
                         &fixup.src_path,
                         JournalErrorStage::Materialize,
@@ -704,6 +718,7 @@ pub fn execute_copy_pipeline(
                 files_to_verify.push((fixup.src_path, fixup.dest_path, fixup.dir_entity));
             } else {
                 let err = anyhow::anyhow!("Destination directory disappeared: {}", fixup.dest_path.display());
+                record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &err)?;
                 let _ = handle_item_error(
                     &fixup.src_path,
                     JournalErrorStage::Materialize,
@@ -838,7 +853,7 @@ fn copy_single_item(
     );
     let mut entity = match entity_res {
         Ok(e) => {
-            record_entity_warnings(&e, journal);
+            record_entity_warnings(&e, journal)?;
             e
         }
         Err(err) => {
@@ -973,6 +988,7 @@ fn copy_single_item(
                     target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
                 };
                 if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
+                    record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
                     return handle_item_error(
                         src_path,
                         JournalErrorStage::Materialize,
@@ -1125,6 +1141,7 @@ fn copy_single_item(
                 && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
             {
                 if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
+                    record_materialization_failure(journal, dest_path, &entity, &err)?;
                     return handle_item_error(
                         src_path,
                         JournalErrorStage::Materialize,
@@ -1239,6 +1256,7 @@ fn copy_single_item(
     }) {
         Ok(r) => r,
         Err(err) => {
+            record_materialization_failure(journal, &effective_dest_path, &entity, &err)?;
             return handle_item_error(
                 src_path,
                 JournalErrorStage::Materialize,
@@ -1374,6 +1392,18 @@ fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathB
     norm_dest.to_path_buf()
 }
 
+fn record_materialization_failure(
+    journal: &mut JournalWriter,
+    dest_path: &Path,
+    entity: &FileEntity,
+    error: &anyhow::Error,
+) -> Result<()> {
+    let mut failed_entity = entity.clone();
+    failed_entity.metadata.push_error(format!("Materialization failed: {error:#}"));
+    record_journal_entry(journal, dest_path, &failed_entity)?;
+    journal.commit_batch()
+}
+
 fn record_journal_entry(
     journal: &mut JournalWriter,
     dest_path: &Path,
@@ -1394,6 +1424,112 @@ fn record_journal_entry(
     journal.record_entity(&journal_entity);
     Ok(())
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod fidelity_tests {
+    use super::*;
+    use crate::args::default_test_args;
+    use crate::journal::read_journal_snapshot;
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_journal_paths_preserve_native_prefixes() {
+        use ctb_io::file::identity::resolve_relative_path_for_os;
+        let temp = tempfile::tempdir().unwrap();
+        let sources = vec![PathBuf::from(r"C:\source"), PathBuf::from(r"\\server\share\source")];
+        let destination = PathBuf::from(r"\\?\D:\destination");
+        let journal_path = temp.path().join("copy.cscjournal");
+        let journal = JournalWriter::create_at_path(
+            &journal_path, &temp.path().join("copy.cscdesc"), &sources, &destination,
+        ).unwrap();
+        let snapshot = read_journal_snapshot(journal.journal_path()).unwrap();
+        assert_eq!(snapshot.sources, sources);
+        assert_eq!(snapshot.destination, destination);
+        assert!(resolve_relative_path_for_os(br"C:\source", false).is_err());
+        assert!(resolve_relative_path_for_os(br"C:\source:stream", true).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_native_fidelity_errors_and_warnings_are_journaled() {
+        for continue_on_error in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            let source = temp.path().join("source");
+            let destination = temp.path().join("destination");
+            let journal_path = temp.path().join("copy.cscjournal");
+            let desc_path = temp.path().join("copy.cscdesc");
+            let mut journal = JournalWriter::create_at_path(
+                &journal_path, &desc_path, std::slice::from_ref(&source), &destination,
+            ).unwrap();
+            let mut entity = FileEntity::inaccessible(&source, None, "read failure");
+            entity.metadata.push_warning("Native stream enumeration is unsupported");
+            entity.streams.push(ctb_io::file::AttachedStream::from_data(
+                Some(ctb_io::file::StreamName::from_windows_utf16(&[58, 55296, 58, 36, 68, 65, 84, 65])),
+                ctb_io::file::StreamKind::NtfsAlternateDataStream,
+                b"stream payload".to_vec(),
+            ).unwrap());
+            record_entity_warnings(&entity, &mut journal).unwrap();
+            let native_error = std::io::Error::from_raw_os_error(2);
+            let native_message = native_error.to_string();
+            let error = anyhow::Error::new(native_error)
+                .context("Failed to write Windows alternate data stream WindowsUtf16([58, 55296])")
+                .context("copying source -> destination");
+            record_materialization_failure(&mut journal, &destination, &entity, &error).unwrap();
+            let mut args = default_test_args(vec![source.clone(), destination], temp.path().to_path_buf());
+            args.continue_on_error = continue_on_error;
+            let mut stats = CopyStats::default();
+            let result = handle_item_error(&source, JournalErrorStage::Materialize, error, &args, &mut journal, &mut stats);
+            assert_eq!(result.is_ok(), continue_on_error);
+            let snapshot = read_journal_snapshot(&journal_path).unwrap();
+            assert_eq!(snapshot.errors.len(), 1);
+            assert_eq!(snapshot.errors[0].os_error, Some(2));
+            assert!(snapshot.errors[0].error_message.contains("copying source -> destination"));
+            assert!(snapshot.errors[0].error_message.contains("WindowsUtf16([58, 55296])"));
+            assert!(snapshot.errors[0].error_message.contains(&native_message));
+            assert_eq!(snapshot.warnings.len(), 1);
+            assert_eq!(snapshot.warnings[0].message, entity.metadata.warnings[0]);
+            let recorded = snapshot.committed_entities.values().next().unwrap();
+            assert!(recorded.metadata.errors.iter().any(|message| message.contains("WindowsUtf16([58, 55296])")));
+            assert_eq!(recorded.streams[0].name, entity.streams[0].name);
+            assert_eq!(recorded.streams[0].kind, entity.streams[0].kind);
+            assert_eq!(recorded.streams[0].data, entity.streams[0].data);
+            assert_eq!(recorded.streams[0].entity.kind, entity.streams[0].entity.kind);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_continue_on_error_cannot_discard_journal_failure() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        let desc_path = temp.path().join("copy.cscdesc");
+        let mut journal = JournalWriter::create_at_path(
+            &temp.path().join("copy.cscjournal"), &desc_path,
+            std::slice::from_ref(&source), &destination,
+        ).unwrap();
+        std::fs::remove_file(&desc_path).unwrap();
+        std::fs::create_dir(&desc_path).unwrap();
+        let mut args = default_test_args(vec![source.clone(), destination], temp.path().to_path_buf());
+        args.continue_on_error = true;
+        let mut stats = CopyStats::default();
+        let error = handle_item_error(
+            &source, JournalErrorStage::Materialize,
+            anyhow::anyhow!("Native stream could not be preserved"),
+            &args, &mut journal, &mut stats,
+        ).unwrap_err();
+        assert!(error.to_string().contains("Native stream could not be preserved"));
+        assert_eq!(stats.files_failed, 0);
+    }
+}
+
 #[cfg(all(test, unix))]
 #[allow(
     clippy::panic,

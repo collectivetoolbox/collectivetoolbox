@@ -27,6 +27,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::{AttachedStream, StreamKind, StreamName};
+use crate::entity::FileEntityKind;
+use ctb_formats_checksum::Sha256Stream;
 use std::ffi::OsString;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
@@ -83,8 +85,6 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
         if raw == Some(i32::try_from(ERROR_HANDLE_EOF)?)
             || raw == Some(2) // ERROR_FILE_NOT_FOUND (e.g. dangling reparse points)
             || raw == Some(3) // ERROR_PATH_NOT_FOUND
-            || raw == Some(50) // ERROR_NOT_SUPPORTED
-            || raw == Some(1) // ERROR_INVALID_FUNCTION
         {
             return Ok(Vec::new());
         }
@@ -153,6 +153,8 @@ pub fn write_windows_streams(
     dest: &Path,
     streams: &[AttachedStream],
 ) -> Result<()> {
+    let mut validated = Vec::new();
+    let mut names = std::collections::HashSet::new();
     for stream in streams {
         let Some(ref data) = stream.data else {
             anyhow::bail!(
@@ -160,27 +162,11 @@ pub fn write_windows_streams(
                 stream.to_string_lossy()
             );
         };
-        let mut stream_path = dest.as_os_str().to_os_string();
-        match &stream.name {
-            Some(StreamName::WindowsUtf16(units)) => {
-                if units.starts_with(&[u16::from(b':')]) {
-                    stream_path.push(OsString::from_wide(units));
-                } else {
-                    stream_path.push(":");
-                    stream_path.push(OsString::from_wide(units));
-                }
-            }
-            Some(StreamName::Bytes(bytes)) => {
-                let s = std::str::from_utf8(bytes)
-                    .context("Stream name bytes are not valid UTF-8 for Windows NTFS stream")?;
-                if !s.starts_with(':') {
-                    stream_path.push(":");
-                }
-                stream_path.push(s);
-            }
+        let name = match &stream.name {
+            Some(name) => name.to_os_string()?,
             None => match stream.kind {
                 StreamKind::MacOsResourceFork => {
-                    stream_path.push(":com.apple.ResourceFork");
+                    OsString::from("com.apple.ResourceFork")
                 }
                 _ => {
                     anyhow::bail!(
@@ -189,11 +175,48 @@ pub fn write_windows_streams(
                     );
                 }
             },
+        };
+        let units: Vec<u16> = name.encode_wide().collect();
+        anyhow::ensure!(
+            !units.is_empty()
+                && !units.contains(&0)
+                && !units.contains(&u16::from(b'/'))
+                && !units.contains(&u16::from(b'\\')),
+            "Invalid Windows alternate data stream name: {:?}", stream.name
+        );
+        let mut canonical_name = OsString::new();
+        if units.first() != Some(&u16::from(b':')) {
+            canonical_name.push(":");
+        } else {
+            anyhow::ensure!(
+                units.get(1).is_some_and(|unit| *unit != u16::from(b':')),
+                "Attached stream cannot overwrite the unnamed data fork: {:?}", stream.name
+            );
         }
+        canonical_name.push(name);
+        anyhow::ensure!(
+            names.insert(canonical_name.clone()),
+            "Stream names collide on the destination platform"
+        );
+        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+            anyhow::bail!("Attached stream is not a regular payload");
+        };
+        let mut hasher = Sha256Stream::new();
+        hasher.update(data);
+        anyhow::ensure!(
+            u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
+            "Attached stream payload does not match its descriptor: {:?}", stream.name
+        );
+        validated.push((stream, canonical_name, data));
+    }
+    for (stream, name, data) in validated {
+        let mut stream_path = dest.as_os_str().to_os_string();
+        stream_path.push(name);
         std::fs::write(PathBuf::from(stream_path), data).with_context(|| {
             format!(
-                "Failed to write Windows alternate data stream {:?} to {}",
+                "Failed to write Windows alternate data stream {:?} ({:?}) to {}",
                 stream.to_string_lossy(),
+                stream.name,
                 dest.display()
             )
         })?;

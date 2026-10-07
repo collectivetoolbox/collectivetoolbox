@@ -61,12 +61,12 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
                 if let Ok(s) = std::str::from_utf8(bytes) {
                     ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&s.to_string(), mst)
                 } else {
-                    ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(bytes, mst)
+                    mst.push_binary(bytes);
+                    Ok(())
                 }
             }
-            Self::WindowsUtf16(u16s) => {
-                let s = String::from_utf16_lossy(u16s);
-                ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&s, mst)
+            Self::WindowsUtf16(units) => {
+                ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(units, mst)
             }
         }
     }
@@ -77,6 +77,9 @@ impl ctb_formats_dcstring::DcMixedDecode for StreamName {
         if reader.peek_short_dc()? == Some(203) {
             let bytes = reader.read_binary_payload()?;
             Ok(Self::Bytes(bytes.to_vec()))
+        } else if reader.peek_short_dc()? == Some(310) {
+            let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            Ok(Self::WindowsUtf16(units))
         } else {
             let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
             Ok(Self::from_str(&s))
@@ -615,9 +618,12 @@ mod tests {
     fn test_stream_names_retain_native_encoding() {
         for name in [
             StreamName::from_bytes(b"user.raw\xff\x80"),
+            StreamName::from_bytes(b"user.valid"),
             StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061, 0xdc00]),
             StreamName::from_windows_utf16(&[0x0061, 0]),
+            StreamName::from_windows_utf16(&[]),
         ] {
+            ctb_formats_dcstring::assert_dc_roundtrip(&name).unwrap();
             let encoded = serde_json::to_vec(&name).unwrap();
             let restored: StreamName = serde_json::from_slice(&encoded).unwrap();
             assert_eq!(restored, name);
@@ -635,19 +641,91 @@ mod tests {
     #[cfg(windows)]
     #[crate::ctb_test]
     fn test_windows_stream_capture_retains_unpaired_surrogate() {
-        use std::os::windows::ffi::OsStringExt;
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("file");
         fs::write(&path, b"main payload").unwrap();
         let mut units = vec![0x003a, 0xd800];
         units.extend(":$DATA".encode_utf16());
-        let mut stream_path = path.as_os_str().to_os_string();
-        stream_path.push(std::ffi::OsString::from_wide(&units));
-        fs::write(PathBuf::from(stream_path), b"stream payload").unwrap();
-        let streams = crate::streams::read_and_hash_streams(&path).unwrap();
-        assert_eq!(streams.len(), 1);
-        assert_eq!(streams[0].name, Some(StreamName::from_windows_utf16(&units)));
-        assert_eq!(streams[0].data.as_deref(), Some(b"stream payload".as_slice()));
+        let stream = AttachedStream::from_data(
+            Some(StreamName::from_windows_utf16(&units)),
+            StreamKind::NtfsAlternateDataStream,
+            b"stream payload".to_vec(),
+        ).unwrap();
+        let assert_stream_roundtrip = || {
+            let mut encoded = ctb_formats_dcstring::DcMst::new();
+            stream.encode_dc_mixed(&mut encoded).unwrap();
+            let mut reader = ctb_formats_dcstring::DcMixedReader::new(&encoded);
+            let restored = <AttachedStream as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(&mut reader).unwrap();
+            assert_eq!(restored.name, stream.name);
+            assert_eq!(restored.kind, stream.kind);
+            assert_eq!(restored.data, stream.data);
+            assert_eq!(restored.entity.kind, stream.entity.kind);
+            assert_eq!(restored.entity.metadata.warnings, stream.entity.metadata.warnings);
+            assert_eq!(restored.entity.metadata.errors, stream.entity.metadata.errors);
+            let mut reencoded = ctb_formats_dcstring::DcMst::new();
+            restored.encode_dc_mixed(&mut reencoded).unwrap();
+            assert_eq!(encoded, reencoded);
+        };
+        assert_stream_roundtrip();
+        for strict_lossless in [true, false] {
+            match write_streams(&path, None, std::slice::from_ref(&stream), strict_lossless) {
+                Ok(()) => {
+                    let streams = read_and_hash_streams(&path).unwrap();
+                    assert_eq!(streams.len(), 1);
+                    assert_eq!(streams[0].name, stream.name);
+                    assert_eq!(streams[0].data, stream.data);
+                }
+                Err(error) => {
+                    assert!(environment::is_wine(), "Unexpected native stream failure: {error:#}");
+                    let native_error = error.downcast_ref::<std::io::Error>().unwrap();
+                    assert_eq!(native_error.raw_os_error(), Some(2));
+                    assert!(error.to_string().contains("Windows alternate data stream"));
+                    assert!(error.to_string().contains("55296"));
+                    assert!(read_and_hash_streams(&path).unwrap().is_empty());
+                }
+            }
+            assert_eq!(fs::read(&path).unwrap(), b"main payload");
+            assert_stream_roundtrip();
+        }
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_stream_batches_validate_before_writing() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"main payload").unwrap();
+        let valid = AttachedStream::from_data(
+            Some(StreamName::from_str(":safe:$DATA")),
+            StreamKind::NtfsAlternateDataStream,
+            b"stream payload".to_vec(),
+        ).unwrap();
+        let mut tampered = valid.clone();
+        tampered.name = Some(StreamName::from_str(":tampered:$DATA"));
+        tampered.data = Some(b"tampered".to_vec());
+        let mut missing = valid.clone();
+        missing.data = None;
+        let mut unnamed = valid.clone();
+        unnamed.name = Some(StreamName::from_str("::$DATA"));
+        let mut traversal = valid.clone();
+        traversal.name = Some(StreamName::from_str("..\\other"));
+        let mut nul = valid.clone();
+        nul.name = Some(StreamName::from_windows_utf16(&[58, 0, 65]));
+        for (invalid, expected) in [
+            (tampered, "payload does not match its descriptor"),
+            (missing, "has no payload data"),
+            (unnamed, "cannot overwrite the unnamed data fork"),
+            (traversal, "Invalid Windows alternate data stream name"),
+            (nul, "Invalid Windows alternate data stream name"),
+            (valid.clone(), "Stream names collide"),
+        ] {
+            for strict_lossless in [false, true] {
+                let error = write_streams(&path, None, &[valid.clone(), invalid.clone()], strict_lossless).unwrap_err();
+                assert!(error.to_string().contains(expected), "{error:#}");
+                assert_eq!(fs::read(&path).unwrap(), b"main payload");
+                assert!(read_and_hash_streams(&path).unwrap().is_empty());
+            }
+        }
     }
 
     #[cfg(unix)]
