@@ -188,6 +188,7 @@ async fn config_from_pem_chain_file(
 )]
 mod tests {
     use super::*;
+    use crate::anyhow;
     use std::io;
 
     fn fixtures() -> anyhow::Result<tempfile::TempDir> {

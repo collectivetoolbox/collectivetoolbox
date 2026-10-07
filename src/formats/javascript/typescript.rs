@@ -147,30 +147,6 @@ pub fn run_tsc(args: &[String]) -> Result<TscRunResult> {
     let tsc_js_path = temp_dir.join("tsc/tsc.js");
     let loader_root = temp_dir.join("tsc");
 
-    info_fmt!("run_tsc: starting tsc.js with args: {:?}", args);
-    let start_time = std::time::Instant::now();
-
-    let is_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-    let is_running_clone = is_running.clone();
-    let watchdog = std::thread::Builder::new()
-        .name("tsc-watchdog".to_string())
-        .spawn(move || {
-            let mut ticks: u64 = 0;
-            while is_running_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                for _ in 0..60 {
-                    std::thread::sleep(std::time::Duration::from_millis(250));
-                    if !is_running_clone.load(std::sync::atomic::Ordering::Relaxed) {
-                        return;
-                    }
-                }
-                ticks = ticks.saturating_add(15);
-                info_fmt!(
-                    "run_tsc heartbeat: still executing tsc.js (elapsed: {}s)...",
-                    ticks
-                );
-            }
-        });
-
     ctb_formats_javascript_boa_host::start_capturing_stdout();
 
     let res = ctb_formats_javascript_boa_host::run_js_module_allow_success_exit(
@@ -178,11 +154,6 @@ pub fn run_tsc(args: &[String]) -> Result<TscRunResult> {
         &loader_root,
         args,
     );
-
-    is_running.store(false, std::sync::atomic::Ordering::Relaxed);
-    if let Ok(handle) = watchdog {
-        let _ = handle.join();
-    }
 
     // Reason for fallback: if stdout capture lock fails or is empty, empty lines vector is returned.
     let captured_lines =
@@ -206,12 +177,6 @@ pub fn run_tsc(args: &[String]) -> Result<TscRunResult> {
         }
     };
 
-    info_fmt!(
-        "run_tsc: finished tsc.js in {:.2}s with exit code {}",
-        start_time.elapsed().as_secs_f64(),
-        exit_code
-    );
-
     Ok(TscRunResult { output, exit_code })
 }
 
@@ -222,9 +187,6 @@ pub fn ts_check_files(
     if paths.is_empty() {
         return Ok(Vec::new());
     }
-
-    let check_start = std::time::Instant::now();
-    info_fmt!("ts_check_files: type-checking {} file(s)", paths.len());
 
     // Canonicalize target files for accurate diagnostic matching
     let target_canonical_paths: std::collections::HashSet<PathBuf> = paths
@@ -424,12 +386,6 @@ pub fn ts_check_files(
             tsc_result.output
         );
     }
-
-    info_fmt!(
-        "ts_check_files: completed in {:.2}s with {} diagnostic(s)",
-        check_start.elapsed().as_secs_f64(),
-        diagnostics.len()
-    );
 
     Ok(diagnostics)
 }

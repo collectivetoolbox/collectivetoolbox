@@ -733,17 +733,8 @@ pub fn run_js_module(
     loader_root: &Path,
     args: &[String],
 ) -> Result<()> {
-    info_fmt!(
-        "run_js_module: initializing context for '{}'...",
-        entry_point.display()
-    );
-    let init_start = std::time::Instant::now();
     let (mut context, loader) =
         create_context_with_bindings(entry_point, loader_root, args, true)?;
-    info_fmt!(
-        "run_js_module: context initialized in {:.2}s, parsing module...",
-        init_start.elapsed().as_secs_f64()
-    );
 
     // Load and run the main entry module
     let entry_source =
@@ -754,25 +745,15 @@ pub fn run_js_module(
                 e
             )
         })?;
-    let parse_start = std::time::Instant::now();
     let module = Module::parse(entry_source, None, &mut context)
         .map_err(|e| anyhow::anyhow!("Failed to parse module: {}", e))?;
-    info_fmt!(
-        "run_js_module: module parsed in {:.2}s, evaluating...",
-        parse_start.elapsed().as_secs_f64()
-    );
 
     loader.insert(entry_point.to_path_buf(), module.clone());
 
-    let eval_start = std::time::Instant::now();
     let promise = module.load_link_evaluate(&mut context);
     context
         .run_jobs()
         .map_err(|e| anyhow::anyhow!("Failed to run jobs: {}", e))?;
-    info_fmt!(
-        "run_js_module: evaluation completed in {:.2}s",
-        eval_start.elapsed().as_secs_f64()
-    );
 
     match promise.state() {
         PromiseState::Pending => {

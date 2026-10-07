@@ -53,6 +53,7 @@ use super::{ChildHandle, ProcessManager, SpawnParams};
 struct ChildEntry {
     terminate: mpsc::UnboundedSender<oneshot::Sender<Result<(), Error>>>,
     handle: ChildHandle,
+    ancestors: Vec<ProcessId>,
 }
 
 #[derive(Debug)]
@@ -139,11 +140,19 @@ impl ProcessManager for TokioProcessManager {
             mpsc::unbounded_channel::<oneshot::Sender<Result<(), Error>>>();
         {
             let mut inner = self.inner.lock().await;
+            let mut ancestors = Vec::new();
+            if let Some(parent) = handle.parent {
+                ancestors.push(parent);
+                if let Some(entry) = inner.children.get(&parent) {
+                    ancestors.extend_from_slice(&entry.ancestors);
+                }
+            }
             inner.children.insert(
                 pid,
                 ChildEntry {
                     terminate,
                     handle: handle.clone(),
+                    ancestors,
                 },
             );
         }
@@ -198,19 +207,10 @@ impl ProcessManager for TokioProcessManager {
     ) -> Result<(), Error> {
         let targets = {
             let inner = self.inner.lock().await;
-            let mut targets = Vec::new();
-            let mut stack = vec![pid];
-            while let Some(current) = stack.pop() {
-                if let Some(entry) = inner.children.get(&current) {
-                    targets.push((current, entry.terminate.clone()));
-                }
-                for (child_pid, entry) in &inner.children {
-                    if entry.handle.parent == Some(current) {
-                        stack.push(*child_pid);
-                    }
-                }
-            }
-            targets
+            inner.children.iter()
+                .filter(|(child_pid, entry)| **child_pid == pid || entry.ancestors.contains(&pid))
+                .map(|(child_pid, entry)| (*child_pid, entry.terminate.clone()))
+                .collect::<Vec<_>>()
         };
 
         if !force {
@@ -240,18 +240,9 @@ impl ProcessManager for TokioProcessManager {
         timeout: Duration,
     ) -> Result<bool, Error> {
         let is_tree_gone = |inner: &Inner| -> bool {
-            let mut stack = vec![pid];
-            while let Some(cur) = stack.pop() {
-                if inner.children.contains_key(&cur) {
-                    return false;
-                }
-                for (child_pid, entry) in &inner.children {
-                    if entry.handle.parent == Some(cur) {
-                        stack.push(*child_pid);
-                    }
-                }
-            }
-            true
+            !inner.children.iter().any(|(child_pid, entry)| {
+                *child_pid == pid || entry.ancestors.contains(&pid)
+            })
         };
 
         let step = Duration::from_millis(20);
