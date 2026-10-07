@@ -76,6 +76,7 @@ Execution & Testing:
                               --crate <name>   Test only a specific package/crate
                               --filter <pat>   Test filter pattern
                               --no-build       Skip build; use existing binaries
+                              --standalone-tests-dir <dir>  Include precompiled standalone tests
                               --timeout <sec>  Timeout waiting for test suite (default: 14400)
 
 Interactive / Inspection:
@@ -418,6 +419,7 @@ cmd_test_suite() {
     local crate_filter=""
     local test_filter=""
     local no_build="false"
+    local standalone_tests_dir=""
     local timeout="14400"
 
     while [[ $# -gt 0 ]]; do
@@ -441,6 +443,14 @@ cmd_test_suite() {
                 ;;
             --no-build)
                 no_build="true"
+                ;;
+            --standalone-tests-dir)
+                shift
+                standalone_tests_dir="${1:-}"
+                if [[ ! -d "$standalone_tests_dir" ]]; then
+                    echo "Missing standalone test directory: $standalone_tests_dir" >&2
+                    return 1
+                fi
                 ;;
             --timeout)
                 shift
@@ -595,6 +605,24 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
 print(count)
 ")
 
+    if [[ -n "$standalone_tests_dir" ]]; then
+        local standalone_count=0
+        while IFS= read -r -d '' executable; do
+            local name="standalone_$(basename "$(dirname "$executable")").exe"
+            if [[ -e "$EXCHANGE_DIR/tests/$name" ]]; then
+                echo "Duplicate standalone test executable: $name" >&2
+                return 1
+            fi
+            cp "$executable" "$EXCHANGE_DIR/tests/$name"
+            standalone_count=$((standalone_count + 1))
+        done < <(find "$standalone_tests_dir" -type f -name '*.exe' -print0)
+        if [[ "$standalone_count" -eq 0 ]]; then
+            echo "No standalone Windows test executables found in $standalone_tests_dir" >&2
+            return 1
+        fi
+        binary_count=$((binary_count + standalone_count))
+    fi
+
     if [[ "$binary_count" -eq 0 ]]; then
         echo "No test binaries found in target/$target/$build_profile/deps/!" >&2
         return 1
@@ -643,11 +671,16 @@ set FAILED=0
 for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     set /a TOTAL+=1
     echo === RUN %%~nF === >> COM1
-    echo %%~nF | findstr /i "ctb_formats_javascript" >nul
+    echo %%~nF | findstr /b /i "standalone_" >nul
     if !ERRORLEVEL! EQU 0 (
-        "%%F" $test_filter --nocapture --test-threads 1 >> COM1 2>&1
+        "%%F" >> COM1 2>&1
     ) else (
-        "%%F" $test_filter --nocapture --test-threads 3 >> COM1 2>&1
+        echo %%~nF | findstr /i "ctb_formats_javascript" >nul
+        if !ERRORLEVEL! EQU 0 (
+            "%%F" $test_filter --include-ignored --nocapture --test-threads 1 >> COM1 2>&1
+        ) else (
+            "%%F" $test_filter --include-ignored --nocapture --test-threads 3 >> COM1 2>&1
+        )
     )
     if !ERRORLEVEL! EQU 0 (
         set /a PASSED+=1
@@ -688,17 +721,25 @@ EOF
         touch "$SERIAL_LOG"
     fi
 
-    cmd_send_keys "esc"
-    sleep 0.5
-    cmd_send_keys "esc"
-    sleep 0.5
-    cmd_send_keys "meta_l-r"
-    sleep 1.5
-    cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run_suite.bat %d:\\run_suite.bat"
-    sleep 1.0
-    cmd_send_keys "ret"
+    local launch_attempt
+    for launch_attempt in 1 2 3; do
+        cmd_send_keys "esc"
+        sleep 0.5
+        cmd_send_keys "esc"
+        sleep 0.5
+        cmd_send_keys "meta_l-r"
+        sleep 1.5
+        cmd_send_keys "ctrl-a"
+        cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run_suite.bat %d:\\run_suite.bat"
+        sleep 1.0
+        cmd_send_keys "ret"
+        if vm_wait_for_marker "$SERIAL_LOG" "$start_offset" "---SUITE_START---" 90; then
+            break
+        fi
+        echo "VM suite startup marker missing after launch attempt $launch_attempt." >&2
+    done
 
-    vm_stream_suite_output "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" "Windows 7" || py_exit=$?
+    vm_stream_suite_output "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" "Windows 7" "$binary_count" || py_exit=$?
 
     trap - EXIT INT TERM
     if is_running; then

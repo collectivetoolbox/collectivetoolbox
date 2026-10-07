@@ -44,6 +44,7 @@ xattr = "1.6"
 file-id = "0.2.3"
 windows-sys = { version = "0.61.2", features = [
     "Win32_Foundation",
+    "Win32_Globalization",
     "Win32_Storage_FileSystem",
     "Win32_Security",
     "Win32_Security_Authorization",

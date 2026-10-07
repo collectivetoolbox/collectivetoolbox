@@ -711,6 +711,8 @@ mod tests {
         traversal.name = Some(StreamName::from_str("..\\other"));
         let mut nul = valid.clone();
         nul.name = Some(StreamName::from_windows_utf16(&[58, 0, 65]));
+        let mut alias = valid.clone();
+        alias.name = Some(StreamName::from_str("SAFE"));
         for (invalid, expected) in [
             (tampered, "payload does not match its descriptor"),
             (missing, "has no payload data"),
@@ -718,6 +720,7 @@ mod tests {
             (traversal, "Invalid Windows alternate data stream name"),
             (nul, "Invalid Windows alternate data stream name"),
             (valid.clone(), "Stream names collide"),
+            (alias, "Stream names collide"),
         ] {
             for strict_lossless in [false, true] {
                 let error = write_streams(&path, None, &[valid.clone(), invalid.clone()], strict_lossless).unwrap_err();

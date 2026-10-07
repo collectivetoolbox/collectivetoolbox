@@ -185,6 +185,27 @@ VOID WINAPI GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PULONG_PTR HighLimi
 // Resolver Implementations
 // ============================================================================
 
+static LPVOID WINAPI fallback_CoTaskMemAlloc(SIZE_T cb) {
+    return LocalAlloc(LMEM_FIXED, cb);
+}
+
+static void WINAPI fallback_CoTaskMemFree(LPVOID pv) {
+    if (pv) {
+        LocalFree(pv);
+    }
+}
+
+static LPVOID WINAPI fallback_CoTaskMemRealloc(LPVOID pv, SIZE_T cb) {
+    if (!pv) {
+        return fallback_CoTaskMemAlloc(cb);
+    }
+    if (cb == 0) {
+        fallback_CoTaskMemFree(pv);
+        return NULL;
+    }
+    return LocalReAlloc(pv, cb, LMEM_MOVEABLE);
+}
+
 static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb) {
     HMODULE hMod = get_com_module();
     FARPROC proc = hMod ? GetProcAddress(hMod, "CoTaskMemAlloc") : NULL;
@@ -192,7 +213,7 @@ static LPVOID WINAPI resolve_CoTaskMemAlloc(SIZE_T cb) {
     if (proc) {
         fn = (PFN_CoTaskMemAlloc)(void *)proc;
     } else {
-        fn = (PFN_CoTaskMemAlloc)(void *)LocalAlloc;
+        fn = fallback_CoTaskMemAlloc;
     }
     __imp_CoTaskMemAlloc = fn;
     return fn(cb);
@@ -205,7 +226,7 @@ static void WINAPI resolve_CoTaskMemFree(LPVOID pv) {
     if (proc) {
         fn = (PFN_CoTaskMemFree)(void *)proc;
     } else {
-        fn = (PFN_CoTaskMemFree)(void *)LocalFree;
+        fn = fallback_CoTaskMemFree;
     }
     __imp_CoTaskMemFree = fn;
     fn(pv);
@@ -218,7 +239,7 @@ static LPVOID WINAPI resolve_CoTaskMemRealloc(LPVOID pv, SIZE_T cb) {
     if (proc) {
         fn = (PFN_CoTaskMemRealloc)(void *)proc;
     } else {
-        fn = (PFN_CoTaskMemRealloc)(void *)LocalReAlloc;
+        fn = fallback_CoTaskMemRealloc;
     }
     __imp_CoTaskMemRealloc = fn;
     return fn(pv, cb);
@@ -643,6 +664,12 @@ static HRESULT WINAPI fallback_CopyFile2(PCWSTR pwszExistingFileName, PCWSTR pws
     DWORD copyFlags = 0;
     BOOL *pfCancel = NULL;
     if (pExtendedParameters) {
+        if (pExtendedParameters->dwSize != sizeof(*pExtendedParameters)) {
+            return HRESULT_FROM_WIN32(ERROR_INVALID_PARAMETER);
+        }
+        if (pExtendedParameters->pProgressRoutine) {
+            return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+        }
         copyFlags = pExtendedParameters->dwCopyFlags;
         pfCancel = pExtendedParameters->pfCancel;
     }
@@ -677,12 +704,9 @@ static VOID WINAPI fallback_GetCurrentThreadStackLimits(PULONG_PTR LowLimit, PUL
     // Under Windows NT, tib->StackLimit is the committed page boundary, not the
     // allocation base of the stack reservation. Query the allocation base of the
     // stack using VirtualQuery on the current stack frame.
-    MEMORY_BASIC_INFORMATION mbi;
+    MEMORY_BASIC_INFORMATION mbi = {0};
     if (VirtualQuery(&mbi, &mbi, sizeof(mbi)) != 0 && mbi.AllocationBase != NULL) {
         stack_limit = (ULONG_PTR)mbi.AllocationBase;
-    } else if (stack_base > 0x100000) {
-        // Fallback: estimate 1MB stack size below StackBase if VirtualQuery fails
-        stack_limit = stack_base - 0x100000;
     }
 
     if (LowLimit) {

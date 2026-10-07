@@ -172,7 +172,7 @@ s.connect(monitor_sock)
 s.recv(1024)
 
 def send(key):
-    s.sendall(f'sendkey {key}\n'.encode())
+    s.sendall(f'sendkey {key} 20\n'.encode())
     time.sleep(0.04)
 
 key_map = {
@@ -330,6 +330,29 @@ vm_package_fixtures() {
 
 }
 
+vm_wait_for_marker() {
+    python3 -c '
+import sys, time
+
+deadline = time.monotonic() + float(sys.argv[4])
+pending = ""
+with open(sys.argv[1], "r", errors="replace") as serial:
+    serial.seek(int(sys.argv[2]))
+    while True:
+        line = serial.readline()
+        if line:
+            pending += line
+            if pending.endswith("\n"):
+                if pending.strip() == sys.argv[3]:
+                    sys.exit(0)
+                pending = ""
+        elif time.monotonic() >= deadline:
+            sys.exit(1)
+        else:
+            time.sleep(0.2)
+' "$1" "$2" "$3" "$4"
+}
+
 vm_stream_suite_output() {
     local log_path="$1"
     local start_offset="$2"
@@ -345,6 +368,7 @@ start_offset = int(sys.argv[2])
 timeout = int(sys.argv[3])
 suite_log_path = sys.argv[4] if len(sys.argv) > 4 else None
 os_title = sys.argv[5] if len(sys.argv) > 5 else 'VM'
+expected_total = int(sys.argv[6]) if len(sys.argv) > 6 and sys.argv[6] else None
 
 suite_log_file = None
 if suite_log_path:
@@ -363,6 +387,7 @@ suite_failed = 0
 failing_binaries = []
 passing_binaries = []
 current_binary = ''
+pending_line = ''
 
 def write_out(text):
     sys.stdout.write(text)
@@ -377,17 +402,30 @@ with open(log_path, 'r', errors='replace') as f:
         line = f.readline()
         if line:
             last_output_time = time.time()
+            pending_line += line
+            if not pending_line.endswith('\n'):
+                continue
+            line = pending_line
+            pending_line = ''
             clean = line.strip()
-            if '---SUITE_START---' in clean:
+            if clean == '---SUITE_START---':
                 started = True
                 write_out(f'>>> {os_title} VM Test Suite Started <<<\n')
                 continue
             if '---SUITE_END:' in clean:
-                m = re.search(r'TOTAL=(\d+),PASSED=(\d+),FAILED=(\d+)', clean)
-                if m:
-                    suite_total = int(m.group(1))
-                    suite_passed = int(m.group(2))
-                    suite_failed = int(m.group(3))
+                m = re.fullmatch(r'---SUITE_END:TOTAL=(\d+),PASSED=(\d+),FAILED=(\d+)---', clean)
+                if not started or not m:
+                    write_out('\n[ERROR] Invalid VM suite completion marker or missing startup marker.\n')
+                    sys.exit(1)
+                suite_total = int(m.group(1))
+                suite_passed = int(m.group(2))
+                suite_failed = int(m.group(3))
+                if (suite_total <= 0 or suite_total != suite_passed + suite_failed
+                    or suite_passed != len(passing_binaries)
+                    or suite_failed != len(failing_binaries)
+                    or (expected_total is not None and suite_total != expected_total)):
+                    write_out('\n[ERROR] VM suite counts do not match executed or packaged binaries.\n')
+                    sys.exit(1)
                 break
             if started:
                 m_run = re.search(r'=== RUN (\S+) ===', clean)
@@ -403,6 +441,9 @@ with open(log_path, 'r', errors='replace') as f:
                 write_out(line)
         else:
             now = time.time()
+            if not started and now - start_time > min(timeout, 300):
+                write_out('\n[TIMEOUT] VM launcher did not produce the suite startup marker.\n')
+                sys.exit(124)
             if now - start_time > timeout:
                 msg = f'\n[TIMEOUT] Test suite exceeded {timeout} seconds in {os_title} VM.\n'
                 write_out(msg)
@@ -440,7 +481,7 @@ if suite_log_file:
     suite_log_file.close()
 
 sys.exit(0 if suite_failed == 0 and len(failing_binaries) == 0 else 1)
-" "$log_path" "$start_offset" "$timeout" "$suite_log_path" "$os_title"
+" "$log_path" "$start_offset" "$timeout" "$suite_log_path" "$os_title" "${6:-}"
 }
 
 vm_capture_failure_artifacts() {

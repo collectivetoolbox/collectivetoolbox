@@ -35,6 +35,7 @@ use std::path::{Path, PathBuf};
 use windows_sys::Win32::Foundation::{
     ERROR_HANDLE_EOF, HANDLE, INVALID_HANDLE_VALUE,
 };
+use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
 use windows_sys::Win32::Storage::FileSystem::{
     FindClose, FindFirstStreamW, FindNextStreamW, FindStreamInfoStandard,
     WIN32_FIND_STREAM_DATA,
@@ -148,13 +149,24 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     Ok(streams)
 }
 
+#[expect(unsafe_code, reason = "CompareStringOrdinal receives live UTF-16 slices and checked explicit lengths")]
+fn native_names_equal(first: &[u16], second: &[u16]) -> Result<bool> {
+    let comparison = unsafe {
+        CompareStringOrdinal(first.as_ptr(), i32::try_from(first.len())?, second.as_ptr(), i32::try_from(second.len())?, 1)
+    };
+    if comparison == 0 {
+        return Err(std::io::Error::last_os_error()).context("Failed to compare native stream names");
+    }
+    Ok(comparison == CSTR_EQUAL)
+}
+
 /// Writes alternate data streams to `dest` on Windows NTFS.
 pub fn write_windows_streams(
     dest: &Path,
     streams: &[AttachedStream],
 ) -> Result<()> {
     let mut validated = Vec::new();
-    let mut names = std::collections::HashSet::new();
+    let mut names: Vec<Vec<u16>> = Vec::new();
     for stream in streams {
         let Some(ref data) = stream.data else {
             anyhow::bail!(
@@ -184,20 +196,34 @@ pub fn write_windows_streams(
                 && !units.contains(&u16::from(b'\\')),
             "Invalid Windows alternate data stream name: {:?}", stream.name
         );
-        let mut canonical_name = OsString::new();
-        if units.first() != Some(&u16::from(b':')) {
-            canonical_name.push(":");
-        } else {
+        let name_units = if units.first() == Some(&u16::from(b':')) {
             anyhow::ensure!(
                 units.get(1).is_some_and(|unit| *unit != u16::from(b':')),
                 "Attached stream cannot overwrite the unnamed data fork: {:?}", stream.name
             );
-        }
-        canonical_name.push(name);
+            units.get(1..).context("Missing stream name")?
+        } else {
+            &units
+        };
+        let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+        let name_units = if name_units.len() >= suffix.len()
+            && native_names_equal(name_units.get(name_units.len().saturating_sub(suffix.len())..).context("Invalid stream type suffix")?, &suffix)?
+        {
+            name_units.get(..name_units.len().saturating_sub(suffix.len())).context("Invalid stream name length")?
+        } else {
+            name_units
+        };
         anyhow::ensure!(
-            names.insert(canonical_name.clone()),
-            "Stream names collide on the destination platform"
+            !name_units.is_empty() && !name_units.contains(&u16::from(b':')),
+            "Invalid Windows alternate data stream name: {:?}", stream.name
         );
+        for existing in &names {
+            anyhow::ensure!(!native_names_equal(existing, name_units)?, "Stream names collide on the destination platform");
+        }
+        names.push(name_units.to_vec());
+        let mut canonical_name = OsString::from(":");
+        canonical_name.push(OsString::from_wide(name_units));
+        canonical_name.push(":$DATA");
         let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
             anyhow::bail!("Attached stream is not a regular payload");
         };
