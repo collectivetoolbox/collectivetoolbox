@@ -111,6 +111,7 @@ fn handle_item_error(
     journal.record_error(&err_record)
         .with_context(|| format!("Failed to journal copy failure: {error_message}"))?;
     if args.continue_on_error {
+        warn_fmt!("Failed to copy {}: {}", src_path.display(), error_message);
         stats.files_failed = stats.files_failed.saturating_add(1);
         Ok(None)
     } else {

@@ -60,6 +60,7 @@ pub struct IpcPeer {
     send_lock: Mutex<()>,
     next_id: AtomicU64,
     inflight: Mutex<HashMap<RequestId, oneshot::Sender<Response>>>,
+    active_requests: Mutex<HashMap<RequestId, Option<oneshot::Sender<()>>>>,
     pending: Mutex<HashMap<RequestId, Response>>,
     closed: AtomicBool,
     closed_notify: Notify,
@@ -83,6 +84,7 @@ impl IpcPeer {
             send_lock: Mutex::new(()),
             next_id: AtomicU64::new(1),
             inflight: Mutex::new(HashMap::new()),
+            active_requests: Mutex::new(HashMap::new()),
             pending: Mutex::new(HashMap::new()),
             closed: AtomicBool::new(false),
             closed_notify: Notify::new(),
@@ -106,6 +108,17 @@ impl IpcPeer {
 
                 match msg {
                     Message::Request(req) => {
+                        let request_id = req.id;
+                        let (cancel_tx, cancel_rx) = oneshot::channel();
+                        {
+                            let mut active = peer.active_requests.lock().await;
+                            if let std::collections::hash_map::Entry::Vacant(entry) = active.entry(request_id) {
+                                entry.insert(Some(cancel_tx));
+                            } else {
+                                warn_fmt!("Duplicate active IPC request id: {}", request_id);
+                                continue;
+                            }
+                        }
                         // Important: request handlers may perform outbound
                         // calls (and await responses) over the same session.
                         // If we await the handler inline here, the receive
@@ -114,28 +127,27 @@ impl IpcPeer {
                         // loop responsive.
                         let peer = Arc::clone(&peer);
                         tokio::spawn(async move {
-                            let request_id = req.id;
-                            let resp = match peer
-                                .router
-                                .dispatch_with_session(
-                                    &peer.ctx,
-                                    Arc::clone(&peer.session),
-                                    req,
-                                )
-                                .await
-                            {
-                                Ok(r) => r,
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "[peer] dispatch error for request_id={request_id}: {e:#}"
-                                    );
-                                    IpcRouter::error_response(
-                                        request_id,
-                                        "internal",
-                                        &format!("dispatch failed: {e:#}"),
-                                    )
+                            let resp = tokio::select! {
+                                biased;
+                                _ = cancel_rx => Response {
+                                    id: request_id,
+                                    ok: false,
+                                    result: None,
+                                    error: Some(RpcError::cancelled("Request cancelled")),
+                                },
+                                result = peer.router.dispatch_with_session(
+                                    &peer.ctx, Arc::clone(&peer.session), req,
+                                ) => match result {
+                                    Ok(response) => response,
+                                    Err(error) => {
+                                        warn_fmt!("IPC dispatch error for request {}: {:#}", request_id, error);
+                                        IpcRouter::error_response(
+                                            request_id, "internal", &format!("dispatch failed: {error:#}"),
+                                        )
+                                    }
                                 }
                             };
+                            peer.active_requests.lock().await.remove(&request_id);
 
                             let _guard = peer.send_lock.lock().await;
                             if let Err(e) = peer
@@ -160,7 +172,13 @@ impl IpcPeer {
                         }
                     }
                     Message::Cancel(Cancel { id }) => {
-                        let _ = peer.router.observe_cancel(&peer.ctx, id).await;
+                        let cancel_tx = peer.active_requests.lock().await.get_mut(&id).and_then(Option::take);
+                        if let Some(cancel_tx) = cancel_tx {
+                            let _ = cancel_tx.send(());
+                        }
+                        if let Err(error) = peer.router.observe_cancel(&peer.ctx, id).await {
+                            warn_fmt!("Failed to observe IPC cancellation {}: {:#}", id, error);
+                        }
                     }
                     // Not handled by the peer today.
                     Message::Event(_)
@@ -171,6 +189,7 @@ impl IpcPeer {
                 }
             }
 
+            peer.active_requests.lock().await.clear();
             // Fail any inflight waiters on exit.
             let mut inflight = peer.inflight.lock().await;
             for (id, sender) in inflight.drain() {

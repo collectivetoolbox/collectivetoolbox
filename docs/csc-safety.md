@@ -116,6 +116,22 @@ requires the target's namespace to accept it: storing an NTFS name in a journal
 does not make that name a valid Linux xattr. Stream write or payload failures
 remain fatal even in best-effort metadata mode.
 
+Dc serialization preserves UTF-16 names as exact code-unit lists and invalid
+UTF-8 names as binary payloads. It never reconstructs native names from lossy
+display strings. Windows stream batches validate names and payload descriptors
+before writing any stream; invalid names cannot overwrite the primary data fork.
+
+Standard WINE can reject native stream names containing unpaired surrogates.
+That is a surfaced materialization failure, not a successful empty-stream copy.
+Unsupported stream enumeration becomes a captured fidelity warning rather than
+an empty successful enumeration. Read and write diagnostics retain native error
+causes and the exact encoded stream name when known. csc stores materialization
+errors in the captured entity's metadata and in its error journal, retaining the
+original stream descriptor and payload. Continuing after an item error still
+reports and journals the failure; journal persistence failures abort the copy.
+These limitations do not restrict native Windows operations that can preserve
+the same name successfully.
+
 ## Platform Status
 
 Windows named data stream enumeration uses the native wide-character API and

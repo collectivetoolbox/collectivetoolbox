@@ -166,12 +166,29 @@ macro_rules! ipc_peer_proxied_postcard_method {
 /// corresponding `ctb_utilities::ipc::service_traits::*ClientTrait`.
 ///
 /// Example:
-/// ```ignore
-/// crate::ipc_impl_forward_async_trait!(
+/// ```
+/// # use ctb_utilities::anyhow::{self, Result};
+/// # use ctb_workspace_ipc::ipc_impl_forward_async_trait;
+/// # #[async_trait::async_trait]
+/// # trait RuntimeClientTrait {
+/// #     async fn start(&self, document: Vec<u8>) -> Result<()>;
+/// # }
+/// # struct RuntimeClient;
+/// # impl RuntimeClient {
+/// #     async fn start_ipc(&self, document: Vec<u8>) -> Result<()> {
+/// #         anyhow::ensure!(document == b"document", "Incorrect forwarded document");
+/// #         Ok(())
+/// #     }
+/// # }
+/// ipc_impl_forward_async_trait!(
 ///     impl RuntimeClientTrait for RuntimeClient {
 ///         async fn start(&self, document: Vec<u8>) -> Result<()> => start_ipc;
 ///     }
 /// );
+/// # #[tokio::main]
+/// # async fn main() -> Result<()> {
+/// #     RuntimeClientTrait::start(&RuntimeClient, b"document".to_vec()).await
+/// # }
 /// ```
 #[macro_export]
 macro_rules! ipc_impl_forward_async_trait {
@@ -205,13 +222,35 @@ macro_rules! ipc_impl_forward_async_trait {
 /// Currently, `&str` arguments are converted to `String` via `.to_string()`.
 ///
 /// Example:
-/// ```ignore
-/// crate::ipc_impl_ipc_ext_async_trait!(
+/// ```
+/// # use ctb_utilities::anyhow::Result;
+/// # use ctb_workspace_ipc::ipc_impl_ipc_ext_async_trait;
+/// # #[async_trait::async_trait]
+/// # trait NetworkClientTrait {
+/// #     async fn fetch(&self, url: &str) -> Result<Vec<u8>>;
+/// # }
+/// # #[async_trait::async_trait]
+/// # trait FetchIpcClientExt {
+/// #     async fn fetch(&self, url: String) -> Result<Vec<u8>>;
+/// # }
+/// # struct NetworkClient;
+/// # #[async_trait::async_trait]
+/// # impl FetchIpcClientExt for NetworkClient {
+/// #     async fn fetch(&self, url: String) -> Result<Vec<u8>> {
+/// #         Ok(url.into_bytes())
+/// #     }
+/// # }
+/// ipc_impl_ipc_ext_async_trait!(
 ///     impl NetworkClientTrait for NetworkClient {
 ///         async fn fetch(&self, url: &str) -> Result<Vec<u8>>
-///             => ctb_network::FetchIpcClientExt;
+///             => FetchIpcClientExt(url.to_string());
 ///     }
 /// );
+/// # #[tokio::main]
+/// # async fn main() -> Result<()> {
+/// #     assert_eq!(NetworkClientTrait::fetch(&NetworkClient, "url").await?, b"url");
+/// #     Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! ipc_impl_ipc_ext_async_trait {

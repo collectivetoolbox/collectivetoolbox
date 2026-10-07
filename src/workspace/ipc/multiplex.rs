@@ -221,60 +221,66 @@ mod tests {
         Ok(())
     }
 
-    /// Cancel an in-flight "fetch" and ensure work stops and a cancelled response is sent.
-    #[ignore = "test is incomplete"]
+    static CANCEL_TEST_STARTED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+    static CANCEL_TEST_DROPPED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+    #[ipc_method]
+    async fn wait_for_cancellation() -> Result<()> {
+        struct WorkGuard;
+        impl Drop for WorkGuard {
+            fn drop(&mut self) {
+                CANCEL_TEST_DROPPED.notify_one();
+            }
+        }
+        let _guard = WorkGuard;
+        CANCEL_TEST_STARTED.notify_one();
+        std::future::pending::<()>().await;
+        Ok(())
+    }
+
+    /// Cancel an in-flight request and ensure work stops and a cancelled
+    /// response is sent by the real peer dispatcher.
     #[crate::ctb_test("tokio")]
     async fn server_cancel_stops_inflight_fetch() -> Result<()> {
-        Ok(())
-        /*let (session, mut to_server_rx, from_server_tx) = make_mock_session();
-
-        let steps = std::sync::Arc::new(AtomicUsize::new(0));
-        let router = SimpleRouter::new();
-        router.with_network_service(Arc::new(ctb_network::MockNetworkBackend));
-
-        let ctx = ConnectionContext {
-            id: ConnectionId::default(),
-            capabilities: CapabilitySet::default(),
+        use crate::auth::capability::{CapabilitySet, MethodRule, MethodSelector, ServiceName};
+        use crate::router::{ConnectionContext, IpcRouter};
+        let (session, mut to_server_rx, from_server_tx) = make_mock_session();
+        let method = "ipc.wait_for_cancellation";
+        let mut allowed = std::collections::HashMap::new();
+        allowed.insert(ServiceName("workspace".to_string()), vec![MethodRule {
+            method: MethodSelector::Exact(method.to_string()),
+            quotas: None,
+        }]);
+        let context = ConnectionContext {
+            id: crate::types::ConnectionId::default(),
+            capabilities: CapabilitySet { allowed, global_limits: None },
             metadata: None,
         };
-
-        let server_task = tokio::spawn(serve_router(session.clone(), router, ctx));
-
-        // Send a fetch request into the server loop.
+        let peer = crate::peer::IpcPeer::new(session, std::sync::Arc::new(IpcRouter::new()), context);
         from_server_tx
             .send(Message::Request(Request {
                 id: 7,
                 method: MethodId {
-                    service: "network".into(),
-                    method: "fetch".into(),
+                    service: "workspace".into(),
+                    method: method.into(),
                 },
-                args: vec![1, 2, 3],
+                args: postcard_helpers::encode(&(), "cancellation test arguments")?,
             }))
             .await?;
-
-        // Ensure it started doing work.
-        tokio::time::sleep(std::time::Duration::from_millis(40)).await;
-        let before = steps.load(Ordering::SeqCst);
-
-        // Cancel it.
+        let timeout = std::time::Duration::from_secs(10);
+        tokio::time::timeout(timeout, CANCEL_TEST_STARTED.notified()).await?;
         from_server_tx.send(Message::Cancel(Cancel::new(7))).await?;
-
-        // Observe the server emitting a cancelled response.
-        let msg = to_server_rx.recv().await.context("missing response")?;
+        let msg = tokio::time::timeout(timeout, to_server_rx.recv()).await?.context("missing response")?;
         let Message::Response(resp) = msg else {
             anyhow::bail!("expected Response");
         };
         assert_eq!(resp.id, 7);
+        assert!(!resp.ok);
         assert_eq!(resp.error.context("missing error")?.code, "cancelled");
-
-        // Work should stop growing soon after cancellation.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-        let after = steps.load(Ordering::SeqCst);
-        assert!(after >= before);
-
-        // Stop the server task by dropping channels/session.
+        tokio::time::timeout(timeout, CANCEL_TEST_DROPPED.notified()).await?;
+        assert!(to_server_rx.try_recv().is_err());
         drop(from_server_tx);
-        let _ = server_task.await?;
-        Ok(())*/
+        tokio::time::timeout(timeout, peer.wait_closed()).await?;
+        Ok(())
     }
 }

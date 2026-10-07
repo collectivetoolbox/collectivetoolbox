@@ -120,7 +120,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             let mut stream_path = path.as_os_str().to_os_string();
             stream_path.push(OsString::from_wide(units));
             let data = std::fs::read(PathBuf::from(stream_path))
-                .context("Failed to read native Windows stream")?;
+                .with_context(|| format!("Failed to read Windows alternate data stream {name:?} on {}", path.display()))?;
             anyhow::ensure!(
                 u64::try_from(data.len())? == u64::try_from(info.StreamSize)?,
                 "Windows stream changed size during capture"

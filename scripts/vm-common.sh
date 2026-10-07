@@ -302,6 +302,12 @@ vm_package_fixtures() {
     mkdir -p "$exchange_dir/src/utilities"
     cp "$repo_root/src/utilities/format_id.generated.rs" "$exchange_dir/src/utilities/"
 
+    echo "Packaging TypeScript bootstrap inputs..."
+    mkdir -p "$exchange_dir/vendor/TypeScript" "$exchange_dir/vendor/DefinitelyTyped-partial" "$exchange_dir/vendor/undici"
+    cp -r "$repo_root/vendor/TypeScript/src" "$repo_root/vendor/TypeScript/scripts" "$exchange_dir/vendor/TypeScript/"
+    cp -r "$repo_root/vendor/DefinitelyTyped-partial/node" "$repo_root/vendor/DefinitelyTyped-partial/deno" "$exchange_dir/vendor/DefinitelyTyped-partial/"
+    cp -r "$repo_root/vendor/undici/types" "$exchange_dir/vendor/undici/"
+
     if [[ -f "$repo_root/built/ctoolbox.rsrc" ]]; then
         echo "Packaging runtime resource bundle (built/ctoolbox.rsrc)..."
         mkdir -p "$exchange_dir/built" "$exchange_dir/tests"
@@ -322,11 +328,6 @@ vm_package_fixtures() {
         cp -r "$repo_root/vendor/v86/gen" "$exchange_dir/vendor/v86/"
     fi
 
-    if [[ -d "$repo_root/src/io/webui/tls_rustls_vendored/fixtures" ]]; then
-        echo "Packaging tls_rustls_vendored/fixtures..."
-        mkdir -p "$exchange_dir/tls_rustls_vendored"
-        cp -r "$repo_root/src/io/webui/tls_rustls_vendored/fixtures" "$exchange_dir/tls_rustls_vendored/"
-    fi
 }
 
 vm_stream_suite_output() {
