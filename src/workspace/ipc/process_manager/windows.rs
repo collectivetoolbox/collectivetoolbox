@@ -38,9 +38,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use process_wrap::tokio::{CommandWrap, JobObject};
+use process_wrap::tokio::{CommandWrap, JobObject, KillOnDrop};
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
 
 use crate::error::Error;
@@ -51,7 +51,7 @@ use super::{ChildHandle, ProcessManager, SpawnParams};
 
 #[derive(Debug)]
 struct ChildEntry {
-    child: Arc<Mutex<Box<dyn process_wrap::tokio::ChildWrapper>>>,
+    terminate: mpsc::UnboundedSender<oneshot::Sender<Result<(), Error>>>,
     handle: ChildHandle,
 }
 
@@ -108,9 +108,7 @@ impl ProcessManager for TokioProcessManager {
                 command.current_dir(cwd);
             }
         });
-        if !ctb_utilities::environment::is_wine() {
-            cmd.wrap(JobObject);
-        }
+        cmd.wrap(KillOnDrop).wrap(JobObject);
 
         let mut child = cmd
             .spawn()
@@ -124,10 +122,7 @@ impl ProcessManager for TokioProcessManager {
                     .write_all(token.as_bytes())
                     .await
                     .map_err(Error::from)?;
-                stdin
-                    .write_all(b"\n")
-                    .await
-                    .map_err(Error::from)?;
+                stdin.write_all(b"\n").await.map_err(Error::from)?;
             }
         }
 
@@ -140,24 +135,36 @@ impl ProcessManager for TokioProcessManager {
             connection: None,
         };
 
-        let child_arc = Arc::new(Mutex::new(child));
+        let (terminate, mut terminate_rx) =
+            mpsc::unbounded_channel::<oneshot::Sender<Result<(), Error>>>();
         {
             let mut inner = self.inner.lock().await;
             inner.children.insert(
                 pid,
                 ChildEntry {
-                    child: Arc::clone(&child_arc),
+                    terminate,
                     handle: handle.clone(),
                 },
             );
         }
 
         let inner_arc = Arc::clone(&self.inner);
-        let child_for_reaper = Arc::clone(&child_arc);
         tokio::spawn(async move {
-            {
-                let mut c = child_for_reaper.lock().await;
-                let _ = c.wait().await;
+            loop {
+                tokio::select! {
+                    status = child.wait() => {
+                        if let Err(error) = status {
+                            warn_fmt!("failed to reap child {pid:?}: {error}");
+                        }
+                        break;
+                    }
+                    Some(response) = terminate_rx.recv() => {
+                        let result = child.start_kill()
+                            .context("failed to terminate job")
+                            .map_err(Self::to_err);
+                        let _ = response.send(result);
+                    }
+                }
             }
             let mut inner = inner_arc.lock().await;
             let _ = inner.children.remove(&pid);
@@ -189,23 +196,41 @@ impl ProcessManager for TokioProcessManager {
         pid: ProcessId,
         force: bool,
     ) -> Result<(), Error> {
-        let child = {
+        let targets = {
             let inner = self.inner.lock().await;
-            let Some(entry) = inner.children.get(&pid) else {
-                return Ok(());
-            };
-            Arc::clone(&entry.child)
+            let mut targets = Vec::new();
+            let mut stack = vec![pid];
+            while let Some(current) = stack.pop() {
+                if let Some(entry) = inner.children.get(&current) {
+                    targets.push((current, entry.terminate.clone()));
+                }
+                for (child_pid, entry) in &inner.children {
+                    if entry.handle.parent == Some(current) {
+                        stack.push(*child_pid);
+                    }
+                }
+            }
+            targets
         };
 
         if !force {
             sleep(Duration::from_millis(200)).await;
         }
 
-        let mut c = child.lock().await;
-        c.start_kill()
-            .context("failed to terminate job")
-            .map_err(Self::to_err)?;
-
+        for (child_pid, terminate) in targets {
+            let (response, response_rx) = oneshot::channel();
+            if terminate.send(response).is_ok() {
+                if let Ok(result) = response_rx.await {
+                    result?;
+                    continue;
+                }
+            }
+            if !self.wait_for_exit(child_pid, Duration::ZERO).await? {
+                return Err(Self::to_err(anyhow!(
+                    "child termination channel closed"
+                )));
+            }
+        }
         Ok(())
     }
 
@@ -269,6 +294,24 @@ mod tests {
     use crate::auth::capability::CapabilityBundle;
     use crate::process_manager::SpawnParams;
 
+    fn long_running_params(parent: Option<ProcessId>) -> SpawnParams {
+        SpawnParams {
+            kind: ChildKind::External,
+            parent,
+            program: Some("cmd.exe".to_string()),
+            args: vec![
+                "/C".into(),
+                "ping".into(),
+                "127.0.0.1".into(),
+                "-n".into(),
+                "30".into(),
+            ],
+            env: vec![],
+            cwd: None,
+            capabilities: CapabilityBundle::default(),
+        }
+    }
+
     #[crate::ctb_test("tokio")]
     async fn terminate_noop_graceful() -> Result<()> {
         let pm = TokioProcessManager::new();
@@ -294,28 +337,43 @@ mod tests {
     #[crate::ctb_test("tokio")]
     async fn terminate_long_running_force() -> Result<()> {
         let pm = TokioProcessManager::new();
-        let params = SpawnParams {
-            kind: ChildKind::External,
-            parent: None,
-            program: Some("cmd.exe".to_string()),
-            args: vec![
-                "/C".into(),
-                "ping".into(),
-                "127.0.0.1".into(),
-                "-n".into(),
-                "30".into(),
-            ],
-            env: vec![],
-            cwd: None,
-            capabilities: CapabilityBundle::default(),
-        };
-
-        let ch = pm.spawn_child(params).await?;
-        pm.terminate_tree(ch.pid, true).await?;
-
-        tokio::time::sleep(Duration::from_millis(300)).await;
+        let ch = pm.spawn_child(long_running_params(None)).await?;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            pm.terminate_tree(ch.pid, true),
+        )
+        .await??;
+        anyhow::ensure!(
+            pm.wait_for_exit(ch.pid, Duration::from_secs(2)).await?,
+            "child did not exit after forced termination"
+        );
         let list = pm.list_children().await?;
         assert!(!list.iter().any(|h| h.pid == ch.pid));
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn terminate_managed_descendants() -> Result<()> {
+        let pm = TokioProcessManager::new();
+        let parent = pm.spawn_child(long_running_params(None)).await?;
+        let child = pm
+            .spawn_child(long_running_params(Some(parent.pid)))
+            .await?;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        tokio::time::timeout(
+            Duration::from_secs(2),
+            pm.terminate_tree(parent.pid, true),
+        )
+        .await??;
+        anyhow::ensure!(
+            pm.wait_for_exit(parent.pid, Duration::from_secs(2)).await?,
+            "parent tree did not exit"
+        );
+        anyhow::ensure!(
+            pm.wait_for_exit(child.pid, Duration::ZERO).await?,
+            "managed descendant survived parent termination"
+        );
         Ok(())
     }
 }

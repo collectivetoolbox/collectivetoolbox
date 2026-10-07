@@ -37,7 +37,7 @@ pub fn save_raw_json(path: &PathBuf, value: &Value) -> Result<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
-        .truncate(true)
+        .truncate(false)
         .open(path)
         .with_context(|| {
             format!("Failed to open JSON file for writing: {}", path.display())
@@ -55,10 +55,8 @@ pub fn save_raw_json(path: &PathBuf, value: &Value) -> Result<()> {
         u64::try_from(data.len()).context("Failed to set file length")?,
     )?;
 
-    // Release lock after writing (skipped on Wine where explicit unlock can fail with lock violation)
-    if !crate::environment::is_wine() {
-        file.unlock()?;
-    }
+    // Release lock after writing
+    FileExt::unlock(&file)?;
 
     Ok(())
 }
@@ -68,7 +66,7 @@ pub fn save<T: Serialize>(path: &PathBuf, value: &T) -> Result<()> {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
-        .truncate(true)
+        .truncate(false)
         .open(path)
         .with_context(|| {
             format!("Failed to open JSON file for writing: {}", path.display())
@@ -87,10 +85,8 @@ pub fn save<T: Serialize>(path: &PathBuf, value: &T) -> Result<()> {
         u64::try_from(data.len()).context("Failed to set file length")?,
     )?;
 
-    // Release lock after writing (skipped on Wine where explicit unlock can fail with lock violation)
-    if !crate::environment::is_wine() {
-        file.unlock()?;
-    }
+    // Release lock after writing
+    FileExt::unlock(&file)?;
 
     Ok(())
 }

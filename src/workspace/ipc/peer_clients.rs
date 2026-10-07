@@ -121,7 +121,6 @@ pub(crate) async fn request_spawn_child(
     let spawn_req = SpawnChildRequest { kind, init_data };
     let args = postcard_helpers::encode(&spawn_req, "spawn request")?;
 
-    debug_fmt!("[peer_clients] request_spawn_child: sending request for {:?}", kind);
     let resp = peer
         .call(
             MethodId {
@@ -132,7 +131,6 @@ pub(crate) async fn request_spawn_child(
         )
         .await
         .map_err(|e| anyhow::anyhow!("spawn request IPC call failed: {e}"))?;
-    debug_fmt!("[peer_clients] request_spawn_child: received response for {:?}", kind);
 
     let bytes = crate::response_result_bytes(resp, "spawn request")?;
     let result: SpawnChildResponse =

@@ -746,11 +746,9 @@ impl<W: Workspace> WorkspaceRunner<W> {
             request,
             response_tx,
         } = req;
-        debug_fmt!("[workspace] handle_proxy_call_static: method={:?} target_pid={:?}", request.method, request.target_pid);
 
         let requester_pid = rt.pid_for_connection(ctx.connection_id).await;
         let Some(requester_pid) = requester_pid else {
-            debug_fmt!("[workspace] handle_proxy_call_static: unknown requester pid for conn={}", ctx.connection_id);
             let _ = response_tx.send(ProxyCallResponse {
                 ok: false,
                 result: None,
@@ -791,7 +789,6 @@ impl<W: Workspace> WorkspaceRunner<W> {
         };
 
         if !allowed {
-            debug_fmt!("[workspace] handle_proxy_call_static: target_pid {:?} not owned by requester {:?}", request.target_pid, requester_pid);
             let _ = response_tx.send(ProxyCallResponse {
                 ok: false,
                 result: None,
@@ -809,7 +806,6 @@ impl<W: Workspace> WorkspaceRunner<W> {
             {
                 Ok(r) => r,
                 Err(e) => {
-                    debug_fmt!("[workspace] forward_call_to_child error: {e:#}");
                     let _ = response_tx.send(ProxyCallResponse {
                         ok: false,
                         result: None,
@@ -845,9 +841,7 @@ impl<W: Workspace> WorkspaceRunner<W> {
         requester_conn: crate::types::ConnectionId,
         request: &ProxyCallRequest,
     ) -> Result<ProxyCallResponse> {
-        debug_fmt!("[workspace] forward_call_to_child: waiting for peer of {:?}", request.target_pid);
         let peer = rt.peer_for_pid(request.target_pid).await?;
-        debug_fmt!("[workspace] forward_call_to_child: got peer, sending {:?}", request.method);
 
         #[cfg(unix)]
         let resp = {
@@ -980,13 +974,11 @@ impl<W: Workspace> WorkspaceRunner<W> {
         };
 
         let pid = child.pid;
-        debug_fmt!("[workspace] handle_spawn_request_static: sending SpawnChildResponse pid={:?}", pid);
         let _ = response_tx.send(SpawnChildResponse {
             accepted: true,
             child_pid: Some(pid),
             error: None,
         });
-        debug_fmt!("[workspace] handle_spawn_request_static: sent SpawnChildResponse");
     }
 }
 

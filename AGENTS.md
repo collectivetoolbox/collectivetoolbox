@@ -1,4 +1,5 @@
 ## Dev Environment Tips
+- Setting up a fresh dev container: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
 - A copy of dependencies are in `vendor/ctb-vendored/`. These can be referenced but should never be edited; they are auto-updated from crates.io. Similarly, the dependencies in `vendor/upstream-for-reference` should never be updated. Limited patches to other folders within the `vendor/` folder are acceptable when necessary.
   - Adding new dependencies not already used in the repository is typically discouraged, but is permissible when specifically requested by your operator. You may propose the addition of other dependencies, but must ask your operator before adding them. Offline builds are used in CI; your operator will vendor any changed dependencies before pushing to satisfy this requirement.
 - You may write important notes you would like to save for the long term into the `memories/` folder in the repository. These will be reviewed and managed as part of the code.

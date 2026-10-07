@@ -322,7 +322,7 @@ EOF
     cmd_send_keys "esc"
     sleep 0.5
 
-    cmd_send_keys "ctrl-esc"
+    cmd_send_keys "meta_l-r"
     sleep 1.2
     cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run.bat %d:\\run.bat"
     sleep 0.8
@@ -473,15 +473,23 @@ cmd_test_suite() {
     local shim_obj="$REPO_ROOT/target/$target/combase_shim.o"
 
     if [[ "$no_build" != "true" ]]; then
+        if ! command -v clang >/dev/null || ! command -v ld.lld >/dev/null; then
+            echo "Windows VM test builds require clang and LLD." >&2
+            return 1
+        fi
         echo "=== Compiling Windows 7 Compatibility Shim ==="
         mkdir -p "$REPO_ROOT/target/$target"
         x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
             src/build_support/windows/combase_shim.c -o "$shim_obj"
+        x86_64-w64-mingw32-ar crs \
+            "$REPO_ROOT/target/$target/libctb_win7_shim.a" "$shim_obj"
 
         echo "=== Compiling Test Binaries for $target (profile: $(if [[ "$release" == "true" ]]; then echo "release"; else echo "debug"; fi)) ==="
         export RUSTC_BOOTSTRAP=1
         export CTB_HOST_WORKSPACE_ROOT="$REPO_ROOT"
-        local rustflags="${RUSTFLAGS-} -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$shim_obj"
+        local gcc_lib_dir
+        gcc_lib_dir="$(dirname "$(x86_64-w64-mingw32-gcc -print-file-name=libgcc.a)")"
+        local rustflags="${RUSTFLAGS-} -C linker=clang -C link-arg=--target=x86_64-w64-windows-gnu -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -L native=$gcc_lib_dir -L native=$REPO_ROOT/target/$target -l static=ctb_win7_shim"
 
         if [[ "$release" != "true" && ( -z "$crate_filter" || "$crate_filter" == "ctb-formats-javascript" ) ]]; then
             echo "=== Compiling ctb-formats-javascript in release mode (optimizes tsc execution) ==="
@@ -686,7 +694,7 @@ EOF
     sleep 0.5
     cmd_send_keys "esc"
     sleep 0.5
-    cmd_send_keys "ctrl-esc"
+    cmd_send_keys "meta_l-r"
     sleep 1.5
     cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run_suite.bat %d:\\run_suite.bat"
     sleep 1.0

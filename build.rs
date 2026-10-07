@@ -80,6 +80,13 @@ fn main() -> Result<()> {
     if std::env::var("CARGO_CFG_TARGET_OS").expect("Could not get target OS")
         == "windows"
     {
+        let stack_arg = if env::var("CARGO_CFG_TARGET_ENV")? == "msvc" {
+            "/STACK:8388608"
+        } else {
+            "-Wl,--stack,8388608"
+        };
+        println!("cargo:rustc-link-arg-bin=ctoolbox={stack_arg}");
+
         let mut res = winresource::WindowsResource::new();
         let is_branding =
             env::var("CTB_BRANDING").map(|v| v == "true").unwrap_or(false);
@@ -115,9 +122,19 @@ fn main() -> Result<()> {
             if !status.success() {
                 anyhow::bail!("Failed to compile combase_shim.c");
             }
+            let shim_archive = Path::new(&out_dir).join("libctb_win7_shim.a");
+            let status = std::process::Command::new("x86_64-w64-mingw32-ar")
+                .arg("crs")
+                .arg(&shim_archive)
+                .arg(&shim_o)
+                .status()?;
+            if !status.success() {
+                anyhow::bail!("Failed to archive Windows compatibility shim");
+            }
             println!("cargo:rustc-link-arg=-fuse-ld=lld");
             println!("cargo:rustc-link-arg=-Wl,--allow-multiple-definition");
-            println!("cargo:rustc-link-arg={}", shim_o.display());
+            println!("cargo:rustc-link-search=native={out_dir}");
+            println!("cargo:rustc-link-lib=static=ctb_win7_shim");
         }
     }
 

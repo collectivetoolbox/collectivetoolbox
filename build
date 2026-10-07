@@ -401,7 +401,10 @@ for p in "${platforms[@]}"; do
         mkdir -p "target/$target"
         x86_64-w64-mingw32-gcc -Wall -Wextra -Wno-attributes -O2 -c \
             src/build_support/windows/combase_shim.c -o "target/$target/combase_shim.o"
-        target_rustflags="$target_rustflags -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -C link-arg=$PWD/target/$target/combase_shim.o"
+        x86_64-w64-mingw32-ar crs "target/$target/libctb_win7_shim.a" \
+            "target/$target/combase_shim.o"
+        gcc_lib_dir="$(dirname "$(x86_64-w64-mingw32-gcc -print-file-name=libgcc.a)")"
+        target_rustflags="$target_rustflags -C linker=clang -C link-arg=--target=x86_64-w64-windows-gnu -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -L native=$gcc_lib_dir -L native=$PWD/target/$target -l static=ctb_win7_shim"
     fi
 
     if [[ "$target" == "x86_64-unknown-freebsd" ]]; then

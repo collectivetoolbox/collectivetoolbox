@@ -475,7 +475,7 @@ impl PcSettings {
             })?;
 
         // Lock for shared reading (blocks if another process is writing)
-        file.lock_shared()
+        fs2::FileExt::lock_shared(&file)
             .context("Failed to acquire shared lock on settings file")?;
 
         let mut file = file;
@@ -485,9 +485,7 @@ impl PcSettings {
             .context("Failed to read settings file")?;
 
         // Release lock before parsing
-        if !crate::environment::is_wine() {
-            file.unlock()?;
-        }
+        fs2::FileExt::unlock(&file)?;
 
         if contents.trim().is_empty() {
             anyhow::bail!("Settings file is empty");
@@ -521,7 +519,7 @@ impl PcSettings {
                 format!("Failed to open settings file: {}", path.display())
             })?;
 
-        file.lock_shared()
+        fs2::FileExt::lock_shared(&file)
             .context("Failed to acquire shared lock on settings file")?;
 
         let mut file = file;
@@ -530,9 +528,7 @@ impl PcSettings {
         file.read_to_string(&mut contents)
             .context("Failed to read settings file")?;
 
-        if !crate::environment::is_wine() {
-            file.unlock()?;
-        }
+        fs2::FileExt::unlock(&file)?;
 
         if contents.trim().is_empty() {
             anyhow::bail!("Settings file is empty");

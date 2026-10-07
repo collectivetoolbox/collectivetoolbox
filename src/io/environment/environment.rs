@@ -294,9 +294,6 @@ pub fn cached_local_ipv6_u128() -> u128 {
 }
 
 fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
-    if ctb_utilities::environment::is_wine() {
-        bail!("Skipping remote IP endpoint query under Wine");
-    }
     let url_string = url.to_string();
     let handle = std::thread::spawn(
         move || -> Result<(IpAddr, u128, u128, u128)> {
@@ -1277,6 +1274,17 @@ mod tests {
     use super::*;
 
     static ENV_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[crate::ctb_test]
+    fn test_ip_endpoint_rejects_invalid_url() -> Result<()> {
+        let error = query_ip_endpoint("not a URL")
+            .expect_err("invalid endpoint must fail before making a request");
+        anyhow::ensure!(
+            !error.to_string().contains("Skipping remote IP endpoint"),
+            "platform detection must not disable IP endpoint queries"
+        );
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_is_official_signed_build_defaults_to_false() {

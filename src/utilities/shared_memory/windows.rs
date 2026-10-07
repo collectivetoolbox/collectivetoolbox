@@ -30,12 +30,16 @@ use windows_sys::Win32::Foundation::{
 
 #[cfg(windows)]
 use windows_sys::Win32::System::Memory::{
-    CreateFileMappingW, FILE_MAP_READ, FILE_MAP_WRITE, MapViewOfFile,
-    MEMORY_MAPPED_VIEW_ADDRESS, PAGE_READWRITE, UnmapViewOfFile,
+    CreateFileMappingW, FILE_MAP_READ, FILE_MAP_WRITE,
+    MEMORY_MAPPED_VIEW_ADDRESS, MapViewOfFile, PAGE_READWRITE, UnmapViewOfFile,
 };
 
 #[cfg(windows)]
-use windows_sys::Win32::System::Threading::GetCurrentProcess;
+use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
+#[cfg(windows)]
+use windows_sys::Win32::System::Threading::{
+    GetCurrentProcess, OpenProcess, PROCESS_DUP_HANDLE,
+};
 
 #[allow(unsafe_code)]
 #[cfg(windows)]
@@ -46,7 +50,8 @@ fn last_err(msg: &str) -> anyhow::Error {
 
 #[cfg(windows)]
 fn to_handle(raw: u64) -> Result<HANDLE> {
-    let addr = usize::try_from(raw).context("HANDLE value does not fit usize")?;
+    let addr =
+        usize::try_from(raw).context("HANDLE value does not fit usize")?;
     Ok(std::ptr::without_provenance_mut(addr))
 }
 
@@ -58,6 +63,7 @@ fn handle_to_u64(handle: HANDLE) -> Result<u64> {
 #[allow(unsafe_code)]
 #[cfg(windows)]
 pub fn create_file_mapping(size: u64) -> Result<u64> {
+    let size = size.max(1);
     let high = u32::try_from(size >> 32).context("high DWORD does not fit")?;
     let low =
         u32::try_from(size & 0xffff_ffff).context("low DWORD does not fit")?;
@@ -101,6 +107,33 @@ pub fn duplicate_handle_current(handle: u64) -> Result<u64> {
         return Err(last_err("DuplicateHandle failed"));
     }
     handle_to_u64(out)
+}
+
+#[allow(unsafe_code)]
+#[cfg(windows)]
+fn duplicate_mapping_read(handle: u64, process_id: u32) -> Result<u64> {
+    let mapping = to_handle(handle)?;
+    let source = unsafe { OpenProcess(PROCESS_DUP_HANDLE, 0, process_id) };
+    if source.is_null() {
+        return Err(last_err("OpenProcess for mapping owner failed"));
+    }
+    let source = unsafe { OwnedHandle::from_raw_handle(source) };
+    let mut duplicated: HANDLE = std::ptr::null_mut();
+    let ok = unsafe {
+        DuplicateHandle(
+            source.as_raw_handle(),
+            mapping,
+            GetCurrentProcess(),
+            std::ptr::addr_of_mut!(duplicated),
+            FILE_MAP_READ,
+            0,
+            0,
+        )
+    };
+    if ok == 0 {
+        return Err(last_err("DuplicateHandle for mapping owner failed"));
+    }
+    handle_to_u64(duplicated)
 }
 
 #[allow(unsafe_code)]
@@ -158,10 +191,14 @@ impl Drop for MappingView {
 
 #[allow(unsafe_code)]
 #[cfg(windows)]
-pub fn map_view_read(handle: u64, len: usize) -> Result<MappingView> {
+pub fn map_view_read(
+    handle: u64,
+    process_id: u32,
+    len: usize,
+) -> Result<MappingView> {
     // Duplicate so the returned view owns a handle distinct from any registry
     // handle retained by the allocator.
-    let dup = duplicate_handle_current(handle)?;
+    let dup = duplicate_mapping_read(handle, process_id)?;
     let h = to_handle(dup)?;
 
     let view = unsafe { MapViewOfFile(h, FILE_MAP_READ, 0, 0, len) };

@@ -68,9 +68,9 @@ pub enum SharedBlobDescriptor {
     /// is transferred via `SCM_RIGHTS` to another process.
     #[cfg(unix)]
     UnixFd(i32),
-    /// Windows HANDLE (duplicated to the target process).
+    /// Windows mapping HANDLE and its owning process.
     #[cfg(windows)]
-    WindowsHandle(u64),
+    WindowsHandle { handle: u64, process_id: u32 },
     /// Cross-platform fallback via temporary file path.
     FilePath(PathBuf),
     /// Opaque handle by name (e.g., named shared memory).
@@ -110,9 +110,9 @@ pub fn read_blob_contents(
             Ok(slice.to_vec())
         }
         #[cfg(windows)]
-        SharedBlobDescriptor::WindowsHandle(handle) => {
-            let view = windows::map_view_read(*handle, len)?;
-            Ok(view.as_slice()[..len].to_vec())
+        SharedBlobDescriptor::WindowsHandle { handle, process_id } => {
+            let view = windows::map_view_read(*handle, *process_id, len)?;
+            Ok(view.as_slice().to_vec())
         }
         SharedBlobDescriptor::FilePath(path) => {
             let file = std::fs::File::open(path)?;
@@ -163,7 +163,11 @@ impl ProducerBlob {
                 Ok(())
             }
             #[cfg(windows)]
-            SharedBlobDescriptor::WindowsHandle(handle) => {
+            SharedBlobDescriptor::WindowsHandle { handle, process_id } => {
+                anyhow::ensure!(
+                    *process_id == std::process::id(),
+                    "only the producer may write its shared-memory mapping"
+                );
                 windows::write_mapping(*handle, data)
             }
             SharedBlobDescriptor::FilePath(path) => {
@@ -365,11 +369,10 @@ impl BlobAllocator for SharedMemoryBlobs {
                 }
                 #[cfg(windows)]
                 {
-                    if crate::environment::is_wine() {
-                        self.create_tempfile_blob(size, &token)?
-                    } else {
-                        let handle = windows::create_file_mapping(size)?;
-                        SharedBlobDescriptor::WindowsHandle(handle)
+                    let handle = windows::create_file_mapping(size)?;
+                    SharedBlobDescriptor::WindowsHandle {
+                        handle,
+                        process_id: std::process::id(),
                     }
                 }
                 #[cfg(not(any(unix, windows)))]
@@ -408,7 +411,7 @@ impl BlobAllocator for SharedMemoryBlobs {
             #[cfg(unix)]
             SharedBlobDescriptor::UnixFd(fd) => unix::close_fd(fd),
             #[cfg(windows)]
-            SharedBlobDescriptor::WindowsHandle(handle) => {
+            SharedBlobDescriptor::WindowsHandle { handle, .. } => {
                 windows::close_handle(handle)
             }
             SharedBlobDescriptor::FilePath(path) => {
@@ -462,8 +465,8 @@ impl BlobReader for SharedMemoryBlobs {
                 })
             }
             #[cfg(windows)]
-            SharedBlobDescriptor::WindowsHandle(handle) => {
-                let view = windows::map_view_read(*handle, len)?;
+            SharedBlobDescriptor::WindowsHandle { handle, process_id } => {
+                let view = windows::map_view_read(*handle, *process_id, len)?;
                 let ptr = view.as_ptr();
                 Ok(MappedRead {
                     len,
@@ -563,6 +566,13 @@ mod tests {
         let data = b"hello-blob-windows".to_vec();
 
         let blob = blobs.create(u64::try_from(data.len())?).await?;
+        anyhow::ensure!(
+            matches!(
+                blob.descriptor,
+                SharedBlobDescriptor::WindowsHandle { .. }
+            ),
+            "Windows platform blobs must use shared-memory mappings"
+        );
         blob.write_all(&data)?;
 
         let mapped = blobs.map_read(&blob.token, &blob.descriptor).await?;
@@ -570,5 +580,81 @@ mod tests {
 
         blobs.cleanup(&blob.token).await?;
         Ok(())
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test("tokio")]
+    async fn blob_round_trip_windows_empty() -> Result<()> {
+        let blobs = SharedMemoryBlobs::new(BlobBackend::PlatformDefault);
+        let blob = blobs.create(0).await?;
+        blob.write_all(&[])?;
+        let mapped = blobs.map_read(&blob.token, &blob.descriptor).await?;
+        anyhow::ensure!(
+            mapped.as_slice().is_empty(),
+            "empty blob was not empty"
+        );
+        anyhow::ensure!(
+            read_blob_contents(&blob.descriptor, blob.size)?.is_empty(),
+            "empty descriptor contents were not empty"
+        );
+        blobs.cleanup(&blob.token).await?;
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test("tokio")]
+    async fn blob_round_trip_windows_subprocess() -> Result<()> {
+        let data = b"cross-process-windows-mapping";
+        if std::env::var_os("CTB_TEST_BLOB_READER").is_some() {
+            let (descriptor, size): (SharedBlobDescriptor, u64) =
+                serde_json::from_reader(std::io::stdin())?;
+            anyhow::ensure!(
+                read_blob_contents(&descriptor, size)? == data,
+                "subprocess mapped bytes differ"
+            );
+            return Ok(());
+        }
+
+        use tokio::io::AsyncWriteExt;
+        let blobs = SharedMemoryBlobs::new(BlobBackend::PlatformDefault);
+        let blob = blobs.create(u64::try_from(data.len())?).await?;
+        blob.write_all(data)?;
+        let mut child = tokio::process::Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "shared_memory::tests::blob_round_trip_windows_subprocess",
+                "--nocapture",
+            ])
+            .env("CTB_TEST_BLOB_READER", "1")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?;
+        let result = async {
+            let mut stdin = child
+                .stdin
+                .take()
+                .ok_or_else(|| anyhow::anyhow!("missing subprocess stdin"))?;
+            stdin
+                .write_all(&serde_json::to_vec(&(&blob.descriptor, blob.size))?)
+                .await?;
+            drop(stdin);
+            let output = tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                child.wait_with_output(),
+            )
+            .await??;
+            anyhow::ensure!(
+                output.status.success(),
+                "mapping subprocess failed: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            Ok(())
+        }
+        .await;
+        blobs.cleanup(&blob.token).await?;
+        result
     }
 }

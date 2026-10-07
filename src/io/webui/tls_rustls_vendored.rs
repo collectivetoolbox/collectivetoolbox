@@ -190,31 +190,23 @@ mod tests {
     use super::*;
     use std::io;
 
-    fn ensure_fixtures() {
-        let dir = std::path::Path::new("tls_rustls_vendored/fixtures");
-        if !dir.exists() {
-            let _ = std::fs::create_dir_all(dir);
+    fn fixtures() -> anyhow::Result<tempfile::TempDir> {
+        let dir = tempfile::TempDir::new()?;
+        for filename in ["cert.pem", "key.pem"] {
+            let bytes = get_tls_rustls_vendored_data(&format!("fixtures/{filename}"))
+                .ok_or_else(|| anyhow::anyhow!("Missing embedded TLS fixture: {filename}"))?;
+            std::fs::write(dir.path().join(filename), bytes)?;
         }
-        let cert_path = dir.join("cert.pem");
-        if !cert_path.exists() {
-            if let Some(bytes) = get_tls_rustls_vendored_data("fixtures/cert.pem") {
-                let _ = std::fs::write(&cert_path, bytes);
-            }
-        }
-        let key_path = dir.join("key.pem");
-        if !key_path.exists() {
-            if let Some(bytes) = get_tls_rustls_vendored_data("fixtures/key.pem") {
-                let _ = std::fs::write(&key_path, bytes);
-            }
-        }
+        Ok(dir)
     }
 
     #[crate::ctb_test("tokio")]
-    async fn from_pem_file_not_found() {
-        ensure_fixtures();
+    async fn from_pem_file_not_found() -> anyhow::Result<()> {
+        let dir = fixtures()?;
+        let missing = dir.path().join("missing.pem");
         let err = RustlsConfig::from_pem_file(
-            "tls_rustls_vendored/fixtures/missing.pem",
-            "tls_rustls_vendored/fixtures/key.pem",
+            &missing,
+            dir.path().join("key.pem"),
         )
         .await
         .unwrap_err();
@@ -222,14 +214,12 @@ mod tests {
         assert!(
             err.to_string()
                 .replace('\\', "/")
-                .starts_with(
-                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-                )
+                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
         );
 
         let err = RustlsConfig::from_pem_file(
-            "tls_rustls_vendored/fixtures/cert.pem",
-            "tls_rustls_vendored/fixtures/missing.pem",
+            dir.path().join("cert.pem"),
+            &missing,
         )
         .await
         .unwrap_err();
@@ -237,18 +227,18 @@ mod tests {
         assert!(
             err.to_string()
                 .replace('\\', "/")
-                .starts_with(
-                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-                )
+                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
         );
+        Ok(())
     }
 
     #[crate::ctb_test("tokio")]
-    async fn from_pem_file_chain_file_not_found() {
-        ensure_fixtures();
+    async fn from_pem_file_chain_file_not_found() -> anyhow::Result<()> {
+        let dir = fixtures()?;
+        let missing = dir.path().join("missing.pem");
         let err = RustlsConfig::from_pem_chain_file(
-            "tls_rustls_vendored/fixtures/missing.pem",
-            "tls_rustls_vendored/fixtures/key.pem",
+            &missing,
+            dir.path().join("key.pem"),
         )
         .await
         .unwrap_err();
@@ -256,14 +246,12 @@ mod tests {
         assert!(
             err.to_string()
                 .replace('\\', "/")
-                .starts_with(
-                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-                )
+                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
         );
 
         let err = RustlsConfig::from_pem_chain_file(
-            "tls_rustls_vendored/fixtures/cert.pem",
-            "tls_rustls_vendored/fixtures/missing.pem",
+            dir.path().join("cert.pem"),
+            &missing,
         )
         .await
         .unwrap_err();
@@ -271,10 +259,19 @@ mod tests {
         assert!(
             err.to_string()
                 .replace('\\', "/")
-                .starts_with(
-                    "failed to read from file `tls_rustls_vendored/fixtures/missing.pem`"
-                )
+                .starts_with(&format!("failed to read from file `{}`", missing.display()).replace('\\', "/"))
         );
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn from_pem_files_valid() -> anyhow::Result<()> {
+        let dir = fixtures()?;
+        let cert = dir.path().join("cert.pem");
+        let key = dir.path().join("key.pem");
+        RustlsConfig::from_pem_file(&cert, &key).await?;
+        RustlsConfig::from_pem_chain_file(&cert, &key).await?;
+        Ok(())
     }
 }
 

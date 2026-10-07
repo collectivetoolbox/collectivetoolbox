@@ -56,3 +56,13 @@
 	It records a test-profile compilation of 10m 12s. A full build was not
 	rerun during this investigation; end-to-end speedup remains unmeasured.
 
+- Build performance investigation and measurements are recorded in repository memories/build_performance.md (2026-09-26).
+- Asset preparation previously read a 11.96 GB v86 resource bundle solely for its 72-byte header; use read_existing_asset_bundle_header.
+- Canonical Cargo config is .cargo/config.default.toml; ./build overwrites .cargo/config.toml. CI concurrency belongs in CARGO_BUILD_JOBS.
+- Focused asset check: cargo test --offline -p ctb-build-support --lib test_write_resource_bundle_streaming -j 2. Avoid full builds when host is swapping.
+- Warning: `cargo clean --target x86_64-pc-windows-gnu` removed cached Windows 7 and host build artifacts too in this workspace (125.9 GiB). Do not rely on --target for narrowly scoped cleanup; prefer explicitly identified generated directories.
+- Windows 7 VM tests: use Clang targeting x86_64-w64-windows-gnu with LLD, dynamic GCC lib directory, and the compatibility shim as a native static archive before raw imports. MinGW GCC's -fuse-ld=lld still used GNU ld here; late shim objects left unsupported DLL imports, and GNU ld + static shim produced an import-table execute fault. scripts/win-vm now uses the tested configuration and Win+R launch. Verified 142 utilities and 53 IPC tests in Windows VM and WINE (one pre-existing incomplete cancellation test ignored).
+
+- Windows debug application startup overflow: Clap routing::Command::augment_subcommands reserves 0xdd808 bytes (~886 KiB) plus nested argument-builder frames, exceeding the default PE 1 MiB stack. Outer async boxing did not solve it and was removed. build.rs now gives the ctoolbox Windows binary an 8 MiB reserve (GNU --stack / MSVC /STACK); PE header verified and --version/--help passed under WINE and Windows 7 VM. Full GUI startup and MSVC build remain unverified.
+
+
