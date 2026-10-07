@@ -635,10 +635,6 @@ mod tests {
     #[cfg(windows)]
     #[crate::ctb_test]
     fn test_windows_stream_capture_retains_unpaired_surrogate() {
-        if environment::is_wine() {
-            // Wine on Unix hosts does not support NTFS alternate data streams with unpaired surrogates.
-            return;
-        }
         use std::os::windows::ffi::OsStringExt;
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("file");

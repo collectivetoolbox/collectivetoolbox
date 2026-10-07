@@ -96,7 +96,6 @@ pub fn render_from_string(
     #[ipc(shm)] document: String,
     settings: RenderSettings,
 ) -> String {
-    debug_fmt!("[renderer] render_from_string called with len {}", document.len());
     render_from_str(&document, settings)
 }
 

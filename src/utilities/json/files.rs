@@ -61,6 +61,68 @@ pub fn save_raw_json(path: &PathBuf, value: &Value) -> Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn shorter_json_rewrites_remove_trailing_bytes() -> Result<()> {
+        let dir = crate::testing::try_get_test_storage_dir()
+            .context("Missing test storage directory")?;
+        let path = dir.join("settings.json");
+        let initial = serde_json::json!({"long_key": "long initial value"});
+        let replacement = serde_json::json!({"ok": true});
+        for writer in [save_raw_json, save::<Value>] {
+            writer(&path, &initial)?;
+            writer(&path, &replacement)?;
+            let stored = std::fs::read(&path)?;
+            anyhow::ensure!(
+                stored == serde_json::to_vec_pretty(&replacement)?,
+                "shorter JSON rewrite retained trailing bytes"
+            );
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn waiting_json_writer_does_not_truncate_locked_file() -> Result<()> {
+        let dir = crate::testing::try_get_test_storage_dir()
+            .context("Missing test storage directory")?;
+        let path = dir.join("settings.json");
+        let initial = serde_json::json!({"previous": "contents"});
+        let replacement = serde_json::json!({"next": true});
+        for writer in [save_raw_json, save::<Value>] {
+            writer(&path, &initial)?;
+            let locked = OpenOptions::new().read(true).write(true).open(&path)?;
+            FileExt::lock_exclusive(&locked)?;
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let (finished_tx, finished_rx) = std::sync::mpsc::channel();
+            let writer_path = path.clone();
+            let writer_value = replacement.clone();
+            let thread = std::thread::spawn(move || -> Result<()> {
+                started_tx.send(())?;
+                let result = writer(&writer_path, &writer_value);
+                finished_tx.send(())?;
+                result
+            });
+            started_rx.recv()?;
+            let waiting = matches!(
+                finished_rx.recv_timeout(std::time::Duration::from_millis(200)),
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+            );
+            let length = locked.metadata()?.len();
+            FileExt::unlock(&locked)?;
+            thread.join().map_err(|_| anyhow::anyhow!("JSON writer panicked"))??;
+            anyhow::ensure!(waiting, "JSON writer did not wait for the lock");
+            anyhow::ensure!(
+                length == u64::try_from(serde_json::to_vec_pretty(&initial)?.len())?,
+                "waiting JSON writer truncated the locked file"
+            );
+        }
+        Ok(())
+    }
+}
+
 /// Saves a struct to the specified file, locking it for exclusive write.
 pub fn save<T: Serialize>(path: &PathBuf, value: &T) -> Result<()> {
     let mut file = OpenOptions::new()

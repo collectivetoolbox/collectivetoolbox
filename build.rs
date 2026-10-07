@@ -80,12 +80,7 @@ fn main() -> Result<()> {
     if std::env::var("CARGO_CFG_TARGET_OS").expect("Could not get target OS")
         == "windows"
     {
-        let stack_arg = if env::var("CARGO_CFG_TARGET_ENV")? == "msvc" {
-            "/STACK:8388608"
-        } else {
-            "-Wl,--stack,8388608"
-        };
-        println!("cargo:rustc-link-arg-bin=ctoolbox={stack_arg}");
+        println!("cargo:rustc-link-arg-bin=ctoolbox=-Wl,--stack,8388608");
 
         let mut res = winresource::WindowsResource::new();
         let is_branding =
