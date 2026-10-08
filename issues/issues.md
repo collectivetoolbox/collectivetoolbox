@@ -77,6 +77,8 @@ magic-square
 ### Installer
 
 
+"Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).
+
 Cherry-pick 30f41d4a5
 
 Add a data matching tool. See 2026-08-20-Matching and Linking.txt

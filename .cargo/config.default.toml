@@ -12,6 +12,9 @@ rustdocflags = ["-A", "warnings"]
 [host]
 rustflags = ["-A", "warnings", "-A", "unfulfilled_lint_expectations"]
 
+[target.x86_64-unknown-linux-musl]
+linker = "scripts/x86_64-musl-gcc"
+
 [target.i586-unknown-linux-musl]
 linker = "scripts/i586-musl-gcc"
 

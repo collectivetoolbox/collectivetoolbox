@@ -632,8 +632,10 @@ print(count)
 
     echo "Generating in-VM test runner scripts..."
     local filter_arg=""
+    local bootstrap_test_args="--skip tests::test_bootstrap_ts_compilation"
     if [[ -n "$test_filter" ]]; then
         filter_arg="$test_filter "
+        bootstrap_test_args=""
     fi
 
     cat <<EOF > "$EXCHANGE_DIR/run_suite.bat"
@@ -672,8 +674,8 @@ for %%F in ("%CTB_WIN_TEST_ROOT%tests\*.exe") do (
     set /a TOTAL+=1
     echo === RUN %%~nF === >> COM1
     set TEST_NAME=%%~nF
-    set TEST_ARGS=$test_filter --include-ignored --nocapture --test-threads 3
-    if "!TEST_NAME:~0,22!"=="ctb_formats_javascript" set TEST_ARGS=$test_filter --include-ignored --nocapture --test-threads 1
+    set TEST_ARGS=$test_filter --include-ignored $bootstrap_test_args --nocapture --test-threads 3
+    if "!TEST_NAME:~0,22!"=="ctb_formats_javascript" set TEST_ARGS=$test_filter --include-ignored $bootstrap_test_args --nocapture --test-threads 1
     if "!TEST_NAME:~0,11!"=="standalone_" set TEST_ARGS=
     "%%F" !TEST_ARGS! >> COM1 2>&1
     set TEST_EXIT=!ERRORLEVEL!

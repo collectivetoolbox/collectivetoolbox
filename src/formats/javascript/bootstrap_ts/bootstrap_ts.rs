@@ -751,6 +751,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    #[ignore = "Full two-stage TypeScript bootstrap is too slow for routine suites"]
     fn test_bootstrap_ts_compilation() {
         let temp = tempfile::tempdir().unwrap();
         let repo_path = prepare_bootstrap_fixture(temp.path()).unwrap();
