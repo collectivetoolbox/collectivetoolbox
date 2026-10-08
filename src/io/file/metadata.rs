@@ -1337,6 +1337,13 @@ mod tests {
         let mut written = Vec::new();
         entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
         assert_eq!(written, encoded.as_bytes());
+        let mut source = crate::payload::MemoryPayloadSource::new(b"environment".to_vec())?;
+        let mut streamed = DcMst::new();
+        entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
+        let mut written = Vec::new();
+        entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
+        assert_eq!(written, streamed.as_bytes());
+        DcMst::from_bytes(written)?;
         let json = entity.metadata.encode_json_with_context(&context)?;
         let decoded = FileMetadata::decode_json_with_context(json, &context)?;
         assert!(decoded.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));

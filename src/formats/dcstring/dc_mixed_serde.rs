@@ -170,6 +170,7 @@ pub struct DcMixedReader<'a> {
     peeked_char: Option<DcChar>,
     peeked_binary: Option<&'a [u8]>,
     shared_context: Option<&'a crate::SharedValueContext>,
+    reference_scope: crate::SharedValueContext,
 }
 
 impl<'a> DcMixedReader<'a> {
@@ -182,6 +183,7 @@ impl<'a> DcMixedReader<'a> {
             peeked_char: None,
             peeked_binary: None,
             shared_context: None,
+            reference_scope: crate::SharedValueContext::default(),
         }
     }
 
@@ -193,7 +195,32 @@ impl<'a> DcMixedReader<'a> {
 
     /// Resolves a reference against the explicitly supplied document context.
     pub fn resolve_shared<T: std::any::Any + Send + Sync>(&self, binding: &str) -> Result<Arc<T>> {
+        if self.reference_scope.contains(binding) {
+            return self.reference_scope.resolve(binding);
+        }
         self.shared_context.context("Shared reference requires a document context")?.resolve(binding)
+    }
+
+    /// Enters a document-local lexical reference scope (Dc 541).
+    pub fn enter_reference_scope(&mut self) -> Result<()> {
+        self.expect_short_dc(541)?;
+        self.reference_scope.enter_scope();
+        Ok(())
+    }
+
+    /// Exits a lexical scope (Dc 542), discarding its declarations.
+    pub fn exit_reference_scope(&mut self) -> Result<()> {
+        self.expect_short_dc(542)?;
+        self.reference_scope.exit_scope()
+    }
+
+    /// Reads a typed Dc 269 declaration into this document's current scope.
+    pub fn decode_declaration<T: DcMixedDecode + std::any::Any + Send + Sync>(&mut self) -> Result<Arc<T>> {
+        let name = crate::shared::decode_identifier(self)?;
+        self.expect_short_dc(269)?;
+        let value = Arc::new(T::decode_dc_mixed(self)?);
+        self.reference_scope.insert(name, Arc::clone(&value))?;
+        Ok(value)
     }
 
     /// Peeks the next character without advancing the cursor.

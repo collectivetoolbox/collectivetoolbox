@@ -1593,7 +1593,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
-                    1114381 => {
+                    1114382 => {
                         let (field, binding) = #crate_root::shared::decode_shared_reference(reader)?;
                         match field.as_str() {
                             #(#shared_decode_arms)*

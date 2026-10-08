@@ -54,6 +54,28 @@ environments from the session header. A legacy journal with no environment
 definition remains without one when resumed. Older readers do not support the
 new `CTBMETA2` records.
 
+Dc references use EL syntax rather than a serialization-specific semantic tag:
+Dc 540 references a bound identifier framed by Dc 270..271. Dc 269 declares a
+concrete value with its existing infix syntax, `<identifier> 269 <value>`; a
+shared field uses `<field identifier> 269 540 <bound identifier>`. Dc 541 and
+542 enter and exit lexical reference scopes. Inner declarations shadow outer
+ones, and exiting restores the outer bindings. Document-local declarations do
+not survive into another document. Explicit enclosing-scope APIs are an opt-in,
+not ambient or process-global state. Typed declaration/scope helpers are
+available in the Dc codec; consumers must read declarations and boundaries in
+document order rather than treating a reference as a standalone value.
+
+### Pending Reference Codec Work
+
+- The typed scope/declaration helpers do not yet provide automatic dispatch in
+  the general EL evaluator.
+- Contextual JSON currently handles directly annotated shared fields using
+  their Rust field names; Serde renaming and automatic traversal of arbitrary
+  nested shared records need further work.
+- `EnvDescription.extra` remains omitted by its pre-existing Dc attribute.
+  JSON retains this overflow map; standalone Dc snapshots are not yet lossless
+  for those unknown environment fields.
+
 Linux capture includes Unix stat fields, the requested `statx` fields and support
 masks, `FS_IOC_GETFLAGS`, and, where supported, `FS_IOC_FSGETXATTR` fields (including
 project ID, extent hints, and raw extended flags) and inode generation. Enumerated
