@@ -813,10 +813,10 @@ fn expand_named_representation(
     Ok(Some(quote! {
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-            fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+            fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                 #encode_body
                 Ok(())
@@ -912,10 +912,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 return Ok(quote! {
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             #(#encode_flag_fields)*
@@ -1628,10 +1628,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 impl #impl_generics #type_name #ty_generics #where_clause {
                     /// Encodes the fields of this struct without boundary delimiters.
                     #[allow(dead_code)]
-                    pub fn encode_fields(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                    pub fn encode_fields(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_fields_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         #(#encode_fields)*
                         Ok(())
                     }
@@ -1651,10 +1651,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-                    fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                         mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                         self.encode_fields_with_context(mst, context)?;
@@ -2038,10 +2038,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 Ok(quote! {
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             match self {
@@ -2084,10 +2084,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 Ok(quote! {
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
                         self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                             match self {
                                 #(#encode_variants)*

@@ -77,7 +77,7 @@ impl From<(u64, Natural)> for InodeKey {
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for InodeKey {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(328));
         ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&self.device_id, mst)?;
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(327));

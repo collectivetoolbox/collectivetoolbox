@@ -36,7 +36,7 @@ use ctb_formats_utf_8e_128::decode_utf_8e_128_buf;
 
 use crate::{DcChar, DcString, DcUtfError};
 
-/// A borrowed string slice containing valid UTF-8e-128 (DcUtf) data.
+/// A borrowed string slice containing valid UTF-8e-128 (DcUtf) data. Analogous to `DcMstr` and Rust's `str`.
 #[repr(transparent)]
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DcStr {

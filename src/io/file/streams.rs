@@ -55,7 +55,7 @@ pub enum StreamName {
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for StreamName {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         match self {
             Self::Bytes(bytes) => {
                 if let Ok(s) = std::str::from_utf8(bytes) {
@@ -265,7 +265,7 @@ impl AttachedStream {
     /// streaming from `reader` without buffering the entire payload into an intermediate vector.
     pub fn encode_with_stream_reader<R: std::io::Read>(
         &self,
-        mst: &mut ctb_formats_dcstring::DcMst,
+        mst: &mut ctb_formats_dcstring::DcMstring,
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
@@ -293,7 +293,7 @@ impl AttachedStream {
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
-        let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
+        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
         if let Some(ref name) = self.name {
             prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
@@ -304,10 +304,10 @@ impl AttachedStream {
         writer.write_all(prefix_mst.as_bytes())?;
 
         if size > 0 {
-            let mut tag = ctb_formats_dcstring::DcMst::new();
+            let mut tag = ctb_formats_dcstring::DcMstring::new();
             tag.push_char(ctb_formats_dcstring::DcChar::from_short(385));
             writer.write_all(tag.as_bytes())?;
-            ctb_formats_dcstring::DcMst::write_binary_encapsulation(
+            ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
                 writer,
                 reader,
                 size,
@@ -315,7 +315,7 @@ impl AttachedStream {
             )?;
         }
 
-        let mut suffix = ctb_formats_dcstring::DcMst::new();
+        let mut suffix = ctb_formats_dcstring::DcMstring::new();
         suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
         writer.write_all(suffix.as_bytes())?;
         Ok(())
@@ -652,7 +652,7 @@ mod tests {
             b"stream payload".to_vec(),
         ).unwrap();
         let assert_stream_roundtrip = || {
-            let mut encoded = ctb_formats_dcstring::DcMst::new();
+            let mut encoded = ctb_formats_dcstring::DcMstring::new();
             stream.encode_dc_mixed(&mut encoded).unwrap();
             let mut reader = ctb_formats_dcstring::DcMixedReader::new(&encoded);
             let restored = <AttachedStream as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(&mut reader).unwrap();
@@ -662,7 +662,7 @@ mod tests {
             assert_eq!(restored.entity.kind, stream.entity.kind);
             assert_eq!(restored.entity.metadata.warnings, stream.entity.metadata.warnings);
             assert_eq!(restored.entity.metadata.errors, stream.entity.metadata.errors);
-            let mut reencoded = ctb_formats_dcstring::DcMst::new();
+            let mut reencoded = ctb_formats_dcstring::DcMstring::new();
             restored.encode_dc_mixed(&mut reencoded).unwrap();
             assert_eq!(encoded, reencoded);
         };

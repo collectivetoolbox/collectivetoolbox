@@ -543,11 +543,11 @@ impl FileEntity {
     }
 
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`),
-    /// streaming the payload from `source` into a `DcMst` buffer without
+    /// streaming the payload from `source` into a `DcMstring` buffer without
     /// buffering the entire payload into an intermediate vector.
     pub fn encode_with_payload(
         &self,
-        mst: &mut ctb_formats_dcstring::DcMst,
+        mst: &mut ctb_formats_dcstring::DcMstring,
         source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
         self.encode_with_payload_and_context(mst, source, &ctb_formats_dcstring::SharedValueContext::default())
@@ -556,7 +556,7 @@ impl FileEntity {
     /// Streams a payload using definitions provided by an explicit context.
     pub fn encode_with_payload_and_context(
         &self,
-        mst: &mut ctb_formats_dcstring::DcMst,
+        mst: &mut ctb_formats_dcstring::DcMstring,
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
@@ -595,7 +595,7 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
-        let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
+        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
         self.identity.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         self.metadata.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
@@ -607,11 +607,11 @@ impl FileEntity {
 
         let size = source.total_size();
         if size > 0 {
-            let mut tag = ctb_formats_dcstring::DcMst::new();
+            let mut tag = ctb_formats_dcstring::DcMstring::new();
             tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
             writer.write_all(tag.payload_bytes())?;
             source.seek(std::io::SeekFrom::Start(0))?;
-            ctb_formats_dcstring::DcMst::write_binary_encapsulation(
+            ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
                 writer,
                 source,
                 size,
@@ -619,7 +619,7 @@ impl FileEntity {
             )?;
         }
 
-        let mut suffix = ctb_formats_dcstring::DcMst::new();
+        let mut suffix = ctb_formats_dcstring::DcMstring::new();
         suffix.push_char(ctb_formats_dcstring::DcChar::from_short(318));
         writer.write_all(suffix.payload_bytes())?;
         Ok(())

@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Mixed-mode Document Character String (`DcMst`, `DcMstr`) for the `DcMixed`
+//! Mixed-mode Document Character String (`DcMstring`, `DcMstr`) for the `DcMixed`
 //! format (`.dcmm`).
 //!
 //! Provides borrowed and owned types for DcUtf mixed-mode data containing
@@ -73,7 +73,7 @@ pub use ctb_formats_dcdata::dc::{
 /// Pre-computed UTF-8e-128 byte sequence for `Dc 203` (`SHORT_DC_REGION_START + 203`).
 pub const DC_203_BYTES: [u8; 6] = [0xFF, 0x84, 0x84, 0x90, 0x83, 0x8B];
 
-/// Errors encountered while parsing or validating `DcMixed` / `DcMst` data.
+/// Errors encountered while parsing or validating `DcMixed` / `DcMstring` data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DcMixedError {
     /// Document is shorter than the 21-byte header.
@@ -327,7 +327,7 @@ pub enum DcMixedOwned {
     },
 }
 
-/// A borrowed slice representing valid `DcMixed` format data (`.dcmm`).
+/// A borrowed slice representing valid `DcMixed` format data (`.dcmm`).  Analogous to `DcStr` and Rust's `str`.
 #[repr(transparent)]
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DcMstr {
@@ -498,10 +498,10 @@ impl AsRef<DcMstr> for DcMstr {
 }
 
 impl ToOwned for DcMstr {
-    type Owned = DcMst;
+    type Owned = DcMstring;
 
     fn to_owned(&self) -> Self::Owned {
-        DcMst {
+        DcMstring {
             inner: self.inner.to_vec(),
         }
     }
@@ -547,20 +547,20 @@ impl fmt::Debug for DcMstr {
     }
 }
 
-/// An owned, growable buffer containing valid `DcMixed` format data (`.dcmm`).
+/// An owned, growable buffer containing valid `DcMixed` (Dc mixed mode) format data (`.dcmm`). Analogous to `DcString` and Rust's `String`.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DcMst {
+pub struct DcMstring {
     pub(crate) inner: Vec<u8>,
 }
 
-impl Default for DcMst {
+impl Default for DcMstring {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl DcMst {
-    /// Creates a new, empty `DcMst` initialized with the standard 21-byte header.
+impl DcMstring {
+    /// Creates a new, empty `DcMstring` initialized with the standard 21-byte header.
     #[must_use]
     pub fn new() -> Self {
         let mut inner = Vec::with_capacity(DCMX_HEADER_LEN);
@@ -569,7 +569,7 @@ impl DcMst {
         Self { inner }
     }
 
-    /// Creates an empty `DcMst` with pre-allocated capacity in bytes.
+    /// Creates an empty `DcMstring` with pre-allocated capacity in bytes.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         let cap = capacity.max(DCMX_HEADER_LEN);
@@ -579,7 +579,7 @@ impl DcMst {
         Self { inner }
     }
 
-    /// Validates an owned `Vec<u8>` as `DcMixed` and wraps it in `DcMst`.
+    /// Validates an owned `Vec<u8>` as `DcMixed` and wraps it in `DcMstring`.
     ///
     /// # Errors
     /// Returns `DcMixedError` if the bytes do not conform to the `DcMixed` specification.
@@ -588,7 +588,7 @@ impl DcMst {
         Ok(Self { inner: bytes })
     }
 
-    /// Validates a borrowed `&[u8]` as `DcMixed` and creates an owned `DcMst`.
+    /// Validates a borrowed `&[u8]` as `DcMixed` and creates an owned `DcMstring`.
     ///
     /// # Errors
     /// Returns `DcMixedError` if the slice does not conform to the `DcMixed` specification.
@@ -599,7 +599,7 @@ impl DcMst {
         })
     }
 
-    /// Wraps a `Vec<u8>` as `DcMst` without validation.
+    /// Wraps a `Vec<u8>` as `DcMstring` without validation.
     ///
     /// # Safety
     /// Caller must ensure `bytes` contains valid `DcMixed` format data.
@@ -612,7 +612,7 @@ impl DcMst {
         Self { inner: bytes }
     }
 
-    /// Converts a standard `DcStr` (DcUtf) into a `DcMst` document.
+    /// Converts a standard `DcStr` (DcUtf) into a `DcMstring` document.
     ///
     /// Regions between `Dc 203` and `Dc 204` are analyzed:
     /// - If composed entirely of base64-encapsulation or padding Dcs, they are
@@ -681,12 +681,12 @@ impl DcMst {
         Ok(mst)
     }
 
-    /// Converts a standard `DcString` (DcUtf) into a `DcMst` document.
+    /// Converts a standard `DcString` (DcUtf) into a `DcMstring` document.
     pub fn from_dc_string(s: &DcString) -> Result<Self> {
         Self::from_dc_str(s)
     }
 
-    /// Consumes this `DcMst` and returns the underlying byte vector.
+    /// Consumes this `DcMstring` and returns the underlying byte vector.
     #[must_use]
     pub fn into_bytes(self) -> Vec<u8> {
         self.inner
@@ -877,7 +877,7 @@ impl DcMst {
         }
     }
 
-    /// Shortens the `DcMst` to `new_len` bytes.
+    /// Shortens the `DcMstring` to `new_len` bytes.
     ///
     /// Must not shorten past the 21-byte header.
     pub fn truncate(&mut self, new_len: usize) {
@@ -914,62 +914,62 @@ impl DcMst {
     }
 }
 
-impl Deref for DcMst {
+impl Deref for DcMstring {
     type Target = DcMstr;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcMst inner bytes are guaranteed to be valid DcMixed format"
+            reason = "DcMstring inner bytes are guaranteed to be valid DcMixed format"
         )]
-        // Safety: DcMst inner bytes are valid DcMixed data.
+        // Safety: DcMstring inner bytes are valid DcMixed data.
         unsafe { DcMstr::from_bytes_unchecked(&self.inner) }
     }
 }
 
-impl DerefMut for DcMst {
+impl DerefMut for DcMstring {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         #[expect(
             unsafe_code,
-            reason = "DcMst inner bytes are guaranteed to be valid DcMixed format"
+            reason = "DcMstring inner bytes are guaranteed to be valid DcMixed format"
         )]
-        // Safety: DcMst inner bytes are valid DcMixed data.
+        // Safety: DcMstring inner bytes are valid DcMixed data.
         unsafe { DcMstr::from_bytes_unchecked_mut(&mut self.inner) }
     }
 }
 
-impl Borrow<DcMstr> for DcMst {
+impl Borrow<DcMstr> for DcMstring {
     #[inline]
     fn borrow(&self) -> &DcMstr {
         self
     }
 }
 
-impl AsRef<DcMstr> for DcMst {
+impl AsRef<DcMstr> for DcMstring {
     #[inline]
     fn as_ref(&self) -> &DcMstr {
         self
     }
 }
 
-impl AsRef<[u8]> for DcMst {
+impl AsRef<[u8]> for DcMstring {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.inner
     }
 }
 
-impl fmt::Display for DcMst {
+impl fmt::Display for DcMstring {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
     }
 }
 
-impl fmt::Debug for DcMst {
+impl fmt::Debug for DcMstring {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DcMst(\"{self}\")")
+        write!(f, "DcMstring(\"{self}\")")
     }
 }
 
@@ -1213,8 +1213,7 @@ pub fn validate_dcmst(bytes: &[u8]) -> Result<(), DcMixedError> {
     Ok(())
 }
 
-/// Type aliases for consistency.
-pub type DcMstring = DcMst;
+/// Slice alias for consistency.
 pub type DcMstSlice = DcMstr;
 
 #[cfg(test)]
@@ -1240,7 +1239,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_empty_dcmst() {
-        let mst = DcMst::new();
+        let mst = DcMstring::new();
         assert_eq!(mst.len(), 21);
         assert!(mst.is_empty());
         assert_eq!(mst.header(), &mst.as_bytes()[..21]);
@@ -1248,7 +1247,7 @@ mod tests {
         assert_eq!(mst.payload_bytes(), b"");
         assert_eq!(mst.chunks().count(), 0);
 
-        // Validation of empty DcMst succeeds
+        // Validation of empty DcMstring succeeds
         assert!(validate_dcmst(mst.as_bytes()).is_ok());
     }
 
@@ -1274,7 +1273,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_push_and_chunks_mixed() {
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         mst.push_str("ArchiveHeader\n");
         let payload1 = b"Hello, direct binary payload!";
         mst.push_binary(payload1);
@@ -1300,7 +1299,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_checksum_mismatch_detection() {
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         let payload = b"Sensitive data";
         mst.push_binary_with_sha256(payload);
 
@@ -1315,7 +1314,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dcutf_encapsulation() {
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         let inner_dcutf = DcString::from("Inner @123@ document character text");
         mst.push_dcutf_str(&inner_dcutf);
         mst.push_dcutf_str_with_sha256(&inner_dcutf);
@@ -1342,17 +1341,17 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_round_trip_conversion_with_dc_string() {
-        let mut original_mst = DcMst::new();
+        let mut original_mst = DcMstring::new();
         original_mst.push_str("File: test.bin\nSize: 12\n");
         let bin_data = b"Binary 12345";
         original_mst.push_binary(bin_data);
         original_mst.push_str("\nFooter");
 
-        // Convert DcMst -> DcString (encodes binary as base64 between Dc 203 and Dc 204)
+        // Convert DcMstring -> DcString (encodes binary as base64 between Dc 203 and Dc 204)
         let dc_string = original_mst.to_dc_string().unwrap();
 
-        // Convert DcString -> DcMst (decodes base64 back to direct binary)
-        let round_tripped = DcMst::from_dc_string(&dc_string).unwrap();
+        // Convert DcString -> DcMstring (decodes base64 back to direct binary)
+        let round_tripped = DcMstring::from_dc_string(&dc_string).unwrap();
 
         let chunks: Vec<DcMixed<'_>> = round_tripped.chunks().collect();
         assert_eq!(chunks.len(), 3);
@@ -1363,7 +1362,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_large_archive_payload_efficiency() {
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         mst.push_str("FILE archive.tar\n");
         // 1 MB binary payload
         let large_payload = vec![0x42u8; 1024 * 1024];
@@ -1380,7 +1379,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_mutation_clear_and_truncate() {
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         mst.push_str("Sample text");
         let mark = mst.len();
         mst.push_binary(b"payload");

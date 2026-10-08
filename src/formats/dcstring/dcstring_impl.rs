@@ -34,7 +34,7 @@ use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
 use crate::{DcChar, DcCharExt, DcStr, DcUtfError, validate_dcutf};
 
-/// An owned, growable string buffer containing valid UTF-8e-128 (DcUtf) data.
+/// An owned, growable string buffer containing valid UTF-8e-128 (DcUtf) data.  Analogous to `DcMstring` and Rust's `String`.
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DcString {
     pub(crate) inner: Vec<u8>,

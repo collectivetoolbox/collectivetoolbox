@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_io_environment::EnvDescription;
-use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
+use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
 /// Operating system family where raw bits or file descriptors originated.
 /// You may want to consider using the `FileMetadata` `environment` instead.
@@ -633,7 +633,7 @@ pub struct FileTimestamps {
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         let atime_nanos = (i128::from(self.atime_sec))
             .checked_mul(1_000_000_000)
             .context("atime sec overflow")?
@@ -844,7 +844,7 @@ impl AppleMetadata {
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
         if let Some(ref fi) = self.finder_info {
             fi.encode_fields(mst)?;
@@ -1325,30 +1325,30 @@ mod tests {
         assert_eq!(serde_json::from_value::<FileEntity>(json)?, entity);
         let mut context = SharedValueContext::default();
         context.insert("source.environment", Arc::clone(&environment))?;
-        let mut encoded = DcMst::new();
+        let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
         let decoded = FileEntity::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
         assert!(decoded.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
         assert!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
-        let mut streamed = DcMst::new();
+        let mut streamed = DcMstring::new();
         entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
         assert_eq!(streamed, encoded);
         let mut written = Vec::new();
         entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
         assert_eq!(written, encoded.as_bytes());
         let mut source = crate::payload::MemoryPayloadSource::new(b"environment".to_vec())?;
-        let mut streamed = DcMst::new();
+        let mut streamed = DcMstring::new();
         entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
         let mut written = Vec::new();
         entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
         assert_eq!(written, streamed.as_bytes());
-        DcMst::from_bytes(written)?;
+        DcMstring::from_bytes(written)?;
         let json = entity.metadata.encode_json_with_context(&context)?;
         let decoded = FileMetadata::decode_json_with_context(json, &context)?;
         assert!(decoded.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
         entity.metadata.environment = Some(Arc::new(EnvDescription { os: "different-observation".to_owned(), ..EnvDescription::default() }));
-        let mut encoded = DcMst::new();
+        let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
         assert_eq!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded))?, entity);
         let empty = FileMetadata::empty();
@@ -1380,7 +1380,7 @@ mod tests {
             });
             metadata.push_warning("Native metadata could not be reproduced");
             ctb_formats_dcstring::assert_dc_roundtrip(&metadata).unwrap();
-            let mut encoded = DcMst::new();
+            let mut encoded = DcMstring::new();
             metadata.encode_dc_mixed(&mut encoded).unwrap();
             let mut reader = DcMixedReader::new(&encoded);
             reader.expect_short_dc(321).unwrap();

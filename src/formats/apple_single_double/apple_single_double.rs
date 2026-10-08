@@ -600,7 +600,7 @@ impl From<FinderFlags> for u16 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         self.to_raw_u16().encode_dc_mixed(mst)
     }
 
@@ -666,7 +666,7 @@ impl From<ExtendedFlags> for u8 {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for ExtendedFlags {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         self.to_raw_u8().encode_dc_mixed(mst)
     }
 
@@ -801,7 +801,7 @@ impl TryFrom<u8> for FinderLabel {
 }
 
 impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
-    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    fn encode_dc_number(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         self.index().encode_dc_mixed(mst)
     }
 
@@ -2090,11 +2090,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
-        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
+        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
         // 1. AppleFormat enum roundtrip with format Dcs (f315, f316)
         let fmt = AppleFormat::AppleDouble;
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         fmt.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
         let decoded_fmt = AppleFormat::decode_dc_mixed(&mut reader)?;
@@ -2109,7 +2109,7 @@ mod tests {
             put_away: 105,
             scroll_position: Some((10, 20)),
         };
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         ext.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
         let decoded_ext = ExtendedFinderInfo::decode_dc_mixed(&mut reader)?;
@@ -2137,14 +2137,14 @@ mod tests {
             extended: Some(ext),
             window_bounds: Some([50, 60, 400, 500]),
         };
-        let mut mst = DcMst::new();
+        let mut mst = DcMstring::new();
         finfo.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
         let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
         ensure!(decoded_finfo == finfo);
 
         // 5. Test decoding from Dc with semantic flags only
-        let mut custom_mst = DcMst::new();
+        let mut custom_mst = DcMstring::new();
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));

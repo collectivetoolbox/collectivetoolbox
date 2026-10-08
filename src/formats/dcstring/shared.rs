@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 pub use serde_json;
 
-use crate::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
+use crate::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
 /// Typed shared values whose definitions are persisted by the caller.
 #[derive(Clone, Default)]
@@ -84,20 +84,20 @@ impl SharedValueContext {
 }
 
 /// Emits a lexical scope boundary and opens its binding table.
-pub fn encode_scope_begin(mst: &mut DcMst, scope: &mut SharedValueContext) {
+pub fn encode_scope_begin(mst: &mut DcMstring, scope: &mut SharedValueContext) {
     mst.push_char(DcChar::from_short(541));
     scope.enter_scope();
 }
 
 /// Emits the closing boundary and discards declarations in that scope.
-pub fn encode_scope_end(mst: &mut DcMst, scope: &mut SharedValueContext) -> Result<()> {
+pub fn encode_scope_end(mst: &mut DcMstring, scope: &mut SharedValueContext) -> Result<()> {
     scope.exit_scope()?;
     mst.push_char(DcChar::from_short(542));
     Ok(())
 }
 
 /// Declares a concrete value using Dc 269 and registers it for later references.
-pub fn encode_declaration<T>(mst: &mut DcMst, scope: &mut SharedValueContext, name: &str, value: Arc<T>) -> Result<()>
+pub fn encode_declaration<T>(mst: &mut DcMstring, scope: &mut SharedValueContext, name: &str, value: Arc<T>) -> Result<()>
 where
     T: Any + Send + Sync + DcMixedEncode,
 {
@@ -144,7 +144,7 @@ where
 }
 
 /// Emits a nonempty Unicode identifier using Dc 270..271 framing.
-pub fn encode_identifier(mst: &mut DcMst, name: &str) -> Result<()> {
+pub fn encode_identifier(mst: &mut DcMstring, name: &str) -> Result<()> {
     ensure!(!name.is_empty(), "Identifiers must not be empty");
     mst.push_char(DcChar::from_short(270));
     for character in name.chars() {
@@ -177,7 +177,7 @@ pub fn decode_identifier(reader: &mut DcMixedReader<'_>) -> Result<String> {
 }
 
 /// Assigns a field from a lexically bound value using identifiers, not strings.
-pub fn encode_shared_reference(mst: &mut DcMst, field: &str, binding: &str) -> Result<()> {
+pub fn encode_shared_reference(mst: &mut DcMstring, field: &str, binding: &str) -> Result<()> {
     encode_identifier(mst, field)?;
     mst.push_char(DcChar::from_short(269));
     mst.push_char(DcChar::from_short(540));
@@ -224,7 +224,7 @@ mod tests {
         crate::assert_dc_roundtrip(&record)?;
         let mut context = SharedValueContext::default();
         context.insert("source", Arc::clone(&definition))?;
-        let mut encoded = DcMst::new();
+        let mut encoded = DcMstring::new();
         record.encode_dc_mixed_with_context(&mut encoded, &context)?;
         let decoded = SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
@@ -236,26 +236,26 @@ mod tests {
         let empty = SharedRecord { definition: None };
         assert_eq!(SharedRecord::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
         let distinct = SharedRecord { definition: Some(Arc::new(Definition { value: 43 })) };
-        let mut inline = DcMst::new();
+        let mut inline = DcMstring::new();
         distinct.encode_dc_mixed_with_context(&mut inline, &context)?;
         assert_eq!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&inline))?, distinct);
         let nested = NestedRecord { record: Box::new(record) };
-        let mut encoded = DcMst::new();
+        let mut encoded = DcMstring::new();
         nested.encode_dc_mixed_with_context(&mut encoded, &context)?;
         let decoded = NestedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
         assert!(decoded.record.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
         let array = [nested.record];
-        let mut encoded = DcMst::new();
+        let mut encoded = DcMstring::new();
         array.encode_dc_mixed_with_context(&mut encoded, &context)?;
         let decoded = <[Box<SharedRecord>; 1]>::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
         assert!(decoded.first().and_then(|record| record.definition.as_ref()).is_some_and(|value| Arc::ptr_eq(value, &definition)));
-        let mut duplicate = DcMst::new();
+        let mut duplicate = DcMstring::new();
         duplicate.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut duplicate, "definition", "source")?;
         encode_shared_reference(&mut duplicate, "definition", "source")?;
         duplicate.push_char(DcChar::from_short(402));
         assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&duplicate, &context)).is_err());
-        let mut unknown = DcMst::new();
+        let mut unknown = DcMstring::new();
         unknown.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut unknown, "unknown", "source")?;
         unknown.push_char(DcChar::from_short(402));
@@ -268,7 +268,7 @@ mod tests {
         let outer = Arc::new(Definition { value: 42 });
         let inner = Arc::new(Definition { value: 43 });
         let mut scope = SharedValueContext::default();
-        let mut document = DcMst::new();
+        let mut document = DcMstring::new();
         encode_scope_begin(&mut document, &mut scope);
         encode_declaration(&mut document, &mut scope, "source", Arc::clone(&outer))?;
         let outer_record = SharedRecord { definition: Some(Arc::clone(&outer)) };
@@ -308,18 +308,18 @@ mod tests {
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &outer)));
         reader.exit_reference_scope()?;
         assert!(reader.resolve_shared::<Definition>("source").is_err());
-        let mut next_document = DcMst::new();
+        let mut next_document = DcMstring::new();
         next_document.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut next_document, "definition", "source")?;
         next_document.push_char(DcChar::from_short(402));
         assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&next_document)).is_err());
-        let mut identifier = DcMst::new();
+        let mut identifier = DcMstring::new();
         encode_identifier(&mut identifier, "source.environment")?;
         let mut reader = DcMixedReader::new(&identifier);
         reader.expect_short_dc(270)?;
         assert_eq!(reader.next_char()?, DcChar::from_char('s'));
         assert_eq!(decode_identifier(&mut DcMixedReader::new(&identifier))?, "source.environment");
-        assert!(encode_identifier(&mut DcMst::new(), "").is_err());
+        assert!(encode_identifier(&mut DcMstring::new(), "").is_err());
         Ok(())
     }
 
