@@ -1039,7 +1039,7 @@ pub(crate) fn default_fsearch_args(database: PathBuf) -> crate::args::FsearchArg
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

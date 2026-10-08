@@ -310,6 +310,7 @@ fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
             )
         };
         if handle != windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+            // SAFETY: handle is live, ft remains initialized, and the handle is closed only after SetFileTime returns.
             unsafe {
                 windows_sys::Win32::Storage::FileSystem::SetFileTime(
                     handle,

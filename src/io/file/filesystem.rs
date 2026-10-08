@@ -471,7 +471,8 @@ fn detect_filesystem(path: &Path) -> FilesystemInfo {
 
     // Reason for fallback: Windows volume buffer lacking null terminator uses full buffer length
     let len = fs_name_buf.iter().position(|&c| c == 0).unwrap_or(fs_name_buf.len());
-    let fs_name = String::from_utf16_lossy(&fs_name_buf[..len]);
+    fs_name_buf.truncate(len);
+    let fs_name = String::from_utf16_lossy(&fs_name_buf);
     map_windows_fstype(&fs_name)
 }
 

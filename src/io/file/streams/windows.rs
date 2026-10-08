@@ -151,6 +151,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
 
 #[expect(unsafe_code, reason = "CompareStringOrdinal receives live UTF-16 slices and checked explicit lengths")]
 fn native_names_equal(first: &[u16], second: &[u16]) -> Result<bool> {
+    // SAFETY: Both slices remain live and each checked length covers only its own initialized UTF-16 buffer.
     let comparison = unsafe {
         CompareStringOrdinal(first.as_ptr(), i32::try_from(first.len())?, second.as_ptr(), i32::try_from(second.len())?, 1)
     };

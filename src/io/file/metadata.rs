@@ -698,32 +698,32 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 330 => {
                     reader.read_short_dc()?;
                     let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     atime_sec = sec;
                     atime_nsec = nsec;
                 }
                 329 => {
                     reader.read_short_dc()?;
                     let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     mtime_sec = sec;
                     mtime_nsec = nsec;
                 }
                 332 => {
                     reader.read_short_dc()?;
                     let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     ctime_sec = sec;
                     ctime_nsec = nsec;
                 }
                 331 => {
                     reader.read_short_dc()?;
                     let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     birthtime_sec = Some(sec);
                     birthtime_nsec = Some(nsec);
                 }
@@ -1539,6 +1539,16 @@ mod tests {
         let decoded: FileTimestamps = serde_json::from_str(&encoded).unwrap();
         assert_eq!(decoded.resolution_nsec, Some(100));
         assert_eq!(decoded, ts);
+        ctb_formats_dcstring::assert_dc_roundtrip(&ts).unwrap();
+
+        let pre_epoch = FileTimestamps {
+            atime_sec: -1,
+            mtime_sec: -2,
+            ctime_sec: -3,
+            birthtime_sec: Some(-4),
+            ..ts
+        };
+        ctb_formats_dcstring::assert_dc_roundtrip(&pre_epoch).unwrap();
     }
 
     #[cfg(target_os = "linux")]

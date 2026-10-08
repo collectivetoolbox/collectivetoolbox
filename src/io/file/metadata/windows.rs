@@ -153,6 +153,7 @@ fn capture_handle_information(
 
     if handle == INVALID_HANDLE_VALUE {
         // Fallback: try with access 0 if FILE_READ_ATTRIBUTES is rejected
+        // SAFETY: wide_path remains null-terminated and the optional pointer arguments are null.
         let handle_zero = unsafe {
             CreateFileW(
                 wide_path.as_ptr(),
@@ -474,6 +475,7 @@ pub fn apply_windows_security_metadata(
         let reduced_flags = DACL_SECURITY_INFORMATION
             | GROUP_SECURITY_INFORMATION
             | LABEL_SECURITY_INFORMATION;
+        // SAFETY: The path and descriptor buffers remain live and unchanged from the first call; only the requested flags differ.
         let res2 = unsafe {
             SetFileSecurityW(
                 wide_path.as_ptr(),

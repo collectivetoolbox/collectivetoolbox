@@ -473,12 +473,6 @@ cmd_test_suite() {
         cmd_snapshot revert "base-state"
     fi
 
-    if ! is_running; then
-        cmd_start
-        echo "Waiting for VM to reach desktop..."
-        sleep 25
-    fi
-
     local target="x86_64-win7-windows-gnu"
     local shim_obj="$REPO_ROOT/target/$target/combase_shim.o"
 
@@ -501,9 +495,13 @@ cmd_test_suite() {
         gcc_lib_dir="$(dirname "$(x86_64-w64-mingw32-gcc -print-file-name=libgcc.a)")"
         local rustflags="${RUSTFLAGS-} -C linker=clang -C link-arg=--target=x86_64-w64-windows-gnu -C link-arg=-fuse-ld=lld -C link-arg=-Wl,--allow-multiple-definition -L native=$gcc_lib_dir -L native=$REPO_ROOT/target/$target -l static=ctb_win7_shim"
 
-        if [[ "$release" != "true" && ( -z "$crate_filter" || "$crate_filter" == "ctb-formats-javascript" ) ]]; then
-            echo "=== Compiling ctb-formats-javascript in release mode (optimizes tsc execution) ==="
-            RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release -p ctb-formats-javascript
+        if [[ "$release" != "true" && ( -z "$crate_filter" || "$crate_filter" == ctb-formats-javascript* || "$crate_filter" == "ctb-formats-compression" ) ]]; then
+            echo "=== Compiling JavaScript and compression tests in release mode ==="
+            local optimized_packages=(-p ctb-formats-javascript -p ctb-formats-javascript-boa-host -p ctb-formats-javascript-bootstrap-ts -p ctb-formats-compression)
+            if [[ -n "$crate_filter" ]]; then
+                optimized_packages=(-p "$crate_filter")
+            fi
+            RUSTFLAGS="$rustflags" cargo test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4 --release "${optimized_packages[@]}"
         fi
 
         local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
@@ -511,14 +509,14 @@ cmd_test_suite() {
             cargo_args+=(--release)
         fi
         if [[ -n "$crate_filter" ]]; then
-            if [[ "$crate_filter" != "ctb-formats-javascript" || "$release" == "true" ]]; then
+            if [[ ( "$crate_filter" != ctb-formats-javascript* && "$crate_filter" != "ctb-formats-compression" ) || "$release" == "true" ]]; then
                 cargo_args+=(-p "$crate_filter")
                 RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
             fi
         else
             cargo_args+=(--workspace --exclude ctb-nopersonality --exclude yaxi --exclude ctb-workspace-x11-client --exclude ctb-workspace-x11-client-egui)
             if [[ "$release" != "true" ]]; then
-                cargo_args+=(--exclude ctb-formats-javascript)
+                cargo_args+=(--exclude ctb-formats-javascript --exclude ctb-formats-javascript-boa-host --exclude ctb-formats-javascript-bootstrap-ts --exclude ctb-formats-compression)
             fi
             RUSTFLAGS="$rustflags" cargo "${cargo_args[@]}"
         fi
@@ -566,12 +564,12 @@ candidate_files = []
 if build_profile == 'debug':
     for exe in glob.glob(f'target/{target}/debug/deps/*.exe'):
         bname = os.path.basename(exe)
-        js_binaries = ('ctb_formats_javascript', 'js_lint', 'js_test', 'ts_check')
-        if not any(bname.startswith(p) for p in js_binaries):
+        optimized_binaries = ('ctb_formats_javascript', 'js_lint', 'js_test', 'ts_check', 'ctb_formats_compression-')
+        if not any(bname.startswith(p) for p in optimized_binaries):
             candidate_files.append((exe, debug_hashes))
     for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
         bname = os.path.basename(exe)
-        if any(bname.startswith(p) for p in js_binaries):
+        if any(bname.startswith(p) for p in optimized_binaries):
             candidate_files.append((exe, release_hashes))
 else:
     for exe in glob.glob(f'target/{target}/release/deps/*.exe'):
@@ -701,6 +699,10 @@ EOF
         sleep 0.5
         cmd_monitor "change cdrom0 $EXCHANGE_ISO raw" >/dev/null 2>&1 || true
         sleep 3.0
+    else
+        cmd_start
+        echo "Waiting for VM to reach desktop..."
+        sleep 25
     fi
 
     local log_dir="$REPO_ROOT/ci-logs/Windows"
