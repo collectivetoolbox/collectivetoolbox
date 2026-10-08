@@ -135,12 +135,25 @@ the same name successfully.
 ## Platform Status
 
 Windows named data stream enumeration uses the native wide-character API and
-retains its UTF-16 names and payloads. Full Windows filesystem capture remains
-blocked: security descriptors, reparse data, complete identity capture, stream
-recreation, and descriptor-relative sandboxing are not implemented. Operations
-requiring those guarantees return errors rather than fabricated metadata. This
-prevents lossless Windows filesystem copies and cross-device moves; same-device
-OS rename remains available. Cross-compilation is not a Windows runtime test.
+retains its UTF-16 names and payloads. Native stream recreation and available
+Windows security metadata are captured and applied; unsupported preservation
+operations remain surfaced failures. Default materialization and auditing of
+dense regular files are exercised under WINE and native Windows 7, including
+payload corruption detection and timestamp comparison. Windows capture does not
+invent POSIX mode, UID, or GID values: those fields remain absent, while native
+attributes and security metadata retain the Windows representation.
+
+### Remaining Windows Gaps
+
+- Native sparse extent capture and auditing are not implemented. Auditing a
+  requested sparse entity or a destination marked sparse fails explicitly.
+- Requested Windows change-time auditing is not implemented. POSIX ownership
+  and permission modes cannot be verified as native Windows metadata.
+- Descriptor-relative sandboxing and full identity, security, and reparse-case
+  parity remain unverified. Dense-file tests do not establish lossless copying
+  for every entity type or cross-device move.
+- Newer native Windows versions have not been exercised by the available
+  Windows 7 VM. Cross-compilation alone is not a Windows runtime test.
 
 Universal native metadata capture supports BSD/macOS ACLs outside xattrs:
 Darwin extended ACLs (macOS) and FreeBSD NFSv4/POSIX.1e ACLs are captured with

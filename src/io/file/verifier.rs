@@ -35,6 +35,8 @@ use filetime::{FileTime, set_file_times};
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
+#[cfg(windows)]
+use std::os::windows::fs::MetadataExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -450,7 +452,7 @@ pub fn audit_entity_detailed(
     expected: &FileEntity,
     options: &EntityAuditOptions,
 ) -> Result<(Vec<DiffKind>, IgnoredDifferences)> {
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(options.ignore_owner && options.ignore_perms && options.ignore_flags
         && options.ignore_atime && options.ignore_mtime && options.ignore_ctime && !options.check_sparse,
         "Native metadata and sparse auditing is not implemented on this platform");
@@ -506,6 +508,33 @@ pub fn audit_entity_detailed(
             actual: describe_file_type(&dest_meta),
         });
         return Ok((diffs, ignored));
+    }
+
+    #[cfg(windows)]
+    {
+        anyhow::ensure!(
+            options.ignore_owner
+                || (expected.metadata.uid.is_none() && expected.metadata.gid.is_none()),
+            "Windows cannot audit POSIX ownership"
+        );
+        anyhow::ensure!(
+            options.ignore_perms || expected.metadata.mode.is_none(),
+            "Windows cannot audit POSIX permission modes"
+        );
+        anyhow::ensure!(
+            options.ignore_ctime || expected.metadata.timestamps.is_none(),
+            "Windows change-time auditing is not implemented"
+        );
+        let expected_sparse = matches!(
+            expected.kind,
+            FileEntityKind::Regular { is_sparse: true, .. }
+        );
+        let actual_sparse = dest_meta.file_attributes()
+            & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
+        anyhow::ensure!(
+            !options.check_sparse || (!expected_sparse && !actual_sparse),
+            "Windows sparse extent auditing is not implemented"
+        );
     }
 
     // 2. Mode / Permissions (skip symlinks as their permissions are not meaningful on Linux)
@@ -575,7 +604,19 @@ pub fn audit_entity_detailed(
     let actual_ctime_nsec = u32::try_from(dest_meta.ctime_nsec())
         .context("Failed to convert ctime nanoseconds to u32")?;
 
-    #[cfg(unix)]
+    #[cfg(windows)]
+    let actual_mtime = FileTime::from_last_modification_time(&dest_meta);
+    #[cfg(windows)]
+    let actual_mtime_sec = actual_mtime.unix_seconds();
+    #[cfg(windows)]
+    let actual_mtime_nsec = actual_mtime.nanoseconds();
+    #[cfg(windows)]
+    let actual_atime = FileTime::from_last_access_time(&dest_meta);
+    #[cfg(windows)]
+    let actual_atime_sec = actual_atime.unix_seconds();
+    #[cfg(windows)]
+    let actual_atime_nsec = actual_atime.nanoseconds();
+    #[cfg(any(unix, windows))]
     if let Some(ref exp_ts) = expected.metadata.timestamps {
         let dest_res = crate::filesystem::query_filesystem_resolution(path, &dest_meta);
         // Reason for fallback: unspecified timestamp resolution defaults to 0 nanosecond tolerance
@@ -633,26 +674,29 @@ pub fn audit_entity_detailed(
             }
         }
 
-        let ctime_mismatch = actual_ctime_sec != exp_ts.ctime_sec
-            || actual_ctime_nsec != exp_ts.ctime_nsec;
-        if ctime_mismatch && !options.ignore_ctime {
-            if options.best_effort
-                && is_timestamp_acceptable_best_effort(
-                    actual_ctime_sec,
-                    actual_ctime_nsec,
-                    exp_ts.ctime_sec,
-                    exp_ts.ctime_nsec,
-                    tolerance_nsec,
-                )
-            {
-                ignored.timestamps = ignored.timestamps.saturating_add(1);
-            } else {
-                diffs.push(DiffKind::CtimeMismatch {
-                    expected_sec: exp_ts.ctime_sec,
-                    expected_nsec: exp_ts.ctime_nsec,
-                    actual_sec: actual_ctime_sec,
-                    actual_nsec: actual_ctime_nsec,
-                });
+        #[cfg(unix)]
+        {
+            let ctime_mismatch = actual_ctime_sec != exp_ts.ctime_sec
+                || actual_ctime_nsec != exp_ts.ctime_nsec;
+            if ctime_mismatch && !options.ignore_ctime {
+                if options.best_effort
+                    && is_timestamp_acceptable_best_effort(
+                        actual_ctime_sec,
+                        actual_ctime_nsec,
+                        exp_ts.ctime_sec,
+                        exp_ts.ctime_nsec,
+                        tolerance_nsec,
+                    )
+                {
+                    ignored.timestamps = ignored.timestamps.saturating_add(1);
+                } else {
+                    diffs.push(DiffKind::CtimeMismatch {
+                        expected_sec: exp_ts.ctime_sec,
+                        expected_nsec: exp_ts.ctime_nsec,
+                        actual_sec: actual_ctime_sec,
+                        actual_nsec: actual_ctime_nsec,
+                    });
+                }
             }
         }
 
@@ -688,7 +732,11 @@ pub fn audit_entity_detailed(
     }
 
     // 5. File Flags
-    if !options.ignore_flags {
+    if !options.ignore_flags
+        && (!cfg!(windows)
+            || expected.metadata.flags.is_some()
+            || expected.metadata.platform_raw_flags.is_some())
+    {
         let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
         if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
             if actual_raw.as_ref() != Some(expected_raw) {
@@ -1006,6 +1054,16 @@ pub fn audit_entity_detailed(
                 );
                 let _ = set_file_times(path, orig_atime, orig_mtime);
             }
+            #[cfg(windows)]
+            {
+                let after_read = std::fs::metadata(path)?;
+                if FileTime::from_last_access_time(&after_read) != actual_atime
+                    || FileTime::from_last_modification_time(&after_read) != actual_mtime
+                {
+                    set_file_times(path, actual_atime, actual_mtime)
+                        .with_context(|| format!("Failed to restore audit timestamps on {}", path.display()))?;
+                }
+            }
         }
     }
 
@@ -1128,6 +1186,48 @@ mod tests {
     use std::fs;
     #[cfg(unix)]
     use std::os::unix::fs::{PermissionsExt};
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_default_materialization_audits_dense_payload() {
+        let temp = tempfile::tempdir().unwrap();
+        let data = b"verified payload".to_vec();
+        let mut entity = FileEntity::from_vec(data.clone());
+        entity.identity.relative_path = Some(PathBuf::from("payload"));
+        let mut payload = MemoryPayloadSource::new(data).unwrap();
+        let receipt = entity.materialize_at_path(
+            Some(&mut payload), temp.path(), &MaterializeOptions::default(),
+        ).unwrap();
+        let options = EntityAuditOptions::default();
+        assert!(audit_entity(&receipt.destination_path, &entity, &options)
+            .unwrap().is_empty());
+        let mut captured = FileEntity::from_filesystem(&receipt.destination_path, None).unwrap();
+        assert_eq!(
+            (captured.metadata.uid, captured.metadata.gid, captured.metadata.mode),
+            (None, None, None),
+        );
+        if let Some(ref mut timestamps) = captured.metadata.timestamps {
+            timestamps.mtime_sec = timestamps.mtime_sec.saturating_add(1);
+        } else {
+            panic!("Windows capture omitted timestamps");
+        }
+        assert!(audit_entity(&receipt.destination_path, &captured, &options)
+            .unwrap().iter()
+            .any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. })));
+        fs::write(&receipt.destination_path, b"tampered payload").unwrap();
+        assert!(audit_entity(&receipt.destination_path, &entity, &options)
+            .unwrap().iter()
+            .any(|diff| matches!(diff, DiffKind::ContentHashMismatch { .. })));
+        entity.metadata.mode = Some(0o600);
+        assert!(audit_entity(&receipt.destination_path, &entity, &options)
+            .unwrap_err().to_string().contains("POSIX permission modes"));
+        entity.metadata.mode = None;
+        if let FileEntityKind::Regular { ref mut is_sparse, .. } = entity.kind {
+            *is_sparse = true;
+        }
+        assert!(audit_entity(&receipt.destination_path, &entity, &options)
+            .unwrap_err().to_string().contains("sparse extent auditing"));
+    }
 
     #[cfg(unix)]
     #[crate::ctb_test]

@@ -42,12 +42,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Inspect an existing on-disk file or directory and construct a full [`File`]
 //! entity with identity, metadata, sparse extents, and payload digest:
 //!
-//! ```rust,no_run
+//! ```rust
 //! use ctb_io_file::{File, FileEntityKind};
 //! use std::path::Path;
 //!
 //! # fn main() -> anyhow::Result<()> {
-//! let path = Path::new("path/to/document.pdf");
+//! let directory = tempfile::tempdir()?;
+//! let source = directory.path().join("document.pdf");
+//! std::fs::write(&source, b"Example document payload")?;
+//! let path = source.as_path();
 //!
 //! // Read complete entity (inspects metadata, extents, and hashes payload):
 //! let file = File::from_filesystem(path, None)?;
@@ -60,7 +63,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! }
 //!
 //! // An optional base directory computes relative_path relative to that root:
-//! let base = Path::new("path/to");
+//! let base = directory.path();
 //! let rel_file = File::from_filesystem(path, Some(base))?;
 //! assert_eq!(
 //!     rel_file.identity.relative_path.as_deref(),
@@ -80,15 +83,22 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! filesystem using atomic replacement, preserving metadata, timestamps, and
 //! permissions:
 //!
-//! ```rust,no_run
+//! Strict materialization reports metadata that the destination cannot recreate
+//! rather than silently dropping it. For example, Unix birth times may be
+//! readable but not writable; the original entity retains the captured value.
+//!
+//! ```rust
 //! use ctb_io_file::{
 //!     DiskPayloadSource, File, MaterializeOptions,
 //! };
-//! use std::path::Path;
 //!
 //! # fn main() -> anyhow::Result<()> {
-//! let src_path = Path::new("source/data.bin");
-//! let dest_root = Path::new("destination_dir");
+//! let directory = tempfile::tempdir()?;
+//! let source = directory.path().join("data.bin");
+//! std::fs::write(&source, b"Example binary payload")?;
+//! let src_path = source.as_path();
+//! let destination = directory.path().join("destination_dir");
+//! let dest_root = destination.as_path();
 //!
 //! // Read the source entity and open its payload stream:
 //! let file = File::from_filesystem(src_path, None)?;
@@ -98,16 +108,32 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! let options = MaterializeOptions::default();
 //!
 //! // Materialize directly via the File method:
-//! let receipt = file.materialize_at_path(
+//! let result = file.materialize_at_path(
 //!     Some(&mut payload),
 //!     dest_root,
 //!     &options,
-//! )?;
+//! );
+//! let receipt = match result {
+//!     Ok(receipt) => receipt,
+//!     Err(error)
+//!         if cfg!(unix) && format!("{error:#}").contains("BirthtimeMismatch") =>
+//!     {
+//!         assert!(file.metadata.timestamps.as_ref()
+//!             .and_then(|times| times.birthtime_sec).is_some());
+//!         assert!(!dest_root.join("data.bin").exists());
+//!         eprintln!("Strict copy refused birth-time loss: {error:#}");
+//!         return Ok(());
+//!     }
+//!     Err(error) => return Err(error),
+//! };
 //!
 //! println!(
 //!     "Wrote {} bytes to {}",
 //!     receipt.bytes_written,
 //!     receipt.destination_path.display(),
+//! );
+//! assert_eq!(
+//!     std::fs::read(&receipt.destination_path)?, b"Example binary payload"
 //! );
 //! # Ok(())
 //! # }
@@ -152,24 +178,26 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! To materialize an in-memory entity onto disk, set its destination relative
 //! path and attach a [`MemoryPayloadSource`]:
 //!
-//! ```rust,no_run
+//! ```rust
 //! use ctb_io_file::{File, MaterializeOptions, MemoryPayloadSource};
-//! use std::path::{Path, PathBuf};
+//! use std::path::PathBuf;
 //!
 //! # fn main() -> anyhow::Result<()> {
+//! let destination = tempfile::tempdir()?;
 //! let content = b"Dynamic generated file content\n".to_vec();
 //! let mut entity = File::from_vec(content.clone());
 //! entity.identity.relative_path =
 //!     Some(PathBuf::from("output/generated.txt"));
 //!
-//! let mut payload = MemoryPayloadSource::new(content)?;
+//! let mut payload = MemoryPayloadSource::new(content.clone())?;
 //! let options = MaterializeOptions::default();
 //!
 //! let receipt = entity.materialize_at_path(
 //!     Some(&mut payload),
-//!     Path::new("/target/root"),
+//!     destination.path(),
 //!     &options,
 //! )?;
+//! assert_eq!(std::fs::read(&receipt.destination_path)?, content);
 //! # Ok(())
 //! # }
 //! ```

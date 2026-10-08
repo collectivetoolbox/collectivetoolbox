@@ -31,6 +31,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_io_environment::EnvDescription;
+use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
 
 /// Operating system family where raw bits or file descriptors originated.
 /// You may want to consider using the `FileMetadata` `environment` instead.
@@ -742,7 +743,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
     #[serde(default)]
-    #[dc(skip, reason = "Native observations retained in-memory for target replication, omitted from canonical serialization")]
+    #[dc(nested = 313)]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
     #[serde(default)]
@@ -765,7 +766,7 @@ pub struct FileMetadata {
     #[dc(begin = 388, end = 389)]
     pub flags: Option<Vec<FileFlag>>,
     /// Raw platform-specific flags if captured on a native filesystem.
-    #[dc(skip, reason = "Raw bitmasks preserved for audit provenance, flags are canonized in semantic flags")]
+    #[dc(short = 539)]
     pub platform_raw_flags: Option<PlatformRawFlags>,
     /// Timestamp when this file record was read/inspected from the filesystem,
     /// documenting when that file is current as of.
@@ -1029,6 +1030,121 @@ pub enum NativeMetadataValue {
     Bytes(Vec<u8>),
 }
 
+impl DcMixedEncode for OsFamily {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        let value = serde_json::to_value(self)?;
+        let Some(name) = value.as_str() else {
+            bail!("OS family did not serialize as a variant name");
+        };
+        name.encode_dc_mixed(mst)
+    }
+}
+
+impl DcMixedDecode for OsFamily {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let name = String::decode_dc_mixed(reader)?;
+        serde_json::from_value(serde_json::Value::String(name))
+            .context("Unknown native metadata OS family")
+    }
+}
+
+impl DcMixedEncode for NativeMetadata {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        mst.push_char(DcChar::from_short(313));
+        "source_os".encode_dc_mixed(mst)?;
+        self.source_os.encode_dc_mixed(mst)?;
+        "values".encode_dc_mixed(mst)?;
+        self.values.encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(314));
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for NativeMetadata {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(313)?;
+        let mut source_os = None;
+        let mut values = None;
+        while reader.peek_short_dc()? != Some(314) {
+            let key = String::decode_dc_mixed(reader)?;
+            match key.as_str() {
+                "source_os" => {
+                    anyhow::ensure!(source_os.is_none(), "Duplicate native source OS");
+                    source_os = Some(OsFamily::decode_dc_mixed(reader)?);
+                }
+                "values" => {
+                    anyhow::ensure!(values.is_none(), "Duplicate native observations");
+                    values = Some(std::collections::BTreeMap::decode_dc_mixed(reader)?);
+                }
+                _ => bail!("Unknown native observation map field {key:?}"),
+            }
+        }
+        reader.expect_short_dc(314)?;
+        let source_os = source_os.context("Native observations lack source OS")?;
+        let values = values.context("Native observations lack values")?;
+        Ok(Self { source_os, values })
+    }
+}
+
+impl DcMixedEncode for NativeMetadataValue {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        mst.push_char(DcChar::from_short(310));
+        match self {
+            Self::Unsigned(value) => {
+                "unsigned".encode_dc_mixed(mst)?;
+                value.encode_dc_mixed(mst)?;
+            }
+            Self::Signed(value) => {
+                "signed".encode_dc_mixed(mst)?;
+                value.encode_dc_mixed(mst)?;
+            }
+            Self::Bytes(value) => {
+                "bytes".encode_dc_mixed(mst)?;
+                mst.push_binary(value);
+            }
+        }
+        mst.push_char(DcChar::from_short(311));
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for NativeMetadataValue {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(310)?;
+        let kind = String::decode_dc_mixed(reader)?;
+        let value = match kind.as_str() {
+            "unsigned" => Self::Unsigned(u64::decode_dc_mixed(reader)?),
+            "signed" => Self::Signed(i64::decode_dc_mixed(reader)?),
+            "bytes" => Self::Bytes(reader.read_binary_payload()?.to_vec()),
+            _ => bail!("Unknown native metadata value type {kind:?}"),
+        };
+        reader.expect_short_dc(311)?;
+        Ok(value)
+    }
+}
+
+impl DcMixedEncode for PlatformRawFlags {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        mst.push_char(DcChar::from_short(310));
+        self.source_os.encode_dc_mixed(mst)?;
+        self.raw_value.encode_dc_mixed(mst)?;
+        self.has_unparsed_flags.encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(311));
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for PlatformRawFlags {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(310)?;
+        let source_os = OsFamily::decode_dc_mixed(reader)?;
+        let raw_value = u64::decode_dc_mixed(reader)?;
+        let has_unparsed_flags = bool::decode_dc_mixed(reader)?;
+        reader.expect_short_dc(311)?;
+        Ok(Self { source_os, raw_value, has_unparsed_flags })
+    }
+}
+
 pub fn capture_birthtime(
     meta: &std::fs::Metadata,
 ) -> Result<Option<filetime::FileTime>> {
@@ -1288,6 +1404,39 @@ mod tests {
     use super::*;
     use crate::*;
     use std::fs;
+
+    #[crate::ctb_test]
+    fn test_native_metadata_and_raw_flags_dc_roundtrip() {
+        ctb_formats_dcstring::assert_dc_roundtrip(&FileMetadata::empty()).unwrap();
+        for source_os in [
+            OsFamily::Darwin, OsFamily::FreeBSD, OsFamily::OpenBSD,
+            OsFamily::NetBSD, OsFamily::DragonFly, OsFamily::Linux,
+            OsFamily::Windows, OsFamily::Other,
+        ] {
+            let mut metadata = FileMetadata::empty();
+            metadata.native = Some(NativeMetadata {
+                source_os,
+                values: std::collections::BTreeMap::from([
+                    ("unsigned.maximum".to_string(), NativeMetadataValue::Unsigned(u64::MAX)),
+                    ("signed.minimum".to_string(), NativeMetadataValue::Signed(i64::MIN)),
+                    ("signed.positive".to_string(), NativeMetadataValue::Signed(1)),
+                    ("security.bytes".to_string(), NativeMetadataValue::Bytes(vec![0, 255, 128, 1])),
+                    ("empty.bytes".to_string(), NativeMetadataValue::Bytes(Vec::new())),
+                ]),
+            });
+            metadata.platform_raw_flags = Some(PlatformRawFlags {
+                source_os, raw_value: u64::MAX, has_unparsed_flags: true,
+            });
+            metadata.push_warning("Native metadata could not be reproduced");
+            ctb_formats_dcstring::assert_dc_roundtrip(&metadata).unwrap();
+            let mut encoded = DcMst::new();
+            metadata.encode_dc_mixed(&mut encoded).unwrap();
+            let mut reader = DcMixedReader::new(&encoded);
+            reader.expect_short_dc(321).unwrap();
+            assert_eq!(reader.peek_short_dc().unwrap(), Some(313));
+            assert_eq!(NativeMetadata::decode_dc_mixed(&mut reader).unwrap(), metadata.native.unwrap());
+        }
+    }
 
     #[crate::ctb_test]
     fn test_file_flag_properties() {

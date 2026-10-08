@@ -469,7 +469,9 @@ for p in "${platforms[@]}"; do
         fi
 
         extra_test_args=()
+        test_harness_args=()
         if [[ "$target" == *windows* ]]; then
+            test_harness_args=(--include-ignored)
             export WINEDEBUG="-all"
             if command -v wine64 >/dev/null 2>&1; then
                 export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine64"
@@ -495,13 +497,13 @@ for p in "${platforms[@]}"; do
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- --nocapture || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" --nocapture || exit 1
         else
-            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- || exit 1
+            CTB_BRANDING="$branding" RUST_LOG=debug RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" "${extra_test_args[@]}" --all-targets --no-fail-fast --target "$target" -- "${test_harness_args[@]}" || exit 1
         fi
 
         if [[ "$target" == *windows* ]]; then
-            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --doc --no-fail-fast --target "$target" || exit 1
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" RUSTDOCFLAGS="$target_rustdocflags" cargo test $offline "${extra_cargo_flags[@]}" --workspace "${test_exclude[@]}" --doc --no-fail-fast --target "$target" -- --include-ignored || exit 1
         fi
 
         if [[ "$build_binaries" != "true" ]]; then

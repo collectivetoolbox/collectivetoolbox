@@ -698,7 +698,9 @@ impl FileEntity {
         compute_hash: bool,
     ) -> Result<Self> {
         use std::os::windows::fs::MetadataExt;
-        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_SPARSE_FILE,
+        };
 
         let sym_meta = match std::fs::symlink_metadata(path) {
             Ok(m) => m,
@@ -757,9 +759,6 @@ impl FileEntity {
 
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 
-        let mode = if (file_attrs & 1) != 0 { 0o444 } else { 0o666 }
-            | if sym_meta.is_dir() { 0o111 } else { 0 };
-
         // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
         let filename_bytes = path
             .file_name()
@@ -810,9 +809,9 @@ impl FileEntity {
 
         let mut metadata = FileMetadata {
             native: Some(native_metadata),
-            mode: Some(mode),
-            uid: Some(0),
-            gid: Some(0),
+            mode: None,
+            uid: None,
+            gid: None,
             timestamps: Some(timestamps),
             flags: Some(flags),
             platform_raw_flags: platform_raw,
@@ -845,6 +844,12 @@ impl FileEntity {
             FileEntityKind::Directory
         } else {
             let size = sym_meta.len();
+            let native_sparse = file_attrs & FILE_ATTRIBUTE_SPARSE_FILE != 0;
+            if native_sparse {
+                metadata.push_warning(
+                    "Windows sparse extent capture is not implemented; native sparse attribute and logical payload are retained".to_string(),
+                );
+            }
             let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
                 Ok(mut file) => {
                     // Reason for fallback: when extent query fails on Windows/unsupported filesystem, fall back to single contiguous data extent covering full size
@@ -852,7 +857,7 @@ impl FileEntity {
                         metadata.push_warning(format!("Failed to query file extents: {e}"));
                         vec![Extent::Data { offset: 0, length: size }]
                     });
-                    let is_sparse = extents.iter().any(Extent::is_hole);
+                    let is_sparse = native_sparse || extents.iter().any(Extent::is_hole);
                     let sha256 = if compute_hash {
                         match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
                             Ok(hash) => hash,
@@ -868,7 +873,7 @@ impl FileEntity {
                 }
                 Err(err) => {
                     metadata.push_error(format!("Failed to open file for hashing: {err}"));
-                    (vec![Extent::Data { offset: 0, length: size }], false, [0_u8; 32])
+                    (vec![Extent::Data { offset: 0, length: size }], native_sparse, [0_u8; 32])
                 }
             };
 
@@ -1720,6 +1725,57 @@ mod tests {
 
         ctb_formats_dcstring::assert_dc_roundtrip(&entity)
             .expect("FileEntity with errors/warnings DcMixed roundtrip failed");
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    #[expect(unsafe_code, reason = "DeviceIoControl uses a live file handle and live output count with no data buffers")]
+    fn test_windows_sparse_capture_records_extent_limit() {
+        use std::os::windows::fs::MetadataExt;
+        use std::os::windows::io::AsRawHandle;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("sparse");
+        let file = std::fs::OpenOptions::new()
+            .read(true).write(true).create_new(true).open(&path).unwrap();
+        let mut returned = 0;
+        let success = unsafe {
+            windows_sys::Win32::System::IO::DeviceIoControl(
+                file.as_raw_handle(),
+                windows_sys::Win32::System::Ioctl::FSCTL_SET_SPARSE,
+                std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                &mut returned, std::ptr::null_mut(),
+            )
+        };
+        assert_ne!(success, 0, "{}", std::io::Error::last_os_error());
+        file.set_len(4096).unwrap();
+        drop(file);
+        let entity = FileEntity::from_filesystem(&path, None).unwrap();
+        let native_sparse = std::fs::metadata(&path).unwrap().file_attributes()
+            & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
+        if native_sparse {
+            assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: true, .. }));
+            assert!(entity.metadata.warnings.iter()
+                .any(|warning| warning.contains("Windows sparse extent capture")));
+        } else {
+            assert!(ctb_io_environment::is_wine(), "Native sparse control did not retain its attribute");
+            assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: false, .. }));
+            let mut requested = FileEntity::from_vec(vec![0; 4096]);
+            requested.identity.relative_path = Some(PathBuf::from("requested_sparse"));
+            if let FileEntityKind::Regular { ref mut is_sparse, .. } = requested.kind {
+                *is_sparse = true;
+            }
+            let mut payload = crate::MemoryPayloadSource::new(vec![0; 4096]).unwrap();
+            let failure = requested.materialize_at_path(
+                Some(&mut payload), directory.path(), &crate::MaterializeOptions::default(),
+            ).unwrap_err();
+            assert!(format!("{failure:#}").contains("sparse extent auditing"));
+            assert!(!directory.path().join("requested_sparse").exists());
+            ctb_formats_dcstring::assert_dc_roundtrip(&requested).unwrap();
+        }
+        let mut semantic_metadata = entity.metadata;
+        semantic_metadata.environment = None;
+        semantic_metadata.read_time = None;
+        ctb_formats_dcstring::assert_dc_roundtrip(&semantic_metadata).unwrap();
     }
 
     #[cfg(unix)]
