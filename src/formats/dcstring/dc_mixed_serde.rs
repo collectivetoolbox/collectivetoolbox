@@ -738,8 +738,16 @@ where
 {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         mst.push_char(DC_BEGIN_KV_MAP); // Begin map of types
+        mst.push_char(DcChar::from_short(275));
+        mst.push_char(DcChar::from_short(275));
+        let mut first = true;
         for (k, v) in self {
+            if !first {
+                mst.push_char(DcChar::from_short(312));
+            }
+            first = false;
             k.encode_dc_mixed(mst)?;
+            mst.push_char(DcChar::from_short(312));
             v.encode_dc_mixed(mst)?;
         }
         mst.push_char(DC_END_KV_MAP); // End map of types
@@ -754,15 +762,23 @@ where
 {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
         reader.expect_char(DC_BEGIN_KV_MAP)?;
+        reader.expect_short_dc(275)?;
+        reader.expect_short_dc(275)?;
         let mut map = BTreeMap::new();
+        let mut first = true;
         loop {
             if reader.peek_char()? == Some(DC_END_KV_MAP) {
                 reader.next_char()?;
                 break;
             }
+            if !first {
+                reader.expect_short_dc(312)?;
+            }
+            first = false;
             let key = K::decode_dc_mixed(reader)?;
+            reader.expect_short_dc(312)?;
             let value = V::decode_dc_mixed(reader)?;
-            map.insert(key, value);
+            ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
         }
         Ok(map)
     }
@@ -996,6 +1012,118 @@ mod tests {
         Regular,
         #[dc(short = 326)]
         Directory,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(key_value)]
+    struct SampleKeyedRecord {
+        #[dc(key = "count")]
+        count: u64,
+        #[dc(key = "label")]
+        label: Option<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(names, begin = 310, end = 311)]
+    enum SampleNamedValue {
+        #[dc(name = "unsigned")]
+        Unsigned(u64),
+        #[dc(name = "signed")]
+        Signed(i64),
+        #[dc(name = "bytes", binary)]
+        Bytes(Vec<u8>),
+        #[dc(name = "empty")]
+        Empty,
+    }
+
+    #[crate::ctb_test]
+    fn test_named_key_value_syntax() -> Result<()> {
+        let record = SampleKeyedRecord { count: u64::MAX, label: None };
+        assert_dc_roundtrip(&record)?;
+        assert_dc_roundtrip(&SampleKeyedRecord { count: 0, label: Some("value".to_string()) })?;
+        let mut encoded = DcMst::new();
+        record.encode_dc_mixed(&mut encoded)?;
+        let mut reader = DcMixedReader::new(&encoded);
+        reader.expect_short_dc(313)?;
+        reader.expect_short_dc(275)?;
+        reader.expect_short_dc(275)?;
+        assert_eq!(String::decode_dc_mixed(&mut reader)?, "count");
+        reader.expect_short_dc(312)?;
+        assert_eq!(u64::decode_dc_mixed(&mut reader)?, u64::MAX);
+        reader.expect_short_dc(312)?;
+        assert_eq!(String::decode_dc_mixed(&mut reader)?, "label");
+        reader.expect_short_dc(312)?;
+        assert_eq!(Option::<String>::decode_dc_mixed(&mut reader)?, None);
+        reader.expect_short_dc(314)?;
+        assert_eq!(reader.peek_char()?, None);
+        let map = BTreeMap::from([
+            ("count".to_string(), SampleNamedValue::Unsigned(u64::MAX)),
+            ("minimum".to_string(), SampleNamedValue::Signed(i64::MIN)),
+            ("binary".to_string(), SampleNamedValue::Bytes(vec![0, 255, 128])),
+            ("empty".to_string(), SampleNamedValue::Empty),
+        ]);
+        assert_dc_roundtrip(&map)?;
+        assert_dc_roundtrip(&BTreeMap::<String, SampleNamedValue>::new())?;
+        let mut encoded = DcMst::new();
+        SampleNamedValue::Unsigned(42).encode_dc_mixed(&mut encoded)?;
+        let mut reader = DcMixedReader::new(&encoded);
+        reader.expect_short_dc(310)?;
+        reader.expect_short_dc(275)?;
+        assert_eq!(String::decode_dc_mixed(&mut reader)?, "unsigned");
+        reader.expect_short_dc(312)?;
+        assert_eq!(u64::decode_dc_mixed(&mut reader)?, 42);
+        reader.expect_short_dc(311)?;
+        assert_eq!(reader.peek_char()?, None);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_named_key_value_rejects_malformed() -> Result<()> {
+        for keys in [vec!["count"], vec!["count", "count"], vec!["unknown"], vec!["label", "count"]] {
+            let mut encoded = DcMst::new();
+            encoded.push_char(DC_BEGIN_KV_MAP);
+            encoded.push_char(DcChar::from_short(275));
+            encoded.push_char(DcChar::from_short(275));
+            for (index, key) in keys.iter().enumerate() {
+                if index != 0 { encoded.push_char(DcChar::from_short(312)); }
+                key.encode_dc_mixed(&mut encoded)?;
+                encoded.push_char(DcChar::from_short(312));
+                1u64.encode_dc_mixed(&mut encoded)?;
+            }
+            encoded.push_char(DC_END_KV_MAP);
+            assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        }
+        for separators in [false, true] {
+            let mut encoded = DcMst::new();
+            encoded.push_char(DC_BEGIN_KV_MAP);
+            encoded.push_char(DcChar::from_short(275));
+            encoded.push_char(DcChar::from_short(275));
+            "count".encode_dc_mixed(&mut encoded)?;
+            if separators { encoded.push_char(DcChar::from_short(312)); }
+            1u64.encode_dc_mixed(&mut encoded)?;
+            assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        }
+        let mut duplicate = DcMst::new();
+        duplicate.push_char(DC_BEGIN_KV_MAP);
+        duplicate.push_char(DcChar::from_short(275));
+        duplicate.push_char(DcChar::from_short(275));
+        "count".encode_dc_mixed(&mut duplicate)?;
+        duplicate.push_char(DcChar::from_short(312));
+        1u64.encode_dc_mixed(&mut duplicate)?;
+        duplicate.push_char(DcChar::from_short(312));
+        "count".encode_dc_mixed(&mut duplicate)?;
+        duplicate.push_char(DcChar::from_short(312));
+        2u64.encode_dc_mixed(&mut duplicate)?;
+        duplicate.push_char(DC_END_KV_MAP);
+        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&duplicate)).is_err());
+        let mut legacy = DcMst::new();
+        legacy.push_char(DC_BEGIN_KV_MAP);
+        "count".encode_dc_mixed(&mut legacy)?;
+        1u64.encode_dc_mixed(&mut legacy)?;
+        legacy.push_char(DC_END_KV_MAP);
+        assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
+        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
+        Ok(())
     }
 
     #[crate::ctb_test]

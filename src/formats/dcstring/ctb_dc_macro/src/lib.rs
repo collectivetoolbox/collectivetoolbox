@@ -42,6 +42,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! matched via `DcChar::from_u128`. No field mapping is ever done by field name
 //! or reflection: all mappings are explicit and stable across schema versions.
 //!
+//! `#[dc(key_value)]` selects a Dc 313..314 map with explicit
+//! `#[dc(key = "...")]` fields. Keys and values have Object type headers;
+//! Dc 312 separates each key and value. All declared keys are required,
+//! including fields whose value is an explicitly encoded `Option`.
+//! `#[dc(names)]` selects explicit `#[dc(name = "...")]` enum names.
+//! Payload variants require boundaries and may use `binary`.
+//!
 //! # Container Attributes (Structs)
 //!
 //! Structs deriving `DcMixed` represent bounded compound objects and must define
@@ -293,6 +300,15 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         ));
     }
 
+    if begin == SHORT_DC_REGION_START.saturating_add(313)
+        || end == SHORT_DC_REGION_START.saturating_add(314)
+    {
+        return Err(syn::Error::new(
+            input.span(),
+            "Dc 313..314 requires #[dc(key_value)] with explicit field keys",
+        ));
+    }
+
     Ok(Some(StructDcAttr { begin, end, flags }))
 }
 
@@ -516,6 +532,15 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         }
     }
 
+    if begin == Some(SHORT_DC_REGION_START.saturating_add(313))
+        || end == Some(SHORT_DC_REGION_START.saturating_add(314))
+    {
+        return Err(syn::Error::new(
+            field.span(),
+            "Map fields must use their map codec, not an untyped boundary wrapper",
+        ));
+    }
+
     if !skip && !flatten && tag.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
         return Err(syn::Error::new(
             field.span(),
@@ -540,6 +565,245 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     })
 }
 
+fn expand_named_representation(
+    input: &DeriveInput,
+    crate_root: &proc_macro2::TokenStream,
+    anyhow_path: &proc_macro2::TokenStream,
+) -> syn::Result<Option<proc_macro2::TokenStream>> {
+    let named_mode = input.attrs.iter().any(|attr| {
+        if !attr.path().is_ident("dc") {
+            return false;
+        }
+        let syn::Meta::List(list) = &attr.meta else { return false; };
+        list.tokens.clone().into_iter().any(|token| {
+            matches!(token, proc_macro2::TokenTree::Ident(ident) if ident == "key_value" || ident == "names")
+        })
+    });
+    if !named_mode {
+        return Ok(None);
+    }
+
+    let mut key_value = false;
+    let mut names = false;
+    let mut begin = None;
+    let mut end = None;
+    for attr in &input.attrs {
+        if attr.path().is_ident("dc") {
+            attr.parse_nested_meta(|meta| {
+                if meta.path.is_ident("key_value") {
+                    key_value = true;
+                } else if meta.path.is_ident("names") {
+                    names = true;
+                } else if meta.path.is_ident("begin") {
+                    begin = Some(parse_dc_expr(&meta.value()?.parse::<Expr>()?)?);
+                } else if meta.path.is_ident("end") {
+                    end = Some(parse_dc_expr(&meta.value()?.parse::<Expr>()?)?);
+                } else {
+                    return Err(meta.error("Expected key_value, names, begin, or end"));
+                }
+                Ok(())
+            })?;
+        }
+    }
+    if key_value == names {
+        return Err(syn::Error::new(input.span(), "Choose exactly one of key_value or names"));
+    }
+    if key_value && (begin.is_some() || end.is_some()) {
+        return Err(syn::Error::new(input.span(), "key_value uses the Dc 313..314 map boundaries"));
+    }
+    if begin.is_some() != end.is_some() || (begin.is_some() && begin == end) {
+        return Err(syn::Error::new(input.span(), "Supply distinct begin and end boundaries together"));
+    }
+    if begin == Some(SHORT_DC_REGION_START.saturating_add(313))
+        || end == Some(SHORT_DC_REGION_START.saturating_add(314))
+    {
+        return Err(syn::Error::new(input.span(), "Named variants cannot use map boundaries; use key_value on a record"));
+    }
+
+    let type_name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let mut encode_parts = Vec::new();
+    let mut decode_parts = Vec::new();
+    let mut field_inits = Vec::new();
+    let mut construct_fields = Vec::new();
+    let mut seen_names = HashSet::new();
+    let (encode_body, decode_body) = match &input.data {
+        Data::Struct(data) if key_value => {
+            let Fields::Named(fields) = &data.fields else {
+                return Err(syn::Error::new(input.span(), "key_value requires named struct fields"));
+            };
+            for (field_index, field) in fields.named.iter().enumerate() {
+                let field_ident = field.ident.as_ref().ok_or_else(|| syn::Error::new(field.span(), "Expected named field"))?;
+                let field_ty = &field.ty;
+                let mut key = None;
+                for attr in &field.attrs {
+                    if attr.path().is_ident("dc") {
+                        attr.parse_nested_meta(|meta| {
+                            if meta.path.is_ident("key") {
+                                key = Some(meta.value()?.parse::<syn::LitStr>()?);
+                                Ok(())
+                            } else {
+                                Err(meta.error("key_value fields require #[dc(key = \"...\")]"))
+                            }
+                        })?;
+                    }
+                }
+                let key = key.ok_or_else(|| syn::Error::new(field.span(), "Missing #[dc(key = \"...\")]"))?;
+                if !seen_names.insert(key.value()) {
+                    return Err(syn::Error::new(key.span(), "Duplicate map key"));
+                }
+                let separator = if field_index == 0 { None } else {
+                    Some(quote! { mst.push_char(#crate_root::DcChar::from_short(312)); })
+                };
+                encode_parts.push(quote! {
+                    #separator
+                    #crate_root::DcMixedEncode::encode_dc_mixed(#key, mst)?;
+                    mst.push_char(#crate_root::DcChar::from_short(312));
+                    #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                });
+                field_inits.push(quote! {
+                    let mut #field_ident: ::std::option::Option<#field_ty> = None;
+                });
+                decode_parts.push(quote! {
+                    #key => {
+                        #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate map key {}", #key);
+                        reader.expect_short_dc(312)?;
+                        #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
+                    }
+                });
+                construct_fields.push(quote! {
+                    #field_ident: #field_ident.ok_or_else(|| #anyhow_path::anyhow!("Missing map key {}", #key))?
+                });
+            }
+            let map_begin = SHORT_DC_REGION_START.saturating_add(313);
+            let map_end = SHORT_DC_REGION_START.saturating_add(314);
+            (quote! {
+                mst.push_char(#crate_root::DcChar::from_u128(#map_begin));
+                mst.push_char(#crate_root::DcChar::from_short(275));
+                mst.push_char(#crate_root::DcChar::from_short(275));
+                #(#encode_parts)*
+                mst.push_char(#crate_root::DcChar::from_u128(#map_end));
+            }, quote! {
+                reader.expect_char(#crate_root::DcChar::from_u128(#map_begin))?;
+                reader.expect_short_dc(275)?;
+                reader.expect_short_dc(275)?;
+                #(#field_inits)*
+                let mut first = true;
+                while reader.peek_char()? != Some(#crate_root::DcChar::from_u128(#map_end)) {
+                    if !first { reader.expect_short_dc(312)?; }
+                    first = false;
+                    let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    match key.as_str() {
+                        #(#decode_parts)*
+                        _ => #anyhow_path::bail!("Unknown map key {:?} for {}", key, stringify!(#type_name)),
+                    }
+                }
+                reader.expect_char(#crate_root::DcChar::from_u128(#map_end))?;
+                Self { #(#construct_fields),* }
+            })
+        }
+        Data::Enum(data) if names => {
+            let is_list = begin == Some(SHORT_DC_REGION_START.saturating_add(310));
+            if is_list && end != Some(SHORT_DC_REGION_START.saturating_add(311)) {
+                return Err(syn::Error::new(input.span(), "Dc 310 lists must end with Dc 311"));
+            }
+            let list_header = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(275)); });
+            let decode_list_header = is_list.then(|| quote! { reader.expect_short_dc(275)?; });
+            let payload_separator = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(312)); });
+            let decode_payload_separator = is_list.then(|| quote! { reader.expect_short_dc(312)?; });
+            for variant in &data.variants {
+                let variant_ident = &variant.ident;
+                let mut name = None;
+                let mut binary = false;
+                for attr in &variant.attrs {
+                    if attr.path().is_ident("dc") {
+                        attr.parse_nested_meta(|meta| {
+                            if meta.path.is_ident("name") {
+                                name = Some(meta.value()?.parse::<syn::LitStr>()?);
+                            } else if meta.path.is_ident("binary") {
+                                binary = true;
+                            } else {
+                                return Err(meta.error("Expected name or binary"));
+                            }
+                            Ok(())
+                        })?;
+                    }
+                }
+                let name = name.ok_or_else(|| syn::Error::new(variant.span(), "Missing #[dc(name = \"...\")]"))?;
+                if !seen_names.insert(name.value()) {
+                    return Err(syn::Error::new(name.span(), "Duplicate variant name"));
+                }
+                match &variant.fields {
+                    Fields::Unit if !binary => {
+                        encode_parts.push(quote! { Self::#variant_ident => #crate_root::DcMixedEncode::encode_dc_mixed(#name, mst)?, });
+                        decode_parts.push(quote! { #name => Self::#variant_ident, });
+                    }
+                    Fields::Unnamed(fields) if fields.unnamed.len() == 1 && begin.is_some() => {
+                        let field = fields.unnamed.first().ok_or_else(|| syn::Error::new(variant.span(), "Missing variant payload"))?;
+                        let field_ty = &field.ty;
+                        let (encode_value, decode_value) = if binary {
+                            (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value)); },
+                             quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?)
+                                .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))? })
+                        } else {
+                            (quote! { #crate_root::DcMixedEncode::encode_dc_mixed(value, mst)?; },
+                             quote! { <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)? })
+                        };
+                        encode_parts.push(quote! {
+                            Self::#variant_ident(value) => {
+                                #crate_root::DcMixedEncode::encode_dc_mixed(#name, mst)?;
+                                #payload_separator
+                                #encode_value
+                            }
+                        });
+                        decode_parts.push(quote! { #name => {
+                            #decode_payload_separator
+                            Self::#variant_ident(#decode_value)
+                        }, });
+                    }
+                    _ => return Err(syn::Error::new(variant.span(), "names supports unit variants or single-payload variants with container boundaries")),
+                }
+            }
+            let encode_begin = begin.map(|id| quote! { mst.push_char(#crate_root::DcChar::from_u128(#id)); });
+            let encode_end = end.map(|id| quote! { mst.push_char(#crate_root::DcChar::from_u128(#id)); });
+            let decode_begin = begin.map(|id| quote! { reader.expect_char(#crate_root::DcChar::from_u128(#id))?; });
+            let decode_end = end.map(|id| quote! { reader.expect_char(#crate_root::DcChar::from_u128(#id))?; });
+            (quote! {
+                #encode_begin
+                #list_header
+                match self { #(#encode_parts)* }
+                #encode_end
+            }, quote! {
+                #decode_begin
+                #decode_list_header
+                let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                let value = match name.as_str() {
+                    #(#decode_parts)*
+                    _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
+                };
+                #decode_end
+                value
+            })
+        }
+        _ => return Err(syn::Error::new(input.span(), "key_value requires a struct; names requires an enum")),
+    };
+    Ok(Some(quote! {
+        #[automatically_derived]
+        impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+            fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                #encode_body
+                Ok(())
+            }
+        }
+        #[automatically_derived]
+        impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+            fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                Ok({ #decode_body })
+            }
+        }
+    }))
+}
+
 fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let type_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -549,6 +813,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
         quote!(::ctb_formats_dcstring)
     };
     let anyhow_path = quote!(::ctb_utilities::anyhow);
+
+    if let Some(expanded) = expand_named_representation(input, &crate_root, &anyhow_path)? {
+        return Ok(expanded);
+    }
 
     match &input.data {
         Data::Struct(data_struct) => {
