@@ -589,13 +589,13 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 let Ok(env_bytes) = read_bytes(&mut reader) else {
                     break;
                 };
-                if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
-                    if let Ok(env_desc) = EnvDescription::from_json(json_str) {
-                        let definition = Arc::new(env_desc);
-                        shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&definition))?;
-                        environment = Some(definition);
-                    }
-                }
+                let json_str = std::str::from_utf8(&env_bytes)
+                    .context("Invalid journal environment UTF-8")?;
+                let env_desc = EnvDescription::from_json(json_str)
+                    .context("Invalid journal environment JSON")?;
+                let definition = Arc::new(env_desc);
+                shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&definition))?;
+                environment = Some(definition);
                 valid_length = reader.stream_position()?;
             }
             TAG_ENTITY => {
@@ -1339,6 +1339,23 @@ mod tests {
     use tempfile::tempdir;
 
     #[crate::ctb_test]
+    fn test_journal_rejects_unknown_environment_json() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("unknown-environment.cscjournal");
+        let mut bytes = JOURNAL_MAGIC.to_vec();
+        bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
+        write_u32(&mut bytes, 0)?;
+        write_bytes(&mut bytes, b"")?;
+        bytes.push(TAG_SESSION_ENV);
+        write_bytes(&mut bytes, br#"{"os":"linux","future_flag":true}"#)?;
+        fs::write(&journal_path, bytes)?;
+        let error = read_journal_snapshot(&journal_path)
+            .expect_err("unknown environment fields must not be silently discarded");
+        assert!(format!("{error:#}").contains("unknown field"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_journal_shared_environment_provenance() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("sharing.cscjournal");
@@ -1346,7 +1363,6 @@ mod tests {
         let environment = writer.environment.clone().context("Missing writer environment")?;
         let distinct = Arc::new(EnvDescription {
             os: "original-foreign-environment".to_owned(),
-            extra: std::collections::BTreeMap::from([("original.attribute".to_owned(), serde_json::json!({"retained": true}))]),
             ..EnvDescription::default()
         });
         let mut entity = FileEntity::from_vec(b"parent".to_vec());

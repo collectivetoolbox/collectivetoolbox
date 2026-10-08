@@ -32,8 +32,8 @@ use crate::format_id::FormatId;
 ///  Detailed snapshot of the current application and platform environment.
 /// 
 ///  Serializes to a format where omitted fields assume default values on
-///  deserialization, and unknown fields are preserved during roundtrips for
-///  forward and backward extensibility.
+///  JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
+///  representation, not a lossless document interchange format.
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
 pub struct EnvDescription {
     pub os: String,
@@ -59,6 +59,5 @@ pub struct EnvDescription {
     pub is_local: bool,
     pub kernel_version: Option < String >,
     pub additional_support: Vec < FormatId >,
-    pub extra: BTreeMap < String , serde_json :: Value >,
 }
 

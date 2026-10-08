@@ -49,7 +49,6 @@ fn to_ctb_io_environment_env_description(v: &::ctb_utilities::ipc::service_trait
         is_local: v.is_local.clone(),
         kernel_version: v.kernel_version.clone(),
         additional_support: v.additional_support.clone(),
-        extra: v.extra.clone(),
     }
 }
 

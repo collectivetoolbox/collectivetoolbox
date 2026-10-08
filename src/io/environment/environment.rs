@@ -31,7 +31,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -653,11 +652,11 @@ pub fn is_branded_build() -> bool {
 /// Detailed snapshot of the current application and platform environment.
 ///
 /// Serializes to a format where omitted fields assume default values on
-/// deserialization, and unknown fields are preserved during roundtrips for
-/// forward and backward extensibility.
+/// JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
+/// representation, not a lossless document interchange format.
 #[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 #[dc(begin = 340, end = 341)]
 #[expect(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
 pub struct EnvDescription {
@@ -707,10 +706,6 @@ pub struct EnvDescription {
     pub kernel_version: Option<String>,
     #[dc(flatten)]
     pub additional_support: Vec<FormatId>,
-
-    #[serde(flatten, default)]
-    #[dc(skip, reason = "Serde JSON overflow map not serialized in DcMixed")]
-    pub extra: BTreeMap<String, serde_json::Value>,
 }
 
 impl EnvDescription {
@@ -815,7 +810,6 @@ impl EnvDescription {
             is_local: is_local(),
             kernel_version: ident.kernel_version,
             additional_support,
-            extra: BTreeMap::new(),
         }
     }
 
@@ -1349,24 +1343,21 @@ mod tests {
             .expect("failed to deserialize empty JSON");
         assert_eq!(empty_desc, EnvDescription::default());
 
-        // Test extensibility with unknown/future fields
-        let extended_json = r#"{"os":"linux","future_flag":true,"future_num":42}"#;
-        let parsed = EnvDescription::from_json(extended_json)
-            .expect("failed to deserialize extended JSON");
-        assert_eq!(parsed.os, "linux");
-        assert_eq!(
-            parsed.extra.get("future_flag"),
-            Some(&serde_json::Value::Bool(true))
-        );
-        assert_eq!(
-            parsed.extra.get("future_num"),
-            Some(&serde_json::json!(42))
-        );
+    }
 
-        // Unknown fields should roundtrip in serialization
-        let reserialized = parsed.to_json().expect("reserialization failed");
-        assert!(reserialized.contains("\"future_flag\":true"));
-        assert!(reserialized.contains("\"future_num\":42"));
+    #[crate::ctb_test]
+    fn test_env_description_json_rejects_unknown_fields() -> Result<()> {
+        for json in [
+            r#"{"os":"linux","future_flag":true}"#,
+            r#"{"future_num":42}"#,
+            r#"{"extra":{"future_flag":true}}"#,
+        ] {
+            let error = EnvDescription::from_json(json)
+                .expect_err("unknown JSON fields must be rejected");
+            assert!(error.to_string().contains("unknown field"));
+            assert!(serde_json::from_str::<EnvDescription>(json).is_err());
+        }
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -1618,7 +1609,6 @@ mod tests {
                 FormatId::amd64,
                 FormatId::Unix,
             ],
-            extra: BTreeMap::new(),
         };
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
         Ok(())
