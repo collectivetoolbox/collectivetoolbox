@@ -550,12 +550,22 @@ impl FileEntity {
         mst: &mut ctb_formats_dcstring::DcMst,
         source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
+        self.encode_with_payload_and_context(mst, source, &ctb_formats_dcstring::SharedValueContext::default())
+    }
+
+    /// Streams a payload using definitions provided by an explicit context.
+    pub fn encode_with_payload_and_context(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMst,
+        source: &mut dyn crate::payload::PayloadSource,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
-        self.identity.encode_dc_mixed(mst)?;
-        self.metadata.encode_dc_mixed(mst)?;
-        self.kind.encode_dc_mixed(mst)?;
+        self.identity.encode_dc_mixed_with_context(mst, context)?;
+        self.metadata.encode_dc_mixed_with_context(mst, context)?;
+        self.kind.encode_dc_mixed_with_context(mst, context)?;
         for stream in &self.streams {
-            stream.encode_dc_mixed(mst)?;
+            stream.encode_dc_mixed_with_context(mst, context)?;
         }
         let size = source.total_size();
         if size > 0 {
@@ -575,13 +585,23 @@ impl FileEntity {
         writer: &mut W,
         source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
+        self.encode_to_writer_with_payload_and_context(writer, source, &ctb_formats_dcstring::SharedValueContext::default())
+    }
+
+    /// Streams a document and payload with explicit shared definitions.
+    pub fn encode_to_writer_with_payload_and_context<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        source: &mut dyn crate::payload::PayloadSource,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
         let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
-        self.identity.encode_dc_mixed(&mut prefix_mst)?;
-        self.metadata.encode_dc_mixed(&mut prefix_mst)?;
-        self.kind.encode_dc_mixed(&mut prefix_mst)?;
+        self.identity.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
+        self.metadata.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
+        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         for stream in &self.streams {
-            stream.encode_dc_mixed(&mut prefix_mst)?;
+            stream.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         }
         writer.write_all(prefix_mst.as_bytes())?;
 
@@ -589,7 +609,7 @@ impl FileEntity {
         if size > 0 {
             let mut tag = ctb_formats_dcstring::DcMst::new();
             tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
-            writer.write_all(tag.as_bytes())?;
+            writer.write_all(tag.payload_bytes())?;
             source.seek(std::io::SeekFrom::Start(0))?;
             ctb_formats_dcstring::DcMst::write_binary_encapsulation(
                 writer,
@@ -601,7 +621,7 @@ impl FileEntity {
 
         let mut suffix = ctb_formats_dcstring::DcMst::new();
         suffix.push_char(ctb_formats_dcstring::DcChar::from_short(318));
-        writer.write_all(suffix.as_bytes())?;
+        writer.write_all(suffix.payload_bytes())?;
         Ok(())
     }
 

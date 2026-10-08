@@ -38,6 +38,7 @@ pub mod dc_number;
 pub mod dc_str;
 pub mod dcstring_impl;
 pub mod error;
+pub mod shared;
 
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
@@ -54,4 +55,5 @@ pub use dc_mixed_serde::{
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
+pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};

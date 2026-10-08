@@ -11,6 +11,7 @@ ctb-utilities = { path = "../../utilities" }
 ctb-io-environment = { path = "../environment" }
 ctb-io = { path = ".." }
 ctb-formats-checksum = { path = "../../formats/checksum" }
+ctb-formats-dcstring = { path = "../../formats/dcstring" }
 ctb-formats-string = { path = "../../formats/string" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }

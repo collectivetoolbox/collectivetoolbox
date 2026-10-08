@@ -55,6 +55,11 @@ pub trait DcMixedEncode {
     /// # Errors
     /// Returns an error if serialization fails.
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()>;
+
+    /// Encodes with explicit definitions already persisted by the caller.
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, _context: &crate::SharedValueContext) -> Result<()> {
+        self.encode_dc_mixed(mst)
+    }
 }
 
 /// Trait for types that can be deserialized from a `DcMixedReader`.
@@ -164,6 +169,7 @@ pub struct DcMixedReader<'a> {
     current_text: Option<DcChars<'a>>,
     peeked_char: Option<DcChar>,
     peeked_binary: Option<&'a [u8]>,
+    shared_context: Option<&'a crate::SharedValueContext>,
 }
 
 impl<'a> DcMixedReader<'a> {
@@ -175,7 +181,19 @@ impl<'a> DcMixedReader<'a> {
             current_text: None,
             peeked_char: None,
             peeked_binary: None,
+            shared_context: None,
         }
+    }
+
+    /// Creates a reader with definitions loaded from an enclosing document.
+    #[must_use]
+    pub fn with_context(mstr: &'a DcMstr, context: &'a crate::SharedValueContext) -> Self {
+        Self { shared_context: Some(context), ..Self::new(mstr) }
+    }
+
+    /// Resolves a reference against the explicitly supplied document context.
+    pub fn resolve_shared<T: std::any::Any + Send + Sync>(&self, binding: &str) -> Result<Arc<T>> {
+        self.shared_context.context("Shared reference requires a document context")?.resolve(binding)
     }
 
     /// Peeks the next character without advancing the cursor.
@@ -574,8 +592,11 @@ impl DcMixedDecode for malachite::Integer {
 
 impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-        self.0.encode_dc_mixed(mst)?;
-        self.1.encode_dc_mixed(mst)?;
+        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
+        self.0.encode_dc_mixed_with_context(mst, context)?;
+        self.1.encode_dc_mixed_with_context(mst, context)?;
         Ok(())
     }
 }
@@ -590,10 +611,13 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
 
 impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
         match self {
             Some(val) => {
                 mst.push_char(DC_OPTIONAL_PRESENT); // Optional value present
-                val.encode_dc_mixed(mst)
+                val.encode_dc_mixed_with_context(mst, context)
             }
             None => {
                 mst.push_char(DC_OPTIONAL_ABSENT); // Optional value absent
@@ -624,9 +648,12 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
 
 impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
         mst.push_char(DC_BEGIN_LIST); // Begin list of type
         for item in self {
-            item.encode_dc_mixed(mst)?;
+            item.encode_dc_mixed_with_context(mst, context)?;
         }
         mst.push_char(DC_END_LIST); // End list of type
         Ok(())
@@ -737,6 +764,9 @@ where
     V: DcMixedEncode,
 {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
         mst.push_char(DC_BEGIN_KV_MAP); // Begin map of types
         mst.push_char(DcChar::from_short(275));
         mst.push_char(DcChar::from_short(275));
@@ -746,9 +776,9 @@ where
                 mst.push_char(DcChar::from_short(312));
             }
             first = false;
-            k.encode_dc_mixed(mst)?;
+            k.encode_dc_mixed_with_context(mst, context)?;
             mst.push_char(DcChar::from_short(312));
-            v.encode_dc_mixed(mst)?;
+            v.encode_dc_mixed_with_context(mst, context)?;
         }
         mst.push_char(DC_END_KV_MAP); // End map of types
         Ok(())
@@ -788,6 +818,9 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Box<T> {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         (**self).encode_dc_mixed(mst)
     }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
+        (**self).encode_dc_mixed_with_context(mst, context)
+    }
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Box<T> {
@@ -800,6 +833,9 @@ impl<T: DcMixedDecode> DcMixedDecode for Box<T> {
 impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Arc<T> {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         (**self).encode_dc_mixed(mst)
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
+        (**self).encode_dc_mixed_with_context(mst, context)
     }
 }
 
@@ -921,8 +957,11 @@ impl DcMixedDecode for SystemTime {
 
 impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
+    }
+    fn encode_dc_mixed_with_context(&self, mst: &mut DcMst, context: &crate::SharedValueContext) -> Result<()> {
         for elem in self {
-            elem.encode_dc_mixed(mst)?;
+            elem.encode_dc_mixed_with_context(mst, context)?;
         }
         Ok(())
     }

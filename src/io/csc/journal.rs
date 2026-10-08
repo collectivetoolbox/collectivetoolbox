@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_formats_checksum::{Sha256Stream, xxhash};
+use ctb_formats_dcstring::{SharedJson, SharedValueContext};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
@@ -43,6 +44,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const JOURNAL_MAGIC: &[u8; 8] = b"CTBCSCJ\x01";
+const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
 
 const TAG_SESSION_HEADER: u8 = 1;
 const TAG_ENTITY: u8 = 2;
@@ -144,6 +146,7 @@ pub struct JournalWriter {
     noatime_used: bool,
     pub environment: Option<Arc<EnvDescription>>,
     snapshot: Option<JournalSnapshot>,
+    shared_context: SharedValueContext,
     errors: Vec<JournalErrorRecord>,
     warnings: Vec<JournalWarningRecord>,
 }
@@ -187,6 +190,7 @@ impl JournalWriter {
             noatime_used: false,
             environment: Some(env),
             snapshot: None,
+            shared_context: SharedValueContext::default(),
             errors: Vec::new(),
             warnings: Vec::new(),
         };
@@ -243,6 +247,10 @@ impl JournalWriter {
         }
 
         let writer = BufWriter::new(file);
+        let mut shared_context = SharedValueContext::default();
+        if let Some(environment) = &snapshot.environment {
+            shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(environment))?;
+        }
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -254,11 +262,9 @@ impl JournalWriter {
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
             noatime_used: snapshot.noatime_used,
-            environment: snapshot
-                .environment
-                .clone()
-                .or_else(|| Some(ctb_io_environment::capture_quick_arc())),
+            environment: snapshot.environment.clone(),
             snapshot: Some(snapshot.clone()),
+            shared_context,
             errors: snapshot.errors.clone(),
             warnings: snapshot.warnings.clone(),
         })
@@ -295,17 +301,14 @@ impl JournalWriter {
             self.writer.write_all(&[TAG_SESSION_ENV])?;
             write_bytes(&mut self.writer, json.as_bytes())?;
             self.writer.flush()?;
+            self.shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env))?;
         }
         Ok(())
     }
 
     /// Queues a `FileEntity` for transactional commit.
     pub fn record_entity(&mut self, entity: &FileEntity) {
-        let mut entity = entity.clone();
-        if let Some(ref env) = self.environment {
-            attach_session_environment(&mut entity, env);
-        }
-        self.uncommitted_entities.push(entity);
+        self.uncommitted_entities.push(entity.clone());
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.
@@ -318,7 +321,7 @@ impl JournalWriter {
 
         for entity in &self.uncommitted_entities {
             let mut payload = Vec::new();
-            write_entity_payload(&mut payload, entity)?;
+            write_entity_payload(&mut payload, entity, &self.shared_context)?;
             let payload_len = u32::try_from(payload.len())?;
             let checksum = xxhash::xxhash3_64(&payload);
 
@@ -545,6 +548,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     let mut is_completed = false;
     let mut valid_length = 0_u64;
     let mut environment: Option<Arc<EnvDescription>> = None;
+    let mut shared_context = SharedValueContext::default();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
@@ -587,7 +591,9 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 };
                 if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
                     if let Ok(env_desc) = EnvDescription::from_json(json_str) {
-                        environment = Some(Arc::new(env_desc));
+                        let definition = Arc::new(env_desc);
+                        shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&definition))?;
+                        environment = Some(definition);
                     }
                 }
                 valid_length = reader.stream_position()?;
@@ -615,7 +621,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
                 batch_hasher.update(&payload);
 
-                match read_entity_payload(&payload[..], origin_platform) {
+                match read_entity_payload(&payload[..], origin_platform, &shared_context) {
                     Ok(entity) => {
                         // Reason for fallback: streams or entities without relative path use empty key in journal table
                         let path_key = entity.identity.path_bytes().map_or_else(Vec::new, |b| b.to_vec());
@@ -687,12 +693,6 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         false
     };
 
-    if let Some(ref env) = environment {
-        for entity in committed_entities.values_mut() {
-            attach_session_environment(entity, env);
-        }
-    }
-
     Ok(JournalSnapshot {
         sources,
         destination,
@@ -708,18 +708,20 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     })
 }
 
-fn attach_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
-    if !entity.metadata.environment.as_ref().is_some_and(|e| Arc::ptr_eq(e, env)) {
+fn attach_legacy_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
+    if entity.metadata.environment.is_none()
+        || entity.metadata.environment.as_ref().is_some_and(|existing| existing == env)
+    {
         entity.metadata.environment = Some(Arc::clone(env));
     }
     for stream in &mut entity.streams {
-        attach_session_environment(&mut stream.entity, env);
+        attach_legacy_session_environment(&mut stream.entity, env);
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PreservationRecord {
-    metadata: FileMetadata,
+    metadata: serde_json::Value,
     extents: Vec<ctb_io::file::Extent>,
     streams: Vec<PreservedStream>,
 }
@@ -735,7 +737,7 @@ struct PreservedStream {
 
 // Low-level entity serialization
 
-fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
+fn write_entity_payload(w: &mut impl Write, entity: &FileEntity, context: &SharedValueContext) -> Result<()> {
     // Reason for fallback: streams or entities without relative path write empty path bytes to wire format
     write_bytes(w, entity.identity.path_bytes().unwrap_or(&[]))?;
     // Reason for fallback: entities without filename write empty slice to wire format
@@ -888,7 +890,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
     let mut streams = Vec::with_capacity(entity.streams.len());
     for stream in &entity.streams {
         let mut descriptor = Vec::new();
-        write_entity_payload(&mut descriptor, &stream.entity)?;
+        write_entity_payload(&mut descriptor, &stream.entity, context)?;
         streams.push(PreservedStream {
             name: stream.name.clone(),
             kind: stream.kind,
@@ -897,19 +899,19 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         });
     }
     let record = PreservationRecord {
-        metadata: entity.metadata.clone(),
+        metadata: entity.metadata.encode_json_with_context(context)?,
         extents: match &entity.kind {
             FileEntityKind::Regular { extents, .. } => extents.clone(),
             _ => Vec::new(),
         },
         streams,
     };
-    w.write_all(b"CTBMETA1")?;
+    w.write_all(b"CTBMETA2")?;
     write_bytes(w, &serde_json::to_vec(&record)?)?;
     Ok(())
 }
 
-fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> {
+fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueContext) -> Result<FileEntity> {
     let raw_rel_path = read_bytes(&mut r)?;
     let raw_filename = read_bytes(&mut r)?;
     let has_enc = read_u8(&mut r)?;
@@ -1174,23 +1176,33 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         kind,
         streams,
     };
+    let mut legacy = true;
     if !r.is_empty() {
         let mut magic = [0_u8; 8];
         r.read_exact(&mut magic)?;
-        anyhow::ensure!(&magic == b"CTBMETA1", "Unknown preservation record version");
+        anyhow::ensure!(&magic == b"CTBMETA1" || &magic == b"CTBMETA2", "Unknown preservation record version");
+        legacy = &magic == b"CTBMETA1";
         let record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut r)?)?;
         anyhow::ensure!(record.streams.len() == entity.streams.len(), "Stream descriptor count mismatch");
-        entity.metadata = record.metadata;
+        entity.metadata = if legacy {
+            serde_json::from_value(record.metadata)?
+        } else {
+            FileMetadata::decode_json_with_context(record.metadata, context)?
+        };
         if let FileEntityKind::Regular { extents, .. } = &mut entity.kind {
             *extents = record.extents;
         }
         for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
             stream.name = preserved.name;
             stream.kind = preserved.kind;
-            stream.entity = Box::new(read_entity_payload(&preserved.descriptor, origin_platform)?);
+            stream.entity = Box::new(read_entity_payload(&preserved.descriptor, origin_platform, context)?);
             stream.data = preserved.data;
         }
         anyhow::ensure!(r.is_empty(), "Unexpected preservation record data");
+    }
+    if legacy && context.contains(SESSION_ENVIRONMENT_BINDING) {
+        let environment = context.resolve::<EnvDescription>(SESSION_ENVIRONMENT_BINDING)?;
+        attach_legacy_session_environment(&mut entity, &environment);
     }
     Ok(entity)
 }
@@ -1325,6 +1337,70 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_journal_shared_environment_provenance() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("sharing.cscjournal");
+        let mut writer = JournalWriter::create_at_path(&journal_path, &temp.path().join("sharing.cscdesc"), &[], temp.path())?;
+        let environment = writer.environment.clone().context("Missing writer environment")?;
+        let distinct = Arc::new(EnvDescription {
+            os: "original-foreign-environment".to_owned(),
+            extra: std::collections::BTreeMap::from([("original.attribute".to_owned(), serde_json::json!({"retained": true}))]),
+            ..EnvDescription::default()
+        });
+        let mut entity = FileEntity::from_vec(b"parent".to_vec());
+        entity.identity.relative_path = Some(PathBuf::from("parent"));
+        entity.metadata.environment = Some(Arc::clone(&environment));
+        let mut child = FileEntity::from_vec(b"child".to_vec());
+        child.metadata.environment = Some(Arc::clone(&distinct));
+        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(child), data: None });
+        entity.streams.push(AttachedStream { name: None, kind: StreamKind::MacOsResourceFork, entity: Box::new(FileEntity::from_vec(b"unknown".to_vec())), data: None });
+        writer.record_entity(&entity);
+        let mut unknown = FileEntity::from_vec(b"unknown".to_vec());
+        unknown.identity.relative_path = Some(PathBuf::from("unknown"));
+        writer.record_entity(&unknown);
+        let mut equal = FileEntity::from_vec(b"equal".to_vec());
+        equal.identity.relative_path = Some(PathBuf::from("equal"));
+        equal.metadata.environment = Some(Arc::new((*environment).clone()));
+        writer.record_entity(&equal);
+        writer.commit_batch()?;
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        let stored = snapshot.environment.as_ref().context("Missing persisted environment")?;
+        let parent = snapshot.committed_entities.get(b"parent".as_slice()).context("Missing parent")?;
+        assert!(parent.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
+        assert_eq!(parent.streams[0].entity.metadata.environment.as_ref(), Some(&distinct));
+        assert!(parent.streams[1].entity.metadata.environment.is_none());
+        assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing unknown")?.metadata.environment.is_none());
+        assert!(snapshot.committed_entities.get(b"equal".as_slice()).context("Missing equal")?.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
+        let mut payload = Vec::new();
+        write_entity_payload(&mut payload, &entity, &writer.shared_context)?;
+        assert!(read_entity_payload(&payload, current_platform(), &SharedValueContext::default()).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_legacy_resume_keeps_unknown_environment() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("legacy.cscjournal");
+        let mut bytes = JOURNAL_MAGIC.to_vec();
+        bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
+        write_u32(&mut bytes, 0)?;
+        write_bytes(&mut bytes, b"")?;
+        bytes.push(TAG_JOB_COMPLETED);
+        fs::write(&journal_path, bytes)?;
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        let mut writer = JournalWriter::open_for_resume(&journal_path, &temp.path().join("legacy.cscdesc"), &snapshot)?;
+        assert!(writer.environment.is_none());
+        let mut entity = FileEntity::from_vec(b"unknown".to_vec());
+        entity.identity.relative_path = Some(PathBuf::from("unknown"));
+        writer.record_entity(&entity);
+        writer.commit_batch()?;
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert!(snapshot.environment.is_none());
+        assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing resumed entity")?.metadata.environment.is_none());
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_journal_entity_format_and_checksum_resilience() {
@@ -1756,7 +1832,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
-                environment: None,
+                environment: writer.environment.clone(),
                 apple: None,
                 warnings: Vec::new(),
                 errors: Vec::new(),
@@ -1774,7 +1850,7 @@ mod tests {
         writer.commit_batch().expect("commit_batch");
         writer.mark_completed().expect("mark_completed");
 
-        // 2. Read snapshot and verify environment attached to entity deduplicated
+        // 2. Read snapshot and verify the explicit environment reference is shared.
         let snapshot = read_journal_snapshot(&journal_path).expect("read snapshot");
         assert!(snapshot.environment.is_some(), "Snapshot should have decoded environment");
         let snap_env = snapshot.environment.as_ref().unwrap();

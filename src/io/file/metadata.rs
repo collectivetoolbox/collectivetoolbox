@@ -793,8 +793,8 @@ pub struct FileMetadata {
     ///
     /// Wrapped in [`Arc`] to allow millions of file records to share a single
     /// environment description in memory with zero deduplication overhead.
-    #[serde(default, skip_serializing)]
-    #[dc(skip, reason = "Execution environment snapshot serialized at document level or shared across session")]
+    #[serde(default)]
+    #[dc(nested = 340, shared = "environment")]
     pub environment: Option<Arc<EnvDescription>>,
     /// Preserved AppleSingle / AppleDouble / Mac metadata.
     #[serde(default)]
@@ -1309,6 +1309,45 @@ mod tests {
     use super::*;
     use crate::*;
     use std::fs;
+
+    #[crate::ctb_test]
+    fn test_file_environment_serialization_context() -> Result<()> {
+        use ctb_formats_dcstring::{SharedJson, SharedValueContext};
+        let environment = Arc::new(EnvDescription {
+            os: "original-observation".to_owned(),
+            ..EnvDescription::default()
+        });
+        let mut entity = FileEntity::from_vec(b"environment".to_vec());
+        entity.metadata.environment = Some(Arc::clone(&environment));
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity)?;
+        let json = serde_json::to_value(&entity)?;
+        assert_eq!(json.pointer("/metadata/environment/os").and_then(serde_json::Value::as_str), Some("original-observation"));
+        assert_eq!(serde_json::from_value::<FileEntity>(json)?, entity);
+        let mut context = SharedValueContext::default();
+        context.insert("source.environment", Arc::clone(&environment))?;
+        let mut encoded = DcMst::new();
+        entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
+        let decoded = FileEntity::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        assert!(decoded.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
+        assert!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
+        let mut streamed = DcMst::new();
+        entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
+        assert_eq!(streamed, encoded);
+        let mut written = Vec::new();
+        entity.encode_to_writer_with_payload_and_context(&mut written, &mut source, &context)?;
+        assert_eq!(written, encoded.as_bytes());
+        let json = entity.metadata.encode_json_with_context(&context)?;
+        let decoded = FileMetadata::decode_json_with_context(json, &context)?;
+        assert!(decoded.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
+        entity.metadata.environment = Some(Arc::new(EnvDescription { os: "different-observation".to_owned(), ..EnvDescription::default() }));
+        let mut encoded = DcMst::new();
+        entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
+        assert_eq!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded))?, entity);
+        let empty = FileMetadata::empty();
+        assert_eq!(FileMetadata::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_native_metadata_and_raw_flags_dc_roundtrip() {

@@ -1,0 +1,236 @@
+//! Explicit bindings for values already stored by an enclosing document.
+
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+use crate::utilities::*;
+
+use std::any::Any;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+pub use serde_json;
+
+use crate::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
+
+/// Typed shared values whose definitions are persisted by the caller.
+#[derive(Clone, Default)]
+pub struct SharedValueContext {
+    bindings: BTreeMap<String, Arc<dyn Any + Send + Sync>>,
+}
+
+impl std::fmt::Debug for SharedValueContext {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_list().entries(self.bindings.keys()).finish()
+    }
+}
+
+impl SharedValueContext {
+    /// Reports whether an enclosing document supplied this binding.
+    #[must_use]
+    pub fn contains(&self, name: &str) -> bool {
+        self.bindings.contains_key(name)
+    }
+
+    /// Registers an externally persisted definition. Binding names are unique.
+    pub fn insert<T: Any + Send + Sync>(&mut self, name: impl Into<String>, value: Arc<T>) -> Result<()> {
+        let name = name.into();
+        ensure!(!name.is_empty(), "Shared binding names must not be empty");
+        ensure!(!self.bindings.contains_key(&name), "Duplicate shared binding {name:?}");
+        self.bindings.insert(name, Arc::new(value));
+        Ok(())
+    }
+
+    /// Finds a persisted definition with identical value and type.
+    pub fn binding_for<T: Any + Send + Sync + PartialEq>(&self, value: &Arc<T>) -> Option<&str> {
+        self.bindings.iter().find_map(|(name, binding)| {
+            let stored = binding.downcast_ref::<Arc<T>>()?;
+            if Arc::ptr_eq(stored, value) || stored == value {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Resolves a reference without recapturing or copying its definition.
+    pub fn resolve<T: Any + Send + Sync>(&self, name: &str) -> Result<Arc<T>> {
+        let binding = self.bindings.get(name).with_context(|| format!("Unresolved shared binding {name:?}"))?;
+        let value = binding.downcast_ref::<Arc<T>>().with_context(|| format!("Wrong type for shared binding {name:?}"))?;
+        Ok(Arc::clone(value))
+    }
+}
+
+/// Contextual JSON serialization generated for explicitly shared fields.
+pub trait SharedJson: Sized {
+    fn encode_json_with_context(&self, context: &SharedValueContext) -> Result<serde_json::Value>;
+    fn decode_json_with_context(value: serde_json::Value, context: &SharedValueContext) -> Result<Self>;
+}
+
+/// Encodes a shared JSON field using an unambiguous contextual envelope.
+pub fn shared_to_json<T>(value: &Arc<T>, context: &SharedValueContext) -> Result<serde_json::Value>
+where
+    T: Any + Send + Sync + PartialEq + serde::Serialize,
+{
+    let (key, payload) = if let Some(name) = context.binding_for(value) {
+        ("$dc_shared", serde_json::Value::String(name.to_owned()))
+    } else {
+        ("$dc_inline", serde_json::to_value(value)?)
+    };
+    Ok(serde_json::Value::Object(serde_json::Map::from_iter([(key.to_owned(), payload)])))
+}
+
+/// Decodes a contextual envelope, preserving registered Arc identity.
+pub fn shared_from_json<T>(value: serde_json::Value, context: &SharedValueContext) -> Result<Arc<T>>
+where
+    T: Any + Send + Sync + serde::de::DeserializeOwned,
+{
+    let serde_json::Value::Object(mut envelope) = value else { bail!("Expected shared-value envelope"); };
+    ensure!(envelope.len() == 1, "Invalid shared-value envelope");
+    if let Some(value) = envelope.remove("$dc_shared") {
+        let name = value.as_str().context("Shared binding must be a string")?;
+        context.resolve(name)
+    } else if let Some(value) = envelope.remove("$dc_inline") {
+        Ok(Arc::new(serde_json::from_value(value)?))
+    } else {
+        bail!("Unknown shared-value envelope");
+    }
+}
+
+/// Emits a nonempty Unicode identifier using Dc 270..271 framing.
+pub fn encode_identifier(mst: &mut DcMst, name: &str) -> Result<()> {
+    ensure!(!name.is_empty(), "Identifiers must not be empty");
+    mst.push_char(DcChar::from_short(270));
+    for character in name.chars() {
+        let character = DcChar::from_char(character);
+        if character == DcChar::from_short(255) || character == DcChar::from_short(271) {
+            mst.push_char(DcChar::from_short(255));
+        }
+        mst.push_char(character);
+    }
+    mst.push_char(DcChar::from_short(271));
+    Ok(())
+}
+
+/// Reads a Unicode identifier without interpreting its name as an expression.
+pub fn decode_identifier(reader: &mut DcMixedReader<'_>) -> Result<String> {
+    reader.expect_short_dc(270)?;
+    let mut name = String::new();
+    loop {
+        let mut character = reader.next_char()?;
+        if character == DcChar::from_short(271) {
+            ensure!(!name.is_empty(), "Identifiers must not be empty");
+            return Ok(name);
+        }
+        if character == DcChar::from_short(255) {
+            character = reader.next_char()?;
+        }
+        let codepoint = character.to_unicode().context("Expected Unicode binding name")?;
+        name.push(char::from_u32(codepoint).context("Invalid Unicode binding name")?);
+    }
+}
+
+/// Assigns a field from a lexically bound value using identifiers, not strings.
+pub fn encode_shared_reference(mst: &mut DcMst, field: &str, binding: &str) -> Result<()> {
+    mst.push_char(DcChar::from_short(269));
+    encode_identifier(mst, field)?;
+    mst.push_char(DcChar::from_short(540));
+    encode_identifier(mst, binding)
+}
+
+/// Reads an assignment whose value is a named reference.
+pub fn decode_shared_reference(reader: &mut DcMixedReader<'_>) -> Result<(String, String)> {
+    reader.expect_short_dc(269)?;
+    let field = decode_identifier(reader)?;
+    reader.expect_short_dc(540)?;
+    Ok((field, decode_identifier(reader)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, crate::DcMixed)]
+    #[dc(begin = 321, end = 322)]
+    struct Definition {
+        #[dc(333)]
+        value: u64,
+    }
+
+    #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, crate::DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SharedRecord {
+        #[dc(nested = 321, shared = "definition")]
+        definition: Option<Arc<Definition>>,
+    }
+
+    #[derive(Debug, PartialEq, Eq, crate::DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    struct NestedRecord {
+        #[dc(333)]
+        record: Box<SharedRecord>,
+    }
+
+    #[crate::ctb_test]
+    fn test_shared_attribute_roundtrip() -> Result<()> {
+        let definition = Arc::new(Definition { value: 42 });
+        let record = SharedRecord { definition: Some(Arc::clone(&definition)) };
+        crate::assert_dc_roundtrip(&record)?;
+        let mut context = SharedValueContext::default();
+        context.insert("source", Arc::clone(&definition))?;
+        let mut encoded = DcMst::new();
+        record.encode_dc_mixed_with_context(&mut encoded, &context)?;
+        let decoded = SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        let json = record.encode_json_with_context(&context)?;
+        let decoded = SharedRecord::decode_json_with_context(json.clone(), &context)?;
+        assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
+        assert!(SharedRecord::decode_json_with_context(json, &SharedValueContext::default()).is_err());
+        let empty = SharedRecord { definition: None };
+        assert_eq!(SharedRecord::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
+        let distinct = SharedRecord { definition: Some(Arc::new(Definition { value: 43 })) };
+        let mut inline = DcMst::new();
+        distinct.encode_dc_mixed_with_context(&mut inline, &context)?;
+        assert_eq!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&inline))?, distinct);
+        let nested = NestedRecord { record: Box::new(record) };
+        let mut encoded = DcMst::new();
+        nested.encode_dc_mixed_with_context(&mut encoded, &context)?;
+        let decoded = NestedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        assert!(decoded.record.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
+        let array = [nested.record];
+        let mut encoded = DcMst::new();
+        array.encode_dc_mixed_with_context(&mut encoded, &context)?;
+        let decoded = <[Box<SharedRecord>; 1]>::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        assert!(decoded.first().and_then(|record| record.definition.as_ref()).is_some_and(|value| Arc::ptr_eq(value, &definition)));
+        let mut duplicate = DcMst::new();
+        duplicate.push_char(DcChar::from_short(401));
+        encode_shared_reference(&mut duplicate, "definition", "source")?;
+        encode_shared_reference(&mut duplicate, "definition", "source")?;
+        duplicate.push_char(DcChar::from_short(402));
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&duplicate, &context)).is_err());
+        let mut unknown = DcMst::new();
+        unknown.push_char(DcChar::from_short(401));
+        encode_shared_reference(&mut unknown, "unknown", "source")?;
+        unknown.push_char(DcChar::from_short(402));
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&unknown, &context)).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_shared_context_and_json() -> Result<()> {
+        let original = Arc::new(42u64);
+        let mut context = SharedValueContext::default();
+        context.insert("source", Arc::clone(&original))?;
+        let encoded = shared_to_json(&original, &context)?;
+        assert_eq!(encoded.get("$dc_shared").and_then(serde_json::Value::as_str), Some("source"));
+        let decoded = shared_from_json::<u64>(encoded.clone(), &context)?;
+        assert!(Arc::ptr_eq(&original, &decoded));
+        assert!(shared_from_json::<u64>(encoded, &SharedValueContext::default()).is_err());
+        assert!(context.resolve::<String>("source").is_err());
+        assert!(context.insert("source", Arc::new(9u64)).is_err());
+        let distinct = Arc::new(43u64);
+        let encoded = shared_to_json(&distinct, &context)?;
+        assert_eq!(*shared_from_json::<u64>(encoded, &context)?, 43);
+        assert_eq!(context.binding_for(&Arc::new(42u64)), Some("source"));
+        Ok(())
+    }
+}

@@ -31,7 +31,7 @@ are committed before materializing each entry, so a strict metadata failure does
 not discard that entry's original metadata. This is incremental capture, not a
 preflight archive of the entire source tree.
 
-The journal's `CTBMETA1` preservation record retains:
+The journal's `CTBMETA2` preservation record retains:
 
 - Complete portable metadata, including birth time when reported by the OS,
   nanosecond timestamps, inspection time, ownership, mode, semantic flags, and
@@ -40,6 +40,19 @@ The journal's `CTBMETA1` preservation record retains:
   byte values, without converting them through display strings.
 - Complete discovered logical extent maps and each attached stream's original
   name, encoding, classification, descriptor, and payload bytes.
+
+Standalone file JSON and Dc serialization includes the captured environment.
+An explicit serialization context may replace a matching environment with a
+reference to a definition already stored in the journal header. References
+resolve to the shared Arc; missing definitions are errors. Different source
+environments remain inline, including those of attached streams, and an explicit
+unknown environment remains unknown. Recording or resuming a journal never
+replaces source provenance with the machine currently reading it.
+
+Readers still accept `CTBMETA1` records. Those older records inherited omitted
+environments from the session header. A legacy journal with no environment
+definition remains without one when resumed. Older readers do not support the
+new `CTBMETA2` records.
 
 Linux capture includes Unix stat fields, the requested `statx` fields and support
 masks, `FS_IOC_GETFLAGS`, and, where supported, `FS_IOC_FSGETXATTR` fields (including

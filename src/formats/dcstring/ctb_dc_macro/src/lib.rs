@@ -48,6 +48,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! including fields whose value is an explicitly encoded `Option`.
 //! `#[dc(names)]` selects explicit `#[dc(name = "...")]` enum names.
 //! Payload variants require boundaries and may use `binary`.
+//! `#[dc(nested = <id>, shared = "field-name")]` marks an Arc field as
+//! eligible for references to definitions in an explicit shared-value context.
+//! Ordinary encoding remains inline. Contextual JSON uses an explicit envelope.
 //!
 //! # Container Attributes (Structs)
 //!
@@ -141,12 +144,17 @@ struct FieldDcAttr {
     equivalents: Option<Vec<EquivalentItem>>,
     aliases: Vec<u128>,
     flatten: bool,
+    shared: Option<syn::LitStr>,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
+    extract_type_from_container(ty, "Option")
+}
+
+fn extract_type_from_container<'a>(ty: &'a syn::Type, name: &str) -> Option<&'a syn::Type> {
     if let syn::Type::Path(syn::TypePath { qself: None, path }) = ty {
         if let Some(segment) = path.segments.last() {
-            if segment.ident == "Option" {
+            if segment.ident == name {
                 if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                     if let Some(syn::GenericArgument::Type(inner_ty)) = args.args.first() {
                         return Some(inner_ty);
@@ -335,6 +343,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut equivalents = None;
     let mut aliases = Vec::new();
     let mut flatten = false;
+    let mut shared = None;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -361,6 +370,9 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                         stream.parse::<syn::Token![=]>()?;
                         let key = ident.to_string();
                         match key.as_str() {
+                            "shared" => {
+                                shared = Some(stream.parse::<syn::LitStr>()?);
+                            }
                             "short" => {
                                 let expr: Expr = stream.parse()?;
                                 tag = Some(parse_dc_expr(&expr)?);
@@ -523,6 +535,16 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         ));
     }
 
+    if let Some(name) = &shared {
+        let value_ty = extract_type_from_option(&field.ty).unwrap_or(&field.ty);
+        if name.value().is_empty() || extract_type_from_container(value_ty, "Arc").is_none()
+            || nested.is_empty() || skip || binary || flatten || tag.is_some()
+            || begin.is_some() || end.is_some() || equivalents.is_some() || omit_default
+        {
+            return Err(syn::Error::new(field.span(), "shared requires a nonempty name and a nested Arc<T> or Option<Arc<T>> field"));
+        }
+    }
+
     if let (Some(b), Some(e)) = (begin, end) {
         if b == e {
             return Err(syn::Error::new(
@@ -562,6 +584,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         equivalents,
         aliases,
         flatten,
+        shared,
     })
 }
 
@@ -657,9 +680,9 @@ fn expand_named_representation(
                 };
                 encode_parts.push(quote! {
                     #separator
-                    #crate_root::DcMixedEncode::encode_dc_mixed(#key, mst)?;
+                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#key, mst, context)?;
                     mst.push_char(#crate_root::DcChar::from_short(312));
-                    #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                 });
                 field_inits.push(quote! {
                     let mut #field_ident: ::std::option::Option<#field_ty> = None;
@@ -735,7 +758,7 @@ fn expand_named_representation(
                 }
                 match &variant.fields {
                     Fields::Unit if !binary => {
-                        encode_parts.push(quote! { Self::#variant_ident => #crate_root::DcMixedEncode::encode_dc_mixed(#name, mst)?, });
+                        encode_parts.push(quote! { Self::#variant_ident => #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#name, mst, context)?, });
                         decode_parts.push(quote! { #name => Self::#variant_ident, });
                     }
                     Fields::Unnamed(fields) if fields.unnamed.len() == 1 && begin.is_some() => {
@@ -746,12 +769,12 @@ fn expand_named_representation(
                              quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?)
                                 .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))? })
                         } else {
-                            (quote! { #crate_root::DcMixedEncode::encode_dc_mixed(value, mst)?; },
+                            (quote! { #crate_root::DcMixedEncode::encode_dc_mixed_with_context(value, mst, context)?; },
                              quote! { <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)? })
                         };
                         encode_parts.push(quote! {
                             Self::#variant_ident(value) => {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(#name, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#name, mst, context)?;
                                 #payload_separator
                                 #encode_value
                             }
@@ -791,6 +814,10 @@ fn expand_named_representation(
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
             fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                        let _ = context;
                 #encode_body
                 Ok(())
             }
@@ -886,6 +913,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                        let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             #(#encode_flag_fields)*
                             mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
@@ -938,6 +969,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut field_validations = Vec::new();
             let mut construct_fields = Vec::new();
 
+            let mut shared_decode_arms = Vec::new();
+            let mut json_encode_fields = Vec::new();
+            let mut json_decode_fields = Vec::new();
+            let mut json_restore_fields = Vec::new();
+            let mut shared_names = HashSet::new();
+
             for field in fields {
                 let Some(field_ident) = field.ident.as_ref() else {
                     return Err(syn::Error::new(field.span(), "Expected named field"));
@@ -958,7 +995,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     if is_vec {
                         encode_fields.push(quote! {
                             for item in &self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
                         field_inits.push(quote! {
@@ -998,7 +1035,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     } else {
                         encode_fields.push(quote! {
-                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
                         field_inits.push(quote! {
                             let mut #field_ident: ::std::option::Option<#field_ty> = ::std::option::Option::None;
@@ -1065,7 +1102,61 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let type_str = quote!(#field_ty).to_string();
                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
 
-                if let Some(ref eq_items) = attr.equivalents {
+                if let Some(ref shared_name) = attr.shared {
+                    if !shared_names.insert(shared_name.value()) {
+                        return Err(syn::Error::new(shared_name.span(), "Duplicate shared field name"));
+                    }
+                    let optional = extract_type_from_option(field_ty).is_some();
+                    let arc_ty = extract_type_from_option(field_ty).unwrap_or(field_ty);
+                    let value_ty = extract_type_from_container(arc_ty, "Arc").ok_or_else(|| syn::Error::new(field.span(), "Expected Arc"))?;
+                    let nested_ids = &attr.nested;
+                    let encode_value = quote! {
+                        if let Some(binding) = context.binding_for(item) {
+                            #crate_root::shared::encode_shared_reference(mst, #shared_name, binding)?;
+                        } else {
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
+                        }
+                    };
+                    let decoded_inline = quote! { <#arc_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)? };
+                    let decoded_reference = quote! { reader.resolve_shared::<#value_ty>(&binding)? };
+                    let (encode, inline, reference, encode_json, decode_json, restore_json) = if optional {
+                        (quote! { if let Some(item) = &self.#field_ident { #encode_value } },
+                         quote! { Some(#decoded_inline) }, quote! { Some(#decoded_reference) },
+                         quote! { if let Some(item) = &self.#field_ident { #crate_root::shared::shared_to_json(item, context)? } else { #crate_root::shared::serde_json::Value::Null } },
+                         quote! { if field_value.is_null() { None } else { Some(#crate_root::shared::shared_from_json::<#value_ty>(field_value, context)?) } },
+                         quote! { if let Some(item) = &#field_ident { #crate_root::shared::serde_json::to_value(item)? } else { #crate_root::shared::serde_json::Value::Null } })
+                    } else {
+                        (quote! { let item = &self.#field_ident; #encode_value },
+                         decoded_inline, decoded_reference,
+                         quote! { #crate_root::shared::shared_to_json(&self.#field_ident, context)? },
+                         quote! { #crate_root::shared::shared_from_json::<#value_ty>(field_value, context)? },
+                         quote! { #crate_root::shared::serde_json::to_value(&#field_ident)? })
+                    };
+                    encode_fields.push(encode);
+                    decode_arms.push(quote! {
+                        #(#nested_ids)|* => {
+                            #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
+                            #field_ident = Some(#inline);
+                        }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#nested_ids)|* => { self.#field_ident = #inline; Ok(true) }
+                    });
+                    shared_decode_arms.push(quote! {
+                        #shared_name => {
+                            #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
+                            #field_ident = Some(#reference);
+                        }
+                    });
+                    let json_key = field_ident.to_string();
+                    json_encode_fields.push(quote! { object.insert(#json_key.to_owned(), #encode_json); });
+                    json_decode_fields.push(quote! {
+                        let field_value = object.remove(#json_key).ok_or_else(|| #anyhow_path::anyhow!("Missing contextual field {}", #json_key))?;
+                        let #field_ident: #field_ty = #decode_json;
+                        object.insert(#json_key.to_owned(), #restore_json);
+                    });
+                    json_restore_fields.push(quote! { decoded.#field_ident = #field_ident; });
+                } else if let Some(ref eq_items) = attr.equivalents {
                     let mut eq_encoders = Vec::new();
                     for item in eq_items {
                         match item {
@@ -1076,7 +1167,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                             EquivalentItem::Dc(_) => {
                                 eq_encoders.push(quote! {
-                                    #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                                 });
                             }
                         }
@@ -1235,7 +1326,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let encode_stmt = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                             for item in &self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                             mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                         };
@@ -1279,7 +1370,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                 mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                             }
                         });
@@ -1303,7 +1394,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else {
                         let encode_stmt = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                             mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                         };
                         if attr.omit_default {
@@ -1338,7 +1429,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     if is_vec {
                         encode_fields.push(quote! {
                             for item in &self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
                         decode_arms.push(quote! {
@@ -1357,7 +1448,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
                         decode_arms.push(quote! {
@@ -1375,7 +1466,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     } else {
                         encode_fields.push(quote! {
-                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
                         decode_arms.push(quote! {
                             #(#nested_ids)|* => {
@@ -1395,7 +1486,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     let encode_stmt = quote! {
                         for item in &self.#field_ident {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
-                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                         }
                     };
                     if attr.omit_default {
@@ -1425,7 +1516,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 } else {
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
-                        #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                     };
                     if attr.omit_default {
                         encode_fields.push(quote! {
@@ -1500,12 +1591,47 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 });
             }
 
+            let shared_decode = if shared_decode_arms.is_empty() { None } else {
+                Some(quote! {
+                    1114381 => {
+                        let (field, binding) = #crate_root::shared::decode_shared_reference(reader)?;
+                        match field.as_str() {
+                            #(#shared_decode_arms)*
+                            _ => #anyhow_path::bail!("Unknown shared field {:?}", field),
+                        }
+                    }
+                })
+            };
+            let shared_json_impl = if json_encode_fields.is_empty() { None } else {
+                Some(quote! {
+                    impl #impl_generics #crate_root::SharedJson for #type_name #ty_generics #where_clause {
+                        fn encode_json_with_context(&self, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<#crate_root::shared::serde_json::Value> {
+                            let mut value = #crate_root::shared::serde_json::to_value(self)?;
+                            let object = value.as_object_mut().ok_or_else(|| #anyhow_path::anyhow!("Expected JSON object"))?;
+                            #(#json_encode_fields)*
+                            Ok(value)
+                        }
+                        fn decode_json_with_context(mut value: #crate_root::shared::serde_json::Value, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<Self> {
+                            let object = value.as_object_mut().ok_or_else(|| #anyhow_path::anyhow!("Expected JSON object"))?;
+                            #(#json_decode_fields)*
+                            let mut decoded: Self = #crate_root::shared::serde_json::from_value(value)?;
+                            #(#json_restore_fields)*
+                            Ok(decoded)
+                        }
+                    }
+                })
+            };
+
             Ok(quote! {
+                #shared_json_impl
                 #[automatically_derived]
                 impl #impl_generics #type_name #ty_generics #where_clause {
                     /// Encodes the fields of this struct without boundary delimiters.
                     #[allow(dead_code)]
                     pub fn encode_fields(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_fields_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         #(#encode_fields)*
                         Ok(())
                     }
@@ -1526,8 +1652,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                     fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                        let _ = context;
                         mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
-                        self.encode_fields(mst)?;
+                        self.encode_fields_with_context(mst, context)?;
                         mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                         Ok(())
                     }
@@ -1553,6 +1683,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 break;
                             }
                             match tag {
+                                #shared_decode
                                 #(#decode_arms)*
                                 other => {
                                     #anyhow_path::bail!(
@@ -1707,7 +1838,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 Self::#variant_ident(#(#field_names),*) => {
                                     mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
                                     #(
-                                        #crate_root::DcMixedEncode::encode_dc_mixed(#field_names, mst)?;
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#field_names, mst, context)?;
                                     )*
                                 }
                             });
@@ -1786,7 +1917,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     encode_fields.push(quote! {
                                         mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                         for item in #f_ident {
-                                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                         }
                                         mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                     });
@@ -1805,7 +1936,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     encode_fields.push(quote! {
                                         if let ::std::option::Option::Some(ref item) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                             mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                         }
                                     });
@@ -1822,7 +1953,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 } else {
                                     encode_fields.push(quote! {
                                         mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                        #crate_root::DcMixedEncode::encode_dc_mixed(#f_ident, mst)?;
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
                                         mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                     });
                                     decode_fields.push(quote! {
@@ -1838,7 +1969,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 if is_vec {
                                     encode_fields.push(quote! {
                                         for item in #f_ident {
-                                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                         }
                                     });
                                     decode_fields.push(quote! {
@@ -1850,7 +1981,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 } else if let Some(inner_ty) = extract_type_from_option(f_ty) {
                                     encode_fields.push(quote! {
                                         if let ::std::option::Option::Some(ref item) = #f_ident {
-                                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                         }
                                     });
                                     decode_fields.push(quote! {
@@ -1862,7 +1993,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     });
                                 } else {
                                     encode_fields.push(quote! {
-                                        #crate_root::DcMixedEncode::encode_dc_mixed(#f_ident, mst)?;
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
                                     });
                                     decode_fields.push(quote! {
                                         let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
@@ -1871,7 +2002,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             } else {
                                 encode_fields.push(quote! {
                                     mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                    #crate_root::DcMixedEncode::encode_dc_mixed(#f_ident, mst)?;
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
                                 });
                                 decode_fields.push(quote! {
                                     reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
@@ -1908,6 +2039,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                        let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             match self {
                                 #(#encode_variants)*
@@ -1950,6 +2085,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMst, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                        let _ = context;
                             match self {
                                 #(#encode_variants)*
                             }

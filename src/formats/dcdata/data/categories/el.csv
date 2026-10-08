@@ -48,3 +48,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114428,316,Optional value absent,0,BN,,!Cx,.EL Syntax,"@ident(""OptionalAbsent"")",Indicates an optional value is absent.
 1114626,514,Key-value pair (tuple),0,BN,,!Cx,.EL Syntax,:~ [^(515 | 312)]+ 312 [^(515 | 312)]+,
 1114627,515,End key-value pair,0,BN,,!Cx,.EL Syntax,,
+1114652,540,Reference bound value,0,BN,,!Cx,.EL Syntax,:~ [identifier],References a value declared by Dc 269 in the current or nearest enclosing identifier scope. The identifier is name data; evaluating the reference resolves its value. Quoting the reference does not perform lookup.
+1114653,541,Enter identifier scope,0,BN,,!Cx,.EL Syntax,:~ [^542]* 542,Enters a lexical identifier scope. Inner Dc 269 declarations shadow outer declarations of the same name and may produce warnings. Declarations last only until scope exit and never cross document boundaries by default.
+1114654,542,Exit identifier scope,0,BN,,!Cx,.EL Syntax,,Exits the innermost identifier scope and discards its declarations. Outer declarations become visible again. All document-local declarations expire at the end of the document.

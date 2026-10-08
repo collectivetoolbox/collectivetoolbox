@@ -3131,6 +3131,8 @@ dependencies = [
  "ctb-storage-minimal",
  "ctb-utilities",
  "malachite",
+ "serde",
+ "serde_json",
  "sha2 0.10.9",
  "tempfile",
 ]
@@ -3742,6 +3744,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "ctb-formats-checksum",
+ "ctb-formats-dcstring",
  "ctb-formats-string",
  "ctb-formats-text-extraction",
  "ctb-formats-time",
