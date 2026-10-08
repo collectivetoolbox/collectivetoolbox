@@ -1573,6 +1573,32 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_environment_source_preserving_edit() -> Result<()> {
+        use ctb_formats_dcstring::{DcChar, DcMixedFields, DcMstring};
+        let original = EnvDescription { os: "original".to_owned(), ..EnvDescription::default() };
+        let updated = EnvDescription { os: "revised".to_owned(), ..EnvDescription::default() };
+        let mut source = DcMstring::new();
+        source.push_char(DcChar::from_short(340));
+        original.encode_dc_field("os", &mut source)?;
+        let suffix_start = source.len();
+        source.push_char(DcChar::from_short(600));
+        source.push_binary_with_sha256(b"future environment field");
+        source.push_char(DcChar::from_short(341));
+        let view = source.inspect::<EnvDescription>();
+        assert!(view.value().is_none());
+        assert!(view.diagnostic().is_some());
+        let revised = view.replace_field("os", &updated)?;
+        let revised_view = revised.inspect::<EnvDescription>();
+        let revised_field = revised_view.fields().first().context("Missing revised environment field")?;
+        assert_eq!(revised.as_bytes().get(revised_field.range().end..), source.as_bytes().get(suffix_start..));
+        assert_eq!(view.source_bytes(), source.as_bytes());
+        let text = source.to_dc_string()?;
+        let revised = text.inspect::<EnvDescription>().replace_field("os", &updated)?;
+        assert!(revised.inspect::<EnvDescription>().diagnostic().is_some());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_env_description_roundtrip() -> Result<()> {
         let env = EnvDescription {
             os: "linux".to_string(),

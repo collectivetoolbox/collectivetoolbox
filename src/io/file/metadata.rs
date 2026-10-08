@@ -1327,9 +1327,9 @@ mod tests {
         context.insert("source.environment", Arc::clone(&environment))?;
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = FileEntity::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        let decoded = encoded.decode_with_context::<FileEntity>(&context)?;
         assert!(decoded.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
-        assert!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        assert!(encoded.decode::<FileEntity>().is_err());
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
         entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
@@ -1350,9 +1350,41 @@ mod tests {
         entity.metadata.environment = Some(Arc::new(EnvDescription { os: "different-observation".to_owned(), ..EnvDescription::default() }));
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        assert_eq!(FileEntity::decode_dc_mixed(&mut DcMixedReader::new(&encoded))?, entity);
+        assert_eq!(encoded.decode::<FileEntity>()?, entity);
         let empty = FileMetadata::empty();
         assert_eq!(FileMetadata::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_metadata_source_preserving_environment_edit() -> Result<()> {
+        use ctb_formats_dcstring::{DcMixedFields, SharedValueContext};
+        let original_environment = Arc::new(EnvDescription { os: "original".to_owned(), ..EnvDescription::default() });
+        let revised_environment = Arc::new(EnvDescription { os: "revised".to_owned(), ..EnvDescription::default() });
+        let mut original = FileMetadata::empty();
+        original.environment = Some(Arc::clone(&original_environment));
+        let mut updated = original.clone();
+        updated.environment = Some(Arc::clone(&revised_environment));
+        let mut context = SharedValueContext::default();
+        context.insert("original.environment", Arc::clone(&original_environment))?;
+        let mut source = DcMstring::new();
+        source.push_char(DcChar::from_short(321));
+        original.encode_dc_field("environment", &mut source)?;
+        let suffix_start = source.len();
+        source.push_char(DcChar::from_short(600));
+        source.push_binary_with_sha256(b"future metadata");
+        source.push_char(DcChar::from_short(322));
+        let view = source.inspect::<FileMetadata>();
+        assert!(view.diagnostic().is_some());
+        let revised = view.replace_field("environment", &updated)?;
+        let revised_view = revised.inspect::<FileMetadata>();
+        let field = revised_view.fields().iter().find(|field| field.depth() == 1 && field.field() == "environment").context("Missing environment annotation")?;
+        assert_eq!(revised.as_bytes().get(field.range().end..), source.as_bytes().get(suffix_start..));
+        let mut source = DcMstring::new();
+        original.encode_dc_mixed_with_context(&mut source, &context)?;
+        let revised = source.inspect_with_context::<FileMetadata>(&context).replace_field("environment", &updated)?;
+        assert_eq!(revised.decode::<FileMetadata>()?, updated);
+        assert!(Arc::ptr_eq(&context.resolve::<EnvDescription>("original.environment")?, &original_environment));
         Ok(())
     }
 

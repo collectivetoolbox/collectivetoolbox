@@ -35,6 +35,7 @@ pub mod dc_char;
 pub mod dc_mixed;
 pub mod dc_mixed_serde;
 pub mod dc_number;
+pub mod dc_source;
 pub mod dc_str;
 pub mod dcstring_impl;
 pub mod error;
@@ -53,6 +54,7 @@ pub use dc_mixed_serde::{
     assert_dc_roundtrip,
 };
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
+pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use shared::{SharedJson, SharedValueContext};

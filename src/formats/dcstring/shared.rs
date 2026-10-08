@@ -264,6 +264,29 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_source_shared_reference_edits() -> Result<()> {
+        let definition = Arc::new(Definition { value: 42 });
+        let record = SharedRecord { definition: Some(Arc::clone(&definition)) };
+        let updated = SharedRecord { definition: Some(Arc::new(Definition { value: 999 })) };
+        let mut context = SharedValueContext::default();
+        context.insert("source", Arc::clone(&definition))?;
+        let mut source = DcMstring::new();
+        record.encode_dc_mixed_with_context(&mut source, &context)?;
+        assert!(source.inspect::<SharedRecord>().diagnostic().is_some());
+        let view = source.inspect_with_context::<SharedRecord>(&context);
+        assert!(view.diagnostic().is_none());
+        assert_eq!(view.fields().len(), 1);
+        let revised = view.replace_field("definition", &updated)?;
+        assert_eq!(revised.decode::<SharedRecord>()?, updated);
+        let text = source.to_dc_string()?;
+        assert_eq!(text.decode_with_context::<SharedRecord>(&context)?, record);
+        let revised = text.inspect_with_context::<SharedRecord>(&context).replace_field("definition", &updated)?;
+        assert_eq!(revised.decode::<SharedRecord>()?, updated);
+        assert!(Arc::ptr_eq(&context.resolve::<Definition>("source")?, &definition));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_lexical_reference_scopes() -> Result<()> {
         let outer = Arc::new(Definition { value: 42 });
         let inner = Arc::new(Definition { value: 43 });

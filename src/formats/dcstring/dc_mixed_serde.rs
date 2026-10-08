@@ -31,6 +31,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 use anyhow::anyhow;
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::{self, Write as _};
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -50,6 +51,18 @@ use crate::{DcChar, DcChars};
 
 /// Trait for types that can be serialized into a `DcMixed` buffer (`DcMstring`).
 pub trait DcMixedEncode {
+    /// Encodes a new mixed-mode string, not a preserved source string.
+    fn to_dc_mixed(&self) -> Result<DcMstring> {
+        let mut source = DcMstring::new();
+        self.encode_dc_mixed(&mut source)?;
+        Ok(source)
+    }
+
+    /// Encodes a new DcUtf string, explicitly converting any encapsulations.
+    fn to_dc_string(&self) -> Result<crate::DcString> {
+        self.to_dc_mixed()?.to_dc_string()
+    }
+
     /// Serializes this instance into the given `DcMstring` buffer.
     ///
     /// # Errors
@@ -70,6 +83,30 @@ pub trait DcMixedDecode: Sized {
     /// Returns an error if unexpected characters, malformed data, or missing
     /// required fields are encountered.
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self>;
+}
+
+impl crate::DcMstr {
+    /// Interprets the entire string as a typed value without changing source.
+    ///
+    /// # Errors
+    /// Returns an error on unsupported syntax, missing fields, or trailing data.
+    pub fn decode<T: DcMixedDecode>(&self) -> Result<T> {
+        let mut reader = DcMixedReader::new(self);
+        let value = T::decode_dc_mixed(&mut reader)?;
+        ensure!(reader.peek_char()?.is_none(), "Trailing content after typed Dc value");
+        Ok(value)
+    }
+
+    /// Interprets the whole string with explicitly supplied outer bindings.
+    ///
+    /// # Errors
+    /// Returns an error if interpretation fails or trailing content remains.
+    pub fn decode_with_context<T: DcMixedDecode>(&self, context: &crate::SharedValueContext) -> Result<T> {
+        let mut reader = DcMixedReader::with_context(self, context);
+        let value = T::decode_dc_mixed(&mut reader)?;
+        ensure!(reader.peek_char()?.is_none(), "Trailing content after typed Dc value");
+        Ok(value)
+    }
 }
 
 /// Trait for types that can convert to and from a numeric Dc representation.
@@ -166,6 +203,14 @@ impl DcMixedDecode for BinaryPayload {
 #[derive(Clone, Debug)]
 pub struct DcMixedReader<'a> {
     chunks: DcMixedChunks<'a>,
+    source_len: usize,
+    position: usize,
+    text_end: usize,
+    peeked_start: usize,
+    peeked_end: usize,
+    pub(crate) annotations: Vec<crate::DcFieldAnnotation>,
+    pub(crate) annotating: bool,
+    record_depth: usize,
     current_text: Option<DcChars<'a>>,
     peeked_char: Option<DcChar>,
     peeked_binary: Option<&'a [u8]>,
@@ -179,11 +224,74 @@ impl<'a> DcMixedReader<'a> {
     pub fn new(mstr: &'a DcMstr) -> Self {
         Self {
             chunks: mstr.chunks(),
+            source_len: mstr.len(),
+            position: crate::dc_mixed::DCMX_HEADER_LEN,
+            text_end: crate::dc_mixed::DCMX_HEADER_LEN,
+            peeked_start: crate::dc_mixed::DCMX_HEADER_LEN,
+            peeked_end: crate::dc_mixed::DCMX_HEADER_LEN,
+            annotations: Vec::new(),
+            annotating: false,
+            record_depth: 0,
             current_text: None,
             peeked_char: None,
             peeked_binary: None,
             shared_context: None,
             reference_scope: crate::SharedValueContext::default(),
+        }
+    }
+
+    /// Creates a reader over DcUtf without converting or copying the source.
+    #[must_use]
+    pub fn from_dc_str(source: &'a crate::DcStr) -> Self {
+        Self {
+            chunks: DcMixedChunks { slice: &[] },
+            source_len: source.len(),
+            position: 0,
+            text_end: source.len(),
+            peeked_start: 0,
+            peeked_end: 0,
+            annotations: Vec::new(),
+            annotating: false,
+            record_depth: 0,
+            current_text: Some(source.chars()),
+            peeked_char: None,
+            peeked_binary: None,
+            shared_context: None,
+            reference_scope: crate::SharedValueContext::default(),
+        }
+    }
+
+    /// Returns the next source-byte position; peeking does not consume bytes.
+    #[must_use]
+    pub const fn position(&self) -> usize {
+        if self.peeked_char.is_some() || self.peeked_binary.is_some() {
+            self.peeked_start
+        } else {
+            self.position
+        }
+    }
+
+    /// Creates a DcUtf reader with explicitly supplied outer bindings.
+    #[must_use]
+    pub fn from_dc_str_with_context(source: &'a crate::DcStr, context: &'a crate::SharedValueContext) -> Self {
+        Self { shared_context: Some(context), ..Self::from_dc_str(source) }
+    }
+
+    #[doc(hidden)]
+    pub fn enter_record(&mut self) {
+        self.record_depth = self.record_depth.saturating_add(1);
+    }
+
+    #[doc(hidden)]
+    pub fn leave_record(&mut self) {
+        self.record_depth = self.record_depth.saturating_sub(1);
+    }
+
+    #[doc(hidden)]
+    pub fn annotate_field(&mut self, owner: &'static str, field: &'static str, start: usize) {
+        let end = self.position;
+        if self.annotating {
+            self.annotations.push(crate::DcFieldAnnotation::new(owner, field, start..end, self.record_depth));
         }
     }
 
@@ -239,22 +347,32 @@ impl<'a> DcMixedReader<'a> {
 
         loop {
             if let Some(text) = &mut self.current_text {
+                let start = self.text_end.saturating_sub(text.slice.len());
                 if let Some(ch) = text.next() {
+                    self.peeked_start = start;
+                    self.peeked_end = self.text_end.saturating_sub(text.slice.len());
                     self.peeked_char = Some(ch);
                     return Ok(Some(ch));
                 }
                 self.current_text = None;
             }
 
-            match self.chunks.next() {
+                let start = self.source_len.saturating_sub(self.chunks.slice.len());
+                let chunk = self.chunks.next();
+                let end = self.source_len.saturating_sub(self.chunks.slice.len());
+                match chunk {
                 Some(DcMixed::Text(s)) => {
+                    self.text_end = end;
                     self.current_text = Some(s.chars());
                 }
                 Some(DcMixed::Binary { data, .. }) => {
+                    self.peeked_start = start;
+                    self.peeked_end = end;
                     self.peeked_binary = Some(data);
                     return Ok(Some(DC_START_ENCAPSULATION_BINARY));
                 }
                 Some(DcMixed::DcUtf { data, .. }) => {
+                    self.text_end = end;
                     self.current_text = Some(data.chars());
                 }
                 None => return Ok(None),
@@ -283,6 +401,7 @@ impl<'a> DcMixedReader<'a> {
             bail!("Encountered encapsulated binary chunk where text DcChar was expected");
         }
         self.peeked_char = None;
+        self.position = self.peeked_end;
         Ok(ch)
     }
 
@@ -343,40 +462,30 @@ impl<'a> DcMixedReader<'a> {
         self.expect_char(end)
     }
 
-    /// Consumes and returns the next binary encapsulated payload.
+    /// Reads direct or textual binary encapsulation in source coordinates.
+    /// Direct mixed-mode payloads are borrowed; DcUtf base64 is decoded once.
     ///
     /// # Errors
     /// Returns an error if the next element is not an encapsulated binary payload.
-    pub fn read_binary_payload(&mut self) -> Result<&'a [u8]> {
+    pub fn read_binary_payload(&mut self) -> Result<Cow<'a, [u8]>> {
+        self.peek_char()?;
         if let Some(data) = self.peeked_binary.take() {
-            return Ok(data);
+            self.position = self.peeked_end;
+            return Ok(Cow::Borrowed(data));
         }
-
-        // If there's an active text slice, ensure it's exhausted
-        if let Some(text) = &mut self.current_text {
-            if text.next().is_some() {
-                bail!("Expected binary encapsulation, but text was pending in stream");
+        ensure!(self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY), "Expected binary encapsulation");
+        self.next_char()?;
+        let mut shorts = Vec::new();
+        loop {
+            let ch = self.next_char().context("Incomplete textual binary encapsulation")?;
+            if ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
+                break;
             }
-            self.current_text = None;
+            let short = ch.to_short()?;
+            ensure!(ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short), "Expected base64 Dc in binary encapsulation");
+            shorts.push(short);
         }
-
-        while let Some(chunk) = self.chunks.next() {
-            match chunk {
-                DcMixed::Binary { data, .. } => return Ok(data),
-                DcMixed::Text(s) => {
-                    let mut it = s.chars();
-                    if it.next().is_some() {
-                        self.current_text = Some(it);
-                        bail!("Expected binary encapsulation, found text");
-                    }
-                }
-                DcMixed::DcUtf { .. } => {
-                    bail!("Expected binary encapsulation, found DcUtf payload");
-                }
-            }
-        }
-
-        bail!("Unexpected end of stream while waiting for binary payload")
+        Ok(Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?))
     }
 
     /// Reads a string literal enclosed between `Dc 260` and `Dc 261`.
@@ -913,11 +1022,11 @@ impl DcMixedDecode for PathBuf {
                     #[cfg(unix)]
                     {
                         use std::os::unix::ffi::OsStrExt;
-                        resolved_path = Some(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)));
+                        resolved_path = Some(PathBuf::from(std::ffi::OsStr::from_bytes(bytes.as_ref())));
                     }
                     #[cfg(not(unix))]
                     {
-                        let s = String::from_utf8_lossy(bytes);
+                        let s = String::from_utf8_lossy(bytes.as_ref());
                         if resolved_path.is_none() {
                             resolved_path = Some(PathBuf::from(s.into_owned()));
                         }
@@ -936,11 +1045,11 @@ impl DcMixedDecode for PathBuf {
             #[cfg(unix)]
             {
                 use std::os::unix::ffi::OsStrExt;
-                Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)))
+                Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes.as_ref())))
             }
             #[cfg(not(unix))]
             {
-                let s = String::from_utf8_lossy(bytes);
+                let s = String::from_utf8_lossy(bytes.as_ref());
                 Ok(PathBuf::from(s.into_owned()))
             }
         } else {
@@ -1056,8 +1165,217 @@ where
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+        #[crate::ctb_test]
+        fn test_whole_string_decode_preserves_source() -> Result<()> {
+            let mut source = 42_u64.to_dc_mixed()?;
+            let original = source.clone();
+            assert_eq!(source.decode::<u64>()?, 42);
+            assert_eq!(source, original);
+            source.push_str("unknown suffix");
+            let original = source.clone();
+            assert!(source.decode::<u64>().is_err());
+            assert_eq!(source, original);
+            source.push_binary(b"suffix");
+            assert!(source.decode::<u64>().is_err());
+            Ok(())
+        }
     use super::*;
     use crate::DcMixed;
+    use crate::{DcMixedFields, DcSource};
+
+    fn sample_source_record(inode: u64) -> SampleFileRecord {
+        SampleFileRecord { inode, path: "path".to_owned(), is_directory: false, optional_size: Some(42) }
+    }
+
+    #[crate::ctb_test]
+    fn test_source_inspection_unknown_and_incomplete() -> Result<()> {
+        let original = sample_source_record(42);
+        let updated = sample_source_record(999);
+        for unknown in [false, true] {
+            let mut source = DcMstring::new();
+            source.push_char(DcChar::from_short(317));
+            original.encode_dc_field("inode", &mut source)?;
+            let stop = source.len();
+            if unknown {
+                source.push_char(DcChar::from_short(600));
+                source.push_binary_with_sha256(b"unknown future syntax");
+                original.encode_dc_field("path", &mut source)?;
+                source.push_char(DcChar::from_short(318));
+            }
+            let before = source.clone();
+            let view = source.inspect::<SampleFileRecord>();
+            assert!(view.value().is_none());
+            assert_eq!(view.diagnostic().context("Missing diagnostic")?.position(), stop);
+            assert_eq!(view.fields().len(), 1);
+            assert_eq!(view.fields()[0].field(), "inode");
+            assert_eq!(view.source_bytes(), source.as_bytes());
+            assert!(view.replace_field("path", &updated).is_err());
+            let revised = view.replace_field("inode", &updated)?;
+            let replacement_end = revised.inspect::<SampleFileRecord>().fields()[0].range().end;
+            assert_eq!(revised.as_bytes().get(replacement_end..), source.as_bytes().get(stop..));
+            assert_eq!(source, before);
+            let text = source.to_dc_string()?;
+            let view = text.inspect::<SampleFileRecord>();
+            let revised: crate::DcString = view.replace_field("inode", &updated)?;
+            assert_eq!(revised.inspect::<SampleFileRecord>().fields()[0].range().start, 6);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_source_inspection_complete_and_trailing() -> Result<()> {
+        let original = sample_source_record(42);
+        let updated = sample_source_record(999);
+        let mut source = original.to_dc_mixed()?;
+        let view = source.inspect::<SampleFileRecord>();
+        assert_eq!(view.value(), Some(&original));
+        assert!(view.diagnostic().is_none());
+        assert_eq!(view.fields().len(), 4);
+        let revised = view.replace_field("inode", &updated)?;
+        assert_eq!(revised.decode::<SampleFileRecord>()?, updated);
+        let text = original.to_dc_string()?;
+        assert_eq!(text.decode::<SampleFileRecord>()?, original);
+        let revised: crate::DcString = text.inspect::<SampleFileRecord>().replace_field("inode", &updated)?;
+        assert_eq!(revised.decode::<SampleFileRecord>()?, updated);
+        source.push_binary(b"unknown suffix");
+        let view = source.inspect::<SampleFileRecord>();
+        assert_eq!(view.value(), Some(&original));
+        assert!(view.diagnostic().is_some());
+        assert!(source.decode::<SampleFileRecord>().is_err());
+        let revised = view.replace_field("inode", &updated)?;
+        assert_eq!(revised.chunks().last(), source.chunks().last());
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SourceBinaryRecord {
+        #[dc(short = 403)]
+        title: String,
+        #[dc(short = 404, binary)]
+        bytes: Vec<u8>,
+    }
+
+    #[crate::ctb_test]
+    fn test_source_inspection_binary_and_encapsulation_boundaries() -> Result<()> {
+        let original = SourceBinaryRecord { title: "\u{e9}".to_owned(), bytes: vec![0, 255, 42] };
+        let updated = SourceBinaryRecord { title: "updated".to_owned(), bytes: vec![43] };
+        let source = original.to_dc_mixed()?;
+        let view = source.inspect::<SourceBinaryRecord>();
+        let revised = view.replace_field("bytes", &updated)?;
+        let decoded = revised.decode::<SourceBinaryRecord>()?;
+        assert_eq!(decoded.title, original.title);
+        assert_eq!(decoded.bytes, updated.bytes);
+        let text = original.to_dc_string()?;
+        assert_eq!(text.decode::<SourceBinaryRecord>()?, original);
+        let revised_text = text.inspect::<SourceBinaryRecord>().replace_field("bytes", &updated)?;
+        assert_eq!(revised_text.decode::<SourceBinaryRecord>()?.bytes, updated.bytes);
+        let field = view.fields().iter().find(|field| field.field() == "bytes").context("Missing binary field")?;
+        let prefix_end = field.range().start;
+        assert_eq!(revised.as_bytes().get(..prefix_end), source.as_bytes().get(..prefix_end));
+        let text = sample_source_record(42).to_dc_string()?;
+        for checksummed in [false, true] {
+            let mut encapsulated = DcMstring::new();
+            if checksummed { encapsulated.push_dcutf_str_with_sha256(&text); }
+            else { encapsulated.push_dcutf_str(&text); }
+            let view = encapsulated.inspect::<SampleFileRecord>();
+            assert!(view.diagnostic().is_none());
+            assert!(view.replace_field("inode", &sample_source_record(999)).is_err());
+            assert!(encapsulated.replace_source_field(22..23, &source).is_err());
+        }
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 405, end = 406)]
+    struct SourceNestedRecord {
+        #[dc(nested = 317)]
+        inner: SampleFileRecord,
+        #[dc(short = 407)]
+        numbers: Vec<u64>,
+    }
+
+    #[crate::ctb_test]
+    fn test_source_inspection_nested_and_repeated() -> Result<()> {
+        let original = SourceNestedRecord { inner: sample_source_record(42), numbers: vec![1, 2] };
+        let updated = SourceNestedRecord { inner: sample_source_record(999), numbers: vec![3] };
+        let source = original.to_dc_mixed()?;
+        let view = source.inspect::<SourceNestedRecord>();
+        assert!(view.fields().iter().any(|field| field.field() == "inode" && field.depth() == 2));
+        assert!(view.replace_field("inode", &updated).is_err());
+        assert!(view.replace_field("numbers", &updated).is_err());
+        let inode = view.fields().iter().find(|field| field.field() == "inode").context("Missing nested inode")?;
+        let revised = view.replace_annotation(inode, &updated.inner)?;
+        assert_eq!(revised.decode::<SourceNestedRecord>()?.inner, updated.inner);
+        assert!(view.replace_annotation(inode, &updated).is_err());
+        let other_view = source.inspect::<SourceNestedRecord>();
+        assert!(other_view.replace_annotation(inode, &updated.inner).is_err());
+        let number = view.fields().iter().find(|field| field.field() == "numbers").context("Missing repeated field")?;
+        let revised = view.replace_annotation(number, &updated)?;
+        assert_eq!(revised.decode::<SourceNestedRecord>()?.numbers, vec![3, 2]);
+        let revised = view.replace_field("inner", &updated)?;
+        let decoded = revised.decode::<SourceNestedRecord>()?;
+        assert_eq!(decoded.inner, updated.inner);
+        assert_eq!(decoded.numbers, original.numbers);
+        let mut duplicate = DcMstring::new();
+        duplicate.push_char(DcChar::from_short(317));
+        original.inner.encode_dc_field("inode", &mut duplicate)?;
+        updated.inner.encode_dc_field("inode", &mut duplicate)?;
+        assert!(duplicate.inspect::<SampleFileRecord>().replace_field("inode", &updated.inner).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_source_reader_positions() -> Result<()> {
+        let mut source = DcMstring::new();
+        source.push_str("\u{e9}");
+        source.push_binary_with_sha256(b"payload");
+        source.push_str("end");
+        let mut reader = DcMixedReader::new(&source);
+        let start = reader.position();
+        assert_eq!(reader.peek_char()?, reader.peek_char()?);
+        assert_eq!(reader.position(), start);
+        reader.next_char()?;
+        assert_eq!(reader.position(), start.saturating_add(2));
+        assert!(reader.next_char().is_err());
+        let binary_start = reader.position();
+        assert_eq!(reader.peek_char()?, Some(DC_START_ENCAPSULATION_BINARY));
+        assert_eq!(reader.position(), binary_start);
+        assert_eq!(reader.read_binary_payload()?.as_ref(), b"payload");
+        assert_eq!(reader.position(), source.len().saturating_sub(3));
+        assert!(reader.read_binary_payload().is_err());
+        assert_eq!(reader.next_char()?.as_char(), Some('e'));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_source_keyed_record_edits() -> Result<()> {
+        let original = SampleKeyedRecord { count: 42, label: Some("original".to_owned()) };
+        let updated = SampleKeyedRecord { count: 999, label: None };
+        let source = original.to_dc_mixed()?;
+        let view = source.inspect::<SampleKeyedRecord>();
+        assert_eq!(view.fields().len(), 2);
+        let revised = view.replace_field("label", &updated)?;
+        assert_eq!(revised.decode::<SampleKeyedRecord>()?, SampleKeyedRecord { count: 42, label: None });
+        let text = original.to_dc_string()?;
+        let revised = text.inspect::<SampleKeyedRecord>().replace_field("count", &updated)?;
+        assert_eq!(revised.decode::<SampleKeyedRecord>()?.count, 999);
+        let mut incomplete = DcMstring::new();
+        incomplete.push_char(DcChar::from_short(313));
+        incomplete.push_char(DcChar::from_short(275));
+        incomplete.push_char(DcChar::from_short(275));
+        original.encode_dc_field("count", &mut incomplete)?;
+        incomplete.push_char(DcChar::from_short(312));
+        "future".encode_dc_mixed(&mut incomplete)?;
+        incomplete.push_binary_with_sha256(b"unknown value");
+        let view = incomplete.inspect::<SampleKeyedRecord>();
+        assert!(view.diagnostic().is_some());
+        let end = view.fields()[0].range().end;
+        let revised = view.replace_field("count", &updated)?;
+        let revised_end = revised.inspect::<SampleKeyedRecord>().fields()[0].range().end;
+        assert_eq!(revised.as_bytes().get(revised_end..), incomplete.as_bytes().get(end..));
+        Ok(())
+    }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
     #[dc(begin = 317, end = 318)]

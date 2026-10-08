@@ -2,6 +2,9 @@ Output will be in `src/renderer/` crate for rendering - the split will be, `src/
 
 Displaying a Dc document is executing it, similarly to PostScript. Execution
 belongs to the runtime; the renderer processes the resulting semantic snapshot.
+Source-backed typed inspection and localized string editing are described in
+[Dc String API](dc-string-api.md). Those operations do not introduce a separate
+document type or make typed decoding a prerequisite for execution.
 Without user authorization, the runtime permits only a bounded amount of pure
 computation. Reading local nodes, persistent storage, file/network I/O, large
 memory use, high CPU use, and high-resolution timers require explicit

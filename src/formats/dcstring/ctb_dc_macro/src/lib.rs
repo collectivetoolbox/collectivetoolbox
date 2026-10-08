@@ -650,6 +650,7 @@ fn expand_named_representation(
     let mut field_inits = Vec::new();
     let mut construct_fields = Vec::new();
     let mut seen_names = HashSet::new();
+    let mut field_encode_parts = Vec::new();
     let (encode_body, decode_body) = match &input.data {
         Data::Struct(data) if key_value => {
             let Fields::Named(fields) = &data.fields else {
@@ -684,6 +685,14 @@ fn expand_named_representation(
                     mst.push_char(#crate_root::DcChar::from_short(312));
                     #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                 });
+                field_encode_parts.push(quote! {
+                    stringify!(#field_ident) => {
+                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#key, mst, context)?;
+                        mst.push_char(#crate_root::DcChar::from_short(312));
+                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                        Ok(())
+                    },
+                });
                 field_inits.push(quote! {
                     let mut #field_ident: ::std::option::Option<#field_ty> = None;
                 });
@@ -692,6 +701,7 @@ fn expand_named_representation(
                         #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate map key {}", #key);
                         reader.expect_short_dc(312)?;
                         #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
+                        reader.annotate_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start);
                     }
                 });
                 construct_fields.push(quote! {
@@ -715,6 +725,7 @@ fn expand_named_representation(
                 while reader.peek_char()? != Some(#crate_root::DcChar::from_u128(#map_end)) {
                     if !first { reader.expect_short_dc(312)?; }
                     first = false;
+                    let field_start = reader.position();
                     let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                     match key.as_str() {
                         #(#decode_parts)*
@@ -766,7 +777,7 @@ fn expand_named_representation(
                         let field_ty = &field.ty;
                         let (encode_value, decode_value) = if binary {
                             (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value)); },
-                             quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?)
+                             quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?.as_ref())
                                 .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))? })
                         } else {
                             (quote! { #crate_root::DcMixedEncode::encode_dc_mixed_with_context(value, mst, context)?; },
@@ -810,7 +821,26 @@ fn expand_named_representation(
         }
         _ => return Err(syn::Error::new(input.span(), "key_value requires a struct; names requires an enum")),
     };
+    let field_impl = if key_value {
+        Some(quote! {
+            #[automatically_derived]
+            impl #impl_generics #crate_root::DcMixedFields for #type_name #ty_generics #where_clause {
+                fn dc_field_owner() -> &'static str { ::std::any::type_name::<Self>() }
+
+                fn encode_dc_field(&self, field: &str, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                    let context = &#crate_root::SharedValueContext::default();
+                    match field {
+                        #(#field_encode_parts)*
+                        _ => #anyhow_path::bail!("Unknown field {:?} for {}", field, stringify!(#type_name)),
+                    }
+                }
+            }
+        })
+    } else { None };
+    let enter_record = key_value.then(|| quote! { reader.enter_record(); });
+    let leave_record = key_value.then(|| quote! { reader.leave_record(); });
     Ok(Some(quote! {
+        #field_impl
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
             fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
@@ -825,7 +855,10 @@ fn expand_named_representation(
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
             fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
-                Ok({ #decode_body })
+                #enter_record
+                let result = (|| Ok({ #decode_body }))();
+                #leave_record
+                result
             }
         }
     }))
@@ -968,6 +1001,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut decode_field_arms = Vec::new();
             let mut field_validations = Vec::new();
             let mut construct_fields = Vec::new();
+            let mut field_name_arms = Vec::new();
+            let mut field_encode_arms = Vec::new();
 
             let mut shared_decode_arms = Vec::new();
             let mut json_encode_fields = Vec::new();
@@ -1002,6 +1037,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let mut #field_ident: #field_ty = ::std::vec::Vec::new();
                         });
                         if type_str.contains("FormatId") {
+                            field_name_arms.push(quote! {
+                                tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => Some(stringify!(#field_ident)),
+                            });
                             decode_arms.push(quote! {
                                 tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => {
                                     let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
@@ -1016,6 +1054,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                         } else {
+                            field_name_arms.push(quote! { _ => Some(stringify!(#field_ident)), });
                             decode_arms.push(quote! {
                                 _ => {
                                     let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
@@ -1034,6 +1073,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let #field_ident = #field_ident;
                         });
                     } else {
+                        field_name_arms.push(quote! { _ => Some(stringify!(#field_ident)), });
                         encode_fields.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
@@ -1065,6 +1105,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }
                     construct_fields.push(quote! {
                         #field_ident
+                    });
+                    let encoding = encode_fields.last().ok_or_else(|| syn::Error::new(field.span(), "Missing flattened field encoder"))?;
+                    field_encode_arms.push(quote! {
+                        stringify!(#field_ident) => { #encoding Ok(()) },
                     });
                     continue;
                 }
@@ -1098,6 +1142,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 let mut all_match_tags = vec![id];
                 all_match_tags.extend(attr.aliases.iter().copied());
+                let annotation_tags = if attr.nested.is_empty() { all_match_tags.clone() } else { attr.nested.clone() };
+                field_name_arms.push(quote! {
+                    #(#annotation_tags)|* => Some(stringify!(#field_ident)),
+                });
 
                 let type_str = quote!(#field_ty).to_string();
                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
@@ -1146,6 +1194,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         #shared_name => {
                             #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
                             #field_ident = Some(#reference);
+                            reader.annotate_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start);
                         }
                     });
                     let json_key = field_ident.to_string();
@@ -1272,7 +1321,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
@@ -1281,7 +1330,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 self.#field_ident = ::std::option::Option::Some(val);
                                 Ok(true)
@@ -1305,7 +1354,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
@@ -1314,7 +1363,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 self.#field_ident = val;
                                 Ok(true)
@@ -1589,6 +1638,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 construct_fields.push(quote! {
                     #field_ident
                 });
+                let encoding = encode_fields.last().ok_or_else(|| syn::Error::new(field.span(), "Missing field encoder"))?;
+                field_encode_arms.push(quote! {
+                    stringify!(#field_ident) => { #encoding Ok(()) },
+                });
             }
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
@@ -1624,6 +1677,19 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             Ok(quote! {
                 #shared_json_impl
+                #[automatically_derived]
+                impl #impl_generics #crate_root::DcMixedFields for #type_name #ty_generics #where_clause {
+                    fn dc_field_owner() -> &'static str { ::std::any::type_name::<Self>() }
+
+                    fn encode_dc_field(&self, field: &str, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                        let context = &#crate_root::SharedValueContext::default();
+                        let _ = context;
+                        match field {
+                            #(#field_encode_arms)*
+                            _ => #anyhow_path::bail!("Unknown field {:?} for {}", field, stringify!(#type_name)),
+                        }
+                    }
+                }
                 #[automatically_derived]
                 impl #impl_generics #type_name #ty_generics #where_clause {
                     /// Encodes the fields of this struct without boundary delimiters.
@@ -1666,6 +1732,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                     fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                        reader.enter_record();
+                        let result = (|| {
                         reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
                         #(#field_inits)*
                         loop {
@@ -1682,6 +1750,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 reader.next_char()?;
                                 break;
                             }
+                            let field_start = reader.position();
+                            let field_name = match tag {
+                                #(#field_name_arms)*
+                                _ => None,
+                            };
                             match tag {
                                 #shared_decode
                                 #(#decode_arms)*
@@ -1693,11 +1766,17 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     );
                                 }
                             }
+                            if let Some(field_name) = field_name {
+                                reader.annotate_field(::std::any::type_name::<Self>(), field_name, field_start);
+                            }
                         }
                         #(#field_validations)*
                         Ok(Self {
                             #(#construct_fields),*
                         })
+                        })();
+                        reader.leave_record();
+                        result
                     }
                 }
             })
@@ -1825,7 +1904,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #tag_id => {
                                     reader.next_char()?;
                                     let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                    let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for variant `{}`: {e}", stringify!(#variant_ident)))?;
                                     Self::#variant_ident(val)
                                 }
@@ -1894,7 +1973,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     decode_fields.push(quote! {
                                         reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
                                         let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                             .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
                                         let #f_ident = ::std::option::Option::Some(val);
                                     });
@@ -1906,7 +1985,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     decode_fields.push(quote! {
                                         reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
                                         let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                             .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
                                     });
                                 }
