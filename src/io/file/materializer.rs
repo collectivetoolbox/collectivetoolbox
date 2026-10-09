@@ -114,6 +114,9 @@ pub struct MaterializeReceipt {
 }
 
 /// Applies ownership, permissions, and timestamps from `meta` to `dest`.
+///
+/// Returns observed best-effort fidelity warnings for retention in semantic
+/// metadata or the operation journal. Strict failures remain errors.
 pub fn apply_entity_metadata(
     dest: &Path,
     target_display_path: Option<&Path>,

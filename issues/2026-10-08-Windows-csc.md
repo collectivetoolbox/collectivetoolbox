@@ -21,7 +21,7 @@ Five test modules still use `#[cfg(all(test, unix))]`:
 | Search engine | [search_engine.rs](../src/io/csc/search_engine.rs#L645) | Search workflows |
 
 These are compile-time exclusions, not ignored tests. `--include-ignored`
-cannot enable them. Windows CSC now runs 39 enabled tests; the previous Linux
+cannot enable them. Windows CSC now runs 40 enabled tests; the previous Linux
 baseline ran 103 tests before these changes. Journal, verifier, and CLI modules
 are portable, with genuinely POSIX fixtures individually gated;
 the counts alone do not identify which tests are portable or meaningful on
@@ -139,8 +139,8 @@ checks are not silently disabled. Native Windows 7 and WINE regressions cover
 capture, conversion, mismatch reporting, flags, caveats, and journal readback.
 
 Pending work: restoration with independently verified native equality, modern
-Windows/filesystem coverage, and structured journal diagnostics for dynamic
-best-effort metadata replication failures that currently appear only in logs.
+Windows/filesystem coverage, and the remaining runtime diagnostic gaps listed
+in item 6 below.
 WINE also reports restored old mtime as birthtime in a strict captured-metadata
 fixture. The dedicated post-close mtime regression does not request birthtime
 restoration; it does not establish WINE creation-time fidelity.
@@ -190,6 +190,62 @@ Pending work: successful live IP/clock discovery coverage and an end-to-end
 production deadline including CRLite preparation and blocking client teardown.
 No claim of seconds-bounded production capture follows from the offline test.
 
+### 6. Runtime Materialization Diagnostics Are Partially Retained
+
+Bounded follow-up (2026-10-09): `check_metadata_replication` now returns its
+best-effort birthtime and native-metadata discrepancy warnings instead of
+making them available only in logs. `apply_entity_metadata` also returns
+ownership, permission, and timestamp application failures that best-effort
+mode permits. Windows read-only permission errors are no longer discarded:
+strict mode fails and best-effort mode returns a diagnostic. Native APIs and
+strict fidelity requirements have not been replaced with WINE fallbacks.
+
+`MaterializeReceipt.warnings` carries those diagnostics to file API callers.
+CSC retains them in the entity's semantic `FileMetadata.warnings` and records
+`FileMaterializationWarning` journal records for regular files, symlinks,
+special nodes, and deferred directory metadata. Deferred directories now
+refresh their journal entity after metadata application. The Unix identical
+file optimization also performs the best-effort replication check.
+
+The existing opaque-native-metadata regression is now portable. It exercises
+real materialization with an unreproducible byte-valued attribute, unchanged
+payload, strict rejection, returned diagnostics, metadata operation failures,
+and `FileMetadata` Dc roundtrip retention. A new portable CSC regression
+checks actual materialization warnings and native metadata through journal
+readback. Its two passes exercise a new copy and a repeated copy; only Unix
+currently uses the identical-file optimization.
+
+Remaining Gaps / Pending Work:
+
+- Lower-level best-effort diagnostics emitted by stream, flag, ACL, Windows
+  security/reparse, and directory-sync helpers are not all structured return
+  values. The replication check captures supported final-state discrepancies,
+  but this does not prove that every permitted operation failure is retained.
+- Direct file API callers must retain receipt warnings in their semantic
+  metadata or journal. Returning a receipt does not automatically mutate the
+  source entity, and not every downstream caller has been audited.
+- The non-Unix identical-file optimization is explicitly disabled. Native
+  link-count and sparse checks are prerequisites before enabling it safely.
+- The CSC regression exercises real file materialization and journal helpers,
+  not injected failures through every engine dispatch or continue-on-error
+  workflow. Main engine coverage remains gated as described in item 1.
+
+### 7. Raw Identity Bytes Are Omitted From Semantic Dc
+
+An attempted whole captured-entity roundtrip in this follow-up reproduced a
+separate fidelity gap on Linux: `FileIdentity.raw_relative_path` and
+`raw_filename` decode as `None`. Both fields currently have explicit
+`dc(skip)` annotations claiming unification with the primary path, but the
+derive does not reconstruct them. Existing entity roundtrip fixtures clear
+these fields before comparing values.
+
+Remaining Gaps / Pending Work: define and validate a lossless semantic identity
+encoding for the auxiliary raw fields, including differing logical/raw paths,
+non-UTF-8 Unix names, Windows native bytes and unpaired surrogates. Do not
+claim whole captured-entity Dc equality from the passing `FileMetadata`
+warning roundtrip, and do not clear raw fields to conceal the omission. No
+identity schema or path codec was changed in this bounded follow-up.
+
 ## Completed Bounded Work and Validation
 
 - The eight existing argument tests now compile cross-platform. These cover
@@ -214,9 +270,10 @@ Latest verified results:
 
 | Environment | Result | Scope / caveat |
 | --- | --- | --- |
-| Linux musl, current scoped rebuild | CSC 105 + file 97 passed; zero ignored | Offline provenance workflow included; suites finish in 0.44 s and 0.03 s |
-| WINE, current CSC executable | CSC 39 passed; zero ignored | Offline provenance and hardlink error-classification cases included; 1.13 s |
-| Native Windows 7, current CSC executable | CSC 39 passed; zero ignored | Same final executable as WINE; 35.48 s |
+| Linux musl, scoped diagnostic follow-up | CSC 106 + file 97 passed; zero ignored | Runtime warning regressions included; 0.45 s and 0.03 s |
+| WINE, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | Same current executables as native Windows; 1.23 s and 0.44 s |
+| Native Windows 7, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | VM runner; 39.86 s and 6.51 s |
+| Linux / Windows affected-crate Clippy | Passed | File and CSC production `--lib --no-deps` checks for runtime diagnostic changes |
 | Native Windows 7 / WINE, earlier file rebuild | File 80 passed; zero ignored | Exact old-mtime assertion also passed separately on both platforms |
 | Windows affected-crate Clippy | Passed | Current `--lib --no-deps` check for file and CSC |
 | Linux affected-crate Clippy | Passed | Environment, file, and CSC `--lib --no-deps` checks after worker isolation and hardlink error changes |
@@ -227,6 +284,14 @@ Latest verified results:
 
 Only Windows 7 was tested natively. Modern Windows validation remains pending.
 Full Windows CSC fidelity is **not** established by these results.
+The whole-workspace suites were not rerun for the runtime diagnostic changes;
+the historical full-suite results above are not a fresh workspace validation.
+
+The first native diagnostic regression run failed because the new fixture
+assumed Unix's identical-file optimization also existed on Windows. The
+fixture now explicitly asserts the actual platform contract while retaining
+all warning, native-metadata, payload, and serialization checks; the full
+native and WINE affected suites then passed. No tests were ignored or skipped.
 
 The staged Windows payload writer is now synced and closed before metadata
 restoration, preventing its eventual close from resetting restored mtime.
@@ -292,6 +357,13 @@ assuming these paths exist in another checkout:
 - `/tmp/ctb-native-full-runtime-retry.log`
 - `/tmp/ctb-native-file-final.log`
 - `/tmp/ctb-win-file-clippy.log`
+- `/tmp/ctb-diagnostics-linux-suites.log`
+- `/tmp/ctb-diagnostics-linux-clippy.log`
+- `/tmp/ctb-diagnostics-native-file-final.log`
+- `/tmp/ctb-diagnostics-native-csc.log`
+- `/tmp/ctb-diagnostics-wine-file.log`
+- `/tmp/ctb-diagnostics-wine-csc.log`
+- `/tmp/ctb-diagnostics-windows-clippy.log`
 
 WINE post-doctest CLI follow-up (2026-10-08): the tests-only build path previously
 called the compression smoke script without an explicit executable, allowing
