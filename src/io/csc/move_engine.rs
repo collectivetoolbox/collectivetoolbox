@@ -282,7 +282,7 @@ fn verify_source_identity(source: &Path, expected: &FileEntity) -> Result<()> {
     }
     Ok(())
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

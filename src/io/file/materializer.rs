@@ -1202,10 +1202,15 @@ fn try_update_existing_regular_entity(
 
     // Remove any extra streams that do not exist on the source entity
     for disk_stream in &on_disk_streams {
-        let exists_in_source = entity
-            .streams
-            .iter()
-            .any(|s| s.name == disk_stream.name);
+        let exists_in_source = entity.streams.iter().any(|s| {
+            match (&s.name, &disk_stream.name) {
+                (Some(s_name), Some(d_name)) => {
+                    s_name.canonicalize_native().ok() == d_name.canonicalize_native().ok()
+                }
+                (None, None) => s.kind == disk_stream.kind,
+                _ => false,
+            }
+        });
         if !exists_in_source {
             let res = match &disk_stream.name {
                 Some(name) => remove_stream(dest_path, &name.to_os_string()?),
@@ -1242,7 +1247,14 @@ fn try_update_existing_regular_entity(
         // Write missing or mismatched streams
         for stream in &entity.streams {
             let matches_on_disk = on_disk_streams.iter().any(|d| {
-                d.name == stream.name
+                let names_match = match (&d.name, &stream.name) {
+                    (Some(d_name), Some(s_name)) => {
+                        d_name.canonicalize_native().ok() == s_name.canonicalize_native().ok()
+                    }
+                    (None, None) => d.kind == stream.kind,
+                    _ => false,
+                };
+                names_match
                     && match (&d.entity.kind, &stream.entity.kind) {
                         (
                             FileEntityKind::Regular { sha256: d_hash, .. },

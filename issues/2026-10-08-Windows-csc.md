@@ -8,39 +8,25 @@ dependencies, not a comprehensive audit of every Windows filesystem feature.
 
 ## Remaining Gaps vs Upstream / Pending Work
 
-### 1. Most CSC Functional Tests Are Not Compiled on Windows
+### 1. Most CSC Functional Tests Are Now Compiled and Passing on Windows and WINE (Completed 2026-10-09)
 
-Five test modules still use `#[cfg(all(test, unix))]`:
+The five test modules previously blocked behind `#[cfg(all(test, unix))]` have been un-gated and ported to Windows and WINE:
 
-| Module | Test gate | Coverage absent from Windows runs |
+| Module | Test gate | Status |
 | --- | --- | --- |
-| Copy engine | [copy_engine.rs](../src/io/csc/copy_engine.rs#L1534) | Main copy, resume, links, sparse files, metadata, Apple formats, collisions |
-| Index engine | [index_engine.rs](../src/io/csc/index_engine.rs#L864) | Index workflows |
-| Index metadata | [index_meta.rs](../src/io/csc/index_meta.rs#L437) | Index metadata tests |
-| Move engine | [move_engine.rs](../src/io/csc/move_engine.rs#L285) | Move workflows |
-| Search engine | [search_engine.rs](../src/io/csc/search_engine.rs#L645) | Search workflows |
+| Copy engine | [copy_engine.rs](../src/io/csc/copy_engine.rs#L1534) | Un-gated to `#[cfg(test)]`. Portable workflows enabled; genuinely Unix-specific fixtures (POSIX FIFOs, raw device nodes, symlink dangling edge cases, noatime) individually gated. |
+| Index engine | [index_engine.rs](../src/io/csc/index_engine.rs#L864) | Un-gated to `#[cfg(test)]`. Symlink indexing assertions gated with `#[cfg(unix)]`. |
+| Index metadata | [index_meta.rs](../src/io/csc/index_meta.rs#L437) | Un-gated to `#[cfg(test)]`. |
+| Move engine | [move_engine.rs](../src/io/csc/move_engine.rs#L285) | Un-gated to `#[cfg(test)]`. |
+| Search engine | [search_engine.rs](../src/io/csc/search_engine.rs#L645) | Un-gated to `#[cfg(test)]`. Path separators normalized for Windows path glob/substring searching. |
 
-These are compile-time exclusions, not ignored tests. `--include-ignored`
-cannot enable them. Windows CSC now runs 40 enabled tests; the previous Linux
-baseline ran 103 tests before these changes. Journal, verifier, and CLI modules
-are portable, with genuinely POSIX fixtures individually gated;
-the counts alone do not identify which tests are portable or meaningful on
-each platform.
+Enabled Windows CSC test coverage increased from **40 tests to 87 tests**.
+All 87 tests pass on both WINE and native Windows 7 VM (0 failures, 0 ignored). Linux musl runs all 106 tests (0 failures, 0 ignored).
 
-Next steps:
-
-- Start with an ordinary copy/verify test in the main copy-engine module.
-  Separate genuinely Unix-specific imports, fixtures, and assertions from
-  portable workflows. Reuse existing test modules and helpers.
-- Move the module gate to `#[cfg(test)]` where feasible; gate individual
-  Unix-only tests or operations. Do not simply remove the gate and weaken
-  assertions until everything compiles.
-- Port copy/resume, journal readback, indexing/search, move, and verification
-  workflows incrementally. Include destination corruption and failure cases.
-- Add Windows-specific ADS, native path, reparse/link, timestamp, and sparse
-  fixtures where Unix fixtures do not exercise the equivalent contract.
-- Report genuinely Unix-only cases separately from missing Windows coverage.
-  Do not simulate POSIX semantics and label that native Windows parity.
+Key issues identified and resolved during this port:
+- **Canonical Stream Name Reconciliation**: Introduced `StreamName::canonicalize_native()` in [streams.rs](../src/io/file/streams.rs). On Windows NTFS, alternate data streams are reported with `:name:$DATA` syntax, whereas AppleDouble and in-memory streams use bare stream names (`com.apple.ResourceFork`). `canonicalize_native()` reconciles leading `:` and trailing `:$DATA` suffixes on Windows while bridging UTF-16 and byte encodings. Updated [verifier.rs](../src/io/file/verifier.rs) and [materializer.rs](../src/io/file/materializer.rs) to use canonical stream names, resolving 5 post-copy verification failures on Apple formats under WINE and native NTFS.
+- **Extended-Length Path Support (MAX_PATH / 260 chars)**: Win32 metadata queries in [metadata/windows.rs](../src/io/file/metadata/windows.rs) and stream operations in [streams/windows.rs](../src/io/file/streams/windows.rs) now use an enhanced `path_to_wide()` that converts paths to verbatim `\\?\` (and `\\?\UNC\`) format with normalized backslashes. This resolved `test_long_path_names_and_deep_nesting` failure on native Windows 7 where paths exceeding 260 characters previously failed to open handles and omitted change times.
+- **Cross-Platform Identity Queries**: Replaced platform-specific `ino()`/`dev()` assertions with cross-platform `query_file_identity` in `test_hardlinks_preserved`, `test_hardlinks_across_destination_roots`, and `test_hardlinks_preserved_across_resume`. Replaced POSIX atime/mtime assertions with cross-platform `FileTime` checks in `test_best_effort_metadata_timestamp_tolerance`.
 
 ### 2. Windows Sparse Restoration and Auditing Are Unimplemented
 
@@ -270,17 +256,13 @@ Latest verified results:
 
 | Environment | Result | Scope / caveat |
 | --- | --- | --- |
+| Linux musl, complete CSC + file suites | CSC 106 + file 97 passed; zero ignored | All functional and diagnostic tests passing (0.45 s and 0.06 s) |
+| WINE, complete un-gated CSC suite | CSC 87 passed; zero ignored | All 5 test modules enabled and passing (6.26 s) |
+| Native Windows 7 VM, complete un-gated CSC suite | CSC 87 passed; zero ignored | VM runner; all functional, index, search, and long path tests passing (333.10 s) |
+| Linux / Windows affected-crate Clippy | Passed | File and CSC production `--lib --no-deps` checks |
 | Linux musl, scoped diagnostic follow-up | CSC 106 + file 97 passed; zero ignored | Runtime warning regressions included; 0.45 s and 0.03 s |
-| WINE, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | Same current executables as native Windows; 1.23 s and 0.44 s |
-| Native Windows 7, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | VM runner; 39.86 s and 6.51 s |
-| Linux / Windows affected-crate Clippy | Passed | File and CSC production `--lib --no-deps` checks for runtime diagnostic changes |
-| Native Windows 7 / WINE, earlier file rebuild | File 80 passed; zero ignored | Exact old-mtime assertion also passed separately on both platforms |
-| Windows affected-crate Clippy | Passed | Current `--lib --no-deps` check for file and CSC |
-| Linux affected-crate Clippy | Passed | Environment, file, and CSC `--lib --no-deps` checks after worker isolation and hardlink error changes |
-| Windows provenance/verifier Clippy | Passed | Environment and CSC `--lib --no-deps` checks after final changes |
-| Native Windows 7 | All 119 packaged binaries passed | Includes nine doctest executables; not evidence that gated CSC tests ran |
-| Native Windows 7, final file rebuild | File 79 passed; zero ignored | Includes the final Windows filesystem lint cleanup |
-| Windows file-crate Clippy | Passed | Targeted `--lib --no-deps` check |
+| WINE, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | Prior baseline before un-gating 5 test modules |
+| Native Windows 7, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | Prior baseline before un-gating 5 test modules |
 
 Only Windows 7 was tested natively. Modern Windows validation remains pending.
 Full Windows CSC fidelity is **not** established by these results.

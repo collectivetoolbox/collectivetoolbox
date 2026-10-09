@@ -1,0 +1,14 @@
+CSC State File
+Status: Completed
+FilesCommitted: 2
+BytesCommitted: 24
+ErrorsCount: 0
+WarningsCount: 3
+Warnings:
+  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
+  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
+  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
+Sources:
+  - C:\users\root\AppData\Local\Temp\.tmpLAW3Vu\source\
+Destination: C:\users\root\AppData\Local\Temp\.tmpLAW3Vu\destination
+NoatimeUsed: false

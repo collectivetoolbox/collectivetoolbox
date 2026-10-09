@@ -64,12 +64,7 @@ impl Drop for StreamSearch {
     reason = "FindFirstStreamW and FindNextStreamW write to an initialized ABI buffer with a valid search handle"
 )]
 pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
-    let mut wide_path: Vec<u16> = path.as_os_str().encode_wide().collect();
-    anyhow::ensure!(
-        !wide_path.contains(&0),
-        "Stream source path contains a NUL"
-    );
-    wide_path.push(0);
+    let wide_path = crate::metadata::windows::path_to_wide(path)?;
     let mut info = WIN32_FIND_STREAM_DATA::default();
     // SAFETY: The path is NUL-terminated and info is an initialized output buffer.
     let handle = unsafe {
@@ -94,6 +89,7 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
     }
     let search = StreamSearch(handle);
     let mut streams = Vec::new();
+    let base_wide = wide_path.get(..wide_path.len().saturating_sub(1)).context("Invalid path length")?;
     loop {
         let end = info
             .cStreamName
@@ -118,9 +114,10 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
                 "Stream name contains a path separator"
             );
             let name = StreamName::from_windows_utf16(units);
-            let mut stream_path = path.as_os_str().to_os_string();
-            stream_path.push(OsString::from_wide(units));
-            let data = std::fs::read(PathBuf::from(stream_path))
+            let mut stream_wide = base_wide.to_vec();
+            stream_wide.extend_from_slice(units);
+            let stream_os = OsString::from_wide(&stream_wide);
+            let data = std::fs::read(PathBuf::from(stream_os))
                 .with_context(|| format!("Failed to read Windows alternate data stream {name:?} on {}", path.display()))?;
             anyhow::ensure!(
                 u64::try_from(data.len())? == u64::try_from(info.StreamSize)?,
@@ -237,8 +234,10 @@ pub fn write_windows_streams(
         validated.push((stream, canonical_name, data));
     }
     for (stream, name, data) in validated {
-        let mut stream_path = dest.as_os_str().to_os_string();
-        stream_path.push(name);
+        let wide = crate::metadata::windows::path_to_wide(dest)?;
+        let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
+        stream_wide.extend(name.encode_wide());
+        let stream_path = OsString::from_wide(&stream_wide);
         std::fs::write(PathBuf::from(stream_path), data).with_context(|| {
             format!(
                 "Failed to write Windows alternate data stream {:?} ({:?}) to {}",
@@ -253,12 +252,14 @@ pub fn write_windows_streams(
 
 /// Removes an alternate data stream from `path` on Windows.
 pub fn remove_windows_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
-    let mut stream_path = path.as_os_str().to_os_string();
-    let wide: Vec<u16> = name.encode_wide().collect();
-    if !wide.starts_with(&[u16::from(b':')]) {
-        stream_path.push(":");
+    let wide = crate::metadata::windows::path_to_wide(path)?;
+    let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
+    let name_wide: Vec<u16> = name.encode_wide().collect();
+    if !name_wide.starts_with(&[u16::from(b':')]) {
+        stream_wide.push(u16::from(b':'));
     }
-    stream_path.push(name);
+    stream_wide.extend(name_wide);
+    let stream_path = OsString::from_wide(&stream_wide);
     match std::fs::remove_file(PathBuf::from(stream_path)) {
         Ok(()) => Ok(()),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(()),

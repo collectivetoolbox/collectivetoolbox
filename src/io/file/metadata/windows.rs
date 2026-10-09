@@ -89,9 +89,74 @@ impl Drop for SafeHandle {
     }
 }
 
-/// Encodes a filesystem path as a NUL-terminated wide string.
+/// Encodes a filesystem path as a NUL-terminated wide string, normalizing
+/// separators and applying verbatim (`\\?\`) prefixes for extended-length path support.
 pub fn path_to_wide(path: &Path) -> Result<Vec<u16>> {
-    let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let mut raw_units: Vec<u16> = path.as_os_str().encode_wide().collect();
+    for u in &mut raw_units {
+        if *u == u16::from(b'/') {
+            *u = u16::from(b'\\');
+        }
+    }
+    let backslash = u16::from(b'\\');
+    let qmark = u16::from(b'?');
+    let colon = u16::from(b':');
+
+    let is_verbatim = raw_units.len() >= 4
+        && raw_units.get(0) == Some(&backslash)
+        && raw_units.get(3) == Some(&backslash)
+        && raw_units.get(2) == Some(&qmark)
+        && (raw_units.get(1) == Some(&backslash) || raw_units.get(1) == Some(&qmark));
+
+    let mut wide = if is_verbatim {
+        raw_units
+    } else if raw_units.len() >= 2
+        && raw_units.get(0) == Some(&backslash)
+        && raw_units.get(1) == Some(&backslash)
+    {
+        let prefix: Vec<u16> = r"\\?\UNC\".encode_utf16().collect();
+        let mut res = prefix;
+        if let Some(rest) = raw_units.get(2..) {
+            res.extend_from_slice(rest);
+        }
+        res
+    } else if raw_units.len() >= 2 && raw_units.get(1) == Some(&colon) {
+        let prefix: Vec<u16> = r"\\?\".encode_utf16().collect();
+        let mut res = prefix;
+        res.extend_from_slice(&raw_units);
+        res
+    } else {
+        let cur_dir = std::env::current_dir()?;
+        let mut cur_units: Vec<u16> = cur_dir.as_os_str().encode_wide().collect();
+        for u in &mut cur_units {
+            if *u == u16::from(b'/') {
+                *u = backslash;
+            }
+        }
+        if cur_units.last() != Some(&backslash) {
+            cur_units.push(backslash);
+        }
+        cur_units.extend_from_slice(&raw_units);
+        if cur_units.len() >= 2 && cur_units.get(1) == Some(&colon) {
+            let prefix: Vec<u16> = r"\\?\".encode_utf16().collect();
+            let mut res = prefix;
+            res.extend_from_slice(&cur_units);
+            res
+        } else if cur_units.len() >= 2
+            && cur_units.get(0) == Some(&backslash)
+            && cur_units.get(1) == Some(&backslash)
+        {
+            let prefix: Vec<u16> = r"\\?\UNC\".encode_utf16().collect();
+            let mut res = prefix;
+            if let Some(rest) = cur_units.get(2..) {
+                res.extend_from_slice(rest);
+            }
+            res
+        } else {
+            cur_units
+        }
+    };
+
     anyhow::ensure!(!wide.contains(&0), "Path contains an embedded NUL unit");
     wide.push(0);
     Ok(wide)

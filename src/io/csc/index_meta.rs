@@ -434,7 +434,7 @@ pub async fn open_index_database(
         }
     }
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

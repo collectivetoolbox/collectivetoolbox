@@ -138,6 +138,41 @@ impl StreamName {
         }
     }
 
+    /// Canonicalizes a stream name for the current host filesystem.
+    ///
+    /// On Windows, NTFS alternate data stream names are canonicalized by stripping any
+    /// leading colon (`:`) and trailing stream type suffix (`:$DATA`), producing a bare stream
+    /// name in `WindowsUtf16`.
+    /// On other platforms, the stream name is converted via its OS representation into `Bytes`.
+    pub fn canonicalize_native(&self) -> Result<Self> {
+        let os_str = self.to_os_string()?;
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            let units: Vec<u16> = os_str.encode_wide().collect();
+            let name_units = if units.first() == Some(&u16::from(b':')) {
+                // Reason for fallback: slice starting at index 1 is empty if the stream name contains only the leading colon
+                units.get(1..).unwrap_or(&[])
+            } else {
+                &units[..]
+            };
+            let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+            let name_units = if name_units.len() >= suffix.len()
+                && name_units.ends_with(&suffix)
+            {
+                // Reason for fallback: slice excluding suffix is empty if name consisted solely of the suffix
+                name_units.get(..name_units.len().saturating_sub(suffix.len())).unwrap_or(&[])
+            } else {
+                name_units
+            };
+            Ok(Self::WindowsUtf16(name_units.to_vec()))
+        }
+        #[cfg(not(windows))]
+        {
+            Ok(Self::from_os_str(&os_str))
+        }
+    }
+
     /// Converts only at the filesystem boundary, rejecting lossy transcoding.
     pub fn to_os_string(&self) -> Result<OsString> {
         match self {

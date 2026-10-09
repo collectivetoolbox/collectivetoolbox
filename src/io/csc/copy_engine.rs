@@ -1600,7 +1600,7 @@ mod fidelity_tests {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -1619,8 +1619,9 @@ mod tests {
     use crate::journal::find_cscjournal;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
-    use std::os::unix::fs::{PermissionsExt};
-    use std::path::{PathBuf};
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[crate::ctb_test]
@@ -1695,11 +1696,21 @@ mod tests {
         let m1 = fs::metadata(&dest_f1).expect("meta1");
         let m2 = fs::metadata(&dest_f2).expect("meta2");
 
-        assert_eq!(m1.ino(), m2.ino());
-        assert_eq!(m1.dev(), m2.dev());
-        assert_eq!(m1.nlink(), 2);
+        #[cfg(unix)]
+        {
+            assert_eq!(m1.ino(), m2.ino());
+            assert_eq!(m1.dev(), m2.dev());
+            assert_eq!(m1.nlink(), 2);
+        }
+        #[cfg(windows)]
+        {
+            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1).expect("id1");
+            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2).expect("id2");
+            assert_eq!(id1, id2);
+        }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_symlinks_preserved() {
         let temp = tempdir().expect("create tempdir");
@@ -1747,7 +1758,13 @@ mod tests {
         run_csc(default_test_args(vec![first, second, dest.clone()], state.clone())).unwrap();
         assert_eq!(fs::read(dest.join("second/linked")).unwrap(), b"shared data");
         assert_eq!(fs::read(dest.join("second/shared")).unwrap(), b"unrelated data");
+        #[cfg(unix)]
         assert_eq!(fs::metadata(dest.join("first/shared")).unwrap().ino(), fs::metadata(dest.join("second/linked")).unwrap().ino());
+        #[cfg(windows)]
+        assert_eq!(
+            ctb_io::file::identity::query_file_identity(&dest.join("first/shared")).unwrap(),
+            ctb_io::file::identity::query_file_identity(&dest.join("second/linked")).unwrap()
+        );
         let result = run_csc_verify(&default_verify_args(find_cscjournal(&state), Some(dest))).unwrap();
         match result {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
@@ -1755,6 +1772,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_skip_existing_checksum() {
         let temp = tempdir().expect("create tempdir");
@@ -1910,6 +1928,7 @@ mod tests {
         assert!(crate::journal::read_journal_snapshot(&journal_path).unwrap().is_completed);
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_unusual_filenames_and_stream_names() {
         use std::os::unix::ffi::OsStrExt;
@@ -2021,6 +2040,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sparse_file_preservation() {
         use std::io::Seek;
@@ -2082,6 +2102,7 @@ mod tests {
         assert_eq!(&tail, b"TailData");
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_timestamps_and_metadata_preserved() {
         use std::os::unix::fs::PermissionsExt;
@@ -2128,6 +2149,7 @@ mod tests {
         assert_eq!(d_dir.permissions().mode() & 0o777, 0o750);
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_fifo_special_file_preserved() {
         use nix::sys::stat::Mode;
@@ -2274,6 +2296,7 @@ mod tests {
         assert_eq!(contents, b"");
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_symlink_dangling_and_relative_target_preserved() {
         let temp = tempdir().expect("create tempdir");
@@ -2359,8 +2382,17 @@ mod tests {
         let m1 = fs::metadata(&dest_f1).expect("meta1");
         let m2 = fs::metadata(&dest_f2).expect("meta2");
 
-        assert_eq!(m1.ino(), m2.ino(), "Inodes must match across resume");
-        assert_eq!(m1.nlink(), 2, "Link count must be 2");
+        #[cfg(unix)]
+        {
+            assert_eq!(m1.ino(), m2.ino(), "Inodes must match across resume");
+            assert_eq!(m1.nlink(), 2, "Link count must be 2");
+        }
+        #[cfg(windows)]
+        {
+            let id1 = ctb_io::file::identity::query_file_identity(&dest_f1).expect("id1");
+            let id2 = ctb_io::file::identity::query_file_identity(&dest_f2).expect("id2");
+            assert_eq!(id1, id2, "File identities must match across resume");
+        }
     }
 
     #[crate::ctb_test]
@@ -2391,11 +2423,12 @@ mod tests {
 
         let dest_file = dest.join("file.txt");
         let dest_meta = fs::metadata(&dest_file).expect("dest meta");
-        let orig_mtime = dest_meta.mtime();
+        let atime = FileTime::from_last_access_time(&dest_meta);
+        let mtime = FileTime::from_last_modification_time(&dest_meta);
         set_file_times(
             &dest_file,
-            FileTime::from_unix_time(dest_meta.atime(), 0),
-            FileTime::from_unix_time(orig_mtime.saturating_add(1), 0),
+            atime,
+            FileTime::from_unix_time(mtime.unix_seconds().saturating_add(1), mtime.nanoseconds()),
         )
         .expect("set drifted mtime");
 
@@ -2422,6 +2455,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_default_skips_identical_file_and_updates_metadata() {
         let temp = tempdir().expect("create tempdir");
@@ -2553,7 +2587,7 @@ mod tests {
         fs::write(src.join("file.txt"), b"data").expect("write file");
 
         let meta = fs::metadata(&src).expect("read src metadata");
-        let Some(dev_id) = extract_device_id(&meta) else {
+        let Some(dev_id) = ctb_io::file::extract_device_id_for_path(&src, &meta) else {
             return;
         };
 
@@ -2602,6 +2636,7 @@ mod tests {
         clear_filesystem_cache();
     }
 
+    #[cfg(target_os = "linux")]
     #[crate::ctb_test]
     fn test_csc_noatime_recorded_and_verified() {
         let temp = tempdir().expect("tempdir");

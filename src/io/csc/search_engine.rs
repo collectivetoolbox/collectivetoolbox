@@ -132,10 +132,15 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
 
     // 2. Explicit substring options (equivalent to regex with escaped pattern)
     if let Some(ref pat) = args.substring_path {
+        let pattern = if cfg!(windows) {
+            pat.replace('/', "\\")
+        } else {
+            pat.clone()
+        };
         return Ok(Some(ResolvedSearch {
             kind: SearchKind::Regex,
             target: SearchTarget::Path,
-            pattern: regex::escape(pat),
+            pattern: regex::escape(&pattern),
         }));
     }
     if let Some(ref pat) = args.substring_text {
@@ -159,10 +164,15 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
 
     // 3. Explicit glob options
     if let Some(pat) = args.glob_path.as_deref().or(args.path_glob.as_deref()) {
+        let pattern = if cfg!(windows) {
+            pat.replace('/', "\\")
+        } else {
+            pat.to_string()
+        };
         return Ok(Some(ResolvedSearch {
             kind: SearchKind::Glob,
             target: SearchTarget::Path,
-            pattern: pat.to_string(),
+            pattern,
         }));
     }
     if let Some(ref pat) = args.glob_text {
@@ -214,11 +224,16 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
     // 5. Positional query resolution
     if let [q] = args.query.as_slice() {
         if q.contains('*') {
-            if q.contains('/') {
+            if q.contains('/') || (cfg!(windows) && q.contains('\\')) {
+                let pattern = if cfg!(windows) {
+                    q.replace('/', "\\")
+                } else {
+                    q.clone()
+                };
                 Ok(Some(ResolvedSearch {
                     kind: SearchKind::Glob,
                     target: SearchTarget::Path,
-                    pattern: q.clone(),
+                    pattern,
                 }))
             } else {
                 Ok(Some(ResolvedSearch {
@@ -234,10 +249,15 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
                 pattern: regex::escape(q),
             }))
         } else {
+            let pattern = if cfg!(windows) {
+                q.replace('/', "\\")
+            } else {
+                q.clone()
+            };
             Ok(Some(ResolvedSearch {
                 kind: SearchKind::Regex,
                 target: SearchTarget::Path,
-                pattern: regex::escape(q),
+                pattern: regex::escape(&pattern),
             }))
         }
     } else if args.query.len() > 1 {
@@ -249,10 +269,15 @@ fn resolve_search(args: &FsearchArgs, has_full_text: bool) -> Result<Option<Reso
                 pattern: combined,
             }))
         } else {
+            let pattern = if cfg!(windows) {
+                combined.replace('/', "\\")
+            } else {
+                combined
+            };
             Ok(Some(ResolvedSearch {
                 kind: SearchKind::Keyword,
                 target: SearchTarget::Path,
-                pattern: combined,
+                pattern,
             }))
         }
     } else {
@@ -642,7 +667,7 @@ pub async fn run_fsearch(args: FsearchArgs) -> Result<ToolResult> {
 
     Ok(ToolResult::immediate_ok(out.into_bytes()))
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

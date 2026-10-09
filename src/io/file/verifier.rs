@@ -803,14 +803,12 @@ pub fn audit_entity_detailed(
                 _ => [0_u8; 32],
             };
             let native_name = match &s.name {
-                Some(name) => {
-                    crate::streams::StreamName::from_os_str(&name.to_os_string()?)
-                }
+                Some(name) => name.canonicalize_native()?,
                 None => match s.kind {
                     crate::streams::StreamKind::MacOsResourceFork => {
                         crate::streams::StreamName::from_str(
                             crate::streams::RESOURCE_FORK_XATTR_NAME,
-                        )
+                        ).canonicalize_native()?
                     }
                     _ => continue,
                 },
@@ -828,12 +826,12 @@ pub fn audit_entity_detailed(
                 _ => [0_u8; 32],
             };
             let native_name = match &s.name {
-                Some(name) => name.clone(),
+                Some(name) => name.canonicalize_native()?,
                 None => match s.kind {
                     crate::streams::StreamKind::MacOsResourceFork => {
                         crate::streams::StreamName::from_str(
                             crate::streams::RESOURCE_FORK_XATTR_NAME,
-                        )
+                        ).canonicalize_native()?
                     }
                     _ => continue,
                 },

@@ -861,7 +861,7 @@ pub async fn flush_deleted_files_from_index(
 
     Ok(count)
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -895,6 +895,7 @@ mod tests {
         fs::write(src_a.join("hello.txt"), b"Hello Source A").expect("write hello.txt");
         fs::write(src_a.join("nested/doc.md"), b"# Markdown document").expect("write doc.md");
         fs::write(src_a.join("nested/deep/data.bin"), vec![0u8; 1024]).expect("write data.bin");
+        #[cfg(unix)]
         std::os::unix::fs::symlink("hello.txt", src_a.join("link_to_hello")).expect("create symlink");
 
         fs::write(src_b.join("world.txt"), b"World Source B").expect("write world.txt");
@@ -960,17 +961,20 @@ mod tests {
         }
 
         // 6. Search with JSON output and type filter (symlinks)
-        let mut search_sym = default_fsearch_args(db_path.clone());
-        search_sym.entry_type = Some("symlink".to_string());
-        search_sym.sort = SearchSortField::Name;
-        search_sym.format = SearchOutputFormat::Json;
-        let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
-        if let ToolResult::Immediate { stdout, .. } = res_sym {
-            let out_str = String::from_utf8_lossy(&stdout);
-            assert!(out_str.contains("\"filename\": \"link_to_hello\""));
-            assert!(out_str.contains("\"symlink_target\": \"hello.txt\""));
-        } else {
-            panic!("Expected immediate result");
+        #[cfg(unix)]
+        {
+            let mut search_sym = default_fsearch_args(db_path.clone());
+            search_sym.entry_type = Some("symlink".to_string());
+            search_sym.sort = SearchSortField::Name;
+            search_sym.format = SearchOutputFormat::Json;
+            let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
+            if let ToolResult::Immediate { stdout, .. } = res_sym {
+                let out_str = String::from_utf8_lossy(&stdout);
+                assert!(out_str.contains("\"filename\": \"link_to_hello\""));
+                assert!(out_str.contains("\"symlink_target\": \"hello.txt\""));
+            } else {
+                panic!("Expected immediate result");
+            }
         }
 
         // 7. Search with size filter: >= 500 bytes (should match data.bin which is 1024 bytes)
