@@ -233,7 +233,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,

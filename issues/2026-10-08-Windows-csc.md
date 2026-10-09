@@ -10,21 +10,20 @@ dependencies, not a comprehensive audit of every Windows filesystem feature.
 
 ### 1. Most CSC Functional Tests Are Not Compiled on Windows
 
-Eight test modules still use `#[cfg(all(test, unix))]`:
+Five test modules still use `#[cfg(all(test, unix))]`:
 
 | Module | Test gate | Coverage absent from Windows runs |
 | --- | --- | --- |
-| CLI | [cli.rs](../src/io/csc/cli.rs#L236) | CLI integration tests |
 | Copy engine | [copy_engine.rs](../src/io/csc/copy_engine.rs#L1534) | Main copy, resume, links, sparse files, metadata, Apple formats, collisions |
 | Index engine | [index_engine.rs](../src/io/csc/index_engine.rs#L864) | Index workflows |
 | Index metadata | [index_meta.rs](../src/io/csc/index_meta.rs#L437) | Index metadata tests |
-| Journal | [journal.rs](../src/io/csc/journal.rs#L1321) | Journal and provenance integration tests |
 | Move engine | [move_engine.rs](../src/io/csc/move_engine.rs#L285) | Move workflows |
 | Search engine | [search_engine.rs](../src/io/csc/search_engine.rs#L645) | Search workflows |
-| Verifier | [verifier.rs](../src/io/csc/verifier.rs#L618) | Main post-copy verification tests |
 
 These are compile-time exclusions, not ignored tests. `--include-ignored`
-cannot enable them. Windows CSC currently runs 15 tests versus 103 on Linux;
+cannot enable them. Windows CSC now runs 38 enabled tests; the previous Linux
+baseline ran 103 tests before these changes. Journal, verifier, and CLI modules
+are portable, with genuinely POSIX fixtures individually gated;
 the counts alone do not identify which tests are portable or meaningful on
 each platform.
 
@@ -43,14 +42,14 @@ Next steps:
 - Report genuinely Unix-only cases separately from missing Windows coverage.
   Do not simulate POSIX semantics and label that native Windows parity.
 
-### 2. Exact Windows Sparse Extents Are Not Captured or Audited
+### 2. Windows Sparse Restoration and Auditing Are Unimplemented
 
-The capture path retains the native sparse attribute and logical payload, but
-explicitly records this warning in
+The capture path now queries native allocated ranges and retains logical
+payload independently. It explicitly records this warning in
 [entity.rs](../src/io/file/entity.rs#L870):
 
-> Windows sparse extent capture is not implemented; native sparse attribute and
-> logical payload are retained
+> Windows sparse extent materialization and auditing are not implemented;
+> captured allocated ranges and logical payload are retained
 
 The auditor in [verifier.rs](../src/io/file/verifier.rs#L528) rejects a requested
 sparse check if either the expected entity or actual destination is sparse:
@@ -66,13 +65,13 @@ actually setting `FILE_ATTRIBUTE_SPARSE_FILE`. The existing
 [capture regression](../src/io/file/entity.rs#L1753) exercises this distinction.
 When the attribute is absent, capture must truthfully classify the file as
 dense. On native Windows, a genuinely sparse file must remain classified as
-sparse, with its extent-capture limitation recorded until implemented.
+sparse, with its restoration/auditing limitation recorded until implemented.
 
 Next steps / acceptance criteria:
 
-- Implement native allocated-range discovery and map it to the existing
-  payload/extent representation; investigate `FSCTL_QUERY_ALLOCATED_RANGES`
-  rather than inventing a parallel format.
+- Validate native allocated-range discovery with multi-range and pagination
+  fixtures; the existing `FSCTL_QUERY_ALLOCATED_RANGES` implementation uses the
+  existing payload/extent representation.
 - Preserve sparse layout during materialization, then independently audit it.
   Use native volume capabilities and actual results, not API success alone.
 - Test leading, interior, and trailing holes, empty files, allocated zero-filled
@@ -126,50 +125,38 @@ coverage, native sparse restoration and auditing, capability-specific WINE
 materialization diagnostics, and modern Windows/filesystem coverage. This
 bounded capture work does not close the sparse parity item.
 
-### 3. Requested Windows Change-Time Auditing Is Unsupported
+### 3. Windows Change-Time Restoration Remains Unimplemented
 
-[args.rs](../src/io/csc/args.rs#L278) enables change-time checking for
-`--check-ctime` or `--strict`. The underlying Windows auditor explicitly refuses
-the check when timestamps are present:
+Capture and requested auditing now use `FILE_BASIC_INFO.ChangeTime` rather
+than substituting mtime. Conversion retains exact 100 ns precision, including
+fractional dates before the Unix epoch. Native ticks and semantic timestamps
+survive Dc serialization and journal readback. `--check-ctime` and `--strict`
+detect a changed expected ctime; defaults retain the ignored-ctime caveat.
 
-> Windows change-time auditing is not implemented
+Restoration is still unimplemented. Captured entities and journals explicitly
+warn that original native change time is retained but not restored. Requested
+checks are not silently disabled. Native Windows 7 and WINE regressions cover
+capture, conversion, mismatch reporting, flags, caveats, and journal readback.
 
-See [verifier.rs](../src/io/file/verifier.rs#L525). This is a known missing
-implementation, not permission to silently ignore a requested check. Windows
-metadata change time must not be conflated with creation/birth time.
+Pending work: restoration with independently verified native equality, modern
+Windows/filesystem coverage, and structured journal diagnostics for dynamic
+best-effort metadata replication failures that currently appear only in logs.
+WINE also reports restored old mtime as birthtime in a strict captured-metadata
+fixture. The dedicated post-close mtime regression does not request birthtime
+restoration; it does not establish WINE creation-time fidelity.
 
-Next steps / acceptance criteria:
+### 4. Native Hardlink Work Is Bounded, Not Full Parity
 
-- Trace capture, serialization, materialization, and audit of Windows native
-  change time. Investigate `GetFileInformationByHandleEx` / `FILE_BASIC_INFO`
-  and the existing native metadata APIs before adding new abstractions.
-- Check exact 100 ns representation, pre-epoch values, and the distinction
-  between creation, access, write, and change times.
-- Define truthful behavior where restoration or stable equality cannot be
-  guaranteed. A verification failure is preferable to silently dropping the
-  requested check; best-effort limitations must be recorded and surfaced.
-- Add CSC-level tests for explicit `--check-ctime`, `--strict`, default caveats,
-  and journal readback. Validate WINE and native Windows separately.
+CSC verification now compares native volume/file identities on Windows.
+Regression coverage includes cross-root hardlinks, relocation, an equal-byte
+independent-file negative case, and new hardlinks during interrupted resume.
+Journal paths are relative even when Windows returns verbatim canonical paths;
+resume opens with write-data access before truncating an uncommitted tail.
 
-### 4. CSC Native Hardlink Identity Verification Is Missing
-
-In [CSC verifier.rs](../src/io/csc/verifier.rs#L350), hardlink identity comparison
-uses Unix device/inode values. The non-Unix branch explicitly fails:
-
-> Native hardlink identity verification is not implemented on this platform
-
-This is a confirmed verification gap, not a claim that every Windows hardlink
-capture or creation path has been audited.
-
-Next steps / acceptance criteria:
-
-- Reuse native volume/file identifiers already captured by
-  [metadata/windows.rs](../src/io/file/metadata/windows.rs#L129) where suitable.
-  Compare identity, not matching contents or link counts alone.
-- Test actual hardlinks, independent files with identical contents, missing
-  targets, multiple destination roots, and resume behavior.
-- Check the full capture/materialize/journal/verify path before calling Windows
-  hardlink support complete.
+Pending work: the main copy-engine test module remains Unix-gated, capture
+still falls back to zero identity after a failed Windows identity query, and
+hardlink verification still classifies non-NotFound metadata errors as missing.
+These gaps prevent claiming comprehensive native hardlink parity.
 
 ## Completed Bounded Work and Validation
 
@@ -184,7 +171,8 @@ Next steps / acceptance criteria:
   errors directly; that is not full native filesystem integration coverage.
 - Fixed pre-epoch fractional `FileTimestamps` Dc decoding for all four timestamp
   fields using Euclidean division/remainder. Modern and pre-epoch roundtrips
-  now have regression coverage. This does not implement change-time auditing.
+  now have regression coverage; Windows change-time auditing was subsequently
+  added as described above, but restoration remains unimplemented.
 - Fixed five Windows file-crate Clippy findings without lint suppressions.
 - Fixed the native runner to start its VM after compilation/ISO packaging.
   Optimized compression and JavaScript test binaries retain the original test
@@ -195,7 +183,9 @@ Latest verified results:
 | Environment | Result | Scope / caveat |
 | --- | --- | --- |
 | Linux musl | CSC 103 + file 97 passed; zero ignored | Fresh final scoped run; provenance passed unskipped in 284.18 s |
-| WINE | CSC 15 + file 79 passed; zero ignored | Timestamp-fix run; earlier workspace all-target tests and corrected doctests also passed |
+| WINE, current scoped executables | CSC 38 + file 80 passed; zero ignored | Full provenance passed in 525.59 s; final exact mtime assertion also passed separately |
+| Native Windows 7, current scoped rebuild | CSC 38 + file 80 passed; zero ignored | Includes portable CLI, journal/provenance, ctime, hardlink/resume regressions |
+| Windows affected-crate Clippy | Passed | Current `--lib --no-deps` check for file and CSC |
 | Native Windows 7 | All 119 packaged binaries passed | Includes nine doctest executables; not evidence that gated CSC tests ran |
 | Native Windows 7, final file rebuild | File 79 passed; zero ignored | Includes the final Windows filesystem lint cleanup |
 | Windows file-crate Clippy | Passed | Targeted `--lib --no-deps` check |
@@ -203,11 +193,20 @@ Latest verified results:
 Only Windows 7 was tested natively. Modern Windows validation remains pending.
 Full Windows CSC fidelity is **not** established by these results.
 
+The staged Windows payload writer is now synced and closed before metadata
+restoration, preventing its eventual close from resetting restored mtime.
+The native full-provenance workflow reproduced the failure before this change
+and passes after it. The existing Windows payload regression also verifies an
+old mtime with exact 100 ns precision after handles close, on native Windows
+and WINE. Creation-time open/write errors now propagate rather than being
+discarded. Current-source Linux validation is still pending.
+
 ## Reproduction and Working Constraints
 
 Build/test one platform at a time. Run `cargo clean` before switching Linux and
 Windows targets: keeping both previously exhausted disk space. Do not clean
-while another Cargo run is active. No validation runs remain active at handoff.
+while another Cargo run is active. Windows/WINE checks have finished; the
+current-source Linux scoped run is active after the required cleanup.
 
 Linux scoped tests:
 

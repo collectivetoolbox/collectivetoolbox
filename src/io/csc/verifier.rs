@@ -367,6 +367,16 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                             matched_entries = matched_entries.saturating_add(1);
                         }
                     }
+                    (Err(error), _) if error.kind() != std::io::ErrorKind::NotFound => {
+                        return Err(error).with_context(|| format!(
+                            "Failed to query hardlink metadata: {}", full_path.display(),
+                        ));
+                    }
+                    (_, Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
+                        return Err(error).with_context(|| format!(
+                            "Failed to query hardlink target metadata: {}", tgt_full.display(),
+                        ));
+                    }
                     (Err(_), _) => {
                         missing_entries.push(rel_path.clone());
                     }
@@ -737,6 +747,37 @@ mod tests {
         let report = verify_directory_against_manifest(&args).expect("verify missing target");
         assert!(report.changed_entries.iter().any(|entry| entry.relative_path == link
             && entry.differences.iter().any(|diff| matches!(diff, DiffKind::HardlinkMismatch { .. }))));
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_hardlink_metadata_errors_are_not_missing() {
+        let temp = tempdir().unwrap();
+        let destination = temp.path().join("destination");
+        fs::create_dir(&destination).unwrap();
+        fs::write(destination.join("existing"), b"payload").unwrap();
+        let invalid_component = "x".repeat(300);
+        let query_error = fs::symlink_metadata(destination.join(&invalid_component)).unwrap_err();
+        assert_ne!(query_error.kind(), std::io::ErrorKind::NotFound);
+        for (case, link, target, context) in [
+            ("link", invalid_component.as_str(), "existing", "Failed to query hardlink metadata"),
+            ("target", "existing", invalid_component.as_str(), "Failed to query hardlink target metadata"),
+        ] {
+            let journal = temp.path().join(format!("{case}.cscjournal"));
+            let mut writer = crate::journal::JournalWriter::create_at_path(
+                &journal, &journal.with_extension("cscdesc"), &[], &destination,
+            ).unwrap();
+            let mut entity = ctb_io::file::FileEntity::from_vec(Vec::new());
+            entity.identity.relative_path = Some(PathBuf::from(link));
+            entity.kind = FileEntityKind::Hardlink { target_relative_path: target.as_bytes().to_vec() };
+            writer.record_entity(&entity);
+            writer.commit_batch().unwrap();
+            writer.mark_completed().unwrap();
+            drop(writer);
+            let error = verify_directory_against_manifest(&default_verify_args(journal, None)).unwrap_err();
+            assert!(error.to_string().contains(context), "{error:#}");
+            let io_error = error.downcast_ref::<std::io::Error>().unwrap();
+            assert_eq!(io_error.kind(), query_error.kind());
+        }
     }
 
     #[crate::ctb_test]

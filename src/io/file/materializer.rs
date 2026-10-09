@@ -894,6 +894,12 @@ pub fn materialize_entity(
             }
 
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
+            #[cfg(windows)]
+            let temp_file = {
+                temp_file.sync_all()?;
+                drop(temp_file);
+                std::fs::OpenOptions::new().read(true).write(true).open(&temp_path)?
+            };
             apply_entity_metadata(
                 &temp_path,
                 Some(&dest_path),

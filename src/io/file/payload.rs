@@ -244,6 +244,8 @@ pub fn get_file_extents(fd: &File, file_size: u64) -> Result<Vec<Extent>> {
         };
         let mut ranges = [FILE_ALLOCATED_RANGE_BUFFER { FileOffset: 0, Length: 0 }; 128];
         let mut returned = 0_u32;
+        // SAFETY: fd owns the live handle; query, ranges, and returned are
+        // aligned live buffers of the supplied sizes until the call returns.
         let success = unsafe {
             DeviceIoControl(
                 fd.as_raw_handle(), FSCTL_QUERY_ALLOCATED_RANGES,

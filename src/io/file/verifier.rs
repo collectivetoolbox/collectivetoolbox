@@ -1244,6 +1244,24 @@ mod tests {
             (captured.metadata.uid, captured.metadata.gid, captured.metadata.mode),
             (None, None, None),
         );
+        let mut timestamp_entity = FileEntity::from_vec(b"old timestamp".to_vec());
+        timestamp_entity.identity.relative_path = Some(PathBuf::from("restored_mtime"));
+        let mut timestamps = captured.metadata.timestamps.clone().unwrap();
+        timestamps.mtime_sec = 1_000_000_000;
+        timestamps.mtime_nsec = 123_456_700;
+        timestamps.birthtime_sec = None;
+        timestamps.birthtime_nsec = None;
+        timestamp_entity.metadata.timestamps = Some(timestamps);
+        let mut timestamp_payload = MemoryPayloadSource::new(b"old timestamp".to_vec()).unwrap();
+        let timestamp_receipt = timestamp_entity.materialize_at_path(
+            Some(&mut timestamp_payload), temp.path(), &MaterializeOptions::default(),
+        ).unwrap();
+        let restored = FileTime::from_last_modification_time(
+            &fs::metadata(&timestamp_receipt.destination_path).unwrap(),
+        );
+        assert_eq!((restored.unix_seconds(), restored.nanoseconds()), (1_000_000_000, 123_456_700));
+        assert!(audit_entity(&timestamp_receipt.destination_path, &timestamp_entity, &options)
+            .unwrap().is_empty());
         if let Some(ref mut timestamps) = captured.metadata.timestamps {
             timestamps.mtime_sec = timestamps.mtime_sec.saturating_add(1);
         } else {

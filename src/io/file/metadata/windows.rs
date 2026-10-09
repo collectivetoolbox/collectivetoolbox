@@ -236,6 +236,8 @@ pub(crate) fn filetime_from_windows_ticks(ticks: i64) -> Result<filetime::FileTi
 #[expect(unsafe_code, reason = "GetFileInformationByHandleEx writes to an initialized FILE_BASIC_INFO for a live handle")]
 fn query_handle_change_time(handle: HANDLE) -> Result<i64> {
     let mut basic = FILE_BASIC_INFO::default();
+    // SAFETY: callers retain the live handle; basic is aligned and writable
+    // for the exact buffer size throughout this synchronous query.
     let success = unsafe {
         GetFileInformationByHandleEx(handle, FileBasicInfo, (&raw mut basic).cast(),
             u32::try_from(std::mem::size_of_val(&basic))?)
