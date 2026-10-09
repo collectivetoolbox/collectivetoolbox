@@ -312,7 +312,7 @@ pub fn execute_copy_pipeline(
                 stats.dirs_created = stats.dirs_created.saturating_add(1);
 
                 let mut journal_dir = dir_entity.clone();
-                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt);
+                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
                 journal_dir.identity.relative_path = Some(rel.clone());
                 journal_dir.identity.raw_relative_path =
                     Some(rel.as_os_str().as_encoded_bytes().to_vec());
@@ -1372,25 +1372,29 @@ fn copy_single_item(
     Ok(Some(final_dest))
 }
 
-fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathBuf {
+fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Result<PathBuf> {
     // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_dest = dest_path.strip_prefix("./").unwrap_or(dest_path);
     // Reason for fallback: path not prefixed with "./" retains original path unchanged
     let norm_journal = journal_dest.strip_prefix("./").unwrap_or(journal_dest);
 
     if norm_journal.as_os_str().is_empty() || norm_journal == Path::new(".") {
-        return norm_dest.to_path_buf();
+        return Ok(norm_dest.to_path_buf());
     }
 
     if let Ok(rel) = norm_dest.strip_prefix(norm_journal) {
         // Reason for fallback: path not prefixed with "./" retains original path unchanged
-        return rel.strip_prefix("./").unwrap_or(rel).to_path_buf();
+        return Ok(rel.strip_prefix("./").unwrap_or(rel).to_path_buf());
     }
     if let Ok(rel) = dest_path.strip_prefix(journal_dest) {
-        return rel.to_path_buf();
+        return Ok(rel.to_path_buf());
     }
 
-    norm_dest.to_path_buf()
+    let canonical_root = std::fs::canonicalize(journal_dest)
+        .with_context(|| format!("Failed to resolve journal destination {}", journal_dest.display()))?;
+    let relative = dest_path.strip_prefix(&canonical_root)
+        .with_context(|| format!("Journal entry {} is outside destination {}", dest_path.display(), canonical_root.display()))?;
+    Ok(relative.to_path_buf())
 }
 
 fn record_materialization_failure(
@@ -1411,7 +1415,7 @@ fn record_journal_entry(
     entity: &FileEntity,
 ) -> Result<()> {
     let mut journal_entity = entity.clone();
-    let rel = compute_journal_relative_path(journal.destination(), dest_path);
+    let rel = compute_journal_relative_path(journal.destination(), dest_path)?;
     journal_entity.identity.relative_path = Some(rel.clone());
     journal_entity.identity.raw_relative_path = Some(rel.as_os_str().as_encoded_bytes().to_vec());
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
@@ -1419,7 +1423,7 @@ fn record_journal_entry(
         // Reason for fallback: if destination cannot be canonicalized, use destination path directly
         let journal_root = std::fs::canonicalize(journal.destination())
             .unwrap_or_else(|_| journal.destination().to_path_buf());
-        *target_relative_path = compute_journal_relative_path(&journal_root, &target)
+        *target_relative_path = compute_journal_relative_path(&journal_root, &target)?
             .as_os_str().as_encoded_bytes().to_vec();
     }
     journal.record_entity(&journal_entity);

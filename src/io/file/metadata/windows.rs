@@ -48,7 +48,8 @@ use windows_sys::Win32::Storage::FileSystem::{
     FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
     FILE_GENERIC_WRITE, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE,
     FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_WRITE_ATTRIBUTES,
-    GetFileInformationByHandle, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_EXISTING,
+    GetFileInformationByHandle, GetFileInformationByHandleEx, FileBasicInfo,
+    FILE_BASIC_INFO, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, OPEN_EXISTING,
 };
 use windows_sys::Win32::System::IO::DeviceIoControl;
 use windows_sys::Win32::System::Ioctl::{
@@ -187,6 +188,8 @@ fn query_handle_details(
     meta: &std::fs::Metadata,
     values: &mut BTreeMap<String, NativeMetadataValue>,
 ) -> Result<()> {
+    let change_time = query_handle_change_time(handle)?;
+    values.insert("change_time".to_owned(), NativeMetadataValue::Signed(change_time));
     let mut file_info = BY_HANDLE_FILE_INFORMATION::default();
     // SAFETY: handle is valid and file_info is an initialized output struct.
     if unsafe { GetFileInformationByHandle(handle, &raw mut file_info) } != 0 {
@@ -217,6 +220,40 @@ fn query_handle_details(
     }
 
     Ok(())
+}
+
+/// Converts Windows 100 ns intervals since 1601 to an exact Unix timestamp.
+pub(crate) fn filetime_from_windows_ticks(ticks: i64) -> Result<filetime::FileTime> {
+    anyhow::ensure!(ticks >= 0, "Negative Windows timestamp");
+    let unix_ticks = ticks.checked_sub(116_444_736_000_000_000)
+        .context("Windows timestamp epoch overflow")?;
+    let seconds = unix_ticks.checked_div_euclid(10_000_000).context("Invalid tick divisor")?;
+    let nanos = unix_ticks.checked_rem_euclid(10_000_000)
+        .context("Invalid tick remainder")?.checked_mul(100).context("Nanosecond overflow")?;
+    Ok(filetime::FileTime::from_unix_time(seconds, u32::try_from(nanos)?))
+}
+
+#[expect(unsafe_code, reason = "GetFileInformationByHandleEx writes to an initialized FILE_BASIC_INFO for a live handle")]
+fn query_handle_change_time(handle: HANDLE) -> Result<i64> {
+    let mut basic = FILE_BASIC_INFO::default();
+    let success = unsafe {
+        GetFileInformationByHandleEx(handle, FileBasicInfo, (&raw mut basic).cast(),
+            u32::try_from(std::mem::size_of_val(&basic))?)
+    };
+    if success == 0 {
+        return Err(std::io::Error::last_os_error()).context("Failed to query Windows native change time");
+    }
+    Ok(basic.ChangeTime)
+}
+
+/// Queries change time without following reparse points or reading payloads.
+pub fn query_file_change_time(path: &Path) -> Result<filetime::FileTime> {
+    use std::os::windows::fs::OpenOptionsExt;
+    use std::os::windows::io::AsRawHandle;
+    let file = std::fs::OpenOptions::new().read(true).access_mode(FILE_READ_ATTRIBUTES)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
+        .open(path).with_context(|| format!("Failed to open {} for change-time query", path.display()))?;
+    filetime_from_windows_ticks(query_handle_change_time(file.as_raw_handle())?)
 }
 
 #[expect(

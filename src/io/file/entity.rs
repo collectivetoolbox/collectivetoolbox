@@ -762,6 +762,12 @@ impl FileEntity {
         let (atime_sec, atime_nsec) = system_time_to_unix(sym_meta.accessed());
         let (mtime_sec, mtime_nsec) = system_time_to_unix(sym_meta.modified());
         let (btime_sec, btime_nsec) = system_time_to_unix(sym_meta.created());
+        let Some(crate::metadata::NativeMetadataValue::Signed(change_time)) =
+            native_metadata.values.get("change_time") else {
+                anyhow::bail!("Windows capture omitted native change time for {}", path.display());
+            };
+        let change_time = crate::metadata::windows::filetime_from_windows_ticks(*change_time)?;
+        warnings.push("Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal".to_string());
 
         let fs_info = crate::filesystem::query_filesystem_info(path, &sym_meta);
 
@@ -770,8 +776,8 @@ impl FileEntity {
             atime_nsec,
             mtime_sec,
             mtime_nsec,
-            ctime_sec: mtime_sec,
-            ctime_nsec: mtime_nsec,
+            ctime_sec: change_time.unix_seconds(),
+            ctime_nsec: change_time.nanoseconds(),
             birthtime_sec: Some(btime_sec),
             birthtime_nsec: Some(btime_nsec),
             resolution_nsec: Some(fs_info.resolution_nsec),
@@ -867,12 +873,12 @@ impl FileEntity {
             let native_sparse = file_attrs & FILE_ATTRIBUTE_SPARSE_FILE != 0;
             if native_sparse {
                 metadata.push_warning(
-                    "Windows sparse extent capture is not implemented; native sparse attribute and logical payload are retained".to_string(),
+                    "Windows sparse extent materialization and auditing are not implemented; captured allocated ranges and logical payload are retained".to_string(),
                 );
             }
             let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
                 Ok(mut file) => {
-                    // Reason for fallback: when extent query fails on Windows/unsupported filesystem, fall back to single contiguous data extent covering full size
+                    // Reason for fallback: retain logical bytes when native range queries fail, with the fidelity limitation recorded below.
                     let extents = get_file_extents(&file, size).unwrap_or_else(|e| {
                         metadata.push_warning(format!("Failed to query file extents: {e}"));
                         vec![Extent::Data { offset: 0, length: size }]
@@ -1774,8 +1780,12 @@ mod tests {
             & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
         if native_sparse {
             assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: true, .. }));
+            assert!(matches!(&entity.kind, FileEntityKind::Regular { extents, .. }
+                if extents == &vec![Extent::Hole { offset: 0, length: 4096 }]));
+            assert!(!entity.metadata.warnings.iter()
+                .any(|warning| warning.contains("Failed to query file extents")));
             assert!(entity.metadata.warnings.iter()
-                .any(|warning| warning.contains("Windows sparse extent capture")));
+                .any(|warning| warning.contains("Windows sparse extent materialization and auditing")));
         } else {
             assert!(ctb_io_environment::is_wine(), "Native sparse control did not retain its attribute");
             assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: false, .. }));

@@ -32,12 +32,12 @@ use crate::args::{CscVerifyArgs, VerifyOutputFormat};
 use crate::journal::{read_journal_snapshot, resolve_journal_path, JournalErrorRecord};
 use crate::journal::PLATFORM_WINDOWS;
 use ctb_io::file::entity::FileEntityKind;
-use ctb_io::file::identity::resolve_relative_path_for_os;
+use ctb_io::file::identity::{extract_file_identity, resolve_relative_path_for_os};
 use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, audit_entity_detailed, try_drop_system_caches};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
-#[cfg(unix)]
+#[cfg(all(test, unix))]
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -347,30 +347,24 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                     std::fs::symlink_metadata(&tgt_full),
                 ) {
                     (Ok(m1), Ok(m2)) => {
-                        #[cfg(unix)]
-                        {
-                            if m1.ino() != m2.ino() || m1.dev() != m2.dev() {
-                                changed_entries.push(EntryDiff {
-                                    relative_path: rel_path.clone(),
-                                    differences: vec![DiffKind::HardlinkMismatch {
-                                        expected_target: tgt_rel,
-                                        details: format!(
-                                            "Inodes differ: ({}:{}) vs ({}:{})",
-                                            m1.dev(),
-                                            m1.ino(),
-                                            m2.dev(),
-                                            m2.ino()
-                                        ),
-                                    }],
-                                });
-                            } else {
-                                matched_entries = matched_entries.saturating_add(1);
-                            }
-                        }
-                        #[cfg(not(unix))]
-                        {
-                            let _ = (m1, m2);
-                            anyhow::bail!("Native hardlink identity verification is not implemented on this platform");
+                        let first_identity = extract_file_identity(&full_path, &m1)?;
+                        let target_identity = extract_file_identity(&tgt_full, &m2)?;
+                        if first_identity != target_identity {
+                            changed_entries.push(EntryDiff {
+                                relative_path: rel_path.clone(),
+                                differences: vec![DiffKind::HardlinkMismatch {
+                                    expected_target: tgt_rel,
+                                    details: format!(
+                                        "File identities differ: ({}:{}) vs ({}:{})",
+                                        first_identity.device_id,
+                                        first_identity.inode,
+                                        target_identity.device_id,
+                                        target_identity.inode
+                                    ),
+                                }],
+                            });
+                        } else {
+                            matched_entries = matched_entries.saturating_add(1);
                         }
                     }
                     (Err(_), _) => {
@@ -615,7 +609,7 @@ pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
         exit_code,
     })
 }
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -636,6 +630,114 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_ctime_flags_and_journal_readback() {
+        let temp = tempdir().unwrap();
+        let destination = temp.path().join("destination");
+        fs::create_dir(&destination).unwrap();
+        let path = destination.join("file");
+        fs::write(&path, b"journal ctime payload").unwrap();
+        let mut entity = ctb_io::file::FileEntity::from_filesystem(&path, Some(&destination)).unwrap();
+        entity.metadata.timestamps.as_mut().unwrap().ctime_sec = entity.metadata.timestamps.as_ref().unwrap().ctime_sec.saturating_sub(100);
+        let journal = temp.path().join("ctime.cscjournal");
+        let mut writer = crate::journal::JournalWriter::create_at_path(
+            &journal, &temp.path().join("ctime.cscdesc"), &[], &destination,
+        ).unwrap();
+        for warning in &entity.metadata.warnings {
+            writer.record_warning("FileReadWarning", warning).unwrap();
+        }
+        writer.record_entity(&entity);
+        writer.commit_batch().unwrap();
+        writer.mark_completed().unwrap();
+        drop(writer);
+        let snapshot = read_journal_snapshot(&journal).unwrap();
+        let stored = snapshot.committed_entities.get(b"file".as_slice()).unwrap();
+        assert_eq!(stored.metadata.timestamps, entity.metadata.timestamps);
+        assert_eq!(stored.metadata.warnings, entity.metadata.warnings);
+        assert!(snapshot.warnings.iter().any(|warning| warning.message.contains("change-time restoration is not implemented")));
+        let mut args = default_verify_args(journal, None);
+        args.best_effort = false;
+        let report = verify_directory_against_manifest(&args).unwrap();
+        assert!(report.is_clean(), "{}", report.format_human_report());
+        assert!(report.caveats.iter().any(|caveat| caveat.contains("Change times (ctime) not verified")));
+        assert!(report.caveats.iter().any(|caveat| caveat.contains("change-time restoration is not implemented")));
+        args.check_ctime = true;
+        let checked = verify_directory_against_manifest(&args).unwrap();
+        assert!(checked.changed_entries.iter().any(|entry| entry.differences.iter()
+            .any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. }))));
+        args.check_ctime = false;
+        args.strict = true;
+        let strict = verify_directory_against_manifest(&args).unwrap();
+        assert!(strict.changed_entries.iter().any(|entry| entry.differences.iter()
+            .any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. }))));
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_native_hardlink_identity() {
+        let temp = tempdir().expect("create tempdir");
+        let first = temp.path().join("first");
+        let second = temp.path().join("second");
+        let dest = temp.path().join("dest");
+        let relocated = temp.path().join("relocated");
+        let state = temp.path().join("state");
+        fs::create_dir(&first).expect("create first root");
+        fs::create_dir(&second).expect("create second root");
+        fs::create_dir(&state).expect("create state");
+        fs::write(first.join("shared"), b"shared payload").expect("write shared file");
+        fs::hard_link(first.join("shared"), second.join("linked")).expect("create hardlink");
+        run_csc(default_test_args(vec![first.clone(), second.clone(), dest.clone()], state.clone()))
+            .expect("copy hardlinks across roots");
+        let journal = find_cscjournal(&state);
+        let journal_file = fs::OpenOptions::new().write(true).open(&journal)
+            .expect("open journal");
+        let journal_length = journal_file.metadata().expect("journal metadata").len();
+        journal_file.set_len(journal_length.saturating_sub(1)).expect("remove completion marker");
+        drop(journal_file);
+        let description = journal.with_extension("cscdesc");
+        if description.exists() {
+            fs::remove_file(description).expect("remove completed description");
+        }
+        fs::hard_link(first.join("shared"), second.join("resumed")).expect("create resumed link");
+        let mut resume_args = default_test_args(vec![first, second, dest.clone()], state);
+        resume_args.resume = Some(journal.clone());
+        run_csc(resume_args).expect("resume hardlink copy");
+        let shared_identity = ctb_io::file::identity::query_file_identity(&dest.join("first/shared"))
+            .expect("shared identity");
+        assert_eq!(shared_identity, ctb_io::file::identity::query_file_identity(&dest.join("second/linked"))
+            .expect("copied link identity"));
+        assert_eq!(shared_identity, ctb_io::file::identity::query_file_identity(&dest.join("second/resumed"))
+            .expect("resumed link identity"));
+        fs::rename(&dest, &relocated).expect("relocate destination");
+        let args = default_verify_args(journal.clone(), Some(relocated.clone()));
+        let report = verify_directory_against_manifest(&args).expect("verify hardlinks");
+        assert!(report.is_clean(), "{}", report.format_human_report());
+        let snapshot = read_journal_snapshot(&journal).expect("read journal");
+        let (raw_link, entity) = snapshot.committed_entities.iter()
+            .find(|(_, entity)| matches!(entity.kind, FileEntityKind::Hardlink { .. }))
+            .expect("journal must record hardlink semantics");
+        let link = resolve_relative_path_for_os(raw_link, snapshot.origin_platform == PLATFORM_WINDOWS)
+            .expect("resolve link path");
+        let FileEntityKind::Hardlink { target_relative_path } = &entity.kind else {
+            panic!("expected hardlink");
+        };
+        let target = resolve_relative_path_for_os(target_relative_path, snapshot.origin_platform == PLATFORM_WINDOWS)
+            .expect("resolve target path");
+        fs::remove_file(relocated.join(&link)).expect("remove hardlink");
+        fs::write(relocated.join(&link), b"shared payload").expect("write identical independent file");
+        let report = verify_directory_against_manifest(&args).expect("verify independent file");
+        assert!(report.changed_entries.iter().any(|entry| entry.relative_path == link
+            && entry.differences.iter().any(|diff| matches!(diff, DiffKind::HardlinkMismatch { .. }))));
+        fs::remove_file(relocated.join(&link)).expect("remove independent file");
+        let report = verify_directory_against_manifest(&args).expect("verify missing link");
+        assert!(report.missing_entries.contains(&link));
+        fs::hard_link(relocated.join(&target), relocated.join(&link)).expect("restore hardlink");
+        fs::remove_file(relocated.join(&target)).expect("remove target");
+        let report = verify_directory_against_manifest(&args).expect("verify missing target");
+        assert!(report.changed_entries.iter().any(|entry| entry.relative_path == link
+            && entry.differences.iter().any(|diff| matches!(diff, DiffKind::HardlinkMismatch { .. }))));
+    }
 
     #[crate::ctb_test]
     fn test_verify_clean_directory() {
@@ -704,8 +806,8 @@ mod tests {
 
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
-                assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
+                assert_eq!(exit_code, 0, "{out}");
                 assert!(out.contains("OK - Directory matches manifest"));
             }
             _ => panic!("Expected Immediate ToolResult"),
@@ -750,6 +852,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_verify_detects_metadata_mode_and_ignore_perms() {
         use std::os::unix::fs::PermissionsExt;
@@ -959,7 +1062,7 @@ mod tests {
                 assert_eq!(exit_code, 1);
                 let out = String::from_utf8_lossy(&stdout);
                 // Untracked entry inside my_fonts MUST be reported
-                assert!(out.contains("[UNTRACKED] my_fonts/untracked_in_fonts.ttf"));
+                assert!(out.contains(&format!("[UNTRACKED] {}", Path::new("my_fonts").join("untracked_in_fonts.ttf").display())));
                 // Sibling entries outside my_fonts MUST NOT be reported
                 assert!(!out.contains(".dosbox"));
                 assert!(!out.contains(".face"));
@@ -999,7 +1102,7 @@ mod tests {
                 assert_eq!(exit_code, 0);
                 let json_str = String::from_utf8(stdout).expect("valid utf8");
                 let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("parse json");
-                assert_eq!(parsed["total_manifest_entries"], 1);
+                assert_eq!(parsed["total_manifest_entries"], 1, "{json_str}");
                 assert_eq!(parsed["matched_entries"], 1);
                 assert!(parsed["changed_entries"].as_array().expect("array").is_empty());
                 assert!(parsed["missing_entries"].as_array().expect("array").is_empty());
@@ -1079,7 +1182,7 @@ mod tests {
         // Modify mtime on destination by 1 second
         let dest_file = dest.join("item.txt");
         let meta = fs::metadata(&dest_file).expect("metadata");
-        let mtime_sec = meta.mtime();
+        let mtime_sec = FileTime::from_last_modification_time(&meta).unix_seconds();
         set_file_mtime(&dest_file, FileTime::from_unix_time(mtime_sec.saturating_add(1), 0))
             .expect("set mtime");
 
@@ -1112,6 +1215,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_verify_caveats_without_strict() {
         let temp = tempdir().expect("create tempdir");
@@ -1258,6 +1362,7 @@ mod tests {
         assert!(out3.contains("ignored 2 timestamp differences"));
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_sparse_verification_best_effort_filesystem_support() {
         use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};

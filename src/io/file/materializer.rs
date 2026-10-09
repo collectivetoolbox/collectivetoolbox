@@ -309,18 +309,26 @@ fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
                 core::ptr::null_mut(),
             )
         };
-        if handle != windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+        if handle == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+            return Err(std::io::Error::last_os_error())
+                .with_context(|| format!("Failed to open {} to restore birth time", dest.display()));
+        }
             // SAFETY: handle is live, ft remains initialized, and the handle is closed only after SetFileTime returns.
-            unsafe {
-                windows_sys::Win32::Storage::FileSystem::SetFileTime(
+            let result = unsafe {
+                let result = windows_sys::Win32::Storage::FileSystem::SetFileTime(
                     handle,
                     &raw const ft,
                     core::ptr::null(),
                     core::ptr::null(),
                 );
+                let error = if result == 0 { Some(std::io::Error::last_os_error()) } else { None };
                 windows_sys::Win32::Foundation::CloseHandle(handle);
+                error
+            };
+            if let Some(error) = result {
+                return Err(error)
+                    .with_context(|| format!("Failed to restore birth time on {}", dest.display()));
             }
-        }
     }
     }
     Ok(())
@@ -448,7 +456,9 @@ pub fn materialize_entity(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let target_path = resolve_relative_path_for_os(target_relative_path, false)?;
+            let origin_is_windows = entity.metadata.native.as_ref()
+                .is_some_and(|native| native.source_os == crate::metadata::OsFamily::Windows);
+            let target_path = resolve_relative_path_for_os(target_relative_path, origin_is_windows)?;
             dest_dir.create_hardlink(
                 &target_path,
                 &parent_dir_fd.as_fd(),

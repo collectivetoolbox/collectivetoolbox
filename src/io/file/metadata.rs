@@ -1259,6 +1259,7 @@ pub fn native_metadata_differences(
             "creation_time",
             "last_access_time",
             "last_write_time",
+            "change_time",
             "file_size",
             "io.noatime",
         ];

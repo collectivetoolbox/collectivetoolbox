@@ -218,8 +218,81 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
     Ok(extents)
 }
 
-/// Fallback extent map for non-Unix platforms (e.g. Windows) where SEEK_DATA/SEEK_HOLE are not available.
-#[cfg(not(unix))]
+/// Discovers native Windows allocated ranges without reading payload bytes.
+#[cfg(windows)]
+#[expect(unsafe_code, reason = "DeviceIoControl receives live file handles and aligned initialized range buffers")]
+pub fn get_file_extents(fd: &File, file_size: u64) -> Result<Vec<Extent>> {
+    use std::os::windows::fs::MetadataExt;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::ERROR_MORE_DATA;
+    use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE;
+    use windows_sys::Win32::System::IO::DeviceIoControl;
+    use windows_sys::Win32::System::Ioctl::{FILE_ALLOCATED_RANGE_BUFFER, FSCTL_QUERY_ALLOCATED_RANGES};
+
+    if file_size == 0 {
+        return Ok(Vec::new());
+    }
+    if fd.metadata()?.file_attributes() & FILE_ATTRIBUTE_SPARSE_FILE == 0 {
+        return Ok(vec![Extent::Data { offset: 0, length: file_size }]);
+    }
+    let mut extents = Vec::new();
+    let mut cursor = 0_u64;
+    while cursor < file_size {
+        let query = FILE_ALLOCATED_RANGE_BUFFER {
+            FileOffset: i64::try_from(cursor)?,
+            Length: i64::try_from(file_size.checked_sub(cursor).context("Invalid range cursor")?)?,
+        };
+        let mut ranges = [FILE_ALLOCATED_RANGE_BUFFER { FileOffset: 0, Length: 0 }; 128];
+        let mut returned = 0_u32;
+        let success = unsafe {
+            DeviceIoControl(
+                fd.as_raw_handle(), FSCTL_QUERY_ALLOCATED_RANGES,
+                (&raw const query).cast(), u32::try_from(std::mem::size_of_val(&query))?,
+                ranges.as_mut_ptr().cast(), u32::try_from(std::mem::size_of_val(&ranges))?,
+                &raw mut returned, std::ptr::null_mut(),
+            )
+        };
+        let more_data = if success == 0 {
+            let error = std::io::Error::last_os_error();
+            if error.raw_os_error() != Some(i32::try_from(ERROR_MORE_DATA)?) {
+                return Err(error).context("Windows allocated-range query failed");
+            }
+            true
+        } else {
+            false
+        };
+        let returned = usize::try_from(returned)?;
+        let range_size = std::mem::size_of::<FILE_ALLOCATED_RANGE_BUFFER>();
+        anyhow::ensure!(returned <= std::mem::size_of_val(&ranges)
+            && returned.checked_rem(range_size) == Some(0), "Invalid allocated-range buffer length");
+        let count = returned.checked_div(range_size).context("Invalid allocated-range size")?;
+        let previous_cursor = cursor;
+        for range in ranges.iter().take(count) {
+            let start = u64::try_from(range.FileOffset).context("Negative allocated-range offset")?;
+            let length = u64::try_from(range.Length).context("Negative allocated-range length")?;
+            anyhow::ensure!(length > 0, "Empty allocated range");
+            let end = start.checked_add(length).context("Allocated-range overflow")?.min(file_size);
+            anyhow::ensure!(end > cursor && start < file_size, "Allocated ranges do not advance");
+            if start > cursor {
+                extents.push(Extent::Hole { offset: cursor, length: start.checked_sub(cursor).context("Invalid hole")? });
+            }
+            let start = start.max(cursor);
+            extents.push(Extent::Data { offset: start, length: end.checked_sub(start).context("Invalid data range")? });
+            cursor = end;
+        }
+        if !more_data {
+            if cursor < file_size {
+                extents.push(Extent::Hole { offset: cursor, length: file_size.checked_sub(cursor).context("Invalid trailing hole")? });
+            }
+            break;
+        }
+        anyhow::ensure!(cursor > previous_cursor, "Allocated-range pagination did not advance");
+    }
+    Ok(extents)
+}
+
+/// Fallback extent map where native sparse discovery is unavailable.
+#[cfg(not(any(unix, windows)))]
 pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
     if file_size == 0 {
         return Ok(Vec::new());

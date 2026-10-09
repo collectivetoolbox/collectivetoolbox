@@ -521,10 +521,6 @@ pub fn audit_entity_detailed(
             options.ignore_perms || expected.metadata.mode.is_none(),
             "Windows cannot audit POSIX permission modes"
         );
-        anyhow::ensure!(
-            options.ignore_ctime || expected.metadata.timestamps.is_none(),
-            "Windows change-time auditing is not implemented"
-        );
         let expected_sparse = matches!(
             expected.kind,
             FileEntityKind::Regular { is_sparse: true, .. }
@@ -616,6 +612,12 @@ pub fn audit_entity_detailed(
     let actual_atime_sec = actual_atime.unix_seconds();
     #[cfg(windows)]
     let actual_atime_nsec = actual_atime.nanoseconds();
+    #[cfg(windows)]
+    let actual_ctime = crate::metadata::windows::query_file_change_time(path)?;
+    #[cfg(windows)]
+    let actual_ctime_sec = actual_ctime.unix_seconds();
+    #[cfg(windows)]
+    let actual_ctime_nsec = actual_ctime.nanoseconds();
     #[cfg(any(unix, windows))]
     if let Some(ref exp_ts) = expected.metadata.timestamps {
         let dest_res = crate::filesystem::query_filesystem_resolution(path, &dest_meta);
@@ -674,7 +676,6 @@ pub fn audit_entity_detailed(
             }
         }
 
-        #[cfg(unix)]
         {
             let ctime_mismatch = actual_ctime_sec != exp_ts.ctime_sec
                 || actual_ctime_nsec != exp_ts.ctime_nsec;
@@ -1186,6 +1187,43 @@ mod tests {
     use std::fs;
     #[cfg(unix)]
     use std::os::unix::fs::{PermissionsExt};
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_change_time_capture_and_audit() {
+        let epoch = 116_444_736_000_000_000_i64;
+        for (ticks, seconds, nanos) in [
+            (0, -11_644_473_600, 0),
+            (epoch.saturating_sub(1), -1, 999_999_900),
+            (epoch, 0, 0),
+            (epoch.saturating_add(12_345_678), 1, 234_567_800),
+        ] {
+            let time = crate::metadata::windows::filetime_from_windows_ticks(ticks).unwrap();
+            assert_eq!((time.unix_seconds(), time.nanoseconds()), (seconds, nanos));
+        }
+        assert!(crate::metadata::windows::filetime_from_windows_ticks(-1).is_err());
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("change_time");
+        fs::write(&path, b"native timestamp payload").unwrap();
+        filetime::set_file_mtime(&path, FileTime::from_unix_time(1_000_000_000, 0)).unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        let actual = crate::metadata::windows::query_file_change_time(&path).unwrap();
+        let timestamps = entity.metadata.timestamps.as_ref().unwrap();
+        assert_eq!((timestamps.ctime_sec, timestamps.ctime_nsec), (actual.unix_seconds(), actual.nanoseconds()));
+        assert_ne!(timestamps.ctime_sec, timestamps.mtime_sec);
+        assert!(entity.metadata.warnings.iter().any(|warning| warning.contains("change-time restoration is not implemented")));
+        entity.metadata.environment = None;
+        entity.metadata.read_time = None;
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity.metadata).unwrap();
+        let options = EntityAuditOptions { ignore_ctime: false, ..EntityAuditOptions::default() };
+        assert!(audit_entity(&path, &entity, &options).unwrap().is_empty());
+        entity.metadata.timestamps.as_mut().unwrap().ctime_sec = actual.unix_seconds().saturating_sub(100);
+        let differences = audit_entity(&path, &entity, &options).unwrap();
+        assert!(differences.iter().any(|difference| matches!(difference, DiffKind::CtimeMismatch { .. })));
+        assert!(!differences.iter().any(|difference| matches!(difference, DiffKind::ContentHashMismatch { .. })));
+        let ignored = EntityAuditOptions { ignore_ctime: true, ..options };
+        assert!(audit_entity(&path, &entity, &ignored).unwrap().is_empty());
+    }
 
     #[cfg(windows)]
     #[crate::ctb_test]

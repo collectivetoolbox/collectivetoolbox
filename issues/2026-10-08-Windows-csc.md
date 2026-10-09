@@ -85,6 +85,47 @@ Next steps / acceptance criteria:
 - Keep WINE and native Windows expectations capability-specific; a WINE
   limitation must not disable a working native implementation.
 
+### Native Sparse Investigation (2026-10-09)
+
+Sparse restoration/auditing remains **Partially Implemented**, not lossless.
+Native allocated-range capture now uses `FSCTL_QUERY_ALLOCATED_RANGES`, with
+pagination and checked offsets, mapping ranges to the existing semantic
+`Extent` representation. The all-hole 4096-byte NTFS capture regression passes
+on Windows 7. Failed range queries retain logical bytes and record a metadata
+warning. Native sparse entities explicitly warn that restoration/auditing is
+not implemented; strict sparse auditing still refuses unsupported fidelity.
+
+Blocked restoration experiment, for an agent with Windows documentation access:
+
+- Windows 7 NTFS, VM runner, live read/write handle, `FSCTL_SET_SPARSE` succeeded
+  and the sparse attribute was retained. An initial 4096-byte all-hole file
+  captured as `Hole { offset: 0, length: 4096 }`.
+- Extending to 327680 bytes and writing 4096 zero bytes at offset 65536 and
+  `tail` at offset 196608 allocated gaps through the last written range.
+  Marking sparse before writes and seeking alone did not preserve holes.
+- `FSCTL_SET_ZERO_DATA` on `[0,65536)`, `[131072,196608)`, and
+  `[262144,327680)` returned success. After syncing and closing, native queries
+  reported `Data(0,131072), Hole(131072,65536), Data(196608,65536),
+  Hole(262144,65536)`: the leading range remained allocated.
+- The fixture required leading/interior/trailing holes and an allocated
+  zero-filled range. It failed three repair attempts; assertions were not
+  weakened to count that as fidelity. The unverified restoration/audit
+  experiment and failing fixture were removed at the operator's direction.
+- Investigate NTFS retained/resident initial allocation, valid-data-length
+  transitions, zero-range granularity/alignment, and handle lifetime/order.
+  Confirm with independent native tools and documentation before choosing a
+  restoration algorithm. Do not infer deallocation from ioctl success alone.
+
+Local diagnostic log: `/tmp/ctb-native-sparse-roundtrip.log`; regenerate the
+experiment rather than relying on that transient artifact. The experiment
+used `scripts/win-vm test-suite --debug --crate ctb-io-file --filter
+test_windows_sparse_capture_and_materialization`.
+
+Remaining gaps: validated multi-range capture fixtures, allocation pagination
+coverage, native sparse restoration and auditing, capability-specific WINE
+materialization diagnostics, and modern Windows/filesystem coverage. This
+bounded capture work does not close the sparse parity item.
+
 ### 3. Requested Windows Change-Time Auditing Is Unsupported
 
 [args.rs](../src/io/csc/args.rs#L278) enables change-time checking for

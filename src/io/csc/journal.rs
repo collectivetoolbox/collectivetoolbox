@@ -228,14 +228,15 @@ impl JournalWriter {
         desc_path: &Path,
         snapshot: &JournalSnapshot,
     ) -> Result<Self> {
-        let file = OpenOptions::new()
-            .append(true)
+        let mut file = OpenOptions::new()
+            .write(true)
             .open(journal_path)
             .with_context(|| {
                 format!("Failed to reopen state journal: {}", journal_path.display())
             })?;
         file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
         file.sync_all()?;
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?;
 
         let mut total_bytes = 0_u64;
         let mut total_files = 0_u64;
@@ -1318,7 +1319,7 @@ pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
     panic!("No .cscjournal found in {}", state_dir.display());
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 #[allow(
     clippy::panic,
     clippy::expect_used,
@@ -1680,6 +1681,7 @@ mod tests {
         assert!(writer.commit_batch().is_err());
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_failed_copy_retains_captured_metadata_and_destination() {
         let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
@@ -1731,6 +1733,7 @@ mod tests {
         assert!(snapshot.errors.iter().any(|error| matches!(error.stage, JournalErrorStage::Materialize)));
     }
 
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_target_error_reporting_shows_target_file() {
         let temp = tempdir().expect("create tempdir");
