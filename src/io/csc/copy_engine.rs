@@ -567,7 +567,7 @@ pub fn execute_copy_pipeline(
     // =========================================================================
     for symlink_item in deferred_symlinks {
         let dest_path = &symlink_item.dest_path;
-        let entity = symlink_item.entity;
+        let mut entity = symlink_item.entity;
         if !args.dry_run {
             record_journal_entry(journal, dest_path, &entity)?;
             journal.commit_batch()?;
@@ -579,18 +579,22 @@ pub fn execute_copy_pipeline(
             SandboxableDir::create_or_open(&symlink_item.dest_dir_root)?
         };
 
-        if let Err(e) = materialize_entity(&entity, None, &dest_dir, &options) {
-            record_materialization_failure(journal, dest_path, &entity, &e)?;
-            let _ = handle_item_error(
-                &symlink_item.src_path,
-                JournalErrorStage::Materialize,
-                e,
-                args,
-                journal,
-                &mut stats,
-            )?;
-            continue;
-        }
+        let receipt = match materialize_entity(&entity, None, &dest_dir, &options) {
+            Ok(receipt) => receipt,
+            Err(e) => {
+                record_materialization_failure(journal, dest_path, &entity, &e)?;
+                let _ = handle_item_error(
+                    &symlink_item.src_path,
+                    JournalErrorStage::Materialize,
+                    e,
+                    args,
+                    journal,
+                    &mut stats,
+                )?;
+                continue;
+            }
+        };
+        record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
 
         if !args.dry_run {
             let dest_target = match std::fs::read_link(dest_path) {
@@ -650,7 +654,7 @@ pub fn execute_copy_pipeline(
     // PASS 3: Apply directory metadata in reverse traversal order (leaf-first)
     // =========================================================================
     if !args.dry_run {
-        while let Some(fixup) = deferred_dirs.pop() {
+        while let Some(mut fixup) = deferred_dirs.pop() {
             if fixup.dest_path.exists() {
                 let expected_refs: Vec<&[u8]> =
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
@@ -679,7 +683,7 @@ pub fn execute_copy_pipeline(
                     )?;
                     continue;
                 }
-                if let Err(e) = apply_entity_metadata(
+                let warnings = match apply_entity_metadata(
                     &fixup.dest_path,
                     None,
                     &fixup.dir_entity.metadata,
@@ -687,17 +691,22 @@ pub fn execute_copy_pipeline(
                     true,
                     strict_lossless,
                 ) {
-                    record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
-                    let _ = handle_item_error(
-                        &fixup.src_path,
-                        JournalErrorStage::Materialize,
-                        e,
-                        args,
-                        journal,
-                        &mut stats,
-                    )?;
-                    continue;
-                }
+                    Ok(warnings) => warnings,
+                    Err(e) => {
+                        record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
+                        let _ = handle_item_error(
+                            &fixup.src_path,
+                            JournalErrorStage::Materialize,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
+                };
+                record_materialization_warnings(journal, &mut fixup.dir_entity, warnings)?;
+                record_journal_entry(journal, &fixup.dest_path, &fixup.dir_entity)?;
                 if let Err(e) = verify_materialized_entity_ext(
                     &fixup.dest_path,
                     &fixup.dir_entity,
@@ -1141,17 +1150,21 @@ fn copy_single_item(
             } else if args.copy_specials_as_specials
                 && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
             {
-                if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
-                    record_materialization_failure(journal, dest_path, &entity, &err)?;
-                    return handle_item_error(
-                        src_path,
-                        JournalErrorStage::Materialize,
-                        err,
-                        args,
-                        journal,
-                        stats,
-                    );
-                }
+                let receipt = match materialize_entity(&entity, None, dest_dir, options) {
+                    Ok(receipt) => receipt,
+                    Err(err) => {
+                        record_materialization_failure(journal, dest_path, &entity, &err)?;
+                        return handle_item_error(
+                            src_path,
+                            JournalErrorStage::Materialize,
+                            err,
+                            args,
+                            journal,
+                            stats,
+                        );
+                    }
+                };
+                record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
                 stats.special_files_created = stats.special_files_created.saturating_add(1);
                 record_journal_entry(journal, dest_path, &entity)?;
                 files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
@@ -1268,6 +1281,7 @@ fn copy_single_item(
             );
         }
     };
+    record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
 
     if file_used_noatime {
         entity.metadata.set_used_noatime(true);
@@ -1397,6 +1411,19 @@ fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Resul
     Ok(relative.to_path_buf())
 }
 
+fn record_materialization_warnings(
+    journal: &mut JournalWriter,
+    entity: &mut FileEntity,
+    warnings: Vec<String>,
+) -> Result<()> {
+    for warning in warnings {
+        entity.metadata.push_warning(warning.clone());
+        journal.record_warning("FileMaterializationWarning", &warning)?;
+        warn_fmt!("{}: {}", entity.identity.display_path(), warning);
+    }
+    Ok(())
+}
+
 fn record_materialization_failure(
     journal: &mut JournalWriter,
     dest_path: &Path,
@@ -1444,6 +1471,44 @@ mod fidelity_tests {
     use super::*;
     use crate::args::default_test_args;
     use crate::journal::read_journal_snapshot;
+
+    #[crate::ctb_test]
+    fn test_materialization_fidelity_warnings_are_journaled() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        std::fs::write(&source, b"payload").unwrap();
+        let destination = temp.path().join("destination");
+        let root = SandboxableDir::create_or_open(&destination).unwrap();
+        let mut entity = FileEntity::from_filesystem(&source, Some(temp.path())).unwrap();
+        entity.metadata.native.as_mut().unwrap().values.insert(
+            "future.attribute".to_owned(),
+            ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
+        );
+        let journal_path = temp.path().join("copy.cscjournal");
+        let mut journal = JournalWriter::create_at_path(
+            &journal_path, &temp.path().join("copy.cscdesc"),
+            std::slice::from_ref(&source), &destination,
+        ).unwrap();
+        let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        for expected_identical in [false, true] {
+            let mut payload = ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec()).unwrap();
+            let receipt = materialize_entity(&entity, Some(&mut payload), &root, &options).unwrap();
+            assert_eq!(receipt.skipped_identical, expected_identical && cfg!(unix));
+            assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+            record_materialization_warnings(&mut journal, &mut entity, receipt.warnings).unwrap();
+            record_journal_entry(&mut journal, &receipt.destination_path, &entity).unwrap();
+            journal.commit_batch().unwrap();
+            let snapshot = read_journal_snapshot(&journal_path).unwrap();
+            assert!(snapshot.warnings.iter().any(|warning|
+                warning.code == "FileMaterializationWarning"
+                    && warning.message.contains("future.attribute")));
+            let recorded = snapshot.committed_entities.values().next().unwrap();
+            assert_eq!(recorded.metadata.warnings, entity.metadata.warnings);
+            assert_eq!(recorded.metadata.native, entity.metadata.native);
+            ctb_formats_dcstring::assert_dc_roundtrip(&recorded.metadata).unwrap();
+            assert_eq!(std::fs::read(&receipt.destination_path).unwrap(), b"payload");
+        }
+    }
 
     #[cfg(windows)]
     #[crate::ctb_test]

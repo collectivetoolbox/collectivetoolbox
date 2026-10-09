@@ -1163,7 +1163,8 @@ pub fn check_metadata_replication(
     metadata: &FileMetadata,
     strict: bool,
     ignore_flags: bool,
-) -> Result<()> {
+) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
     if let Some(ref ts) = metadata.timestamps {
         if let Some(seconds) = ts.birthtime_sec {
             let nanos = ts
@@ -1183,10 +1184,12 @@ pub fn check_metadata_replication(
                         destination.display()
                     );
                 }
-                warn_fmt!(
-                    "Birth time cannot be reproduced on {}; retain the source metadata journal",
+                let warning = format!(
+                    "Cannot reproduce birth time {seconds}.{nanos:09} on {}; original metadata must be retained in the journal",
                     destination.display()
                 );
+                warn_fmt!("{warning}");
+                warnings.push(warning);
             }
         } else {
             anyhow::ensure!(
@@ -1204,12 +1207,14 @@ pub fn check_metadata_replication(
                 destination.display()
             );
         }
-        warn_fmt!(
+        let warning = format!(
             "Native metadata cannot be fully reproduced on {}: {differences:?}; retain the journal",
             destination.display()
         );
+        warn_fmt!("{warning}");
+        warnings.push(warning);
     }
-    Ok(())
+    Ok(warnings)
 }
 
 pub fn native_metadata_differences(
@@ -1584,7 +1589,6 @@ mod tests {
         assert_eq!(fs::read(path).unwrap(), b"original");
     }
 
-    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_opaque_native_metadata_replication_policy() {
         let temp = tempfile::tempdir().unwrap();
@@ -1595,7 +1599,50 @@ mod tests {
             "future.attribute".to_owned(), metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
         assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false).is_err());
-        assert!(metadata::check_metadata_replication(&path, &entity.metadata, false, false).is_ok());
+        let warnings = metadata::check_metadata_replication(&path, &entity.metadata, false, false).unwrap();
+        assert!(warnings.iter().any(|warning| warning.contains("future.attribute")));
+        entity.identity.relative_path = Some(std::path::PathBuf::from("file"));
+        let destination = tempfile::tempdir().unwrap();
+        let root = SandboxableDir::open(destination.path()).unwrap();
+        let options = crate::materializer::MaterializeOptions {
+            strict_lossless: false,
+            ..Default::default()
+        };
+        let mut payload = crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
+        let receipt = entity.materialize(Some(&mut payload), &root, &options).unwrap();
+        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        assert_eq!(fs::read(&receipt.destination_path).unwrap(), b"data");
+        entity.metadata.warnings.extend(receipt.warnings);
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity.metadata).unwrap();
+        let mut payload = crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();
+        let receipt = entity.materialize(Some(&mut payload), &root, &options).unwrap();
+        assert_eq!(receipt.skipped_identical, cfg!(unix));
+        assert!(receipt.warnings.iter().any(|warning| warning.contains("future.attribute")));
+        let mut requested = entity.metadata.clone();
+        requested.native = None;
+        if let Some(timestamps) = requested.timestamps.as_mut() {
+            timestamps.birthtime_sec = None;
+            timestamps.birthtime_nsec = None;
+        }
+        let missing = destination.path().join("missing");
+        let warnings = crate::materializer::apply_entity_metadata(
+            &missing, None, &requested, false, false, false,
+        ).unwrap();
+        assert!(warnings.iter().any(|warning| warning.contains("Failed to set file timestamps")));
+        assert!(crate::materializer::apply_entity_metadata(
+            &missing, None, &requested, false, false, true,
+        ).is_err());
+        #[cfg(windows)]
+        {
+            requested.mode = Some(0o444);
+            let warnings = crate::materializer::apply_entity_metadata(
+                &missing, None, &requested, false, false, false,
+            ).unwrap();
+            assert!(warnings.iter().any(|warning| warning.contains("read-only permissions")));
+            assert!(crate::materializer::apply_entity_metadata(
+                &missing, None, &requested, false, false, true,
+            ).unwrap_err().to_string().contains("read-only permissions"));
+        }
         assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false).is_err());
         let options = EntityAuditOptions { best_effort: false, ..Default::default() };
         assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(|diff|

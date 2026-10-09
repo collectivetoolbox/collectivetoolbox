@@ -109,6 +109,8 @@ pub struct MaterializeReceipt {
     /// True if an existing identical destination was preserved and metadata updated in-place
     /// without re-writing payload data.
     pub skipped_identical: bool,
+    /// Fidelity issues observed while materializing the entity.
+    pub warnings: Vec<String>,
 }
 
 /// Applies ownership, permissions, and timestamps from `meta` to `dest`.
@@ -119,7 +121,8 @@ pub fn apply_entity_metadata(
     is_symlink: bool,
     apply_flags: bool,
     strict_lossless: bool,
-) -> Result<()> {
+) -> Result<Vec<String>> {
+    let mut warnings = Vec::new();
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
@@ -161,10 +164,12 @@ pub fn apply_entity_metadata(
                             display_target.display()
                         );
                     }
-                    log_fmt!(
+                    let warning = format!(
                         "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
                         display_target.display()
                     );
+                    warn_fmt!("{warning}");
+                    warnings.push(warning);
                 }
             }
         }
@@ -181,10 +186,12 @@ pub fn apply_entity_metadata(
                         format!("Failed to set permissions on {}", display_target.display())
                     });
                 }
-                log_fmt!(
+                let warning = format!(
                     "Failed to set permissions on {}: {e} (proceeding best-effort)",
                     display_target.display()
                 );
+                warn_fmt!("{warning}");
+                warnings.push(warning);
             }
         }
     }
@@ -192,9 +199,22 @@ pub fn apply_entity_metadata(
     if !is_symlink {
         if let Some(mode) = meta.mode {
             if (mode & 0o222) == 0 {
-                if let Ok(mut perms) = std::fs::metadata(dest).map(|m| m.permissions()) {
+                let permission_result = (|| -> Result<()> {
+                    let mut perms = std::fs::metadata(dest)?.permissions();
                     perms.set_readonly(true);
-                    let _ = std::fs::set_permissions(dest, perms);
+                    std::fs::set_permissions(dest, perms)?;
+                    Ok(())
+                })();
+                if let Err(error) = permission_result {
+                    let error = error.context(format!(
+                        "Failed to set read-only permissions on {}", display_target.display(),
+                    ));
+                    if strict_lossless {
+                        return Err(error);
+                    }
+                    let warning = format!("{error:#} (proceeding best-effort)");
+                    warn_fmt!("{warning}");
+                    warnings.push(warning);
                 }
             }
         }
@@ -226,10 +246,12 @@ pub fn apply_entity_metadata(
                     format!("Failed to set file timestamps on {}", display_target.display())
                 });
             }
-            log_fmt!(
+            let warning = format!(
                 "Failed to set file timestamps on {}: {e} (proceeding best-effort)",
                 display_target.display()
             );
+            warn_fmt!("{warning}");
+            warnings.push(warning);
         }
     }
 
@@ -264,10 +286,10 @@ pub fn apply_entity_metadata(
     }
 
     if apply_flags {
-        crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?;
+        warnings.extend(crate::metadata::check_metadata_replication(dest, meta, strict_lossless, false)?);
     }
 
-    Ok(())
+    Ok(warnings)
 }
 
 #[cfg(windows)]
@@ -418,6 +440,7 @@ pub fn materialize_entity(
                 _ => None,
             },
             skipped_identical: false,
+            warnings: Vec::new(),
         });
     }
 
@@ -437,7 +460,7 @@ pub fn materialize_entity(
                 options.symlink_policy,
             )?;
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
-            apply_entity_metadata(
+            let warnings = apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -451,6 +474,7 @@ pub fn materialize_entity(
                 bytes_written: 0,
                 sha256: None,
                 skipped_identical: false,
+                warnings,
             })
         }
         FileEntityKind::Hardlink {
@@ -469,6 +493,7 @@ pub fn materialize_entity(
                 bytes_written: 0,
                 sha256: None,
                 skipped_identical: false,
+                warnings: Vec::new(),
             })
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
@@ -503,7 +528,7 @@ pub fn materialize_entity(
                     write_apple_double_companion(entity, &dest_path, dest_dir.root_path(), style)?;
                 }
             }
-            apply_entity_metadata(
+            let warnings = apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -516,6 +541,7 @@ pub fn materialize_entity(
                 bytes_written: 0,
                 sha256: None,
                 skipped_identical: false,
+                warnings,
             })
         }
         FileEntityKind::Fifo
@@ -538,7 +564,7 @@ pub fn materialize_entity(
                 mode,
             )?;
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
-            apply_entity_metadata(
+            let warnings = apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -551,6 +577,7 @@ pub fn materialize_entity(
                 bytes_written: 0,
                 sha256: None,
                 skipped_identical: false,
+                warnings,
             })
         }
         FileEntityKind::Socket => {
@@ -660,7 +687,7 @@ pub fn materialize_entity(
                     _ => Path::new("."),
                 };
                 let temp_path = parent_dir.join(&temp_name);
-                apply_entity_metadata(
+                let warnings = apply_entity_metadata(
                     &temp_path,
                     Some(&dest_path),
                     &entity.metadata,
@@ -706,6 +733,7 @@ pub fn materialize_entity(
                     bytes_written: single_size,
                     sha256: Some(single_sha256),
                     skipped_identical: false,
+                    warnings,
                 });
             }
 
@@ -900,7 +928,7 @@ pub fn materialize_entity(
                 drop(temp_file);
                 std::fs::OpenOptions::new().read(true).write(true).open(&temp_path)?
             };
-            apply_entity_metadata(
+            let mut warnings = apply_entity_metadata(
                 &temp_path,
                 Some(&dest_path),
                 &entity.metadata,
@@ -959,15 +987,16 @@ pub fn materialize_entity(
                     options.strict_lossless,
                 )?;
             }
-            crate::metadata::check_metadata_replication(
+            warnings.extend(crate::metadata::check_metadata_replication(
                 &dest_path, &entity.metadata, options.strict_lossless, false,
-            )?;
+            )?);
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
                 bytes_written: initial_size,
                 sha256: Some(computed_sha256),
                 skipped_identical: false,
+                warnings,
             })
         }
         FileEntityKind::Inaccessible => {
@@ -1254,7 +1283,7 @@ fn try_update_existing_regular_entity(
     }
 
     // 9. Apply ownership, permissions, and timestamps (defer flags to next step)
-    apply_entity_metadata(
+    let mut warnings = apply_entity_metadata(
         dest_path,
         Some(dest_path),
         &entity.metadata,
@@ -1278,6 +1307,10 @@ fn try_update_existing_regular_entity(
             options.strict_lossless,
         )?;
     }
+
+    warnings.extend(crate::metadata::check_metadata_replication(
+        dest_path, &entity.metadata, options.strict_lossless, false,
+    )?);
 
     // 11. Strict lossless audit
     if options.strict_lossless {
@@ -1309,6 +1342,7 @@ fn try_update_existing_regular_entity(
         bytes_written: 0,
         sha256: Some(computed_sha256),
         skipped_identical: true,
+        warnings,
     }))
 }
 #[cfg(test)]
