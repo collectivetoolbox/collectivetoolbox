@@ -28,88 +28,55 @@ Key issues identified and resolved during this port:
 - **Extended-Length Path Support (MAX_PATH / 260 chars)**: Win32 metadata queries in [metadata/windows.rs](../src/io/file/metadata/windows.rs) and stream operations in [streams/windows.rs](../src/io/file/streams/windows.rs) now use an enhanced `path_to_wide()` that converts paths to verbatim `\\?\` (and `\\?\UNC\`) format with normalized backslashes. This resolved `test_long_path_names_and_deep_nesting` failure on native Windows 7 where paths exceeding 260 characters previously failed to open handles and omitted change times.
 - **Cross-Platform Identity Queries**: Replaced platform-specific `ino()`/`dev()` assertions with cross-platform `query_file_identity` in `test_hardlinks_preserved`, `test_hardlinks_across_destination_roots`, and `test_hardlinks_preserved_across_resume`. Replaced POSIX atime/mtime assertions with cross-platform `FileTime` checks in `test_best_effort_metadata_timestamp_tolerance`.
 
-### 2. Windows Sparse Restoration and Auditing Are Unimplemented
+### 2. Windows Sparse Restoration and Auditing (Partially Implemented, 2026-10-09)
 
-The capture path now queries native allocated ranges and retains logical
-payload independently. It explicitly records this warning in
-[entity.rs](../src/io/file/entity.rs#L870):
+Status: **Partially Implemented**, not lossless. Native allocated ranges are
+discovered via `FSCTL_QUERY_ALLOCATED_RANGES`, materialization punch-restores
+holes via `FSCTL_SET_ZERO_DATA`, and the auditor in `verifier.rs` validates
+hole layout and sparse attributes across platforms.
 
-> Windows sparse extent materialization and auditing are not implemented;
-> captured allocated ranges and logical payload are retained
+#### Implementation Details (Completed 2026-10-09)
+- **Restoration Sequence**: Integrated in [materializer.rs](../src/io/file/materializer.rs#L820):
+  1. Issues `FSCTL_SET_SPARSE` on `temp_file`. Verifies attribute retention.
+  2. Seeks and writes data extents, accumulating payload SHA-256 digest.
+  3. **Windows Cache Manager Flush**: Calls `temp_file.sync_all()` *before*
+     issuing zeroing controls. This guarantees that dirty memory pages in the
+     Windows Cache Manager do not subsequently flush back over zeroed extents
+     and reallocate clusters upon handle close or commit.
+  4. Punches holes via `FSCTL_SET_ZERO_DATA` for each `Extent::Hole`.
+  5. Extends file length via `temp_file.set_len(initial_size)` to establish EOF
+     and preserve trailing holes.
+- **Auditing**: Replaced the previous stub in [verifier.rs](../src/io/file/verifier.rs#L994)
+  with native sparse discovery via `get_file_extents`. Verifies both sparse
+  attribute and physical hole layout.
+- **WINE Capability Isolation**: WINE stubs `FSCTL_SET_SPARSE` without setting
+  `FILE_ATTRIBUTE_SPARSE_FILE`, and fails `FSCTL_SET_ZERO_DATA`. In strict lossless
+  mode (`options.strict_lossless`), materialization bails because sparse layout
+  cannot be honored. In best-effort mode, it falls back to dense writing with a
+  receipt warning, and auditing tolerates the missing sparse capability with
+  `ignored.sparseness += 1`.
+- **Validation**: Added `test_sparse_materialization_and_auditing` in
+  [materializer.rs](../src/io/file/materializer.rs#L1925), verifying leading,
+  interior, and trailing 64 KB holes across all platforms:
+  - Linux musl: 102/102 tests pass (0 failures).
+  - WINE: 87/87 tests pass (0 failures).
+  - Native Windows 7 VM: 87/87 tests pass (0 failures).
+  - All 90 CSC tests pass on WINE and native Windows 7 VM (0 failures).
 
-The auditor in [verifier.rs](../src/io/file/verifier.rs#L528) rejects a requested
-sparse check if either the expected entity or actual destination is sparse:
-
-> Windows sparse extent auditing is not implemented
-
-Consequently, retaining bytes and the sparse attribute is not proof that hole
-layout or allocation semantics were preserved. The native attribute must not
-be erased merely to make strict verification pass.
-
-Important WINE distinction: `FSCTL_SET_SPARSE` can return success without
-actually setting `FILE_ATTRIBUTE_SPARSE_FILE`. The existing
-[capture regression](../src/io/file/entity.rs#L1753) exercises this distinction.
-When the attribute is absent, capture must truthfully classify the file as
-dense. On native Windows, a genuinely sparse file must remain classified as
-sparse, with its restoration/auditing limitation recorded until implemented.
-
-Next steps / acceptance criteria:
-
-- Validate native allocated-range discovery with multi-range and pagination
-  fixtures; the existing `FSCTL_QUERY_ALLOCATED_RANGES` implementation uses the
-  existing payload/extent representation.
-- Preserve sparse layout during materialization, then independently audit it.
-  Use native volume capabilities and actual results, not API success alone.
-- Test leading, interior, and trailing holes, empty files, allocated zero-filled
-  ranges, and unsupported destination filesystems. Specify what allocation
-  granularity permits before asserting byte-exact allocation boundaries.
-- Verify payload bytes separately from layout fidelity. Strict unsupported
-  preservation must not be reported as a successful lossless commit.
-- Ensure unavoidable limitations and failures appear in user diagnostics,
-  semantic Dc metadata, and the CSC journal, including continue-on-error paths.
-- Keep WINE and native Windows expectations capability-specific; a WINE
-  limitation must not disable a working native implementation.
-
-### Native Sparse Investigation (2026-10-09)
-
-Sparse restoration/auditing remains **Partially Implemented**, not lossless.
-Native allocated-range capture now uses `FSCTL_QUERY_ALLOCATED_RANGES`, with
-pagination and checked offsets, mapping ranges to the existing semantic
-`Extent` representation. The all-hole 4096-byte NTFS capture regression passes
-on Windows 7. Failed range queries retain logical bytes and record a metadata
-warning. Native sparse entities explicitly warn that restoration/auditing is
-not implemented; strict sparse auditing still refuses unsupported fidelity.
-
-Blocked restoration experiment, for an agent with Windows documentation access:
-
-- Windows 7 NTFS, VM runner, live read/write handle, `FSCTL_SET_SPARSE` succeeded
-  and the sparse attribute was retained. An initial 4096-byte all-hole file
-  captured as `Hole { offset: 0, length: 4096 }`.
-- Extending to 327680 bytes and writing 4096 zero bytes at offset 65536 and
-  `tail` at offset 196608 allocated gaps through the last written range.
-  Marking sparse before writes and seeking alone did not preserve holes.
-- `FSCTL_SET_ZERO_DATA` on `[0,65536)`, `[131072,196608)`, and
-  `[262144,327680)` returned success. After syncing and closing, native queries
-  reported `Data(0,131072), Hole(131072,65536), Data(196608,65536),
-  Hole(262144,65536)`: the leading range remained allocated.
-- The fixture required leading/interior/trailing holes and an allocated
-  zero-filled range. It failed three repair attempts; assertions were not
-  weakened to count that as fidelity. The unverified restoration/audit
-  experiment and failing fixture were removed at the operator's direction.
-- Investigate NTFS retained/resident initial allocation, valid-data-length
-  transitions, zero-range granularity/alignment, and handle lifetime/order.
-  Confirm with independent native tools and documentation before choosing a
-  restoration algorithm. Do not infer deallocation from ioctl success alone.
-
-Local diagnostic log: `/tmp/ctb-native-sparse-roundtrip.log`; regenerate the
-experiment rather than relying on that transient artifact. The experiment
-used `scripts/win-vm test-suite --debug --crate ctb-io-file --filter
-test_windows_sparse_capture_and_materialization`.
-
-Remaining gaps: validated multi-range capture fixtures, allocation pagination
-coverage, native sparse restoration and auditing, capability-specific WINE
-materialization diagnostics, and modern Windows/filesystem coverage. This
-bounded capture work does not close the sparse parity item.
+#### Remaining Gaps vs Upstream / Pending Work
+- **NTFS 64 KB Sparse Allocation Granularity**: On NTFS with default 4 KB
+  clusters, the physical compression / sparse unit is exactly 16 clusters
+  (64 KB / 65,536 bytes). `FSCTL_SET_ZERO_DATA` on sub-64KB holes writes logical
+  zeros but NTFS leaves physical clusters allocated. When capturing entities
+  with sub-64KB holes, a warning is recorded in metadata. In strict lossless mode,
+  sub-64KB holes cause verification failure; in best-effort mode, `ignored.sparseness`
+  is incremented. Full sub-64KB hole parity is an inherent NTFS physical limitation.
+- **ReFS Support**: ReFS has distinct sparse allocation characteristics (often
+  64 KB cluster sizes, differing sparse unit rules) that have not been tested
+  against a live ReFS volume.
+- **CLI and Journal Diagnostics**: Ensure sub-64KB granularity truncation and
+  WINE sparse limitations are prominently rendered in user-facing CLI summary
+  diagnostics and continue-on-error journal entries.
 
 ### 3. Windows Change-Time Restoration Remains Unimplemented
 
@@ -216,21 +183,122 @@ Remaining Gaps / Pending Work:
   not injected failures through every engine dispatch or continue-on-error
   workflow. Main engine coverage remains gated as described in item 1.
 
-### 7. Raw Identity Bytes Are Omitted From Semantic Dc
+### 7. Semantic Path Fidelity Refactor (In Progress)
 
-An attempted whole captured-entity roundtrip in this follow-up reproduced a
-separate fidelity gap on Linux: `FileIdentity.raw_relative_path` and
-`raw_filename` decode as `None`. Both fields currently have explicit
-`dc(skip)` annotations claiming unification with the primary path, but the
-derive does not reconstruct them. Existing entity roundtrip fixtures clear
-these fields before comparing values.
+The original omission was reproduced without clearing captured raw fields.
+Following operator approval, independently mutable `raw_relative_path` and
+`raw_filename` fields were removed. Native path bytes and filenames now derive
+from `relative_path`; `enclosing_path` remains a separate semantic path.
+The existing Dc derive and tags 337/357 remain in use. No identity-specific Dc
+serializer or encoding-specific Dc identifier was added.
 
-Remaining Gaps / Pending Work: define and validate a lossless semantic identity
-encoding for the auxiliary raw fields, including differing logical/raw paths,
-non-UTF-8 Unix names, Windows native bytes and unpaired surrogates. Do not
-claim whole captured-entity Dc equality from the passing `FileMetadata`
-warning roundtrip, and do not clear raw fields to conceal the omission. No
-identity schema or path codec was changed in this bounded follow-up.
+The shared `PathBuf` codec now emits typed f229 filepath lists containing f228
+filename representations and Dc 513 delimiters. Equal UTF-8 text and filename
+bytes use Dc 397; non-UTF-8 bytes remain binary. Windows WTF-8 decoding retains
+unpaired surrogates and rejects bytes that would require replacement. Unix
+backslashes inside filenames are preserved. The legacy path codec remains
+readable, but contradictory equivalents now fail. The journal's existing
+byte layout is retained; conflicting stored path/filename values are rejected.
+Stream names remain authoritative in `AttachedStream.name`.
+
+New `CTBMETA3` preservation records additionally retain the identity through
+its generic derived Dc representation. This preserves absent versus empty
+paths, enclosing paths, and Archive/Remote/Fifo provenance. The primary path
+must agree with the legacy byte slot. Older readers reject the new marker;
+older records remain readable with a logged and retained fidelity warning
+when semantic identity is missing. Already-lost information is not recovered.
+
+Whole captured-entity Dc roundtrips now pass on Linux, WINE, and native
+Windows 7 without clearing metadata or identity bytes in the new capture
+regression. Linux passes dcstring 89, CSC 107, and file 100 tests, zero ignored,
+plus affected production Clippy checks. Native Windows 7 passes CSC 88,
+dcstring 89, and file 85 tests, zero ignored. After adding strict rejection of
+removed JSON fields, WINE passed file 86 tests, zero ignored. After the semantic
+journal upgrade and legacy-warning regressions, the complete current WINE
+CSC suite passes 90 tests, zero ignored (7.66 s). The Linux and earlier native
+counts above predate that upgrade. A Windows path regression
+also passes after replacing new bare format integers with typed `FormatId`
+variants. Affected Windows production Clippy checks pass.
+
+Configured WINE workspace validation stopped at repository preflight lints,
+before running tests. Remaining findings include undocumented fallback uses
+in the Dc macro, missing headers in shared/source Dc modules and a VM Python
+test, and tempdir/test-boilerplate findings in other modules. The new identity
+test module's boilerplate violation was corrected. Direct release workspace
+examples, all-target tests, and doctests ran separately under WINE with no
+reported failing test targets. The only harness exclusion was the authorized
+TypeScript bootstrap test; Windows-inapplicable packages were excluded from
+the build. The broad CSC binary passed 89 tests, including semantic identity
+roundtrip, but predates the final legacy-warning regression. The current
+debug CSC suite passed all 90 as noted above. Current codec tests also passed
+all 89 with WINE exception tracing enabled.
+
+Two unhandled WINE page faults appeared during IPC and software-renderer
+doctests even though their harnesses reported success. These are unresolved
+runtime diagnostics, not a clean runtime validation. A trivial WINE startup
+and the current codec suite did not reproduce them. The native Windows 7
+workspace run passed all 110 packaged binaries, including CSC 90 with both
+semantic-identity journal regressions, dcstring 89, and file 86, zero ignored
+in those suites. It predates the concurrent sparse-materialization edits.
+The rebuilt file binary subsequently passed all 87 tests under both WINE
+and native Windows 7, zero ignored (0.97 s and 26.80 s). Native doctest
+preservation was blocked by two new sparse Win32 calls lacking explicit
+unsafe boundaries; statement-scoped FFI expectations fixed compilation.
+No preflight failure is reported as a configured-workflow pass.
+
+The initial doctest preservation pass also omitted proc-macro/rlib targets
+and ignored doctest bodies. Its four-executable inventory was incomplete and
+must not establish native coverage. Corrected inclusion exposed compile
+failures in the scoped IPC macro example and historical resource-bundle
+examples. These examples are now runnable, with focused WINE results of one
+and three passed tests respectively, zero ignored. Corrected preservation
+then found two invalid installer examples, now runnable with real imports,
+a headless egui frame, and the supported locale variant; both pass under
+WINE, zero ignored. Explicit renderer doctests also pass all three under
+WINE without reproducing the earlier page faults. Those earlier diagnostics
+remain unexplained rather than being treated as a proven fix.
+
+All 13 preserved doctest executables subsequently passed on native Windows 7,
+alongside the 89-test codec binary (14/14 binaries passed). This includes the
+renderer and formerly ignored examples. Proc-macro doctest commands also
+reported success but produced no standalone executables; their reported
+compilation results are not separate native runtime execution evidence.
+Fresh Windows release CLI tools passed the compression compatibility stage
+and all seven JavaScript tests under WINE. Both VMs are stopped. After checking
+for active builds and cleaning Windows artifacts, fresh Linux musl suites
+passed dcstring 89, CSC 109, and file 102 tests, zero ignored. Current affected
+production Clippy checks also pass. A broader Linux examples/all-target/
+doctest/JavaScript/compression CLI run is active, with only the authorized
+TypeScript bootstrap exclusion in the all-target harness.
+
+The first broader Linux all-target run failed only the installer sidebar
+fixture, which searched for the English label `Home` while concurrent locale
+tests changed translated labels. The fixture now verifies the native home
+path instead; all 146 installer tests pass, zero ignored. The workspace
+all-target retry and its following doctest/CLI stages are active. This last
+test-only assertion change has not been rerun on Windows; the recorded native
+workspace pass predates it.
+
+Remaining Gaps / Pending Work:
+
+- Legacy JSON metadata containing the removed duplicate fields is now rejected
+  explicitly rather than silently discarded. An automatic lossless migration
+  for those exports remains unimplemented.
+- Foreign path bytes unrepresentable as a local `PathBuf` remain available in
+  the original Dc source but cannot be materialized through that local type.
+  General cross-platform semantic path projection still needs coverage.
+- The codec preserves semantic separators, not their original Windows lexical
+  spelling. Modern Windows and unusual native filesystem/name coverage remain
+  pending; Windows unpaired-surrogate codec tests do not establish filesystem
+  creation/materialization capability everywhere.
+- Whole-workspace validation is in progress, not a verified pass. The native
+  runtime run passed 110 binaries and its fresh file follow-up passed 87
+  tests; the native doctest follow-up passed 14 binaries. WINE's earlier
+  reported-success doctest page faults remain unexplained. Fresh Linux
+  affected-crate tests and production Clippy pass after the required
+  platform-switch clean; the broader Linux run is active. Full configured
+  suites remain blocked by the recorded preflight findings.
+  Existing sparse, change-time restoration, and diagnostic gaps remain open.
 
 ## Completed Bounded Work and Validation
 
@@ -252,13 +320,19 @@ identity schema or path codec was changed in this bounded follow-up.
   Optimized compression and JavaScript test binaries retain the original test
   cases and input sizes.
 
-Latest verified results:
+Historical and current verified results:
 
 | Environment | Result | Scope / caveat |
 | --- | --- | --- |
 | Linux musl, complete CSC + file suites | CSC 106 + file 97 passed; zero ignored | All functional and diagnostic tests passing (0.45 s and 0.06 s) |
+| Linux musl, current semantic identity follow-up | Dcstring 89 + CSC 109 + file 102 passed; zero ignored | Latest journal and concurrent file changes included; affected production Clippy passes; broader run active |
+| Linux musl, installer follow-up | 146 passed; zero ignored | Repaired locale-dependent sidebar assertion; workspace retry active; assertion not rerun on Windows |
 | WINE, complete un-gated CSC suite | CSC 87 passed; zero ignored | All 5 test modules enabled and passing (6.26 s) |
 | Native Windows 7 VM, complete un-gated CSC suite | CSC 87 passed; zero ignored | VM runner; all functional, index, search, and long path tests passing (333.10 s) |
+| Native Windows 7, semantic identity follow-up | 110 packaged binaries passed; CSC 90 + dcstring 89 + file 86, zero ignored in those suites | Includes latest semantic journal regressions; predates concurrent sparse edits |
+| Native Windows 7, current doctest follow-up | 13 preserved doctest executables + codec binary passed (14/14) | Includes renderer and repaired examples; not modern Windows validation |
+| WINE, current release CLI stages | JavaScript 7/7 and compression compatibility checks passed | Freshly built Windows tools; not a configured preflight pass |
+| Native Windows 7 / WINE, rebuilt file follow-up | File 87 passed in each; zero ignored | Includes concurrent sparse changes; native 26.80 s / WINE 0.97 s; not modern Windows validation |
 | Linux / Windows affected-crate Clippy | Passed | File and CSC production `--lib --no-deps` checks |
 | Linux musl, scoped diagnostic follow-up | CSC 106 + file 97 passed; zero ignored | Runtime warning regressions included; 0.45 s and 0.03 s |
 | WINE, scoped diagnostic follow-up | CSC 40 + file 81 passed; zero ignored | Prior baseline before un-gating 5 test modules |
@@ -288,8 +362,11 @@ native Windows, and WINE validation with the fixture distinction above.
 
 Build/test one platform at a time. Run `cargo clean` before switching Linux and
 Windows targets: keeping both previously exhausted disk space. Do not clean
-while another Cargo run is active. The scoped Linux, native Windows, and WINE
-validation runs have finished; no validation processes remain active.
+while another Cargo run is active. Native workspace, file, and doctest
+follow-up runs have finished. Fresh Linux musl affected-crate tests and
+production Clippy pass. Broader Linux workspace validation is active after
+cleaning completed Windows artifacts; do not clean or switch back to Windows
+while it runs.
 
 Linux scoped tests:
 

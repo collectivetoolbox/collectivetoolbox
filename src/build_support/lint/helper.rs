@@ -70,7 +70,8 @@ impl<'ast> Visit<'ast> for TestFnVisitor {
                 let has_tempdir = fn_text.contains("tempdir")
                     || fn_text.contains("tempfile")
                     || fn_text.contains("temp_dir")
-                    || fn_text.contains("TempDir");
+                    || fn_text.contains("TempDir")
+                    || fn_text.contains("try_get_test_storage_dir");
 
                 if !has_tempdir {
                     let mut check = WriteCheckVisitor {
@@ -161,6 +162,33 @@ pub fn is_test_fn(item: &syn::ItemFn) -> bool {
 }
 
 /// Checks an individual parsed AST for tempdir violations in test functions.
+///
+/// ```rust
+/// use ctb_build_support::lint::helper::check_file_ast;
+/// use std::path::Path;
+///
+/// let isolated = r#"
+/// #[crate::ctb_test]
+/// fn isolated_write() {
+///     let directory = crate::testing::try_get_test_storage_dir().unwrap();
+///     std::fs::write(directory.join("output"), b"value").unwrap();
+/// }
+/// "#;
+/// let syntax = syn::parse_file(isolated)?;
+/// let violations = check_file_ast(Path::new("fixture.rs"), isolated, &syntax);
+/// assert!(violations.is_empty());
+///
+/// let unisolated = r#"
+/// #[crate::ctb_test]
+/// fn unisolated_write() {
+///     std::fs::write("output", b"value").unwrap();
+/// }
+/// "#;
+/// let syntax = syn::parse_file(unisolated)?;
+/// let violations = check_file_ast(Path::new("fixture.rs"), unisolated, &syntax);
+/// assert_eq!(violations.len(), 1);
+/// # Ok::<(), anyhow::Error>(())
+/// ```
 pub fn check_file_ast(
     file_path: &Path,
     file_content: &str,

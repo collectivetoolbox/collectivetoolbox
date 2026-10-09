@@ -348,9 +348,7 @@ fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix:
                     Some(p) if !p.as_os_str().is_empty() => p.join(stripped_name),
                     _ => PathBuf::from(stripped_name),
                 };
-                entity.identity.relative_path = Some(new_rel.clone());
-                entity.identity.raw_relative_path = Some(new_rel.as_os_str().as_encoded_bytes().to_vec());
-                entity.identity.raw_filename = Some(stripped_name.as_bytes().to_vec());
+                entity.identity.relative_path = Some(new_rel);
             }
         }
     }

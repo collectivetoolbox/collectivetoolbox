@@ -902,8 +902,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
-                raw_filename: Some(b"test.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },

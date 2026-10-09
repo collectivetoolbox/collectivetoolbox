@@ -420,15 +420,12 @@ impl AttachedStream {
         hasher.update(&data);
         let sha256 = hasher.finalize();
         let size = u64::try_from(data.len())?;
-        let raw_filename = name.as_ref().map(|n| n.as_bytes().into_owned());
 
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
                 relative_path: None,
                 enclosing_path: None,
-                raw_relative_path: None,
-                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },

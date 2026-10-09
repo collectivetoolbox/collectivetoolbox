@@ -521,16 +521,6 @@ pub fn audit_entity_detailed(
             options.ignore_perms || expected.metadata.mode.is_none(),
             "Windows cannot audit POSIX permission modes"
         );
-        let expected_sparse = matches!(
-            expected.kind,
-            FileEntityKind::Regular { is_sparse: true, .. }
-        );
-        let actual_sparse = dest_meta.file_attributes()
-            & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
-        anyhow::ensure!(
-            !options.check_sparse || (!expected_sparse && !actual_sparse),
-            "Windows sparse extent auditing is not implemented"
-        );
     }
 
     // 2. Mode / Permissions (skip symlinks as their permissions are not meaningful on Linux)
@@ -900,7 +890,7 @@ pub fn audit_entity_detailed(
         size: expected_size,
         sha256: expected_sha256,
         is_sparse,
-        ..
+        ref extents,
     } = expected.kind
     {
         let apple_single_archive = if dest_meta.len() == expected_size {
@@ -999,22 +989,61 @@ pub fn audit_entity_detailed(
             if options.check_sparse {
                 let actual_extents = get_file_extents(&file, actual_size)?;
                 let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
-                let expected_has_holes = is_sparse;
-                if actual_has_holes != expected_has_holes {
-                    if expected_has_holes && !actual_has_holes && options.best_effort {
+                let expected_has_holes = extents.iter().any(Extent::is_hole);
+                #[cfg(windows)]
+                let actual_sparse_attr = dest_meta.file_attributes()
+                    & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
+
+                let expected_sparse = is_sparse || expected_has_holes;
+                let actual_sparse = {
+                    #[cfg(windows)]
+                    {
+                        actual_has_holes || actual_sparse_attr
+                    }
+                    #[cfg(not(windows))]
+                    {
+                        actual_has_holes
+                    }
+                };
+
+                if expected_sparse != actual_sparse || (expected_has_holes && !actual_has_holes) {
+                    let mut tolerate = false;
+                    if options.best_effort {
                         let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
-                        if fs_info.supports_sparse() != Some(true) {
-                            ignored.sparseness = ignored.sparseness.saturating_add(1);
+                        #[cfg(windows)]
+                        let fs_supports_sparse = if ctb_io_environment::is_wine() {
+                            false
                         } else {
-                            diffs.push(DiffKind::SparseHoleMismatch {
-                                expected_has_holes,
-                                actual_has_holes,
-                            });
+                            fs_info.supports_sparse() == Some(true)
+                        };
+                        #[cfg(not(windows))]
+                        let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
+
+                        let sub_64k_only = {
+                            #[cfg(windows)]
+                            {
+                                extents.iter().all(|e| match e {
+                                    Extent::Hole { length, .. } => *length < 65_536,
+                                    Extent::Data { .. } => true,
+                                })
+                            }
+                            #[cfg(not(windows))]
+                            {
+                                false
+                            }
+                        };
+
+                        if !fs_supports_sparse || sub_64k_only {
+                            tolerate = true;
                         }
+                    }
+
+                    if tolerate {
+                        ignored.sparseness = ignored.sparseness.saturating_add(1);
                     } else {
                         diffs.push(DiffKind::SparseHoleMismatch {
-                            expected_has_holes,
-                            actual_has_holes,
+                            expected_has_holes: expected_sparse,
+                            actual_has_holes: actual_sparse,
                         });
                     }
                 }
@@ -1280,7 +1309,9 @@ mod tests {
             *is_sparse = true;
         }
         assert!(audit_entity(&receipt.destination_path, &entity, &options)
-            .unwrap_err().to_string().contains("sparse extent auditing"));
+            .unwrap()
+            .iter()
+            .any(|diff| matches!(diff, DiffKind::SparseHoleMismatch { expected_has_holes: true, actual_has_holes: false })));
     }
 
     #[cfg(unix)]

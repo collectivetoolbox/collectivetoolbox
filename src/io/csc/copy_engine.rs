@@ -313,9 +313,7 @@ pub fn execute_copy_pipeline(
 
                 let mut journal_dir = dir_entity.clone();
                 let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
-                journal_dir.identity.relative_path = Some(rel.clone());
-                journal_dir.identity.raw_relative_path =
-                    Some(rel.as_os_str().as_encoded_bytes().to_vec());
+                journal_dir.identity.relative_path = Some(rel);
                 journal.record_entity(&journal_dir);
                 if !args.dry_run {
                     journal.commit_batch()?;
@@ -426,10 +424,7 @@ pub fn execute_copy_pipeline(
                         }
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         let mut sym_entity = sym_entity;
-                        let raw_rel = entry_rel.as_os_str().as_encoded_bytes().to_vec();
                         sym_entity.identity.relative_path = Some(entry_rel);
-                        sym_entity.identity.raw_relative_path = Some(raw_rel);
-                        sym_entity.identity.raw_filename = Some(entry_name.as_encoded_bytes().to_vec());
                         deferred_symlinks.push(DeferredSymlink {
                             src_path: entry_src,
                             dest_path: entry_tgt,
@@ -529,10 +524,6 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
                 sym_entity.identity.relative_path = Some(target_rel_path.to_path_buf());
-                sym_entity.identity.raw_relative_path =
-                    Some(target_file_name.as_encoded_bytes().to_vec());
-                sym_entity.identity.raw_filename =
-                    Some(target_file_name.as_encoded_bytes().to_vec());
                 deferred_symlinks.push(DeferredSymlink {
                     src_path: src_root.clone(),
                     dest_path: tgt_root.clone(),
@@ -898,18 +889,18 @@ fn copy_single_item(
             && (dest_fname.ends_with(".as") || dest_fname.ends_with(".AS"))
         {
             let stripped_len = dest_fname.len().saturating_sub(".as".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename.as_deref() == Some(s.as_bytes()))
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.filename_bytes() == Some(s.as_bytes()))
         } else if apple_read_options.read_apple_single_asf
             && (dest_fname.ends_with(".asf") || dest_fname.ends_with(".ASF"))
         {
             let stripped_len = dest_fname.len().saturating_sub(".asf".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename.as_deref() == Some(s.as_bytes()))
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.filename_bytes() == Some(s.as_bytes()))
         } else {
             false
         };
 
         if is_stripped {
-            if let Some(raw) = &entity.identity.raw_filename {
+            if let Some(raw) = entity.identity.filename_bytes() {
                 if let Ok(fname_str) = std::str::from_utf8(raw) {
                     match dest_rel_path.parent() {
                         Some(p) if !p.as_os_str().is_empty() => p.join(fname_str),
@@ -933,13 +924,7 @@ fn copy_single_item(
     let file_name = effective_dest_rel.file_name().unwrap_or(effective_dest_rel.as_os_str());
     let effective_dest_path = parent_path.join(file_name);
 
-    let raw_rel = effective_dest_rel.as_os_str().as_encoded_bytes().to_vec();
-    let raw_fname = effective_dest_rel.file_name().map(|f| f.as_encoded_bytes().to_vec());
     entity.identity.relative_path = Some(effective_dest_rel);
-    entity.identity.raw_relative_path = Some(raw_rel);
-    if let Some(fname) = raw_fname {
-        entity.identity.raw_filename = Some(fname);
-    }
 
     if let FileEntityKind::Regular {
         size,
@@ -1443,8 +1428,7 @@ fn record_journal_entry(
 ) -> Result<()> {
     let mut journal_entity = entity.clone();
     let rel = compute_journal_relative_path(journal.destination(), dest_path)?;
-    journal_entity.identity.relative_path = Some(rel.clone());
-    journal_entity.identity.raw_relative_path = Some(rel.as_os_str().as_encoded_bytes().to_vec());
+    journal_entity.identity.relative_path = Some(rel);
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
         let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
         // Reason for fallback: if destination cannot be canonicalized, use destination path directly

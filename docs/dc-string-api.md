@@ -71,6 +71,47 @@ overflow bucket.
 This is a byte-preservation contract, not a promise that unknown syntax retains
 its meaning when a value it depends on is deliberately edited.
 
+## File Paths
+
+Derived fields with path values use the shared `PathBuf` codec. File identity
+keeps its relative path under Dc 337 and its enclosing path under Dc 357;
+native bytes and the final filename are obtained from those values rather
+than stored in separately mutable fields.
+
+Paths are Dc 511 representations of format f229: typed lists of filename
+representations (f228) and explicit Dc 513 delimiters. Filename bytes remain
+binary; when they are valid UTF-8, Dc 397 groups the equal text and binary
+representations. Both lists carry type headers. Different values are never
+declared equivalent. Unix backslashes inside filenames remain filename bytes,
+not delimiters. Windows delimiters are reconstructed as native backslashes,
+including verbatim and UNC prefixes.
+
+Native Windows bytes use checked WTF-8 decoding so unpaired UTF-16 surrogates
+are not replaced. Bytes that cannot be represented on the destination platform
+produce an error rather than a lossy path. The original Dc source remains the
+preservation authority for foreign representations that cannot be interpreted
+as a local `PathBuf`. This codec is not a platform-independent materialization
+policy or a promise to preserve the lexical spelling of Windows separators.
+
+The decoder accepts the previous whole-string/binary path representation for
+read compatibility, but rejects conflicting equivalents. The CSC journal
+retains its existing path/filename byte slots; new writes derive both from the
+same path and reads reject contradictory stored filenames. Attached stream
+names belong to `AttachedStream.name`, not to a second file identity name.
+
+New journal preservation records use `CTBMETA3` and include the identity's
+derived semantic Dc representation. This retains absent versus empty paths,
+enclosing paths, and non-filesystem origin provenance that the legacy byte
+slots alone cannot express. Reads require that identity and check its primary
+path against the legacy slot. Older readers reject the new marker rather than
+silently losing this information. Old records remain readable, but missing
+semantic identity produces both a logged warning and a retained metadata
+warning; information already omitted by old writers cannot be recovered.
+
+Identity JSON rejects unknown fields, including the removed duplicate raw
+fields, rather than silently discarding them. Legacy JSON exports containing
+those fields require an explicit migration; they are not accepted lossily.
+
 ## Runtime Boundary
 
 Typed inspection is non-executing source analysis. Its diagnostics are not a

@@ -319,16 +319,6 @@ impl FileEntity {
         } else {
             path.file_name().map(PathBuf::from)
         };
-        let raw_filename = path.file_name().map(|f| f.as_encoded_bytes().to_vec());
-        let raw_relative_path = relative_path.as_ref().map(|rel| {
-            let mut bytes = rel.as_os_str().as_encoded_bytes().to_vec();
-            for b in &mut bytes {
-                if *b == b'\\' {
-                    *b = b'/';
-                }
-            }
-            bytes
-        });
         let enclosing_path = match base_dir {
             Some(base) => Some(base.to_path_buf()),
             None => path.parent().map(Path::to_path_buf),
@@ -348,8 +338,6 @@ impl FileEntity {
                 },
                 relative_path,
                 enclosing_path,
-                raw_relative_path,
-                raw_filename,
                 nlink: 0,
                 hardlink_group: None,
             },
@@ -467,18 +455,12 @@ impl FileEntity {
     #[must_use]
     pub fn from_fifo(name: Option<&str>) -> Self {
         let relative_path = name.map(PathBuf::from);
-        let raw_relative_path = name.map(|s| s.as_bytes().to_vec());
-        let raw_filename = name
-            .and_then(|s| std::path::Path::new(s).file_name())
-            .map(|f| f.as_encoded_bytes().to_vec());
 
         Self {
             identity: FileIdentity {
                 origin: FileOrigin::Fifo,
                 relative_path,
                 enclosing_path: None,
-                raw_relative_path,
-                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -514,8 +496,6 @@ impl FileEntity {
                 origin: FileOrigin::Synthetic,
                 relative_path: None,
                 enclosing_path: None,
-                raw_relative_path: None,
-                raw_filename: None,
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -786,9 +766,6 @@ impl FileEntity {
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 
         // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
-        let filename_bytes = path
-            .file_name()
-            .map_or_else(Vec::new, |f| f.as_encoded_bytes().to_vec());
 
         // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
         let relative_path = if let Some(base) = base_dir {
@@ -805,12 +782,6 @@ impl FileEntity {
 
         let read_time = Some(SystemTime::now());
         let canonical = canonicalize_entity_path(path, is_symlink);
-        let mut raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
-        for b in &mut raw_relative_path {
-            if *b == b'\\' {
-                *b = b'/';
-            }
-        }
 
         let enclosing_path = match base_dir {
             Some(base) => Some(base.to_path_buf()),
@@ -827,8 +798,6 @@ impl FileEntity {
             },
             relative_path: Some(relative_path),
             enclosing_path,
-            raw_relative_path: Some(raw_relative_path),
-            raw_filename: Some(filename_bytes),
             nlink,
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
         };
@@ -871,11 +840,6 @@ impl FileEntity {
         } else {
             let size = sym_meta.len();
             let native_sparse = file_attrs & FILE_ATTRIBUTE_SPARSE_FILE != 0;
-            if native_sparse {
-                metadata.push_warning(
-                    "Windows sparse extent materialization and auditing are not implemented; captured allocated ranges and logical payload are retained".to_string(),
-                );
-            }
             let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
                 Ok(mut file) => {
                     // Reason for fallback: retain logical bytes when native range queries fail, with the fidelity limitation recorded below.
@@ -884,6 +848,17 @@ impl FileEntity {
                         vec![Extent::Data { offset: 0, length: size }]
                     });
                     let is_sparse = native_sparse || extents.iter().any(Extent::is_hole);
+                    if native_sparse {
+                        let has_sub_64k = extents.iter().any(|e| match e {
+                            Extent::Hole { length, .. } => *length < 65_536,
+                            Extent::Data { .. } => false,
+                        });
+                        if has_sub_64k {
+                            metadata.push_warning(
+                                "Windows NTFS sparse files allocate at 64KB granularity; sub-64KB holes cannot be physically deallocated on restoration".to_string(),
+                            );
+                        }
+                    }
                     let sha256 = if compute_hash {
                         match crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path) {
                             Ok(hash) => hash,
@@ -1055,9 +1030,6 @@ impl FileEntity {
         let (flags, platform_raw) = query_file_flags(path, is_symlink)?;
 
         // Reason for fallback: Root or empty paths have no trailing filename component, represented by empty raw filename bytes.
-        let filename_bytes = path
-            .file_name()
-            .map_or_else(Vec::new, |f| f.as_encoded_bytes().to_vec());
 
         // Reason for fallback: When path cannot be stripped of base_dir prefix or is root, fall back to file name or empty PathBuf.
         let relative_path = if let Some(base) = base_dir {
@@ -1074,7 +1046,6 @@ impl FileEntity {
 
         let canonical = canonicalize_entity_path(path, is_symlink);
 
-        let raw_relative_path = relative_path.as_os_str().as_encoded_bytes().to_vec();
 
         let enclosing_path = match base_dir {
             Some(base) => Some(base.to_path_buf()),
@@ -1091,8 +1062,6 @@ impl FileEntity {
             },
             relative_path: Some(relative_path),
             enclosing_path,
-            raw_relative_path: Some(raw_relative_path),
-            raw_filename: Some(filename_bytes),
             nlink,
             hardlink_group: if nlink > 1 { Some(Natural::from(ino)) } else { None },
         };
@@ -1779,7 +1748,7 @@ mod tests {
             assert!(!entity.metadata.warnings.iter()
                 .any(|warning| warning.contains("Failed to query file extents")));
             assert!(entity.metadata.warnings.iter()
-                .any(|warning| warning.contains("Windows sparse extent materialization and auditing")));
+                .any(|warning| warning.contains("64KB granularity")));
         } else {
             assert!(ctb_io_environment::is_wine(), "Native sparse control did not retain its attribute");
             assert!(matches!(entity.kind, FileEntityKind::Regular { is_sparse: false, .. }));
@@ -1792,7 +1761,7 @@ mod tests {
             let failure = requested.materialize_at_path(
                 Some(&mut payload), directory.path(), &crate::MaterializeOptions::default(),
             ).unwrap_err();
-            assert!(format!("{failure:#}").contains("sparse extent auditing"));
+            assert!(format!("{failure:#}").contains("sparse"));
             assert!(!directory.path().join("requested_sparse").exists());
             ctb_formats_dcstring::assert_dc_roundtrip(&requested).unwrap();
         }
@@ -1805,242 +1774,81 @@ mod tests {
     #[cfg(windows)]
     #[crate::ctb_test]
     #[expect(unsafe_code, reason = "DeviceIoControl uses live buffers")]
-    fn test_windows_sparse_restoration_probe() {
+    fn test_windows_sparse_hole_allocation_semantics() {
         use std::io::{Seek, SeekFrom, Write};
+        use std::os::windows::fs::MetadataExt;
         use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE;
         use windows_sys::Win32::System::IO::DeviceIoControl;
         use windows_sys::Win32::System::Ioctl::{
             FILE_ZERO_DATA_INFORMATION, FSCTL_SET_SPARSE, FSCTL_SET_ZERO_DATA,
         };
 
         let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("sparse_semantics");
+        let mut file = std::fs::OpenOptions::new()
+            .read(true).write(true).create_new(true).open(&path).unwrap();
+        let mut returned = 0;
+        let success = unsafe {
+            DeviceIoControl(
+                file.as_raw_handle(), FSCTL_SET_SPARSE,
+                std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                &mut returned, std::ptr::null_mut(),
+            )
+        };
+        assert_ne!(success, 0);
 
-        // --- CASE 1: All-hole file (set_len only), sync, drop, reopen ---
-        {
-            let path = directory.path().join("case1_all_hole");
-            let file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true).open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            let total_size = 320 * 1024_u64;
-            file.set_len(total_size).unwrap();
-            file.sync_all().unwrap();
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 1 (all hole after sync+reopen): {extents:?}");
-        }
+        let total_size = 327_680_u64; // 5 * 64KB
+        file.set_len(total_size).unwrap();
 
-        // --- CASE 2: Write at 64KB, but FLUSH before FSCTL_SET_ZERO_DATA ---
-        {
-            let path = directory.path().join("case2_flush_before_zero");
-            let mut file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true).open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            let total_size = 320 * 1024_u64;
-            file.set_len(total_size).unwrap();
+        file.seek(SeekFrom::Start(65_536)).unwrap();
+        file.write_all(&[1_u8; 4096]).unwrap();
+        file.seek(SeekFrom::Start(196_608)).unwrap();
+        file.write_all(b"tail").unwrap();
 
-            file.seek(SeekFrom::Start(65536)).unwrap();
-            file.write_all(&[1_u8; 4096]).unwrap();
-            file.seek(SeekFrom::Start(196608)).unwrap();
-            file.write_all(b"tail").unwrap();
+        // Crucial NTFS invariant: flush buffered writes before punching holes,
+        // otherwise deferred dirty cache page writeback on handle close will
+        // reallocate the zeroed extent.
+        file.sync_all().unwrap();
 
-            // FLUSH FIRST!
-            file.sync_all().unwrap();
-
-            // Now punch holes
-            for (start, end) in [(0_i64, 65536_i64), (131072_i64, 196608_i64), (262144_i64, 327680_i64)] {
-                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
-                let mut returned = 0;
-                unsafe {
-                    DeviceIoControl(
-                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
-                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
-                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
-                    );
-                }
-            }
-            let extents_before_close = get_file_extents(&file, total_size).unwrap();
-            println!("PROBE CASE 2 before close: {extents_before_close:?}");
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 2 after reopen: {extents:?}");
-        }
-
-        // --- CASE 3: What if we write to offset 0, flush, then punch hole at [0, 65536)? ---
-        {
-            let path = directory.path().join("case3_write_at_zero_then_punch");
-            let mut file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true).open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            let total_size = 320 * 1024_u64;
-            file.set_len(total_size).unwrap();
-
-            // Write 4096 bytes at offset 0
-            file.seek(SeekFrom::Start(0)).unwrap();
-            file.write_all(&[1_u8; 4096]).unwrap();
-
-            file.seek(SeekFrom::Start(65536)).unwrap();
-            file.write_all(&[1_u8; 4096]).unwrap();
-
-            file.sync_all().unwrap();
-
-            // Punch hole at [0, 65536)
-            let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: 0, BeyondFinalZero: 65536 };
-            let mut returned = 0;
+        for (start, end) in [
+            (0_i64, 65_536_i64),
+            (131_072_i64, 196_608_i64),
+            (262_144_i64, 327_680_i64),
+        ] {
+            let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
+            let mut ret = 0;
             unsafe {
                 DeviceIoControl(
                     file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
                     (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
-                    std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
+                    std::ptr::null_mut(), 0, &mut ret, std::ptr::null_mut(),
                 );
             }
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 3 after reopen: {extents:?}");
         }
+        drop(file);
 
-        // --- CASE 4: Write at 65536 WITHOUT set_len first (set_len at end) ---
-        {
-            let path = directory.path().join("case4_set_len_at_end");
-            let mut file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true).open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            let total_size = 320 * 1024_u64;
+        let file2 = std::fs::File::open(&path).unwrap();
+        let extents = get_file_extents(&file2, total_size).unwrap();
+        let native_sparse = std::fs::metadata(&path).unwrap().file_attributes()
+            & FILE_ATTRIBUTE_SPARSE_FILE != 0;
 
-            file.seek(SeekFrom::Start(65536)).unwrap();
-            file.write_all(&[1_u8; 4096]).unwrap();
-            file.seek(SeekFrom::Start(196608)).unwrap();
-            file.write_all(b"tail").unwrap();
-            file.set_len(total_size).unwrap();
-
-            let extents_no_zero = get_file_extents(&file, total_size).unwrap();
-            println!("PROBE CASE 4 before close (no FSCTL_SET_ZERO_DATA): {extents_no_zero:?}");
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 4 after reopen (no FSCTL_SET_ZERO_DATA): {extents:?}");
-        }
-
-        // --- CASE 5: What if we open with custom_flags(FILE_FLAG_WRITE_THROUGH)? ---
-        {
-            use std::os::windows::fs::OpenOptionsExt;
-            const FILE_FLAG_WRITE_THROUGH: u32 = 0x80000000;
-            let path = directory.path().join("case5_write_through");
-            let mut file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true)
-                .custom_flags(FILE_FLAG_WRITE_THROUGH)
-                .open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            let total_size = 320 * 1024_u64;
-            file.set_len(total_size).unwrap();
-
-            file.seek(SeekFrom::Start(65536)).unwrap();
-            file.write_all(&[1_u8; 4096]).unwrap();
-            file.seek(SeekFrom::Start(196608)).unwrap();
-            file.write_all(b"tail").unwrap();
-
-            // Punch holes
-            for (start, end) in [(0_i64, 65536_i64), (131072_i64, 196608_i64), (262144_i64, 327680_i64)] {
-                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
-                let mut returned = 0;
-                unsafe {
-                    DeviceIoControl(
-                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
-                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
-                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
-                    );
-                }
-            }
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 5 after reopen (WRITE_THROUGH): {extents:?}");
-        }
-
-        // --- CASE 6: Granularity test (4KB, 8KB, 16KB, 32KB, 64KB holes) ---
-        {
-            let path = directory.path().join("case6_granularity");
-            let mut file = std::fs::OpenOptions::new()
-                .read(true).write(true).create_new(true).open(&path).unwrap();
-            let mut returned = 0;
-            unsafe {
-                DeviceIoControl(
-                    file.as_raw_handle(), FSCTL_SET_SPARSE,
-                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
-                    &mut returned, std::ptr::null_mut(),
-                );
-            }
-            // Fill 512KB with 1s
-            let total_size = 512 * 1024_u64;
-            let chunk = vec![0xFF_u8; 64 * 1024];
-            for _ in 0..8 {
-                file.write_all(&chunk).unwrap();
-            }
-            file.sync_all().unwrap();
-
-            // Try punching:
-            // Hole at 64KB of size 4KB: [65536, 69632)
-            // Hole at 128KB of size 16KB: [131072, 147456)
-            // Hole at 192KB of size 32KB: [196608, 229376)
-            // Hole at 256KB of size 64KB: [262144, 327680)
-            for (start, end) in [
-                (65536_i64, 65536_i64 + 4096),
-                (131072_i64, 131072_i64 + 16384),
-                (196608_i64, 196608_i64 + 32768),
-                (262144_i64, 262144_i64 + 65536),
-            ] {
-                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
-                let mut returned = 0;
-                let success = unsafe {
-                    DeviceIoControl(
-                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
-                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
-                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
-                    )
-                };
-                println!("PROBE CASE 6: ZERO_DATA [{start}, {end}): success={success}");
-            }
-            drop(file);
-            let file2 = std::fs::File::open(&path).unwrap();
-            let extents = get_file_extents(&file2, total_size).unwrap();
-            println!("PROBE CASE 6 (granularity after reopen): {extents:?}");
+        if native_sparse {
+            // On native Windows NTFS, 64KB-aligned zeroed ranges persist as holes
+            assert_eq!(
+                extents,
+                vec![
+                    Extent::Hole { offset: 0, length: 65_536 },
+                    Extent::Data { offset: 65_536, length: 65_536 },
+                    Extent::Hole { offset: 131_072, length: 65_536 },
+                    Extent::Data { offset: 196_608, length: 65_536 },
+                    Extent::Hole { offset: 262_144, length: 65_536 },
+                ]
+            );
+        } else {
+            // On WINE, the sparse file attribute is not retained and files remain dense
+            assert!(ctb_io_environment::is_wine());
+            assert_eq!(extents, vec![Extent::Data { offset: 0, length: total_size }]);
         }
     }
 

@@ -3128,6 +3128,7 @@ dependencies = [
  "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
+ "ctb-formats-wtf8",
  "ctb-storage-minimal",
  "ctb-utilities",
  "malachite",

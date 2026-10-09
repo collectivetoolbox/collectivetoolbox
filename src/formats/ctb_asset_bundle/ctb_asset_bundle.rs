@@ -25,24 +25,30 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! V1 headers:
 //!
-//! ```ignore
+//! ```rust
 //! const RESOURCE_BUNDLE_MAGIC: &[u8; 8] = b"CTBRSRC\0";
 //! const RESOURCE_BUNDLE_VERSION: u32 = 1;
 //! const RESOURCE_ENTRY_SIZE: usize = 32;
 //! ```
 //!
-//! V2 headers add a bundle UUID based on the content:
-//! ```ignore
+//! V2 headers add a bundle UUID based on the content. The example UUID below
+//! is for an empty entry list:
+//! ```rust
 //! const RESOURCE_BUNDLE_MAGIC: &[u8; 8] = b"CTBRSRC\0";
 //! const RESOURCE_BUNDLE_VERSION: u32 = 2;
 //! const RESOURCE_BUNDLE_UUID_SIZE: usize = 16;
 //! const RESOURCE_ENTRY_SIZE: usize = 32;
-//! const EXPECTED_RESOURCE_BUNDLE_UUID: &str = env!("CTB_ASSET_PACK_UUID");
+//! const EXPECTED_RESOURCE_BUNDLE_UUID: &str =
+//!     "e3b0c442-98fc-8c14-9afb-f4c8996fb924";
 //! ```
 //!
 //! V2 UUID was implemented as follows:
 //!
-//! ```ignore
+//! ```rust
+//! # use anyhow::{Context, Result};
+//! # use sha2::{Digest, Sha256};
+//! # use ctb_formats_ctb_asset_bundle::RESOURCE_BUNDLE_UUID_SIZE;
+//! # struct ResourceBundleEntry { path: String, contents: Vec<u8> }
 //! fn compute_resource_bundle_uuid(
 //!     entries: &[ResourceBundleEntry],
 //! ) -> Result<[u8; RESOURCE_BUNDLE_UUID_SIZE]> {
@@ -71,6 +77,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //!     Ok(uuid_bytes)
 //! }
+//! # let bytes = compute_resource_bundle_uuid(&[])?;
+//! # assert_eq!(uuid::Uuid::from_bytes(bytes).to_string(),
+//! #     "e3b0c442-98fc-8c14-9afb-f4c8996fb924");
+//! # let entry = ResourceBundleEntry {
+//! #     path: "example".to_owned(), contents: vec![1, 2, 3],
+//! # };
+//! # assert_ne!(compute_resource_bundle_uuid(&[entry])?, bytes);
+//! # Ok::<(), anyhow::Error>(())
 //! ```
 //!
 //! V3 headers add content SHA256 and creation timestamp, and switch to a random

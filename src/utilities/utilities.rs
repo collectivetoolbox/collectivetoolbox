@@ -137,12 +137,17 @@ pub(crate) fn get_utilities_data_str(key: &str) -> Option<&'static str> {
 ///
 /// In service crates, this macro calls `crate::ipc()`.
 ///
-/// In workspace-style code you typically want `ipc!(io)?` to expand to
+/// In workspace-style code you typically want `ipc!(io)` to expand to
 /// `self.io()?` instead. Rust macro expansion cannot *automatically* detect
 /// whether `crate::ipc()` exists in the current crate, so this macro is built
 /// around two helper macros that you can override in a narrower scope:
 ///
-/// ```ignore
+/// ```rust
+/// use ctb_utilities::ipc;
+/// # struct Workspace { io: u32 }
+/// # impl Workspace {
+/// # fn io(&self) -> anyhow::Result<u32> { Ok(self.io) }
+/// fn io_value(&self) -> anyhow::Result<u32> {
 /// macro_rules! __ctb_ipc_ctx {
 ///     () => { self };
 /// }
@@ -150,8 +155,13 @@ pub(crate) fn get_utilities_data_str(key: &str) -> Option<&'static str> {
 ///     ($ctx:expr, $service:ident) => { $ctx.$service()? };
 /// }
 ///
-/// let io = ipc!(io)?;
-/// io.start_local_webui().await?;
+/// let io = ipc!(io);
+/// Ok(io)
+/// }
+/// # }
+/// # let workspace = Workspace { io: 7 };
+/// # assert_eq!(workspace.io_value()?, 7);
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 #[macro_export]
 macro_rules! ipc {

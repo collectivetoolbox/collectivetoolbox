@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_formats_checksum::{Sha256Stream, xxhash};
-use ctb_formats_dcstring::{SharedJson, SharedValueContext};
+use ctb_formats_dcstring::{DcMixedEncode, DcMstring, SharedJson, SharedValueContext};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
@@ -722,6 +722,8 @@ fn attach_legacy_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescr
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PreservationRecord {
+    #[serde(default)]
+    identity_dc: Option<Vec<u8>>,
     metadata: serde_json::Value,
     extents: Vec<ctb_io::file::Extent>,
     streams: Vec<PreservedStream>,
@@ -742,7 +744,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity, context: &Share
     // Reason for fallback: streams or entities without relative path write empty path bytes to wire format
     write_bytes(w, entity.identity.path_bytes().unwrap_or(&[]))?;
     // Reason for fallback: entities without filename write empty slice to wire format
-    write_bytes(w, entity.identity.raw_filename.as_deref().unwrap_or(&[]))?;
+    write_bytes(w, entity.identity.filename_bytes().unwrap_or(&[]))?;
     match &entity.identity.enclosing_path {
         Some(p) => {
             w.write_all(&[1])?;
@@ -900,6 +902,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity, context: &Share
         });
     }
     let record = PreservationRecord {
+        identity_dc: Some(entity.identity.to_dc_mixed()?.as_bytes().to_vec()),
         metadata: entity.metadata.encode_json_with_context(context)?,
         extents: match &entity.kind {
             FileEntityKind::Regular { extents, .. } => extents.clone(),
@@ -907,7 +910,7 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity, context: &Share
         },
         streams,
     };
-    w.write_all(b"CTBMETA2")?;
+    w.write_all(b"CTBMETA3")?;
     write_bytes(w, &serde_json::to_vec(&record)?)?;
     Ok(())
 }
@@ -1032,26 +1035,11 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueC
             .as_ref()
             .map(|n| StreamKind::infer_from_name(&n.as_bytes()))
             .unwrap_or(StreamKind::MacOsResourceFork);
-        let relative_path = stream_name
-            .as_ref()
-            .map(|n| PathBuf::from(n.to_string_lossy().as_ref()));
-        let raw_relative_path = if sname_bytes.is_empty() {
-            None
-        } else {
-            Some(sname_bytes.clone())
-        };
-        let raw_filename = if sname_bytes.is_empty() {
-            None
-        } else {
-            Some(sname_bytes)
-        };
         let s_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path,
+                relative_path: None,
                 enclosing_path: None,
-                raw_relative_path,
-                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1098,19 +1086,20 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueC
     }
 
     let is_windows = origin_platform == PLATFORM_WINDOWS;
-    let (relative_path, raw_relative_path) = if raw_rel_path.is_empty() {
-        (None, None)
+    let relative_path = if raw_rel_path.is_empty() {
+        if raw_filename.is_empty() {
+            None
+        } else {
+            Some(resolve_relative_path_for_os(&raw_filename, is_windows)?)
+        }
     } else {
-        (
-            Some(resolve_relative_path_for_os(&raw_rel_path, is_windows)?),
-            Some(raw_rel_path),
-        )
+        Some(resolve_relative_path_for_os(&raw_rel_path, is_windows)?)
     };
-    let raw_filename = if raw_filename.is_empty() {
-        None
-    } else {
-        Some(raw_filename)
-    };
+    if !raw_filename.is_empty() {
+        let filename = resolve_relative_path_for_os(&raw_filename, is_windows)?;
+        anyhow::ensure!(relative_path.as_deref().and_then(Path::file_name) == Some(filename.as_os_str()),
+            "Journal filename disagrees with its primary path");
+    }
 
     let mut origin = if let Some(ref grp) = hardlink_group {
         FileOrigin::Filesystem {
@@ -1144,8 +1133,6 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueC
             origin,
             relative_path,
             enclosing_path,
-            raw_relative_path,
-            raw_filename,
             nlink,
             hardlink_group,
         },
@@ -1178,13 +1165,26 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueC
         streams,
     };
     let mut legacy = true;
+    let mut has_semantic_identity = false;
     if !r.is_empty() {
         let mut magic = [0_u8; 8];
         r.read_exact(&mut magic)?;
-        anyhow::ensure!(&magic == b"CTBMETA1" || &magic == b"CTBMETA2", "Unknown preservation record version");
+        anyhow::ensure!(&magic == b"CTBMETA1" || &magic == b"CTBMETA2" || &magic == b"CTBMETA3",
+            "Unknown preservation record version");
         legacy = &magic == b"CTBMETA1";
         let record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut r)?)?;
         anyhow::ensure!(record.streams.len() == entity.streams.len(), "Stream descriptor count mismatch");
+        has_semantic_identity = record.identity_dc.is_some();
+        anyhow::ensure!(&magic != b"CTBMETA3" || has_semantic_identity,
+            "Semantic identity is missing from CTBMETA3 preservation record");
+        if let Some(identity_dc) = record.identity_dc {
+            let identity = DcMstring::from_bytes(identity_dc)?.decode::<FileIdentity>()?;
+            let semantic_path = identity.relative_path.as_deref().filter(|value| !value.as_os_str().is_empty());
+            let legacy_path = entity.identity.relative_path.as_deref().filter(|value| !value.as_os_str().is_empty());
+            anyhow::ensure!(semantic_path == legacy_path,
+                "Semantic journal identity disagrees with its primary path");
+            entity.identity = identity;
+        }
         entity.metadata = if legacy {
             serde_json::from_value(record.metadata)?
         } else {
@@ -1204,6 +1204,11 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueC
     if legacy && context.contains(SESSION_ENVIRONMENT_BINDING) {
         let environment = context.resolve::<EnvDescription>(SESSION_ENVIRONMENT_BINDING)?;
         attach_legacy_session_environment(&mut entity, &environment);
+    }
+    if !has_semantic_identity {
+        let warning = "Legacy journal lacks semantic identity; absent versus empty paths and non-filesystem origin provenance may not be recoverable";
+        entity.metadata.push_warning(warning);
+        warn_fmt!("{}: {warning}", entity.identity.display_path());
     }
     Ok(entity)
 }
@@ -1357,6 +1362,73 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_journal_legacy_identity_fidelity_warning() -> Result<()> {
+        let context = SharedValueContext::default();
+        let mut entity = FileEntity::from_vec(b"payload".to_vec());
+        entity.identity.relative_path = Some(PathBuf::from("entry"));
+        let mut encoded = Vec::new();
+        write_entity_payload(&mut encoded, &entity, &context)?;
+        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+            .context("Missing preservation record marker")?;
+        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
+        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        record.identity_dc = None;
+        let prefix = encoded.get(..marker).context("Invalid preservation record prefix")?;
+        let oldest = read_entity_payload(prefix, current_platform(), &context)?;
+        assert!(oldest.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
+        let mut legacy = prefix.to_vec();
+        legacy.extend_from_slice(b"CTBMETA2");
+        write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
+        let decoded = read_entity_payload(&legacy, current_platform(), &context)?;
+        assert!(decoded.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
+        let mut invalid = prefix.to_vec();
+        invalid.extend_from_slice(b"CTBMETA3");
+        write_bytes(&mut invalid, &serde_json::to_vec(&record)?)?;
+        assert!(read_entity_payload(&invalid, current_platform(), &context).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_semantic_identity_roundtrip() -> Result<()> {
+        let context = SharedValueContext::default();
+        for path in [None, Some(PathBuf::new()), Some(PathBuf::from("entry"))] {
+            let mut entity = FileEntity::from_vec(b"payload".to_vec());
+            entity.identity.relative_path = path;
+            entity.identity.origin = FileOrigin::Archive {
+                archive_path: PathBuf::from("source.tar"),
+                entry_index: 3,
+                archive_format: "tar".to_owned(),
+            };
+            let mut encoded = Vec::new();
+            write_entity_payload(&mut encoded, &entity, &context)?;
+            let decoded = read_entity_payload(&encoded, current_platform(), &context)?;
+            assert_eq!(decoded.identity, entity.identity);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_conflicting_filename_rejected() -> Result<()> {
+        let mut entity = FileEntity::from_vec(b"payload".to_vec());
+        entity.identity.relative_path = Some(PathBuf::from("name"));
+        let context = SharedValueContext::default();
+        let mut encoded = Vec::new();
+        write_entity_payload(&mut encoded, &entity, &context)?;
+        let mut cursor = encoded.as_slice();
+        assert_eq!(read_bytes(&mut cursor)?, b"name");
+        let filename_length = usize::try_from(read_u32(&mut cursor)?)?;
+        let filename_offset = encoded.len().checked_sub(cursor.len()).context("Invalid journal filename offset")?;
+        for byte in encoded.iter_mut().skip(filename_offset).take(filename_length) {
+            *byte = b'x';
+        }
+        let error = read_entity_payload(&encoded, current_platform(), &context)
+            .expect_err("Conflicting identity fields must not be discarded");
+        assert!(format!("{error:#}").contains("filename disagrees"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_journal_shared_environment_provenance() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("sharing.cscjournal");
@@ -1444,8 +1516,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(PathBuf::from("hello.txt")),
                 enclosing_path: Some(src.clone()),
-                raw_relative_path: Some(b"hello.txt".to_vec()),
-                raw_filename: Some(b"hello.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1488,8 +1558,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(PathBuf::from("link.txt")),
                 enclosing_path: None,
-                raw_relative_path: Some(b"link.txt".to_vec()),
-                raw_filename: Some(b"link.txt".to_vec()),
                 nlink: 2,
                 hardlink_group: Some(Natural::from(12345_u64)),
             },
@@ -1638,8 +1706,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(PathBuf::from("pre_epoch.txt")),
                 enclosing_path: Some(src),
-                raw_relative_path: Some(b"pre_epoch.txt".to_vec()),
-                raw_filename: Some(b"pre_epoch.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1826,8 +1892,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(b"file_a.txt".to_vec()),
-                raw_filename: Some(b"file_a.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },

@@ -817,6 +817,49 @@ pub fn materialize_entity(
                 }
             }
 
+            let mut sparse_warnings = Vec::new();
+            #[cfg(windows)]
+            if can_use_sparse {
+                use std::os::windows::fs::MetadataExt;
+                use std::os::windows::io::AsRawHandle;
+                use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE;
+                use windows_sys::Win32::System::IO::DeviceIoControl;
+                use windows_sys::Win32::System::Ioctl::FSCTL_SET_SPARSE;
+
+                let mut returned = 0_u32;
+                // SAFETY: temp_file is a valid live file handle
+                #[expect(unsafe_code, reason = "DeviceIoControl requires Win32 FFI with a live file handle and synchronous output storage")]
+                let ret = unsafe {
+                    DeviceIoControl(
+                        temp_file.as_raw_handle(),
+                        FSCTL_SET_SPARSE,
+                        std::ptr::null(),
+                        0,
+                        std::ptr::null_mut(),
+                        0,
+                        &mut returned,
+                        std::ptr::null_mut(),
+                    )
+                };
+                let has_sparse_attr = temp_file
+                    .metadata()
+                    .context("Failed to query destination sparse attributes")?
+                    .file_attributes() & FILE_ATTRIBUTE_SPARSE_FILE != 0;
+                if ret == 0 || !has_sparse_attr || ctb_io_environment::is_wine() {
+                    if options.strict_lossless {
+                        anyhow::bail!(
+                            "Destination filesystem does not support sparse files for {}",
+                            dest_path.display()
+                        );
+                    }
+                    sparse_warnings.push(format!(
+                        "Destination filesystem does not support sparse files for {}",
+                        dest_path.display()
+                    ));
+                    can_use_sparse = false;
+                }
+            }
+
             if can_use_sparse {
                 for extent in extents {
                     match extent {
@@ -861,6 +904,61 @@ pub fn materialize_entity(
                         }
                     }
                 }
+
+                #[cfg(windows)]
+                {
+                    use std::os::windows::io::AsRawHandle;
+                    use windows_sys::Win32::System::IO::DeviceIoControl;
+                    use windows_sys::Win32::System::Ioctl::{
+                        FILE_ZERO_DATA_INFORMATION, FSCTL_SET_ZERO_DATA,
+                    };
+
+                    // Crucial NTFS invariant: flush buffered writes before punching holes,
+                    // otherwise deferred dirty cache page writeback on handle close or
+                    // sync will reallocate the zeroed extent.
+                    temp_file.sync_all()?;
+
+                    for extent in extents {
+                        if let Extent::Hole { offset, length } = extent {
+                            let start = i64::try_from(*offset)
+                                .context("Hole offset out of range for i64")?;
+                            let end_u64 = offset
+                                .checked_add(*length)
+                                .context("Hole end offset overflow")?;
+                            let end = i64::try_from(end_u64)
+                                .context("Hole end offset out of range for i64")?;
+                            let zero_info = FILE_ZERO_DATA_INFORMATION {
+                                FileOffset: start,
+                                BeyondFinalZero: end,
+                            };
+                            let mut returned = 0_u32;
+                            // SAFETY: temp_file is a live handle; zero_info is a stack-allocated struct.
+                            #[expect(unsafe_code, reason = "DeviceIoControl requires Win32 FFI with live synchronous input and output buffers")]
+                            let ok = unsafe {
+                                DeviceIoControl(
+                                    temp_file.as_raw_handle(),
+                                    FSCTL_SET_ZERO_DATA,
+                                    (&raw const zero_info).cast(),
+                                    u32::try_from(std::mem::size_of_val(&zero_info))?,
+                                    std::ptr::null_mut(),
+                                    0,
+                                    &mut returned,
+                                    std::ptr::null_mut(),
+                                )
+                            };
+                            if ok == 0 {
+                                let err = std::io::Error::last_os_error();
+                                if options.strict_lossless {
+                                    return Err(err).context("Failed to punch sparse hole on Windows");
+                                }
+                                sparse_warnings.push(format!(
+                                    "Failed to punch sparse hole at offset {offset}: {err}"
+                                ));
+                            }
+                        }
+                    }
+                }
+
                 temp_file.set_len(initial_size)?;
             } else {
                 source.seek(SeekFrom::Start(0))?;
@@ -939,6 +1037,7 @@ pub fn materialize_entity(
                 false,
                 options.strict_lossless,
             )?;
+            warnings.extend(sparse_warnings);
 
             if options.strict_lossless {
                 let mut expected = entity.clone();
@@ -1402,8 +1501,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
-                raw_filename: Some(b"test_file.bin".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1508,8 +1605,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
-                raw_filename: Some(b"report.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1602,8 +1697,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
-                raw_filename: Some(b"forced.bin".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1684,8 +1777,6 @@ mod tests {
                 origin: FileOrigin::Synthetic,
                 relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
-                raw_filename: Some(b"mismatch.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1830,5 +1921,105 @@ mod tests {
         let err2_str = res2.unwrap_err().to_string();
         assert!(err2_str.contains("Refusing to materialize inaccessible entity or entity with recorded errors"));
     }
+
+    #[crate::ctb_test]
+    fn test_sparse_materialization_and_auditing() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let file_name = "test_sparse.bin";
+        let dest_path = temp.path().join(file_name);
+
+        let total_size = 327_680_u64; // 5 * 64KB
+        let extents = vec![
+            Extent::Hole { offset: 0, length: 65_536 },
+            Extent::Data { offset: 65_536, length: 65_536 },
+            Extent::Hole { offset: 131_072, length: 65_536 },
+            Extent::Data { offset: 196_608, length: 65_536 },
+            Extent::Hole { offset: 262_144, length: 65_536 },
+        ];
+
+        let mut payload_bytes = vec![0_u8; usize::try_from(total_size).unwrap()];
+        if let Some(slice1) = payload_bytes.get_mut(65_536..131_072) {
+            slice1.fill(0xAA);
+        }
+        if let Some(slice2) = payload_bytes.get_mut(196_608..262_144) {
+            slice2.fill(0xBB);
+        }
+
+        let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+        hasher.update(&payload_bytes);
+        let sha256 = hasher.finalize();
+
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from(file_name)),
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: total_size,
+                sha256,
+                is_sparse: true,
+                extents: extents.clone(),
+            },
+            metadata: FileMetadata::default(),
+            streams: Vec::new(),
+        };
+
+        #[cfg(windows)]
+        let is_wine = ctb_io_environment::is_wine();
+        #[cfg(not(windows))]
+        let is_wine = false;
+
+        if is_wine {
+            // Under WINE, strict lossless materialization of a sparse file must be refused
+            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+            let err = materialize_entity(&entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default()).unwrap_err();
+            assert!(format!("{err:#}").contains("sparse"));
+
+            // Under WINE in best-effort mode, materialization succeeds with dense write and a warning
+            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+            let options = MaterializeOptions {
+                strict_lossless: false,
+                ..MaterializeOptions::default()
+            };
+            let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+            assert!(receipt.warnings.iter().any(|w| w.contains("does not support sparse")));
+            assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
+
+            // Audit with best_effort: true tolerates missing sparse support
+            let audit_opts = EntityAuditOptions {
+                best_effort: true,
+                check_sparse: true,
+                ..EntityAuditOptions::default()
+            };
+            let (diffs, ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts).unwrap();
+            assert!(diffs.is_empty(), "Unexpected diffs: {diffs:?}");
+            assert_eq!(ignored.sparseness, 1);
+        } else {
+            // On Linux and native Windows NTFS: strict lossless materialization succeeds and preserves sparse holes
+            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+            let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default()).unwrap();
+            assert_eq!(receipt.bytes_written, total_size);
+
+            let read_back = std::fs::read(&dest_path).unwrap();
+            assert_eq!(read_back, payload_bytes);
+
+            let audit_opts = EntityAuditOptions {
+                check_sparse: true,
+                best_effort: false,
+                ..EntityAuditOptions::default()
+            };
+            let (diffs, _) = audit_entity_detailed(&dest_path, &entity, &audit_opts).unwrap();
+            assert!(diffs.is_empty(), "Strict sparse audit failed: {diffs:?}");
+
+            let file = std::fs::File::open(&dest_path).unwrap();
+            let actual_extents = crate::payload::get_file_extents(&file, total_size).unwrap();
+            assert_eq!(actual_extents, extents);
+        }
+    }
 }
+
 

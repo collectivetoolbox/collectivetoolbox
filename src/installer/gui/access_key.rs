@@ -36,14 +36,23 @@ use egui::{Align, Color32, FontId, Key, RichText, Ui, WidgetText};
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```rust
+/// use ctb_installer::gui::access_key::AccessKeyButton;
+/// # let context = egui::Context::default();
+/// # let mut rendered = false;
+/// # let _ = context.run(egui::RawInput::default(), |context| {
+/// # egui::CentralPanel::default().show(context, |ui| {
 /// let button = AccessKeyButton::new(ui, "Quick Install", 'Q')
 ///     .font_size(18.0)
 ///     .build();
 ///
-/// if ui.button(button.text).clicked() || button.was_pressed() {
+/// if ui.button(button.text_ref().clone()).clicked() || button.was_pressed() {
 ///     // Handle button click or Alt+Q
 /// }
+/// # rendered = true;
+/// # });
+/// # });
+/// # assert!(rendered);
 /// ```
 pub struct AccessKeyButton<'a> {
     ui: &'a Ui,

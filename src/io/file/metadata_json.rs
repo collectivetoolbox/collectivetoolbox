@@ -149,17 +149,6 @@ impl FileMetadataJson {
                 .as_deref()
                 .and_then(|p| p.file_name())
                 .map(std::ffi::OsString::from)
-                .or_else(|| {
-                    entity.identity.raw_filename.as_ref().and_then(|raw| {
-                        if !raw.is_empty() {
-                            Some(std::ffi::OsString::from(
-                                String::from_utf8_lossy(raw).as_ref(),
-                            ))
-                        } else {
-                            None
-                        }
-                    })
-                })
                 // Reason for fallback: missing original filename in metadata defaults destination leaf to "file"
                 .unwrap_or_else(|| std::ffi::OsString::from("file"));
             target.push(orig_name);
@@ -184,7 +173,6 @@ impl FileMetadataJson {
             .context("Target destination path has no filename")?;
 
         entity.identity.relative_path = Some(PathBuf::from(filename));
-        entity.identity.raw_filename = Some(filename.as_encoded_bytes().to_vec());
 
         match &entity.kind {
             FileEntityKind::Regular { size, .. } => {

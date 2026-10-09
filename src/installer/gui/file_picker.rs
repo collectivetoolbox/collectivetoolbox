@@ -1819,7 +1819,8 @@ mod tests {
         // Should have at least Home
         assert!(!locations.is_empty());
 
-        let home_location = locations.iter().find(|l| l.name == "Home");
+        let home = dirs::home_dir().expect("test environment must have a home directory");
+        let home_location = locations.iter().find(|location| location.path == home);
         assert!(home_location.is_some());
     }
 

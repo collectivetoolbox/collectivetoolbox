@@ -24,8 +24,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use ctb_installer::i18n::{Locale, t};
+//! ```rust
+//! use ctb_installer::i18n::{Locale, t, t_args, set_locale};
+//! # let previous_locale = ctb_installer::i18n::current_locale();
 //!
 //! // Get a localized string
 //! let welcome = t("welcome-message");
@@ -34,7 +35,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! let greeting = t_args("greeting", &[("name", "User")]);
 //!
 //! // Change locale
-//! set_locale(Locale::German);
+//! set_locale(Locale::De);
+//! # assert_eq!(ctb_installer::i18n::current_locale(), Locale::De);
+//! # set_locale(previous_locale);
 //! ```
 
 #[allow(

@@ -144,6 +144,7 @@ pub enum FileOrigin {
 /// Multifaceted identity information for a file entity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[dc(begin = 319, end = 320)]
+#[serde(deny_unknown_fields)]
 pub struct FileIdentity {
     /// Origin locator where the file was discovered.
     #[dc(nested = 349)]
@@ -155,14 +156,6 @@ pub struct FileIdentity {
     /// resolved, if applicable.
     #[dc(short = 357)]
     pub enclosing_path: Option<PathBuf>,
-    /// Exact raw bytes of the full relative path with canonical '/' separator.
-    #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
-    #[dc(543, binary)]
-    pub raw_relative_path: Option<Vec<u8>>,
-    /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
-    #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
-    #[dc(544, binary)]
-    pub raw_filename: Option<Vec<u8>>,
     /// Link count on the source filesystem.
     #[dc(short = 355)]
     pub nlink: u64,
@@ -173,16 +166,17 @@ pub struct FileIdentity {
 }
 
 impl FileIdentity {
-    /// Returns the raw byte representation of the relative path, if present.
+    /// Returns the native byte representation of the relative path, if present.
     #[must_use]
     pub fn path_bytes(&self) -> Option<&[u8]> {
-        if let Some(ref raw) = self.raw_relative_path {
-            Some(raw.as_slice())
-        } else {
-            self.relative_path
-                .as_deref()
-                .map(|p| p.as_os_str().as_encoded_bytes())
-        }
+        self.relative_path.as_deref().map(|path| path.as_os_str().as_encoded_bytes())
+    }
+
+    /// Returns the native filename bytes from the relative path, if present.
+    #[must_use]
+    pub fn filename_bytes(&self) -> Option<&[u8]> {
+        self.relative_path.as_deref().and_then(Path::file_name)
+            .map(std::ffi::OsStr::as_encoded_bytes)
     }
 
     /// Returns the full original path if `enclosing_path` and `relative_path` are present,
@@ -218,7 +212,7 @@ impl FileIdentity {
 ///
 /// Converts canonical forward-slash separated path bytes to the current platform's
 /// path representation. On POSIX/Linux, this is lossless for any byte sequence.
-/// On Windows, decodes UTF-8 and maps `/` to `\`.
+/// On Windows, decodes canonical WTF-8 and maps `/` to `\`.
 pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -> Result<PathBuf> {
     #[cfg(unix)]
     {
@@ -242,18 +236,16 @@ pub fn resolve_relative_path_for_os(raw_bytes: &[u8], origin_is_windows: bool) -
 
     #[cfg(windows)]
     {
-        let s = std::str::from_utf8(raw_bytes)
-            .context("Relative path bytes are not valid UTF-8 for current platform")?;
-
-        let normalized = PathBuf::from(s.replace('/', "\\"));
+        use std::os::windows::ffi::OsStrExt;
+        let bytes: Vec<u8> = raw_bytes.iter().map(|byte| if *byte == b'/' { b'\\' } else { *byte }).collect();
+        let normalized = ctb_formats_dcstring::dc_mixed_serde::path_from_native_bytes(&bytes)?;
         for component in normalized.components() {
             match component {
                 std::path::Component::Normal(name) => {
-                    for character in name.to_str().context("Invalid Windows path component")?.chars() {
-                        if matches!(character, '\0' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
-                            anyhow::bail!("Path contains character '{character}' which is incompatible with target platform");
-                        }
-                    }
+                    anyhow::ensure!(!name.encode_wide().any(|unit| {
+                        [b'\0', b':', b'*', b'?', b'"', b'<', b'>', b'|'].iter()
+                            .any(|byte| unit == u16::from(*byte))
+                    }), "Path contains a character which is incompatible with Windows");
                 }
                 std::path::Component::Prefix(_) => {
                     anyhow::ensure!(origin_is_windows, "A non-Windows source path contains a Windows path prefix");
@@ -372,27 +364,44 @@ pub fn extract_device_id_for_path(path: &Path, meta: &Metadata) -> Result<u64> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
     #[crate::ctb_test]
-    fn test_raw_identity_bytes_dc_roundtrip() -> Result<()> {
-        let samples = [
-            None,
-            Some(Vec::new()),
-            Some(b"different/raw\xff\x80.bin".to_vec()),
-            Some(vec![0x00, 0xd8, 0x2f, 0x00, 0x00, 0xdc]),
-            Some(b"native/\xed\xa0\x80\xed\xb0\x80".to_vec()),
-            Some((0u8..=255).collect()),
-        ];
-        for raw_relative_path in &samples {
-            for raw_filename in &samples {
+    fn test_identity_json_rejects_removed_raw_fields() -> Result<()> {
+        let identity = crate::FileEntity::from_vec(Vec::new()).identity;
+        for field in ["raw_relative_path", "raw_filename"] {
+            let mut value = serde_json::to_value(&identity)?;
+            let object = value.as_object_mut().context("Identity must serialize as a JSON object")?;
+            object.insert(field.to_owned(), serde_json::Value::String("different".to_owned()));
+            let error = serde_json::from_value::<FileIdentity>(value)
+                .expect_err("Removed identity representations must not be silently discarded");
+            assert!(error.to_string().contains(field));
+        }
+        let encoded = serde_json::to_vec(&identity)?;
+        assert_eq!(serde_json::from_slice::<FileIdentity>(&encoded)?, identity);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_identity_paths_dc_roundtrip() -> Result<()> {
+        let samples = [None, Some(PathBuf::new()), Some(PathBuf::from("logical/name.txt"))];
+        for relative_path in &samples {
+            for enclosing_path in &samples {
                 let identity = FileIdentity {
                     origin: FileOrigin::Synthetic,
-                    relative_path: Some(PathBuf::from("logical/name.txt")),
-                    enclosing_path: Some(PathBuf::from("root")),
-                    raw_relative_path: raw_relative_path.clone(),
-                    raw_filename: raw_filename.clone(),
+                    relative_path: relative_path.clone(),
+                    enclosing_path: enclosing_path.clone(),
                     nlink: 2,
                     hardlink_group: Some(Natural::from(u128::MAX)),
                 };
@@ -407,20 +416,22 @@ mod tests {
         use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
         let mut encoded = DcMstring::new();
-        FileIdentity {
-            origin: FileOrigin::Synthetic,
-            relative_path: Some(PathBuf::from("legacy.txt")),
-            enclosing_path: None,
-            nlink: 1,
-            hardlink_group: None,
-            raw_relative_path: None,
-            raw_filename: None,
-        }.encode_dc_mixed(&mut encoded)?;
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(319));
+        FileOrigin::Synthetic.encode_dc_mixed(&mut encoded)?;
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(337));
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(315));
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(397));
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(310));
+        "legacy.txt".encode_dc_mixed(&mut encoded)?;
+        encoded.push_binary_with_sha256(b"legacy.txt");
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(311));
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(355));
+        1u64.encode_dc_mixed(&mut encoded)?;
+        encoded.push_char(ctb_formats_dcstring::DcChar::from_short(320));
         let mut reader = DcMixedReader::new(&encoded);
         let decoded = FileIdentity::decode_dc_mixed(&mut reader)?;
         assert_eq!(decoded.relative_path, Some(PathBuf::from("legacy.txt")));
-        assert_eq!(decoded.raw_relative_path, None);
-        assert_eq!(decoded.raw_filename, None);
+        assert_eq!(decoded.filename_bytes(), Some(b"legacy.txt".as_slice()));
         assert_eq!(reader.peek_char()?, None);
         Ok(())
     }
@@ -438,9 +449,10 @@ mod tests {
         let path = temp.path().join(&name);
         std::fs::write(&path, b"payload")?;
         let entity = crate::FileEntity::from_filesystem(&path, Some(temp.path()))?;
-        assert_eq!(entity.identity.raw_filename.as_deref(), Some(name.as_encoded_bytes()));
-        assert!(entity.identity.raw_relative_path.is_some());
+        assert_eq!(entity.identity.filename_bytes(), Some(name.as_encoded_bytes()));
+        assert!(entity.identity.path_bytes().is_some());
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.identity)?;
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity)?;
         Ok(())
     }
 }

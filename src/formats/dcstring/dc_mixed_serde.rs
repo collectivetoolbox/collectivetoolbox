@@ -984,31 +984,121 @@ impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
 
 impl DcMixedEncode for PathBuf {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        #[cfg(unix)]
-        let raw_bytes = {
-            use std::os::unix::ffi::OsStrExt;
-            self.as_os_str().as_bytes()
-        };
-        #[cfg(not(unix))]
-        let lossy_string = self.to_string_lossy();
-        #[cfg(not(unix))]
-        let raw_bytes = lossy_string.as_bytes();
-
-        if let Ok(s) = std::str::from_utf8(raw_bytes) {
-            mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-            mst.push_char(DC_BEGIN_LIST);
-            s.encode_dc_mixed(mst)?;
-            mst.push_binary_with_sha256(raw_bytes);
-            mst.push_char(DC_END_LIST);
-        } else {
-            mst.push_binary_with_sha256(raw_bytes);
+        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+        let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
+        mst.push_char(DcChar::from_short(511));
+        mst.push_char(path_format);
+        mst.push_char(DC_BEGIN_LIST);
+        mst.push_char(DcChar::from_short(516));
+        mst.push_char(filename_format);
+        mst.push_char(DcChar::from_short(513));
+        let mut segments = self.as_os_str().as_encoded_bytes().split(|byte| {
+            *byte == b'/' || (cfg!(windows) && *byte == b'\\')
+        }).peekable();
+        while let Some(segment) = segments.next() {
+            if !segment.is_empty() {
+                mst.push_char(DcChar::from_short(511));
+                mst.push_char(filename_format);
+                if let Ok(text) = std::str::from_utf8(segment) {
+                    mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+                    mst.push_char(DC_BEGIN_LIST);
+                    mst.push_char(DcChar::from_short(275));
+                    text.encode_dc_mixed(mst)?;
+                    mst.push_binary_with_sha256(segment);
+                    mst.push_char(DC_END_LIST);
+                } else {
+                    mst.push_binary_with_sha256(segment);
+                }
+                mst.push_char(DcChar::from_short(512));
+            }
+            if segments.peek().is_some() {
+                mst.push_char(DcChar::from_short(513));
+            }
         }
+        mst.push_char(DC_END_LIST);
+        mst.push_char(DcChar::from_short(512));
         Ok(())
+    }
+}
+
+/// Resolves native Unix bytes or canonical Windows WTF-8 without replacement.
+///
+/// # Errors
+/// Returns an error if the bytes cannot be represented on the current OS.
+pub fn path_from_native_bytes(bytes: &[u8]) -> Result<PathBuf> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)))
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStringExt;
+        let wide = ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes)
+            .context("Path bytes cannot be represented losslessly on Windows")?;
+        let name = std::ffi::OsString::from_wide(&wide);
+        ensure!(name.as_encoded_bytes() == bytes, "Path bytes are not canonical Windows WTF-8");
+        Ok(PathBuf::from(name))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        Ok(PathBuf::from(std::str::from_utf8(bytes)
+            .context("Path bytes cannot be represented losslessly on this platform")?))
+    }
+}
+
+fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
+    if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
+        reader.next_char()?;
+        reader.expect_char(DC_BEGIN_LIST)?;
+        reader.expect_short_dc(275)?;
+        let text = String::decode_dc_mixed(reader)?;
+        let bytes = reader.read_binary_payload()?.to_vec();
+        ensure!(text.as_bytes() == bytes, "Conflicting filename representations");
+        reader.expect_char(DC_END_LIST)?;
+        Ok(bytes)
+    } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+        Ok(reader.read_binary_payload()?.to_vec())
+    } else {
+        Ok(String::decode_dc_mixed(reader)?.into_bytes())
     }
 }
 
 impl DcMixedDecode for PathBuf {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        if reader.peek_short_dc()? == Some(511) {
+            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+            let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
+            reader.expect_short_dc(511)?;
+            reader.expect_char(path_format)?;
+            reader.expect_char(DC_BEGIN_LIST)?;
+            reader.expect_short_dc(516)?;
+            reader.expect_char(filename_format)?;
+            reader.expect_short_dc(513)?;
+            let mut bytes = Vec::new();
+            let mut previous_was_filename = false;
+            while reader.peek_char()? != Some(DC_END_LIST) {
+                if reader.peek_short_dc()? == Some(513) {
+                    reader.next_char()?;
+                    bytes.push(if cfg!(windows) { b'\\' } else { b'/' });
+                    previous_was_filename = false;
+                } else {
+                    ensure!(!previous_was_filename, "Missing delimiter between filename segments");
+                    reader.expect_short_dc(511)?;
+                    reader.expect_char(filename_format)?;
+                    let segment = decode_filename_bytes(reader)?;
+                    ensure!(!segment.is_empty(), "Empty filename segment");
+                    ensure!(!segment.contains(&b'/') && !(cfg!(windows) && segment.contains(&b'\\')),
+                        "Filename segment contains a path delimiter");
+                    bytes.extend(segment);
+                    reader.expect_short_dc(512)?;
+                    previous_was_filename = true;
+                }
+            }
+            reader.expect_char(DC_END_LIST)?;
+            reader.expect_short_dc(512)?;
+            return path_from_native_bytes(&bytes);
+        }
         if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
             reader.next_char()?;
             reader.expect_char(DC_BEGIN_LIST)?;
@@ -1019,22 +1109,18 @@ impl DcMixedDecode for PathBuf {
                 }
                 if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
                     let bytes = reader.read_binary_payload()?;
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::ffi::OsStrExt;
-                        resolved_path = Some(PathBuf::from(std::ffi::OsStr::from_bytes(bytes.as_ref())));
+                    let native_path = path_from_native_bytes(bytes.as_ref())?;
+                    if let Some(path) = &resolved_path {
+                        ensure!(*path == native_path, "Conflicting legacy path representations");
                     }
-                    #[cfg(not(unix))]
-                    {
-                        let s = String::from_utf8_lossy(bytes.as_ref());
-                        if resolved_path.is_none() {
-                            resolved_path = Some(PathBuf::from(s.into_owned()));
-                        }
-                    }
+                    resolved_path = Some(native_path);
                 } else {
                     let s = String::decode_dc_mixed(reader)?;
-                    if resolved_path.is_none() {
-                        resolved_path = Some(PathBuf::from(s));
+                    let text_path = PathBuf::from(s);
+                    if let Some(path) = &resolved_path {
+                        ensure!(*path == text_path, "Conflicting legacy path representations");
+                    } else {
+                        resolved_path = Some(text_path);
                     }
                 }
             }
@@ -1042,16 +1128,7 @@ impl DcMixedDecode for PathBuf {
             resolved_path.ok_or_else(|| anyhow::anyhow!("Empty equivalent representations list for PathBuf"))
         } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
             let bytes = reader.read_binary_payload()?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::ffi::OsStrExt;
-                Ok(PathBuf::from(std::ffi::OsStr::from_bytes(bytes.as_ref())))
-            }
-            #[cfg(not(unix))]
-            {
-                let s = String::from_utf8_lossy(bytes.as_ref());
-                Ok(PathBuf::from(s.into_owned()))
-            }
+            path_from_native_bytes(bytes.as_ref())
         } else {
             let s = String::decode_dc_mixed(reader)?;
             Ok(PathBuf::from(s))
@@ -1507,6 +1584,65 @@ mod tests {
         legacy.push_char(DC_END_KV_MAP);
         assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
         assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_native_path_roundtrips() -> Result<()> {
+        for path in ["", "/", "a//b/", "./../a", "a/b", "a/Unicode-\u{1f600}"] {
+            assert_dc_roundtrip(&PathBuf::from(path))?;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            for bytes in [b"a/\xff\x80".as_slice(), b"a\\b/\xfe".as_slice()] {
+                let path = PathBuf::from(std::ffi::OsStr::from_bytes(bytes));
+                let encoded = path.to_dc_mixed()?;
+                let decoded = encoded.decode::<PathBuf>()?;
+                assert_eq!(decoded.as_os_str().as_encoded_bytes(), bytes);
+            }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStringExt;
+            let path = PathBuf::from(std::ffi::OsString::from_wide(&[0x61, 0x5c, 0xd800, 0x62, 0xdc00]));
+            let encoded = path.to_dc_mixed()?;
+            let decoded = encoded.decode::<PathBuf>()?;
+            assert_eq!(decoded.as_os_str().as_encoded_bytes(), path.as_os_str().as_encoded_bytes());
+            for path in [r"\\?\C:\parent\name", r"\\?\UNC\server\share\name", r"C:\parent\name"] {
+                assert_dc_roundtrip(&PathBuf::from(path))?;
+            }
+        }
+        let encoded = PathBuf::from("name").to_dc_mixed()?;
+        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+        let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
+        let mut reader = DcMixedReader::new(&encoded);
+        reader.expect_short_dc(511)?;
+        reader.expect_char(path_format)?;
+        reader.expect_char(DC_BEGIN_LIST)?;
+        reader.expect_short_dc(516)?;
+        reader.expect_char(filename_format)?;
+        reader.expect_short_dc(513)?;
+        reader.expect_short_dc(511)?;
+        reader.expect_char(filename_format)?;
+        assert_eq!(decode_filename_bytes(&mut reader)?, b"name");
+        reader.expect_short_dc(512)?;
+        reader.expect_char(DC_END_LIST)?;
+        reader.expect_short_dc(512)?;
+        assert_eq!(reader.peek_char()?, None);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_conflicting_filename_representations_rejected() -> Result<()> {
+        let mut encoded = DcMstring::new();
+        encoded.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        encoded.push_char(DC_BEGIN_LIST);
+        encoded.push_char(DcChar::from_short(275));
+        "text".encode_dc_mixed(&mut encoded)?;
+        encoded.push_binary_with_sha256(b"different");
+        encoded.push_char(DC_END_LIST);
+        assert!(decode_filename_bytes(&mut DcMixedReader::new(&encoded)).is_err());
         Ok(())
     }
 

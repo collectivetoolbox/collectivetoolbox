@@ -536,6 +536,8 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     }
 
     if let Some(name) = &shared {
+        // Reason for fallback: a required shared field uses Arc directly, so
+        // absence of an Option wrapper is valid rather than an extraction error.
         let value_ty = extract_type_from_option(&field.ty).unwrap_or(&field.ty);
         if name.value().is_empty() || extract_type_from_container(value_ty, "Arc").is_none()
             || nested.is_empty() || skip || binary || flatten || tag.is_some()
@@ -1155,6 +1157,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         return Err(syn::Error::new(shared_name.span(), "Duplicate shared field name"));
                     }
                     let optional = extract_type_from_option(field_ty).is_some();
+                    // Reason for fallback: required shared fields already have
+                    // the Arc type; only optional fields need the wrapper peeled.
                     let arc_ty = extract_type_from_option(field_ty).unwrap_or(field_ty);
                     let value_ty = extract_type_from_container(arc_ty, "Arc").ok_or_else(|| syn::Error::new(field.span(), "Expected Arc"))?;
                     let nested_ids = &attr.nested;
