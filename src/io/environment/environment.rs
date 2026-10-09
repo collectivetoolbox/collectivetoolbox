@@ -294,8 +294,14 @@ pub fn cached_local_ipv6_u128() -> u128 {
 
 fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
     let url_string = url.to_string();
+    let test_name = crate::testing::try_get_current_test_name();
+    let test_storage_dir = crate::testing::try_get_test_storage_dir();
     let handle = std::thread::spawn(
         move || -> Result<(IpAddr, u128, u128, u128)> {
+            let _test_scope = crate::testing::push_current_test_name(test_name);
+            crate::testing::TEST_STORAGE_DIR_SYNC.with(|storage| {
+                *storage.borrow_mut() = test_storage_dir;
+            });
             let options = crate::https::ClientOptions {
                 connect_timeout: Some(Duration::from_secs(3)),
                 timeout: Some(Duration::from_secs(5)),

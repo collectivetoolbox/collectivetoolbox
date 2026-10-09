@@ -757,7 +757,11 @@ mod tests {
         fs::write(destination.join("existing"), b"payload").unwrap();
         let invalid_component = "x".repeat(300);
         let query_error = fs::symlink_metadata(destination.join(&invalid_component)).unwrap_err();
-        assert_ne!(query_error.kind(), std::io::ErrorKind::NotFound);
+        let reported_missing = query_error.kind() == std::io::ErrorKind::NotFound;
+        if reported_missing {
+            assert!(ctb_io_environment::is_wine(),
+                "Only WINE is expected to report an overlong component as missing");
+        }
         for (case, link, target, context) in [
             ("link", invalid_component.as_str(), "existing", "Failed to query hardlink metadata"),
             ("target", "existing", invalid_component.as_str(), "Failed to query hardlink target metadata"),
@@ -773,7 +777,19 @@ mod tests {
             writer.commit_batch().unwrap();
             writer.mark_completed().unwrap();
             drop(writer);
-            let error = verify_directory_against_manifest(&default_verify_args(journal, None)).unwrap_err();
+            let result = verify_directory_against_manifest(&default_verify_args(journal, None));
+            if reported_missing {
+                let report = result.unwrap();
+                assert!(!report.is_clean());
+                if case == "link" {
+                    assert!(report.missing_entries.contains(&PathBuf::from(link)));
+                } else {
+                    assert!(report.changed_entries.iter().any(|entry| entry.relative_path == PathBuf::from(link)
+                        && entry.differences.iter().any(|difference| matches!(difference, DiffKind::HardlinkMismatch { .. }))));
+                }
+                continue;
+            }
+            let error = result.unwrap_err();
             assert!(error.to_string().contains(context), "{error:#}");
             let io_error = error.downcast_ref::<std::io::Error>().unwrap();
             assert_eq!(io_error.kind(), query_error.kind());

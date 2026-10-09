@@ -21,7 +21,7 @@ Five test modules still use `#[cfg(all(test, unix))]`:
 | Search engine | [search_engine.rs](../src/io/csc/search_engine.rs#L645) | Search workflows |
 
 These are compile-time exclusions, not ignored tests. `--include-ignored`
-cannot enable them. Windows CSC now runs 38 enabled tests; the previous Linux
+cannot enable them. Windows CSC now runs 39 enabled tests; the previous Linux
 baseline ran 103 tests before these changes. Journal, verifier, and CLI modules
 are portable, with genuinely POSIX fixtures individually gated;
 the counts alone do not identify which tests are portable or meaningful on
@@ -153,10 +153,42 @@ independent-file negative case, and new hardlinks during interrupted resume.
 Journal paths are relative even when Windows returns verbatim canonical paths;
 resume opens with write-data access before truncating an uncommitted tail.
 
-Pending work: the main copy-engine test module remains Unix-gated, capture
-still falls back to zero identity after a failed Windows identity query, and
-hardlink verification still classifies non-NotFound metadata errors as missing.
+Hardlink verification now propagates non-NotFound metadata errors with the
+affected link/target path instead of reporting them as missing. A portable
+overlong-component regression checks both error paths and preserves the
+underlying I/O error; existing missing-link/target tests remain unchanged.
+WINE reports an overlong component as NotFound rather than a non-NotFound
+error. That fixture explicitly checks WINE's missing-link/target reporting;
+non-NotFound propagation is validated on Linux and native Windows.
+
+Pending work: the main copy-engine test module remains Unix-gated and capture
+still falls back to zero identity after a failed Windows identity query.
 These gaps prevent claiming comprehensive native hardlink parity.
+
+### 5. Full-Provenance Test Latency Versus Live Capture
+
+The integration test previously made live Internet calls for copy, verify,
+index, and move. Public IPv4, IPv6, and clock-offset discovery are sequential;
+only successful results are cached, so offline failures are repeatedly queried.
+Although IP queries request a five-second timeout, CRLite cache preparation
+precedes that timeout. Its bootstrap client has no explicit request deadline
+and retries failed downloads. The five-second timeout is not a bound on full
+capture. This explains why the test could take minutes offline.
+
+The workflow test now uses the existing named-test CRLite download override to
+produce deterministic offline errors. IP-query workers inherit the test name
+and isolated storage, so the mock applies without changing TLS/revocation
+policy or using a real user's cache. A counter requires full capture to attempt
+discovery through that transport. All copy, verify, index, move, and provenance
+readback assertions remain active. The focused Linux workflow now passes in
+0.16 seconds; the current complete CSC suite passes in 0.44 seconds.
+The complete WINE CSC suite now passes in 1.13 seconds, compared with 525.59
+seconds before test isolation. The native Windows 7 VM suite still takes
+35.48 seconds; its remaining VM/runtime overhead has not been profiled.
+
+Pending work: successful live IP/clock discovery coverage and an end-to-end
+production deadline including CRLite preparation and blocking client teardown.
+No claim of seconds-bounded production capture follows from the offline test.
 
 ## Completed Bounded Work and Validation
 
@@ -182,10 +214,13 @@ Latest verified results:
 
 | Environment | Result | Scope / caveat |
 | --- | --- | --- |
-| Linux musl | CSC 103 + file 97 passed; zero ignored | Fresh final scoped run; provenance passed unskipped in 284.18 s |
-| WINE, current scoped executables | CSC 38 + file 80 passed; zero ignored | Full provenance passed in 525.59 s; final exact mtime assertion also passed separately |
-| Native Windows 7, current scoped rebuild | CSC 38 + file 80 passed; zero ignored | Includes portable CLI, journal/provenance, ctime, hardlink/resume regressions |
+| Linux musl, current scoped rebuild | CSC 105 + file 97 passed; zero ignored | Offline provenance workflow included; suites finish in 0.44 s and 0.03 s |
+| WINE, current CSC executable | CSC 39 passed; zero ignored | Offline provenance and hardlink error-classification cases included; 1.13 s |
+| Native Windows 7, current CSC executable | CSC 39 passed; zero ignored | Same final executable as WINE; 35.48 s |
+| Native Windows 7 / WINE, earlier file rebuild | File 80 passed; zero ignored | Exact old-mtime assertion also passed separately on both platforms |
 | Windows affected-crate Clippy | Passed | Current `--lib --no-deps` check for file and CSC |
+| Linux affected-crate Clippy | Passed | Environment, file, and CSC `--lib --no-deps` checks after worker isolation and hardlink error changes |
+| Windows provenance/verifier Clippy | Passed | Environment and CSC `--lib --no-deps` checks after final changes |
 | Native Windows 7 | All 119 packaged binaries passed | Includes nine doctest executables; not evidence that gated CSC tests ran |
 | Native Windows 7, final file rebuild | File 79 passed; zero ignored | Includes the final Windows filesystem lint cleanup |
 | Windows file-crate Clippy | Passed | Targeted `--lib --no-deps` check |
@@ -199,14 +234,15 @@ The native full-provenance workflow reproduced the failure before this change
 and passes after it. The existing Windows payload regression also verifies an
 old mtime with exact 100 ns precision after handles close, on native Windows
 and WINE. Creation-time open/write errors now propagate rather than being
-discarded. Current-source Linux validation is still pending.
+discarded. Offline-provenance and hardlink error changes pass current Linux,
+native Windows, and WINE validation with the fixture distinction above.
 
 ## Reproduction and Working Constraints
 
 Build/test one platform at a time. Run `cargo clean` before switching Linux and
 Windows targets: keeping both previously exhausted disk space. Do not clean
-while another Cargo run is active. Windows/WINE checks have finished; the
-current-source Linux scoped run is active after the required cleanup.
+while another Cargo run is active. The scoped Linux, native Windows, and WINE
+validation runs have finished; no validation processes remain active.
 
 Linux scoped tests:
 

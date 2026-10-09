@@ -2036,6 +2036,12 @@ mod tests {
         use crate::journal::{read_journal_snapshot, find_cscjournal};
         use turso::Builder;
 
+        let download_attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let attempted = Arc::clone(&download_attempts);
+        let _offline = ctb_utilities::https::crlite::set_test_download_override(move |_| {
+            attempted.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            anyhow::bail!("Provenance test is deterministically offline")
+        }).unwrap();
         let temp = tempdir().unwrap();
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
@@ -2117,6 +2123,8 @@ mod tests {
         };
         run_mv(mv_args).expect("run mv with full provenance");
         assert!(mv_dest.join("mv_test.txt").exists());
+        assert!(download_attempts.load(std::sync::atomic::Ordering::Relaxed) > 0,
+            "Full provenance must exercise network discovery through the offline transport");
     }
 }
 
