@@ -157,11 +157,11 @@ pub struct FileIdentity {
     pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
     #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
-    #[dc(skip, reason = "Raw relative path bytes are an alternative representation unified with relative_path (Dc 337)")]
+    #[dc(543, binary)]
     pub raw_relative_path: Option<Vec<u8>>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
     #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
-    #[dc(skip, reason = "Raw filename bytes are an alternative representation unified with relative_path (Dc 337)")]
+    #[dc(544, binary)]
     pub raw_filename: Option<Vec<u8>>,
     /// Link count on the source filesystem.
     #[dc(short = 355)]
@@ -368,6 +368,80 @@ pub fn extract_device_id_for_path(path: &Path, meta: &Metadata) -> Result<u64> {
     {
         let _ = (path, meta);
         anyhow::bail!("extract_device_id_for_path is not supported on this platform");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_raw_identity_bytes_dc_roundtrip() -> Result<()> {
+        let samples = [
+            None,
+            Some(Vec::new()),
+            Some(b"different/raw\xff\x80.bin".to_vec()),
+            Some(vec![0x00, 0xd8, 0x2f, 0x00, 0x00, 0xdc]),
+            Some(b"native/\xed\xa0\x80\xed\xb0\x80".to_vec()),
+            Some((0u8..=255).collect()),
+        ];
+        for raw_relative_path in &samples {
+            for raw_filename in &samples {
+                let identity = FileIdentity {
+                    origin: FileOrigin::Synthetic,
+                    relative_path: Some(PathBuf::from("logical/name.txt")),
+                    enclosing_path: Some(PathBuf::from("root")),
+                    raw_relative_path: raw_relative_path.clone(),
+                    raw_filename: raw_filename.clone(),
+                    nlink: 2,
+                    hardlink_group: Some(Natural::from(u128::MAX)),
+                };
+                ctb_formats_dcstring::assert_dc_roundtrip(&identity)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_legacy_identity_dc_decode() -> Result<()> {
+        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
+
+        let mut encoded = DcMstring::new();
+        FileIdentity {
+            origin: FileOrigin::Synthetic,
+            relative_path: Some(PathBuf::from("legacy.txt")),
+            enclosing_path: None,
+            nlink: 1,
+            hardlink_group: None,
+            raw_relative_path: None,
+            raw_filename: None,
+        }.encode_dc_mixed(&mut encoded)?;
+        let mut reader = DcMixedReader::new(&encoded);
+        let decoded = FileIdentity::decode_dc_mixed(&mut reader)?;
+        assert_eq!(decoded.relative_path, Some(PathBuf::from("legacy.txt")));
+        assert_eq!(decoded.raw_relative_path, None);
+        assert_eq!(decoded.raw_filename, None);
+        assert_eq!(reader.peek_char()?, None);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_captured_native_identity_dc_roundtrip() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        #[cfg(unix)]
+        let name = {
+            use std::os::unix::ffi::OsStringExt;
+            std::ffi::OsString::from_vec(b"native-\xff\x80".to_vec())
+        };
+        #[cfg(not(unix))]
+        let name = std::ffi::OsString::from("native-name");
+        let path = temp.path().join(&name);
+        std::fs::write(&path, b"payload")?;
+        let entity = crate::FileEntity::from_filesystem(&path, Some(temp.path()))?;
+        assert_eq!(entity.identity.raw_filename.as_deref(), Some(name.as_encoded_bytes()));
+        assert!(entity.identity.raw_relative_path.is_some());
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity.identity)?;
+        Ok(())
     }
 }
 

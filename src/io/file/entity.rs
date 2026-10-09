@@ -1641,8 +1641,6 @@ mod tests {
         entity.metadata.environment = None;
         entity.metadata.native = None;
         entity.metadata.platform_raw_flags = None;
-        entity.identity.raw_relative_path = None;
-        entity.identity.raw_filename = None;
 
         // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
         entity.metadata.apple = Some(crate::AppleMetadata {
@@ -1672,8 +1670,6 @@ mod tests {
         // Add a semantic flag and an attached stream to test full representation
         let mut stream_entity = entity.clone();
         stream_entity.metadata.apple = None;
-        stream_entity.identity.raw_relative_path = None;
-        stream_entity.identity.raw_filename = None;
         entity.metadata.flags.get_or_insert_with(Vec::new).push(crate::FileFlag::Hidden);
         entity.streams.push(crate::AttachedStream {
             name: Some(crate::StreamName::from_bytes(b"user.comment")),
@@ -1735,8 +1731,6 @@ mod tests {
     fn test_file_entity_errors_and_warnings_dc_roundtrip() {
         let path = PathBuf::from("test/error_item.dat");
         let mut entity = FileEntity::inaccessible(&path, None, "File cannot be accessed");
-        entity.identity.raw_relative_path = None;
-        entity.identity.raw_filename = None;
         entity
             .metadata
             .push_warning("Fidelity warning: extended attributes missing");
@@ -1806,6 +1800,248 @@ mod tests {
         semantic_metadata.environment = None;
         semantic_metadata.read_time = None;
         ctb_formats_dcstring::assert_dc_roundtrip(&semantic_metadata).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    #[expect(unsafe_code, reason = "DeviceIoControl uses live buffers")]
+    fn test_windows_sparse_restoration_probe() {
+        use std::io::{Seek, SeekFrom, Write};
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::IO::DeviceIoControl;
+        use windows_sys::Win32::System::Ioctl::{
+            FILE_ZERO_DATA_INFORMATION, FSCTL_SET_SPARSE, FSCTL_SET_ZERO_DATA,
+        };
+
+        let directory = tempfile::tempdir().unwrap();
+
+        // --- CASE 1: All-hole file (set_len only), sync, drop, reopen ---
+        {
+            let path = directory.path().join("case1_all_hole");
+            let file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true).open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            let total_size = 320 * 1024_u64;
+            file.set_len(total_size).unwrap();
+            file.sync_all().unwrap();
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 1 (all hole after sync+reopen): {extents:?}");
+        }
+
+        // --- CASE 2: Write at 64KB, but FLUSH before FSCTL_SET_ZERO_DATA ---
+        {
+            let path = directory.path().join("case2_flush_before_zero");
+            let mut file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true).open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            let total_size = 320 * 1024_u64;
+            file.set_len(total_size).unwrap();
+
+            file.seek(SeekFrom::Start(65536)).unwrap();
+            file.write_all(&[1_u8; 4096]).unwrap();
+            file.seek(SeekFrom::Start(196608)).unwrap();
+            file.write_all(b"tail").unwrap();
+
+            // FLUSH FIRST!
+            file.sync_all().unwrap();
+
+            // Now punch holes
+            for (start, end) in [(0_i64, 65536_i64), (131072_i64, 196608_i64), (262144_i64, 327680_i64)] {
+                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
+                let mut returned = 0;
+                unsafe {
+                    DeviceIoControl(
+                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
+                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
+                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
+                    );
+                }
+            }
+            let extents_before_close = get_file_extents(&file, total_size).unwrap();
+            println!("PROBE CASE 2 before close: {extents_before_close:?}");
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 2 after reopen: {extents:?}");
+        }
+
+        // --- CASE 3: What if we write to offset 0, flush, then punch hole at [0, 65536)? ---
+        {
+            let path = directory.path().join("case3_write_at_zero_then_punch");
+            let mut file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true).open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            let total_size = 320 * 1024_u64;
+            file.set_len(total_size).unwrap();
+
+            // Write 4096 bytes at offset 0
+            file.seek(SeekFrom::Start(0)).unwrap();
+            file.write_all(&[1_u8; 4096]).unwrap();
+
+            file.seek(SeekFrom::Start(65536)).unwrap();
+            file.write_all(&[1_u8; 4096]).unwrap();
+
+            file.sync_all().unwrap();
+
+            // Punch hole at [0, 65536)
+            let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: 0, BeyondFinalZero: 65536 };
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
+                    (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
+                    std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
+                );
+            }
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 3 after reopen: {extents:?}");
+        }
+
+        // --- CASE 4: Write at 65536 WITHOUT set_len first (set_len at end) ---
+        {
+            let path = directory.path().join("case4_set_len_at_end");
+            let mut file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true).open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            let total_size = 320 * 1024_u64;
+
+            file.seek(SeekFrom::Start(65536)).unwrap();
+            file.write_all(&[1_u8; 4096]).unwrap();
+            file.seek(SeekFrom::Start(196608)).unwrap();
+            file.write_all(b"tail").unwrap();
+            file.set_len(total_size).unwrap();
+
+            let extents_no_zero = get_file_extents(&file, total_size).unwrap();
+            println!("PROBE CASE 4 before close (no FSCTL_SET_ZERO_DATA): {extents_no_zero:?}");
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 4 after reopen (no FSCTL_SET_ZERO_DATA): {extents:?}");
+        }
+
+        // --- CASE 5: What if we open with custom_flags(FILE_FLAG_WRITE_THROUGH)? ---
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            const FILE_FLAG_WRITE_THROUGH: u32 = 0x80000000;
+            let path = directory.path().join("case5_write_through");
+            let mut file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true)
+                .custom_flags(FILE_FLAG_WRITE_THROUGH)
+                .open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            let total_size = 320 * 1024_u64;
+            file.set_len(total_size).unwrap();
+
+            file.seek(SeekFrom::Start(65536)).unwrap();
+            file.write_all(&[1_u8; 4096]).unwrap();
+            file.seek(SeekFrom::Start(196608)).unwrap();
+            file.write_all(b"tail").unwrap();
+
+            // Punch holes
+            for (start, end) in [(0_i64, 65536_i64), (131072_i64, 196608_i64), (262144_i64, 327680_i64)] {
+                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
+                let mut returned = 0;
+                unsafe {
+                    DeviceIoControl(
+                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
+                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
+                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
+                    );
+                }
+            }
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 5 after reopen (WRITE_THROUGH): {extents:?}");
+        }
+
+        // --- CASE 6: Granularity test (4KB, 8KB, 16KB, 32KB, 64KB holes) ---
+        {
+            let path = directory.path().join("case6_granularity");
+            let mut file = std::fs::OpenOptions::new()
+                .read(true).write(true).create_new(true).open(&path).unwrap();
+            let mut returned = 0;
+            unsafe {
+                DeviceIoControl(
+                    file.as_raw_handle(), FSCTL_SET_SPARSE,
+                    std::ptr::null(), 0, std::ptr::null_mut(), 0,
+                    &mut returned, std::ptr::null_mut(),
+                );
+            }
+            // Fill 512KB with 1s
+            let total_size = 512 * 1024_u64;
+            let chunk = vec![0xFF_u8; 64 * 1024];
+            for _ in 0..8 {
+                file.write_all(&chunk).unwrap();
+            }
+            file.sync_all().unwrap();
+
+            // Try punching:
+            // Hole at 64KB of size 4KB: [65536, 69632)
+            // Hole at 128KB of size 16KB: [131072, 147456)
+            // Hole at 192KB of size 32KB: [196608, 229376)
+            // Hole at 256KB of size 64KB: [262144, 327680)
+            for (start, end) in [
+                (65536_i64, 65536_i64 + 4096),
+                (131072_i64, 131072_i64 + 16384),
+                (196608_i64, 196608_i64 + 32768),
+                (262144_i64, 262144_i64 + 65536),
+            ] {
+                let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
+                let mut returned = 0;
+                let success = unsafe {
+                    DeviceIoControl(
+                        file.as_raw_handle(), FSCTL_SET_ZERO_DATA,
+                        (&raw const zero_info).cast(), u32::try_from(std::mem::size_of_val(&zero_info)).unwrap(),
+                        std::ptr::null_mut(), 0, &mut returned, std::ptr::null_mut(),
+                    )
+                };
+                println!("PROBE CASE 6: ZERO_DATA [{start}, {end}): success={success}");
+            }
+            drop(file);
+            let file2 = std::fs::File::open(&path).unwrap();
+            let extents = get_file_extents(&file2, total_size).unwrap();
+            println!("PROBE CASE 6 (granularity after reopen): {extents:?}");
+        }
     }
 
     #[cfg(unix)]
