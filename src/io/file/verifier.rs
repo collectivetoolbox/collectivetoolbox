@@ -889,180 +889,180 @@ pub fn audit_entity_detailed(
     } = expected.kind
     {
         audit_file_contents(path, |file, opened_meta| {
-        anyhow::ensure!(
-            opened_meta.len() == dest_meta.len()
-                && opened_meta.modified()? == dest_meta.modified()?,
-            "File changed before payload verification: {}", path.display()
-        );
-        #[cfg(unix)]
-        anyhow::ensure!(
-            opened_meta.dev() == dest_meta.dev() && opened_meta.ino() == dest_meta.ino(),
-            "File replaced before payload verification: {}", path.display()
-        );
-        let apple_single_archive = if dest_meta.len() == expected_size {
-            None
-        } else {
-            let mut magic = [0u8; 4];
-            let is_single = match file.read_exact(&mut magic) {
-                Ok(()) => {
-                    let m = u32::from_be_bytes(magic);
-                    m == crate::apple_double::APPLESINGLE_MAGIC_BE
-                        || m == crate::apple_double::APPLESINGLE_MAGIC_LE
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => false,
-                Err(error) => return Err(error).context("Failed to read audit payload magic"),
-            };
-            file.seek(SeekFrom::Start(0))?;
-            if is_single {
-                let mut data = Vec::new();
-                file.read_to_end(&mut data)?;
-                let archive = ctb_formats_apple_single_double::read_apple_single_double(&data)
-                    .context("Invalid AppleSingle audit payload")?;
-                if archive.format == ctb_formats_apple_single_double::AppleFormat::AppleSingle {
-                    Some(archive)
+            anyhow::ensure!(
+                opened_meta.len() == dest_meta.len()
+                    && opened_meta.modified()? == dest_meta.modified()?,
+                "File changed before payload verification: {}", path.display()
+            );
+            #[cfg(unix)]
+            anyhow::ensure!(
+                opened_meta.dev() == dest_meta.dev() && opened_meta.ino() == dest_meta.ino(),
+                "File replaced before payload verification: {}", path.display()
+            );
+            let apple_single_archive = if dest_meta.len() == expected_size {
+                None
+            } else {
+                let mut magic = [0u8; 4];
+                let is_single = match file.read_exact(&mut magic) {
+                    Ok(()) => {
+                        let m = u32::from_be_bytes(magic);
+                        m == crate::apple_double::APPLESINGLE_MAGIC_BE
+                            || m == crate::apple_double::APPLESINGLE_MAGIC_LE
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => false,
+                    Err(error) => return Err(error).context("Failed to read audit payload magic"),
+                };
+                file.seek(SeekFrom::Start(0))?;
+                if is_single {
+                    let mut data = Vec::new();
+                    file.read_to_end(&mut data)?;
+                    let archive = ctb_formats_apple_single_double::read_apple_single_double(&data)
+                        .context("Invalid AppleSingle audit payload")?;
+                    if archive.format == ctb_formats_apple_single_double::AppleFormat::AppleSingle {
+                        Some(archive)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
-            } else {
-                None
-            }
-        };
-
-        if let Some(ref archive) = apple_single_archive {
-            // Reason for fallback: AppleSingle archive without a data fork entry represents an empty 0-byte file payload
-            let data_fork = archive.data_fork.as_deref().unwrap_or(&[]);
-            let actual_size = u64::try_from(data_fork.len())?;
-            if actual_size != expected_size {
-                diffs.push(DiffKind::SizeMismatch {
-                    expected: expected_size,
-                    actual: actual_size,
-                });
-            }
-            let mut hasher = ctb_formats_checksum::Sha256Stream::new();
-            hasher.update(data_fork);
-            let actual_sha256 = hasher.finalize();
-            if actual_sha256 != expected_sha256 {
-                diffs.push(DiffKind::ContentHashMismatch {
-                    expected_hex: hex_encode(&expected_sha256),
-                    actual_hex: hex_encode(&actual_sha256),
-                });
-            }
-        } else {
-            file.seek(SeekFrom::Start(0))?;
-            let actual_size = dest_meta.len();
-            if actual_size != expected_size {
-                diffs.push(DiffKind::SizeMismatch {
-                    expected: expected_size,
-                    actual: actual_size,
-                });
-            }
-
-            if options.drop_caches {
-                evict_fd_cache(file);
-            }
-
-            if options.check_sparse {
-                let actual_extents = get_file_extents(file, actual_size)?;
-                let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
-                let expected_has_holes = extents.iter().any(Extent::is_hole);
-                #[cfg(windows)]
-                let actual_sparse_attr = dest_meta.file_attributes()
-                    & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
-
-                let expected_sparse = is_sparse || expected_has_holes;
-                let actual_sparse = {
-                    #[cfg(windows)]
-                    {
-                        actual_has_holes || actual_sparse_attr
-                    }
-                    #[cfg(not(windows))]
-                    {
-                        actual_has_holes
-                    }
-                };
-
-                let mut missing_holes = Vec::new();
-                for extent in extents {
-                    if let Extent::Hole { offset, length } = extent {
-                        let is_covered = actual_extents.iter().any(|actual| match actual {
-                            Extent::Hole { offset: a_off, length: a_len } => {
-                                *a_off <= *offset && a_off.saturating_add(*a_len) >= offset.saturating_add(*length)
-                            }
-                            Extent::Data { .. } => false,
-                        });
-                        if !is_covered {
-                            missing_holes.push((*offset, *length));
-                        }
-                    }
-                }
-
-                let sparse_mismatch = expected_sparse != actual_sparse || !missing_holes.is_empty();
-                if sparse_mismatch {
-                    let mut tolerate = false;
-                    if options.best_effort {
-                        let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
-                        let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
-
-                        let sub_allocation_unit_only = {
-                            #[cfg(windows)]
-                            {
-                                !missing_holes.is_empty()
-                                    && missing_holes.iter().all(|(_, len)| *len < 65_536)
-                            }
-                            #[cfg(not(windows))]
-                            {
-                                #[cfg(unix)]
-                                {
-                                    use std::os::unix::fs::MetadataExt;
-                                    let min_granularity = dest_meta.blksize().max(4096);
-                                    !missing_holes.is_empty()
-                                        && missing_holes.iter().all(|(_, len)| *len < min_granularity)
-                                }
-                                #[cfg(not(unix))]
-                                {
-                                    false
-                                }
-                            }
-                        };
-
-                        if !fs_supports_sparse || sub_allocation_unit_only {
-                            tolerate = true;
-                        }
-                    }
-
-                    if tolerate {
-                        ignored.sparseness = ignored.sparseness.saturating_add(1);
-                    } else {
-                        diffs.push(DiffKind::SparseHoleMismatch {
-                            expected_has_holes: expected_sparse,
-                            actual_has_holes: actual_sparse,
-                        });
-                    }
-                }
-                file.seek(SeekFrom::Start(0))?;
-            }
-
-            let actual_extents = if is_sparse {
-                get_file_extents(file, actual_size)?
-            } else {
-                Vec::new()
             };
-            let actual_sha256 = crate::payload::hash_payload_stream(
-                file,
-                &actual_extents,
-                is_sparse,
-                path,
-            )?;
 
-            if actual_sha256 != expected_sha256 {
-                diffs.push(DiffKind::ContentHashMismatch {
-                    expected_hex: hex_encode(&expected_sha256),
-                    actual_hex: hex_encode(&actual_sha256),
-                });
+            if let Some(ref archive) = apple_single_archive {
+                // Reason for fallback: AppleSingle archive without a data fork entry represents an empty 0-byte file payload
+                let data_fork = archive.data_fork.as_deref().unwrap_or(&[]);
+                let actual_size = u64::try_from(data_fork.len())?;
+                if actual_size != expected_size {
+                    diffs.push(DiffKind::SizeMismatch {
+                        expected: expected_size,
+                        actual: actual_size,
+                    });
+                }
+                let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+                hasher.update(data_fork);
+                let actual_sha256 = hasher.finalize();
+                if actual_sha256 != expected_sha256 {
+                    diffs.push(DiffKind::ContentHashMismatch {
+                        expected_hex: hex_encode(&expected_sha256),
+                        actual_hex: hex_encode(&actual_sha256),
+                    });
+                }
+            } else {
+                file.seek(SeekFrom::Start(0))?;
+                let actual_size = dest_meta.len();
+                if actual_size != expected_size {
+                    diffs.push(DiffKind::SizeMismatch {
+                        expected: expected_size,
+                        actual: actual_size,
+                    });
+                }
+
+                if options.drop_caches {
+                    evict_fd_cache(file);
+                }
+
+                if options.check_sparse {
+                    let actual_extents = get_file_extents(file, actual_size)?;
+                    let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
+                    let expected_has_holes = extents.iter().any(Extent::is_hole);
+                    #[cfg(windows)]
+                    let actual_sparse_attr = dest_meta.file_attributes()
+                        & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_SPARSE_FILE != 0;
+
+                    let expected_sparse = is_sparse || expected_has_holes;
+                    let actual_sparse = {
+                        #[cfg(windows)]
+                        {
+                            actual_has_holes || actual_sparse_attr
+                        }
+                        #[cfg(not(windows))]
+                        {
+                            actual_has_holes
+                        }
+                    };
+
+                    let mut missing_holes = Vec::new();
+                    for extent in extents {
+                        if let Extent::Hole { offset, length } = extent {
+                            let is_covered = actual_extents.iter().any(|actual| match actual {
+                                Extent::Hole { offset: a_off, length: a_len } => {
+                                    *a_off <= *offset && a_off.saturating_add(*a_len) >= offset.saturating_add(*length)
+                                }
+                                Extent::Data { .. } => false,
+                            });
+                            if !is_covered {
+                                missing_holes.push((*offset, *length));
+                            }
+                        }
+                    }
+
+                    let sparse_mismatch = expected_sparse != actual_sparse || !missing_holes.is_empty();
+                    if sparse_mismatch {
+                        let mut tolerate = false;
+                        if options.best_effort {
+                            let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
+                            let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
+
+                            let sub_allocation_unit_only = {
+                                #[cfg(windows)]
+                                {
+                                    !missing_holes.is_empty()
+                                        && missing_holes.iter().all(|(_, len)| *len < 65_536)
+                                }
+                                #[cfg(not(windows))]
+                                {
+                                    #[cfg(unix)]
+                                    {
+                                        use std::os::unix::fs::MetadataExt;
+                                        let min_granularity = dest_meta.blksize().max(4096);
+                                        !missing_holes.is_empty()
+                                            && missing_holes.iter().all(|(_, len)| *len < min_granularity)
+                                    }
+                                    #[cfg(not(unix))]
+                                    {
+                                        false
+                                    }
+                                }
+                            };
+
+                            if !fs_supports_sparse || sub_allocation_unit_only {
+                                tolerate = true;
+                            }
+                        }
+
+                        if tolerate {
+                            ignored.sparseness = ignored.sparseness.saturating_add(1);
+                        } else {
+                            diffs.push(DiffKind::SparseHoleMismatch {
+                                expected_has_holes: expected_sparse,
+                                actual_has_holes: actual_sparse,
+                            });
+                        }
+                    }
+                    file.seek(SeekFrom::Start(0))?;
+                }
+
+                let actual_extents = if is_sparse {
+                    get_file_extents(file, actual_size)?
+                } else {
+                    Vec::new()
+                };
+                let actual_sha256 = crate::payload::hash_payload_stream(
+                    file,
+                    &actual_extents,
+                    is_sparse,
+                    path,
+                )?;
+
+                if actual_sha256 != expected_sha256 {
+                    diffs.push(DiffKind::ContentHashMismatch {
+                        expected_hex: hex_encode(&expected_sha256),
+                        actual_hex: hex_encode(&actual_sha256),
+                    });
+                }
+
             }
-
-        }
-        Ok(())
+            Ok(())
         })?;
     }
 

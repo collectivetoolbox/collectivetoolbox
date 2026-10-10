@@ -27,6 +27,12 @@ Best-effort metadata mode must not turn payload or stream corruption into succes
   Completion refuses changed length or mtime and restores only observed atime,
   never mtime or timestamps on a replacement pathname. An audit is not a
   filesystem snapshot, and other read paths have the limits listed below.
+- Untracked-file scanning propagates directory-open, enumeration, and metadata
+  errors rather than reporting a partially scanned tree as clean. Missing
+  manifest subtrees remain missing entries rather than scan errors.
+- Malformed timestamp components are rejected before replacement and Dc
+  encoding. Native time conversion is fallible; best-effort metadata application
+  retains conversion failures as warnings instead of panicking.
 
 ## Metadata Capture and Retention
 
@@ -36,7 +42,9 @@ are committed before materializing each entry, so a strict metadata failure does
 not discard that entry's original metadata. This is incremental capture, not a
 preflight archive of the entire source tree.
 
-The journal's `CTBMETA2` preservation record retains:
+New version-4 journals encode entities in checksummed semantic Dc mixed-mode
+sections. Legacy binary journals and their `CTBMETA1`/`CTBMETA2` preservation
+records remain readable and resumable. The current entity representation retains:
 
 - Complete portable metadata, including birth time when reported by the OS,
   nanosecond timestamps, inspection time, ownership, mode, semantic flags, and
@@ -57,7 +65,7 @@ replaces source provenance with the machine currently reading it.
 Readers still accept `CTBMETA1` records. Those older records inherited omitted
 environments from the session header. A legacy journal with no environment
 definition remains without one when resumed. Older readers do not support the
-new `CTBMETA2` records.
+newer preservation records or version-4 semantic journals.
 
 Dc references use EL syntax rather than a serialization-specific semantic tag:
 Dc 540 references a bound identifier framed by Dc 270..271. Dc 269 declares a
@@ -234,9 +242,13 @@ enumerated.
   checks hole presence, not identical physical allocation. * see below
 - Access-time restoration itself can change Unix ctime. Audit completion does
   not yet return a semantically retained diagnostic for that side effect.
-  Symlink audit/readback and AppleDouble companion timestamp failures still
-  need retained diagnostics instead of discarded errors. Stream audit reads
-  also remain outside regular-payload handle completion.
+  Source capture now retains observed regular-file restoration ctime changes
+  as warnings. Symlink capture and audit use no-follow, atime-only restoration
+  with identity/mtime checks, but their pathname check and syscall are not
+  atomic, and symlink restoration ctime changes still need retained diagnostics.
+  AppleDouble timestamp failures are surfaced errors; a companion and its main
+  payload are not committed as one atomic transaction. Stream audit reads also
+  remain outside regular-payload handle completion.
 
 ## Validation
 

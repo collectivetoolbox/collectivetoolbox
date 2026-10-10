@@ -190,19 +190,19 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 temp_state_dir.disable_cleanup(true);
                 let j_path = journal.journal_path().to_path_buf();
                 let copy_result = (|| {
-                let copy_stats = execute_copy_pipeline(
-                    std::slice::from_ref(task),
-                    &csc_args,
-                    &mut journal,
-                    &progress,
-                )?;
+                    let copy_stats = execute_copy_pipeline(
+                        std::slice::from_ref(task),
+                        &csc_args,
+                        &mut journal,
+                        &progress,
+                    )?;
 
-                anyhow::ensure!(copy_stats.special_files_skipped == 0,
-                    "Move refused: some source entries could not be copied; all sources retained");
-                anyhow::ensure!(copy_stats.files_failed == 0 && journal.errors().is_empty(),
-                    "Move refused: copy recorded failures; all sources retained");
-                remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only)?;
-                Ok(copy_stats)
+                    anyhow::ensure!(copy_stats.special_files_skipped == 0,
+                        "Move refused: some source entries could not be copied; all sources retained");
+                    anyhow::ensure!(copy_stats.files_failed == 0 && journal.errors().is_empty(),
+                        "Move refused: copy recorded failures; all sources retained");
+                    remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only)?;
+                    Ok(copy_stats)
                 })();
                 let copy_stats = match copy_result {
                     Ok(stats) => stats,

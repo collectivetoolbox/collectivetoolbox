@@ -1158,7 +1158,7 @@ impl FileEntity {
                     metadata.set_used_noatime(opened_with_noatime);
 
                     #[cfg(unix)]
-                    if !opened_with_noatime {
+                    {
                         let orig_atime = FileTime::from_unix_time(
                             timestamps.atime_sec,
                             timestamps.atime_nsec,
@@ -1174,11 +1174,23 @@ impl FileEntity {
                                     || after_read.len() != size
                                 {
                                     metadata.push_error(format!("Source changed while reading {}; source timestamps were not overwritten", path.display()));
-                                } else if after_read.atime() != orig_atime.unix_seconds()
-                                    || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds())
+                                } else if !opened_with_noatime
+                                    && (after_read.atime() != orig_atime.unix_seconds()
+                                        || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds()))
                                 {
-                                    if let Err(error) = filetime::set_file_handle_times(&file, Some(orig_atime), Some(orig_mtime)) {
+                                    if let Err(error) = filetime::set_file_handle_times(&file, Some(orig_atime), None) {
                                         metadata.push_warning(format!("Failed to restore source timestamps after reading {}: {error}; inspection may have changed source metadata", path.display()));
+                                    } else {
+                                        match file.metadata() {
+                                            Ok(restored) => {
+                                                if restored.ctime() != after_read.ctime()
+                                                    || restored.ctime_nsec() != after_read.ctime_nsec()
+                                                {
+                                                    metadata.push_warning(format!("Restoring source access time changed source change time on {}; Unix cannot restore change time", path.display()));
+                                                }
+                                            }
+                                            Err(error) => metadata.push_warning(format!("Failed to verify source timestamp restoration on {}: {error}; source metadata preservation could not be verified", path.display())),
+                                        }
                                     }
                                 }
                             }
@@ -1894,4 +1906,3 @@ mod tests {
         }
     }
 }
-

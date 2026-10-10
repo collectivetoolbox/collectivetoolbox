@@ -8,6 +8,90 @@ dependencies, not a comprehensive audit of every Windows filesystem feature.
 
 ## Review Follow-Up (2026-10-10)
 
+### Audit, Timestamp, and Move Retention Continuation
+
+Status: **Partially Implemented**. This continuation does not establish
+feature-complete behavior or full-suite parity on all four platforms.
+
+- Regular and AppleSingle verification use one open handle for probing, payload
+  reads, hashing, and timestamp completion. Completion runs on read errors,
+  detects changed size/mtime, and restores only observed atime through that
+  handle. Replacement-path timestamps and concurrent mtime are not overwritten.
+  AppleSingle read/parse failures no longer become silent ordinary-file probes.
+- Symlink capture, stream-read cleanup, independent auditing, and CSC readback
+  share no-follow, atime-only cleanup. Detected inode or mtime changes refuse
+  restoration. Audit uses observed rather than expected timestamps and retains
+  both read and cleanup failures. CSC readback failures are recorded as failed
+  materialization metadata and journal errors. AppleDouble timestamp failures
+  now propagate instead of being discarded.
+- Regular Unix capture checks size/mtime even on the noatime path. Restoration
+  omits mtime and retains observed restoration-induced ctime changes as semantic
+  warnings.
+- Copy and move share metadata-journal retention policy, including semantic
+  warnings/errors. Move disables temporary-journal cleanup before copying and
+  source deletion, retains failure journals, and reports their paths. Successful
+  warning-bearing moves retain and report warning records. Journal-deletion and
+  failure-recording errors are explicit rather than discarded.
+- Untracked-file auditing no longer suppresses subtree metadata, directory-open,
+  or iterator failures. Its permission regression executes as an unprivileged
+  child when the harness is root and requires an actual passing child test.
+- Timestamp validation rejects invalid nanoseconds, partial birth-time pairs,
+  and zero resolution before materialization or Dc encoding. Checked native
+  conversion avoids extreme-timestamp panics and retains best-effort conversion
+  failures. These checks do not replace the existing timestamp codec with a
+  generalized attribute-based representation.
+- Sparse auditing no longer assumes lack of support from WINE identity. The
+  materialization fixture branches on the native operation/readback result and
+  requires missing-hole discrepancies on advertised sparse-capable volumes.
+  The CSC negative sparse-policy fixture uses nonzero allocated data and an
+  intentionally mismatching expected layout, eliminating its ZFS zero-compression
+  and missing-filesystem-identity early returns.
+
+Validation so far: Linux file 123 and CSC 117 passed, zero ignored, and affected
+production Clippy passed before the last regular-capture noatime/ctime follow-up.
+That follow-up and final-source full Linux runtime/doctest runs are being
+validated. An earlier inclusive Linux all-target snapshot passed 125 harnesses
+and 2,406 tests, zero failures/ignored, with only the authorized bootstrap
+filtered out; its file/CSC binaries predate later changes. The concurrent
+workspace doctest attempt failed with colliding `async_trait` StableCrateIds
+and missing host macro/dependency artifacts in ten targets; an isolated retry
+is pending, not an established source defect or a passing gate.
+
+Native Windows 7 file 98 and FreeBSD file 115 passed before the later timestamp,
+symlink, scan, and move changes. The initial WINE file rerun failed its old
+identity-based sparse-tolerance assertion; that fixture has been corrected,
+but a final-source rerun is pending. Configured full Windows/FreeBSD runs and
+final Windows affected-crate compilation are active. Logs:
+`/tmp/ctb-audit-{current,final,final2,final3,workspace}-*`.
+
+#### Remaining Gaps / Pending Work
+
+- Final-source WINE, Windows, and FreeBSD runtime results and full-suite parity
+  remain pending. Available native Windows testing is Windows 7, not modern
+  Windows. VM runners retain their existing package exclusions and do not yet
+  provide all-target example/doctest coverage; do not call their configured
+  suite a no-bypass full-workspace proof.
+- Independent audit completion and symlink cleanup still lack semantically
+  returned restoration-induced ctime diagnostics. Source capture warnings do
+  not resolve those separate paths. Symlink cleanup's pathname identity check
+  and restoration are not atomic.
+- Aborted/direct detection and compression reads, Windows source access-time
+  suppression/restoration, complete source-stability policies, dense payload
+  fallback with retained extent diagnostics, and lower-level stream/flag/
+  security/directory-sync warning propagation remain pending.
+- AppleDouble companion/main-payload commit is not one transaction. Extreme
+  timestamps now fail before companion writing, but native timestamp syscall
+  failures can still follow committed payload or companion bytes.
+- The native failed-restoration-syscall fixture remains pending. Current tests
+  cover deterministic failures, replacement/concurrent-mtime refusal, actual
+  unprivileged scan failures, and preserved error diagnostics.
+- The existing timestamp Dc decoder can still default omitted required fields
+  to epoch values or replace duplicate fields. Generalized timestamp codec and
+  retained unknown environment fields (`EnvDescription.extra`) remain pending.
+- Full filename, security/reparse, allocation-granularity, modern Windows,
+  crash-durability, and concurrent-writer guarantees remain unqualified. These
+  limits are not resolved by the bounded corrections above.
+
 ### Payload Completion Audit
 
 Status: **Partially Implemented**. `PayloadSource::finish` now provides fallible

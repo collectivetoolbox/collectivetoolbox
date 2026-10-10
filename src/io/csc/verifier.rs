@@ -573,20 +573,20 @@ fn scan_disk_entries(
                         "Failed to inspect audit subtree {}", full.display()
                     )),
                 };
-                    result.insert(r.clone());
-                    if sym_meta.is_dir() {
-                        let opts = ctb_io::file::TraversalOptions::new()
-                            .yield_root(false)
-                            .error_policy(ctb_io::file::OnTraversalError::Bail);
-                        let traverser = ctb_io::file::traverse_dir(&full, opts)?;
-                            for item in traverser {
-                                let item = item.with_context(|| format!(
-                                    "Failed to enumerate audit subtree {}", full.display()
-                                ))?;
-                                let rel = r.join(item.relative_path());
-                                result.insert(rel);
-                            }
+                result.insert(r.clone());
+                if sym_meta.is_dir() {
+                    let opts = ctb_io::file::TraversalOptions::new()
+                        .yield_root(false)
+                        .error_policy(ctb_io::file::OnTraversalError::Bail);
+                    let traverser = ctb_io::file::traverse_dir(&full, opts)?;
+                    for item in traverser {
+                        let item = item.with_context(|| format!(
+                            "Failed to enumerate audit subtree {}", full.display()
+                        ))?;
+                        let rel = r.join(item.relative_path());
+                        result.insert(rel);
                     }
+                }
             }
         }
         None => {
@@ -594,12 +594,12 @@ fn scan_disk_entries(
                 .yield_root(false)
                 .error_policy(ctb_io::file::OnTraversalError::Bail);
             let traverser = ctb_io::file::traverse_dir(root, opts)?;
-                for item in traverser {
-                    let item = item.with_context(|| format!(
-                        "Failed to enumerate audit directory {}", root.display()
-                    ))?;
-                    result.insert(item.relative_path().to_path_buf());
-                }
+            for item in traverser {
+                let item = item.with_context(|| format!(
+                    "Failed to enumerate audit directory {}", root.display()
+                ))?;
+                result.insert(item.relative_path().to_path_buf());
+            }
         }
     }
 
