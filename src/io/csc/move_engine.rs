@@ -62,11 +62,6 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     let mut moved_copied: u64 = 0;
     let mut bytes_copied: u64 = 0;
 
-    let home_dir = match std::env::var("HOME") {
-        Ok(h) => PathBuf::from(h),
-        Err(_) => PathBuf::from("."),
-    };
-
     for task in &tasks {
         if !args.best_effort_metadata && !args.allow_unknown_fs {
             if let Ok(src_meta) = std::fs::symlink_metadata(&task.source_root) {
@@ -182,8 +177,10 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     continue_on_error: false,
                 };
 
+                let temp_state_dir = tempfile::tempdir()
+                    .context("Failed to create temporary directory for move state journal")?;
                 let mut journal = JournalWriter::create_new(
-                    &home_dir,
+                    temp_state_dir.path(),
                     &[task.source_root.clone()],
                     &task.target_root,
                 )?;
@@ -208,12 +205,14 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
                 if retain_metadata {
                     progress.message(&format!("Original metadata retained in {}", j_path.display()));
-                }
-                if !retain_metadata && j_path.exists() {
-                    let _ = std::fs::remove_file(&j_path);
-                }
-                if !retain_metadata && d_path.exists() {
-                    let _ = std::fs::remove_file(&d_path);
+                    let _ = temp_state_dir.into_path();
+                } else {
+                    if j_path.exists() {
+                        let _ = std::fs::remove_file(&j_path);
+                    }
+                    if d_path.exists() {
+                        let _ = std::fs::remove_file(&d_path);
+                    }
                 }
 
                 moved_copied = moved_copied.saturating_add(copy_stats.files_copied);

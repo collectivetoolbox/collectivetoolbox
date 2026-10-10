@@ -32,3 +32,6 @@
 .~lock*
 
 *.pyc
+
+# Temporary csc state files
+/csc_state_*

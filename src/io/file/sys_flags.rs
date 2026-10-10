@@ -1029,6 +1029,29 @@ pub fn query_file_flags(
     }
 }
 
+/// Compares raw flags for equality, allowing kernel-managed (non-settable)
+/// flags to differ when comparing within the same OS.
+#[must_use]
+pub fn raw_flags_match(expected: &PlatformRawFlags, actual: &PlatformRawFlags) -> bool {
+    if expected == actual {
+        return true;
+    }
+    if expected.source_os != actual.source_os {
+        return false;
+    }
+    let settable_mask: u64 = match expected.source_os {
+        OsFamily::Linux => u64::from(LINUX_SETTABLE_MASK),
+        OsFamily::Darwin => u64::from(DARWIN_SETTABLE_MASK),
+        OsFamily::FreeBSD => u64::from(FREEBSD_SETTABLE_MASK),
+        OsFamily::OpenBSD => u64::from(OPENBSD_SETTABLE_MASK),
+        OsFamily::DragonFly => u64::from(DRAGONFLY_SETTABLE_MASK),
+        OsFamily::NetBSD => u64::from(NETBSD_SETTABLE_MASK),
+        _ => return false,
+    };
+    (expected.raw_value & settable_mask) == (actual.raw_value & settable_mask)
+        && expected.has_unparsed_flags == actual.has_unparsed_flags
+}
+
 /// Applies file flags to `path`.
 ///
 /// If `strict_lossless` is true, fails with an error if flags cannot be
@@ -1055,8 +1078,14 @@ pub fn apply_file_flags(
     let is_symlink = std::fs::symlink_metadata(path)?.file_type().is_symlink();
     let (actual, actual_raw) = query_file_flags(path, is_symlink)?;
     let semantic_match = flags.iter().all(|flag| actual.contains(flag))
-        && actual.iter().all(|flag| flags.contains(flag));
-    let raw_match = raw.is_none_or(|expected| actual_raw.as_ref() == Some(expected));
+        && actual.iter().all(|flag| {
+            flags.contains(flag) || !flag.settability(OsFamily::CURRENT).is_settable()
+        });
+    let raw_match = raw.is_none_or(|expected| {
+        actual_raw
+            .as_ref()
+            .is_some_and(|actual_val| raw_flags_match(expected, actual_val))
+    });
     if !semantic_match || !raw_match {
         if strict_lossless {
             anyhow::bail!("File flags could not be reproduced on {}: expected {flags:?}/{raw:?}, got {actual:?}/{actual_raw:?}", path.display());
@@ -1953,6 +1982,56 @@ mod tests {
         assert!(!FlagSettability::Unsupported.is_root_settable());
         assert!(!FlagSettability::Unsupported.is_settable());
         assert!(!FlagSettability::Unsupported.is_supported());
+    }
+
+    #[crate::ctb_test]
+    fn test_raw_flags_match_kernel_managed_bits() {
+        // Linux: LINUX_FS_EXTENT_FL (0x0008_0000 = 524288) is kernel-managed (KernelOnly)
+        let raw_zero = PlatformRawFlags {
+            source_os: OsFamily::Linux,
+            raw_value: 0,
+            has_unparsed_flags: false,
+        };
+        let raw_extent = PlatformRawFlags {
+            source_os: OsFamily::Linux,
+            raw_value: 524288,
+            has_unparsed_flags: false,
+        };
+        assert!(raw_flags_match(&raw_zero, &raw_extent));
+        assert!(raw_flags_match(&raw_extent, &raw_zero));
+
+        // Settable bits like LINUX_FS_NODUMP_FL (0x0040) must NOT match if they differ
+        let raw_nodump = PlatformRawFlags {
+            source_os: OsFamily::Linux,
+            raw_value: 0x40,
+            has_unparsed_flags: false,
+        };
+        assert!(!raw_flags_match(&raw_zero, &raw_nodump));
+        assert!(!raw_flags_match(&raw_extent, &raw_nodump));
+
+        // Settable bits match even when kernel-managed extent bit differs
+        let raw_nodump_extent = PlatformRawFlags {
+            source_os: OsFamily::Linux,
+            raw_value: 0x40 | 524288,
+            has_unparsed_flags: false,
+        };
+        assert!(raw_flags_match(&raw_nodump, &raw_nodump_extent));
+
+        // Differing unparsed flags flag must not match
+        let raw_unparsed = PlatformRawFlags {
+            source_os: OsFamily::Linux,
+            raw_value: 0,
+            has_unparsed_flags: true,
+        };
+        assert!(!raw_flags_match(&raw_zero, &raw_unparsed));
+
+        // Cross-OS raw flags must not match
+        let raw_darwin = PlatformRawFlags {
+            source_os: OsFamily::Darwin,
+            raw_value: 0,
+            has_unparsed_flags: false,
+        };
+        assert!(!raw_flags_match(&raw_zero, &raw_darwin));
     }
 }
 

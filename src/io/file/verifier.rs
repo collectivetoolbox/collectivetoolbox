@@ -27,9 +27,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::entity::{FileEntity, FileEntityKind};
+use crate::metadata::OsFamily;
 use crate::payload::{Extent, get_file_extents};
 use crate::streams::read_and_hash_streams;
-use crate::sys_flags::query_file_flags;
+use crate::sys_flags::{query_file_flags, raw_flags_match};
 use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
@@ -724,13 +725,15 @@ pub fn audit_entity_detailed(
 
     // 5. File Flags
     if !options.ignore_flags
-        && (!cfg!(any(windows, target_os = "freebsd", target_os = "dragonfly"))
-            || expected.metadata.flags.is_some()
+        && (expected.metadata.flags.is_some()
             || expected.metadata.platform_raw_flags.is_some())
     {
         let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
         if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
-            if actual_raw.as_ref() != Some(expected_raw) {
+            let matches_raw = actual_raw
+                .as_ref()
+                .is_some_and(|actual| raw_flags_match(expected_raw, actual));
+            if !matches_raw {
                 let details = format!("Raw flags expected {expected_raw:?}, got {actual_raw:?}");
                 if options.best_effort {
                     warn_fmt!("{}: {details}", path.display());
@@ -741,16 +744,14 @@ pub fn audit_entity_detailed(
             }
         }
         // Reason for fallback: absent flags metadata defaults to empty slice for verification comparison
-        let mut exp_names: Vec<String> = expected
-            .metadata
-            .flags
-            .as_deref()
-            .unwrap_or(&[])
+        let exp_flags = expected.metadata.flags.as_deref().unwrap_or(&[]);
+        let mut exp_names: Vec<String> = exp_flags
             .iter()
             .map(|f| f.name().to_string())
             .collect();
         let mut act_names: Vec<String> = actual_flags
             .iter()
+            .filter(|f| exp_flags.contains(f) || f.settability(OsFamily::CURRENT).is_settable())
             .map(|f| f.name().to_string())
             .collect();
         exp_names.sort();
