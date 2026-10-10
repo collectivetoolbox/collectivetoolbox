@@ -511,7 +511,8 @@ mod tests {
         resume_args.continue_on_error = true;
         resume_args.delete_manifest_after = true;
         match run_csc(resume_args).unwrap() {
-            ToolResult::Immediate { stdout, .. } => {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_ne!(exit_code, 0);
                 let out = String::from_utf8(stdout).unwrap();
                 assert!(out.contains(&format!("[Warning] FileMaterializationWarning: {message}")));
                 assert!(!out.contains("WINE sparse limitations"));

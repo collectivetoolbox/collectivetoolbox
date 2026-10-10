@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Provisioning script for Linux deployment test VM (Debian 13 Trixie).
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+REPO_ROOT="$(pwd)"
+
+source "$SCRIPT_DIR/vm-common.sh"
+
+VM_DIR="$REPO_ROOT/ci-logs/VMs/Linux"
+TARGET_IMAGE="$VM_DIR/linux.qcow2"
+SSH_KEY="$VM_DIR/id_ed25519"
+SSH_PUB="$VM_DIR/id_ed25519.pub"
+DEFAULT_URL="https://cloud.debian.org/images/cloud/trixie/20261001-2618/debian-13-generic-amd64-20261001-2618.qcow2"
+
+usage() {
+    cat <<EOF
+Usage: ./scripts/setup-linux-vm-image [options]
+
+Options:
+  --image PATH      Path to an existing Debian 13/Linux cloud qcow2 image
+  --url URL         Download URL for the cloud image (default: Debian 13 Trixie)
+  --force           Overwrite existing image in ci-logs/VMs/Linux
+  -h, --help        Show this help message
+EOF
+}
+
+custom_image=""
+download_url="$DEFAULT_URL"
+force=0
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --image)
+            shift
+            custom_image="${1:-}"
+            ;;
+        --url)
+            shift
+            download_url="${1:-}"
+            ;;
+        --force)
+            force=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+mkdir -p "$VM_DIR"
+
+if [[ -f "$TARGET_IMAGE" && "$force" -ne 1 ]]; then
+    echo "Linux VM image already exists at $TARGET_IMAGE."
+    echo "Use --force to overwrite and reprovision."
+    exit 0
+fi
+
+# Ensure SSH keypair exists
+if [[ ! -f "$SSH_KEY" ]]; then
+    echo "Generating VM Ed25519 SSH keypair at $SSH_KEY..."
+    ssh-keygen -t ed25519 -N "" -f "$SSH_KEY" -C "ctb-linux-vm-test" >/dev/null
+    chmod 0600 "$SSH_KEY"
+    chmod 0644 "$SSH_PUB"
+fi
+
+PUB_KEY="$(cat "$SSH_PUB")"
+
+# Obtain base image
+TMP_BASE="/tmp/ctb-linux-base-$$.qcow2"
+remove_if_exists "$TMP_BASE"
+
+if [[ -n "$custom_image" ]]; then
+    if [[ ! -f "$custom_image" ]]; then
+        echo "Error: Specified image file not found: $custom_image" >&2
+        exit 1
+    fi
+    echo "Using provided image: $custom_image"
+    cp "$custom_image" "$TMP_BASE"
+else
+    echo "Downloading Debian 13 cloud image from $download_url..."
+    if ! curl -fSL --progress-bar -o "$TMP_BASE" "$download_url"; then
+        echo "Error: Failed to download cloud image from $download_url" >&2
+        echo "If offline, please download the image and pass --image <path>." >&2
+        remove_if_exists "$TMP_BASE"
+        exit 1
+    fi
+fi
+
+# Resize image to at least 10GB for test builds and packages
+echo "Resizing image to 10G..."
+qemu-img resize "$TMP_BASE" 10G >/dev/null
+
+# Prepare cloud-init NoCloud seed files
+TMP_CLOUD_DIR="/tmp/ctb-cloud-init-$$"
+remove_if_exists "$TMP_CLOUD_DIR"
+mkdir -p "$TMP_CLOUD_DIR"
+
+cat <<EOF > "$TMP_CLOUD_DIR/meta-data"
+instance-id: ctb-linux-vm-01
+local-hostname: ctb-linux-vm
+EOF
+
+cat <<EOF > "$TMP_CLOUD_DIR/user-data"
+#cloud-config
+disable_root: false
+ssh_pwauth: false
+
+users:
+  - name: root
+    ssh_authorized_keys:
+      - $PUB_KEY
+  - name: ctb-sudoer
+    gecos: Collective Toolbox Sudoer
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - $PUB_KEY
+  - name: ctb-deployer
+    gecos: Collective Toolbox Deployer
+    groups: users
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - $PUB_KEY
+  - name: ctb-server
+    gecos: Collective Toolbox Service Runner
+    groups: users
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - $PUB_KEY
+
+packages:
+  - rsync
+  - curl
+  - libcap2-bin
+  - sudo
+  - openssh-server
+  - systemd
+
+runcmd:
+  - loginctl enable-linger ctb-server
+  - mkdir -p /home/ctb-server/deploy /home/ctb-server/.local/share/collectivetoolbox /home/ctb-server/.config/systemd/user
+  - chown -R ctb-server:ctb-server /home/ctb-server
+  - chmod 750 /home/ctb-server
+  - touch /var/log/ctb-cloud-init-done
+EOF
+
+SEED_ISO="/tmp/ctb-cidata-$$.iso"
+remove_if_exists "$SEED_ISO"
+genisoimage -output "$SEED_ISO" -volid cidata -joliet -rock "$TMP_CLOUD_DIR/user-data" "$TMP_CLOUD_DIR/meta-data" >/dev/null 2>&1
+remove_if_exists "$TMP_CLOUD_DIR"
+
+INIT_SOCKET_DIR="/tmp/ctb-linux-init-$$"
+remove_if_exists "$INIT_SOCKET_DIR"
+mkdir -p "$INIT_SOCKET_DIR"
+
+MONITOR_SOCK="$INIT_SOCKET_DIR/monitor.sock"
+SERIAL_LOG="$INIT_SOCKET_DIR/serial.log"
+SERIAL_SOCK="$INIT_SOCKET_DIR/serial.sock"
+PID_FILE="$INIT_SOCKET_DIR/qemu.pid"
+INIT_SSH_PORT="22240"
+
+echo "Booting VM to apply cloud-init provisioning..."
+qemu-system-x86_64 \
+    -nodefaults \
+    -M pc \
+    -cpu max \
+    -m 2048 \
+    -smp 2 \
+    -device ahci,id=ahci0 \
+    -drive "file=$TMP_BASE,if=none,id=drive0,format=qcow2" \
+    -device ide-hd,bus=ahci0.0,drive=drive0 \
+    -drive "file=$SEED_ISO,if=none,id=cdrom0,media=cdrom,readonly=on" \
+    -device ide-cd,bus=ahci0.1,drive=cdrom0 \
+    -chardev "socket,id=serial0,path=$SERIAL_SOCK,server=on,wait=off,logfile=$SERIAL_LOG" \
+    -serial "chardev:serial0" \
+    -vga std \
+    -display none \
+    -monitor "unix:$MONITOR_SOCK,server,nowait" \
+    -pidfile "$PID_FILE" \
+    -netdev "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:${INIT_SSH_PORT}-:22" \
+    -device "e1000,netdev=net0" \
+    -daemonize
+
+echo -n "Waiting for provisioning to complete..."
+provisioned=0
+for _ in $(seq 1 120); do
+    if ssh -q -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o BatchMode=yes -o ConnectTimeout=2 -p "$INIT_SSH_PORT" root@127.0.0.1 \
+        "test -f /var/log/ctb-cloud-init-done" 2>/dev/null; then
+        provisioned=1
+        break
+    fi
+    sleep 2
+    echo -n "."
+done
+echo ""
+
+if [[ "$provisioned" -ne 1 ]]; then
+    echo "Error: Cloud-init provisioning timed out." >&2
+    if [[ -f "$SERIAL_LOG" ]]; then
+        echo "Tail of serial log:" >&2
+        tail -n 40 "$SERIAL_LOG" >&2
+    fi
+    vm_cmd_stop "$PID_FILE" "$MONITOR_SOCK" "" "true" "Init VM"
+    remove_if_exists "$TMP_BASE" "$SEED_ISO" "$INIT_SOCKET_DIR"
+    exit 1
+fi
+
+echo "Cloud-init finished successfully. Shutting down VM..."
+vm_cmd_stop "$PID_FILE" "$MONITOR_SOCK" "" "false" "Init VM"
+remove_if_exists "$SEED_ISO" "$INIT_SOCKET_DIR"
+
+echo "Moving provisioned image to $TARGET_IMAGE..."
+mv "$TMP_BASE" "$TARGET_IMAGE"
+
+echo "Creating initial clean base-state snapshot..."
+qemu-img snapshot -c base-state "$TARGET_IMAGE"
+
+echo "Linux VM provisioning complete!"
+echo "Image:   $TARGET_IMAGE"
+echo "SSH Key: $SSH_KEY"

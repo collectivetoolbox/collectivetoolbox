@@ -27,27 +27,58 @@ checksum completes its source and surfaces/records cleanup warnings. Source
 change warnings now persist in semantic metadata, and nearby warning journal
 writes propagate failures rather than silently discarding them.
 
-Validation: Linux file 112 and CSC 113 passed, zero ignored, before the last
-CSC warning-persistence edit; four focused completion/AppleSingle regressions
-passed. Affected Linux production Clippy passed before that last edit. FreeBSD
-file 111 passed, zero ignored. FreeBSD CSC validation is running; WINE and
-native Windows reruns are pending. These are bounded tests, not full-workspace
-parity evidence.
+Removing two root-permission bypasses exposed a real CLI status bug: CSC returned
+success after a continue-on-error copy recorded an unreadable file. It now
+returns exit code 1 for recorded errors or failed files, preserving its summary
+and journal. The permission tests execute their assertions in an unprivileged
+child when the harness is root; they require a successful one-test child result,
+not merely successful process creation. Their stale error-stage assertions now
+require the current early `MetadataRead` failure. The existing portable resume
+diagnostics regression additionally requires a nonzero exit for historical
+recorded errors.
+
+Validation: final Linux file 112 and CSC 113 passed, zero ignored, including
+both unprivileged permission tests and the portable failure-exit assertion.
+Affected final Linux production Clippy passed. FreeBSD file 111 and CSC 110
+passed, zero ignored, including both
+unprivileged permission tests and corrected exit status. The permission test
+first failed on false success, then reached a stale stage assertion; both were
+fixed and its focused rerun and full CSC suite passed. Native Windows 7 and
+WINE file 94 and CSC 93 passed, zero ignored. The newest portable exit-status
+assertion subsequently passed on WINE and native Windows, one test each;
+FreeBSD's suite predates only that test assertion, not production behavior.
+The full native CSC run needed a forced guest shutdown after passing; the
+focused follow-up stopped normally after a startup-marker retry. Both VMs are
+stopped and no validations are active. These are bounded tests, not
+full-workspace parity evidence. Logs: `/tmp/ctb-completion-*`.
 
 #### Remaining Gaps / Pending Work
 
-- The last CSC warning-persistence edit still requires executable validation.
+- FreeBSD has not rerun the last portable test assertion; its full suite tests
+  the final production behavior. Full-workspace reruns remain pending.
 - Aborted read paths and direct detection/compression readers can still rely on
   drop-time logging instead of explicit, semantically retained completion.
 - Completion checks size and mtime, not every mutation, inode/path replacement,
   stream change, or native change-time observation. Comprehensive source
   stability and change-policy behavior remain pending. The adjacent entity
   capture path still writes mtime after a metadata check, leaving a race.
+- `io/file/verifier.rs` still restores audit timestamps by pathname and writes
+  observed mtime after its reads, allowing a replaced path or concurrent mtime
+  change to be clobbered. Its symlink audit discards restoration errors and
+  writes expected rather than observed timestamps. AppleSingle audit probes
+  also read outside that restoration path. The claimed non-invasive audit
+  contract is not established on those paths.
+- AppleDouble companion writes discard timestamp errors, and CSC's deferred
+  symlink readback discards timestamp-restoration errors. These failures need
+  surfaced, semantically retained best-effort diagnostics or strict refusal.
+- Windows payload source access-time preservation/suppression remains
+  unverified; current completion does not restore Windows access time.
 - Best-effort dense-reader extent diagnostics, lower-level fidelity propagation,
   Windows change-time restoration, modern Windows validation, and full suites
   on all four platforms remain pending.
-- Existing root-permission and ZFS fixture early returns remain bypasses;
-  zero ignored tests does not establish the requested no-bypass coverage.
+- The two root-permission bypasses are removed and assertions passed on FreeBSD
+  and Linux. ZFS sparse-negative fixture early returns
+  remain bypasses; zero ignored tests does not establish no-bypass coverage.
 
 ### Capture Audit Continuation
 

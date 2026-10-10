@@ -22,7 +22,12 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 
 cd vendor/ctb-vendored || exit 1
-cargo vendor --manifest-path ../../Cargo.toml
+rust_lib_manifest="$(rustc --print sysroot)/lib/rustlib/src/rust/library/Cargo.toml"
+extra_vendor_args=()
+if [[ -f "$rust_lib_manifest" ]]; then
+    extra_vendor_args=(-s "$rust_lib_manifest")
+fi
+RUSTC_BOOTSTRAP=1 cargo vendor --manifest-path ../../Cargo.toml "${extra_vendor_args[@]}"
 git add . || true
 git commit -m 'deps: Automatically update dependencies' || true
 find vendor -name '*.gitignore' -exec mv {} {}-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved \;
