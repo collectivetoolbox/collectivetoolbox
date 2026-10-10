@@ -453,24 +453,47 @@ mod tests {
             verify_after: false, no_verify_after: true,
             best_effort_metadata: true, allow_unknown_fs: false, force: false, dry_run: false,
             full_provenance: false,
-        }).unwrap();
-        assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
-        assert_eq!(fs::read_dir(source).unwrap().count(), 0);
-        let ToolResult::Immediate { stdout, .. } = result else {
-            panic!("Expected immediate move result");
+        });
+        let journal_path = match result {
+            Ok(ToolResult::Immediate { stdout, .. }) => {
+                assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+                assert_eq!(fs::read_dir(&source).unwrap().count(), 0);
+                let summary = String::from_utf8(stdout).unwrap();
+                let journal_path = summary.lines().find_map(|line|
+                    line.strip_prefix("Original metadata journal:").map(str::trim)
+                ).expect("Move must retain original native metadata");
+                let journal_path = PathBuf::from(journal_path);
+                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                assert!(snapshot.is_completed);
+                assert!(snapshot.errors.is_empty());
+                if !snapshot.warnings.is_empty() {
+                    assert!(summary.contains("fidelity limitations are retained in the journal"));
+                }
+                journal_path
+            }
+            Ok(_) => panic!("Expected immediate move result"),
+            Err(error) => {
+                // FreeBSD cannot assign the source birth time. Strict cleanup
+                // must refuse data deletion even after best-effort copying.
+                let diagnostic = format!("{error:#}");
+                assert!(diagnostic.contains("Birthtime mismatch"), "{diagnostic}");
+                assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"move payload");
+                assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+                let message = error.to_string();
+                let journal_path = PathBuf::from(
+                    message.strip_prefix("Move journal retained at ").expect("Retained move journal")
+                );
+                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                assert!(!snapshot.warnings.is_empty());
+                assert!(snapshot.committed_entities.values().any(|entity|
+                    entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
+                ));
+                journal_path
+            }
         };
-        let summary = String::from_utf8(stdout).unwrap();
-        let journal_path = summary.lines().find_map(|line|
-            line.strip_prefix("Original metadata journal:").map(str::trim)
-        ).expect("Move must retain original native metadata");
-        let journal_path = Path::new(journal_path);
-        let snapshot = crate::journal::read_journal_snapshot(journal_path).unwrap();
-        assert!(snapshot.is_completed);
-        assert!(snapshot.errors.is_empty());
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
         assert!(!snapshot.committed_entities.is_empty());
-        if !snapshot.warnings.is_empty() {
-            assert!(summary.contains("fidelity limitations are retained in the journal"));
-        }
+        let journal_path = journal_path.as_path();
         fs::remove_file(journal_path).unwrap();
         fs::remove_file(journal_path.with_extension("cscdesc")).unwrap();
         fs::remove_dir(journal_path.parent().unwrap()).unwrap();
