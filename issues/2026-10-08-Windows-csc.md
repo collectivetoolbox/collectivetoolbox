@@ -53,13 +53,18 @@ stopped. These are bounded tests, not
 full-workspace parity evidence. Logs: `/tmp/ctb-completion-*`.
 
 The configured Linux workflow (`./test linux-x64`) passed its lint preflight,
-cargo-deny, and JavaScript stages and is running the workspace stage. Its
-initial harness policy omitted ignored tests on Linux. `build` now applies
+cargo-deny, JavaScript, workspace all-target, and CLI compression stages, but
+exited 1 during finalization with `eworker/coi-serviceworker.js: No such file or
+directory`. That malformed command is absent from the current `build`; its
+current final comment and shell syntax are valid. The script changed during
+execution; this is an observed configured failure, not a clean workflow pass.
+Its initial harness policy omitted ignored tests on Linux. `build` now applies
 `--include-ignored --skip tests::test_bootstrap_ts_compilation` on all targets,
 not just Windows; shell syntax and execution of the exact selection block for
-Linux, Windows, and FreeBSD passed. The active run captured the older policy and
-cannot establish the requested no-bypass coverage; a current-policy rerun is
-still required. Do not clean or switch platforms while that run is active.
+Linux, Windows, and FreeBSD passed. That configured run captured the older
+policy and cannot establish the requested no-bypass coverage. A current-policy
+workspace all-target run is active with ignored tests included and only the
+authorized bootstrap skip. Do not clean or switch platforms while it is active.
 
 #### Remaining Gaps / Pending Work
 
