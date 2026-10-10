@@ -47,27 +47,48 @@ feature-complete behavior or full-suite parity on all four platforms.
   intentionally mismatching expected layout, eliminating its ZFS zero-compression
   and missing-filesystem-identity early returns.
 
-Validation so far: Linux file 123 and CSC 117 passed, zero ignored, and affected
-production Clippy passed before the last regular-capture noatime/ctime follow-up.
-That follow-up and final-source full Linux runtime/doctest runs are being
-validated. An earlier inclusive Linux all-target snapshot passed 125 harnesses
-and 2,406 tests, zero failures/ignored, with only the authorized bootstrap
-filtered out; its file/CSC binaries predate later changes. The concurrent
-workspace doctest attempt failed with colliding `async_trait` StableCrateIds
-and missing host macro/dependency artifacts in ten targets; an isolated retry
-is pending, not an established source defect or a passing gate.
+Final bounded validation: Linux file 123 and CSC 117; WINE file 102 and CSC 96;
+native Windows 7 file 102 and CSC 96; FreeBSD file 122 and CSC 114 passed with
+zero failures, ignored, or filtered tests. Affected final Linux production
+Clippy passed. The FreeBSD move fixture first failed because strict cleanup
+correctly refused birth-time loss; it now asserts that specific refusal,
+preserved source/destination payloads, and retained diagnostic metadata rather
+than accepting arbitrary errors. Its full CSC rerun passed. A Linux separate-
+capture journal fixture also exposed a second-boundary atime/ctime comparison
+flake; it now excludes both components of those volatile timestamps and the
+full bounded suite passed afterward.
 
-Native Windows 7 file 98 and FreeBSD file 115 passed before the later timestamp,
-symlink, scan, and move changes. The initial WINE file rerun failed its old
-identity-based sparse-tolerance assertion; that fixture has been corrected,
-but a final-source rerun is pending. Configured full Windows/FreeBSD runs and
-final Windows affected-crate compilation are active. Logs:
-`/tmp/ctb-audit-{current,final,final2,final3,workspace}-*`.
+Inclusive Linux all-target validation passed 125 harnesses and 2,415 tests,
+zero failures/ignored, with only the authorized bootstrap filtered out. This
+snapshot predates only the last capture completion and fixture follow-ups;
+final bounded suites above cover those. Workspace doctests initially failed
+in ten targets with colliding/missing host macro artifacts during concurrent
+cross-target builds. After retry, only the software-renderer GUI example failed:
+it requires WAYLAND_DISPLAY/WAYLAND_SOCKET/DISPLAY in this headless environment.
+That is still a failed full-suite gate, not a permitted exemption.
+
+The packaged WINE workspace run executed 106 binaries: 2,344 tests passed, one
+failed, zero ignored, and only bootstrap was filtered. The failed build-support
+initrd test tries to execute guest rustc, which is not installed. Native Windows
+ran 38 passing binaries before its 1,800-second suite timeout in JavaScript;
+the remaining binaries were not verified by that run. Its final affected-crate
+runs above subsequently passed. FreeBSD full-workspace and a Windows rebuild
+failed after build artifacts disappeared during shared-environment cleanup;
+final affected-crate retries passed. These configured runs retain existing
+package exclusions and are not all-target/doctest parity proofs.
+
+Both VMs are stopped and no validations remain active. Logs are under
+`/tmp/ctb-audit-*`, notably `final5-linux`, `final-wine`,
+`final-csc-wine-followup`, `final-windows-{file,csc}`,
+`final-freebsd-{file,csc}`, `final-workspace-linux`,
+`final-doc-retry`, and `workspace-{wine,windows,freebsd}`.
 
 #### Remaining Gaps / Pending Work
 
-- Final-source WINE, Windows, and FreeBSD runtime results and full-suite parity
-  remain pending. Available native Windows testing is Windows 7, not modern
+- Full-suite parity remains pending: Linux GUI doctest display prerequisite,
+  WINE initrd-test guest compiler prerequisite, native Windows full-run timeout,
+  and FreeBSD full-workspace rerun after artifact loss. Available native Windows
+  testing is Windows 7, not modern
   Windows. VM runners retain their existing package exclusions and do not yet
   provide all-target example/doctest coverage; do not call their configured
   suite a no-bypass full-workspace proof.
