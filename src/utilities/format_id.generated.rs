@@ -3450,6 +3450,9 @@ impl FormatId {
             Self::IpV6String => &[Self::IpAddr, Self::IpV6, Self::Text],
             Self::Wine => &[Self::Win32Subsystem],
             Self::CscJournal1Meta1 => &[Self::CscJournal],
+            Self::CscJournal1Meta2 => &[Self::CscJournal],
+            Self::CscJournal1Meta3 => &[Self::CscJournal],
+            Self::CscJournal4 => &[Self::CscJournal],
             _ => &[],
         }
     }
