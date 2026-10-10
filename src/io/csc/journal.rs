@@ -1879,6 +1879,11 @@ mod tests {
             "Full provenance must exercise network discovery through the offline transport");
     }
 
+    /// Verifies authentic multi-revision journal test fixtures:
+    /// - Revision 1 (CTBMETA1): Commit `795dfba07`
+    /// - Revision 2 (CTBMETA2): Commit `15ce50fc5` / `c0bc7ec50` / `99d5548c4`
+    /// - Revision 3 (CTBMETA3): Commit `bed55a2ba` / `14737998c`
+    /// - Revision 4 (DcMixed): Live JournalWriter engine (CTBCSCJ\x04)
     #[crate::ctb_test]
     fn test_all_journal_revision_fixtures() -> Result<()> {
         let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/journals");

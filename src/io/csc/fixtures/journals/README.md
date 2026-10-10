@@ -1,0 +1,36 @@
+# CSC State Journal Multi-Revision Test Fixtures
+
+This directory maintains authentic, reproducible test fixtures for every historical and current revision of the `csc` state journal format.
+
+## Format Revisions and Provenance Commits
+
+### 1. Revision 1: `v1_ctbmeta1`
+- **Files**: `v1_ctbmeta1.cscjournal`, `v1_ctbmeta1.cscdesc`
+- **Magic**: `CTBCSCJ\x01`
+- **Preservation Record**: `CTBMETA1` (unstructured JSON preserving POSIX mode, uid, gid, mtime, atime, streams, and extents, prior to semantic identity encapsulation).
+- **Source Commit**: `795dfba076725a08e3d57523dd8ea4d3cf123cbb` (*feat: Continue filling in missing csc accuracy*).
+
+### 2. Revision 2: `v2_ctbmeta2`
+- **Files**: `v2_ctbmeta2.cscjournal`, `v2_ctbmeta2.cscdesc`
+- **Magic**: `CTBCSCJ\x01`
+- **Preservation Record**: `CTBMETA2` (contextual JSON metadata with structured `FileMetadata` definitions).
+- **Source Commits**:
+  - Introduction: `8a1f3786d078b8eec05154b003529b52b33d1d5b` (*wip: Continue work on improving file serialization*).
+  - Production run: `15ce50fc5270b021ea33ff2b971cdbb4eed48f64` / `c0bc7ec5054fe2f340fdd3eb54b2f5ee4e6bacf1` / `99d5548c42b41691d2c6cf6f441e7e86d8ffe10d` (*fix: Continue working on csc issues*).
+
+### 3. Revision 3: `v3_ctbmeta3`
+- **Files**: `v3_ctbmeta3.cscjournal`, `v3_ctbmeta3.cscdesc`
+- **Magic**: `CTBCSCJ\x01`
+- **Preservation Record**: `CTBMETA3` (contextual JSON preservation record accompanied by semantic `FileIdentity` Dc encapsulation).
+- **Source Commits**:
+  - Introduction / Production run: `bed55a2babd13dc8370243d48db2abd6c5b06d73` / `14737998c369b65aa99e80143def8619b55bfc7d` (*fix: Continue work on Windows and csc bugs*).
+
+### 4. Revision 4: `v4_dcmixed`
+- **Files**: `v4_dcmixed.cscjournal`, `v4_dcmixed.cscdesc`
+- **Magic**: `CTBCSCJ\x04`
+- **Preservation Record**: Native Document Character (Dc) mixed-mode stream (`DcMstring` container with UUID) using generalized ontological Dcs (`543..=558`):
+  - Checksummed batch boundaries: `DC_BEGIN_CHECKSUMMED_SECTION` (543) .. `DC_END_CHECKSUMMED_SECTION` (544) sealed with `DC_SECTION_DIGEST` (545).
+  - Sequence tracking: `DC_SEQUENCE_IDENTIFIER` (546).
+  - Session description: `DC_BEGIN_OPERATION_SESSION` (547) .. `DC_END_OPERATION_SESSION` (548).
+  - Native file entity records: `DC_BEGIN_FILE_RECORD` (317) .. `DC_END_FILE_RECORD` (318) with deduplicated session environment sharing.
+- **Source**: Live `JournalWriter` engine.
