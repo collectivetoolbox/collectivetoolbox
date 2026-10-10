@@ -81,14 +81,6 @@ pub enum FormatCategory {
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FormatId {
-    /// Collective Toolbox csc journal, \"CTBMETA1\" version (Short 0, Category: database)
-    CscJournal1Meta1,
-    /// Collective Toolbox csc journal, \"CTBMETA2\" version (Short 0, Category: database)
-    CscJournal1Meta2,
-    /// Collective Toolbox csc journal, \"CTBMETA3\" version (Short 0, Category: database)
-    CscJournal1Meta3,
-    /// Collective Toolbox csc journal, version 4 (Short 0, Category: database)
-    CscJournal4,
     /// UTF-8 (Short 0, Category: encoding)
     Utf8,
     /// Internal: Short Dc Array (Short 1, Category: semantic)
@@ -1347,6 +1339,14 @@ pub enum FormatId {
     Szip111,
     /// Wine compatibility layer (Short 628, Category: userspace)
     Wine,
+    /// Collective Toolbox csc journal, \"CTBMETA1\" version (Short 629, Category: database)
+    CscJournal1Meta1,
+    /// Collective Toolbox csc journal, \"CTBMETA2\" version (Short 630, Category: database)
+    CscJournal1Meta2,
+    /// Collective Toolbox csc journal, \"CTBMETA3\" version (Short 631, Category: database)
+    CscJournal1Meta3,
+    /// Collective Toolbox csc journal, version 4 (Short 632, Category: database)
+    CscJournal4,
 }
 
 impl FormatId {
@@ -1471,11 +1471,7 @@ impl FormatId {
             | Self::CtbAssetBundleV3
             | Self::CtbAssetBundleV4
             | Self::CtbFileMetadataJson => FormatCategory::Container,
-            Self::CscJournal1Meta1
-            | Self::CscJournal1Meta2
-            | Self::CscJournal1Meta3
-            | Self::CscJournal4
-            | Self::Csv
+            Self::Csv
             | Self::Tsv
             | Self::Ssv
             | Self::Multipart
@@ -1505,7 +1501,11 @@ impl FormatId {
             | Self::CscDesc
             | Self::CscIndex
             | Self::CscIndexMeta
-            | Self::Redb => FormatCategory::Database,
+            | Self::Redb
+            | Self::CscJournal1Meta1
+            | Self::CscJournal1Meta2
+            | Self::CscJournal1Meta3
+            | Self::CscJournal4 => FormatCategory::Database,
             Self::PanDate
             | Self::PanTime
             | Self::PanSuperDate
@@ -1996,10 +1996,6 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
-            "cscjournal1meta1" | "csc_journal1_meta1" => Some(Self::CscJournal1Meta1),
-            "cscjournal1meta2" | "csc_journal1_meta2" => Some(Self::CscJournal1Meta2),
-            "cscjournal1meta3" | "csc_journal1_meta3" => Some(Self::CscJournal1Meta3),
-            "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
             "utf8" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" => Some(Self::DcIntegerList),
@@ -2629,6 +2625,10 @@ impl FormatId {
             "szip110" => Some(Self::Szip110),
             "szip111" | "szip-1.11" => Some(Self::Szip111),
             "wine" => Some(Self::Wine),
+            "cscjournal1meta1" | "csc_journal1_meta1" => Some(Self::CscJournal1Meta1),
+            "cscjournal1meta2" | "csc_journal1_meta2" => Some(Self::CscJournal1Meta2),
+            "cscjournal1meta3" | "csc_journal1_meta3" => Some(Self::CscJournal1Meta3),
+            "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
             _ => None,
         }
     }
@@ -2637,10 +2637,6 @@ impl FormatId {
     #[must_use]
     pub const fn ident(&self) -> &'static str {
         match self {
-            Self::CscJournal1Meta1 => "CscJournal1Meta1",
-            Self::CscJournal1Meta2 => "CscJournal1Meta2",
-            Self::CscJournal1Meta3 => "CscJournal1Meta3",
-            Self::CscJournal4 => "CscJournal4",
             Self::Utf8 => "Utf8",
             Self::DcArray => "DcArray",
             Self::DcIntegerList => "DcIntegerList",
@@ -3270,6 +3266,10 @@ impl FormatId {
             Self::Szip110 => "Szip110",
             Self::Szip111 => "Szip111",
             Self::Wine => "Wine",
+            Self::CscJournal1Meta1 => "CscJournal1Meta1",
+            Self::CscJournal1Meta2 => "CscJournal1Meta2",
+            Self::CscJournal1Meta3 => "CscJournal1Meta3",
+            Self::CscJournal4 => "CscJournal4",
         }
     }
 
@@ -3305,11 +3305,6 @@ impl FormatId {
     #[must_use]
     pub const fn implies(&self) -> &'static [Self] {
         match self {
-            Self::CscJournal1Meta1 => &[Self::CscJournal],
-            Self::CscJournal1Meta2 => &[Self::CscJournal],
-            Self::CscJournal1Meta3 => &[Self::CscJournal],
-            Self::CscJournal4 => &[Self::CscJournal],
-            Self::Utf8 => &[Self::CscJournal],
             Self::Vt100 => &[Self::Videoterminal],
             Self::Lang_En_Us => &[Self::Lang_En],
             Self::Lang_En_Gb => &[Self::Lang_En],
@@ -3454,6 +3449,7 @@ impl FormatId {
             Self::IpV4String => &[Self::IpAddr, Self::IpV4, Self::Text],
             Self::IpV6String => &[Self::IpAddr, Self::IpV6, Self::Text],
             Self::Wine => &[Self::Win32Subsystem],
+            Self::CscJournal1Meta1 => &[Self::CscJournal],
             _ => &[],
         }
     }
@@ -3462,10 +3458,6 @@ impl FormatId {
     #[must_use]
     pub const fn shorthand(&self) -> &'static str {
         match self {
-            Self::CscJournal1Meta1 => "f0",
-            Self::CscJournal1Meta2 => "f0",
-            Self::CscJournal1Meta3 => "f0",
-            Self::CscJournal4 => "f0",
             Self::Utf8 => "f0",
             Self::DcArray => "f1",
             Self::DcIntegerList => "f2",
@@ -4095,6 +4087,10 @@ impl FormatId {
             Self::Szip110 => "f626",
             Self::Szip111 => "f627",
             Self::Wine => "f628",
+            Self::CscJournal1Meta1 => "f629",
+            Self::CscJournal1Meta2 => "f630",
+            Self::CscJournal1Meta3 => "f631",
+            Self::CscJournal4 => "f632",
         }
     }
 
@@ -4103,10 +4099,6 @@ impl FormatId {
     pub fn from_shorthand(shorthand: &str) -> Option<Self> {
         let trimmed = shorthand.trim();
         match trimmed {
-            "f0" => Some(Self::CscJournal1Meta1),
-            "f0" => Some(Self::CscJournal1Meta2),
-            "f0" => Some(Self::CscJournal1Meta3),
-            "f0" => Some(Self::CscJournal4),
             "f0" => Some(Self::Utf8),
             "f1" => Some(Self::DcArray),
             "f2" => Some(Self::DcIntegerList),
@@ -4736,6 +4728,10 @@ impl FormatId {
             "f626" => Some(Self::Szip110),
             "f627" => Some(Self::Szip111),
             "f628" => Some(Self::Wine),
+            "f629" => Some(Self::CscJournal1Meta1),
+            "f630" => Some(Self::CscJournal1Meta2),
+            "f631" => Some(Self::CscJournal1Meta3),
+            "f632" => Some(Self::CscJournal4),
             _ => None,
         }
     }
@@ -4744,10 +4740,6 @@ impl FormatId {
     #[must_use]
     pub const fn dc_id(&self) -> Option<u128> {
         match self {
-            Self::CscJournal1Meta1 => Some(2228224_u128),
-            Self::CscJournal1Meta2 => Some(2228224_u128),
-            Self::CscJournal1Meta3 => Some(2228224_u128),
-            Self::CscJournal4 => Some(2228224_u128),
             Self::Utf8 => Some(2228224_u128),
             Self::DcArray => Some(2228225_u128),
             Self::DcIntegerList => Some(2228226_u128),
@@ -5377,6 +5369,10 @@ impl FormatId {
             Self::Szip110 => Some(2228850_u128),
             Self::Szip111 => Some(2228851_u128),
             Self::Wine => Some(2228852_u128),
+            Self::CscJournal1Meta1 => Some(2228853_u128),
+            Self::CscJournal1Meta2 => Some(2228854_u128),
+            Self::CscJournal1Meta3 => Some(2228855_u128),
+            Self::CscJournal4 => Some(2228856_u128),
         }
     }
 
@@ -5397,10 +5393,6 @@ impl FormatId {
     #[must_use]
     pub const fn from_dc_id(id: u128) -> Option<Self> {
         match id {
-            2228224_u128 => Some(Self::CscJournal1Meta1),
-            2228224_u128 => Some(Self::CscJournal1Meta2),
-            2228224_u128 => Some(Self::CscJournal1Meta3),
-            2228224_u128 => Some(Self::CscJournal4),
             2228224_u128 => Some(Self::Utf8),
             2228225_u128 => Some(Self::DcArray),
             2228226_u128 => Some(Self::DcIntegerList),
@@ -6030,19 +6022,15 @@ impl FormatId {
             2228850_u128 => Some(Self::Szip110),
             2228851_u128 => Some(Self::Szip111),
             2228852_u128 => Some(Self::Wine),
+            2228853_u128 => Some(Self::CscJournal1Meta1),
+            2228854_u128 => Some(Self::CscJournal1Meta2),
+            2228855_u128 => Some(Self::CscJournal1Meta3),
+            2228856_u128 => Some(Self::CscJournal4),
             _ => None,
         }
     }
 }
 
-/// DcChar constant for Format `CscJournal1Meta1` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA1\" version
-pub const DC_CSC_JOURNAL1_META1: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `CscJournal1Meta2` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA2\" version
-pub const DC_CSC_JOURNAL1_META2: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `CscJournal1Meta3` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA3\" version
-pub const DC_CSC_JOURNAL1_META3: DcChar = DcChar::from_format(0);
-/// DcChar constant for Format `CscJournal4` (Short f0, Category: database): Collective Toolbox csc journal, version 4
-pub const DC_CSC_JOURNAL4: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
 pub const DC_UTF8: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array
@@ -7301,3 +7289,11 @@ pub const DC_SZIP110: DcChar = DcChar::from_format(626);
 pub const DC_SZIP111: DcChar = DcChar::from_format(627);
 /// DcChar constant for Format `Wine` (Short f628, Category: userspace): Wine compatibility layer
 pub const DC_WINE: DcChar = DcChar::from_format(628);
+/// DcChar constant for Format `CscJournal1Meta1` (Short f629, Category: database): Collective Toolbox csc journal, \"CTBMETA1\" version
+pub const DC_CSC_JOURNAL1_META1: DcChar = DcChar::from_format(629);
+/// DcChar constant for Format `CscJournal1Meta2` (Short f630, Category: database): Collective Toolbox csc journal, \"CTBMETA2\" version
+pub const DC_CSC_JOURNAL1_META2: DcChar = DcChar::from_format(630);
+/// DcChar constant for Format `CscJournal1Meta3` (Short f631, Category: database): Collective Toolbox csc journal, \"CTBMETA3\" version
+pub const DC_CSC_JOURNAL1_META3: DcChar = DcChar::from_format(631);
+/// DcChar constant for Format `CscJournal4` (Short f632, Category: database): Collective Toolbox csc journal, version 4
+pub const DC_CSC_JOURNAL4: DcChar = DcChar::from_format(632);
