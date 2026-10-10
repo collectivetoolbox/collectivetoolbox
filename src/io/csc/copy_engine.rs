@@ -588,10 +588,13 @@ pub fn execute_copy_pipeline(
         record_materialization_warnings(journal, &mut entity, receipt.warnings)?;
 
         if !args.dry_run {
-            let dest_target = match std::fs::read_link(dest_path) {
+            let dest_target = match std::fs::symlink_metadata(dest_path)
+                .map_err(anyhow::Error::new)
+                .and_then(|observed| ctb_io::file::metadata::read_symlink_target(dest_path, &observed))
+            {
                 Ok(t) => t,
                 Err(e) => {
-                    let error = anyhow::Error::new(e);
+                    let error = e;
                     record_materialization_failure(journal, dest_path, &entity, &error)?;
                     let _ = handle_item_error(
                         &symlink_item.src_path,
@@ -604,18 +607,6 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
             };
-            #[cfg(unix)]
-            if let Some(ref ts) = entity.metadata.timestamps {
-                let atime = filetime::FileTime::from_unix_time(
-                    ts.atime_sec,
-                    ts.atime_nsec,
-                );
-                let mtime = filetime::FileTime::from_unix_time(
-                    ts.mtime_sec,
-                    ts.mtime_nsec,
-                );
-                let _ = filetime::set_symlink_file_times(dest_path, atime, mtime);
-            }
             if let FileEntityKind::Symlink { target } = &entity.kind {
                 if dest_target.as_os_str().as_encoded_bytes() != target.as_slice() {
                     let err = anyhow::anyhow!(
@@ -3542,25 +3533,7 @@ mod tests {
 
     #[cfg(unix)]
     fn run_permission_test_unprivileged(test_name: &str) -> bool {
-        use std::os::unix::process::CommandExt;
-        if nix::unistd::geteuid().as_raw() != 0 {
-            return false;
-        }
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .arg("--exact")
-            .arg(format!("copy_engine::tests::{test_name}"))
-            .arg("--include-ignored")
-            .arg("--nocapture")
-            .env_remove("CTB_TEST_STORAGE_DIR")
-            .uid(65534)
-            .gid(65534)
-            .output()
-            .unwrap();
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(output.status.success() && stdout.contains("1 passed"),
-            "Unprivileged permission test failed: {stdout}\n{stderr}");
-        true
+        crate::run_permission_test_unprivileged(&format!("copy_engine::tests::{test_name}")).unwrap()
     }
 
     #[cfg(unix)]
@@ -3717,4 +3690,3 @@ mod tests {
         }
     }
 }
-

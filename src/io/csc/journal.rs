@@ -164,6 +164,15 @@ impl JournalSnapshot {
     }
 }
 
+pub(crate) fn entity_requires_metadata_retention(entity: &FileEntity) -> bool {
+    entity.metadata.native.is_some()
+        || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
+        || entity.metadata.platform_raw_flags.is_some()
+        || !entity.streams.is_empty()
+        || !entity.metadata.warnings.is_empty()
+        || !entity.metadata.errors.is_empty()
+}
+
 /// Writer managing the persistent state journal and its companion `.cscdesc` file.
 pub struct JournalWriter {
     journal_path: PathBuf,
@@ -1970,5 +1979,3 @@ mod tests {
         Ok(())
     }
 }
-
-

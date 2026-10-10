@@ -61,6 +61,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     let mut moved_renamed: u64 = 0;
     let mut moved_copied: u64 = 0;
     let mut bytes_copied: u64 = 0;
+    let mut retained_journals = Vec::new();
+    let mut warning_count = 0_usize;
 
     for task in &tasks {
         if !args.best_effort_metadata && !args.allow_unknown_fs {
@@ -177,7 +179,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     continue_on_error: false,
                 };
 
-                let temp_state_dir = tempfile::tempdir()
+                let mut temp_state_dir = tempfile::tempdir()
                     .context("Failed to create temporary directory for move state journal")?;
                 let mut journal = JournalWriter::create_new(
                     temp_state_dir.path(),
@@ -185,6 +187,9 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     &task.target_root,
                 )?;
 
+                temp_state_dir.disable_cleanup(true);
+                let j_path = journal.journal_path().to_path_buf();
+                let copy_result = (|| {
                 let copy_stats = execute_copy_pipeline(
                     std::slice::from_ref(task),
                     &csc_args,
@@ -194,25 +199,42 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
 
                 anyhow::ensure!(copy_stats.special_files_skipped == 0,
                     "Move refused: some source entries could not be copied; all sources retained");
+                anyhow::ensure!(copy_stats.files_failed == 0 && journal.errors().is_empty(),
+                    "Move refused: copy recorded failures; all sources retained");
                 remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only)?;
+                Ok(copy_stats)
+                })();
+                let copy_stats = match copy_result {
+                    Ok(stats) => stats,
+                    Err(error) => {
+                        if let Err(record_error) = journal.mark_failed(&format!("{error:#}")) {
+                            return Err(error).context(format!(
+                                "Move journal retained at {}; recording failure also failed: {record_error:#}",
+                                j_path.display()
+                            ));
+                        }
+                        return Err(error).context(format!(
+                            "Move journal retained at {}", j_path.display()
+                        ));
+                    }
+                };
 
                 // Delete manifest files upon successful copy
-                let j_path = journal.journal_path().to_path_buf();
-                let d_path = journal.desc_path().to_path_buf();
+                warning_count = warning_count.saturating_add(journal.warnings().len());
+                for warning in journal.warnings() {
+                    progress.message(&format!("[{}] {}", warning.code, warning.message));
+                }
+                let retain_metadata = !journal.warnings().is_empty()
+                    || copy_stats.copied_entities.iter().any(|(_, _, entity)|
+                        crate::journal::entity_requires_metadata_retention(entity));
                 drop(journal);
-                let retain_metadata = copy_stats.copied_entities.iter().any(|(_, _, entity)|
-                    entity.metadata.native.is_some() || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
-                    || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
                 if retain_metadata {
                     progress.message(&format!("Original metadata retained in {}", j_path.display()));
-                    let _ = temp_state_dir.into_path();
+                    retained_journals.push(j_path);
                 } else {
-                    if j_path.exists() {
-                        let _ = std::fs::remove_file(&j_path);
-                    }
-                    if d_path.exists() {
-                        let _ = std::fs::remove_file(&d_path);
-                    }
+                    temp_state_dir.close().with_context(|| format!(
+                        "Failed to remove completed move journal {}", j_path.display()
+                    ))?;
                 }
 
                 moved_copied = moved_copied.saturating_add(copy_stats.files_copied);
@@ -239,7 +261,14 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
         writeln!(summary, "Bytes transferred:               {}", bytes_copied)?;
     }
     writeln!(summary, "Duration:                        {elapsed:.2}s")?;
-    writeln!(summary, "Status:                          Move completed successfully.")?;
+    for journal in retained_journals {
+        writeln!(summary, "Original metadata journal:       {}", journal.display())?;
+    }
+    if warning_count > 0 {
+        writeln!(summary, "Status:                          Move completed with {warning_count} warning record(s); fidelity limitations are retained in the journal.")?;
+    } else {
+        writeln!(summary, "Status:                          Move completed successfully.")?;
+    }
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }
@@ -422,15 +451,72 @@ mod tests {
             paths: vec![source.join(""), destination.clone()],
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
-            best_effort_metadata: false, allow_unknown_fs: false, force: false, dry_run: false,
+            best_effort_metadata: true, allow_unknown_fs: false, force: false, dry_run: false,
             full_provenance: false,
-        });
-        if result.is_ok() {
-            assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
-            assert_eq!(fs::read_dir(source).unwrap().count(), 0);
-        } else {
-            assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"move payload");
+        }).unwrap();
+        assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+        assert_eq!(fs::read_dir(source).unwrap().count(), 0);
+        let ToolResult::Immediate { stdout, .. } = result else {
+            panic!("Expected immediate move result");
+        };
+        let summary = String::from_utf8(stdout).unwrap();
+        let journal_path = summary.lines().find_map(|line|
+            line.strip_prefix("Original metadata journal:").map(str::trim)
+        ).expect("Move must retain original native metadata");
+        let journal_path = Path::new(journal_path);
+        let snapshot = crate::journal::read_journal_snapshot(journal_path).unwrap();
+        assert!(snapshot.is_completed);
+        assert!(snapshot.errors.is_empty());
+        assert!(!snapshot.committed_entities.is_empty());
+        if !snapshot.warnings.is_empty() {
+            assert!(summary.contains("fidelity limitations are retained in the journal"));
         }
+        fs::remove_file(journal_path).unwrap();
+        fs::remove_file(journal_path.with_extension("cscdesc")).unwrap();
+        fs::remove_dir(journal_path.parent().unwrap()).unwrap();
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_failure_retains_journal_and_source() {
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::create_dir_all(source.join("sub")).unwrap();
+        fs::write(source.join("sub/data"), b"must survive failed move").unwrap();
+        fs::create_dir_all(destination.join("sub/data")).unwrap();
+        let error = run_mv(MvArgs {
+            paths: vec![source.join(""), destination.clone()],
+            verbose: false, progress: false, no_progress: true,
+            verify_after: false, no_verify_after: true,
+            best_effort_metadata: true, allow_unknown_fs: false, force: true, dry_run: false,
+            full_provenance: false,
+        }).err().expect("Conflicting destination must refuse the move");
+        let message = error.to_string();
+        let journal_path = Path::new(
+            message.strip_prefix("Move journal retained at ").expect("Retained journal diagnostic")
+        );
+        let snapshot = crate::journal::read_journal_snapshot(journal_path).unwrap();
+        assert!(!snapshot.is_completed);
+        assert!(!snapshot.errors.is_empty() || !snapshot.warnings.is_empty());
+        assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"must survive failed move");
+        fs::remove_file(journal_path).unwrap();
+        fs::remove_file(journal_path.with_extension("cscdesc")).unwrap();
+        fs::remove_dir(journal_path.parent().unwrap()).unwrap();
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_retention_includes_semantic_diagnostics() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.metadata = ctb_io::file::FileMetadata::default();
+        assert!(!crate::journal::entity_requires_metadata_retention(&entity));
+        entity.metadata.push_warning("Captured fidelity limitation".to_string());
+        assert!(crate::journal::entity_requires_metadata_retention(&entity));
+        entity.metadata.warnings.clear();
+        entity.metadata.push_error("Captured metadata error".to_string());
+        assert!(crate::journal::entity_requires_metadata_retention(&entity));
     }
 }
-

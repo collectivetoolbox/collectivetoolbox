@@ -125,6 +125,9 @@ pub fn apply_entity_metadata(
     apply_flags: bool,
     strict_lossless: bool,
 ) -> Result<Vec<String>> {
+    if let Some(timestamps) = &meta.timestamps {
+        timestamps.validate()?;
+    }
     let mut warnings = Vec::new();
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
@@ -225,24 +228,20 @@ pub fn apply_entity_metadata(
 
     // 3. Timestamps
     if let Some(ref ts) = meta.timestamps {
-        let atime = FileTime::from_unix_time(
-            ts.atime_sec,
-            ts.atime_nsec,
-        );
-        let mtime = FileTime::from_unix_time(
-            ts.mtime_sec,
-            ts.mtime_nsec,
-        );
-
         // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
         let is_special = dest_meta
             .as_ref()
             .map_or(false, |m| !m.is_file() && !m.is_dir());
-        let time_res = if is_symlink || is_special {
-            set_symlink_file_times(dest, atime, mtime)
-        } else {
-            set_file_times(dest, atime, mtime)
-        };
+        let time_res = (|| -> Result<()> {
+            let atime = crate::metadata::checked_file_time(ts.atime_sec, ts.atime_nsec)?;
+            let mtime = crate::metadata::checked_file_time(ts.mtime_sec, ts.mtime_nsec)?;
+            if is_symlink || is_special {
+                set_symlink_file_times(dest, atime, mtime)?;
+            } else {
+                set_file_times(dest, atime, mtime)?;
+            }
+            Ok(())
+        })();
         if let Err(e) = time_res {
             if strict_lossless {
                 return Err(e).with_context(|| {
@@ -405,6 +404,9 @@ pub fn materialize_entity(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
+    if let Some(timestamps) = &entity.metadata.timestamps {
+        timestamps.validate()?;
+    }
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
     if entity.is_error() {
@@ -1491,6 +1493,29 @@ fn try_update_existing_regular_entity(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    #[crate::ctb_test]
+    fn test_malformed_timestamps_refuse_replacement_in_all_modes() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        std::fs::write(&source, b"replacement").unwrap();
+        std::fs::write(&destination, b"original destination").unwrap();
+        let mut entity = crate::FileEntity::from_filesystem(&source, None).unwrap();
+        entity.identity.relative_path = Some(std::path::PathBuf::from("destination"));
+        entity.metadata.timestamps.as_mut().unwrap().mtime_nsec = 1_000_000_000;
+        let directory = crate::SandboxableDir::open(temp.path()).unwrap();
+        for strict_lossless in [true, false] {
+            let mut payload = crate::MemoryPayloadSource::new(b"replacement".to_vec()).unwrap();
+            let options = MaterializeOptions {
+                strict_lossless,
+                ..MaterializeOptions::default()
+            };
+            let error = materialize_entity(&entity, Some(&mut payload), &directory, &options).unwrap_err();
+            assert!(format!("{error:#}").contains("Invalid file timestamp nanoseconds"));
+            assert_eq!(std::fs::read(&destination).unwrap(), b"original destination");
+        }
+    }
+
     use super::*;
     use crate::*;
     use ctb_formats_checksum::Sha256Stream;
@@ -2067,18 +2092,15 @@ mod tests {
             streams: Vec::new(),
         };
 
-        #[cfg(windows)]
-        let is_wine = ctb_io_environment::is_wine();
-        #[cfg(not(windows))]
-        let is_wine = false;
-
-        if is_wine {
-            // Under WINE, strict lossless materialization of a sparse file must be refused
-            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
-            let err = materialize_entity(&entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default()).unwrap_err();
+        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let strict_result = materialize_entity(
+            &entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default(),
+        );
+        if let Err(err) = strict_result {
             assert!(format!("{err:#}").contains("sparse"));
+            assert!(!dest_path.exists());
 
-            // Under WINE in best-effort mode, materialization succeeds with dense write and a warning
+            // Native control/readback, not platform identity, decides capability.
             let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
             let options = MaterializeOptions {
                 strict_lossless: false,
@@ -2088,19 +2110,28 @@ mod tests {
             assert!(receipt.warnings.iter().any(|w| w.contains("did not retain sparse support")));
             assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
 
-            // Audit with best_effort: true tolerates missing sparse support
+            // An advertised sparse-capable volume must not conceal missing holes.
             let audit_opts = EntityAuditOptions {
                 best_effort: true,
                 check_sparse: true,
                 ..EntityAuditOptions::default()
             };
             let (diffs, ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts).unwrap();
-            assert!(diffs.is_empty(), "Unexpected diffs: {diffs:?}");
-            assert_eq!(ignored.sparseness, 1);
+            let fs_info = crate::filesystem::query_filesystem_info(
+                &dest_path, &std::fs::metadata(&dest_path).unwrap(),
+            );
+            if fs_info.supports_sparse() == Some(true) {
+                assert_eq!(diffs, vec![crate::verifier::DiffKind::SparseHoleMismatch {
+                    expected_has_holes: true,
+                    actual_has_holes: false,
+                }]);
+                assert_eq!(ignored.sparseness, 0);
+            } else {
+                assert!(diffs.is_empty(), "Unexpected diffs: {diffs:?}");
+                assert_eq!(ignored.sparseness, 1);
+            }
         } else {
-            // On Linux and native Windows NTFS: strict lossless materialization succeeds and preserves sparse holes
-            let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
-            let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &MaterializeOptions::default()).unwrap();
+            let receipt = strict_result.unwrap();
             assert_eq!(receipt.bytes_written, total_size);
 
             let read_back = std::fs::read(&dest_path).unwrap();
@@ -2240,5 +2271,3 @@ mod tests {
         }
     }
 }
-
-

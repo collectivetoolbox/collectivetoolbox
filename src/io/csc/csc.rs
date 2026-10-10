@@ -36,3 +36,25 @@ pub mod index_engine;
 pub mod search_engine;
 pub mod move_engine;
 pub mod index_meta;
+
+#[cfg(all(test, unix))]
+pub(crate) fn run_permission_test_unprivileged(test_path: &str) -> Result<bool> {
+    use std::os::unix::process::CommandExt;
+    if nix::unistd::geteuid().as_raw() != 0 {
+        return Ok(false);
+    }
+    let output = std::process::Command::new(std::env::current_exe()?)
+        .arg("--exact")
+        .arg(test_path)
+        .arg("--include-ignored")
+        .arg("--nocapture")
+        .env_remove("CTB_TEST_STORAGE_DIR")
+        .uid(65534)
+        .gid(65534)
+        .output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    anyhow::ensure!(output.status.success() && stdout.contains("1 passed"),
+        "Unprivileged permission test failed: {stdout}\n{stderr}");
+    Ok(true)
+}

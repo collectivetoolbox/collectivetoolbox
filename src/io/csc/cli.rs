@@ -148,7 +148,12 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     ) {
         Ok(s) => s,
         Err(err) => {
-            let _ = journal.mark_failed(&err.to_string());
+            if let Err(record_error) = journal.mark_failed(&format!("{err:#}")) {
+                return Err(err).context(format!(
+                    "Recording copy failure in {} also failed: {record_error:#}",
+                    journal.journal_path().display()
+                ));
+            }
             return Err(err);
         }
     };
@@ -163,19 +168,19 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let has_errors = error_count > 0 || stats.files_failed > 0;
     let retain_metadata_journal = warning_count > 0 || stats.copied_entities.iter().any(|(_, _, entity)|
-        entity.metadata.native.is_some() || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
-        || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty()
-        || !entity.metadata.warnings.is_empty());
+        crate::journal::entity_requires_metadata_retention(entity));
     if args.delete_manifest_after && has_errors {
         warn_fmt!("Retaining {}: it contains recorded error records", journal_path.display());
     } else if args.delete_manifest_after && retain_metadata_journal {
         warn_fmt!("Retaining {}: it contains original metadata that is not guaranteed to be reproducible", journal_path.display());
     } else if args.delete_manifest_after {
         if journal_path.exists() {
-            let _ = std::fs::remove_file(&journal_path);
+            std::fs::remove_file(&journal_path)
+                .with_context(|| format!("Failed to remove journal {}", journal_path.display()))?;
         }
         if desc_path.exists() {
-            let _ = std::fs::remove_file(&desc_path);
+            std::fs::remove_file(&desc_path)
+                .with_context(|| format!("Failed to remove journal description {}", desc_path.display()))?;
         }
     }
 
@@ -526,4 +531,3 @@ mod tests {
         assert!(desc_path.exists());
     }
 }
-

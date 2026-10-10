@@ -279,6 +279,17 @@ pub fn write_apple_double_companion(
     dest_dir_root: &Path,
     style: AppleDoubleStyle,
 ) -> Result<Option<PathBuf>> {
+    let times = if let Some(timestamps) = &entity.metadata.timestamps {
+        timestamps.validate()?;
+        Some((
+            crate::metadata::checked_file_time(timestamps.atime_sec, timestamps.atime_nsec)
+                .context("Invalid native AppleDouble companion access time")?,
+            crate::metadata::checked_file_time(timestamps.mtime_sec, timestamps.mtime_nsec)
+                .context("Invalid native AppleDouble companion modification time")?,
+        ))
+    } else {
+        None
+    };
     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
     if entity.streams.is_empty() && !has_apple_meta {
@@ -310,16 +321,9 @@ pub fn write_apple_double_companion(
         .with_context(|| format!("Failed to write AppleDouble companion file: {}", companion_path.display()))?;
 
     // Apply timestamps from entity
-    if let Some(ref ts) = entity.metadata.timestamps {
-        let atime = filetime::FileTime::from_unix_time(
-            ts.atime_sec,
-            ts.atime_nsec,
-        );
-        let mtime = filetime::FileTime::from_unix_time(
-            ts.mtime_sec,
-            ts.mtime_nsec,
-        );
-        let _ = filetime::set_file_times(&companion_path, atime, mtime);
+    if let Some((atime, mtime)) = times {
+        filetime::set_file_times(&companion_path, atime, mtime)
+            .with_context(|| format!("Failed to set AppleDouble companion timestamps on {}", companion_path.display()))?;
     }
 
     Ok(Some(companion_path))
@@ -585,6 +589,22 @@ mod tests {
     use crate::metadata::FileFlag;
 
     #[crate::ctb_test]
+    fn test_apple_double_rejects_native_timestamp_overflow_before_write() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        std::fs::write(&path, b"payload").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.metadata.flags = Some(vec![FileFlag::Invisible]);
+        entity.metadata.timestamps.as_mut().unwrap().atime_sec = i64::MIN;
+        let error = write_apple_double_companion(
+            &entity, &path, temp.path(), AppleDoubleStyle::Alongside,
+        ).unwrap_err();
+        assert!(format!("{error:#}").contains("native conversion range"));
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        assert_eq!(std::fs::read(&path).unwrap(), b"payload");
+    }
+
+    #[crate::ctb_test]
     fn test_mac_file_flags_sync() -> Result<()> {
         let temp = tempfile::tempdir()?;
         let file_path = temp.path().join("test_file.txt");
@@ -618,4 +638,3 @@ mod tests {
         Ok(())
     }
 }
-

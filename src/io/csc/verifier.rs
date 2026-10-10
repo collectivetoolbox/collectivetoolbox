@@ -566,31 +566,40 @@ fn scan_disk_entries(
         Some(roots) => {
             for r in roots {
                 let full = root.join(r);
-                if let Ok(sym_meta) = std::fs::symlink_metadata(&full) {
+                let sym_meta = match std::fs::symlink_metadata(&full) {
+                    Ok(metadata) => metadata,
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(error) => return Err(error).with_context(|| format!(
+                        "Failed to inspect audit subtree {}", full.display()
+                    )),
+                };
                     result.insert(r.clone());
                     if sym_meta.is_dir() {
                         let opts = ctb_io::file::TraversalOptions::new()
                             .yield_root(false)
-                            .error_policy(ctb_io::file::OnTraversalError::Skip);
-                        if let Ok(traverser) = ctb_io::file::traverse_dir(&full, opts) {
-                            for item in traverser.flatten() {
+                            .error_policy(ctb_io::file::OnTraversalError::Bail);
+                        let traverser = ctb_io::file::traverse_dir(&full, opts)?;
+                            for item in traverser {
+                                let item = item.with_context(|| format!(
+                                    "Failed to enumerate audit subtree {}", full.display()
+                                ))?;
                                 let rel = r.join(item.relative_path());
                                 result.insert(rel);
                             }
-                        }
                     }
-                }
             }
         }
         None => {
             let opts = ctb_io::file::TraversalOptions::new()
                 .yield_root(false)
-                .error_policy(ctb_io::file::OnTraversalError::Skip);
-            if let Ok(traverser) = ctb_io::file::traverse_dir(root, opts) {
-                for item in traverser.flatten() {
+                .error_policy(ctb_io::file::OnTraversalError::Bail);
+            let traverser = ctb_io::file::traverse_dir(root, opts)?;
+                for item in traverser {
+                    let item = item.with_context(|| format!(
+                        "Failed to enumerate audit directory {}", root.display()
+                    ))?;
                     result.insert(item.relative_path().to_path_buf());
                 }
-            }
         }
     }
 
@@ -640,6 +649,38 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_untracked_scan_propagates_open_and_metadata_errors() {
+        let temp = tempdir().unwrap();
+        assert!(scan_disk_entries(&temp.path().join("missing"), None).is_err());
+        let roots = HashSet::from([PathBuf::from("invalid\0path")]);
+        assert!(scan_disk_entries(temp.path(), Some(&roots)).is_err());
+        let missing = HashSet::from([PathBuf::from("missing")]);
+        assert!(scan_disk_entries(temp.path(), Some(&missing)).unwrap().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_untracked_scan_refuses_unreadable_subtrees() {
+        use std::os::unix::fs::PermissionsExt;
+        if crate::run_permission_test_unprivileged(
+            "verifier::tests::test_untracked_scan_refuses_unreadable_subtrees",
+        ).unwrap() {
+            return;
+        }
+        let temp = tempdir().unwrap();
+        let unreadable = temp.path().join("unreadable");
+        fs::create_dir(&unreadable).unwrap();
+        fs::write(unreadable.join("hidden"), b"untracked data").unwrap();
+        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o000)).unwrap();
+        let roots = HashSet::from([PathBuf::from("unreadable")]);
+        let whole_tree = scan_disk_entries(temp.path(), None);
+        let selected_tree = scan_disk_entries(temp.path(), Some(&roots));
+        fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(whole_tree.is_err());
+        assert!(selected_tree.is_err());
+    }
 
     #[cfg(windows)]
     #[crate::ctb_test]
@@ -1423,7 +1464,6 @@ mod tests {
     #[crate::ctb_test]
     fn test_sparse_verification_best_effort_filesystem_support() {
         use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
-        use std::io::{Seek, SeekFrom, Write};
 
         let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
@@ -1434,51 +1474,40 @@ mod tests {
         fs::create_dir_all(&dest).expect("create dest");
         fs::create_dir_all(&state).expect("create state");
 
-        let sparse_src = src.join("sparse.bin");
-        let mut f = fs::File::create(&sparse_src).expect("create sparse src");
-        f.write_all(b"Header").expect("write header");
-        let seek_pos = 1024_u64.saturating_mul(1024);
-        f.seek(SeekFrom::Start(seek_pos)).expect("seek 1MB");
-        f.write_all(b"Tail").expect("write tail");
-        f.sync_data().expect("sync sparse src");
-        drop(f);
-
-        let args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
-            state.clone(),
-        );
-        run_csc(args).expect("run csc");
-        let journal_path = find_cscjournal(&state);
-
-        // Overwrite destination file with non-sparse zero bytes
         let dest_file_path = dest.join("sparse.bin");
-        let orig_meta = fs::metadata(&dest_file_path).expect("read dest metadata before overwrite");
-        let orig_atime = filetime::FileTime::from_last_access_time(&orig_meta);
-        let orig_mtime = filetime::FileTime::from_last_modification_time(&orig_meta);
-
-        let mut df = fs::File::create(&dest_file_path).expect("recreate dest non-sparse");
-        df.write_all(b"Header").expect("write header");
-        let zeroes_len = 1024_usize.saturating_mul(1024).saturating_sub(6);
-        let zeroes = vec![0_u8; zeroes_len];
-        df.write_all(&zeroes).expect("write zeroes");
-        df.write_all(b"Tail").expect("write tail");
-        df.sync_data().expect("sync non-sparse dest");
-        drop(df);
-        filetime::set_file_times(&dest_file_path, orig_atime, orig_mtime).expect("restore file times");
+        let size = 1_048_580_u64;
+        fs::write(&dest_file_path, vec![0x7F_u8; usize::try_from(size).unwrap()]).unwrap();
+        fs::File::options().write(true).open(&dest_file_path).unwrap().sync_all().unwrap();
+        let mut expected = ctb_io::file::FileEntity::from_filesystem(
+            &dest_file_path, Some(&dest),
+        ).unwrap();
+        // A deliberately incorrect expected layout keeps this policy fixture
+        // independent of ZFS zero-block compression without changing the hash.
+        let FileEntityKind::Regular { is_sparse, extents, .. } = &mut expected.kind else {
+            panic!("Expected regular fixture");
+        };
+        *is_sparse = true;
+        *extents = vec![
+            ctb_io::file::Extent::Data { offset: 0, length: 6 },
+            ctb_io::file::Extent::Hole { offset: 6, length: size.saturating_sub(10) },
+            ctb_io::file::Extent::Data { offset: size.saturating_sub(4), length: 4 },
+        ];
+        let mut journal = crate::journal::JournalWriter::create_new(
+            &state, &[src], &dest,
+        ).unwrap();
+        journal.record_entity(&expected);
+        journal.commit_batch().unwrap();
+        journal.mark_completed().unwrap();
+        let journal_path = journal.journal_path().to_path_buf();
+        drop(journal);
 
         let file = fs::File::open(&dest_file_path).expect("open dest");
-        let actual_extents = ctb_io::file::payload::get_file_extents(&file, 1024 * 1024 + 4).expect("get extents");
+        let actual_extents = ctb_io::file::payload::get_file_extents(&file, size).expect("get extents");
         let still_sparse = actual_extents.iter().any(|e| matches!(e, ctb_io::file::Extent::Hole { .. }));
-        if still_sparse {
-            // On filesystems like ZFS that automatically detect zero blocks and retain sparse holes,
-            // writing zeroes does not physically de-sparsify the file.
-            return;
-        }
+        assert!(!still_sparse, "Nonzero fixture must provide allocated logical data ranges");
 
         let meta = fs::metadata(&dest).expect("read dest metadata");
-        let Some(dev_id) = extract_device_id(&meta) else {
-            return;
-        };
+        let dev_id = extract_device_id(&meta).expect("Sparse policy fixture requires filesystem identity");
 
         // 1. On known sparse filesystem (e.g. ext4):
         set_cached_filesystem_info(dev_id, FilesystemInfo {
@@ -1537,4 +1566,3 @@ mod tests {
         clear_filesystem_cache();
     }
 }
-

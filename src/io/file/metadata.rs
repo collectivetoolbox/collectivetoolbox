@@ -33,6 +33,59 @@ use std::time::SystemTime;
 use ctb_io_environment::EnvDescription;
 use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
+/// Restores observed symlink atime without writing mtime or following the link.
+/// Detected replacement or modification is an error. The identity check and
+/// pathname-based syscall are not atomic; callers must exclude concurrent
+/// pathname replacement when requiring a non-invasive read.
+#[cfg(unix)]
+pub fn restore_symlink_access_time(
+    path: &std::path::Path,
+    observed: &std::fs::Metadata,
+) -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    use nix::sys::stat::{UtimensatFlags, utimensat};
+    use nix::sys::time::TimeSpec;
+
+    let current = std::fs::symlink_metadata(path)?;
+    anyhow::ensure!(
+        observed.is_symlink() && current.is_symlink()
+            && observed.dev() == current.dev() && observed.ino() == current.ino()
+            && observed.mtime() == current.mtime()
+            && observed.mtime_nsec() == current.mtime_nsec(),
+        "Symlink changed during inspection: {}", path.display()
+    );
+    if current.atime() != observed.atime() || current.atime_nsec() != observed.atime_nsec() {
+        utimensat(
+            nix::fcntl::AT_FDCWD,
+            path,
+            &TimeSpec::new(observed.atime().try_into()?, observed.atime_nsec().try_into()?),
+            &TimeSpec::UTIME_OMIT,
+            UtimensatFlags::NoFollowSymlink,
+        ).with_context(|| format!("Failed to restore symlink access time on {}", path.display()))?;
+    }
+    Ok(())
+}
+
+/// Reads a symlink target and completes timestamp cleanup even on read errors.
+/// Unix cleanup has the pathname-race limits of `restore_symlink_access_time`.
+pub fn read_symlink_target(
+    path: &std::path::Path,
+    observed: &std::fs::Metadata,
+) -> Result<std::path::PathBuf> {
+    let result = std::fs::read_link(path)
+        .with_context(|| format!("Failed to read symlink target on {}", path.display()));
+    #[cfg(unix)]
+    if let Err(cleanup) = restore_symlink_access_time(path, observed) {
+        return match result {
+            Ok(_) => Err(cleanup),
+            Err(error) => Err(error).context(format!("Symlink read cleanup also failed: {cleanup:#}")),
+        };
+    }
+    #[cfg(not(unix))]
+    let _ = observed;
+    result
+}
+
 /// Operating system family where raw bits or file descriptors originated.
 /// You may want to consider using the `FileMetadata` `environment` instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
@@ -632,8 +685,49 @@ pub struct FileTimestamps {
     pub resolution_nsec: Option<u32>,
 }
 
+impl FileTimestamps {
+    /// Rejects malformed timestamp components without losing partial fields.
+    pub fn validate(&self) -> Result<()> {
+        anyhow::ensure!(
+            self.atime_nsec < 1_000_000_000
+                && self.mtime_nsec < 1_000_000_000
+                && self.ctime_nsec < 1_000_000_000,
+            "Invalid file timestamp nanoseconds"
+        );
+        anyhow::ensure!(
+            self.birthtime_sec.is_some() == self.birthtime_nsec.is_some(),
+            "Birth time requires both seconds and nanoseconds"
+        );
+        if let Some(nanos) = self.birthtime_nsec {
+            anyhow::ensure!(nanos < 1_000_000_000, "Invalid birth time nanoseconds");
+        }
+        if let Some(resolution) = self.resolution_nsec {
+            anyhow::ensure!(resolution > 0, "Timestamp resolution must be nonzero");
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::FileTime> {
+    use std::time::Duration;
+    anyhow::ensure!(nanos < 1_000_000_000, "Invalid timestamp nanoseconds");
+    anyhow::ensure!(seconds != i64::MIN, "Timestamp is outside native conversion range");
+    #[cfg(windows)]
+    seconds.checked_add(11_644_473_600).context("Timestamp overflows Windows epoch conversion")?;
+    let duration = Duration::from_secs(seconds.unsigned_abs());
+    let base = if seconds < 0 {
+        SystemTime::UNIX_EPOCH.checked_sub(duration)
+    } else {
+        SystemTime::UNIX_EPOCH.checked_add(duration)
+    }.context("Timestamp is outside native system time range")?;
+    base.checked_add(Duration::from_nanos(u64::from(nanos)))
+        .context("Timestamp nanoseconds exceed native system time range")?;
+    Ok(filetime::FileTime::from_unix_time(seconds, nanos))
+}
+
 impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        self.validate()?;
         let atime_nanos = (i128::from(self.atime_sec))
             .checked_mul(1_000_000_000)
             .context("atime sec overflow")?
@@ -1176,7 +1270,7 @@ pub fn check_metadata_replication(
             );
             let actual =
                 capture_birthtime(&std::fs::symlink_metadata(destination)?)?;
-            let expected = filetime::FileTime::from_unix_time(seconds, nanos);
+            let expected = checked_file_time(seconds, nanos)?;
             if actual != Some(expected) {
                 if strict {
                     anyhow::bail!(
@@ -1315,6 +1409,50 @@ mod tests {
     use super::*;
     use crate::*;
     use std::fs;
+
+    #[crate::ctb_test]
+    fn test_timestamp_validation_preserves_semantic_components() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        let timestamps = crate::FileEntity::from_filesystem(&path, None)
+            .unwrap().metadata.timestamps.unwrap();
+        let mut invalid_nanos = timestamps;
+        invalid_nanos.mtime_nsec = 1_000_000_000;
+        let mut partial_birth = timestamps;
+        partial_birth.birthtime_sec = Some(0);
+        partial_birth.birthtime_nsec = None;
+        let mut orphan_birth_nanos = timestamps;
+        orphan_birth_nanos.birthtime_sec = None;
+        orphan_birth_nanos.birthtime_nsec = Some(0);
+        let mut zero_resolution = timestamps;
+        zero_resolution.resolution_nsec = Some(0);
+        for invalid in [invalid_nanos, partial_birth, orphan_birth_nanos, zero_resolution] {
+            assert!(invalid.validate().is_err());
+            let mut encoded = DcMstring::new();
+            assert!(invalid.encode_dc_mixed(&mut encoded).is_err());
+        }
+        assert!(timestamps.validate().is_ok());
+        assert!(checked_file_time(i64::MIN, 0).is_err());
+        assert!(checked_file_time(0, 1_000_000_000).is_err());
+        let pre_epoch = checked_file_time(-1, 999_999_999).unwrap();
+        assert_eq!(pre_epoch.unix_seconds(), -1);
+        assert_eq!(pre_epoch.nanoseconds(), 999_999_999);
+    }
+
+    #[crate::ctb_test]
+    fn test_native_timestamp_range_failure_is_fallible_and_retained() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        let mut timestamps = crate::FileEntity::from_filesystem(&path, None)
+            .unwrap().metadata.timestamps.unwrap();
+        timestamps.atime_sec = i64::MIN;
+        let metadata = FileMetadata { timestamps: Some(timestamps), ..FileMetadata::default() };
+        let warnings = crate::apply_entity_metadata(&path, None, &metadata, false, false, false).unwrap();
+        assert!(warnings.iter().any(|warning| warning.contains("native conversion range")));
+        assert!(crate::apply_entity_metadata(&path, None, &metadata, false, false, true).is_err());
+    }
 
     #[crate::ctb_test]
     fn test_file_environment_serialization_context() -> Result<()> {
@@ -1649,4 +1787,3 @@ mod tests {
             matches!(diff, DiffKind::NativeMetadataMismatch { .. })));
     }
 }
-

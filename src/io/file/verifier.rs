@@ -31,7 +31,7 @@ use crate::metadata::OsFamily;
 use crate::payload::{Extent, get_file_extents};
 use crate::streams::read_and_hash_streams;
 use crate::sys_flags::{query_file_flags, raw_flags_match};
-use filetime::{FileTime, set_file_times};
+use filetime::FileTime;
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
 #[cfg(unix)]
@@ -41,7 +41,7 @@ use std::os::windows::fs::MetadataExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 /// Nature of a stream or extended attribute discrepancy.
@@ -440,10 +440,10 @@ pub fn has_cache_flush_privileges() -> bool {
 /// Returns a list of detected discrepancies (`Vec<DiffKind>`). An empty return
 /// indicates the entry on disk completely matches the expected entity.
 ///
-/// This audit is guaranteed to be non-invasive: on Linux, files are opened with
-/// `O_NOATIME` to prevent modifying access times. If `O_NOATIME` is unavailable
-/// (e.g. unprivileged non-owner), access and modification times are restored
-/// immediately after payload verification so no modified state remains.
+/// Regular payload reads attempt `O_NOATIME` on Linux. Otherwise, changed
+/// access times are restored through the open handle, including on read errors.
+/// Restoration never writes mtime. Unix cannot restore the resulting ctime
+/// change; stream and symlink reads have separate timestamp limitations.
 /// Audits a materialized filesystem entry at `path` against an `expected` FileEntity definition,
 /// returning both detected discrepancies and a count of differences that were ignored due to
 /// best-effort tolerance or ignore options.
@@ -870,19 +870,7 @@ pub fn audit_entity_detailed(
         target: ref expected_target,
     } = expected.kind
     {
-        let actual_target = std::fs::read_link(path)?;
-        #[cfg(unix)]
-        if let Some(ref ts) = expected.metadata.timestamps {
-            let atime = FileTime::from_unix_time(
-                ts.atime_sec,
-                ts.atime_nsec,
-            );
-            let mtime = FileTime::from_unix_time(
-                ts.mtime_sec,
-                ts.mtime_nsec,
-            );
-            let _ = filetime::set_symlink_file_times(path, atime, mtime);
-        }
+        let actual_target = crate::metadata::read_symlink_target(path, &dest_meta)?;
         let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
         if actual_bytes != expected_target.as_slice() {
             diffs.push(DiffKind::SymlinkTargetMismatch {
@@ -900,34 +888,38 @@ pub fn audit_entity_detailed(
         ref extents,
     } = expected.kind
     {
+        audit_file_contents(path, |file, opened_meta| {
+        anyhow::ensure!(
+            opened_meta.len() == dest_meta.len()
+                && opened_meta.modified()? == dest_meta.modified()?,
+            "File changed before payload verification: {}", path.display()
+        );
+        #[cfg(unix)]
+        anyhow::ensure!(
+            opened_meta.dev() == dest_meta.dev() && opened_meta.ino() == dest_meta.ino(),
+            "File replaced before payload verification: {}", path.display()
+        );
         let apple_single_archive = if dest_meta.len() == expected_size {
             None
         } else {
-            let is_single = match File::open(path) {
-                Ok(mut f) => {
-                    use std::io::Read;
-                    let mut magic = [0u8; 4];
-                    if f.read_exact(&mut magic).is_ok() {
-                        let m = u32::from_be_bytes(magic);
-                        m == crate::apple_double::APPLESINGLE_MAGIC_BE
-                            || m == crate::apple_double::APPLESINGLE_MAGIC_LE
-                    } else {
-                        false
-                    }
+            let mut magic = [0u8; 4];
+            let is_single = match file.read_exact(&mut magic) {
+                Ok(()) => {
+                    let m = u32::from_be_bytes(magic);
+                    m == crate::apple_double::APPLESINGLE_MAGIC_BE
+                        || m == crate::apple_double::APPLESINGLE_MAGIC_LE
                 }
-                Err(_) => false,
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => false,
+                Err(error) => return Err(error).context("Failed to read audit payload magic"),
             };
+            file.seek(SeekFrom::Start(0))?;
             if is_single {
-                if let Ok(data) = std::fs::read(path) {
-                    if let Ok(archive) = ctb_formats_apple_single_double::read_apple_single_double(&data) {
-                        if archive.format == ctb_formats_apple_single_double::AppleFormat::AppleSingle {
-                            Some(archive)
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
+                let mut data = Vec::new();
+                file.read_to_end(&mut data)?;
+                let archive = ctb_formats_apple_single_double::read_apple_single_double(&data)
+                    .context("Invalid AppleSingle audit payload")?;
+                if archive.format == ctb_formats_apple_single_double::AppleFormat::AppleSingle {
+                    Some(archive)
                 } else {
                     None
                 }
@@ -956,6 +948,7 @@ pub fn audit_entity_detailed(
                 });
             }
         } else {
+            file.seek(SeekFrom::Start(0))?;
             let actual_size = dest_meta.len();
             if actual_size != expected_size {
                 diffs.push(DiffKind::SizeMismatch {
@@ -964,37 +957,12 @@ pub fn audit_entity_detailed(
                 });
             }
 
-            // Open non-invasively: attempt O_NOATIME on Linux
-            #[cfg(target_os = "linux")]
-            let (mut file, opened_with_noatime) = {
-                use std::os::unix::fs::OpenOptionsExt;
-                let mut opts = File::options();
-                opts.read(true);
-                opts.custom_flags(nix::libc::O_NOATIME);
-                match opts.open(path) {
-                    Ok(f) => (f, true),
-                    Err(_) => {
-                        let f = File::open(path).with_context(|| {
-                            format!("Failed to open file for verification: {}", path.display())
-                        })?;
-                        (f, false)
-                    }
-                }
-            };
-            #[cfg(not(target_os = "linux"))]
-            let (mut file, opened_with_noatime) = {
-                let f = File::open(path).with_context(|| {
-                    format!("Failed to open file for verification: {}", path.display())
-                })?;
-                (f, false)
-            };
-
             if options.drop_caches {
-                evict_fd_cache(&file);
+                evict_fd_cache(file);
             }
 
             if options.check_sparse {
-                let actual_extents = get_file_extents(&file, actual_size)?;
+                let actual_extents = get_file_extents(file, actual_size)?;
                 let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
                 let expected_has_holes = extents.iter().any(Extent::is_hole);
                 #[cfg(windows)]
@@ -1033,13 +1001,6 @@ pub fn audit_entity_detailed(
                     let mut tolerate = false;
                     if options.best_effort {
                         let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
-                        #[cfg(windows)]
-                        let fs_supports_sparse = if ctb_io_environment::is_wine() {
-                            false
-                        } else {
-                            fs_info.supports_sparse() == Some(true)
-                        };
-                        #[cfg(not(windows))]
                         let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
 
                         let sub_allocation_unit_only = {
@@ -1082,12 +1043,12 @@ pub fn audit_entity_detailed(
             }
 
             let actual_extents = if is_sparse {
-                get_file_extents(&file, actual_size)?
+                get_file_extents(file, actual_size)?
             } else {
                 Vec::new()
             };
             let actual_sha256 = crate::payload::hash_payload_stream(
-                &mut file,
+                file,
                 &actual_extents,
                 is_sparse,
                 path,
@@ -1100,31 +1061,9 @@ pub fn audit_entity_detailed(
                 });
             }
 
-            // If O_NOATIME was not usable, restore original observed atime/mtime
-            #[cfg(unix)]
-            if !opened_with_noatime {
-                let orig_atime = FileTime::from_unix_time(
-                    actual_atime_sec,
-                    actual_atime_nsec,
-                );
-                let orig_mtime = FileTime::from_unix_time(
-                    actual_mtime_sec,
-                    actual_mtime_nsec,
-                );
-                set_file_times(path, orig_atime, orig_mtime)
-                    .with_context(|| format!("Failed to restore audit timestamps on {}", path.display()))?;
-            }
-            #[cfg(windows)]
-            {
-                let after_read = std::fs::metadata(path)?;
-                if FileTime::from_last_access_time(&after_read) != actual_atime
-                    || FileTime::from_last_modification_time(&after_read) != actual_mtime
-                {
-                    set_file_times(path, actual_atime, actual_mtime)
-                        .with_context(|| format!("Failed to restore audit timestamps on {}", path.display()))?;
-                }
-            }
         }
+        Ok(())
+        })?;
     }
 
     Ok((diffs, ignored))
@@ -1135,10 +1074,9 @@ pub fn audit_entity_detailed(
 /// Returns a list of detected discrepancies (`Vec<DiffKind>`). An empty return
 /// indicates the entry on disk completely matches the expected entity.
 ///
-/// This audit is guaranteed to be non-invasive: on Linux, files are opened with
-/// `O_NOATIME` to prevent modifying access times. If `O_NOATIME` is unavailable
-/// (e.g. unprivileged non-owner), access and modification times are restored
-/// immediately after payload verification so no modified state remains.
+/// Regular payload reads preserve access time where supported, or restore it
+/// through the open handle. Restoration errors are returned. Unix ctime and
+/// separate stream/symlink reads prevent a universal non-invasive guarantee.
 pub fn audit_entity(
     path: &Path,
     expected: &FileEntity,
@@ -1146,6 +1084,58 @@ pub fn audit_entity(
 ) -> Result<Vec<DiffKind>> {
     let (diffs, _) = audit_entity_detailed(path, expected, options)?;
     Ok(diffs)
+}
+
+fn audit_file_contents<T>(
+    path: &Path,
+    read: impl FnOnce(&mut File, &std::fs::Metadata) -> Result<T>,
+) -> Result<T> {
+    #[cfg(target_os = "linux")]
+    let mut file = {
+        use std::os::unix::fs::OpenOptionsExt;
+        match File::options().read(true).custom_flags(nix::libc::O_NOATIME).open(path) {
+            Ok(file) => file,
+            Err(_) => File::open(path)?,
+        }
+    };
+    #[cfg(windows)]
+    let mut file = {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Foundation::GENERIC_READ;
+        use windows_sys::Win32::Storage::FileSystem::FILE_WRITE_ATTRIBUTES;
+        match File::options().read(true).access_mode(GENERIC_READ | FILE_WRITE_ATTRIBUTES).open(path) {
+            Ok(file) => file,
+            Err(_) => File::open(path)?,
+        }
+    };
+    #[cfg(not(any(target_os = "linux", windows)))]
+    let mut file = File::open(path)?;
+    let original = file.metadata()?;
+    let result = read(&mut file, &original);
+    let completion = complete_audit_read(&file, &original);
+    match (result, completion) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(_), Err(error)) => Err(error)
+            .with_context(|| format!("Failed to complete audit read on {}", path.display())),
+        (Err(error), Err(cleanup)) => Err(error).context(format!(
+            "Audit read cleanup also failed on {}: {cleanup:#}", path.display()
+        )),
+    }
+}
+
+fn complete_audit_read(file: &File, original: &std::fs::Metadata) -> Result<()> {
+    let current = file.metadata()?;
+    anyhow::ensure!(
+        current.len() == original.len() && current.modified()? == original.modified()?,
+        "File changed during payload verification; refusing timestamp restoration"
+    );
+    let atime = FileTime::from_last_access_time(original);
+    if FileTime::from_last_access_time(&current) != atime {
+        filetime::set_file_handle_times(file, Some(atime), None)
+            .context("Failed to restore audit access time")?;
+    }
+    Ok(())
 }
 
 /// Performs an independent verification pass of `dest_path` against `entity`.
@@ -1244,8 +1234,134 @@ mod tests {
     use super::*;
     use crate::*;
     use std::fs;
+    use std::fs::File;
     #[cfg(unix)]
     use std::os::unix::fs::{PermissionsExt};
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_symlink_audit_preserves_observed_not_expected_timestamps() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("link");
+        std::os::unix::fs::symlink("target", &path).unwrap();
+        let entity = FileEntity::from_filesystem(&path, None).unwrap();
+        let observed = FileTime::from_unix_time(1_000_000_000, 0);
+        filetime::set_symlink_file_times(&path, observed, observed).unwrap();
+        let differences = audit_entity(&path, &entity, &EntityAuditOptions::default()).unwrap();
+        assert!(differences.iter().any(|diff| matches!(diff, DiffKind::MtimeMismatch { .. })));
+        let after = fs::symlink_metadata(&path).unwrap();
+        assert_eq!(FileTime::from_last_modification_time(&after), observed);
+        assert_eq!(FileTime::from_last_access_time(&after), observed);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_symlink_cleanup_rejects_changes_and_replacement() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("link");
+        std::os::unix::fs::symlink("original", &path).unwrap();
+        let original = fs::symlink_metadata(&path).unwrap();
+        let changed = FileTime::from_unix_time(1_000_000_000, 0);
+        filetime::set_symlink_file_times(&path, changed, changed).unwrap();
+        assert!(crate::metadata::restore_symlink_access_time(&path, &original).is_err());
+        assert_eq!(FileTime::from_last_modification_time(&fs::symlink_metadata(&path).unwrap()), changed);
+        let changed_metadata = fs::symlink_metadata(&path).unwrap();
+        let replacement = temp.path().join("replacement");
+        std::os::unix::fs::symlink("replacement-target", &replacement).unwrap();
+        fs::rename(&replacement, &path).unwrap();
+        let replacement_metadata = fs::symlink_metadata(&path).unwrap();
+        assert!(crate::metadata::restore_symlink_access_time(&path, &changed_metadata).is_err());
+        let after = fs::symlink_metadata(&path).unwrap();
+        assert_eq!(FileTime::from_last_access_time(&after), FileTime::from_last_access_time(&replacement_metadata));
+        assert_eq!(FileTime::from_last_modification_time(&after), FileTime::from_last_modification_time(&replacement_metadata));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_symlink_read_reports_read_and_cleanup_failures() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("link");
+        std::os::unix::fs::symlink("target", &path).unwrap();
+        let observed = fs::symlink_metadata(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+        let error = crate::metadata::read_symlink_target(&path, &observed).unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("Failed to read symlink target"));
+        assert!(message.contains("Symlink read cleanup also failed"));
+    }
+
+    #[crate::ctb_test]
+    fn test_audit_completion_preserves_concurrent_mtime() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("modified");
+        fs::write(&path, b"original").unwrap();
+        let file = File::options().read(true).write(true).open(&path).unwrap();
+        let original = file.metadata().unwrap();
+        let changed = FileTime::from_unix_time(1_000_000_000, 0);
+        filetime::set_file_handle_times(&file, None, Some(changed)).unwrap();
+        let error = complete_audit_read(&file, &original).unwrap_err();
+        assert!(error.to_string().contains("changed during payload verification"));
+        assert_eq!(FileTime::from_last_modification_time(&file.metadata().unwrap()), changed);
+    }
+
+    #[crate::ctb_test]
+    fn test_audit_completion_restores_handle_not_replacement() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("original");
+        fs::write(&path, b"original").unwrap();
+        let file = File::options().read(true).write(true).open(&path).unwrap();
+        let original = file.metadata().unwrap();
+        fs::rename(&path, temp.path().join("moved")).unwrap();
+        fs::write(&path, b"replacement").unwrap();
+        let replacement_time = FileTime::from_unix_time(1_100_000_000, 0);
+        filetime::set_file_times(&path, replacement_time, replacement_time).unwrap();
+        filetime::set_file_handle_times(
+            &file, Some(FileTime::from_unix_time(1_000_000_000, 0)), None,
+        ).unwrap();
+        complete_audit_read(&file, &original).unwrap();
+        assert_eq!(
+            FileTime::from_last_access_time(&file.metadata().unwrap()),
+            FileTime::from_last_access_time(&original)
+        );
+        let replacement = fs::metadata(&path).unwrap();
+        assert_eq!(FileTime::from_last_access_time(&replacement), replacement_time);
+        assert_eq!(FileTime::from_last_modification_time(&replacement), replacement_time);
+    }
+
+    #[crate::ctb_test]
+    fn test_audit_read_error_still_completes() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("read-error");
+        fs::write(&path, b"payload").unwrap();
+        let original = fs::metadata(&path).unwrap();
+        let error = audit_file_contents(&path, |_, _| -> Result<()> {
+            filetime::set_file_atime(&path, FileTime::from_unix_time(1_000_000_000, 0))?;
+            anyhow::bail!("injected read failure")
+        }).unwrap_err();
+        assert_eq!(error.to_string(), "injected read failure");
+        assert_eq!(
+            FileTime::from_last_access_time(&fs::metadata(&path).unwrap()),
+            FileTime::from_last_access_time(&original)
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_audit_read_and_completion_errors_are_both_reported() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("read-and-change");
+        fs::write(&path, b"payload").unwrap();
+        let changed = FileTime::from_unix_time(1_000_000_000, 0);
+        let error = audit_file_contents(&path, |_, _| -> Result<()> {
+            filetime::set_file_mtime(&path, changed)?;
+            anyhow::bail!("injected read failure")
+        }).unwrap_err();
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("injected read failure"));
+        assert!(diagnostic.contains("changed during payload verification"));
+        assert_eq!(
+            FileTime::from_last_modification_time(&fs::metadata(&path).unwrap()), changed
+        );
+    }
 
     #[cfg(windows)]
     #[crate::ctb_test]
@@ -1456,4 +1572,3 @@ mod tests {
         }
     }
 }
-

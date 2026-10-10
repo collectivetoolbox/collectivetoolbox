@@ -22,6 +22,11 @@ Best-effort metadata mode must not turn payload or stream corruption into succes
   source cleanup. Cleanup rechecks recorded identities and content, removes only
   copied entries, and uses non-recursive directory removal. Unexpected entries
   therefore prevent removal of their containing directory.
+- Regular and AppleSingle audit payload reads use one open handle for probing,
+  hashing, and timestamp completion, including completion after read failures.
+  Completion refuses changed length or mtime and restores only observed atime,
+  never mtime or timestamps on a replacement pathname. An audit is not a
+  filesystem snapshot, and other read paths have the limits listed below.
 
 ## Metadata Capture and Retention
 
@@ -97,8 +102,13 @@ Linux has no general birth-time setter here. Consequently, strict copies and
 copy-based moves commonly refuse new entries whose birth time differs. They must
 not report such a destination as a fully reproduced original.
 
-Journals containing native metadata, birth times, raw flags, or attached streams
-are retained even with `--delete-manifest-after`, and after copy-based moves.
+Journals containing native metadata, birth times, raw flags, attached streams,
+or semantic warning/error diagnostics are retained even with
+`--delete-manifest-after`, and after copy-based moves. Warning records also
+require retention. Copy-based move failures retain the journal and report its
+path in the error, including failures during source cleanup. A failure can
+follow successful removal of earlier verified entries; the journal is needed
+to diagnose or recover that partial move.
 The result reports the retained journal path. Keep it with the copy: it holds
 original metadata that the destination alone may not preserve. Journals contain
 potentially sensitive security metadata and stream contents. They do not contain
@@ -178,12 +188,21 @@ payload corruption detection and timestamp comparison. Windows capture does not
 invent POSIX mode, UID, or GID values: those fields remain absent, while native
 attributes and security metadata retain the Windows representation.
 
+Windows sparse capture uses allocated-range queries. Sparse materialization
+uses the native control result and retained attribute, not WINE identity.
+Auditing does not forgive missing holes just because WINE is detected: a volume
+advertising sparse support can still produce a sparse mismatch, even when a
+best-effort materialization returned a warning and correct dense payload.
+Windows change time is captured and can be audited when requested; restoration
+and newer-Windows runtime qualification remain pending.
+
 ### Remaining Windows Gaps
 
-- Native sparse extent capture and auditing are not implemented. Auditing a
-  requested sparse entity or a destination marked sparse fails explicitly.
-- Requested Windows change-time auditing is not implemented. POSIX ownership
-  and permission modes cannot be verified as native Windows metadata.
+- Sparse fidelity and allocation-granularity coverage on different filesystems
+  remain incomplete. POSIX ownership and permission modes cannot be verified
+  as native Windows metadata.
+- Payload-source access-time suppression/restoration and Windows change-time
+  restoration remain unqualified.
 - Descriptor-relative sandboxing and full identity, security, and reparse-case
   parity remain unverified. Dense-file tests do not establish lossless copying
   for every entity type or cross-device move.
@@ -213,6 +232,11 @@ enumerated.
   is not proof against hardware faults; no power-failure injection was performed.
 - POSIX ctime is captured but is not generally assignable. Sparse verification
   checks hole presence, not identical physical allocation. * see below
+- Access-time restoration itself can change Unix ctime. Audit completion does
+  not yet return a semantically retained diagnostic for that side effect.
+  Symlink audit/readback and AppleDouble companion timestamp failures still
+  need retained diagnostics instead of discarded errors. Stream audit reads
+  also remain outside regular-payload handle completion.
 
 ## Validation
 

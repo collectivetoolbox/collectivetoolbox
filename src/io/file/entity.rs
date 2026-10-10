@@ -35,8 +35,6 @@ use crate::sandboxable_dir::SandboxableDir;
 use crate::streams::{AttachedStream, read_and_hash_streams};
 use crate::sys_flags::query_file_flags;
 use filetime::FileTime;
-#[cfg(unix)]
-use filetime::set_symlink_file_times;
 use serde::{Deserialize, Serialize};
 use ctb_formats_dcstring::DcMixedEncode;
 use std::path::{Path, PathBuf};
@@ -956,29 +954,12 @@ impl FileEntity {
         let mut warnings = Vec::new();
         let is_symlink = sym_meta.file_type().is_symlink();
         let symlink_target = if is_symlink {
-            let target = std::fs::read_link(path)
-                .with_context(|| format!("Failed to read symlink target for {}", path.display()))?;
-            // Restore original symlink access and modification timestamps so inspecting the symlink
-            // does not mutate the source filesystem or trigger spurious diffs.
-            let orig_atime = FileTime::from_unix_time(
-                sym_meta.atime(),
-                u32::try_from(sym_meta.atime_nsec())
-                    .context("Failed to convert atime nanoseconds to u32")?,
-            );
-            let orig_mtime = FileTime::from_unix_time(
-                sym_meta.mtime(),
-                u32::try_from(sym_meta.mtime_nsec())
-                    .context("Failed to convert mtime nanoseconds to u32")?,
-            );
-            let after_read = std::fs::symlink_metadata(path)
-                .with_context(|| format!("Failed to query symlink metadata for {}", path.display()))?;
-            if after_read.atime() != orig_atime.unix_seconds()
-                || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds())
-            {
-                if let Err(error) = set_symlink_file_times(path, orig_atime, orig_mtime) {
-                    warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error}; inspection may have changed source metadata", path.display()));
-                }
+            let target_result = std::fs::read_link(path)
+                .with_context(|| format!("Failed to read symlink target for {}", path.display()));
+            if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+                warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
+            let target = target_result?;
             Some(target.as_os_str().as_encoded_bytes().to_vec())
         } else {
             None
@@ -1231,27 +1212,8 @@ impl FileEntity {
 
         #[cfg(unix)]
         if is_symlink {
-            if let Some(ref ts) = metadata.timestamps {
-                let orig_atime = FileTime::from_unix_time(
-                    ts.atime_sec,
-                    ts.atime_nsec,
-                );
-                let orig_mtime = FileTime::from_unix_time(
-                    ts.mtime_sec,
-                    ts.mtime_nsec,
-                );
-                match std::fs::symlink_metadata(path) {
-                    Ok(after_streams) => {
-                        if after_streams.atime() != orig_atime.unix_seconds()
-                            || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
-                        {
-                            if let Err(error) = set_symlink_file_times(path, orig_atime, orig_mtime) {
-                                metadata.push_warning(format!("Failed to restore source symlink timestamps after reading streams on {}: {error}; inspection may have changed source metadata", path.display()));
-                            }
-                        }
-                    }
-                    Err(error) => metadata.push_warning(format!("Failed to check source symlink timestamps after reading streams on {}: {error}; source metadata preservation could not be verified", path.display())),
-                }
+            if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+                metadata.push_warning(format!("Failed to restore source symlink timestamps after reading streams on {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
         }
 
@@ -1932,5 +1894,4 @@ mod tests {
         }
     }
 }
-
 
