@@ -278,6 +278,13 @@ pub trait PayloadSource: Read + Seek + Send {
     fn opened_with_noatime(&self) -> bool {
         false
     }
+
+    /// Completes reading before discarding the source. Returns fidelity warnings
+    /// for retention in semantic metadata; source changes are errors.
+    /// Callers must surface and retain warnings, or reject them in strict mode.
+    fn finish(&mut self) -> Result<Vec<String>> {
+        Ok(Vec::new())
+    }
 }
 
 /// A payload source reading from an on-disk file.
@@ -286,6 +293,7 @@ pub struct DiskPayloadSource {
     file: File,
     size: u64,
     extents: Vec<Extent>,
+    original_metadata: std::fs::Metadata,
     #[cfg(unix)]
     orig_times: Option<(FileTime, FileTime)>,
     opened_with_noatime: bool,
@@ -294,14 +302,23 @@ pub struct DiskPayloadSource {
 #[cfg(unix)]
 impl Drop for DiskPayloadSource {
     fn drop(&mut self) {
-        if let Some((atime, mtime)) = self.orig_times {
-            let _ = filetime::set_file_times(&self.path, atime, mtime);
+        if self.orig_times.is_some() {
+            match self.finish() {
+                Ok(warnings) => {
+                    for warning in warnings {
+                        warn_fmt!("{warning}");
+                    }
+                }
+                Err(error) => warn_fmt!("Payload cleanup failed for {}: {error:#}", self.path.display()),
+            }
         }
     }
 }
 
 impl DiskPayloadSource {
     /// Opens an on-disk file and maps its sparse extents.
+    /// Call `PayloadSource::finish` after reading to observe source changes and
+    /// timestamp-restoration diagnostics. Materialization does this before commit.
     pub fn open(path: &Path) -> Result<Self> {
         #[cfg(target_os = "linux")]
         let (mut file, opened_with_noatime) = {
@@ -353,34 +370,12 @@ impl DiskPayloadSource {
 
         #[cfg(target_os = "linux")]
         let orig_times = if !opened_with_noatime {
-            let atime = FileTime::from_unix_time(
-                meta.atime(),
-                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
-                u32::try_from(meta.atime_nsec()).unwrap_or(0),
-            );
-            let mtime = FileTime::from_unix_time(
-                meta.mtime(),
-                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
-                u32::try_from(meta.mtime_nsec()).unwrap_or(0),
-            );
-            Some((atime, mtime))
+            Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)))
         } else {
             None
         };
         #[cfg(all(unix, not(target_os = "linux")))]
-        let orig_times = {
-            let atime = FileTime::from_unix_time(
-                meta.atime(),
-                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
-                u32::try_from(meta.atime_nsec()).unwrap_or(0),
-            );
-            let mtime = FileTime::from_unix_time(
-                meta.mtime(),
-                // Reason for fallback: Sub-second nanoseconds are 0..1_000_000_000; falling back to 0 on negative timestamps preserves valid second precision.
-                u32::try_from(meta.mtime_nsec()).unwrap_or(0),
-            );
-            Some((atime, mtime))
-        };
+        let orig_times = Some((FileTime::from_last_access_time(&meta), FileTime::from_last_modification_time(&meta)));
 
         #[cfg(not(target_os = "linux"))]
         let opened_with_noatime = false;
@@ -390,6 +385,7 @@ impl DiskPayloadSource {
             file,
             size,
             extents,
+            original_metadata: meta,
             #[cfg(unix)]
             orig_times,
             opened_with_noatime,
@@ -433,6 +429,32 @@ impl PayloadSource for DiskPayloadSource {
 
     fn opened_with_noatime(&self) -> bool {
         self.opened_with_noatime
+    }
+
+    fn finish(&mut self) -> Result<Vec<String>> {
+        let current = self.file.metadata()?;
+        anyhow::ensure!(current.len() == self.original_metadata.len()
+            && current.modified()? == self.original_metadata.modified()?,
+            "Payload source {} changed while reading; refusing timestamp restoration", self.path.display());
+        #[cfg(unix)]
+        let mut warnings = Vec::new();
+        #[cfg(not(unix))]
+        let warnings = Vec::new();
+        #[cfg(unix)]
+        if let Some((atime, _mtime)) = self.orig_times {
+            if FileTime::from_last_access_time(&current) != atime {
+            if let Err(error) = filetime::set_file_handle_times(&self.file, Some(atime), None) {
+                    warnings.push(format!("Failed to restore payload source timestamps for {}: {error}; reading may have changed source metadata", self.path.display()));
+                } else {
+                    let restored = self.file.metadata()?;
+                    if restored.ctime() != current.ctime() || restored.ctime_nsec() != current.ctime_nsec() {
+                        warnings.push(format!("Restoring payload source access time changed the source change time for {}; Unix cannot restore change time", self.path.display()));
+                    }
+                }
+            }
+            self.orig_times = None;
+        }
+        Ok(warnings)
     }
 }
 
@@ -666,6 +688,10 @@ impl<P: PayloadSource> PayloadSource for ProgressStream<P> {
     fn opened_with_noatime(&self) -> bool {
         self.inner().opened_with_noatime()
     }
+
+    fn finish(&mut self) -> Result<Vec<String>> {
+        self.inner_mut().finish()
+    }
 }
 
 pub use crate::block_device_size::query_block_device_size;
@@ -778,6 +804,41 @@ fn read_payload_at<P: PayloadSource + ?Sized>(
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[crate::ctb_test]
+    fn test_disk_payload_completion_rejects_source_change() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("source");
+        std::fs::write(&path, b"original").unwrap();
+        let mut source = DiskPayloadSource::open(&path).unwrap();
+        let changed = filetime::FileTime::from_unix_time(1_234_567, 123_456_700);
+        filetime::set_file_mtime(&path, changed).unwrap();
+        assert!(source.finish().is_err());
+        drop(source);
+        assert_eq!(filetime::FileTime::from_last_modification_time(&std::fs::metadata(&path).unwrap()), changed);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_disk_payload_completion_restores_handle_not_replaced_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("source");
+        let moved = directory.path().join("moved");
+        std::fs::write(&path, b"original").unwrap();
+        let mut source = DiskPayloadSource::open(&path).unwrap();
+        let original_atime = FileTime::from_last_access_time(&source.original_metadata);
+        let original_mtime = FileTime::from_last_modification_time(&source.original_metadata);
+        source.orig_times = Some((original_atime, original_mtime));
+        std::fs::rename(&path, &moved).unwrap();
+        std::fs::write(&path, b"replacement").unwrap();
+        let changed = FileTime::from_unix_time(1_234_567, 123_456_700);
+        filetime::set_file_atime(&moved, changed).unwrap();
+        filetime::set_file_mtime(&path, changed).unwrap();
+        source.finish().unwrap();
+        assert_eq!(FileTime::from_last_access_time(&std::fs::metadata(&moved).unwrap()), original_atime);
+        assert_eq!(FileTime::from_last_modification_time(&std::fs::metadata(&path).unwrap()), changed);
+        source.finish().unwrap();
+    }
 
     #[cfg(unix)]
     #[crate::ctb_test]

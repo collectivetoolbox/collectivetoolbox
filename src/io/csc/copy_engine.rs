@@ -183,16 +183,16 @@ pub fn execute_copy_pipeline(
         progress.message(
             "Notice: Special files (FIFOs, device nodes, sockets) will be skipped by default. Pass --copy-specials-as-specials to preserve them.",
         );
-        let _ = journal.record_warning(
+        journal.record_warning(
             "SpecialFilesSkippedByDefault",
             "Special files (FIFOs, device nodes, sockets) are skipped by default. Pass --copy-specials-as-specials to preserve them.",
-        );
+        )?;
     }
     if args.best_effort_metadata {
-        let _ = journal.record_warning(
+        journal.record_warning(
             "BestEffortMetadata",
             "Best-effort metadata enabled: non-fatal metadata write errors or timestamp precision differences may be tolerated.",
-        );
+        )?;
     }
 
     let mut uncommitted_count: usize = 0;
@@ -962,6 +962,19 @@ fn copy_single_item(
                         error.context("Failed to checksum source payload"), args, journal, stats);
                 }
             };
+            match p_stream.finish() {
+                Ok(warnings) => {
+                    for warning in warnings {
+                        eprintln!("WARNING: {warning}");
+                        journal.record_warning("FileReadWarning", &warning)?;
+                        entity.metadata.push_warning(warning);
+                    }
+                }
+                Err(error) => {
+                    return handle_item_error(src_path, JournalErrorStage::PayloadRead,
+                        error.context("Failed to complete source checksumming"), args, journal, stats);
+                }
+            }
         }
     }
 
@@ -1335,17 +1348,10 @@ fn copy_single_item(
                 stats,
             );
         }
-        eprintln!(
-            "WARNING: Source file {} changed during copy; proceeding best-effort.",
-            src_path.display()
-        );
-        let _ = journal.record_warning(
-            "SourceModifiedDuringCopy",
-            &format!(
-                "Source file {} changed during copy; proceeding best-effort.",
-                src_path.display()
-            ),
-        );
+        let warning = format!("Source file {} changed during copy; proceeding best-effort.", src_path.display());
+        eprintln!("WARNING: {warning}");
+        journal.record_warning("SourceModifiedDuringCopy", &warning)?;
+        entity.metadata.push_warning(warning);
     }
 
     if receipt.skipped_identical {
@@ -3536,9 +3542,32 @@ mod tests {
     }
 
     #[cfg(unix)]
+    fn run_permission_test_unprivileged(test_name: &str) -> bool {
+        use std::os::unix::process::CommandExt;
+        if nix::unistd::geteuid().as_raw() != 0 {
+            return false;
+        }
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg(format!("copy_engine::tests::{test_name}"))
+            .arg("--include-ignored")
+            .arg("--nocapture")
+            .env_remove("CTB_TEST_STORAGE_DIR")
+            .uid(65534)
+            .gid(65534)
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success() && stdout.contains("1 passed"),
+            "Unprivileged permission test failed: {stdout}\n{stderr}");
+        true
+    }
+
+    #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings() {
-        if nix::unistd::geteuid().as_raw() == 0 {
+        if run_permission_test_unprivileged("test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings") {
             return;
         }
         let temp = tempdir().expect("create tempdir");
@@ -3567,7 +3596,7 @@ mod tests {
         let res = res.expect("run_csc with continue_on_error must succeed");
         match res {
             ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
-                assert_eq!(exit_code, 0);
+                assert_ne!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("Errors recorded:"));
             }
@@ -3584,7 +3613,7 @@ mod tests {
         let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
         assert_eq!(snapshot.errors.len(), 1);
         let err = &snapshot.errors[0];
-        assert_eq!(err.stage, crate::journal::JournalErrorStage::PayloadOpen);
+        assert_eq!(err.stage, crate::journal::JournalErrorStage::MetadataRead);
         assert!(err.path.to_string_lossy().contains("unreadable.txt"));
 
         assert!(!snapshot.warnings.is_empty(), "Warnings must be recorded in journal");
@@ -3599,7 +3628,7 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_csc_aborts_and_records_error_without_continue_on_error() {
-        if nix::unistd::geteuid().as_raw() == 0 {
+        if run_permission_test_unprivileged("test_csc_aborts_and_records_error_without_continue_on_error") {
             return;
         }
         let temp = tempdir().expect("create tempdir");
@@ -3627,7 +3656,7 @@ mod tests {
         let journal_path = crate::journal::find_cscjournal(&state);
         let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
         assert_eq!(snapshot.errors.len(), 1);
-        assert_eq!(snapshot.errors[0].stage, crate::journal::JournalErrorStage::PayloadOpen);
+        assert_eq!(snapshot.errors[0].stage, crate::journal::JournalErrorStage::MetadataRead);
 
         let desc_path = journal_path.with_extension("cscdesc");
         let desc_content = fs::read_to_string(&desc_path).expect("read desc");

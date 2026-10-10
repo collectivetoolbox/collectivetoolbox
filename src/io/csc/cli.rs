@@ -253,7 +253,15 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         writeln!(summary, "Status:                   All operations verified successfully.")?;
     }
 
-    Ok(ToolResult::immediate_ok(summary.into_bytes()))
+    if has_errors {
+        Ok(ToolResult::Immediate {
+            stdout: summary.into_bytes(),
+            stderr: Vec::new(),
+            exit_code: 1,
+        })
+    } else {
+        Ok(ToolResult::immediate_ok(summary.into_bytes()))
+    }
 }
 #[cfg(test)]
 #[allow(

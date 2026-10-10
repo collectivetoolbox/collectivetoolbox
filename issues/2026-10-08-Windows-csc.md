@@ -8,6 +8,47 @@ dependencies, not a comprehensive audit of every Windows filesystem feature.
 
 ## Review Follow-Up (2026-10-10)
 
+### Payload Completion Audit
+
+Status: **Partially Implemented**. `PayloadSource::finish` now provides fallible
+completion and retained fidelity warnings. Disk readers check size and mtime
+before restoration, use the open handle rather than the original pathname, and
+restore only atime with an omitted mtime. This prevents replacing-path and
+concurrent-mtime clobbering in this reader. Cleanup failures and the unavoidable
+Unix ctime change caused by atime restoration are returned as fidelity warnings.
+Drop is only a logging safety net, not the completion contract.
+
+Regular and AppleSingle materialization complete the payload before committing
+the destination. Strict mode rejects completion warnings; best-effort receipts
+retain them for existing CSC semantic metadata and journal propagation.
+AppleSingle also rejects short, enlarged, and checksum-mismatched payloads
+instead of committing incomplete or incorrect data forks. CSC's preliminary
+checksum completes its source and surfaces/records cleanup warnings. Source
+change warnings now persist in semantic metadata, and nearby warning journal
+writes propagate failures rather than silently discarding them.
+
+Validation: Linux file 112 and CSC 113 passed, zero ignored, before the last
+CSC warning-persistence edit; four focused completion/AppleSingle regressions
+passed. Affected Linux production Clippy passed before that last edit. FreeBSD
+file 111 passed, zero ignored. FreeBSD CSC validation is running; WINE and
+native Windows reruns are pending. These are bounded tests, not full-workspace
+parity evidence.
+
+#### Remaining Gaps / Pending Work
+
+- The last CSC warning-persistence edit still requires executable validation.
+- Aborted read paths and direct detection/compression readers can still rely on
+  drop-time logging instead of explicit, semantically retained completion.
+- Completion checks size and mtime, not every mutation, inode/path replacement,
+  stream change, or native change-time observation. Comprehensive source
+  stability and change-policy behavior remain pending. The adjacent entity
+  capture path still writes mtime after a metadata check, leaving a race.
+- Best-effort dense-reader extent diagnostics, lower-level fidelity propagation,
+  Windows change-time restoration, modern Windows validation, and full suites
+  on all four platforms remain pending.
+- Existing root-permission and ZFS fixture early returns remain bypasses;
+  zero ignored tests does not establish the requested no-bypass coverage.
+
 ### Capture Audit Continuation
 
 Status: **Partially Implemented**. Unix extent discovery now returns errors for

@@ -631,6 +631,7 @@ pub fn materialize_entity(
                 let initial_size = *size;
                 let mut buf = vec![0_u8; 65536];
                 let mut read_bytes = 0_u64;
+                source.seek(SeekFrom::Start(0))?;
                 while read_bytes < initial_size {
                     let to_read = std::cmp::min(
                         u64::try_from(buf.len())?,
@@ -650,6 +651,17 @@ pub fn materialize_entity(
                     };
                     data_fork.extend_from_slice(read_slice);
                 }
+                anyhow::ensure!(read_bytes == initial_size, "Unexpected EOF in AppleSingle payload for {}", dest_path.display());
+                let mut extra = [0_u8; 1];
+                anyhow::ensure!(source.read(&mut extra)? == 0, "Payload grew during AppleSingle copy of {}", dest_path.display());
+                let mut payload_hasher = Sha256Stream::new();
+                payload_hasher.update(&data_fork);
+                let payload_sha256 = payload_hasher.finalize();
+                anyhow::ensure!(*expected_sha256 == [0_u8; 32] || payload_sha256 == *expected_sha256,
+                    "Payload SHA-256 verification failed during AppleSingle write for {}", dest_path.display());
+                let source_warnings = source.finish()?;
+                anyhow::ensure!(!options.strict_lossless || source_warnings.is_empty(),
+                    "Payload source fidelity failed for {}: {:?}", dest_path.display(), source_warnings);
                 let archive = create_apple_archive_from_entity(
                     entity,
                     AppleFormat::AppleSingle,
@@ -690,7 +702,7 @@ pub fn materialize_entity(
                     _ => Path::new("."),
                 };
                 let temp_path = parent_dir.join(&temp_name);
-                let warnings = apply_entity_metadata(
+                let mut warnings = apply_entity_metadata(
                     &temp_path,
                     Some(&dest_path),
                     &entity.metadata,
@@ -698,6 +710,7 @@ pub fn materialize_entity(
                     false,
                     options.strict_lossless,
                 )?;
+                warnings.extend(source_warnings);
 
                 #[cfg(unix)]
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
@@ -986,6 +999,9 @@ pub fn materialize_entity(
                 anyhow::ensure!(written == initial_size, "Unexpected EOF in payload for {}", dest_path.display());
             }
 
+            let source_warnings = source.finish()?;
+            anyhow::ensure!(!options.strict_lossless || source_warnings.is_empty(),
+                "Payload source fidelity failed for {}: {:?}", dest_path.display(), source_warnings);
             let computed_sha256 = hasher.finalize();
             let is_sentinel = *expected_sha256 == [0_u8; 32];
             if !is_sentinel && computed_sha256 != *expected_sha256 {
@@ -1044,6 +1060,7 @@ pub fn materialize_entity(
                 options.strict_lossless,
             )?;
             warnings.extend(sparse_warnings);
+            warnings.extend(source_warnings);
 
             if options.strict_lossless {
                 let mut expected = entity.clone();
@@ -1923,6 +1940,85 @@ mod tests {
         assert!(res2.is_err());
         let err2_str = res2.unwrap_err().to_string();
         assert!(err2_str.contains("Refusing to materialize inaccessible entity or entity with recorded errors"));
+    }
+
+    #[crate::ctb_test]
+    fn test_payload_completion_before_commit() {
+        struct CompletionPayload {
+            inner: MemoryPayloadSource,
+            fail: bool,
+            completed: bool,
+        }
+        impl Read for CompletionPayload {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                self.inner.read(buffer)
+            }
+        }
+        impl Seek for CompletionPayload {
+            fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> {
+                self.inner.seek(position)
+            }
+        }
+        impl PayloadSource for CompletionPayload {
+            fn total_size(&self) -> u64 { self.inner.total_size() }
+            fn extents(&self) -> &[Extent] { self.inner.extents() }
+            fn finish(&mut self) -> Result<Vec<String>> {
+                self.completed = true;
+                anyhow::ensure!(!self.fail, "Injected source completion failure");
+                Ok(vec!["Injected source timestamp fidelity warning".to_owned()])
+            }
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let target = temp.path().join("payload");
+        let mut entity = FileEntity::from_string("hello");
+        entity.identity.relative_path = Some(PathBuf::from("payload"));
+        for mode in [MaterializeOptions::default().apple_write_mode, AppleWriteMode::ForceAppleSingle] {
+            for (fail, strict) in [(true, false), (false, true), (false, false)] {
+                fs::write(&target, b"existing destination").unwrap();
+                let mut payload = CompletionPayload {
+                    inner: MemoryPayloadSource::new(b"hello".to_vec()).unwrap(),
+                    fail,
+                    completed: false,
+                };
+                let options = MaterializeOptions {
+                    force_overwrite: true,
+                    strict_lossless: strict,
+                    apple_write_mode: mode,
+                    ..MaterializeOptions::default()
+                };
+                let result = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options);
+                assert!(payload.completed);
+                if fail || strict {
+                    assert!(result.is_err());
+                    assert_eq!(fs::read(&target).unwrap(), b"existing destination");
+                } else {
+                    assert!(result.unwrap().warnings.iter().any(|warning| warning.contains("Injected source timestamp")));
+                }
+                assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+            }
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_single_rejects_invalid_payload_before_commit() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let target = temp.path().join("payload");
+        let mut entity = FileEntity::from_string("hello");
+        entity.identity.relative_path = Some(PathBuf::from("payload"));
+        let options = MaterializeOptions {
+            force_overwrite: true,
+            apple_write_mode: AppleWriteMode::ForceAppleSingle,
+            ..MaterializeOptions::default()
+        };
+        for bytes in [b"hell".to_vec(), b"hello!".to_vec(), b"wrong".to_vec()] {
+            fs::write(&target, b"existing destination").unwrap();
+            let mut payload = MemoryPayloadSource::new(bytes).unwrap();
+            assert!(materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).is_err());
+            assert_eq!(fs::read(&target).unwrap(), b"existing destination");
+            assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+        }
     }
 
     #[crate::ctb_test]
