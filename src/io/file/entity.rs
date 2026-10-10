@@ -34,7 +34,7 @@ use crate::payload::{Extent, PayloadSource, get_file_extents};
 use crate::sandboxable_dir::SandboxableDir;
 use crate::streams::{AttachedStream, read_and_hash_streams};
 use crate::sys_flags::query_file_flags;
-use filetime::{FileTime, set_file_times};
+use filetime::FileTime;
 #[cfg(unix)]
 use filetime::set_symlink_file_times;
 use serde::{Deserialize, Serialize};
@@ -43,6 +43,26 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
+
+fn capture_file_extents(
+    result: Result<Vec<Extent>>,
+    size: u64,
+    metadata: &mut FileMetadata,
+) -> Vec<Extent> {
+    match result {
+        Ok(extents) => extents,
+        Err(error) => {
+            metadata.push_warning(format!(
+                "Failed to query file extents: {error:#}; logical bytes are retained as dense data, but sparse layout fidelity is unknown"
+            ));
+            if size == 0 {
+                Vec::new()
+            } else {
+                vec![Extent::Data { offset: 0, length: size }]
+            }
+        }
+    }
+}
 
 /// The concrete filesystem or archive kind of a file entity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
@@ -842,11 +862,7 @@ impl FileEntity {
             let native_sparse = file_attrs & FILE_ATTRIBUTE_SPARSE_FILE != 0;
             let (extents, is_sparse, sha256) = match std::fs::File::open(path) {
                 Ok(mut file) => {
-                    // Reason for fallback: retain logical bytes when native range queries fail, with the fidelity limitation recorded below.
-                    let extents = get_file_extents(&file, size).unwrap_or_else(|e| {
-                        metadata.push_warning(format!("Failed to query file extents: {e}"));
-                        vec![Extent::Data { offset: 0, length: size }]
-                    });
+                    let extents = capture_file_extents(get_file_extents(&file, size), size, &mut metadata);
                     let is_sparse = native_sparse || extents.iter().any(Extent::is_hole);
                     if native_sparse {
                         let has_sub_64k = extents.iter().any(|e| match e {
@@ -937,6 +953,7 @@ impl FileEntity {
 
         let native_metadata = crate::metadata::capture_native_metadata(path, &sym_meta)?;
 
+        let mut warnings = Vec::new();
         let is_symlink = sym_meta.file_type().is_symlink();
         let symlink_target = if is_symlink {
             let target = std::fs::read_link(path)
@@ -958,7 +975,9 @@ impl FileEntity {
             if after_read.atime() != orig_atime.unix_seconds()
                 || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds())
             {
-                let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+                if let Err(error) = set_symlink_file_times(path, orig_atime, orig_mtime) {
+                    warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error}; inspection may have changed source metadata", path.display()));
+                }
             }
             Some(target.as_os_str().as_encoded_bytes().to_vec())
         } else {
@@ -1078,7 +1097,7 @@ impl FileEntity {
             filesystem_type: Some(fs_info.fs_type),
             environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
-            warnings: Vec::new(),
+            warnings,
             errors: Vec::new(),
         };
 
@@ -1140,11 +1159,7 @@ impl FileEntity {
 
             let (extents, is_sparse, sha256) = match open_res {
                 Ok((mut file, opened_with_noatime)) => {
-                    // Reason for fallback: when extent query fails on non-sparse filesystem, fall back to single contiguous data extent covering full size
-                    let extents = get_file_extents(&file, size).unwrap_or_else(|e| {
-                        metadata.push_warning(format!("Failed to query file extents: {e}"));
-                        vec![Extent::Data { offset: 0, length: size }]
-                    });
+                    let extents = capture_file_extents(get_file_extents(&file, size), size, &mut metadata);
                     let is_sparse = extents.iter().any(Extent::is_hole);
 
                     let sha256 = if compute_hash {
@@ -1171,7 +1186,23 @@ impl FileEntity {
                             timestamps.mtime_sec,
                             timestamps.mtime_nsec,
                         );
-                        let _ = set_file_times(path, orig_atime, orig_mtime);
+                        match file.metadata() {
+                            Ok(after_read) => {
+                                if after_read.mtime() != orig_mtime.unix_seconds()
+                                    || after_read.mtime_nsec() != i64::from(orig_mtime.nanoseconds())
+                                    || after_read.len() != size
+                                {
+                                    metadata.push_error(format!("Source changed while reading {}; source timestamps were not overwritten", path.display()));
+                                } else if after_read.atime() != orig_atime.unix_seconds()
+                                    || after_read.atime_nsec() != i64::from(orig_atime.nanoseconds())
+                                {
+                                    if let Err(error) = filetime::set_file_handle_times(&file, Some(orig_atime), Some(orig_mtime)) {
+                                        metadata.push_warning(format!("Failed to restore source timestamps after reading {}: {error}; inspection may have changed source metadata", path.display()));
+                                    }
+                                }
+                            }
+                            Err(error) => metadata.push_warning(format!("Failed to check source timestamps after reading {}: {error}; source metadata preservation could not be verified", path.display())),
+                        }
                     }
 
                     (extents, is_sparse, sha256)
@@ -1209,12 +1240,17 @@ impl FileEntity {
                     ts.mtime_sec,
                     ts.mtime_nsec,
                 );
-                if let Ok(after_streams) = std::fs::symlink_metadata(path) {
-                    if after_streams.atime() != orig_atime.unix_seconds()
-                        || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
-                    {
-                        let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+                match std::fs::symlink_metadata(path) {
+                    Ok(after_streams) => {
+                        if after_streams.atime() != orig_atime.unix_seconds()
+                            || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
+                        {
+                            if let Err(error) = set_symlink_file_times(path, orig_atime, orig_mtime) {
+                                metadata.push_warning(format!("Failed to restore source symlink timestamps after reading streams on {}: {error}; inspection may have changed source metadata", path.display()));
+                            }
+                        }
                     }
+                    Err(error) => metadata.push_warning(format!("Failed to check source symlink timestamps after reading streams on {}: {error}; source metadata preservation could not be verified", path.display())),
                 }
             }
         }
@@ -1564,7 +1600,11 @@ mod tests {
         let path = temp.path().join("file");
         fs::write(&path, b"payload").unwrap();
         xattr::set(&path, "user.metadata", b"opaque bytes\xff").unwrap();
+        let before = fs::symlink_metadata(&path).unwrap();
         let entity = FileEntity::from_filesystem_metadata_only(&path, None).unwrap();
+        let after = fs::symlink_metadata(&path).unwrap();
+        assert_eq!((after.ctime(), after.ctime_nsec()), (before.ctime(), before.ctime_nsec()),
+            "Metadata-only capture must not rewrite unchanged source timestamps");
         assert!(entity.metadata.native.is_some());
         let FileEntityKind::Regular { sha256, extents, .. } = &entity.kind else {
             panic!("Expected a regular file");
@@ -1714,6 +1754,21 @@ mod tests {
 
         ctb_formats_dcstring::assert_dc_roundtrip(&entity)
             .expect("FileEntity with errors/warnings DcMixed roundtrip failed");
+    }
+
+    #[crate::ctb_test]
+    fn test_extent_capture_fallback_retains_semantic_warning() {
+        let mut entity = FileEntity::from_vec(b"payload".to_vec());
+        let error = std::io::Error::from(std::io::ErrorKind::Unsupported);
+        let extents = capture_file_extents(Err(error.into()), 7, &mut entity.metadata);
+        assert_eq!(extents, vec![Extent::Data { offset: 0, length: 7 }]);
+        assert_eq!(entity.metadata.warnings.len(), 1);
+        assert!(entity.metadata.warnings[0].contains("sparse layout fidelity is unknown"));
+        assert!(entity.metadata.errors.is_empty());
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity).unwrap();
+        let count = entity.metadata.warnings.len();
+        assert_eq!(capture_file_extents(Ok(extents.clone()), 7, &mut entity.metadata), extents);
+        assert_eq!(entity.metadata.warnings.len(), count);
     }
 
     #[cfg(windows)]

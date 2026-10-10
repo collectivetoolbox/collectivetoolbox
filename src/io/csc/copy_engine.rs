@@ -934,25 +934,34 @@ fn copy_single_item(
     } = entity.kind
     {
         if *sha256 == [0_u8; 32] {
-            if let Ok(payload) = DiskPayloadSource::open(src_path) {
-                let mut p_stream = ProgressStream::new(
-                    payload,
-                    progress,
-                    copy_task,
-                    stats.files_copied,
-                    stats.bytes_copied,
-                    size,
-                    "Checksumming",
-                );
-                if let Ok(h) = ctb_io::file::payload::hash_payload_stream(
-                    &mut p_stream,
-                    extents,
-                    is_sparse,
-                    src_path,
-                ) {
-                    *sha256 = h;
+            let payload = match DiskPayloadSource::open(src_path) {
+                Ok(payload) => payload,
+                Err(error) => {
+                    return handle_item_error(src_path, JournalErrorStage::PayloadOpen,
+                        error.context("Failed to open source for checksumming"), args, journal, stats);
                 }
-            }
+            };
+            let mut p_stream = ProgressStream::new(
+                payload,
+                progress,
+                copy_task,
+                stats.files_copied,
+                stats.bytes_copied,
+                size,
+                "Checksumming",
+            );
+            *sha256 = match ctb_io::file::payload::hash_payload_stream(
+                &mut p_stream,
+                extents,
+                is_sparse,
+                src_path,
+            ) {
+                Ok(hash) => hash,
+                Err(error) => {
+                    return handle_item_error(src_path, JournalErrorStage::PayloadRead,
+                        error.context("Failed to checksum source payload"), args, journal, stats);
+                }
+            };
         }
     }
 
@@ -1526,6 +1535,7 @@ mod fidelity_tests {
             ).unwrap();
             let mut entity = FileEntity::inaccessible(&source, None, "read failure");
             entity.metadata.push_warning("Native stream enumeration is unsupported");
+            entity.metadata.push_warning("Failed to query file extents: sparse layout fidelity is unknown");
             entity.streams.push(ctb_io::file::AttachedStream::from_data(
                 Some(ctb_io::file::StreamName::from_windows_utf16(&[58, 55296, 58, 36, 68, 65, 84, 65])),
                 ctb_io::file::StreamKind::NtfsAlternateDataStream,
@@ -1549,9 +1559,13 @@ mod fidelity_tests {
             assert!(snapshot.errors[0].error_message.contains("copying source -> destination"));
             assert!(snapshot.errors[0].error_message.contains("WindowsUtf16([58, 55296])"));
             assert!(snapshot.errors[0].error_message.contains(&native_message));
-            assert_eq!(snapshot.warnings.len(), 1);
-            assert_eq!(snapshot.warnings[0].message, entity.metadata.warnings[0]);
+            assert_eq!(snapshot.warnings.len(), entity.metadata.warnings.len());
+            for (recorded, expected) in snapshot.warnings.iter().zip(&entity.metadata.warnings) {
+                assert_eq!(recorded.code, "FileReadWarning");
+                assert_eq!(&recorded.message, expected);
+            }
             let recorded = snapshot.committed_entities.values().next().unwrap();
+            assert_eq!(recorded.metadata.warnings, entity.metadata.warnings);
             assert!(recorded.metadata.errors.iter().any(|message| message.contains("WindowsUtf16([58, 55296])")));
             assert_eq!(recorded.streams[0].name, entity.streams[0].name);
             assert_eq!(recorded.streams[0].kind, entity.streams[0].kind);
@@ -3619,6 +3633,30 @@ mod tests {
         let desc_content = fs::read_to_string(&desc_path).expect("read desc");
         assert!(desc_content.contains("Status: Failed:"), "desc must record Failed status: {desc_content}");
         assert!(desc_content.contains("ErrorsCount: 1"), "desc must record ErrorsCount: 1");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn test_checksum_read_failure_is_journaled_before_commit() {
+        for continue_on_error in [false, true] {
+            let temp = tempdir().unwrap();
+            let source = PathBuf::from("/proc/self/mem");
+            let destination = temp.path().join("destination");
+            let state = temp.path().join("state");
+            fs::create_dir(&state).unwrap();
+            let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
+            args.continue_on_error = continue_on_error;
+            args.allow_unknown_fs = true;
+            let result = run_csc(args);
+            assert_eq!(result.is_ok(), continue_on_error, "Unexpected copy error: {:?}", result.as_ref().err());
+            let snapshot = crate::journal::read_journal_snapshot(&crate::journal::find_cscjournal(&state)).unwrap();
+            assert_eq!(snapshot.errors.len(), 1);
+            assert_eq!(snapshot.errors[0].stage, JournalErrorStage::PayloadRead);
+            assert_eq!(snapshot.errors[0].path, source);
+            assert!(snapshot.errors[0].error_message.contains("Failed to checksum source payload"));
+            assert!(snapshot.committed_entities.values().all(|entity| !entity.is_regular()));
+            assert!(!destination.exists());
+        }
     }
 
     #[crate::ctb_test]

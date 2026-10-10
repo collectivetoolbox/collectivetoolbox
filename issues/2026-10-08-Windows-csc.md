@@ -8,6 +8,70 @@ dependencies, not a comprehensive audit of every Windows filesystem feature.
 
 ## Review Follow-Up (2026-10-10)
 
+### Capture Audit Continuation
+
+Status: **Partially Implemented**. Unix extent discovery now returns errors for
+unsupported or failed queries and invalid/nonadvancing offsets instead of
+returning a log-only dense fallback. Native query failures remain I/O errors so
+CSC can retain numeric OS errors in journal records. Capture retains logical bytes with an
+explicit semantic warning that sparse layout fidelity is unknown; strict
+auditing cannot interpret an uncertain extent map as verified fidelity.
+Deterministic regressions cover failed and valid seek sequences, and the capture
+warning is checked through Dc roundtrip. The journal regression now requires
+multiple native-fidelity warnings in both warning records and committed entities.
+
+Capture also records failed source timestamp restoration and failed post-stream
+symlink timestamp checks. Regular-file capture avoids rewriting unchanged
+timestamps, uses the open file handle for restoration, and refuses to overwrite
+mtime when a concurrent source change is detected on the restoration path.
+Metadata-only capture has a ctime-preservation regression.
+
+CSC's preliminary checksum path now records payload-open and hash failures at
+their existing journal stages instead of silently retaining a zero-digest
+sentinel and proceeding to hardlink/skip decisions. A Linux regression uses
+`/proc/self/mem` to require a real checksum-read failure before any regular-file
+entity or destination is committed under both error policies, without returning
+early for root.
+
+Bounded validation: final Linux file 108 and CSC 113 passed with zero ignored,
+and affected production Clippy passed. Final-source FreeBSD file 107 and the
+updated journal regression passed; its earlier full CSC 110 run predates
+checksum error propagation, then all 45 copy-engine tests passed from final
+source. A subsequent Unix errno-type correction passed both extent regressions
+in FreeBSD and the final Linux suites above. Native Windows 7 and WINE file 91
+passed. WINE CSC 93 passed after
+checksum error propagation. Native Windows 7 CSC 93 passed before checksum
+error propagation, then all 33 copy-engine tests passed from the updated binary.
+Windows production Clippy completed with existing warnings, not a warning-clean
+result. FreeBSD production Clippy is blocked by four
+pre-existing undocumented unsafe blocks in `sys_flags.rs` (1297, 1323, 1360,
+1435). All listed runtime counts have zero ignored tests, but the existing
+early-return fixture bypasses below remain. These results are not full-workspace
+coverage. Both VMs are stopped and no validations remain active. Logs are under
+`/tmp/ctb-audit-*`.
+
+#### Remaining Gaps / Pending Work
+
+- Native Windows and FreeBSD full CSC-suite snapshots predate the final checksum
+  change; all affected copy-engine tests were rerun afterward. Windows snapshots
+  differ from final source only by the subsequent Linux-only failure regression
+  and removal of an unused timestamp import and a Unix-only errno correction,
+  not Windows production behavior. FreeBSD full file/CSC-suite snapshots predate
+  that errno correction; its two affected extent regressions passed afterward.
+- Full-workspace runtime coverage on all four platforms remains pending.
+- Existing CSC permission fixtures return early as root, in addition to the
+  ZFS sparse-negative early return documented below. Zero ignored tests does not
+  prove no-bypass coverage; nonprivileged execution or deterministic fixtures
+  are required.
+- Lower-level payload-reader timestamp restoration in `DiskPayloadSource::drop`
+  still discards errors and can overwrite timestamps; it needs fallible lifetime
+  completion and diagnostic propagation rather than a destructor-only fix.
+- Unsupported extent discovery now fails loudly in direct payload-reader paths;
+  a best-effort dense-reader API carrying retained fidelity diagnostics is pending.
+- Source stability is not comprehensively enforced on every capture path;
+  the noatime, metadata-only, stream, and Windows paths need independent review.
+- The other fidelity gaps below remain pending.
+
 Status: **Partially Implemented**. The recent-commit review identified and
 corrected these bounded deficiencies:
 
@@ -48,9 +112,9 @@ CLI-status follow-up postdates the Linux CSC run.
   destination blocks remain sparse (notably compressed ZFS), bypassing its
   negative sparse assertions. FreeBSD's passing count does not prove this
   scenario was exercised; a deterministic allocation-query fixture is pending.
-- Unix extent discovery still has internally logged dense-fallback diagnostics
-  that do not reach captured semantic metadata. Lower-level stream, flag,
-  security, and directory-sync diagnostic propagation remains incomplete.
+- Unix extent discovery's log-only fallbacks are addressed by the capture audit
+  continuation above. Lower-level stream, flag, security, and directory-sync
+  diagnostic propagation remains incomplete.
 - Sparse auditing still assumes missing sparse support from WINE identity in
   best-effort mode, and granularity handling assumes platform-wide allocation
   limits rather than independently measured destination capabilities.

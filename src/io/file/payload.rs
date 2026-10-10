@@ -90,8 +90,17 @@ use filetime::FileTime;
 use std::os::unix::fs::MetadataExt;
 
 /// Discovers the extent map (data and holes) of a file using `SEEK_DATA` / `SEEK_HOLE`.
+/// Returns an error if discovery is unsupported, fails, or returns invalid offsets.
 #[cfg(unix)]
 pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>> {
+    discover_unix_extents(file_size, |offset, whence| lseek(fd, offset, whence))
+}
+
+#[cfg(unix)]
+fn discover_unix_extents(
+    file_size: u64,
+    mut seek: impl FnMut(i64, Whence) -> nix::Result<i64>,
+) -> Result<Vec<Extent>> {
     if file_size == 0 {
         return Ok(Vec::new());
     }
@@ -104,7 +113,7 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
 
     while current_offset < size_i64 {
         // Query next data offset
-        let next_data = match lseek(fd, current_offset, Whence::SeekData) {
+        let next_data = match seek(current_offset, Whence::SeekData) {
             Ok(off) => off,
             Err(nix::errno::Errno::ENXIO) => {
                 // No more data in file; the rest is a hole
@@ -119,44 +128,17 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
                 }
                 break;
             }
-            Err(e)
-                if current_offset == 0
-                    && (e == nix::errno::Errno::EINVAL
-                        || e == nix::errno::Errno::ENOTTY
-                        || e == nix::errno::Errno::EOPNOTSUPP
-                        || e == nix::errno::Errno::ENOSYS) =>
-            {
-                // Filesystem does not support SEEK_DATA/SEEK_HOLE, treat whole file as data
-                warn_fmt!(
-                    "Caveat: Filesystem does not support SEEK_DATA/SEEK_HOLE ({e}); treating whole file as non-sparse data"
-                );
-                let u_size = u64::try_from(size_i64)?;
-                return Ok(vec![Extent::Data {
-                    offset: 0,
-                    length: u_size,
-                }]);
-            }
             Err(e) => {
-                warn_fmt!(
-                    "Caveat: SEEK_DATA failed at offset {current_offset} ({e}); falling back to non-sparse data for remainder"
-                );
-                let remaining = size_i64.saturating_sub(current_offset);
-                let u_rem = u64::try_from(remaining)?;
-                let u_curr = u64::try_from(current_offset)?;
-                if u_rem > 0 {
-                    extents.push(Extent::Data {
-                        offset: u_curr,
-                        length: u_rem,
-                    });
-                }
-                break;
+                return Err(std::io::Error::from(e)).with_context(|| format!("SEEK_DATA failed at offset {current_offset}; sparse layout could not be determined"));
             }
         };
 
-        let next_data_clamped = next_data.min(size_i64);
-        if next_data_clamped > current_offset {
+        anyhow::ensure!(next_data >= current_offset && next_data < size_i64,
+            "SEEK_DATA returned invalid offset {next_data} from {current_offset} for size {size_i64}");
+
+        if next_data > current_offset {
             // Hole between current_offset and next_data
-            let hole_len = next_data_clamped.saturating_sub(current_offset);
+            let hole_len = next_data.saturating_sub(current_offset);
             let u_hole_len = u64::try_from(hole_len)?;
             let u_curr = u64::try_from(current_offset)?;
             extents.push(Extent::Hole {
@@ -165,42 +147,17 @@ pub fn get_file_extents<Fd: AsFd>(fd: &Fd, file_size: u64) -> Result<Vec<Extent>
             });
         }
 
-        if next_data >= size_i64 {
-            break;
-        }
-
         // Query next hole offset
-        let next_hole = match lseek(fd, next_data, Whence::SeekHole) {
+        let next_hole = match seek(next_data, Whence::SeekHole) {
             Ok(off) => off,
             Err(nix::errno::Errno::ENXIO) => size_i64,
             Err(e) => {
-                warn_fmt!(
-                    "Caveat: SEEK_HOLE failed at offset {next_data} ({e}); falling back to non-sparse data for remainder"
-                );
-                size_i64
+                return Err(std::io::Error::from(e)).with_context(|| format!("SEEK_HOLE failed at offset {next_data}; sparse layout could not be determined"));
             }
         };
-        let end_of_data = if next_hole > size_i64 {
-            size_i64
-        } else {
-            next_hole
-        };
-
-        if end_of_data <= current_offset {
-            warn_fmt!(
-                "Caveat: SEEK_DATA/SEEK_HOLE failed to make forward progress from offset {current_offset}; falling back to non-sparse data for remainder"
-            );
-            let remaining = size_i64.saturating_sub(current_offset);
-            let u_rem = u64::try_from(remaining)?;
-            let u_curr = u64::try_from(current_offset)?;
-            if u_rem > 0 {
-                extents.push(Extent::Data {
-                    offset: u_curr,
-                    length: u_rem,
-                });
-            }
-            break;
-        }
+        anyhow::ensure!(next_hole > next_data && next_hole <= size_i64,
+            "SEEK_HOLE returned invalid offset {next_hole} from {next_data} for size {size_i64}");
+        let end_of_data = next_hole;
 
         let data_len = end_of_data.saturating_sub(next_data);
         let u_data_len = u64::try_from(data_len)?;
@@ -821,6 +778,56 @@ fn read_payload_at<P: PayloadSource + ?Sized>(
 mod tests {
     use super::*;
     use std::io::Read;
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_unix_extent_discovery_rejects_uncertain_maps() {
+        use nix::errno::Errno;
+
+        for responses in [
+            vec![Err(Errno::EINVAL)],
+            vec![Err(Errno::EOPNOTSUPP)],
+            vec![Err(Errno::ENOSYS)],
+            vec![Ok(0), Err(Errno::EIO)],
+            vec![Ok(0), Ok(4), Err(Errno::EIO)],
+            vec![Ok(-1)],
+            vec![Ok(8)],
+            vec![Ok(0), Ok(4), Ok(2)],
+            vec![Ok(2), Ok(2)],
+            vec![Ok(2), Ok(1)],
+            vec![Ok(0), Ok(9)],
+        ] {
+            let mut responses = responses.into_iter();
+            let result = discover_unix_extents(8, |_, _| responses.next().unwrap());
+            assert!(result.is_err(), "Uncertain extent map accepted: {result:?}");
+        }
+        let error = discover_unix_extents(8, |_, _| Err(Errno::EIO)).unwrap_err();
+        assert_eq!(error.downcast_ref::<std::io::Error>().unwrap().raw_os_error(),
+            std::io::Error::from(Errno::EIO).raw_os_error());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_unix_extent_discovery_preserves_complete_maps() {
+        use nix::errno::Errno;
+
+        assert!(discover_unix_extents(0, |_, _| panic!("Empty file must not seek"))
+            .unwrap().is_empty());
+        assert_eq!(discover_unix_extents(8, |_, _| Err(Errno::ENXIO)).unwrap(),
+            vec![Extent::Hole { offset: 0, length: 8 }]);
+        let mut responses = vec![Ok(2), Ok(4), Ok(6), Ok(8)].into_iter();
+        assert_eq!(discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(), vec![
+            Extent::Hole { offset: 0, length: 2 },
+            Extent::Data { offset: 2, length: 2 },
+            Extent::Hole { offset: 4, length: 2 },
+            Extent::Data { offset: 6, length: 2 },
+        ]);
+        let mut responses = vec![Ok(0), Ok(4), Err(Errno::ENXIO)].into_iter();
+        assert_eq!(discover_unix_extents(8, |_, _| responses.next().unwrap()).unwrap(), vec![
+            Extent::Data { offset: 0, length: 4 },
+            Extent::Hole { offset: 4, length: 4 },
+        ]);
+    }
 
     #[crate::ctb_test]
     fn test_reader_payload_source_buffering_and_streaming() {
