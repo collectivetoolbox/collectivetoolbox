@@ -42,6 +42,10 @@ pub use format_info::{
     get_format_info, get_format_info_by_id, infer_decompressed_path,
     strip_format_extension,
 };
+pub mod cli_io;
+pub mod cli_document;
+pub use cli_io::{CliInputSourceArgs, CliOutputDestArgs};
+pub use cli_document::{CliAutoDocumentInputArgs, CliDocumentInputArgs};
 
 #[expect(
     unused_imports,

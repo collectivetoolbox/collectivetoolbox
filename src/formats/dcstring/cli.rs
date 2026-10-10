@@ -32,12 +32,12 @@ use std::path::{Path, PathBuf};
 pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
+pub use ctb_utilities::SupportedDcInputFormat;
+use ctb_formats_utilities::{CliInputSourceArgs, CliOutputDestArgs};
 use crate::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
-    describe_dcal, describe_dclist, describe_graph_id,
-    describe_unicode_with_options,
+    describe_dclist, describe_graph_id,
 };
-use crate::converters::dctext::dctext_to_dclist;
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
     let trimmed = token.trim();
@@ -48,31 +48,7 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
 }
 
 /// Supported input serialization formats for character descriptions.
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum CharacterDescriptionInputFormat {
-    /// Plain UTF-8 text (default)
-    #[default]
-    #[value(name = "utf8", alias = "utf-8")]
-    Utf8,
-    /// Dc ASCII List format (.dcal, space/newline-separated global IDs)
-    #[value(
-        name = "dcal",
-    )]
-    Dcal,
-    /// Short Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
-    #[value(
-        name = "dcil",
-    )]
-    Dcil,
-    /// DcText document format (with @<id>@ tokens)
-    #[value(name = "dctext")]
-    DcText,
-    /// DcText short document format (.dcts, with short Dcs by default)
-    #[value(
-        name = "dcts",
-    )]
-    Dcts,
-}
+pub type CharacterDescriptionInputFormat = SupportedDcInputFormat;
 
 /// Execution arguments for the `character_description` CLI tool.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
@@ -83,9 +59,9 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal, dcil, dctext, or dcts
-    #[arg(long = "from", value_enum, default_value_t = CharacterDescriptionInputFormat::Utf8)]
-    pub from: CharacterDescriptionInputFormat,
+    /// Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmx, sems, or ascii
+    #[arg(long = "from", value_enum, default_value_t = SupportedDcInputFormat::Utf8)]
+    pub from: SupportedDcInputFormat,
 
     /// Input file path (or - for stdin)
     #[arg(short = 'f', long = "file")]
@@ -94,6 +70,10 @@ pub struct CharacterDescriptionArgs {
     /// Output file path (or - for stdout)
     #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
+
+    /// Overwrite existing output file without prompt
+    #[arg(short = 'F', long = "force")]
+    pub force: bool,
 
     /// Specific character, Dc ID, or Global Graph ID (e.g. U+0041, dc:296, 1114408, fmt:80)
     #[arg(short = 'c', long = "codepoint")]
@@ -118,6 +98,26 @@ pub struct CharacterDescriptionArgs {
     /// Disable Unihan readings/meanings in standard description output
     #[arg(long = "no-unihan-readings")]
     pub no_unihan_readings: bool,
+}
+
+impl CharacterDescriptionArgs {
+    /// Adapts the CLI input fields into [`CliInputSourceArgs`].
+    #[must_use]
+    pub fn input_source(&self) -> CliInputSourceArgs {
+        CliInputSourceArgs {
+            input: self.input.clone(),
+            file: self.file.clone(),
+        }
+    }
+
+    /// Adapts the CLI output fields into [`CliOutputDestArgs`].
+    #[must_use]
+    pub fn output_dest(&self) -> CliOutputDestArgs {
+        CliOutputDestArgs {
+            output: self.output.clone(),
+            force: self.force,
+        }
+    }
 }
 
 impl From<&CharacterDescriptionArgs> for DescriptionOptions {
@@ -182,61 +182,21 @@ where
         out.push('\n');
         out
     } else {
-        let input_bytes = if let Some(ref file_path) = args.file {
-            read_data(file_path)?
-        } else if let Some(ref val) = args.input {
-            val.as_bytes().to_vec()
-        } else {
-            read_data(Path::new("-"))?
-        };
-
-        match args.from {
-            CharacterDescriptionInputFormat::Utf8 => {
-                let text = String::from_utf8(input_bytes).with_context(|| {
-                    "Input is not valid UTF-8 text\n\nNOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line."
-                })?;
-                describe_unicode_with_options(&text, options)
-            }
-            CharacterDescriptionInputFormat::Dcal => {
-                let text = String::from_utf8(input_bytes)
-                    .context("Dcal input is not valid UTF-8")?;
-                describe_dcal(&text, options)?
-            }
-            CharacterDescriptionInputFormat::Dcil => {
-                let (dca, _log) = ctb_formats_eite::formats::integer_list::dca_from_integer_list(
-                    &input_bytes,
-                    &ctb_formats_eite::formats::integer_list::IntegerListFormatSettings::default(),
-                )?;
-                let conv = crate::converters::dctext::dcarray_to_dclist(&dca)?;
-                describe_dclist(&conv.result, options)
-            }
-            CharacterDescriptionInputFormat::DcText => {
-                let conv = dctext_to_dclist(&input_bytes)?;
-                describe_dclist(&conv.result, options)
-            }
-            CharacterDescriptionInputFormat::Dcts => {
-                let conv =
-                    crate::converters::dcts::dcts_to_dclist(&input_bytes)?;
-                describe_dclist(&conv.result, options)
-            }
-        }
+        let input_bytes = args.input_source().read_bytes(&read_data)?;
+        let conversion = crate::convert_api::convert_bytes_to_dcmstring(
+            &input_bytes,
+            args.file.as_deref().and_then(|p| p.to_str()),
+            &crate::convert_api::DcConversionOptions {
+                format: crate::convert_api::FormatSpec::Format(args.from),
+                allow_binary_encapsulation: false,
+            },
+        )?;
+        let dc_string = conversion.document.to_dc_string()?;
+        let dclist = dc_string.to_dclist();
+        describe_dclist(&dclist, options)
     };
 
-    if let Some(ref out_path) = args.output {
-        if out_path.as_path() == Path::new("-") {
-            Ok(Some(result.into_bytes()))
-        } else {
-            std::fs::write(out_path, result.as_bytes()).with_context(|| {
-                format!(
-                    "Failed to write output file: {path_display}",
-                    path_display = out_path.display()
-                )
-            })?;
-            Ok(None)
-        }
-    } else {
-        Ok(Some(result.into_bytes()))
-    }
+    args.output_dest().write_or_stdout(result.into_bytes())
 }
 
 #[cfg(test)]

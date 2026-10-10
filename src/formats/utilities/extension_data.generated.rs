@@ -504,6 +504,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("htm"),
     },
     ExtensionEntry {
+        format_id: FormatId::DcText,
+        rule: ExtensionRule::insensitive("dctext"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::DcUtf,
+        rule: ExtensionRule::insensitive("dcutf"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Pdf,
         rule: ExtensionRule::insensitive("pdf"),
     },

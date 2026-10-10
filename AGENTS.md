@@ -99,6 +99,9 @@ The rationale for this is that what's critical to your operator is an honest ass
 - Proposals for new Dcs must be approved by the operator.
 - Dcs represent semantic/ontological entities, never specific encodings or structures. Dc identifiers describe semantic entities, not Rust fields or serialization encodings. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent. Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
 
+- Generated files must have `.generated` in the filename so they are recreated in CI.
+- Any code that includes a list of file formats or similar that is *not* generated from the CSV database is likely a mistake.
+
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
 - Async runtime: tokio; web server: axum; storage: Turso database.

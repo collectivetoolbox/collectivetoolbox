@@ -30,6 +30,8 @@ pub(crate) use ctb_utilities::*;
 pub mod character_description;
 pub mod cli;
 pub mod cli_identifiers;
+pub mod convert_api;
+pub mod convert_stream;
 pub mod converters;
 pub mod dc_char;
 pub mod dc_mixed;
@@ -41,6 +43,15 @@ pub mod dcstring_impl;
 pub mod error;
 pub mod shared;
 
+pub use convert_api::{
+    DcConversionOptions, DcConversionResult, FormatSpec,
+    convert_bytes_to_dcmstring, convert_file_to_dcmstring,
+    detect_supported_dc_format, list_supported_input_formats,
+};
+pub use convert_stream::{
+    StreamConversionReceipt, stream_file_to_dcmwriter,
+    stream_reader_to_dcmwriter,
+};
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
 pub use dc_char::{DcChar, DcCharExt};

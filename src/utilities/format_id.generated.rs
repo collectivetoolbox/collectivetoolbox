@@ -1996,9 +1996,9 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
-            "utf8" => Some(Self::Utf8),
+            "utf8" | "utf-8" | "txt" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
-            "dcintegerlist" | "dc_integer_list" => Some(Self::DcIntegerList),
+            "dcintegerlist" | "dc_integer_list" | "dcil" => Some(Self::DcIntegerList),
             "asciisafesubset" | "ascii_safe_subset" => Some(Self::AsciiSafeSubset),
             "ascii" => Some(Self::Ascii),
             "html" => Some(Self::Html),
@@ -2480,7 +2480,7 @@ impl FormatId {
             "fnv1a_256" => Some(Self::Fnv1a_256),
             "fnv1a_512" => Some(Self::Fnv1a_512),
             "fnv1a_1024" => Some(Self::Fnv1a_1024),
-            "dcmixed" | "dc_mixed" => Some(Self::DcMixed),
+            "dcmixed" | "dc_mixed" | "dcmm" | "dcmstr" => Some(Self::DcMixed),
             "ctbfilemetadatajson" | "ctb_file_metadata_json" => Some(Self::CtbFileMetadataJson),
             "secondssinceepoch" | "seconds_since_epoch" => Some(Self::SecondsSinceEpoch),
             "nssinceepoch" | "ns_since_epoch" => Some(Self::NsSinceEpoch),

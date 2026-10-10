@@ -3611,6 +3611,7 @@ name = "ctb-formats-utilities"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "clap",
  "ctb-formats-dcdata",
  "ctb-utilities",
  "flate2",

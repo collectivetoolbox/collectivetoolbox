@@ -61,6 +61,8 @@ fn parse_support_level(s: &str) -> SupportLevel {
 struct FormatSupportRecord {
     ident: String,
     label: String,
+    extensions: Vec<String>,
+    nicknames: Vec<String>,
     import_support: SupportLevel,
     export_support: SupportLevel,
 }
@@ -82,6 +84,16 @@ fn read_support_records(csv_path: &Path) -> Result<Vec<FormatSupportRecord>> {
 
         let ident = get(2);
         let label = get(3);
+        let extensions: Vec<String> = get(6)
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let nicknames: Vec<String> = get(10)
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         let import_support = parse_support_level(&get(11));
         let export_support = parse_support_level(&get(12));
 
@@ -89,6 +101,8 @@ fn read_support_records(csv_path: &Path) -> Result<Vec<FormatSupportRecord>> {
             records.push(FormatSupportRecord {
                 ident,
                 label,
+                extensions,
+                nicknames,
                 import_support,
                 export_support,
             });
@@ -103,6 +117,8 @@ fn generate_enum_code(
     records: &[&FormatSupportRecord],
     extra_family_mappings: &[(&str, &str)],
     error_name: &str,
+    is_value_enum: bool,
+    default_variant: Option<&str>,
 ) -> String {
     let mut out = String::new();
 
@@ -111,11 +127,48 @@ fn generate_enum_code(
     out.push_str("    non_camel_case_types,\n");
     out.push_str("    reason = \"Variant names align with canonical FormatId identifier naming\"\n");
     out.push_str(")]\n");
-    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n");
+    if is_value_enum {
+        if default_variant.is_some() {
+            out.push_str("#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]\n");
+        } else {
+            out.push_str("#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n");
+        }
+    } else {
+        out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]\n");
+    }
     out.push_str(&format!("pub enum {enum_name} {{\n"));
     for r in records {
         let escaped_label = r.label.replace('`', "");
         out.push_str(&format!("    /// {escaped_label}\n"));
+        if is_value_enum && default_variant == Some(r.ident.as_str()) {
+            out.push_str("    #[default]\n");
+        }
+        if is_value_enum {
+            let mut names: Vec<String> = Vec::new();
+            for nick in &r.nicknames {
+                let n = nick.to_ascii_lowercase();
+                if !names.contains(&n) {
+                    names.push(n);
+                }
+            }
+            let lower_ident = r.ident.to_ascii_lowercase();
+            if !names.contains(&lower_ident) {
+                names.push(lower_ident);
+            }
+            for ext in &r.extensions {
+                let clean = ext.trim_start_matches('.').to_ascii_lowercase();
+                if !clean.is_empty() && !names.contains(&clean) {
+                    names.push(clean);
+                }
+            }
+            if let Some(primary) = names.first() {
+                out.push_str(&format!("    #[value(name = \"{primary}\""));
+                for alias in names.iter().skip(1) {
+                    out.push_str(&format!(", alias = \"{alias}\""));
+                }
+                out.push_str(")]\n");
+            }
+        }
         out.push_str(&format!("    {},\n", r.ident));
     }
     out.push_str("}\n\n");
@@ -134,6 +187,10 @@ fn generate_enum_code(
         out.push_str(&format!("        FormatId::{},\n", r.ident));
     }
     out.push_str("    ];\n\n");
+    if enum_name == "SupportedDcInputFormat" {
+        out.push_str("    /// Backward-compatible alias for [`Self::DcIntegerList`].\n");
+        out.push_str("    pub const Dcil: Self = Self::DcIntegerList;\n\n");
+    }
 
     out.push_str("    /// Maps this variant to the canonical global `FormatId`.\n");
     out.push_str("    #[must_use]\n");
@@ -184,6 +241,11 @@ fn generate_enum_code(
     out.push_str(&format!("impl TryFrom<&str> for {enum_name} {{\n"));
     out.push_str("    type Error = anyhow::Error;\n\n");
     out.push_str(&format!("    fn try_from(s: &str) -> Result<Self, Self::Error> {{\n"));
+    if is_value_enum {
+        out.push_str("        if let Ok(val) = <Self as clap::ValueEnum>::from_str(s, true) {\n");
+        out.push_str("            return Ok(val);\n");
+        out.push_str("        }\n");
+    }
     out.push_str("        let clean = s.trim().to_ascii_lowercase();\n");
     out.push_str("        if let Some(id) = FormatId::from_ident(&clean) {\n");
     out.push_str("            if let Some(fmt) = Self::from_format_id(id) {\n");
@@ -218,6 +280,8 @@ fn generate_enum_code(
 pub fn generate_format_support_code(
     compression_csv: &Path,
     hash_csv: &Path,
+    document_csv: &Path,
+    encoding_csv: &Path,
 ) -> Result<String> {
     ensure!(
         compression_csv.is_file(),
@@ -229,9 +293,21 @@ pub fn generate_format_support_code(
         "Could not locate hash.csv at {}",
         hash_csv.display()
     );
+    ensure!(
+        document_csv.is_file(),
+        "Could not locate document.csv at {}",
+        document_csv.display()
+    );
+    ensure!(
+        encoding_csv.is_file(),
+        "Could not locate encoding.csv at {}",
+        encoding_csv.display()
+    );
 
     let compression_records = read_support_records(compression_csv)?;
     let hash_records = read_support_records(hash_csv)?;
+    let document_records = read_support_records(document_csv)?;
+    let encoding_records = read_support_records(encoding_csv)?;
 
     let decompress_records: Vec<&FormatSupportRecord> = compression_records
         .iter()
@@ -248,6 +324,12 @@ pub fn generate_format_support_code(
         .filter(|r| r.export_support.general >= 2 || r.import_support.general >= 2)
         .collect();
 
+    let dc_input_records: Vec<&FormatSupportRecord> = document_records
+        .iter()
+        .chain(encoding_records.iter())
+        .filter(|r| r.import_support.dc >= 1)
+        .collect();
+
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
     out.push_str("\n//! @generated by ctb-build-support::format_support_codegen from format category data tables.\n");
@@ -261,6 +343,8 @@ pub fn generate_format_support_code(
         &decompress_records,
         &[],
         "decompression format",
+        false,
+        None,
     ));
 
     out.push_str(&generate_enum_code(
@@ -269,6 +353,8 @@ pub fn generate_format_support_code(
         &compress_records,
         &[],
         "compression format",
+        false,
+        None,
     ));
 
     let hash_family_mappings = [
@@ -284,6 +370,18 @@ pub fn generate_format_support_code(
         &hash_supported_records,
         &hash_family_mappings,
         "hash algorithm",
+        false,
+        None,
+    ));
+
+    out.push_str(&generate_enum_code(
+        "SupportedDcInputFormat",
+        "Document and text formats supported for conversion to Document Character String (DcMstring / DcString).",
+        &dc_input_records,
+        &[],
+        "Dc input format",
+        true,
+        Some("Utf8"),
     ));
 
     out.push_str("impl FormatId {\n");
@@ -309,6 +407,14 @@ pub fn generate_format_support_code(
     out.push_str("    /// Returns an error if this format is not a supported hash algorithm.\n");
     out.push_str("    pub fn to_supported_hash_format(self) -> Result<SupportedHashFormat> {\n");
     out.push_str("        SupportedHashFormat::try_from(self)\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Converts this `FormatId` to [`SupportedDcInputFormat`] if supported.\n");
+    out.push_str("    ///\n");
+    out.push_str("    /// # Errors\n");
+    out.push_str("    /// Returns an error if this format is not a supported Dc input format.\n");
+    out.push_str("    pub fn to_supported_dc_input_format(self) -> Result<SupportedDcInputFormat> {\n");
+    out.push_str("        SupportedDcInputFormat::try_from(self)\n");
     out.push_str("    }\n");
     out.push_str("}\n");
 
@@ -337,12 +443,33 @@ pub fn generate_format_support_file(base_dir: &Path) -> Result<bool> {
         .join("categories")
         .join("formats")
         .join("hash.csv");
+    let document_csv = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("data")
+        .join("categories")
+        .join("formats")
+        .join("document.csv");
+    let encoding_csv = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("data")
+        .join("categories")
+        .join("formats")
+        .join("encoding.csv");
 
     let target_file = repo_root
         .join("src")
         .join("utilities")
         .join("format_support.generated.rs");
 
-    let code = generate_format_support_code(&compression_csv, &hash_csv)?;
+    let code = generate_format_support_code(
+        &compression_csv,
+        &hash_csv,
+        &document_csv,
+        &encoding_csv,
+    )?;
     write_if_changed(&target_file, &code)
 }
