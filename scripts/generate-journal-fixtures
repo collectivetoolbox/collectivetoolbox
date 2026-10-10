@@ -1,0 +1,296 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+DEFAULT_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+REPO_URL="https://github.com/collectivetoolbox/collectivetoolbox.git"
+OUTPUT_DIR="$DEFAULT_REPO_ROOT/src/io/csc/fixtures/journals"
+REVISIONS="1,2,3,4"
+USE_LOCAL=false
+
+print_usage() {
+    cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Clones the ctoolbox repository from GitHub (or local repo), checks out the
+last buildable commit before each successive cscjournal / CTBMETA format revision,
+builds ctoolbox, and generates authentic journal test fixtures.
+
+Target Commits (Latest Lifecycle Commits Before Successive Format Changes):
+  - Revision 1 (v1_ctbmeta1): d90071e25 (last buildable commit before CTBMETA2 in 8a1f3786d)
+  - Revision 2 (v2_ctbmeta2): 02070a495 (last buildable commit before CTBMETA3 in 14737998c)
+  - Revision 3 (v3_ctbmeta3): 14737998c (last buildable commit before DcMixed in a48081c47)
+  - Revision 4 (v4_dcmixed) : HEAD (current main development branch)
+
+Options:
+  --repo <URL>          Git repository URL to clone (default: $REPO_URL)
+  --local               Clone from local workspace ($DEFAULT_REPO_ROOT)
+  --output-dir <DIR>    Directory to place generated fixtures (default: $OUTPUT_DIR)
+  --revisions <LIST>    Comma-separated list of revisions to generate: 1,2,3,4 (default: $REVISIONS)
+  -h, --help            Show this help message and exit
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --repo requires a URL argument" >&2
+                exit 1
+            fi
+            REPO_URL="$2"
+            shift 2
+            ;;
+        --local)
+            USE_LOCAL=true
+            REPO_URL="$DEFAULT_REPO_ROOT"
+            shift
+            ;;
+        --output-dir)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --output-dir requires a directory argument" >&2
+                exit 1
+            fi
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --revisions)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --revisions requires a comma-separated list" >&2
+                exit 1
+            fi
+            REVISIONS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            print_usage
+            exit 0
+            ;;
+        *)
+            echo "Error: Unknown argument: $1" >&2
+            print_usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ "$USE_LOCAL" == "true" ]]; then
+    REPO_URL="$DEFAULT_REPO_ROOT"
+fi
+
+mkdir -p "$DEFAULT_REPO_ROOT/target"
+WORK_DIR="$(mktemp -d "$DEFAULT_REPO_ROOT/target/tmp_fixtures_gen.XXXXXX")"
+
+cleanup() {
+    local exit_code=$?
+    if [[ -d "$WORK_DIR" ]]; then
+        echo "[Fixture Gen] Cleaning up temporary workspace: $WORK_DIR"
+        chmod -R u+w "$WORK_DIR" 2>/dev/null || true
+        rm -r "$WORK_DIR"
+    fi
+    exit "$exit_code"
+}
+trap cleanup EXIT INT TERM
+
+CLONE_DIR="$WORK_DIR/ctoolbox"
+STAGING_DIR="$WORK_DIR/staging"
+mkdir -p "$STAGING_DIR"
+mkdir -p "$OUTPUT_DIR"
+
+echo "=== CSC Multi-Revision Journal Fixture Generator ==="
+echo "Repository: $REPO_URL"
+echo "Output:     $OUTPUT_DIR"
+echo "Revisions:  $REVISIONS"
+echo "Work Dir:   $WORK_DIR"
+echo
+
+echo "[1/4] Cloning repository..."
+if [[ "$USE_LOCAL" == "true" || -d "$REPO_URL/.git" ]]; then
+    git clone "$REPO_URL" "$CLONE_DIR"
+else
+    git clone "$REPO_URL" "$CLONE_DIR"
+fi
+
+echo "[2/4] Setting up dependencies and prebuilt resources..."
+# Re-use vendor directory if available locally, otherwise initialize submodule
+if [[ -d "$DEFAULT_REPO_ROOT/vendor/ctb-vendored" ]]; then
+    echo "Reusing vendor packages from local workspace..."
+    if [[ -d "$CLONE_DIR/vendor" ]]; then
+        rm -r "$CLONE_DIR/vendor"
+    fi
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a --exclude 'v86_images' "$DEFAULT_REPO_ROOT/vendor/" "$CLONE_DIR/vendor/"
+        mkdir -p "$CLONE_DIR/vendor/v86_images"
+    else
+        cp -r "$DEFAULT_REPO_ROOT/vendor" "$CLONE_DIR/vendor"
+    fi
+else
+    echo "Updating vendor submodule from remote..."
+    (cd "$CLONE_DIR" && git submodule update --init vendor)
+fi
+
+# Share Cargo target directory to avoid rebuilding identical dependencies from scratch
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$DEFAULT_REPO_ROOT/target/fixture_gen_target}"
+mkdir -p "$CARGO_TARGET_DIR"
+
+# Pre-populate built/ to avoid re-packing multi-gigabyte v86 images
+mkdir -p "$CLONE_DIR/built"
+if [[ -f "$DEFAULT_REPO_ROOT/built/v86_images.rsrc" ]]; then
+    echo "Linking prebuilt v86_images.rsrc..."
+    ln -s "$DEFAULT_REPO_ROOT/built/v86_images.rsrc" "$CLONE_DIR/built/v86_images.rsrc"
+fi
+if [[ -f "$DEFAULT_REPO_ROOT/built/ctoolbox.rsrc" ]]; then
+    echo "Linking prebuilt ctoolbox.rsrc..."
+    ln -s "$DEFAULT_REPO_ROOT/built/ctoolbox.rsrc" "$CLONE_DIR/built/ctoolbox.rsrc"
+fi
+
+copy_safe() {
+    local src="$1"
+    local dst="$2"
+    if [[ -f "$dst" || -L "$dst" ]]; then
+        rm "$dst"
+    fi
+    cp "$src" "$dst"
+}
+
+generate_revision() {
+    local rev_num="$1"
+    local commit_id="$2"
+    local fixture_prefix="$3"
+    local expected_magic="$4"
+    local expected_meta="$5"
+
+    echo
+    echo "----------------------------------------------------------------------"
+    echo "Building Revision $rev_num ($fixture_prefix) from commit $commit_id"
+    echo "----------------------------------------------------------------------"
+
+    (
+        cd "$CLONE_DIR"
+        git checkout "$commit_id"
+
+        # Touch prebuilt resources so Cargo build.rs does not treat them as out of date
+        if [[ -e "$CLONE_DIR/built/v86_images.rsrc" ]]; then
+            touch "$CLONE_DIR/built/v86_images.rsrc"
+        fi
+        if [[ -e "$CLONE_DIR/built/ctoolbox.rsrc" ]]; then
+            touch "$CLONE_DIR/built/ctoolbox.rsrc"
+        fi
+
+        echo "Building ctoolbox binary..."
+        cargo build --bin ctoolbox
+    )
+
+    local target_root="${CARGO_TARGET_DIR:-$CLONE_DIR/target}"
+    local ctb_bin="$target_root/debug/ctoolbox"
+    if [[ ! -x "$ctb_bin" ]]; then
+        echo "Error: ctoolbox binary not found at $ctb_bin" >&2
+        return 1
+    fi
+
+    local run_root="$STAGING_DIR/rev_${rev_num}"
+    if [[ -d "$run_root" ]]; then
+        rm -r "$run_root"
+    fi
+    mkdir -p "$run_root/src/nested"
+    mkdir -p "$run_root/dst"
+
+    echo "Collective Toolbox CSC State Journal Fixture" > "$run_root/src/fixture_info.txt"
+    echo "Format revision: $rev_num ($fixture_prefix)" >> "$run_root/src/fixture_info.txt"
+    echo "Source commit: $commit_id" >> "$run_root/src/fixture_info.txt"
+    printf '\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f' > "$run_root/src/nested/bytes.bin"
+
+    local journal_out="$run_root/${fixture_prefix}.cscjournal"
+    local desc_out="$run_root/${fixture_prefix}.cscdesc"
+
+    echo "Running csc copy engine to produce journal..."
+    "$ctb_bin" csc \
+        --best-effort-metadata \
+        --journal-path "$journal_out" \
+        "$run_root/src" \
+        "$run_root/dst"
+
+    if [[ ! -s "$journal_out" ]]; then
+        echo "Error: Journal file was not produced or is empty: $journal_out" >&2
+        return 1
+    fi
+
+    # Verify header magic
+    local magic
+    magic="$(head -c 8 "$journal_out")"
+    if [[ "$magic" != "$expected_magic" ]]; then
+        echo "Error: Unexpected journal magic: got '$magic', expected '$expected_magic'" >&2
+        return 1
+    fi
+
+    # Verify metadata marker
+    if [[ -n "$expected_meta" ]]; then
+        if ! grep -qa "$expected_meta" "$journal_out"; then
+            echo "Error: Expected metadata marker '$expected_meta' not found in journal" >&2
+            return 1
+        fi
+    fi
+
+    echo "Verified journal: magic '$magic', record marker '$expected_meta'"
+
+    echo "Publishing fixtures to $OUTPUT_DIR..."
+    copy_safe "$journal_out" "$OUTPUT_DIR/${fixture_prefix}.cscjournal"
+    if [[ -f "$desc_out" ]]; then
+        copy_safe "$desc_out" "$OUTPUT_DIR/${fixture_prefix}.cscdesc"
+    fi
+
+    echo "Revision $rev_num ($fixture_prefix) fixture generated successfully."
+}
+
+IFS=',' read -ra REV_ARRAY <<< "$REVISIONS"
+for rev in "${REV_ARRAY[@]}"; do
+    case "$rev" in
+        1)
+            # Revision 1 (v1_ctbmeta1):
+            # Commit d90071e25 is the last buildable commit before CTBMETA2 was introduced in 8a1f3786d.
+            generate_revision 1 "d90071e25" "v1_ctbmeta1" $'CTBCSCJ\x01' "CTBMETA1"
+            ;;
+        2)
+            # Revision 2 (v2_ctbmeta2):
+            # Commit 02070a495 is the last buildable commit before CTBMETA3 was introduced in 14737998c.
+            generate_revision 2 "02070a495" "v2_ctbmeta2" $'CTBCSCJ\x01' "CTBMETA2"
+            ;;
+        3)
+            # Revision 3 (v3_ctbmeta3):
+            # Commit 14737998c is the last buildable commit before DcMixed was introduced in a48081c47.
+            generate_revision 3 "14737998c" "v3_ctbmeta3" $'CTBCSCJ\x01' "CTBMETA3"
+            ;;
+        4)
+            # Revision 4 (v4_dcmixed):
+            # HEAD / main branch using native DcMixed container and ontology Dcs.
+            CURRENT_HEAD="$(git -C "$CLONE_DIR" rev-parse HEAD)"
+            generate_revision 4 "$CURRENT_HEAD" "v4_dcmixed" $'CTBCSCJ\x04' "DcMM"
+            ;;
+        *)
+            echo "Warning: Unknown revision requested: $rev (supported: 1, 2, 3, 4)" >&2
+            ;;
+    esac
+done
+
+echo
+echo "=== All requested CSC journal fixtures generated successfully ==="
+ls -lh "$OUTPUT_DIR"/v[1-4]*
