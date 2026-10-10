@@ -724,7 +724,7 @@ pub fn audit_entity_detailed(
 
     // 5. File Flags
     if !options.ignore_flags
-        && (!cfg!(windows)
+        && (!cfg!(any(windows, target_os = "freebsd", target_os = "dragonfly"))
             || expected.metadata.flags.is_some()
             || expected.metadata.platform_raw_flags.is_some())
     {
@@ -756,7 +756,13 @@ pub fn audit_entity_detailed(
         exp_names.sort();
         act_names.sort();
         if exp_names != act_names {
-            if options.ignore_flags {
+            #[cfg(any(target_os = "freebsd", target_os = "dragonfly"))]
+            let is_default_bsd_uarch = exp_names.is_empty()
+                && act_names.as_slice() == ["uarch"];
+            #[cfg(not(any(target_os = "freebsd", target_os = "dragonfly")))]
+            let is_default_bsd_uarch = false;
+
+            if options.ignore_flags || is_default_bsd_uarch {
                 ignored.flags = ignored.flags.saturating_add(1);
             } else {
                 diffs.push(DiffKind::FlagsMismatch {
@@ -1006,7 +1012,23 @@ pub fn audit_entity_detailed(
                     }
                 };
 
-                if expected_sparse != actual_sparse || (expected_has_holes && !actual_has_holes) {
+                let mut missing_holes = Vec::new();
+                for extent in extents {
+                    if let Extent::Hole { offset, length } = extent {
+                        let is_covered = actual_extents.iter().any(|actual| match actual {
+                            Extent::Hole { offset: a_off, length: a_len } => {
+                                *a_off <= *offset && a_off.saturating_add(*a_len) >= offset.saturating_add(*length)
+                            }
+                            Extent::Data { .. } => false,
+                        });
+                        if !is_covered {
+                            missing_holes.push((*offset, *length));
+                        }
+                    }
+                }
+
+                let sparse_mismatch = expected_sparse != actual_sparse || !missing_holes.is_empty();
+                if sparse_mismatch {
                     let mut tolerate = false;
                     if options.best_effort {
                         let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
@@ -1019,21 +1041,29 @@ pub fn audit_entity_detailed(
                         #[cfg(not(windows))]
                         let fs_supports_sparse = fs_info.supports_sparse() == Some(true);
 
-                        let sub_64k_only = {
+                        let sub_allocation_unit_only = {
                             #[cfg(windows)]
                             {
-                                extents.iter().all(|e| match e {
-                                    Extent::Hole { length, .. } => *length < 65_536,
-                                    Extent::Data { .. } => true,
-                                })
+                                !missing_holes.is_empty()
+                                    && missing_holes.iter().all(|(_, len)| *len < 65_536)
                             }
                             #[cfg(not(windows))]
                             {
-                                false
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::MetadataExt;
+                                    let min_granularity = dest_meta.blksize().max(4096);
+                                    !missing_holes.is_empty()
+                                        && missing_holes.iter().all(|(_, len)| *len < min_granularity)
+                                }
+                                #[cfg(not(unix))]
+                                {
+                                    false
+                                }
                             }
                         };
 
-                        if !fs_supports_sparse || sub_64k_only {
+                        if !fs_supports_sparse || sub_allocation_unit_only {
                             tolerate = true;
                         }
                     }

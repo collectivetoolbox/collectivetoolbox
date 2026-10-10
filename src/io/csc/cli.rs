@@ -156,6 +156,8 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     let desc_path = journal.desc_path().to_path_buf();
     let error_count = journal.errors().len();
     let warning_count = journal.warnings().len();
+    let errors = journal.errors().to_vec();
+    let warnings = journal.warnings().to_vec();
     drop(journal);
 
     let has_errors = error_count > 0 || stats.files_failed > 0;
@@ -177,6 +179,17 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let elapsed = start_time.elapsed().as_secs_f64();
 
+    let mut sub_64k_sparse_caveats = 0_usize;
+    let mut wine_sparse_limitations = 0_usize;
+    for w in &warnings {
+        if w.message.contains("64KB") || w.message.contains("sub-64KB") || w.message.contains("sparse allocation unit") {
+            sub_64k_sparse_caveats = sub_64k_sparse_caveats.saturating_add(1);
+        }
+        if (w.message.contains("WINE") && w.message.contains("sparse")) || w.message.contains("does not support sparse") {
+            wine_sparse_limitations = wine_sparse_limitations.saturating_add(1);
+        }
+    }
+
     // 3. Format result summary
     let mut summary = String::new();
     use std::fmt::Write;
@@ -185,8 +198,23 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         writeln!(summary, "Original metadata journal: {}", journal_path.display())?;
     }
     writeln!(summary, "Files copied:             {}", stats.files_copied)?;
-    if stats.files_failed > 0 {
-        writeln!(summary, "Files failed (skipped):   {}", stats.files_failed)?;
+    if stats.files_failed > 0 || !errors.is_empty() {
+        // Reason for fallback: on 32-bit platforms if files_failed overflows usize, falling back to zero preserves errors.len() as lower bound
+        let total_errors = errors.len().max(usize::try_from(stats.files_failed).unwrap_or(0));
+        writeln!(summary, "Files failed (skipped):   {total_errors}")?;
+        writeln!(summary, "Errors recorded:          {total_errors}")?;
+        if args.continue_on_error {
+            writeln!(summary, "\n--- Continue-on-Error Diagnostics ---")?;
+            for err in &errors {
+                writeln!(
+                    summary,
+                    "  [Error] {:?} on {}: {}",
+                    err.stage,
+                    err.path.display(),
+                    err.error_message
+                )?;
+            }
+        }
     }
     if stats.files_skipped_identical > 0 {
         writeln!(
@@ -220,6 +248,18 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     }
     if warning_count > 0 {
         writeln!(summary, "Warnings recorded:        {warning_count}")?;
+    }
+    if sub_64k_sparse_caveats > 0 {
+        writeln!(
+            summary,
+            "Sparse allocation caveats: {sub_64k_sparse_caveats} item(s) have sub-64KB holes retained as physical clusters (NTFS 64KB sparse allocation unit constraint)."
+        )?;
+    }
+    if wine_sparse_limitations > 0 {
+        writeln!(
+            summary,
+            "WINE sparse limitations:   {wine_sparse_limitations} item(s) materialized densely (WINE does not support sparse allocation)."
+        )?;
     }
     if args.should_verify_after() {
         writeln!(summary, "Files verified:           {}", stats.files_verified)?;
@@ -416,6 +456,39 @@ mod tests {
         let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
         assert!(snapshot.committed_entities.values().any(|entity| entity.metadata.native.is_some()));
         assert!(journal.with_extension("cscdesc").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_cli_summary_diagnostics() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_diag");
+        let dest = temp.path().join("dest_diag");
+        let state = temp.path().join("state_diag");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state dir");
+
+        fs::write(src.join("test.txt"), b"Hello diagnostics").expect("write test.txt");
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        args.continue_on_error = true;
+
+        let res = run_csc(args).expect("run csc with continue_on_error");
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("--- CSC Summary ---"));
+                assert!(out.contains("Files copied:             1"));
+                assert!(out.contains("All operations verified successfully."));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
     }
 }
 

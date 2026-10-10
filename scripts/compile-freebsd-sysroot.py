@@ -160,23 +160,26 @@ for soname, link_name, src_target in libraries:
     version_map = os.path.join(lib_dir, f'{soname}.map')
     if soname == 'libc.so.7':
         compat_h = os.path.join(src, 'lib/libc/include/compat.h')
+        # In FreeBSD 12+, ino64 symbols (stat, fstat, lstat, fstatat, etc.) were upgraded
+        # to FBSD_1.5. compat.h defines legacy FBSD_1.0/FBSD_1.1 compat aliases for old
+        # binaries; the active modern ABI symbols must be exported under FBSD_1.5 so
+        # dynamic linking targets the modern struct stat (with 64-bit dev/ino/nlink).
+        ino64_syms = [
+            'fstat', 'stat', 'lstat', 'fstatat', 'readdir', 'mknod', 'mknodat',
+            'glob', 'globfree', 'kevent', 'statfs', 'fstatfs', 'getfsstat',
+            'fhstat', 'fhstatfs', 'getdents', 'getdirentries',
+        ]
         version_syms = {
             'FBSD_1.0': [
-                'fstat', 'stat', 'lstat', 'readdir', 'mknod', 'rand', 'srand',
-                'glob', 'globfree', 'wait4', 'kevent', 'qsort_r', 'statfs',
-                'fstatfs', 'getmntinfo',
+                'rand', 'srand', 'wait4', 'qsort_r', 'getmntinfo',
             ],
-            'FBSD_1.1': ['fstatat', 'mknodat'],
-            'FBSD_1.5': ['readdir_r'],
+            'FBSD_1.5': [
+                'readdir_r',
+            ] + ino64_syms,
         }
         compat_lic = ''
         if os.path.exists(compat_h):
-            with open(compat_h) as fp:
-                compat_txt = fp.read()
             compat_lic = extract_license_block(compat_h)
-            for m in re.finditer(r'__sym_compat\s*\(\s*([a-zA-Z0-9_]+),\s*[a-zA-Z0-9_]+,\s*([a-zA-Z0-9_.]+)\)', compat_txt):
-                sym, ver = m.group(1), m.group(2)
-                version_syms.setdefault(ver, []).append(sym)
 
         with open(version_map, 'w') as fp:
             prev_ver = None

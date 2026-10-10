@@ -1300,9 +1300,10 @@ fn copy_single_item(
 
     #[cfg(unix)]
     let changed = captured_mtime.is_some_and(|m| after_meta.mtime() != m)
-        || captured_ctime.is_some_and(|c| after_meta.ctime() != c)
         || entity.metadata.timestamps.as_ref().is_some_and(|ts| after_meta.mtime_nsec() != i64::from(ts.mtime_nsec))
-        || (memory_payload_data.is_none() && after_meta.len() != initial_size);
+        || (memory_payload_data.is_none() && after_meta.len() != initial_size)
+        || (!cfg!(any(target_os = "freebsd", target_os = "dragonfly"))
+            && captured_ctime.is_some_and(|c| after_meta.ctime() != c));
     #[cfg(not(unix))]
     let changed = (memory_payload_data.is_none() && after_meta.len() != initial_size)
         || entity.metadata.timestamps.as_ref().is_some_and(|ts| {

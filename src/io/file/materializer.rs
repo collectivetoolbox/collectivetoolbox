@@ -277,8 +277,8 @@ pub fn apply_entity_metadata(
     )?;
 
     // 4. File flags
-    let has_flags = meta.flags.as_ref().is_some_and(|f| !f.is_empty());
-    if apply_flags && (has_flags || meta.platform_raw_flags.is_some()) {
+    let has_flags = meta.flags.is_some() || meta.platform_raw_flags.is_some();
+    if apply_flags && has_flags {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
         apply_file_flags(
             dest,
@@ -853,7 +853,7 @@ pub fn materialize_entity(
                         );
                     }
                     sparse_warnings.push(format!(
-                        "Destination filesystem does not support sparse files for {}",
+                        "Destination filesystem does not support sparse files (WINE environment limitation) for {}",
                         dest_path.display()
                     ));
                     can_use_sparse = false;
@@ -953,6 +953,10 @@ pub fn materialize_entity(
                                 }
                                 sparse_warnings.push(format!(
                                     "Failed to punch sparse hole at offset {offset}: {err}"
+                                ));
+                            } else if *length < 65_536 {
+                                sparse_warnings.push(format!(
+                                    "Windows NTFS sparse files allocate at 64KB granularity; sub-64KB hole at offset {offset} (length {length}) cannot be physically deallocated on restoration"
                                 ));
                             }
                         }
@@ -1077,10 +1081,8 @@ pub fn materialize_entity(
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Deferred immutability: apply flags as the very last step!
-            let has_flags = entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty());
-            if has_flags
-                || entity.metadata.platform_raw_flags.is_some()
-            {
+            let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
+            if has_flags {
                 let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
                 apply_file_flags(
                     &dest_path,
@@ -1407,9 +1409,8 @@ fn try_update_existing_regular_entity(
     )?;
 
     // 10. Apply final file flags
-    let has_flags = entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty());
+    let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
     if has_flags
-        || entity.metadata.platform_raw_flags.is_some()
         || !dest_flags.is_empty()
         || dest_raw.is_some()
     {
@@ -1929,20 +1930,20 @@ mod tests {
         let file_name = "test_sparse.bin";
         let dest_path = temp.path().join(file_name);
 
-        let total_size = 327_680_u64; // 5 * 64KB
+        let total_size = 655_360_u64; // 5 * 128KB
         let extents = vec![
-            Extent::Hole { offset: 0, length: 65_536 },
-            Extent::Data { offset: 65_536, length: 65_536 },
-            Extent::Hole { offset: 131_072, length: 65_536 },
-            Extent::Data { offset: 196_608, length: 65_536 },
-            Extent::Hole { offset: 262_144, length: 65_536 },
+            Extent::Hole { offset: 0, length: 131_072 },
+            Extent::Data { offset: 131_072, length: 131_072 },
+            Extent::Hole { offset: 262_144, length: 131_072 },
+            Extent::Data { offset: 393_216, length: 131_072 },
+            Extent::Hole { offset: 524_288, length: 131_072 },
         ];
 
         let mut payload_bytes = vec![0_u8; usize::try_from(total_size).unwrap()];
-        if let Some(slice1) = payload_bytes.get_mut(65_536..131_072) {
+        if let Some(slice1) = payload_bytes.get_mut(131_072..262_144) {
             slice1.fill(0xAA);
         }
-        if let Some(slice2) = payload_bytes.get_mut(196_608..262_144) {
+        if let Some(slice2) = payload_bytes.get_mut(393_216..524_288) {
             slice2.fill(0xBB);
         }
 
@@ -2018,6 +2019,90 @@ mod tests {
             let file = std::fs::File::open(&dest_path).unwrap();
             let actual_extents = crate::payload::get_file_extents(&file, total_size).unwrap();
             assert_eq!(actual_extents, extents);
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_sub_64k_sparse_allocation_granularity() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let file_name = "test_sub_64k_sparse.bin";
+        let dest_path = temp.path().join(file_name);
+
+        let total_size = 32_768_u64; // 32KB
+        let extents = vec![
+            Extent::Hole { offset: 0, length: 16_384 },
+            Extent::Data { offset: 16_384, length: 16_384 },
+        ];
+
+        let mut payload_bytes = vec![0_u8; usize::try_from(total_size).unwrap()];
+        if let Some(slice) = payload_bytes.get_mut(16_384..32_768) {
+            slice.fill(0xCC);
+        }
+
+        let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+        hasher.update(&payload_bytes);
+        let sha256 = hasher.finalize();
+
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from(file_name)),
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: total_size,
+                sha256,
+                is_sparse: true,
+                extents: extents.clone(),
+            },
+            metadata: FileMetadata::default(),
+            streams: Vec::new(),
+        };
+
+        // Materialize in best-effort mode
+        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let options = MaterializeOptions {
+            strict_lossless: false,
+            ..MaterializeOptions::default()
+        };
+        let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+        assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
+
+        #[cfg(windows)]
+        {
+            if !ctb_io_environment::is_wine() {
+                // On native Windows NTFS, sub-64KB hole warning is recorded
+                assert!(receipt.warnings.iter().any(|w| w.contains("sub-64KB hole") || w.contains("64KB granularity")));
+            }
+        }
+
+        // Auditing with best_effort: true tolerates sub-64KB holes / missing sparse support
+        let audit_opts_be = EntityAuditOptions {
+            best_effort: true,
+            check_sparse: true,
+            ..EntityAuditOptions::default()
+        };
+        let (diffs, ignored) = audit_entity_detailed(&dest_path, &entity, &audit_opts_be).unwrap();
+        assert!(diffs.is_empty(), "Best effort audit must pass: {diffs:?}");
+
+        #[cfg(windows)]
+        {
+            // On Windows (both native NTFS and WINE), sub-64KB hole cannot be deallocated, so sparseness is ignored
+            assert_eq!(ignored.sparseness, 1);
+
+            if !ctb_io_environment::is_wine() {
+                // In strict mode on native Windows NTFS, sub-64KB hole causes verification mismatch
+                let audit_opts_strict = EntityAuditOptions {
+                    best_effort: false,
+                    check_sparse: true,
+                    ..EntityAuditOptions::default()
+                };
+                let (strict_diffs, _) = audit_entity_detailed(&dest_path, &entity, &audit_opts_strict).unwrap();
+                assert!(!strict_diffs.is_empty(), "Strict audit must detect un-deallocated sub-64KB hole");
+            }
         }
     }
 }

@@ -184,45 +184,74 @@ const HOST_WORKSPACE_ROOT: &str = env!("CTB_HOST_WORKSPACE_ROOT");
 const DEFAULT_WIN_TEST_ROOT: &str = env!("CTB_WIN_TEST_ROOT");
 
 fn resolve_manifest_fixture_dir(manifest_dir: &str) -> PathBuf {
-    #[cfg(windows)]
-    {
-        if let Some(rel) = manifest_dir.strip_prefix(HOST_WORKSPACE_ROOT) {
-            let clean_rel = rel.trim_start_matches(['/', '\\']);
-            let win_root = std::env::var("CTB_WIN_TEST_ROOT")
-                .ok()
-                .filter(|s| !s.is_empty())
-                .map(PathBuf::from)
-                .or_else(|| {
-                    if !DEFAULT_WIN_TEST_ROOT.is_empty() {
-                        Some(PathBuf::from(DEFAULT_WIN_TEST_ROOT))
-                    } else if let Ok(exe) = std::env::current_exe() {
-                        let mut root = None;
-                        let mut cur = exe.as_path();
-                        while let Some(parent) = cur.parent() {
-                            if parent.join(".ctoolbox_workspace_root").is_file() {
-                                root = Some(parent.to_path_buf());
-                                break;
-                            }
-                            cur = parent;
+    let p = PathBuf::from(manifest_dir);
+    if p.is_dir() {
+        return p;
+    }
+    if let Some(rel) = manifest_dir.strip_prefix(HOST_WORKSPACE_ROOT) {
+        let clean_rel = rel.trim_start_matches(['/', '\\']);
+        #[cfg(windows)]
+        let alt_root = std::env::var("CTB_WIN_TEST_ROOT")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .or_else(|| {
+                if !DEFAULT_WIN_TEST_ROOT.is_empty() {
+                    Some(PathBuf::from(DEFAULT_WIN_TEST_ROOT))
+                } else if let Ok(exe) = std::env::current_exe() {
+                    let mut root = None;
+                    let mut cur = exe.as_path();
+                    while let Some(parent) = cur.parent() {
+                        if parent.join(".ctoolbox_workspace_root").is_file() {
+                            root = Some(parent.to_path_buf());
+                            break;
                         }
-                        root
+                        cur = parent;
+                    }
+                    root
+                } else {
+                    None
+                }
+            });
+        #[cfg(not(windows))]
+        let alt_root = {
+            if let Ok(exe) = std::env::current_exe() {
+                let mut root = None;
+                let mut cur = exe.as_path();
+                while let Some(parent) = cur.parent() {
+                    if parent.join(".ctoolbox_workspace_root").is_file() {
+                        root = Some(parent.to_path_buf());
+                        break;
+                    }
+                    cur = parent;
+                }
+                root.or_else(|| {
+                    if std::path::Path::new("/mnt/.ctoolbox_workspace_root").is_file() {
+                        Some(PathBuf::from("/mnt"))
                     } else {
                         None
                     }
-                });
-            if let Some(mut normalized) = win_root {
-                for comp in std::path::Path::new(clean_rel).components() {
-                    match comp {
-                        std::path::Component::CurDir => {}
-                        std::path::Component::ParentDir => {
-                            normalized.pop();
-                        }
-                        std::path::Component::Normal(c) => {
-                            normalized.push(c);
-                        }
-                        _ => {}
+                })
+            } else if std::path::Path::new("/mnt/.ctoolbox_workspace_root").is_file() {
+                Some(PathBuf::from("/mnt"))
+            } else {
+                None
+            }
+        };
+        if let Some(mut normalized) = alt_root {
+            for comp in std::path::Path::new(clean_rel).components() {
+                match comp {
+                    std::path::Component::CurDir => {}
+                    std::path::Component::ParentDir => {
+                        normalized.pop();
                     }
+                    std::path::Component::Normal(c) => {
+                        normalized.push(c);
+                    }
+                    _ => {}
                 }
+            }
+            if normalized.is_dir() {
                 return normalized;
             }
         }

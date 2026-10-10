@@ -1466,6 +1466,15 @@ mod tests {
         drop(df);
         filetime::set_file_times(&dest_file_path, orig_atime, orig_mtime).expect("restore file times");
 
+        let file = fs::File::open(&dest_file_path).expect("open dest");
+        let actual_extents = ctb_io::file::payload::get_file_extents(&file, 1024 * 1024 + 4).expect("get extents");
+        let still_sparse = actual_extents.iter().any(|e| matches!(e, ctb_io::file::Extent::Hole { .. }));
+        if still_sparse {
+            // On filesystems like ZFS that automatically detect zero blocks and retain sparse holes,
+            // writing zeroes does not physically de-sparsify the file.
+            return;
+        }
+
         let meta = fs::metadata(&dest).expect("read dest metadata");
         let Some(dev_id) = extract_device_id(&meta) else {
             return;

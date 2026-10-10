@@ -391,7 +391,7 @@ mod tests {
         fs::create_dir(&destination).unwrap();
         fs::write(source.join("new-data"), b"not copied").unwrap();
         let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
-        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, true).unwrap();
+        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, false).unwrap();
         let entries = vec![(source.clone(), destination, entity)];
         assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
         assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");

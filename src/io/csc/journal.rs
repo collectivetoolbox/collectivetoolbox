@@ -1909,7 +1909,7 @@ mod tests {
     /// - Revision 4 (DcMixed): Commit `HEAD` / `main` (CTBCSCJ\x04 with DcMM)
     #[crate::ctb_test]
     fn test_all_journal_revision_fixtures() -> Result<()> {
-        let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/journals");
+        let fixtures_dir = ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals");
 
         let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1.cscjournal"))?;
         let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2.cscjournal"))?;
@@ -1927,7 +1927,9 @@ mod tests {
             assert!(!snap.committed_entities.is_empty(), "{rev_name} must have entities");
             assert!(
                 snap.committed_entities.contains_key(b"src/fixture_info.txt".as_slice())
-                    || snap.committed_entities.contains_key(b"src/main.rs".as_slice()),
+                    || snap.committed_entities.contains_key(b"src\\fixture_info.txt".as_slice())
+                    || snap.committed_entities.contains_key(b"src/main.rs".as_slice())
+                    || snap.committed_entities.contains_key(b"src\\main.rs".as_slice()),
                 "{rev_name} must contain payload files"
             );
         }
