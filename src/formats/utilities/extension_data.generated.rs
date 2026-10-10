@@ -448,6 +448,22 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("redb"),
     },
     ExtensionEntry {
+        format_id: FormatId::CscJournal1Meta1,
+        rule: ExtensionRule::insensitive("cscjournal"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CscJournal1Meta2,
+        rule: ExtensionRule::insensitive("cscjournal"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CscJournal1Meta3,
+        rule: ExtensionRule::insensitive("cscjournal"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CscJournal4,
+        rule: ExtensionRule::insensitive("cscjournal"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Videoterminal,
         rule: ExtensionRule::insensitive("txt"),
     },

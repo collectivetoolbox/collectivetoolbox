@@ -81,6 +81,14 @@ pub enum FormatCategory {
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FormatId {
+    /// Collective Toolbox csc journal, \"CTBMETA1\" version (Short 0, Category: database)
+    CscJournal1Meta1,
+    /// Collective Toolbox csc journal, \"CTBMETA2\" version (Short 0, Category: database)
+    CscJournal1Meta2,
+    /// Collective Toolbox csc journal, \"CTBMETA3\" version (Short 0, Category: database)
+    CscJournal1Meta3,
+    /// Collective Toolbox csc journal, version 4 (Short 0, Category: database)
+    CscJournal4,
     /// UTF-8 (Short 0, Category: encoding)
     Utf8,
     /// Internal: Short Dc Array (Short 1, Category: semantic)
@@ -1463,7 +1471,11 @@ impl FormatId {
             | Self::CtbAssetBundleV3
             | Self::CtbAssetBundleV4
             | Self::CtbFileMetadataJson => FormatCategory::Container,
-            Self::Csv
+            Self::CscJournal1Meta1
+            | Self::CscJournal1Meta2
+            | Self::CscJournal1Meta3
+            | Self::CscJournal4
+            | Self::Csv
             | Self::Tsv
             | Self::Ssv
             | Self::Multipart
@@ -1984,6 +1996,10 @@ impl FormatId {
     pub fn from_ident(ident: &str) -> Option<Self> {
         let trimmed = ident.trim();
         match trimmed.to_ascii_lowercase().as_str() {
+            "cscjournal1meta1" | "csc_journal1_meta1" => Some(Self::CscJournal1Meta1),
+            "cscjournal1meta2" | "csc_journal1_meta2" => Some(Self::CscJournal1Meta2),
+            "cscjournal1meta3" | "csc_journal1_meta3" => Some(Self::CscJournal1Meta3),
+            "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
             "utf8" => Some(Self::Utf8),
             "dcarray" | "dc_array" => Some(Self::DcArray),
             "dcintegerlist" | "dc_integer_list" => Some(Self::DcIntegerList),
@@ -2621,6 +2637,10 @@ impl FormatId {
     #[must_use]
     pub const fn ident(&self) -> &'static str {
         match self {
+            Self::CscJournal1Meta1 => "CscJournal1Meta1",
+            Self::CscJournal1Meta2 => "CscJournal1Meta2",
+            Self::CscJournal1Meta3 => "CscJournal1Meta3",
+            Self::CscJournal4 => "CscJournal4",
             Self::Utf8 => "Utf8",
             Self::DcArray => "DcArray",
             Self::DcIntegerList => "DcIntegerList",
@@ -3285,6 +3305,11 @@ impl FormatId {
     #[must_use]
     pub const fn implies(&self) -> &'static [Self] {
         match self {
+            Self::CscJournal1Meta1 => &[Self::CscJournal],
+            Self::CscJournal1Meta2 => &[Self::CscJournal],
+            Self::CscJournal1Meta3 => &[Self::CscJournal],
+            Self::CscJournal4 => &[Self::CscJournal],
+            Self::Utf8 => &[Self::CscJournal],
             Self::Vt100 => &[Self::Videoterminal],
             Self::Lang_En_Us => &[Self::Lang_En],
             Self::Lang_En_Gb => &[Self::Lang_En],
@@ -3437,6 +3462,10 @@ impl FormatId {
     #[must_use]
     pub const fn shorthand(&self) -> &'static str {
         match self {
+            Self::CscJournal1Meta1 => "f0",
+            Self::CscJournal1Meta2 => "f0",
+            Self::CscJournal1Meta3 => "f0",
+            Self::CscJournal4 => "f0",
             Self::Utf8 => "f0",
             Self::DcArray => "f1",
             Self::DcIntegerList => "f2",
@@ -4074,6 +4103,10 @@ impl FormatId {
     pub fn from_shorthand(shorthand: &str) -> Option<Self> {
         let trimmed = shorthand.trim();
         match trimmed {
+            "f0" => Some(Self::CscJournal1Meta1),
+            "f0" => Some(Self::CscJournal1Meta2),
+            "f0" => Some(Self::CscJournal1Meta3),
+            "f0" => Some(Self::CscJournal4),
             "f0" => Some(Self::Utf8),
             "f1" => Some(Self::DcArray),
             "f2" => Some(Self::DcIntegerList),
@@ -4711,6 +4744,10 @@ impl FormatId {
     #[must_use]
     pub const fn dc_id(&self) -> Option<u128> {
         match self {
+            Self::CscJournal1Meta1 => Some(2228224_u128),
+            Self::CscJournal1Meta2 => Some(2228224_u128),
+            Self::CscJournal1Meta3 => Some(2228224_u128),
+            Self::CscJournal4 => Some(2228224_u128),
             Self::Utf8 => Some(2228224_u128),
             Self::DcArray => Some(2228225_u128),
             Self::DcIntegerList => Some(2228226_u128),
@@ -5360,6 +5397,10 @@ impl FormatId {
     #[must_use]
     pub const fn from_dc_id(id: u128) -> Option<Self> {
         match id {
+            2228224_u128 => Some(Self::CscJournal1Meta1),
+            2228224_u128 => Some(Self::CscJournal1Meta2),
+            2228224_u128 => Some(Self::CscJournal1Meta3),
+            2228224_u128 => Some(Self::CscJournal4),
             2228224_u128 => Some(Self::Utf8),
             2228225_u128 => Some(Self::DcArray),
             2228226_u128 => Some(Self::DcIntegerList),
@@ -5994,6 +6035,14 @@ impl FormatId {
     }
 }
 
+/// DcChar constant for Format `CscJournal1Meta1` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA1\" version
+pub const DC_CSC_JOURNAL1_META1: DcChar = DcChar::from_format(0);
+/// DcChar constant for Format `CscJournal1Meta2` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA2\" version
+pub const DC_CSC_JOURNAL1_META2: DcChar = DcChar::from_format(0);
+/// DcChar constant for Format `CscJournal1Meta3` (Short f0, Category: database): Collective Toolbox csc journal, \"CTBMETA3\" version
+pub const DC_CSC_JOURNAL1_META3: DcChar = DcChar::from_format(0);
+/// DcChar constant for Format `CscJournal4` (Short f0, Category: database): Collective Toolbox csc journal, version 4
+pub const DC_CSC_JOURNAL4: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
 pub const DC_UTF8: DcChar = DcChar::from_format(0);
 /// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array

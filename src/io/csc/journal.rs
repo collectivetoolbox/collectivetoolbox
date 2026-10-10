@@ -1525,10 +1525,12 @@ mod tests {
         let mut expected_native = original.metadata.native.clone();
         let mut actual_native = recorded.metadata.native.clone();
         if let (Some(exp), Some(act)) = (&mut expected_native, &mut actual_native) {
-            exp.values.remove("statx.atime.nsec");
-            act.values.remove("statx.atime.nsec");
-            exp.values.remove("statx.ctime.nsec");
-            act.values.remove("statx.ctime.nsec");
+            // Separate captures can cross a second boundary; readlink and
+            // timestamp cleanup affect both components of atime/ctime.
+            for name in ["statx.atime.sec", "statx.atime.nsec", "statx.ctime.sec", "statx.ctime.nsec"] {
+                exp.values.remove(name);
+                act.values.remove(name);
+            }
         }
         assert_eq!(actual_native, expected_native);
         let mut expected_ts = original.metadata.timestamps;
@@ -1536,11 +1538,13 @@ mod tests {
         if let Some(ref mut ts) = expected_ts {
             ts.atime_sec = 0;
             ts.atime_nsec = 0;
+            ts.ctime_sec = 0;
             ts.ctime_nsec = 0;
         }
         if let Some(ref mut ts) = actual_ts {
             ts.atime_sec = 0;
             ts.atime_nsec = 0;
+            ts.ctime_sec = 0;
             ts.ctime_nsec = 0;
         }
         assert_eq!(actual_ts, expected_ts);
