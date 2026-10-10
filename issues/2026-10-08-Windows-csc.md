@@ -49,13 +49,28 @@ assertion subsequently passed on WINE and native Windows, one test each;
 FreeBSD's suite predates only that test assertion, not production behavior.
 The full native CSC run needed a forced guest shutdown after passing; the
 focused follow-up stopped normally after a startup-marker retry. Both VMs are
-stopped and no validations are active. These are bounded tests, not
+stopped. These are bounded tests, not
 full-workspace parity evidence. Logs: `/tmp/ctb-completion-*`.
+
+The configured Linux workflow (`./test linux-x64`) passed its lint preflight,
+cargo-deny, and JavaScript stages and is running the workspace stage. Its
+initial harness policy omitted ignored tests on Linux. `build` now applies
+`--include-ignored --skip tests::test_bootstrap_ts_compilation` on all targets,
+not just Windows; shell syntax and execution of the exact selection block for
+Linux, Windows, and FreeBSD passed. The active run captured the older policy and
+cannot establish the requested no-bypass coverage; a current-policy rerun is
+still required. Do not clean or switch platforms while that run is active.
 
 #### Remaining Gaps / Pending Work
 
 - FreeBSD has not rerun the last portable test assertion; its full suite tests
-  the final production behavior. Full-workspace reruns remain pending.
+  the final production behavior. Current-policy full-workspace reruns remain
+  pending on all four platforms.
+- A native restoration-syscall failure fixture remains pending. Attempts using
+  procfs and an `O_PATH` temporary-file handle disproved assumptions that those
+  writes must fail; both unsuccessful probes were removed. The retained four
+  focused Linux completion tests passed afterward. Warning receipt propagation
+  is covered using a deterministic injected payload, not a real failed syscall.
 - Aborted read paths and direct detection/compression readers can still rely on
   drop-time logging instead of explicit, semantically retained completion.
 - Completion checks size and mtime, not every mutation, inode/path replacement,

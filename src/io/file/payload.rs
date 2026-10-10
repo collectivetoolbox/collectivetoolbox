@@ -840,32 +840,6 @@ mod tests {
         source.finish().unwrap();
     }
 
-    #[cfg(target_os = "linux")]
-    #[crate::ctb_test]
-    fn test_disk_payload_completion_reports_restoration_failure() {
-        use std::os::unix::fs::OpenOptionsExt;
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("source");
-        std::fs::write(&path, b"payload").unwrap();
-        let file = File::options().read(true).custom_flags(nix::libc::O_PATH).open(&path).unwrap();
-        let metadata = file.metadata().unwrap();
-        let atime = FileTime::from_unix_time(1_234_567, 0);
-        assert_ne!(FileTime::from_last_access_time(&metadata), atime);
-        let mut source = DiskPayloadSource {
-            path,
-            file,
-            size: metadata.len(),
-            extents: Vec::new(),
-            orig_times: Some((atime, FileTime::from_last_modification_time(&metadata))),
-            original_metadata: metadata,
-            opened_with_noatime: false,
-        };
-        let warnings = source.finish().unwrap();
-        assert_eq!(warnings.len(), 1);
-        assert!(warnings.first().unwrap().contains("Failed to restore payload source timestamps"));
-        assert!(source.finish().unwrap().is_empty());
-    }
-
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_unix_extent_discovery_rejects_uncertain_maps() {
