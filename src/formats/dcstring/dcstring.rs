@@ -45,8 +45,8 @@ pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
 pub use dc_char::{DcChar, DcCharExt};
 pub use dc_mixed::{
-    DcMixed, DcMixedChunk, DcMixedError, DcMixedOwned, DcMstr,
-    DcMstring, DcMstSlice, validate_dcmst,
+    DCMX_HEADER_LEN, DcMixed, DcMixedChunk, DcMixedError, DcMixedOwned,
+    DcMstr, DcMstring, DcMstSlice, validate_dcmst,
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{

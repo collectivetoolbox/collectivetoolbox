@@ -42,8 +42,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
 1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
-1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,:~ [number] [^341]* 341,Begins an execution environment snapshot.
-1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,,Terminates an execution environment snapshot.
+1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [number] [^341]* 341",Begins an execution environment snapshot.
+1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,@ident("EndEnvironmentDescription"),Terminates an execution environment snapshot.
 1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ [formats:os],Host operating system description.
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.
@@ -226,3 +226,19 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.
 1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist."
 1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,:~ [data],Raw file flag bitmask with an unparsed-bits indicator.
+1114655,543,Begin checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""BeginChecksummedSection""), :~ [^544]+ 544",Begins a delimited section of a document or stream verified by an end checksum.
+1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection"")",Terminates a checksummed section.
+1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), :~ [data:checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
+1114658,546,Sequence identifier,0,BN,,!Cx,.Semantic,"@ident(""SequenceIdentifier""), :~ [number:Integer]",Monotonically increasing sequence or batch counter.
+1114659,547,Begin operation session description,0,BN,,!Cx,.Semantic,"@ident(""BeginOperationSession""), :~ [^548]+ 548",Begins a record describing the parameters source destination and execution of an operation task or session.
+1114660,548,End operation session description,0,BN,,!Cx,.Semantic,"@ident(""EndOperationSession"")",Terminates an operation session record.
+1114661,549,Source path,0,BN,,!Cx,.Semantic,"@ident(""SourcePath""), :~ [filepath]",Path designating a source directory file or origin root of an operation.
+1114662,550,Destination path,0,BN,,!Cx,.Semantic,"@ident(""DestinationPath""), :~ [filepath]",Path designating a target or destination directory file or storage root.
+1114663,551,Operation completed marker,0,BN,,!Cx,.Semantic,"@ident(""OperationCompleted"")",Indicates that an operation or session completed its primary intended task.
+1114664,552,Begin error record,0,BN,,!Cx,.Semantic,"@ident(""BeginErrorRecord""), :~ [^553]+ 553",Begins a structured error incident record.
+1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord"")",Terminates a structured error record.
+1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), :~ [^555]+ 555",Begins a structured warning incident record.
+1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord"")",Terminates a structured warning record.
+1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
+1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
+1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.

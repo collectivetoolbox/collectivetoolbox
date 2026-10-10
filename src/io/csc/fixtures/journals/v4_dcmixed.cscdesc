@@ -1,0 +1,10 @@
+CSC State File
+Status: Completed
+FilesCommitted: 1
+BytesCommitted: 1024
+ErrorsCount: 0
+WarningsCount: 0
+Sources:
+  - /source/project
+Destination: /backup/project
+NoatimeUsed: false

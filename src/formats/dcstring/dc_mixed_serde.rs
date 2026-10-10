@@ -301,6 +301,11 @@ impl<'a> DcMixedReader<'a> {
         Self { shared_context: Some(context), ..Self::new(mstr) }
     }
 
+    /// Attaches an enclosing document context to this reader.
+    pub fn set_context(&mut self, context: &'a crate::SharedValueContext) {
+        self.shared_context = Some(context);
+    }
+
     /// Resolves a reference against the explicitly supplied document context.
     pub fn resolve_shared<T: std::any::Any + Send + Sync>(&self, binding: &str) -> Result<Arc<T>> {
         if self.reference_scope.contains(binding) {
@@ -1018,6 +1023,12 @@ impl DcMixedEncode for PathBuf {
         mst.push_char(DC_END_LIST);
         mst.push_char(DcChar::from_short(512));
         Ok(())
+    }
+}
+
+impl DcMixedEncode for std::path::Path {
+    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        self.to_path_buf().encode_dc_mixed(mst)
     }
 }
 

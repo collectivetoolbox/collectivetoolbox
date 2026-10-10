@@ -76,6 +76,10 @@ pub const DC_END_KV_MAP: DcChar = DcChar::from_short(314);
 pub const DC_OPTIONAL_PRESENT: DcChar = DcChar::from_short(315);
 /// Indicates an optional value is absent. (Dc 316).
 pub const DC_OPTIONAL_ABSENT: DcChar = DcChar::from_short(316);
+/// Begins an execution environment snapshot. (Dc 340).
+pub const DC_BEGIN_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(340);
+/// Terminates an execution environment snapshot. (Dc 341).
+pub const DC_END_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(341);
 /// Indicates that all values within the list have the same underlying meaning. (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
 /// Boolean true (Dc 517).
@@ -84,6 +88,38 @@ pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
 pub const DC_BOOLEAN_FALSE: DcChar = DcChar::from_short(518);
 /// Applies typed parameter bindings to a format in a format specification expression. (Dc 535).
 pub const DC_FORMAT_PARAM_APPLICATION: DcChar = DcChar::from_short(535);
+/// Begins a delimited section of a document or stream verified by an end checksum. (Dc 543).
+pub const DC_BEGIN_CHECKSUMMED_SECTION: DcChar = DcChar::from_short(543);
+/// Terminates a checksummed section. (Dc 544).
+pub const DC_END_CHECKSUMMED_SECTION: DcChar = DcChar::from_short(544);
+/// Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section. (Dc 545).
+pub const DC_SECTION_DIGEST: DcChar = DcChar::from_short(545);
+/// Monotonically increasing sequence or batch counter. (Dc 546).
+pub const DC_SEQUENCE_IDENTIFIER: DcChar = DcChar::from_short(546);
+/// Begins a record describing the parameters source destination and execution of an operation task or session. (Dc 547).
+pub const DC_BEGIN_OPERATION_SESSION: DcChar = DcChar::from_short(547);
+/// Terminates an operation session record. (Dc 548).
+pub const DC_END_OPERATION_SESSION: DcChar = DcChar::from_short(548);
+/// Path designating a source directory file or origin root of an operation. (Dc 549).
+pub const DC_SOURCE_PATH: DcChar = DcChar::from_short(549);
+/// Path designating a target or destination directory file or storage root. (Dc 550).
+pub const DC_DESTINATION_PATH: DcChar = DcChar::from_short(550);
+/// Indicates that an operation or session completed its primary intended task. (Dc 551).
+pub const DC_OPERATION_COMPLETED: DcChar = DcChar::from_short(551);
+/// Begins a structured error incident record. (Dc 552).
+pub const DC_BEGIN_ERROR_RECORD: DcChar = DcChar::from_short(552);
+/// Terminates a structured error record. (Dc 553).
+pub const DC_END_ERROR_RECORD: DcChar = DcChar::from_short(553);
+/// Begins a structured warning incident record. (Dc 554).
+pub const DC_BEGIN_WARNING_RECORD: DcChar = DcChar::from_short(554);
+/// Terminates a structured warning record. (Dc 555).
+pub const DC_END_WARNING_RECORD: DcChar = DcChar::from_short(555);
+/// Human-readable explanatory or diagnostic log message. (Dc 556).
+pub const DC_LOG_MESSAGE: DcChar = DcChar::from_short(556);
+/// Identifier correlating related operations log entries or distributed traces. (Dc 557).
+pub const DC_TRACE_IDENTIFIER: DcChar = DcChar::from_short(557);
+/// Numeric status or return code associated with an operation. (Dc 558).
+pub const DC_OPERATION_STATUS_CODE: DcChar = DcChar::from_short(558);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

@@ -3745,6 +3745,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "ctb-formats-checksum",
+ "ctb-formats-dcdata",
  "ctb-formats-dcstring",
  "ctb-formats-string",
  "ctb-formats-text-extraction",

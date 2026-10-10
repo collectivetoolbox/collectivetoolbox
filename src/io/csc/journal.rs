@@ -27,7 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_formats_checksum::{Sha256Stream, xxhash};
-use ctb_formats_dcstring::{DcMixedEncode, DcMstring, SharedJson, SharedValueContext};
+use ctb_formats_dcstring::{
+    DcMixedDecode, DcMixedEncode, DcMstring, SharedJson, SharedValueContext,
+};
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
@@ -43,16 +45,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const JOURNAL_MAGIC: &[u8; 8] = b"CTBCSCJ\x01";
-const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
+pub mod legacy;
 
-const TAG_SESSION_HEADER: u8 = 1;
-const TAG_ENTITY: u8 = 2;
-const TAG_BATCH_COMMIT: u8 = 3;
-const TAG_JOB_COMPLETED: u8 = 4;
-const TAG_SESSION_ENV: u8 = 5;
-const TAG_ERROR_RECORD: u8 = 6;
-const TAG_WARNING_RECORD: u8 = 7;
+pub(crate) use legacy::{
+    JOURNAL_MAGIC_V1, PreservationRecord, PreservedStream, TAG_BATCH_COMMIT,
+    TAG_ENTITY, TAG_ERROR_RECORD, TAG_JOB_COMPLETED, TAG_SESSION_ENV,
+    TAG_SESSION_HEADER, TAG_WARNING_RECORD, read_entity_payload,
+    write_entity_payload,
+};
+
+pub const JOURNAL_MAGIC_V4: &[u8; 8] = b"CTBCSCJ\x04";
+pub const JOURNAL_MAGIC: &[u8; 8] = JOURNAL_MAGIC_V4;
+pub const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
 
 pub const PLATFORM_LINUX: u8 = 1;
 pub const PLATFORM_MACOS: u8 = 2;
@@ -74,6 +78,34 @@ pub enum JournalErrorStage {
     Materialize,
     /// Post-copy verification or concurrent modification check failed.
     PostCheck,
+}
+
+impl JournalErrorStage {
+    /// Encodes the stage as a compact numeric code.
+    #[must_use]
+    pub const fn to_code(self) -> u8 {
+        match self {
+            Self::Traversal => 0,
+            Self::MetadataRead => 1,
+            Self::PayloadOpen => 2,
+            Self::PayloadRead => 3,
+            Self::Materialize => 4,
+            Self::PostCheck => 5,
+        }
+    }
+
+    /// Decodes a numeric code into the corresponding stage.
+    #[must_use]
+    pub const fn from_code(code: u8) -> Self {
+        match code {
+            1 => Self::MetadataRead,
+            2 => Self::PayloadOpen,
+            3 => Self::PayloadRead,
+            4 => Self::Materialize,
+            5 => Self::PostCheck,
+            _ => Self::Traversal,
+        }
+    }
 }
 
 /// A persistent record of an item or operation failure stored in the journal.
@@ -149,6 +181,7 @@ pub struct JournalWriter {
     shared_context: SharedValueContext,
     errors: Vec<JournalErrorRecord>,
     warnings: Vec<JournalWarningRecord>,
+    is_legacy: bool,
 }
 
 impl JournalWriter {
@@ -174,9 +207,15 @@ impl JournalWriter {
             })?;
 
         let mut writer = BufWriter::new(file);
-        writer.write_all(JOURNAL_MAGIC)?;
+        writer.write_all(JOURNAL_MAGIC_V4)?;
+        let header = DcMstring::new();
+        writer.write_all(header.as_bytes())?;
 
         let env = ctb_io_environment::capture_quick_arc();
+        let mut shared_context = SharedValueContext::default();
+        shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&env))?;
+        shared_context.insert("environment", Arc::clone(&env))?;
+
         let mut jw = Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -190,13 +229,13 @@ impl JournalWriter {
             noatime_used: false,
             environment: Some(env),
             snapshot: None,
-            shared_context: SharedValueContext::default(),
+            shared_context,
             errors: Vec::new(),
             warnings: Vec::new(),
+            is_legacy: false,
         };
 
         jw.write_session_header(sources, destination)?;
-        jw.write_session_environment()?;
         jw.update_desc_file("InProgress")?;
         Ok(jw)
     }
@@ -247,10 +286,18 @@ impl JournalWriter {
             }
         }
 
+        let mut magic = [0_u8; 8];
+        let is_legacy = if let Ok(mut f) = File::open(journal_path) {
+            f.read_exact(&mut magic).map_or(false, |_| magic == *JOURNAL_MAGIC_V1)
+        } else {
+            false
+        };
+
         let writer = BufWriter::new(file);
         let mut shared_context = SharedValueContext::default();
         if let Some(environment) = &snapshot.environment {
             shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(environment))?;
+            shared_context.insert("environment", Arc::clone(environment))?;
         }
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
@@ -268,6 +315,7 @@ impl JournalWriter {
             shared_context,
             errors: snapshot.errors.clone(),
             warnings: snapshot.warnings.clone(),
+            is_legacy,
         })
     }
 
@@ -285,25 +333,24 @@ impl JournalWriter {
     }
 
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
-        self.writer.write_all(&[TAG_SESSION_HEADER])?;
-        self.writer.write_all(&[current_platform()])?;
-        write_u32(&mut self.writer, u32::try_from(sources.len())?)?;
+        let mut mst = DcMstring::new();
+        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION);
         for src in sources {
-            write_bytes(&mut self.writer, src.as_os_str().as_encoded_bytes())?;
+            mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
+            src.encode_dc_mixed(&mut mst)?;
         }
-        write_bytes(&mut self.writer, destination.as_os_str().as_encoded_bytes())?;
-        self.writer.flush()?;
-        Ok(())
-    }
-
-    fn write_session_environment(&mut self) -> Result<()> {
+        mst.push_char(ctb_formats_dcdata::dc::DC_DESTINATION_PATH);
+        destination.encode_dc_mixed(&mut mst)?;
+        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
+        u32::from(current_platform()).encode_dc_mixed(&mut mst)?;
         if let Some(ref env) = self.environment {
-            let json = env.to_json()?;
-            self.writer.write_all(&[TAG_SESSION_ENV])?;
-            write_bytes(&mut self.writer, json.as_bytes())?;
-            self.writer.flush()?;
-            self.shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env))?;
+            env.encode_dc_mixed_with_context(&mut mst, &self.shared_context)?;
         }
+        mst.push_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION);
+
+        self.writer.write_all(mst.payload_bytes())?;
+        self.writer.flush()?;
+        self.writer.get_ref().sync_data()?;
         Ok(())
     }
 
@@ -318,20 +365,57 @@ impl JournalWriter {
             return Ok(());
         }
 
-        let mut batch_hasher = Sha256Stream::new();
+        if self.is_legacy {
+            let mut batch_hasher = Sha256Stream::new();
+            for entity in &self.uncommitted_entities {
+                let mut payload = Vec::new();
+                legacy::write_entity_payload(&mut payload, entity, &self.shared_context)?;
+                let payload_len = u32::try_from(payload.len())?;
+                let checksum = xxhash::xxhash3_64(&payload);
+
+                batch_hasher.update(&payload);
+
+                self.writer.write_all(&[legacy::TAG_ENTITY])?;
+                legacy::write_u32(&mut self.writer, payload_len)?;
+                self.writer.write_all(&checksum)?;
+                self.writer.write_all(&payload)?;
+
+                if let FileEntityKind::Regular { size, .. } = entity.kind {
+                    self.total_committed_files = self.total_committed_files.saturating_add(1);
+                    self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
+                }
+            }
+
+            self.current_batch_id = self.current_batch_id.saturating_add(1);
+            self.writer.write_all(&[legacy::TAG_BATCH_COMMIT])?;
+            legacy::write_u64(&mut self.writer, self.current_batch_id)?;
+            let batch_sha256 = batch_hasher.finalize();
+            self.writer.write_all(&batch_sha256)?;
+
+            self.writer.flush()?;
+            self.writer.get_ref().sync_data()?;
+
+            self.uncommitted_entities.clear();
+            self.update_desc_file("InProgress")?;
+            return Ok(());
+        }
+
+        self.current_batch_id = self.current_batch_id.saturating_add(1);
+
+        let mut mst = DcMstring::new();
+        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
+
+        let payload_start = mst.payload_bytes().len();
+        mst.push_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER);
+        self.current_batch_id.encode_dc_mixed(&mut mst)?;
 
         for entity in &self.uncommitted_entities {
-            let mut payload = Vec::new();
-            write_entity_payload(&mut payload, entity, &self.shared_context)?;
-            let payload_len = u32::try_from(payload.len())?;
-            let checksum = xxhash::xxhash3_64(&payload);
-
-            batch_hasher.update(&payload);
-
-            self.writer.write_all(&[TAG_ENTITY])?;
-            write_u32(&mut self.writer, payload_len)?;
-            self.writer.write_all(&checksum)?;
-            self.writer.write_all(&payload)?;
+            if let Some(read_time) = entity.metadata.read_time {
+                read_time
+                    .duration_since(UNIX_EPOCH)
+                    .context("Read time timestamp is before Unix epoch")?;
+            }
+            entity.encode_dc_mixed_with_context(&mut mst, &self.shared_context)?;
 
             if let FileEntityKind::Regular { size, .. } = entity.kind {
                 self.total_committed_files = self.total_committed_files.saturating_add(1);
@@ -339,14 +423,15 @@ impl JournalWriter {
             }
         }
 
-        // Write BATCH_COMMIT record with batch SHA-256 hash
-        self.current_batch_id = self.current_batch_id.saturating_add(1);
-        self.writer.write_all(&[TAG_BATCH_COMMIT])?;
-        write_u64(&mut self.writer, self.current_batch_id)?;
-        let batch_sha256 = batch_hasher.finalize();
-        self.writer.write_all(&batch_sha256)?;
+        let payload_end = mst.payload_bytes().len();
+        let section_bytes = &mst.payload_bytes()[payload_start..payload_end];
+        let digest = ctb_formats_checksum::sha256(section_bytes);
 
-        // Flush buffer and fsync journal
+        mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
+        mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
+        mst.push_binary(&digest);
+
+        self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
 
@@ -358,7 +443,20 @@ impl JournalWriter {
     /// Marks the job as completely finished and updates the `.cscdesc` companion file.
     pub fn mark_completed(&mut self) -> Result<()> {
         self.commit_batch()?;
-        self.writer.write_all(&[TAG_JOB_COMPLETED])?;
+        if self.is_legacy {
+            self.writer.write_all(&[legacy::TAG_JOB_COMPLETED])?;
+            self.writer.flush()?;
+            self.writer.get_ref().sync_data()?;
+            if self.errors.is_empty() {
+                self.update_desc_file("Completed")?;
+            } else {
+                self.update_desc_file(&format!("Completed with {} error(s)", self.errors.len()))?;
+            }
+            return Ok(());
+        }
+        let mut mst = DcMstring::new();
+        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
+        self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
         if self.errors.is_empty() {
@@ -371,9 +469,36 @@ impl JournalWriter {
 
     /// Records an item or operational error directly into the state journal and descriptor.
     pub fn record_error(&mut self, error: &JournalErrorRecord) -> Result<()> {
-        let json = serde_json::to_string(error)?;
-        self.writer.write_all(&[TAG_ERROR_RECORD])?;
-        write_bytes(&mut self.writer, json.as_bytes())?;
+        if self.is_legacy {
+            let json = serde_json::to_vec(error)?;
+            self.writer.write_all(&[legacy::TAG_ERROR_RECORD])?;
+            legacy::write_bytes(&mut self.writer, &json)?;
+            self.writer.flush()?;
+            self.writer.get_ref().sync_data()?;
+            self.errors.push(error.clone());
+            self.update_desc_file("InProgress")?;
+            return Ok(());
+        }
+        let mut mst = DcMstring::new();
+        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD);
+        mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
+        error.path.encode_dc_mixed(&mut mst)?;
+        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
+        let stage_code = u64::from(error.stage.to_code());
+        let os_code = u64::from(
+            error
+                .os_error
+                .and_then(|e| u32::try_from(e).ok())
+                .unwrap_or(0),
+        );
+        let packed = (stage_code << 32) | os_code;
+        packed.encode_dc_mixed(&mut mst)?;
+        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
+        error.error_message.encode_dc_mixed(&mut mst)?;
+        error.timestamp_sec.encode_dc_mixed(&mut mst)?;
+        mst.push_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD);
+
+        self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
         self.errors.push(error.clone());
@@ -394,9 +519,24 @@ impl JournalWriter {
             message: message.to_string(),
             timestamp_sec: now_sec,
         };
-        let json = serde_json::to_string(&record)?;
-        self.writer.write_all(&[TAG_WARNING_RECORD])?;
-        write_bytes(&mut self.writer, json.as_bytes())?;
+        if self.is_legacy {
+            let json = serde_json::to_vec(&record)?;
+            self.writer.write_all(&[legacy::TAG_WARNING_RECORD])?;
+            legacy::write_bytes(&mut self.writer, &json)?;
+            self.writer.flush()?;
+            self.writer.get_ref().sync_data()?;
+            self.warnings.push(record);
+            self.update_desc_file("InProgress")?;
+            return Ok(());
+        }
+        let mut mst = DcMstring::new();
+        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD);
+        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
+        format!("{code}: {message}").encode_dc_mixed(&mut mst)?;
+        now_sec.encode_dc_mixed(&mut mst)?;
+        mst.push_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD);
+
+        self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
         self.warnings.push(record);
@@ -521,169 +661,17 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
     )
 }
 
-/// Reads a state journal, rolling back to the last valid `BATCH_COMMIT` marker.
+/// Reads a state journal, rolling back to the last valid batch or record.
 pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     let journal_path = resolve_journal_path(path)?;
-    let file = File::open(&journal_path).with_context(|| {
+    let mut file = File::open(&journal_path).with_context(|| {
         format!("Failed to open journal file: {}", journal_path.display())
     })?;
-    let mut reader = BufReader::new(file);
 
     let mut magic = [0_u8; 8];
-    reader.read_exact(&mut magic).context("Incomplete journal magic")?;
-    anyhow::ensure!(
-        &magic == JOURNAL_MAGIC,
-        "Invalid or unrecognized journal magic in {}",
-        journal_path.display()
-    );
+    file.read_exact(&mut magic).context("Incomplete journal magic")?;
 
-    let mut sources = Vec::new();
-    let mut destination = PathBuf::new();
-    let mut origin_platform = 0_u8;
-
-    let mut committed_entities = HashMap::new();
-    let mut pending_entities = HashMap::new();
-    let mut batch_hasher = Sha256Stream::new();
-
-    let mut last_batch_id = 0_u64;
-    let mut is_completed = false;
-    let mut valid_length = 0_u64;
-    let mut environment: Option<Arc<EnvDescription>> = None;
-    let mut shared_context = SharedValueContext::default();
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-
-    let mut tag_buf = [0_u8; 1];
-    while reader.read_exact(&mut tag_buf).is_ok() {
-        match tag_buf[0] {
-            TAG_SESSION_HEADER => {
-                let Ok(plat) = read_u8(&mut reader) else {
-                    break;
-                };
-                origin_platform = plat;
-
-                let Ok(src_count) = read_u32(&mut reader) else {
-                    break;
-                };
-                let mut valid_sources = true;
-                for _ in 0..src_count {
-                    if let Ok(bytes) = read_bytes(&mut reader) {
-                        let is_windows = origin_platform == PLATFORM_WINDOWS;
-                        let src_path = resolve_relative_path_for_os(&bytes, is_windows)?;
-                        sources.push(src_path);
-                    } else {
-                        valid_sources = false;
-                        break;
-                    }
-                }
-                if !valid_sources {
-                    break;
-                }
-                let Ok(dest_bytes) = read_bytes(&mut reader) else {
-                    break;
-                };
-                let is_windows = origin_platform == PLATFORM_WINDOWS;
-                destination = resolve_relative_path_for_os(&dest_bytes, is_windows)?;
-                valid_length = reader.stream_position()?;
-            }
-            TAG_SESSION_ENV => {
-                let Ok(env_bytes) = read_bytes(&mut reader) else {
-                    break;
-                };
-                let json_str = std::str::from_utf8(&env_bytes)
-                    .context("Invalid journal environment UTF-8")?;
-                let env_desc = EnvDescription::from_json(json_str)
-                    .context("Invalid journal environment JSON")?;
-                let definition = Arc::new(env_desc);
-                shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&definition))?;
-                environment = Some(definition);
-                valid_length = reader.stream_position()?;
-            }
-            TAG_ENTITY => {
-                is_completed = false;
-                let Ok(payload_len) = read_u32(&mut reader) else {
-                    break;
-                };
-                let mut expected_checksum = [0_u8; 8];
-                if reader.read_exact(&mut expected_checksum).is_err() {
-                    break;
-                }
-                let Ok(payload_len_usize) = usize::try_from(payload_len) else {
-                    break;
-                };
-                let mut payload = vec![0_u8; payload_len_usize];
-                if reader.read_exact(&mut payload).is_err() {
-                    break;
-                }
-                let actual_checksum = xxhash::xxhash3_64(&payload);
-                if actual_checksum != expected_checksum {
-                    break;
-                }
-
-                batch_hasher.update(&payload);
-
-                match read_entity_payload(&payload[..], origin_platform, &shared_context) {
-                    Ok(entity) => {
-                        // Reason for fallback: streams or entities without relative path use empty key in journal table
-                        let path_key = entity.identity.path_bytes().map_or_else(Vec::new, |b| b.to_vec());
-                        pending_entities.insert(path_key, entity);
-                    }
-                    Err(error) => return Err(error).context("Checksummed journal entity cannot be decoded without losing metadata"),
-                }
-            }
-            TAG_BATCH_COMMIT => {
-                let Ok(batch_id) = read_u64(&mut reader) else {
-                    break;
-                };
-                let mut expected_batch_hash = [0_u8; 32];
-                if reader.read_exact(&mut expected_batch_hash).is_err() {
-                    break;
-                }
-                let actual_batch_hash = batch_hasher.finalize();
-                if actual_batch_hash != expected_batch_hash {
-                    break;
-                }
-
-                last_batch_id = batch_id;
-                committed_entities.extend(pending_entities.drain());
-                batch_hasher = Sha256Stream::new();
-                valid_length = reader.stream_position()?;
-            }
-            TAG_JOB_COMPLETED => {
-                anyhow::ensure!(pending_entities.is_empty(), "Completion marker precedes batch commit");
-                is_completed = true;
-                valid_length = reader.stream_position()?;
-            }
-            TAG_ERROR_RECORD => {
-                let Ok(err_bytes) = read_bytes(&mut reader) else {
-                    break;
-                };
-                if let Ok(json_str) = std::str::from_utf8(&err_bytes) {
-                    if let Ok(record) = serde_json::from_str::<JournalErrorRecord>(json_str) {
-                        errors.push(record);
-                    }
-                }
-                valid_length = reader.stream_position()?;
-            }
-            TAG_WARNING_RECORD => {
-                let Ok(warn_bytes) = read_bytes(&mut reader) else {
-                    break;
-                };
-                if let Ok(json_str) = std::str::from_utf8(&warn_bytes) {
-                    if let Ok(record) = serde_json::from_str::<JournalWarningRecord>(json_str) {
-                        warnings.push(record);
-                    }
-                }
-                valid_length = reader.stream_position()?;
-            }
-            _ => {
-                break;
-            }
-        }
-    }
-
-    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
-    let desc_path = path.with_extension("cscdesc");
+    let desc_path = journal_path.with_extension("cscdesc");
     let noatime_used = if desc_path.exists() {
         if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
             desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true")
@@ -693,6 +681,298 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     } else {
         false
     };
+
+    match &magic {
+        m if m == JOURNAL_MAGIC_V4 => {
+            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used)
+        }
+        m if m == JOURNAL_MAGIC_V1 => {
+            let mut reader = BufReader::new(file);
+            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path)
+        }
+        _ => {
+            anyhow::bail!(
+                "Invalid or unrecognized journal magic in {}",
+                journal_path.display()
+            );
+        }
+    }
+}
+
+/// Reads a v4 native DcMixed state journal.
+pub fn read_v4_journal_snapshot(
+    file: &mut File,
+    journal_path: &Path,
+    noatime_used: bool,
+) -> Result<JournalSnapshot> {
+    file.seek(std::io::SeekFrom::Start(8))
+        .context("Failed to seek past journal magic")?;
+    let mut file_payload = Vec::new();
+    file.read_to_end(&mut file_payload)
+        .context("Failed to read journal payload")?;
+
+    let mut valid_slice_len = file_payload.len();
+    loop {
+        if valid_slice_len < ctb_formats_dcstring::DCMX_HEADER_LEN {
+            anyhow::bail!(
+                "Journal {} is too short to contain a valid DcMixed header",
+                journal_path.display()
+            );
+        }
+        match ctb_formats_dcstring::validate_dcmst(&file_payload[..valid_slice_len]) {
+            Ok(()) => break,
+            Err(ctb_formats_dcstring::DcMixedError::TruncatedEncapsulation { offset, .. })
+            | Err(ctb_formats_dcstring::DcMixedError::InvalidUtf8e128 { offset, .. })
+            | Err(ctb_formats_dcstring::DcMixedError::InvalidEncapsulationType { offset, .. })
+            | Err(ctb_formats_dcstring::DcMixedError::SizeOverflow { offset, .. })
+            | Err(ctb_formats_dcstring::DcMixedError::ChecksumMismatch { offset, .. }) => {
+                if offset >= valid_slice_len {
+                    valid_slice_len = valid_slice_len.saturating_sub(1);
+                } else {
+                    valid_slice_len = offset;
+                }
+            }
+            Err(err) => return Err(err).context("Invalid DcMixed journal structure"),
+        }
+    }
+
+    let mstr = ctb_formats_dcstring::DcMstr::from_bytes(&file_payload[..valid_slice_len])?;
+    let mut reader = ctb_formats_dcstring::DcMixedReader::new(mstr);
+
+    let mut sources = Vec::new();
+    let mut destination = PathBuf::new();
+    let mut origin_platform = 0_u8;
+    let mut environment: Option<Arc<EnvDescription>> = None;
+    let mut shared_context = SharedValueContext::default();
+    let mut committed_entities = HashMap::new();
+    let mut pending_entities = HashMap::new();
+    let mut is_completed = false;
+    let mut last_batch_id = 0_u64;
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    let mut valid_length = 0_u64;
+
+    // Decode session header
+    if reader.peek_char()? == Some(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION) {
+        let _ = reader.next_char();
+        let mut header_ok = true;
+        while let Ok(Some(inner_ch)) = reader.peek_char() {
+            if inner_ch == ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION {
+                break;
+            }
+            if inner_ch == ctb_formats_dcdata::dc::DC_SOURCE_PATH {
+                let _ = reader.next_char();
+                match PathBuf::decode_dc_mixed(&mut reader) {
+                    Ok(src) => sources.push(src),
+                    Err(_) => {
+                        header_ok = false;
+                        break;
+                    }
+                }
+            } else if inner_ch == ctb_formats_dcdata::dc::DC_DESTINATION_PATH {
+                let _ = reader.next_char();
+                match PathBuf::decode_dc_mixed(&mut reader) {
+                    Ok(dest) => destination = dest,
+                    Err(_) => {
+                        header_ok = false;
+                        break;
+                    }
+                }
+            } else if inner_ch == ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE {
+                let _ = reader.next_char();
+                match u32::decode_dc_mixed(&mut reader) {
+                    Ok(code) => {
+                        origin_platform = u8::try_from(code).unwrap_or(0);
+                    }
+                    Err(_) => {
+                        header_ok = false;
+                        break;
+                    }
+                }
+            } else if inner_ch == ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION {
+                match EnvDescription::decode_dc_mixed(&mut reader) {
+                    Ok(env_desc) => {
+                        environment = Some(Arc::new(env_desc));
+                    }
+                    Err(_) => {
+                        header_ok = false;
+                        break;
+                    }
+                }
+            } else {
+                let _ = reader.next_char();
+            }
+        }
+        if header_ok
+            && reader
+                .expect_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION)
+                .is_ok()
+        {
+            if let Some(ref env_arc) = environment {
+                let _ = shared_context
+                    .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
+                let _ = shared_context.insert("environment", Arc::clone(env_arc));
+            }
+            reader.set_context(&shared_context);
+            valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+        }
+    }
+
+    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
+
+    while let Ok(Some(ch)) = reader.peek_char() {
+        match ch {
+            ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION => {
+                let _ = reader.next_char();
+                let section_start = reader.position();
+                if reader
+                    .expect_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER)
+                    .is_err()
+                {
+                    break;
+                }
+                let Ok(batch_id) = u64::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                let mut batch_ok = true;
+                while let Ok(Some(inner_ch)) = reader.peek_char() {
+                    if inner_ch == ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION {
+                        break;
+                    }
+                    match FileEntity::decode_dc_mixed(&mut reader) {
+                        Ok(entity) => {
+                            let path_key = entity
+                                .identity
+                                .path_bytes()
+                                .map_or_else(Vec::new, |b| b.to_vec());
+                            pending_entities.insert(path_key, entity);
+                        }
+                        Err(_) => {
+                            batch_ok = false;
+                            break;
+                        }
+                    }
+                }
+                if !batch_ok {
+                    break;
+                }
+                let section_end = reader.position();
+                if reader
+                    .expect_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION)
+                    .is_err()
+                {
+                    break;
+                }
+                if reader
+                    .expect_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST)
+                    .is_err()
+                {
+                    break;
+                }
+                let Ok(expected_digest) = reader.read_binary_payload() else {
+                    break;
+                };
+                let Some(section_bytes) = mstr.as_bytes().get(section_start..section_end) else {
+                    break;
+                };
+                let actual_digest = ctb_formats_checksum::sha256(section_bytes);
+                if actual_digest.as_slice() != expected_digest.as_ref() {
+                    break;
+                }
+
+                last_batch_id = batch_id;
+                committed_entities.extend(pending_entities.drain());
+                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+            }
+            ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED => {
+                let _ = reader.next_char();
+                if !pending_entities.is_empty() {
+                    break;
+                }
+                is_completed = true;
+                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+            }
+            ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD => {
+                let _ = reader.next_char();
+                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH) else {
+                    break;
+                };
+                let Ok(path) = PathBuf::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE) else {
+                    break;
+                };
+                let Ok(packed) = u64::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                let stage_code = u8::try_from(packed >> 32).unwrap_or(0);
+                let os_code = u32::try_from(packed & 0xFFFF_FFFF).unwrap_or(0);
+                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
+                    break;
+                };
+                let Ok(error_message) = String::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                if reader
+                    .expect_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD)
+                    .is_err()
+                {
+                    break;
+                }
+                let raw_path = path.as_os_str().as_encoded_bytes().to_vec();
+                errors.push(JournalErrorRecord {
+                    path,
+                    raw_path,
+                    stage: JournalErrorStage::from_code(stage_code),
+                    error_message,
+                    os_error: if os_code == 0 {
+                        None
+                    } else {
+                        i32::try_from(os_code).ok()
+                    },
+                    timestamp_sec,
+                });
+                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+            }
+            ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD => {
+                let _ = reader.next_char();
+                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
+                    break;
+                };
+                let Ok(combined) = String::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader) else {
+                    break;
+                };
+                if reader
+                    .expect_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD)
+                    .is_err()
+                {
+                    break;
+                }
+                let (code, message) = match combined.split_once(": ") {
+                    Some((c, m)) => (c.to_string(), m.to_string()),
+                    None => (String::new(), combined),
+                };
+                warnings.push(JournalWarningRecord {
+                    code,
+                    message,
+                    timestamp_sec,
+                });
+                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+
+    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
 
     Ok(JournalSnapshot {
         sources,
@@ -720,599 +1000,6 @@ fn attach_legacy_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescr
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-struct PreservationRecord {
-    #[serde(default)]
-    identity_dc: Option<Vec<u8>>,
-    metadata: serde_json::Value,
-    extents: Vec<ctb_io::file::Extent>,
-    streams: Vec<PreservedStream>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct PreservedStream {
-    #[serde(default)]
-    name: Option<StreamName>,
-    kind: StreamKind,
-    descriptor: Vec<u8>,
-    data: Option<Vec<u8>>,
-}
-
-// Low-level entity serialization
-
-fn write_entity_payload(w: &mut impl Write, entity: &FileEntity, context: &SharedValueContext) -> Result<()> {
-    // Reason for fallback: streams or entities without relative path write empty path bytes to wire format
-    write_bytes(w, entity.identity.path_bytes().unwrap_or(&[]))?;
-    // Reason for fallback: entities without filename write empty slice to wire format
-    write_bytes(w, entity.identity.filename_bytes().unwrap_or(&[]))?;
-    match &entity.identity.enclosing_path {
-        Some(p) => {
-            w.write_all(&[1])?;
-            write_bytes(w, p.as_os_str().as_encoded_bytes())?;
-        }
-        None => {
-            w.write_all(&[0])?;
-        }
-    }
-    write_u64(w, entity.identity.nlink)?;
-    let device_id = match &entity.identity.origin {
-        FileOrigin::Filesystem { key, .. } => key.device_id,
-        _ => 0,
-    };
-    match &entity.identity.hardlink_group {
-        Some(grp) => {
-            w.write_all(&[1])?;
-            write_natural(w, grp)?;
-            write_u64(w, device_id)?;
-        }
-        None => {
-            w.write_all(&[0])?;
-        }
-    }
-    // Reason for fallback: default permissions 0o644 written when mode is absent in stream or non-posix entity
-    write_u32(w, entity.metadata.mode.unwrap_or(0o644))?;
-    // Reason for fallback: root uid 0 written when uid is unrecorded in wire format
-    write_u32(w, entity.metadata.uid.unwrap_or(0))?;
-    // Reason for fallback: root gid 0 written when gid is unrecorded in wire format
-    write_u32(w, entity.metadata.gid.unwrap_or(0))?;
-    let (mtime_sec, mtime_nsec, atime_sec, atime_nsec, ctime_sec, ctime_nsec, birthtime_sec, birthtime_nsec) =
-        match &entity.metadata.timestamps {
-            Some(ts) => (
-                ts.mtime_sec,
-                ts.mtime_nsec,
-                ts.atime_sec,
-                ts.atime_nsec,
-                ts.ctime_sec,
-                ts.ctime_nsec,
-                ts.birthtime_sec,
-                ts.birthtime_nsec,
-            ),
-            None => (0, 0, 0, 0, 0, 0, None, None),
-        };
-    write_i64(w, mtime_sec)?;
-    write_u32(w, mtime_nsec)?;
-    write_i64(w, atime_sec)?;
-    write_u32(w, atime_nsec)?;
-    write_i64(w, ctime_sec)?;
-    write_u32(w, ctime_nsec)?;
-    write_opt_timestamp(w, birthtime_sec, birthtime_nsec)?;
-    let (read_sec, read_nsec) = match entity.metadata.read_time {
-        Some(t) => {
-            let d = t
-                .duration_since(UNIX_EPOCH)
-                .context("Read time timestamp is before Unix epoch")?;
-            let s = i64::try_from(d.as_secs())
-                .context("Read time seconds exceed i64::MAX")?;
-            (Some(s), Some(d.subsec_nanos()))
-        }
-        None => (None, None),
-    };
-    write_opt_timestamp(w, read_sec, read_nsec)?;
-    // Reason for fallback: empty flags written when flags are absent
-    let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]);
-    write_u32(w, u32::try_from(flags_slice.len())?)?;
-    for flag in flags_slice {
-        write_flag(w, *flag)?;
-    }
-
-    match &entity.kind {
-        FileEntityKind::Regular {
-            size,
-            sha256,
-            is_sparse,
-            ..
-        } => {
-            w.write_all(&[0])?;
-            write_u64(w, *size)?;
-            w.write_all(sha256)?;
-            w.write_all(&[u8::from(*is_sparse)])?;
-        }
-        FileEntityKind::Directory => {
-            w.write_all(&[1])?;
-        }
-        FileEntityKind::Symlink { target } => {
-            w.write_all(&[2])?;
-            write_bytes(w, target)?;
-        }
-        FileEntityKind::Hardlink {
-            target_relative_path,
-        } => {
-            w.write_all(&[3])?;
-            write_bytes(w, target_relative_path)?;
-        }
-        FileEntityKind::Fifo => {
-            w.write_all(&[4])?;
-        }
-        FileEntityKind::CharDevice { rdev } => {
-            w.write_all(&[5])?;
-            write_u64(w, *rdev)?;
-        }
-        FileEntityKind::BlockDevice { rdev } => {
-            w.write_all(&[6])?;
-            write_u64(w, *rdev)?;
-        }
-        FileEntityKind::Socket => {
-            w.write_all(&[7])?;
-        }
-        FileEntityKind::Door => {
-            w.write_all(&[8])?;
-        }
-        FileEntityKind::Bundle { bundle_type } => {
-            w.write_all(&[9])?;
-            write_bytes(w, bundle_type.as_bytes())?;
-        }
-        FileEntityKind::Inaccessible => {
-            w.write_all(&[10])?;
-        }
-    }
-
-    write_u32(w, u32::try_from(entity.streams.len())?)?;
-    for s in &entity.streams {
-        // Reason for fallback: Nameless streams have no stream name, so serialized stream name bytes default to empty.
-        let name_bytes = s
-            .name
-            .as_ref()
-            .map(|n| n.as_bytes().into_owned())
-            .unwrap_or_default();
-        write_bytes(w, &name_bytes)?;
-        let hash = match &s.entity.kind {
-            FileEntityKind::Regular { sha256, .. } => *sha256,
-            _ => [0_u8; 32],
-        };
-        w.write_all(&hash)?;
-    }
-    match &entity.identity.origin {
-        FileOrigin::Filesystem { key, canonical_path } => {
-            w.write_all(&[1])?;
-            write_u64(w, key.device_id)?;
-            write_natural(w, &key.inode)?;
-            write_bytes(w, canonical_path.as_os_str().as_encoded_bytes())?;
-        }
-        _ => w.write_all(&[0])?,
-    }
-    let mut streams = Vec::with_capacity(entity.streams.len());
-    for stream in &entity.streams {
-        let mut descriptor = Vec::new();
-        write_entity_payload(&mut descriptor, &stream.entity, context)?;
-        streams.push(PreservedStream {
-            name: stream.name.clone(),
-            kind: stream.kind,
-            descriptor,
-            data: stream.data.clone(),
-        });
-    }
-    let record = PreservationRecord {
-        identity_dc: Some(entity.identity.to_dc_mixed()?.as_bytes().to_vec()),
-        metadata: entity.metadata.encode_json_with_context(context)?,
-        extents: match &entity.kind {
-            FileEntityKind::Regular { extents, .. } => extents.clone(),
-            _ => Vec::new(),
-        },
-        streams,
-    };
-    w.write_all(b"CTBMETA3")?;
-    write_bytes(w, &serde_json::to_vec(&record)?)?;
-    Ok(())
-}
-
-fn read_entity_payload(mut r: &[u8], origin_platform: u8, context: &SharedValueContext) -> Result<FileEntity> {
-    let raw_rel_path = read_bytes(&mut r)?;
-    let raw_filename = read_bytes(&mut r)?;
-    let has_enc = read_u8(&mut r)?;
-    let enclosing_path = if has_enc == 1 {
-        let enc_bytes = read_bytes(&mut r)?;
-        let is_windows = origin_platform == PLATFORM_WINDOWS;
-        Some(resolve_relative_path_for_os(&enc_bytes, is_windows)?)
-    } else {
-        None
-    };
-    let nlink = read_u64(&mut r)?;
-    let has_grp = read_u8(&mut r)?;
-    let (hardlink_group, origin_device_id) = if has_grp == 1 {
-        let grp = read_natural(&mut r)?;
-        let dev = read_u64(&mut r)?;
-        (Some(grp), dev)
-    } else {
-        (None, 0)
-    };
-
-    let mode = read_u32(&mut r)?;
-    let uid = read_u32(&mut r)?;
-    let gid = read_u32(&mut r)?;
-    let mtime_sec = read_i64(&mut r)?;
-    let mtime_nsec = read_u32(&mut r)?;
-    let atime_sec = read_i64(&mut r)?;
-    let atime_nsec = read_u32(&mut r)?;
-    let ctime_sec = read_i64(&mut r)?;
-    let ctime_nsec = read_u32(&mut r)?;
-    let (birthtime_sec, birthtime_nsec) = read_opt_timestamp(&mut r)?;
-    let (read_sec, read_nsec) = read_opt_timestamp(&mut r)?;
-    let read_time = match (read_sec, read_nsec) {
-        (Some(sec), Some(nsec)) => {
-            let u_sec = u64::try_from(sec)
-                .context("Journal read_time seconds is negative")?;
-            anyhow::ensure!(
-                nsec < 1_000_000_000,
-                "Journal read_time nanoseconds out of range: {nsec}"
-            );
-            let duration = std::time::Duration::new(u_sec, nsec);
-            let time = UNIX_EPOCH
-                .checked_add(duration)
-                .context("Journal read_time timestamp overflow")?;
-            Some(time)
-        }
-        (None, None) => None,
-        _ => anyhow::bail!("Journal read_time has mismatched sec/nsec components"),
-    };
-
-    let flag_count = read_u32(&mut r)?;
-    let mut flags = Vec::with_capacity(usize::try_from(flag_count)?);
-    for _ in 0..flag_count {
-        if let Some(flag) = read_flag(&mut r)? {
-            flags.push(flag);
-        }
-    }
-
-    let kind_tag = read_u8(&mut r)?;
-    let kind = match kind_tag {
-        0 => {
-            let size = read_u64(&mut r)?;
-            let mut sha256 = [0_u8; 32];
-            r.read_exact(&mut sha256)?;
-            let is_sparse = read_u8(&mut r)? != 0;
-            FileEntityKind::Regular {
-                size,
-                sha256,
-                is_sparse,
-                extents: Vec::new(),
-            }
-        }
-        1 => FileEntityKind::Directory,
-        2 => {
-            let target = read_bytes(&mut r)?;
-            FileEntityKind::Symlink { target }
-        }
-        3 => {
-            let target_relative_path = read_bytes(&mut r)?;
-            FileEntityKind::Hardlink {
-                target_relative_path,
-            }
-        }
-        4 => FileEntityKind::Fifo,
-        5 => {
-            let rdev = read_u64(&mut r)?;
-            FileEntityKind::CharDevice { rdev }
-        }
-        6 => {
-            let rdev = read_u64(&mut r)?;
-            FileEntityKind::BlockDevice { rdev }
-        }
-        7 => FileEntityKind::Socket,
-        8 => FileEntityKind::Door,
-        9 => {
-            let btype_bytes = read_bytes(&mut r)?;
-            let bundle_type = String::from_utf8_lossy(&btype_bytes).to_string();
-            FileEntityKind::Bundle { bundle_type }
-        }
-        10 => FileEntityKind::Inaccessible,
-        _ => bail!("Unknown file type tag"),
-    };
-
-    let stream_count = read_u32(&mut r)?;
-    let mut streams = Vec::with_capacity(usize::try_from(stream_count)?);
-    for _ in 0..stream_count {
-        let sname_bytes = read_bytes(&mut r)?;
-        let mut shash = [0_u8; 32];
-        r.read_exact(&mut shash)?;
-
-        let stream_name = if sname_bytes.is_empty() {
-            None
-        } else {
-            Some(StreamName::from_bytes(&sname_bytes))
-        };
-        // Reason for fallback: Nameless streams represent macOS resource forks whose kind cannot be inferred from a filename.
-        let skind = stream_name
-            .as_ref()
-            .map(|n| StreamKind::infer_from_name(&n.as_bytes()))
-            .unwrap_or(StreamKind::MacOsResourceFork);
-        let s_entity = FileEntity {
-            identity: FileIdentity {
-                origin: FileOrigin::Synthetic,
-                relative_path: None,
-                enclosing_path: None,
-                nlink: 1,
-                hardlink_group: None,
-            },
-            metadata: FileMetadata {
-                native: None,
-                mode: Some(0o644),
-                uid: Some(0),
-                gid: Some(0),
-                timestamps: Some(FileTimestamps {
-                    atime_sec: 0,
-                    atime_nsec: 0,
-                    mtime_sec: 0,
-                    mtime_nsec: 0,
-                    ctime_sec: 0,
-                    ctime_nsec: 0,
-                    birthtime_sec: None,
-                    birthtime_nsec: None,
-                    resolution_nsec: None,
-                }),
-                flags: Some(Vec::new()),
-                platform_raw_flags: None,
-                read_time: None,
-                filesystem_type: None,
-                environment: None,
-                apple: None,
-                warnings: Vec::new(),
-                errors: Vec::new(),
-            },
-            kind: FileEntityKind::Regular {
-                size: 0,
-                sha256: shash,
-                is_sparse: false,
-                extents: Vec::new(),
-            },
-            streams: Vec::new(),
-        };
-
-        streams.push(AttachedStream {
-            name: stream_name,
-            kind: skind,
-            entity: Box::new(s_entity),
-            data: None,
-        });
-    }
-
-    let is_windows = origin_platform == PLATFORM_WINDOWS;
-    let relative_path = if raw_rel_path.is_empty() {
-        if raw_filename.is_empty() {
-            None
-        } else {
-            Some(resolve_relative_path_for_os(&raw_filename, is_windows)?)
-        }
-    } else {
-        Some(resolve_relative_path_for_os(&raw_rel_path, is_windows)?)
-    };
-    if !raw_filename.is_empty() {
-        let filename = resolve_relative_path_for_os(&raw_filename, is_windows)?;
-        anyhow::ensure!(relative_path.as_deref().and_then(Path::file_name) == Some(filename.as_os_str()),
-            "Journal filename disagrees with its primary path");
-    }
-
-    let mut origin = if let Some(ref grp) = hardlink_group {
-        FileOrigin::Filesystem {
-            key: InodeKey {
-                device_id: origin_device_id,
-                inode: grp.clone(),
-            },
-            // Reason for fallback: root destination used if relative_path is empty for hardlink
-            canonical_path: relative_path.clone().unwrap_or_default(),
-        }
-    } else {
-        FileOrigin::Synthetic
-    };
-
-    let mut origin_tag = [0_u8; 1];
-    if r.read(&mut origin_tag)? != 0 {
-        match origin_tag {
-            [0] => {}
-            [1] => {
-                let device_id = read_u64(&mut r)?;
-                let inode = read_natural(&mut r)?;
-                let canonical_path = resolve_relative_path_for_os(&read_bytes(&mut r)?, is_windows)?;
-                origin = FileOrigin::Filesystem { key: InodeKey { device_id, inode }, canonical_path };
-            }
-            _ => anyhow::bail!("Invalid journal source identity tag"),
-        }
-    }
-
-    let mut entity = FileEntity {
-        identity: FileIdentity {
-            origin,
-            relative_path,
-            enclosing_path,
-            nlink,
-            hardlink_group,
-        },
-        metadata: FileMetadata {
-            native: None,
-            mode: Some(mode),
-            uid: Some(uid),
-            gid: Some(gid),
-            timestamps: Some(FileTimestamps {
-                atime_sec,
-                atime_nsec,
-                mtime_sec,
-                mtime_nsec,
-                ctime_sec,
-                ctime_nsec,
-                birthtime_sec,
-                birthtime_nsec,
-                resolution_nsec: None,
-            }),
-            flags: Some(flags),
-            platform_raw_flags: None,
-            read_time,
-            filesystem_type: None,
-            environment: None,
-            apple: None,
-            warnings: Vec::new(),
-            errors: Vec::new(),
-        },
-        kind,
-        streams,
-    };
-    let mut legacy = true;
-    let mut has_semantic_identity = false;
-    if !r.is_empty() {
-        let mut magic = [0_u8; 8];
-        r.read_exact(&mut magic)?;
-        anyhow::ensure!(&magic == b"CTBMETA1" || &magic == b"CTBMETA2" || &magic == b"CTBMETA3",
-            "Unknown preservation record version");
-        legacy = &magic == b"CTBMETA1";
-        let record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut r)?)?;
-        anyhow::ensure!(record.streams.len() == entity.streams.len(), "Stream descriptor count mismatch");
-        has_semantic_identity = record.identity_dc.is_some();
-        anyhow::ensure!(&magic != b"CTBMETA3" || has_semantic_identity,
-            "Semantic identity is missing from CTBMETA3 preservation record");
-        if let Some(identity_dc) = record.identity_dc {
-            let identity = DcMstring::from_bytes(identity_dc)?.decode::<FileIdentity>()?;
-            let semantic_path = identity.relative_path.as_deref().filter(|value| !value.as_os_str().is_empty());
-            let legacy_path = entity.identity.relative_path.as_deref().filter(|value| !value.as_os_str().is_empty());
-            anyhow::ensure!(semantic_path == legacy_path,
-                "Semantic journal identity disagrees with its primary path");
-            entity.identity = identity;
-        }
-        entity.metadata = if legacy {
-            serde_json::from_value(record.metadata)?
-        } else {
-            FileMetadata::decode_json_with_context(record.metadata, context)?
-        };
-        if let FileEntityKind::Regular { extents, .. } = &mut entity.kind {
-            *extents = record.extents;
-        }
-        for (stream, preserved) in entity.streams.iter_mut().zip(record.streams) {
-            stream.name = preserved.name;
-            stream.kind = preserved.kind;
-            stream.entity = Box::new(read_entity_payload(&preserved.descriptor, origin_platform, context)?);
-            stream.data = preserved.data;
-        }
-        anyhow::ensure!(r.is_empty(), "Unexpected preservation record data");
-    }
-    if legacy && context.contains(SESSION_ENVIRONMENT_BINDING) {
-        let environment = context.resolve::<EnvDescription>(SESSION_ENVIRONMENT_BINDING)?;
-        attach_legacy_session_environment(&mut entity, &environment);
-    }
-    if !has_semantic_identity {
-        let warning = "Legacy journal lacks semantic identity; absent versus empty paths and non-filesystem origin provenance may not be recoverable";
-        entity.metadata.push_warning(warning);
-        warn_fmt!("{}: {warning}", entity.identity.display_path());
-    }
-    Ok(entity)
-}
-
-// Low-level serialization helpers
-
-fn write_bytes(w: &mut impl Write, bytes: &[u8]) -> Result<()> {
-    write_u32(w, u32::try_from(bytes.len())?)?;
-    w.write_all(bytes)?;
-    Ok(())
-}
-
-fn read_bytes(r: &mut impl Read) -> Result<Vec<u8>> {
-    let len = usize::try_from(read_u32(r)?)?;
-    let mut buf = vec![0_u8; len];
-    r.read_exact(&mut buf)?;
-    Ok(buf)
-}
-
-fn write_u32(w: &mut impl Write, v: u32) -> Result<()> {
-    w.write_all(&v.to_le_bytes())?;
-    Ok(())
-}
-
-fn read_u32(r: &mut impl Read) -> Result<u32> {
-    let mut buf = [0_u8; 4];
-    r.read_exact(&mut buf)?;
-    Ok(u32::from_le_bytes(buf))
-}
-
-fn write_u64(w: &mut impl Write, v: u64) -> Result<()> {
-    w.write_all(&v.to_le_bytes())?;
-    Ok(())
-}
-
-fn read_u64(r: &mut impl Read) -> Result<u64> {
-    let mut buf = [0_u8; 8];
-    r.read_exact(&mut buf)?;
-    Ok(u64::from_le_bytes(buf))
-}
-
-fn write_natural(w: &mut impl Write, val: &Natural) -> Result<()> {
-    write_bytes(w, val.to_string().as_bytes())
-}
-
-fn read_natural(r: &mut impl Read) -> Result<Natural> {
-    let bytes = read_bytes(r)?;
-    let s = std::str::from_utf8(&bytes)?;
-    use std::str::FromStr;
-    Natural::from_str(s).map_err(|()| anyhow::anyhow!("Invalid natural in journal: {s}"))
-}
-
-fn write_i64(w: &mut impl Write, v: i64) -> Result<()> {
-    w.write_all(&v.to_le_bytes())?;
-    Ok(())
-}
-
-fn read_i64(r: &mut impl Read) -> Result<i64> {
-    let mut buf = [0_u8; 8];
-    r.read_exact(&mut buf)?;
-    Ok(i64::from_le_bytes(buf))
-}
-
-fn read_u8(r: &mut impl Read) -> Result<u8> {
-    let mut buf = [0_u8; 1];
-    r.read_exact(&mut buf)?;
-    Ok(buf[0])
-}
-
-fn write_flag(w: &mut impl Write, flag: FileFlag) -> Result<()> {
-    write_bytes(w, flag.name().as_bytes())
-}
-
-fn read_flag(r: &mut impl Read) -> Result<Option<FileFlag>> {
-    let bytes = read_bytes(r)?;
-    let s = std::str::from_utf8(&bytes)?;
-    Ok(FileFlag::from_name(s))
-}
-
-fn write_opt_timestamp(w: &mut impl Write, sec: Option<i64>, nsec: Option<u32>) -> Result<()> {
-    match (sec, nsec) {
-        (Some(s), Some(ns)) => {
-            w.write_all(&[1])?;
-            write_i64(w, s)?;
-            write_u32(w, ns)?;
-        }
-        _ => {
-            w.write_all(&[0])?;
-        }
-    }
-    Ok(())
-}
-
-fn read_opt_timestamp(r: &mut impl Read) -> Result<(Option<i64>, Option<u32>)> {
-    let mut tag = [0_u8; 1];
-    r.read_exact(&mut tag)?;
-    if tag[0] == 1 {
-        let sec = read_i64(r)?;
-        let nsec = read_u32(r)?;
-        Ok((Some(sec), Some(nsec)))
-    } else {
-        Ok((None, None))
-    }
-}
 #[cfg(test)]
 pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
     for entry in std::fs::read_dir(state_dir).expect("read state dir") {
@@ -1340,6 +1027,7 @@ mod tests {
     use crate::args::{default_test_args};
     use crate::cli::run_csc;
     use crate::journal::find_cscjournal;
+    use crate::journal::legacy::{read_bytes, read_u32, write_bytes, write_u32};
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
@@ -1348,7 +1036,7 @@ mod tests {
     fn test_journal_rejects_unknown_environment_json() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("unknown-environment.cscjournal");
-        let mut bytes = JOURNAL_MAGIC.to_vec();
+        let mut bytes = JOURNAL_MAGIC_V1.to_vec();
         bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
         write_u32(&mut bytes, 0)?;
         write_bytes(&mut bytes, b"")?;
@@ -1472,7 +1160,7 @@ mod tests {
     fn test_journal_legacy_resume_keeps_unknown_environment() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("legacy.cscjournal");
-        let mut bytes = JOURNAL_MAGIC.to_vec();
+        let mut bytes = JOURNAL_MAGIC_V1.to_vec();
         bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
         write_u32(&mut bytes, 0)?;
         write_bytes(&mut bytes, b"")?;
@@ -2190,5 +1878,62 @@ mod tests {
         assert!(download_attempts.load(std::sync::atomic::Ordering::Relaxed) > 0,
             "Full provenance must exercise network discovery through the offline transport");
     }
+
+    #[crate::ctb_test]
+    fn test_all_journal_revision_fixtures() -> Result<()> {
+        let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/journals");
+        fs::create_dir_all(&fixtures_dir)?;
+
+        let v4_journal = fixtures_dir.join("v4_dcmixed.cscjournal");
+        let v4_desc = fixtures_dir.join("v4_dcmixed.cscdesc");
+        if !v4_journal.exists() {
+            let src = PathBuf::from("/source/project");
+            let dest = PathBuf::from("/backup/project");
+            let mut writer = JournalWriter::create_at_path(&v4_journal, &v4_desc, &[src], &dest)?;
+            let mut dir_entity = FileEntity::from_vec(b"src".to_vec());
+            dir_entity.kind = FileEntityKind::Directory;
+            dir_entity.identity.relative_path = Some(PathBuf::from("src"));
+            writer.record_entity(&dir_entity);
+
+            let mut file_entity = FileEntity::from_vec(b"src/main.rs".to_vec());
+            file_entity.kind = FileEntityKind::Regular {
+                size: 1024,
+                sha256: [0_u8; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            };
+            file_entity.identity.relative_path = Some(PathBuf::from("src/main.rs"));
+            writer.record_entity(&file_entity);
+
+            writer.commit_batch()?;
+            writer.mark_completed()?;
+        }
+
+        // 1. Revision 1 (CTBMETA1)
+        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1.cscjournal"))?;
+        assert!(s1.is_completed);
+        assert!(!s1.committed_entities.is_empty());
+
+        // 2. Revision 2 (CTBMETA2)
+        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2.cscjournal"))?;
+        assert!(s2.is_completed);
+        assert!(!s2.committed_entities.is_empty());
+
+        // 3. Revision 3 (CTBMETA3)
+        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3.cscjournal"))?;
+        assert!(s3.is_completed);
+        assert!(!s3.committed_entities.is_empty());
+
+        // 4. Revision 4 (DcMixed)
+        let s4 = read_journal_snapshot(&v4_journal)?;
+        assert!(s4.is_completed);
+        assert_eq!(s4.committed_entities.len(), 2);
+        assert!(s4.environment.is_some());
+        assert!(s4.committed_entities.contains_key(b"src".as_slice()));
+        assert!(s4.committed_entities.contains_key(b"src/main.rs".as_slice()));
+
+        Ok(())
+    }
 }
+
 
