@@ -288,7 +288,10 @@ impl JournalWriter {
 
         let mut magic = [0_u8; 8];
         let is_legacy = if let Ok(mut f) = File::open(journal_path) {
-            f.read_exact(&mut magic).map_or(false, |_| magic == *JOURNAL_MAGIC_V1)
+            match f.read_exact(&mut magic) {
+                Ok(()) => magic == *JOURNAL_MAGIC_V1,
+                Err(_) => false,
+            }
         } else {
             false
         };
@@ -424,7 +427,10 @@ impl JournalWriter {
         }
 
         let payload_end = mst.payload_bytes().len();
-        let section_bytes = &mst.payload_bytes()[payload_start..payload_end];
+        let section_bytes = mst
+            .payload_bytes()
+            .get(payload_start..payload_end)
+            .context("Invalid payload slice range for journal section")?;
         let digest = ctb_formats_checksum::sha256(section_bytes);
 
         mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
@@ -485,12 +491,10 @@ impl JournalWriter {
         error.path.encode_dc_mixed(&mut mst)?;
         mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
         let stage_code = u64::from(error.stage.to_code());
-        let os_code = u64::from(
-            error
-                .os_error
-                .and_then(|e| u32::try_from(e).ok())
-                .unwrap_or(0),
-        );
+        let os_code = match error.os_error {
+            Some(e) => u64::from(u32::try_from(e).context("invalid OS error code")?),
+            None => 0_u64,
+        };
         let packed = (stage_code << 32) | os_code;
         packed.encode_dc_mixed(&mut mst)?;
         mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
@@ -719,7 +723,10 @@ pub fn read_v4_journal_snapshot(
                 journal_path.display()
             );
         }
-        match ctb_formats_dcstring::validate_dcmst(&file_payload[..valid_slice_len]) {
+        let slice = file_payload
+            .get(..valid_slice_len)
+            .context("Slice bounds invalid for DcMixed journal")?;
+        match ctb_formats_dcstring::validate_dcmst(slice) {
             Ok(()) => break,
             Err(ctb_formats_dcstring::DcMixedError::TruncatedEncapsulation { offset, .. })
             | Err(ctb_formats_dcstring::DcMixedError::InvalidUtf8e128 { offset, .. })
@@ -736,7 +743,10 @@ pub fn read_v4_journal_snapshot(
         }
     }
 
-    let mstr = ctb_formats_dcstring::DcMstr::from_bytes(&file_payload[..valid_slice_len])?;
+    let slice = file_payload
+        .get(..valid_slice_len)
+        .context("Slice bounds invalid for DcMixed journal")?;
+    let mstr = ctb_formats_dcstring::DcMstr::from_bytes(slice)?;
     let mut reader = ctb_formats_dcstring::DcMixedReader::new(mstr);
 
     let mut sources = Vec::new();
@@ -781,9 +791,13 @@ pub fn read_v4_journal_snapshot(
             } else if inner_ch == ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE {
                 let _ = reader.next_char();
                 match u32::decode_dc_mixed(&mut reader) {
-                    Ok(code) => {
-                        origin_platform = u8::try_from(code).unwrap_or(0);
-                    }
+                    Ok(code) => match u8::try_from(code) {
+                        Ok(p) => origin_platform = p,
+                        Err(_) => {
+                            header_ok = false;
+                            break;
+                        }
+                    },
                     Err(_) => {
                         header_ok = false;
                         break;
@@ -814,7 +828,8 @@ pub fn read_v4_journal_snapshot(
                 let _ = shared_context.insert("environment", Arc::clone(env_arc));
             }
             reader.set_context(&shared_context);
-            valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+            let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
+            valid_length = 8_u64.saturating_add(reader_pos);
         }
     }
 
@@ -841,10 +856,10 @@ pub fn read_v4_journal_snapshot(
                     }
                     match FileEntity::decode_dc_mixed(&mut reader) {
                         Ok(entity) => {
-                            let path_key = entity
-                                .identity
-                                .path_bytes()
-                                .map_or_else(Vec::new, |b| b.to_vec());
+                            let path_key = match entity.identity.path_bytes() {
+                                Some(b) => b.to_vec(),
+                                None => Vec::new(),
+                            };
                             pending_entities.insert(path_key, entity);
                         }
                         Err(_) => {
@@ -882,7 +897,8 @@ pub fn read_v4_journal_snapshot(
 
                 last_batch_id = batch_id;
                 committed_entities.extend(pending_entities.drain());
-                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
+                valid_length = 8_u64.saturating_add(reader_pos);
             }
             ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED => {
                 let _ = reader.next_char();
@@ -890,7 +906,8 @@ pub fn read_v4_journal_snapshot(
                     break;
                 }
                 is_completed = true;
-                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
+                valid_length = 8_u64.saturating_add(reader_pos);
             }
             ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD => {
                 let _ = reader.next_char();
@@ -906,8 +923,12 @@ pub fn read_v4_journal_snapshot(
                 let Ok(packed) = u64::decode_dc_mixed(&mut reader) else {
                     break;
                 };
-                let stage_code = u8::try_from(packed >> 32).unwrap_or(0);
-                let os_code = u32::try_from(packed & 0xFFFF_FFFF).unwrap_or(0);
+                let Ok(stage_code) = u8::try_from(packed >> 32) else {
+                    break;
+                };
+                let Ok(os_code) = u32::try_from(packed & 0xFFFF_FFFF) else {
+                    break;
+                };
                 let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
                     break;
                 };
@@ -936,7 +957,8 @@ pub fn read_v4_journal_snapshot(
                     },
                     timestamp_sec,
                 });
-                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
+                valid_length = 8_u64.saturating_add(reader_pos);
             }
             ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD => {
                 let _ = reader.next_char();
@@ -964,7 +986,8 @@ pub fn read_v4_journal_snapshot(
                     message,
                     timestamp_sec,
                 });
-                valid_length = 8_u64.saturating_add(u64::try_from(reader.position()).unwrap_or(0));
+                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
+                valid_length = 8_u64.saturating_add(reader_pos);
             }
             _ => {
                 break;
@@ -1880,62 +1903,36 @@ mod tests {
     }
 
     /// Verifies authentic multi-revision journal test fixtures:
-    /// - Revision 1 (CTBMETA1): Commit `795dfba07`
-    /// - Revision 2 (CTBMETA2): Commit `15ce50fc5` / `c0bc7ec50` / `99d5548c4`
-    /// - Revision 3 (CTBMETA3): Commit `bed55a2ba` / `14737998c`
-    /// - Revision 4 (DcMixed): Live JournalWriter engine (CTBCSCJ\x04)
+    /// - Revision 1 (CTBMETA1): Commit `d90071e25` (last buildable commit before CTBMETA2 in 8a1f3786d)
+    /// - Revision 2 (CTBMETA2): Commit `02070a495` (last buildable commit before CTBMETA3 in 14737998c)
+    /// - Revision 3 (CTBMETA3): Commit `14737998c` (last buildable commit before DcMixed in a48081c47)
+    /// - Revision 4 (DcMixed): Commit `HEAD` / `main` (CTBCSCJ\x04 with DcMM)
     #[crate::ctb_test]
     fn test_all_journal_revision_fixtures() -> Result<()> {
         let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/journals");
-        fs::create_dir_all(&fixtures_dir)?;
 
-        let v4_journal = fixtures_dir.join("v4_dcmixed.cscjournal");
-        let v4_desc = fixtures_dir.join("v4_dcmixed.cscdesc");
-        if !v4_journal.exists() {
-            let src = PathBuf::from("/source/project");
-            let dest = PathBuf::from("/backup/project");
-            let mut writer = JournalWriter::create_at_path(&v4_journal, &v4_desc, &[src], &dest)?;
-            let mut dir_entity = FileEntity::from_vec(b"src".to_vec());
-            dir_entity.kind = FileEntityKind::Directory;
-            dir_entity.identity.relative_path = Some(PathBuf::from("src"));
-            writer.record_entity(&dir_entity);
+        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1.cscjournal"))?;
+        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2.cscjournal"))?;
+        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3.cscjournal"))?;
+        let s4 = read_journal_snapshot(&fixtures_dir.join("v4_dcmixed.cscjournal"))?;
 
-            let mut file_entity = FileEntity::from_vec(b"src/main.rs".to_vec());
-            file_entity.kind = FileEntityKind::Regular {
-                size: 1024,
-                sha256: [0_u8; 32],
-                is_sparse: false,
-                extents: Vec::new(),
-            };
-            file_entity.identity.relative_path = Some(PathBuf::from("src/main.rs"));
-            writer.record_entity(&file_entity);
-
-            writer.commit_batch()?;
-            writer.mark_completed()?;
+        // Verify snapshots across all four format revisions
+        for (rev_name, snap) in [
+            ("v1_ctbmeta1", &s1),
+            ("v2_ctbmeta2", &s2),
+            ("v3_ctbmeta3", &s3),
+            ("v4_dcmixed", &s4),
+        ] {
+            assert!(snap.is_completed, "{rev_name} must be completed");
+            assert!(!snap.committed_entities.is_empty(), "{rev_name} must have entities");
+            assert!(
+                snap.committed_entities.contains_key(b"src/fixture_info.txt".as_slice())
+                    || snap.committed_entities.contains_key(b"src/main.rs".as_slice()),
+                "{rev_name} must contain payload files"
+            );
         }
 
-        // 1. Revision 1 (CTBMETA1)
-        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1.cscjournal"))?;
-        assert!(s1.is_completed);
-        assert!(!s1.committed_entities.is_empty());
-
-        // 2. Revision 2 (CTBMETA2)
-        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2.cscjournal"))?;
-        assert!(s2.is_completed);
-        assert!(!s2.committed_entities.is_empty());
-
-        // 3. Revision 3 (CTBMETA3)
-        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3.cscjournal"))?;
-        assert!(s3.is_completed);
-        assert!(!s3.committed_entities.is_empty());
-
-        // 4. Revision 4 (DcMixed)
-        let s4 = read_journal_snapshot(&v4_journal)?;
-        assert!(s4.is_completed);
-        assert_eq!(s4.committed_entities.len(), 2);
-        assert!(s4.environment.is_some());
-        assert!(s4.committed_entities.contains_key(b"src".as_slice()));
-        assert!(s4.committed_entities.contains_key(b"src/main.rs".as_slice()));
+        assert!(s4.environment.is_some(), "v4_dcmixed must record environment");
 
         Ok(())
     }

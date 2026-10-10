@@ -19,8 +19,8 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-DEFAULT_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+DEFAULT_REPO_ROOT="$PWD"
 
 REPO_URL="https://github.com/collectivetoolbox/collectivetoolbox.git"
 OUTPUT_DIR="$DEFAULT_REPO_ROOT/src/io/csc/fixtures/journals"
@@ -129,6 +129,7 @@ if [[ "$USE_LOCAL" == "true" || -d "$REPO_URL/.git" ]]; then
 else
     git clone "$REPO_URL" "$CLONE_DIR"
 fi
+INITIAL_HEAD="$(git -C "$CLONE_DIR" rev-parse HEAD)"
 
 echo "[2/4] Setting up dependencies and prebuilt resources..."
 # Re-use vendor directory if available locally, otherwise initialize submodule
@@ -138,8 +139,8 @@ if [[ -d "$DEFAULT_REPO_ROOT/vendor/ctb-vendored" ]]; then
         rm -r "$CLONE_DIR/vendor"
     fi
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --exclude 'v86_images' "$DEFAULT_REPO_ROOT/vendor/" "$CLONE_DIR/vendor/"
-        mkdir -p "$CLONE_DIR/vendor/v86_images"
+        rsync -a --exclude 'guix-rootfs-flat' "$DEFAULT_REPO_ROOT/vendor/" "$CLONE_DIR/vendor/"
+        mkdir -p "$CLONE_DIR/vendor/v86_images/guix/guix-rootfs-flat"
     else
         cp -r "$DEFAULT_REPO_ROOT/vendor" "$CLONE_DIR/vendor"
     fi
@@ -186,6 +187,7 @@ generate_revision() {
 
     (
         cd "$CLONE_DIR"
+        git reset --hard
         git checkout "$commit_id"
 
         # Touch prebuilt resources so Cargo build.rs does not treat them as out of date
@@ -282,8 +284,7 @@ for rev in "${REV_ARRAY[@]}"; do
         4)
             # Revision 4 (v4_dcmixed):
             # HEAD / main branch using native DcMixed container and ontology Dcs.
-            CURRENT_HEAD="$(git -C "$CLONE_DIR" rev-parse HEAD)"
-            generate_revision 4 "$CURRENT_HEAD" "v4_dcmixed" $'CTBCSCJ\x04' "DcMM"
+            generate_revision 4 "$INITIAL_HEAD" "v4_dcmixed" $'CTBCSCJ\x04' "DcMM"
             ;;
         *)
             echo "Warning: Unknown revision requested: $rev (supported: 1, 2, 3, 4)" >&2

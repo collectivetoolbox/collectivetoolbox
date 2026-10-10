@@ -1,14 +1,17 @@
 CSC State File
 Status: Completed
-FilesCommitted: 2
-BytesCommitted: 24
+FilesCommitted: 4
+BytesCommitted: 238
 ErrorsCount: 0
-WarningsCount: 3
+WarningsCount: 6
 Warnings:
-  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
-  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
-  - [FileReadWarning]: Windows change-time restoration is not implemented; original native change time is retained in semantic metadata and the journal
+  - [SpecialFilesSkippedByDefault]: Special files (FIFOs, device nodes, sockets) are skipped by default. Pass --copy-specials-as-specials to preserve them.
+  - [BestEffortMetadata]: Best-effort metadata enabled: non-fatal metadata write errors or timestamp precision differences may be tolerated.
+  - [FileMaterializationWarning]: Cannot reproduce birth time 1791600282.202121281 on /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/dst/src/fixture_info.txt; original metadata must be retained in the journal
+  - [FileMaterializationWarning]: Cannot reproduce birth time 1791600282.202121281 on /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/dst/src/nested/bytes.bin; original metadata must be retained in the journal
+  - [FileMaterializationWarning]: Cannot reproduce birth time 1791600282.202121281 on /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/dst/src/nested; original metadata must be retained in the journal
+  - [FileMaterializationWarning]: Cannot reproduce birth time 1791600282.202121281 on /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/dst/src; original metadata must be retained in the journal
 Sources:
-  - C:\users\root\AppData\Local\Temp\.tmpC4y6sH\source\
-Destination: C:\users\root\AppData\Local\Temp\.tmpC4y6sH\destination
-NoatimeUsed: false
+  - /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/src
+Destination: /workspaces/ctoolbox/target/tmp_fixtures_gen.HFY97f/staging/rev_2/dst
+NoatimeUsed: true
