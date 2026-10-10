@@ -161,9 +161,10 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     drop(journal);
 
     let has_errors = error_count > 0 || stats.files_failed > 0;
-    let retain_metadata_journal = stats.copied_entities.iter().any(|(_, _, entity)|
+    let retain_metadata_journal = warning_count > 0 || stats.copied_entities.iter().any(|(_, _, entity)|
         entity.metadata.native.is_some() || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
-        || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
+        || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty()
+        || !entity.metadata.warnings.is_empty());
     if args.delete_manifest_after && has_errors {
         warn_fmt!("Retaining {}: it contains recorded error records", journal_path.display());
     } else if args.delete_manifest_after && retain_metadata_journal {
@@ -179,17 +180,6 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let elapsed = start_time.elapsed().as_secs_f64();
 
-    let mut sub_64k_sparse_caveats = 0_usize;
-    let mut wine_sparse_limitations = 0_usize;
-    for w in &warnings {
-        if w.message.contains("64KB") || w.message.contains("sub-64KB") || w.message.contains("sparse allocation unit") {
-            sub_64k_sparse_caveats = sub_64k_sparse_caveats.saturating_add(1);
-        }
-        if (w.message.contains("WINE") && w.message.contains("sparse")) || w.message.contains("does not support sparse") {
-            wine_sparse_limitations = wine_sparse_limitations.saturating_add(1);
-        }
-    }
-
     // 3. Format result summary
     let mut summary = String::new();
     use std::fmt::Write;
@@ -199,10 +189,8 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     }
     writeln!(summary, "Files copied:             {}", stats.files_copied)?;
     if stats.files_failed > 0 || !errors.is_empty() {
-        // Reason for fallback: on 32-bit platforms if files_failed overflows usize, falling back to zero preserves errors.len() as lower bound
-        let total_errors = errors.len().max(usize::try_from(stats.files_failed).unwrap_or(0));
-        writeln!(summary, "Files failed (skipped):   {total_errors}")?;
-        writeln!(summary, "Errors recorded:          {total_errors}")?;
+        writeln!(summary, "Files failed (skipped):   {}", stats.files_failed)?;
+        writeln!(summary, "Errors recorded:          {error_count}")?;
         if args.continue_on_error {
             writeln!(summary, "\n--- Continue-on-Error Diagnostics ---")?;
             for err in &errors {
@@ -248,25 +236,18 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     }
     if warning_count > 0 {
         writeln!(summary, "Warnings recorded:        {warning_count}")?;
-    }
-    if sub_64k_sparse_caveats > 0 {
-        writeln!(
-            summary,
-            "Sparse allocation caveats: {sub_64k_sparse_caveats} item(s) have sub-64KB holes retained as physical clusters (NTFS 64KB sparse allocation unit constraint)."
-        )?;
-    }
-    if wine_sparse_limitations > 0 {
-        writeln!(
-            summary,
-            "WINE sparse limitations:   {wine_sparse_limitations} item(s) materialized densely (WINE does not support sparse allocation)."
-        )?;
+        for warning in &warnings {
+            writeln!(summary, "  [Warning] {}: {}", warning.code, warning.message)?;
+        }
     }
     if args.should_verify_after() {
         writeln!(summary, "Files verified:           {}", stats.files_verified)?;
     }
     writeln!(summary, "Duration:                 {elapsed:.2}s")?;
-    if stats.files_failed > 0 {
-        writeln!(summary, "Status:                   Completed with {} error(s) logged in journal.", stats.files_failed)?;
+    if has_errors {
+        writeln!(summary, "Status:                   Completed with {error_count} error record(s) and {} failed file(s).", stats.files_failed)?;
+    } else if warning_count > 0 {
+        writeln!(summary, "Status:                   Completed with {warning_count} warning record(s); fidelity limitations are retained in the journal.")?;
     } else {
         writeln!(summary, "Status:                   All operations verified successfully.")?;
     }
@@ -485,10 +466,54 @@ mod tests {
                 let out = String::from_utf8_lossy(&stdout);
                 assert!(out.contains("--- CSC Summary ---"));
                 assert!(out.contains("Files copied:             1"));
-                assert!(out.contains("All operations verified successfully."));
+                let journal_path = find_cscjournal(&state);
+                let snapshot = crate::journal::read_journal_snapshot(&journal_path).unwrap();
+                if snapshot.warnings.is_empty() {
+                    assert!(out.contains("All operations verified successfully."));
+                } else {
+                    assert!(out.contains("fidelity limitations are retained in the journal"));
+                }
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
+
+        let source_file = src.join("test.txt");
+        let resumed_dest = temp.path().join("resumed.txt");
+        let journal_path = state.join("diagnostics.cscjournal");
+        let desc_path = journal_path.with_extension("cscdesc");
+        let mut journal = JournalWriter::create_at_path(
+            &journal_path, &desc_path, &[source_file.clone()], &resumed_dest,
+        ).unwrap();
+        let message = "Destination filesystem does not support sparse files for resumed.txt";
+        journal.record_warning("FileMaterializationWarning", message).unwrap();
+        for error_message in ["First recorded issue", "Second recorded issue"] {
+            journal.record_error(&crate::journal::JournalErrorRecord {
+                path: source_file.clone(),
+                raw_path: source_file.as_os_str().as_encoded_bytes().to_vec(),
+                stage: crate::journal::JournalErrorStage::MetadataRead,
+                error_message: error_message.to_owned(),
+                os_error: None,
+                timestamp_sec: 0,
+            }).unwrap();
+        }
+        drop(journal);
+        let mut resume_args = default_test_args(Vec::new(), state);
+        resume_args.resume = Some(journal_path.clone());
+        resume_args.continue_on_error = true;
+        resume_args.delete_manifest_after = true;
+        match run_csc(resume_args).unwrap() {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8(stdout).unwrap();
+                assert!(out.contains(&format!("[Warning] FileMaterializationWarning: {message}")));
+                assert!(!out.contains("WINE sparse limitations"));
+                assert!(out.contains("Files failed (skipped):   0"));
+                assert!(out.contains("Errors recorded:          2"));
+                assert!(!out.contains("All operations verified successfully."));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+        assert!(journal_path.exists());
+        assert!(desc_path.exists());
     }
 }
 

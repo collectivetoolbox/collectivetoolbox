@@ -6,6 +6,58 @@ Status: **Partially Implemented**. Passing enabled tests does not establish
 Windows CSC feature parity. This handoff covers CSC and its `io/file`
 dependencies, not a comprehensive audit of every Windows filesystem feature.
 
+## Review Follow-Up (2026-10-10)
+
+Status: **Partially Implemented**. The recent-commit review identified and
+corrected these bounded deficiencies:
+
+- Invalid sparse-layout fallback diagnostics now survive in materialization
+  receipts instead of being available only in logs.
+- Sparse materialization uses the native control result and retained attribute,
+  not an unconditional WINE rejection. Unsupported native filesystems are not
+  mislabeled as WINE limitations.
+- CSC prints actual recorded warning codes/messages, retains warning-bearing
+  journals when deletion is requested, and distinguishes failed files from error
+  records. Historical error records no longer produce a clean-success summary.
+- Unix auditing propagates failure to restore timestamps changed by its reads.
+- Semantic journal OS errors preserve signed 32-bit values; ambiguous `Some(0)`
+  is explicitly rejected rather than silently decoded as `None`.
+- The FreeBSD VM runner builds its standard library from source and includes
+  ignored tests, with only the authorized routine TypeScript bootstrap exclusion.
+  Explicit filters permit that bootstrap test to run.
+- The Windows COM compatibility shim attempts to load available COMBase before
+  selecting an already-loaded Ole32. Its existing standalone regression now
+  verifies that lookup ordering on WINE and native Windows 7.
+
+Validation so far: Linux file 104, CSC 112, and Dc-string 89 tests pass, with
+zero ignored; affected Linux production Clippy passes. FreeBSD file 103 and
+CSC 110 tests pass, zero ignored; the final CLI-status follow-up also passes
+in the FreeBSD VM. Native Windows 7 and WINE file 89 tests pass, zero ignored;
+the standalone shim and CSC 93 tests pass on both, zero ignored. Both VMs are
+stopped. VM protocol tests pass all ten cases; FreeBSD sysroot tests pass all
+35 cases. Windows-target Clippy completes but emits
+existing repository warnings; it is not a warning-clean result. The final
+CLI-status follow-up postdates the Linux CSC run.
+
+### Remaining Gaps / Pending Work
+
+- Full-workspace runtime coverage on all four platforms is not established by
+  these affected-crate checks. Modern Windows and other filesystem variants
+  remain unvalidated.
+- The existing CSC sparse-verification fixture returns early when zero-filled
+  destination blocks remain sparse (notably compressed ZFS), bypassing its
+  negative sparse assertions. FreeBSD's passing count does not prove this
+  scenario was exercised; a deterministic allocation-query fixture is pending.
+- Unix extent discovery still has internally logged dense-fallback diagnostics
+  that do not reach captured semantic metadata. Lower-level stream, flag,
+  security, and directory-sync diagnostic propagation remains incomplete.
+- Sparse auditing still assumes missing sparse support from WINE identity in
+  best-effort mode, and granularity handling assumes platform-wide allocation
+  limits rather than independently measured destination capabilities.
+- Windows change-time restoration and the other previously documented gaps
+  remain unresolved. Existing sections below contain historical results and
+  must not be interpreted as validation of this review's current source.
+
 ## Remaining Gaps vs Upstream / Pending Work
 
 ### 1. Most CSC Functional Tests Are Now Compiled and Passing on Windows and WINE (Completed 2026-10-09)

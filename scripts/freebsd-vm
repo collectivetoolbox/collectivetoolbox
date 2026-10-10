@@ -461,22 +461,22 @@ _run_smoke_tests() {
         TEST_DS="zroot/test-zfs-validation"
         echo "Creating dataset: $TEST_DS with lz4 compression..."
         zfs create -o compression=lz4 "$TEST_DS"
-        
+
         echo "Writing test file with repetitive data to test compression..."
         jot -b "CollectiveToolbox ZFS Validation Test Payload Line" 20000 > "/$TEST_DS/payload.txt"
         ls -lh "/$TEST_DS/payload.txt"
-        
+
         echo "Verifying ZFS compression ratio..."
         zfs get used,logicalused,compressratio "$TEST_DS"
-        
+
         echo "Testing ZFS snapshot..."
         zfs snapshot "${TEST_DS}@test-snap"
         zfs list -t snapshot -r "$TEST_DS"
-        
+
         echo "Modifying file and rolling back..."
         echo "corrupted data" >> "/$TEST_DS/payload.txt"
         zfs rollback "${TEST_DS}@test-snap"
-        
+
         echo "Destroying test dataset..."
         zfs destroy -r "$TEST_DS"
         echo "ZFS validation succeeded!"
@@ -624,7 +624,8 @@ cmd_test_suite() {
         fi
 
         echo "=== Compiling Test Binaries for $target (profile: $build_profile) ==="
-        local cargo_args=(test --no-run --target "$target" --jobs 4)
+        export RUSTC_BOOTSTRAP=1
+        local cargo_args=(test --no-run --target "$target" -Z "build-std=std,panic_abort" --jobs 4)
         if [[ "$release" == "true" ]]; then
             cargo_args+=(--release)
         fi
@@ -706,8 +707,10 @@ print(count)
 
     echo "Generating in-VM test runner script..."
     local filter_arg=""
+    local bootstrap_test_args="--skip tests::test_bootstrap_ts_compilation"
     if [[ -n "$test_filter" ]]; then
         filter_arg="$test_filter "
+        bootstrap_test_args=""
     fi
 
     cat <<EOF > "$EXCHANGE_DIR/run_suite.sh"
@@ -727,7 +730,7 @@ for f in "\$TEST_ROOT"/tests/*; do
     bname="\$(basename "\$f")"
     TOTAL=\$((TOTAL + 1))
     echo "=== RUN \$bname ==="
-    if "\$f" ${filter_arg}--nocapture; then
+    if "\$f" ${filter_arg}--include-ignored $bootstrap_test_args --nocapture; then
         PASSED=\$((PASSED + 1))
         echo "=== PASS \$bname ==="
     else

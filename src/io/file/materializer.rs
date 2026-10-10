@@ -775,6 +775,7 @@ pub fn materialize_entity(
             let initial_size = *size;
 
             let mut can_use_sparse = *is_sparse;
+            let mut sparse_warnings = Vec::new();
             if can_use_sparse {
                 let mut extent_end = 0_u64;
                 for extent in extents {
@@ -810,14 +811,15 @@ pub fn materialize_entity(
                             extent_end
                         );
                     }
-                    warn_fmt!(
-                        "Caveat: Sparse extents layout does not strictly cover payload for {}; falling back to lossless linear stream copying",
+                    let warning = format!(
+                        "Sparse extents layout does not strictly cover payload for {}; falling back to linear stream copying without preserving sparse layout",
                         dest_path.display()
                     );
+                    warn_fmt!("Caveat: {warning}");
+                    sparse_warnings.push(warning);
                 }
             }
 
-            let mut sparse_warnings = Vec::new();
             #[cfg(windows)]
             if can_use_sparse {
                 use std::os::windows::fs::MetadataExt;
@@ -845,7 +847,7 @@ pub fn materialize_entity(
                     .metadata()
                     .context("Failed to query destination sparse attributes")?
                     .file_attributes() & FILE_ATTRIBUTE_SPARSE_FILE != 0;
-                if ret == 0 || !has_sparse_attr || ctb_io_environment::is_wine() {
+                if ret == 0 || !has_sparse_attr {
                     if options.strict_lossless {
                         anyhow::bail!(
                             "Destination filesystem does not support sparse files for {}",
@@ -853,7 +855,7 @@ pub fn materialize_entity(
                         );
                     }
                     sparse_warnings.push(format!(
-                        "Destination filesystem does not support sparse files (WINE environment limitation) for {}",
+                        "Destination filesystem did not retain sparse support for {}",
                         dest_path.display()
                     ));
                     can_use_sparse = false;
@@ -1987,7 +1989,7 @@ mod tests {
                 ..MaterializeOptions::default()
             };
             let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
-            assert!(receipt.warnings.iter().any(|w| w.contains("does not support sparse")));
+            assert!(receipt.warnings.iter().any(|w| w.contains("did not retain sparse support")));
             assert_eq!(std::fs::read(&dest_path).unwrap(), payload_bytes);
 
             // Audit with best_effort: true tolerates missing sparse support
@@ -2020,6 +2022,42 @@ mod tests {
             let actual_extents = crate::payload::get_file_extents(&file, total_size).unwrap();
             assert_eq!(actual_extents, extents);
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_invalid_sparse_layout_retains_fidelity_warning() {
+        let temp = tempfile::tempdir().unwrap();
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        let payload_bytes = vec![0xCC_u8; 32_768];
+        let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+        hasher.update(&payload_bytes);
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from("invalid_sparse.bin")),
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: u64::try_from(payload_bytes.len()).unwrap(),
+                sha256: hasher.finalize(),
+                is_sparse: true,
+                extents: vec![Extent::Data { offset: 0, length: 16_384 }],
+            },
+            metadata: FileMetadata::default(),
+            streams: Vec::new(),
+        };
+        let mut payload = crate::MemoryPayloadSource::new(payload_bytes.clone()).unwrap();
+        let options = MaterializeOptions {
+            strict_lossless: false,
+            ..MaterializeOptions::default()
+        };
+        let receipt = materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+        assert_eq!(std::fs::read(receipt.destination_path).unwrap(), payload_bytes);
+        assert!(receipt.warnings.iter().any(|warning| {
+            warning.contains("without preserving sparse layout")
+        }));
     }
 
     #[crate::ctb_test]

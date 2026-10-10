@@ -492,7 +492,10 @@ impl JournalWriter {
         mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
         let stage_code = u64::from(error.stage.to_code());
         let os_code = match error.os_error {
-            Some(e) => u64::from(u32::try_from(e).context("invalid OS error code")?),
+            Some(error_code) => {
+                anyhow::ensure!(error_code != 0, "Zero OS error code cannot be distinguished from an absent error in this journal format");
+                u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
+            }
             None => 0_u64,
         };
         let packed = (stage_code << 32) | os_code;
@@ -953,7 +956,7 @@ pub fn read_v4_journal_snapshot(
                     os_error: if os_code == 0 {
                         None
                     } else {
-                        i32::try_from(os_code).ok()
+                        Some(i32::from_le_bytes(os_code.to_le_bytes()))
                     },
                     timestamp_sec,
                 });
@@ -1054,6 +1057,34 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_journal_signed_os_errors_roundtrip() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("signed-errors.cscjournal");
+        let mut writer = JournalWriter::create_at_path(
+            &journal_path, &journal_path.with_extension("cscdesc"),
+            &[temp.path().join("source")], &temp.path().join("destination"),
+        )?;
+        for os_error in [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)] {
+            let record = JournalErrorRecord {
+                path: PathBuf::from("source"),
+                raw_path: b"source".to_vec(),
+                stage: JournalErrorStage::MetadataRead,
+                error_message: "OS error fidelity".to_owned(),
+                os_error,
+                timestamp_sec: 0,
+            };
+            writer.record_error(&record)?;
+            let snapshot = read_journal_snapshot(&journal_path)?;
+            assert_eq!(snapshot.errors.last(), Some(&record));
+        }
+        let mut zero_record = writer.errors().last().context("Missing recorded errors")?.clone();
+        zero_record.os_error = Some(0);
+        assert!(writer.record_error(&zero_record).is_err());
+        assert_eq!(read_journal_snapshot(&journal_path)?.errors.len(), 5);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_journal_rejects_unknown_environment_json() -> Result<()> {

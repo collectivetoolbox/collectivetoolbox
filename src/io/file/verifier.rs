@@ -1110,7 +1110,8 @@ pub fn audit_entity_detailed(
                     actual_mtime_sec,
                     actual_mtime_nsec,
                 );
-                let _ = set_file_times(path, orig_atime, orig_mtime);
+                set_file_times(path, orig_atime, orig_mtime)
+                    .with_context(|| format!("Failed to restore audit timestamps on {}", path.display()))?;
             }
             #[cfg(windows)]
             {

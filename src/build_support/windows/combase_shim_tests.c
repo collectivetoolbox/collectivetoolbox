@@ -1,7 +1,27 @@
 #include <stdio.h>
+#include <string.h>
 #include <windows.h>
 
 static BOOL fail_stack_query = FALSE;
+static BOOL attempted_combase_load = FALSE;
+static BOOL selected_ole32_before_combase_load = FALSE;
+
+static HMODULE WINAPI test_get_module_handle(LPCSTR name) {
+    if (strcmp(name, "combase.dll") == 0) {
+        return NULL;
+    }
+    if (strcmp(name, "ole32.dll") == 0 && !attempted_combase_load) {
+        selected_ole32_before_combase_load = TRUE;
+    }
+    return GetModuleHandleA(name);
+}
+
+static HMODULE WINAPI test_load_library(LPCSTR name) {
+    if (strcmp(name, "combase.dll") == 0) {
+        attempted_combase_load = TRUE;
+    }
+    return LoadLibraryA(name);
+}
 
 static SIZE_T WINAPI test_virtual_query(
     LPCVOID address, PMEMORY_BASIC_INFORMATION information, SIZE_T length) {
@@ -12,8 +32,12 @@ static SIZE_T WINAPI test_virtual_query(
 }
 
 #define VirtualQuery test_virtual_query
+#define GetModuleHandleA test_get_module_handle
+#define LoadLibraryA test_load_library
 #include "combase_shim.c"
 #undef VirtualQuery
+#undef GetModuleHandleA
+#undef LoadLibraryA
 
 static COPYFILE2_MESSAGE_ACTION CALLBACK test_progress(
     const COPYFILE2_MESSAGE *message, PVOID context) {
@@ -23,6 +47,14 @@ static COPYFILE2_MESSAGE_ACTION CALLBACK test_progress(
 }
 
 int main(void) {
+    HMODULE selected_com = get_com_module();
+    HMODULE native_com = GetModuleHandleA("combase.dll");
+    if (!attempted_combase_load || selected_ole32_before_combase_load ||
+        (native_com && selected_com != native_com)) {
+        fprintf(stderr, "COM module lookup did not prefer available COMBase\n");
+        return 1;
+    }
+
     DWORD *allocation = fallback_CoTaskMemAlloc(sizeof(DWORD));
     if (!allocation) {
         fprintf(stderr, "Fallback COM allocation failed\n");

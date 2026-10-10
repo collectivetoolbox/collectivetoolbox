@@ -27,10 +27,10 @@ static HMODULE get_com_module(void) {
         // On Windows 7, only ole32.dll exists.
         s_hComMod = GetModuleHandleA("combase.dll");
         if (!s_hComMod) {
-            s_hComMod = GetModuleHandleA("ole32.dll");
+            s_hComMod = LoadLibraryA("combase.dll");
         }
         if (!s_hComMod) {
-            s_hComMod = LoadLibraryA("combase.dll");
+            s_hComMod = GetModuleHandleA("ole32.dll");
         }
         if (!s_hComMod) {
             s_hComMod = LoadLibraryA("ole32.dll");
