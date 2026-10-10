@@ -173,7 +173,7 @@ RUN set -eux; \
         'rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"' \
         'replace-with = "vendored-sources"' \
         > /tmp/ctb-ts-build/.cargo/config.toml; \
-    find /tmp/ctb-ts-build/vendor -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | while read -r file; do \
+    find /tmp/ctb-ts-build/vendor \( -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' -o -name '*.gitattributes-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' \) | while read -r file; do \
         mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"; \
     done; \
     cd /tmp/ctb-ts-build; \

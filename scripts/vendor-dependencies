@@ -30,6 +30,11 @@ git add . || true
 git commit -m 'deps: Automatically update dependencies (reset .gitignores)' || true
 git add . || true
 git commit -m 'deps: Automatically update dependencies (post resetting .gitignores)' || true
+find vendor -name '*.gitattributes' -exec mv {} {}-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved \;
+git add . || true
+git commit -m 'deps: Automatically update dependencies (reset .gitattributes)' || true
+git add . || true
+git commit -m 'deps: Automatically update dependencies (post resetting .gitattributes)' || true
 cd .. || exit 1
 git add ctb-vendored || true
 git commit -m 'deps: Automatically update dependencies' || true

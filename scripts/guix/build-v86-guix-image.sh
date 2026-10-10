@@ -985,7 +985,7 @@ case "$mode" in
                 'rev = "0f18d2fbcaa5d1c175db8aae7d53428988d7e961"' \
                 'replace-with = "vendored-sources"' \
                 > "$ctb_build_dir/.cargo/config.toml"
-            find "$ctb_build_dir/vendor" -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' | while read -r file; do
+            find "$ctb_build_dir/vendor" \( -name '*.gitignore-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' -o -name '*.gitattributes-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved' \) | while read -r file; do
                 mv "$file" "${file%-2528979c-1cdc-49a3-83ec-a1cdea2ed741.moved}"
             done
             (
