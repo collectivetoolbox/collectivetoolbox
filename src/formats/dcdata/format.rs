@@ -281,7 +281,7 @@ pub fn validate_formats_category_file(
                 Some(line_no),
                 Some("Import support"),
                 format!("Invalid Import support value: {e}"),
-                Some("Use -1..=5 or leave blank/0"),
+                Some("Use space-separated '<general> <dc>' (e.g. '3 1' or '2 0') in -1..=5, or leave blank"),
             );
         }
 
@@ -291,7 +291,7 @@ pub fn validate_formats_category_file(
                 Some(line_no),
                 Some("Export support"),
                 format!("Invalid Export support value: {e}"),
-                Some("Use -1..=5 or leave blank/0"),
+                Some("Use space-separated '<general> <dc>' (e.g. '3 1' or '2 0') in -1..=5, or leave blank"),
             );
         }
 
@@ -301,7 +301,7 @@ pub fn validate_formats_category_file(
                 Some(line_no),
                 Some("Tests"),
                 format!("Invalid Tests support value: {e}"),
-                Some("Use -1..=5 or leave blank/0"),
+                Some("Use space-separated '<general> <dc>' (e.g. '1 1' or '2 0') in -1..=5, or leave blank"),
             );
         }
 

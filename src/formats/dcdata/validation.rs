@@ -1748,7 +1748,10 @@ pub fn validate_all_dc_files_from_disk(
 mod tests {
     use super::*;
     use crate::format::validate_formats_category_file;
-    use crate::shared::{validate_extension_entry, validate_rust_identifier};
+    use crate::shared::{
+        SupportLevel, validate_extension_entry, validate_rust_identifier,
+        validate_support_level,
+    };
     use crate::syntax::{
         ActionArg, MatchOutcome, Quantifier, SyntaxPattern, SyntaxTerm,
         match_syntax_rule,
@@ -1833,6 +1836,45 @@ mod tests {
         assert!(validate_rust_identifier("bad-name").is_err());
         assert!(validate_rust_identifier("type").is_err());
         assert!(validate_rust_identifier("match").is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_validate_support_level() {
+        // Blank or whitespace-only is valid (interpreted as 0 0)
+        assert!(validate_support_level("").is_ok());
+        assert!(validate_support_level("   ").is_ok());
+        let empty_lvl = SupportLevel::parse("").unwrap();
+        assert_eq!(empty_lvl.general, 0);
+        assert_eq!(empty_lvl.dc, 0);
+
+        // Valid two-level specifications
+        let s1 = SupportLevel::parse("3 1").unwrap();
+        assert_eq!(s1.general, 3);
+        assert_eq!(s1.dc, 1);
+
+        let s2 = SupportLevel::parse("2 0").unwrap();
+        assert_eq!(s2.general, 2);
+        assert_eq!(s2.dc, 0);
+
+        let s3 = SupportLevel::parse("-1 -1").unwrap();
+        assert_eq!(s3.general, -1);
+        assert_eq!(s3.dc, -1);
+
+        let s4 = SupportLevel::parse("5 4").unwrap();
+        assert_eq!(s4.general, 5);
+        assert_eq!(s4.dc, 4);
+
+        // Single values must fail validation
+        assert!(validate_support_level("2").is_err());
+        assert!(validate_support_level("0").is_err());
+        assert!(validate_support_level("-1").is_err());
+        assert!(validate_support_level("3").is_err());
+
+        // Invalid counts and out-of-range components
+        assert!(validate_support_level("1 2 3").is_err());
+        assert!(validate_support_level("6 1").is_err());
+        assert!(validate_support_level("1 -2").is_err());
+        assert!(validate_support_level("foo bar").is_err());
     }
 
     #[crate::ctb_test]

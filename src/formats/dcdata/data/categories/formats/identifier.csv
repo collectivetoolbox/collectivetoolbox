@@ -6,13 +6,14 @@ Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Cha
     tr.)",Tests,"Variant Types
 (comma-
   delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
-Import/export/tests support columns meaning:
+Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+   First value: general format support; second value: Dc document conversion support.
    -1=N/A
-   blank/0=none
+   0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
 2228450,226,IpAddr,IP address,identifier,:(f490 | f491),,,,,,,,,,,
 2228451,227,Uri,URI (Uniform Resource Identifier),identifier,@implies(f14),,,,,,,,,,,
@@ -34,11 +35,11 @@ Import/export/tests support columns meaning:
 2228714,490,IpV4,IPV4 address,identifier,"@implies(f226), :[number:f207]",,,,,,,,,,,
 2228715,491,IpV6,IPV6 address,identifier,"@implies(f226), :[number:f211]",,,,,,,,,,,
 2228824,600,Uuid,UUID (Universally Unique Identifier),identifier,:([string] | [data]),,,,,,,,,,,
-2228825,601,UuidCanonical,UUID (canonical 8-4-4-4-12 hex with hyphens),identifier,"@implies(f600 & f14)",,,,,,,,,,,
-2228826,602,UuidHex32,UUID (32-character hexadecimal without hyphens),identifier,"@implies(f600 & f14)",,,,,,,,,,,
-2228827,603,UuidBraced,UUID (braced Windows registry format),identifier,"@implies(f600 & f14)",,,,,,,,,,,
-2228828,604,UuidUrn,UUID (URN namespace format: urn:uuid:...),identifier,"@implies(f600 & f14 & f227)",,,,,,,,,,,
-2228829,605,UuidApollo,UUID (legacy Apollo NCS format),identifier,"@implies(f600 & f14)",,,,,,,,,,,
-2228830,606,UuidOid,UUID (OID 2.25 arc format),identifier,"@implies(f600 & f14)",,,,,,,,,,,
-2228831,607,IpV4String,IPv4 address string,identifier,"@implies(f490 & f14)",,,,,,,,,,,
-2228832,608,IpV6String,IPv6 address string,identifier,"@implies(f491 & f14)",,,,,,,,,,,
+2228825,601,UuidCanonical,UUID (canonical 8-4-4-4-12 hex with hyphens),identifier,@implies(f600 & f14),,,,,,,,,,,
+2228826,602,UuidHex32,UUID (32-character hexadecimal without hyphens),identifier,@implies(f600 & f14),,,,,,,,,,,
+2228827,603,UuidBraced,UUID (braced Windows registry format),identifier,@implies(f600 & f14),,,,,,,,,,,
+2228828,604,UuidUrn,UUID (URN namespace format: urn:uuid:...),identifier,@implies(f600 & f14 & f227),,,,,,,,,,,
+2228829,605,UuidApollo,UUID (legacy Apollo NCS format),identifier,@implies(f600 & f14),,,,,,,,,,,
+2228830,606,UuidOid,UUID (OID 2.25 arc format),identifier,@implies(f600 & f14),,,,,,,,,,,
+2228831,607,IpV4String,IPv4 address string,identifier,@implies(f490 & f14),,,,,,,,,,,
+2228832,608,IpV6String,IPv6 address string,identifier,@implies(f491 & f14),,,,,,,,,,,

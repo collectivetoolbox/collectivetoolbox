@@ -95,10 +95,11 @@ pub use lookup::{
 pub use ctb_formats_unicode::describe_general_category;
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use shared::{
-    BidiClass, GeneralCategory, validate_bidi_class, validate_combining_class,
-    validate_cross_table_uniqueness, validate_extension_entry,
-    validate_extensions_field, validate_general_category, validate_mime_field,
-    validate_rust_identifier, validate_support_level,
+    BidiClass, GeneralCategory, SupportLevel, validate_bidi_class,
+    validate_combining_class, validate_cross_table_uniqueness,
+    validate_extension_entry, validate_extensions_field,
+    validate_general_category, validate_mime_field, validate_rust_identifier,
+    validate_support_level,
 };
 pub use format_spec::{
     DcToken, FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH,

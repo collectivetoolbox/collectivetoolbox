@@ -22,13 +22,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! This module supports parsing, converting, and serializing Dc arrays to and from various external formats,
 //! as well as providing metadata and handling warnings for import and export operations.
 //!
-//! Import/export/tests support columns meaning:
+//! Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+//!   First value: general format support; second value: Dc document conversion support.
 //!   -1=N/A
-//!   blank/0=none
+//!   0=none
 //!   1=WIP
-//!   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-//!   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-//!   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+//!   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+//!   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+//!   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
 //!   5=4+optional strict validation.
 use crate::utilities::*;
 
@@ -556,24 +557,59 @@ pub fn get_format_extension(format: &str) -> Result<String> {
     dc_data_lookup_by_id("formats", id, 2)
 }
 
-/// Get the import support value for a format.
-/// Returns an integer indicating the level of import support for the format.
-/// Get the import support value for a format.
-/// Returns an integer indicating the level of import support for the format.
+fn parse_support_component(raw: &str, index: usize) -> Result<i32> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(0);
+    }
+    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+    if let Some(part) = parts.get(index) {
+        part.parse::<i32>().with_context(|| {
+            format!("Invalid integer in support specification '{raw}'")
+        })
+    } else {
+        bail!("Expected support component at index {index} in '{raw}'");
+    }
+}
+
+/// Get the general import support value for a format.
+/// Returns an integer indicating the level of general import support for the format.
 pub fn get_format_import_support(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 3)?;
-    v.parse::<i32>()
-        .with_context(|| format!("Failed to parse import support integer for format '{format}' from '{v}'"))
+    parse_support_component(&v, 0).with_context(|| {
+        format!("Failed to parse general import support integer for format '{format}' from '{v}'")
+    })
 }
 
-/// Get the export support value for a format.
-/// Returns an integer indicating the level of export support for the format.
+/// Get the Dc document import support value for a format.
+/// Returns an integer indicating the level of Dc document import support for the format.
+pub fn get_format_dc_import_support(format: &str) -> Result<i32> {
+    let id = get_format_id(format)?;
+    let v = dc_data_lookup_by_id("formats", id, 3)?;
+    parse_support_component(&v, 1).with_context(|| {
+        format!("Failed to parse Dc import support integer for format '{format}' from '{v}'")
+    })
+}
+
+/// Get the general export support value for a format.
+/// Returns an integer indicating the level of general export support for the format.
 pub fn get_format_export_support(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 4)?;
-    v.parse::<i32>()
-        .with_context(|| format!("Failed to parse export support integer for format '{format}' from '{v}'"))
+    parse_support_component(&v, 0).with_context(|| {
+        format!("Failed to parse general export support integer for format '{format}' from '{v}'")
+    })
+}
+
+/// Get the Dc document export support value for a format.
+/// Returns an integer indicating the level of Dc document export support for the format.
+pub fn get_format_dc_export_support(format: &str) -> Result<i32> {
+    let id = get_format_id(format)?;
+    let v = dc_data_lookup_by_id("formats", id, 4)?;
+    parse_support_component(&v, 1).with_context(|| {
+        format!("Failed to parse Dc export support integer for format '{format}' from '{v}'")
+    })
 }
 
 /// Get the test status value for a format.
@@ -581,8 +617,9 @@ pub fn get_format_export_support(format: &str) -> Result<i32> {
 pub fn get_format_tests_status(format: &str) -> Result<i32> {
     let id = get_format_id(format)?;
     let v = dc_data_lookup_by_id("formats", id, 5)?;
-    v.parse::<i32>()
-        .with_context(|| format!("Failed to parse test status integer for format '{format}' from '{v}'"))
+    parse_support_component(&v, 0).with_context(|| {
+        format!("Failed to parse test status integer for format '{format}' from '{v}'")
+    })
 }
 
 /// Get the type string for a format.
@@ -966,12 +1003,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_get_format_import_support_utf8() {
         let val = get_format_import_support("utf8").unwrap();
-        assert_eq!(val, 1);
+        assert_eq!(val, 3);
+        let dc_val = get_format_dc_import_support("utf8").unwrap();
+        assert_eq!(dc_val, 1);
     }
     #[crate::ctb_test]
     fn test_get_format_export_support_utf8() {
         let val = get_format_export_support("utf8").unwrap();
-        assert_eq!(val, 2);
+        assert_eq!(val, 3);
+        let dc_val = get_format_dc_export_support("utf8").unwrap();
+        assert_eq!(dc_val, 2);
     }
     #[crate::ctb_test]
     fn test_get_format_tests_status_utf8() {

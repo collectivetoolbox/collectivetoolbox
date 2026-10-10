@@ -425,6 +425,21 @@ pub fn infer_decompressed_path(input_path: &Path) -> PathBuf {
 }
 
 fn format_support_level(level: &str) -> String {
+    let trimmed = level.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+    if let [gen_part, dc_part] = parts.as_slice() {
+        let gen_str = format_single_support_level(gen_part);
+        let dc_str = format_single_support_level(dc_part);
+        format!("{gen_str} [Dc: {dc_str}]")
+    } else {
+        format_single_support_level(trimmed)
+    }
+}
+
+fn format_single_support_level(level: &str) -> String {
     match level.trim() {
         "-1" => "-1 (N/A)".to_string(),
         "0" => "0 (none)".to_string(),
@@ -557,6 +572,9 @@ mod tests {
         assert!(desc.contains("Ident: Utf8"));
         assert!(desc.contains("Category: encoding"));
         assert!(desc.contains("Extensions: .txt, .utf8"));
+        assert!(desc.contains("Import support: 3 (fully implemented) [Dc: 1 (WIP)]"));
+        assert!(desc.contains("Export support: 3 (fully implemented) [Dc: 2 (mostly / partial)]"));
+        assert!(desc.contains("Tests: 1 (WIP) [Dc: 1 (WIP)]"));
     }
 
     #[crate::ctb_test]

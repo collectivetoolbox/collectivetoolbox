@@ -430,27 +430,70 @@ pub fn validate_mime_field(field: &str) -> Result<()> {
     Ok(())
 }
 
-/// Validates support level values: blank or `-1..=5`.
+/// Parsed two-level format support specification (`<general> <dc>`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SupportLevel {
+    /// General format support (e.g. streaming, compression, execution, parsing).
+    pub general: i32,
+    /// Dc document conversion support (converting to/from Dc syntax structures).
+    pub dc: i32,
+}
+
+impl SupportLevel {
+    /// Parses a support level specification.
+    /// Empty string returns `SupportLevel { general: 0, dc: 0 }`.
+    /// Non-empty input MUST contain exactly two space-separated integers in range `-1..=5`.
+    /// Single values are rejected.
+    pub fn parse(val: &str) -> Result<Self> {
+        let trimmed = val.trim();
+        if trimmed.is_empty() {
+            return Ok(Self { general: 0, dc: 0 });
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        let (first, second) = match parts.as_slice() {
+            [first, second] => (*first, *second),
+            _ => bail!(
+                "Invalid support level '{val}' (expected exactly two space-separated levels '<general> <dc>' in range -1..=5, or blank)"
+            ),
+        };
+        let parse_part = |part: &str| -> Result<i32> {
+            match part {
+                "-1" | "0" | "1" | "2" | "3" | "4" | "5" => {
+                    part.parse::<i32>().context("Parsing support level integer")
+                }
+                _ => bail!(
+                    "Invalid support level component '{part}' (expected -1..=5)"
+                ),
+            }
+        };
+        let general = parse_part(first)?;
+        let dc = parse_part(second)?;
+        Ok(Self { general, dc })
+    }
+
+    /// Formats the support level as `"<general> <dc>"`, or empty string if both are 0.
+    #[must_use]
+    pub fn format_csv(&self) -> String {
+        if self.general == 0 && self.dc == 0 {
+            String::new()
+        } else {
+            format!("{} {}", self.general, self.dc)
+        }
+    }
+}
+
+/// Validates support level values: blank or two space-separated levels `<general> <dc>` in `-1..=5`.
 ///
-/// Scale:
-/// - `-1`: N/A
-/// - `blank`/`0`: None / unsupported
+/// Scale for each component:
+/// - `-1`: N/A (e.g. reverse transformation for one-way functions, or non-Dc formats)
+/// - `0`: None / unsupported
 /// - `1`: WIP
-/// - `2`: Basic / stream support (e.g. compression, hashing without Dc document conversion)
-/// - `3`: Semantic content / conversion to Dc syntax (requires dedicated APIs for converting to Dc documents)
-/// - `4`: Lossless and roundtrippable in Dc syntax
+/// - `2`: Basic / stream / partial format support
+/// - `3`: Full general format support / complete semantic roundtripping to Dc syntax
+/// - `4`: Lossless and roundtrippable (for Dc: unambiguous bit-for-bit reconstruction)
 /// - `5`: Level 4 + optional strict validation
 pub fn validate_support_level(val: &str) -> Result<()> {
-    let trimmed = val.trim();
-    if trimmed.is_empty() || trimmed == "0" {
-        return Ok(());
-    }
-    match trimmed {
-        "-1" | "1" | "2" | "3" | "4" | "5" => Ok(()),
-        other => bail!(
-            "Invalid support level '{other}' (expected -1..=5 or blank/0)"
-        ),
-    }
+    SupportLevel::parse(val).map(|_| ())
 }
 
 /// Validates Unicode General Category code (e.g. `Cc`, `Sm`, `!Cx`).

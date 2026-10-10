@@ -6,15 +6,16 @@ Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Cha
     tr.)",Tests,"Variant Types
 (comma-
   delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
-Import/export/tests support columns meaning:
+Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+   First value: general format support; second value: Dc document conversion support.
    -1=N/A
-   blank/0=none
+   0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
-2228239,15,Lang_En,English,language,,~\.en\.~,,,,,,1,,,"Most formats have language variant types, for printing structured metadata where it’s not supported. Whether it should be printed by default is debateable.",
+2228239,15,Lang_En,English,language,,~\.en\.~,,,,,,1 1,,,"Most formats have language variant types, for printing structured metadata where it’s not supported. Whether it should be printed by default is debateable.",
 2228240,16,Lang_En_Us,English (US),language,@implies(f15),~\.en-US\.~,,,,,,,,,"Language variants aren’t handled as format variants of the languages they are variants of, since there aren’t tons of possible combinations (at least that are practical to support). Instead, the type is given as lv: followed by the language identifier of which they are a variant (without the lang_ prefix).",
 2228363,139,Lang_Ar,Arabic - العربية,language,,,,,,,,,,,,
 2228364,140,Lang_Bn,Bengali - বাংলা,language,,,,,,,,,,,,

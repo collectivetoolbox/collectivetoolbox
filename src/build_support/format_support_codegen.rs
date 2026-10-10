@@ -43,13 +43,26 @@ fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     Ok(true)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct SupportLevel {
+    general: i32,
+    dc: i32,
+}
+
+fn parse_support_level(s: &str) -> SupportLevel {
+    let mut parts = s.split_whitespace();
+    let general = parts.next().and_then(|p| p.parse::<i32>().ok()).unwrap_or(0);
+    let dc = parts.next().and_then(|p| p.parse::<i32>().ok()).unwrap_or(0);
+    SupportLevel { general, dc }
+}
+
 /// A parsed format support record from category CSV tables.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FormatSupportRecord {
     ident: String,
     label: String,
-    import_support: i32,
-    export_support: i32,
+    import_support: SupportLevel,
+    export_support: SupportLevel,
 }
 
 fn read_support_records(csv_path: &Path) -> Result<Vec<FormatSupportRecord>> {
@@ -69,8 +82,8 @@ fn read_support_records(csv_path: &Path) -> Result<Vec<FormatSupportRecord>> {
 
         let ident = get(2);
         let label = get(3);
-        let import_support = get(11).parse::<i32>().unwrap_or(0);
-        let export_support = get(12).parse::<i32>().unwrap_or(0);
+        let import_support = parse_support_level(&get(11));
+        let export_support = parse_support_level(&get(12));
 
         if !ident.is_empty() {
             records.push(FormatSupportRecord {
@@ -222,17 +235,17 @@ pub fn generate_format_support_code(
 
     let decompress_records: Vec<&FormatSupportRecord> = compression_records
         .iter()
-        .filter(|r| r.import_support >= 2)
+        .filter(|r| r.import_support.general >= 2)
         .collect();
 
     let compress_records: Vec<&FormatSupportRecord> = compression_records
         .iter()
-        .filter(|r| r.export_support >= 2)
+        .filter(|r| r.export_support.general >= 2)
         .collect();
 
     let hash_supported_records: Vec<&FormatSupportRecord> = hash_records
         .iter()
-        .filter(|r| r.export_support >= 2 || r.import_support >= 2)
+        .filter(|r| r.export_support.general >= 2 || r.import_support.general >= 2)
         .collect();
 
     let mut out = String::new();

@@ -160,18 +160,26 @@ When records are generated or serialized, directives and items in Column 9 are a
 
 ## Columns 15–17: Format Support Levels (Import, Export, Tests)
 
-Columns 15 (`Import support`), 16 (`Export support`), and 17 (`Tests`) specify the implementation and verification status of a format within the toolbox. They take an integer in the range `-1..=5` or blank (equivalent to 0):
+Columns 15 (`Import support`), 16 (`Export support`), and 17 (`Tests`) specify the implementation and verification status of a format within the toolbox.
 
-| Value | Level | Description |
-|---|---|---|
-| `-1` | **N/A** | Not applicable (e.g. reverse transformation for one-way cryptographic hash functions, or internal-only formats). |
-| *blank* / `0` | **None** | No support implemented. |
-| `1` | **WIP** | Work-in-progress; partial or incomplete implementation. |
-| `2` | **Basic / Stream** | Mostly, or fully implemented for at least one version of a format with options. For standalone stream processing formats (such as stream compression or checksums), level 2 indicates fully functional encode/decode or calculation APIs. |
-| `3` | **Semantic Dc Syntax** | Fully implemented for semantic document content and conversion to/from Document Character (Dc) syntax. Requires dedicated APIs for converting to and from Dc document structures (and tests for variation in non-semantic details of the structure of the document being imported). |
-| `4` | **Lossless Roundtrip** | Lossless and roundtrippable in Dc syntax, preserving enough information for unambiguous bit-for-bit reconstruction of any given input document. |
-| `5` | **Strict Validation** | Level 4 lossless roundtripping plus optional strict validation mode. |
+Each non-empty cell takes exactly two space-separated levels:
+```text
+<general_support> <dc_document_support>
+```
+For example, `3 1` indicates **Level 3 general format support** and **Level 1 Dc document conversion support**. Cells may be left blank (empty string) to indicate no support (`0 0`). Bare single-value integers are prohibited and fail table validation.
 
-### Document Category vs Other Categories
-- **Level 3+ requires Dc document conversion**: Levels 3 and above specifically refer to the ability to parse a format into Document Character (Dc) structures or serialize Dc structures into the format.
-- **Formats without dedicated Dc APIs must not exceed level 2**: Formats outside of the `document` category (such as stream compression algorithms in `compression.csv` and hash/checksum algorithms in `hash.csv`) operate on raw byte streams rather than producing Dc document structures. Without dedicated APIs for converting to Dc documents, their support level must not exceed `2`.
+### Scale Definitions
+
+| Value | Level | General Support (`general`) | Dc Document Support (`dc`) |
+|---|---|---|---|
+| `-1` | **N/A** | Not applicable (e.g. reverse transformation for one-way functions, or internal-only formats). | Not applicable (format cannot represent or does not map to a Dc document structure). |
+| `0` / *blank* | **None** | No operational support implemented. | No Dc document conversion implemented. |
+| `1` | **WIP** | Work-in-progress / partial format support. | Work-in-progress / partial Dc document conversion. |
+| `2` | **Basic / Partial** | Mostly, or fully implemented for at least one version of a format with options (e.g. stream compression/decompression, checksum verification/calculation). | Partial / basic Dc document conversion. |
+| `3` | **Full / Semantic** | Fully implemented operational format engine. | Complete semantic content roundtripping to/from Dc syntax. |
+| `4` | **Lossless Roundtrip** | Lossless bit-for-bit format roundtrip. | Lossless roundtripping through Dc syntax with unambiguous bit-for-bit input reconstruction. |
+| `5` | **Strict Validation** | Level 4 + optional strict validation mode. | Level 4 + optional strict validation mode. |
+
+### Decoupling General Capabilities from Dc Conversion
+- **General format support**: Tracks whether the toolbox can process the format natively (such as single-stream compression in `compression.csv`, or checksum verification and hashing in `hash.csv`). For hashes, verification support is modeled as `Import support` and hashing calculation is modeled as `Export support`.
+- **Dc document support**: Specifically tracks the ability to convert external formats to and from structured Document Character (Dc) document models. Formats that operate on raw byte streams without Dc document conversion set their Dc support level to `0` (or `-1` if not applicable), such as `2 0` for compression and hashing.

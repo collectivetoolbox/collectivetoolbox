@@ -6,13 +6,14 @@ Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Cha
     tr.)",Tests,"Variant Types
 (comma-
   delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
-Import/export/tests support columns meaning:
+Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+   First value: general format support; second value: Dc document conversion support.
    -1=N/A
-   blank/0=none
+   0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
 2228448,224,MathExpression,Math expression (not an equation/relation),math,@implies(f14),,,,,,,,,,,
 2228588,364,ArithmeticExpression,Arithmetic expression,math,@implies(f224),,,,,,,,,,"e.g. ""(23 mod 2) + 6"", ""sin(pi/4)""",

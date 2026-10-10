@@ -6,22 +6,23 @@ Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Cha
     tr.)",Tests,"Variant Types
 (comma-
   delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
-Import/export/tests support columns meaning:
+Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+   First value: general format support; second value: Dc document conversion support.
    -1=N/A
-   blank/0=none
+   0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
-2228462,238,XxHash32,xxHash32,hash,,,,,,"xxh32, xxhash32",2,2,2,,,
-2228463,239,XxHash64,xxHash64,hash,,,,,,"xxh64, xxhash64",2,2,2,,,
-2228464,240,XxHash3_64,xxHash3-64,hash,,,,,,"xxh3, xxhash3-64, xxhash3_64",2,2,2,,,
-2228465,241,XxHash3_128,xxHash3-128,hash,,,,,,"xxh128, xxhash128, xxhash3-128, xxhash3_128",2,2,2,,,
+2228462,238,XxHash32,xxHash32,hash,,,,,,"xxh32, xxhash32",2 0,2 0,2 0,,,
+2228463,239,XxHash64,xxHash64,hash,,,,,,"xxh64, xxhash64",2 0,2 0,2 0,,,
+2228464,240,XxHash3_64,xxHash3-64,hash,,,,,,"xxh3, xxhash3-64, xxhash3_64",2 0,2 0,2 0,,,
+2228465,241,XxHash3_128,xxHash3-128,hash,,,,,,"xxh128, xxhash128, xxhash3-128, xxhash3_128",2 0,2 0,2 0,,,
 2228466,242,Md5,MD5,hash,,,,,,,,,,,,
 2228467,243,Md6,MD6,hash,,,,,,,,,,,,
 2228468,244,Sha1,SHA-1,hash,,,,,,,,,,,,
-2228469,245,Sha256,SHA-256,hash,,,,,,"sha256, sha-256, sha2-256, sha2_256",2,2,2,,,
+2228469,245,Sha256,SHA-256,hash,,,,,,"sha256, sha-256, sha2-256, sha2_256",2 0,2 0,2 0,,,
 2228470,246,Sha512,SHA-512,hash,,,,,,,,,,,,
 2228471,247,Sha3,SHA-3,hash,,,,,,,,,,,,
 2228472,248,Tiger,Tiger checksum,hash,,,,,,,,,,,,
@@ -43,21 +44,21 @@ Import/export/tests support columns meaning:
 2228687,463,Fnv0,FNV-0 hash,hash,@implies(f462),,,,,,,,,,,
 2228688,464,Fnv1,FNV-1 hash,hash,@implies(f462),,,,,,,,,,,
 2228689,465,Fnv1a,FNV-1a hash,hash,@implies(f462),,,,,,,,,,,
-2228690,466,Fnv0_32,"FNV-0 hash, 32 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228691,467,Fnv0_64,"FNV-0 hash, 64 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228692,468,Fnv0_128,"FNV-0 hash, 128 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228693,469,Fnv0_256,"FNV-0 hash, 256 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228694,470,Fnv0_512,"FNV-0 hash, 512 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228695,471,Fnv0_1024,"FNV-0 hash, 1024 bits",hash,@implies(f463),,,,,,2,2,2,,,
-2228696,472,Fnv1_32,"FNV-1 hash, 32 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228697,473,Fnv1_64,"FNV-1 hash, 64 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228698,474,Fnv1_128,"FNV-1 hash, 128 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228699,475,Fnv1_256,"FNV-1 hash, 256 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228700,476,Fnv1_512,"FNV-1 hash, 512 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228701,477,Fnv1_1024,"FNV-1 hash, 1024 bits",hash,@implies(f464),,,,,,2,2,2,,,
-2228702,478,Fnv1a_32,"FNV-1a hash, 32 bits",hash,@implies(f465),,,,,,2,2,2,,,
-2228703,479,Fnv1a_64,"FNV-1a hash, 64 bits",hash,@implies(f465),,,,,,2,2,2,,,
-2228704,480,Fnv1a_128,"FNV-1a hash, 128 bits",hash,@implies(f465),,,,,,2,2,2,,,
-2228705,481,Fnv1a_256,"FNV-1a hash, 256 bits",hash,@implies(f465),,,,,,2,2,2,,,
-2228706,482,Fnv1a_512,"FNV-1a hash, 512 bits",hash,@implies(f465),,,,,,2,2,2,,,
-2228707,483,Fnv1a_1024,"FNV-1a hash, 1024 bits",hash,@implies(f465),,,,,,2,2,2,,,
+2228690,466,Fnv0_32,"FNV-0 hash, 32 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228691,467,Fnv0_64,"FNV-0 hash, 64 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228692,468,Fnv0_128,"FNV-0 hash, 128 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228693,469,Fnv0_256,"FNV-0 hash, 256 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228694,470,Fnv0_512,"FNV-0 hash, 512 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228695,471,Fnv0_1024,"FNV-0 hash, 1024 bits",hash,@implies(f463),,,,,,2 0,2 0,2 0,,,
+2228696,472,Fnv1_32,"FNV-1 hash, 32 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228697,473,Fnv1_64,"FNV-1 hash, 64 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228698,474,Fnv1_128,"FNV-1 hash, 128 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228699,475,Fnv1_256,"FNV-1 hash, 256 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228700,476,Fnv1_512,"FNV-1 hash, 512 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228701,477,Fnv1_1024,"FNV-1 hash, 1024 bits",hash,@implies(f464),,,,,,2 0,2 0,2 0,,,
+2228702,478,Fnv1a_32,"FNV-1a hash, 32 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,
+2228703,479,Fnv1a_64,"FNV-1a hash, 64 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,
+2228704,480,Fnv1a_128,"FNV-1a hash, 128 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,
+2228705,481,Fnv1a_256,"FNV-1a hash, 256 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,
+2228706,482,Fnv1a_512,"FNV-1a hash, 512 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,
+2228707,483,Fnv1a_1024,"FNV-1a hash, 1024 bits",hash,@implies(f465),,,,,,2 0,2 0,2 0,,,

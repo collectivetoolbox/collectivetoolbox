@@ -233,7 +233,10 @@ impl EiteData {
         let mut out = Vec::new();
         for row in rows.iter().take(rows.len()) {
             if let Some(cell) = row.get(filter_field) {
-                if let Ok(v) = cell.parse::<i32>() {
+                // Reason for fallback: empty whitespace cells fall back to raw cell string for parse failure
+                let first_token =
+                    cell.split_whitespace().next().unwrap_or(cell.as_str());
+                if let Ok(v) = first_token.parse::<i32>() {
                     if v > filter_value {
                         if let Some(d) = row.get(desired_field) {
                             out.push(d.clone());

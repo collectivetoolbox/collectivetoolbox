@@ -6,21 +6,22 @@ Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Cha
     tr.)",Tests,"Variant Types
 (comma-
   delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
-Import/export/tests support columns meaning:
+Import/export/tests support columns take two space-separated levels: '<general> <dc>' (e.g. '3 1' or '2 0'), or blank for none:
+   First value: general format support; second value: Dc document conversion support.
    -1=N/A
-   blank/0=none
+   0=none
    1=WIP
-   2=mostly, or fully for at least one version of a format with options (e.g. streaming compression or hashing without Dc document conversion)
-   3=complete implementation of roundtripping of semantic content to Dc syntax (requires dedicated APIs for converting to Dc documents)
-   4=3+losslessly roundtrippable through Dc syntax for any input (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   2=mostly, or fully for at least one version of a format with options (e.g. basic dialect)
+   3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
+   4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
-2228226,2,DcIntegerList,Dc Integer List (short Dcs),document,,.dcil,,,,,2,3,1,,"ASCII text containing list of integers representing short Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
-2228229,5,Html,HTML,document,,".htm, .html",text/html,,,,,1,1,encoding,,
-2228230,6,Sems,SEMS (short Dcs),document,,.sems,,,,,2,,1,,"Space-separated list of ints representing short Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
-2228237,13,HtmlFragment,HTML fragment,document,,.htmfrag,,,,,,1,1,,Variants: same as HTML,
+2228226,2,DcIntegerList,Dc Integer List (short Dcs),document,,.dcil,,,,,2 2,3 3,1 1,,"ASCII text containing list of integers representing short Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228229,5,Html,HTML,document,,".htm, .html",text/html,,,,,1 1,1 1,encoding,,
+2228230,6,Sems,SEMS (short Dcs),document,,.sems,,,,,2 2,,1 1,,"Space-separated list of ints representing short Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
+2228237,13,HtmlFragment,HTML fragment,document,,.htmfrag,,,,,,1 1,1 1,,Variants: same as HTML,
 2228238,14,Text,Text,document,,.txt,,,,,,,,encoding,HTML and text both should default to UTF8 as the default encoding. Encodings fill a somewhat odd role since they are both encodings and formats (with the text format plus a given encoding being the same thing as that encoding by itself).,
-2228241,17,Elad,EITE Language in ASCII documents (ELAD),document,,.elad,,,,,,1,,,,
-2228245,21,EiteColorCoded,Color-coded HTML integer list,document,,.htm,,,,,,1,,,HTML file containing color-coded Dc integer list,
+2228241,17,Elad,EITE Language in ASCII documents (ELAD),document,,.elad,,,,,,1 1,,,,
+2228245,21,EiteColorCoded,Color-coded HTML integer list,document,,.htm,,,,,,1 1,,,HTML file containing color-coded Dc integer list,
 2228305,81,CString,C string (null-terminated),document,@based_on(f80),,,,,,,,,,,
 2228306,82,PascalString,Pascal string,document,@based_on(f80),,,,,,,,,,,
 2228312,88,DcText,DcText,document,,,,,,,,,,,,
@@ -76,7 +77,7 @@ Import/export/tests support columns meaning:
 2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,@based_on(f317),.ctbn,,,,,,,,,,
 2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,@based_on(f317),.ctbn,,,,,,,,,,
 2228557,333,AlphaWord,AlphaSmart AlphaWord file format,document,,,,,,,,,,,,
-2228564,340,Dcal,Dc ASCII List (long Dcs),document,,.dcal,,,,,2,3,1,,"ASCII text containing list of integers representing long Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
+2228564,340,Dcal,Dc ASCII List (long Dcs),document,,.dcal,,,,,2 2,3 3,1 1,,"ASCII text containing list of integers representing long Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
 2228568,344,Csdl,Comma-separated Dc list (long Dcs),document,,.csdl,,,,,,,,,"ASCII text containing list of integers representing long Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
 2228685,461,Dcts,DcText short,document,,.dcts,,,,,,,,,"Like DcText, but using shorthand notation for Dcs. @123@ = short Dc 123; a = literal Unicode a; @l123@ = long Dc 123; @L123@ = local node; @u123a@ = U+123A, @f123@ = format 123",
 2228708,484,DcMixed,DcUtf mixed mode,document,,.dcmm,,,,,,,,,"Like DcUtf, but begins with magic DcMM\0, followed by the binary equivalent of UUID d5ab819e-9b8e-4d61-adbc-933e8851e79a, and subsequently, any occurrence of Dc 203 will be followed by a type byte (0 = binary; 1 = DcUtf; 2 and 5..255 reserved), followed by a 128-bit binary number (big-endian) indicating the size of the encapsulated region (even if that size is 0), and then the contents of that region will be stored directly as binary data rather than using base64 encapsulation. The terminating Dc 204 will be implicit. If Dcs other than base64-encapsulation or padding Dcs occur prior to a terminating Dc 204, the region will use normal DcUtf (type byte 1) rather than binary. Type bytes 3 and 4 are the same as 0 and 1, but there is additionally a binary sha256 checksum of the stream following the size.",
