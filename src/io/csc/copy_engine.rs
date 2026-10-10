@@ -2592,9 +2592,8 @@ mod tests {
         fs::write(src.join("file.txt"), b"data").expect("write file");
 
         let meta = fs::metadata(&src).expect("read src metadata");
-        let Some(dev_id) = ctb_io::file::extract_device_id_for_path(&src, &meta) else {
-            return;
-        };
+        let dev_id = ctb_io::file::extract_device_id_for_path(&src, &meta)
+            .expect("Filesystem identity is required to exercise unknown-filesystem policy");
 
         // Simulate unknown filesystem
         set_cached_filesystem_info(dev_id, FilesystemInfo {

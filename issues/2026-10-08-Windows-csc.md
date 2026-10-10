@@ -63,14 +63,25 @@ Its initial harness policy omitted ignored tests on Linux. `build` now applies
 not just Windows; shell syntax and execution of the exact selection block for
 Linux, Windows, and FreeBSD passed. That configured run captured the older
 policy and cannot establish the requested no-bypass coverage. A current-policy
-workspace all-target run is active with ignored tests included and only the
-authorized bootstrap skip. Do not clean or switch platforms while it is active.
+Linux workspace all-target rerun passed 125 harnesses and 2,400 tests, zero
+failures and zero ignored, with only the authorized bootstrap filtered out.
+Linux workspace doctests passed with ignored examples included; upstream
+compile-only examples remain compile-only, not separately verified runtime
+coverage. The ten existing VM protocol tests also passed. The inclusive
+all-target run exercised the real embedded TypeScript checking test; it passed
+without an exemption. A fresh Linux release CLI build and exact-binary
+compression compatibility run passed. Both VMs are stopped and no validations
+remain active. The unknown-filesystem policy fixture now fails explicitly if
+filesystem identity cannot be captured instead of silently returning; its
+focused Linux test passed. That last test-only prerequisite change has not been
+rerun on Windows/WINE/FreeBSD and postdates the full Linux workspace snapshot.
 
 #### Remaining Gaps / Pending Work
 
 - FreeBSD has not rerun the last portable test assertion; its full suite tests
-  the final production behavior. Current-policy full-workspace reruns remain
-  pending on all four platforms.
+  the final production behavior. Current-policy full-workspace runtime reruns
+  remain pending on Windows/WINE/FreeBSD. Linux all-target and doctest runs
+  passed, but the configured finalization failure remains an unverified gate.
 - A native restoration-syscall failure fixture remains pending. Attempts using
   procfs and an `O_PATH` temporary-file handle disproved assumptions that those
   writes must fail; both unsuccessful probes were removed. The retained four
@@ -99,6 +110,8 @@ authorized bootstrap skip. Do not clean or switch platforms while it is active.
 - The two root-permission bypasses are removed and assertions passed on FreeBSD
   and Linux. ZFS sparse-negative fixture early returns
   remain bypasses; zero ignored tests does not establish no-bypass coverage.
+- The unknown-filesystem fixture's explicit prerequisite assertion still needs
+  Windows/WINE/FreeBSD validation; previous suites could silently return there.
 
 ### Capture Audit Continuation
 
