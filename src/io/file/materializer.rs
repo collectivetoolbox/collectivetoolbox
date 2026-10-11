@@ -488,6 +488,21 @@ pub fn materialize_entity(
             let origin_is_windows = entity.metadata.native.as_ref()
                 .is_some_and(|native| native.source_os == crate::metadata::OsFamily::Windows);
             let target_path = resolve_relative_path_for_os(target_relative_path, origin_is_windows)?;
+            if options.path_policy == PathTraversalPolicy::StrictSandboxed {
+                for comp in target_path.components() {
+                    match comp {
+                        std::path::Component::Prefix(_)
+                        | std::path::Component::RootDir
+                        | std::path::Component::ParentDir => {
+                            bail!(
+                                "Hardlink target path rejected: target escapes destination root or contains root/parent components: {}",
+                                target_path.display()
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
             dest_dir.create_hardlink(
                 &target_path,
                 &parent_dir_fd.as_fd(),
@@ -2269,5 +2284,47 @@ mod tests {
                 assert!(!strict_diffs.is_empty(), "Strict audit must detect un-deallocated sub-64KB hole");
             }
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_hardlink_rejects_escaping_target() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let dest_dir = SandboxableDir::create_or_open(temp_dir.path())?;
+
+        let mut metadata = FileMetadata::default();
+        metadata.native = Some(crate::metadata::NativeMetadata {
+            source_os: crate::metadata::OsFamily::Windows,
+            values: std::collections::BTreeMap::new(),
+        });
+
+        // Windows-style escaping hardlink target
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: Some(PathBuf::from("link.txt")),
+                enclosing_path: None,
+                nlink: 2,
+                hardlink_group: None,
+            },
+            kind: FileEntityKind::Hardlink {
+                target_relative_path: b"..\\outside.txt".to_vec(),
+            },
+            metadata,
+            streams: Vec::new(),
+        };
+
+        let options = MaterializeOptions {
+            path_policy: PathTraversalPolicy::StrictSandboxed,
+            ..MaterializeOptions::default()
+        };
+
+        let res = materialize_entity(&entity, None, &dest_dir, &options);
+        assert!(res.is_err(), "Escaping hardlink target must be rejected under StrictSandboxed");
+        let err_msg = res.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("target escapes destination root or contains root/parent components"),
+            "Error message should mention escaping target: {err_msg}"
+        );
+        Ok(())
     }
 }

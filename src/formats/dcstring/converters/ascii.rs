@@ -110,8 +110,9 @@ pub fn ascii_to_dcmstring_with_settings(
                     .map_err(|e| anyhow!("Index conversion overflow: {e}"))?;
                 log.import_warning(
                     idx_u64,
-                    &format!("Skipped non-ASCII byte 0x{b:02X}"),
+                    &format!("Replaced non-ASCII byte 0x{b:02X} with replacement character"),
                 );
+                sanitized.extend_from_slice(ctb_formats_utf8::UTF8_REPLACEMENT_CHARACTER);
             }
         }
         let (doc, utf8_log) =
@@ -384,7 +385,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_ascii_permissive_skips_non_ascii() {
+    fn test_ascii_permissive_replaces_non_ascii() {
         let invalid = b"Hello \x80 World";
         let settings = AsciiSettings {
             unmappable_policy: AsciiUnmappablePolicy::Skip,
@@ -395,7 +396,16 @@ mod tests {
         assert!(log.has_warnings());
         assert_eq!(
             doc.to_dc_string().unwrap().as_str().unwrap(),
-            "Hello  World"
+            "Hello \u{FFFD} World"
+        );
+
+        let byte_test = b"a\xffb";
+        let (doc2, log2) =
+            ascii_to_dcmstring_with_settings(byte_test, &settings).expect("parse");
+        assert!(log2.has_warnings());
+        assert_eq!(
+            doc2.to_dc_string().unwrap().as_str().unwrap(),
+            "a\u{FFFD}b"
         );
     }
 

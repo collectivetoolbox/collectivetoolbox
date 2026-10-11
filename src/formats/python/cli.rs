@@ -138,6 +138,12 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
     }
     if args.isolate {
         settings.isolated = true;
+        settings.ignore_environment = true;
+        settings.user_site_directory = false;
+        settings.safe_path = true;
+    }
+    if args.ignore_environment {
+        settings.ignore_environment = true;
     }
     if args.quiet {
         settings.quiet = true;
@@ -150,6 +156,19 @@ fn run_python_inner(args: PythonArgs) -> Result<i32> {
     }
     if args.verbose > 0 {
         settings.verbose = args.verbose;
+    }
+    if !settings.ignore_environment {
+        for env_var in ["RUSTPYTHONPATH", "PYTHONPATH"] {
+            if let Some(paths) = std::env::var_os(env_var) {
+                if !paths.is_empty() {
+                    for path in std::env::split_paths(&paths) {
+                        if let Ok(s) = path.into_os_string().into_string() {
+                            settings.path_list.push(s);
+                        }
+                    }
+                }
+            }
+        }
     }
     settings.argv = argv;
 
@@ -363,6 +382,43 @@ assert sys.argv[2] == "--world"
     fn test_python_cli_sysroot_modules() -> Result<()> {
         let args = PythonArgs {
             command: Some("import os, sys, subprocess, re, shutil; assert hasattr(shutil, 'copytree')".to_string()),
+            ..Default::default()
+        };
+        let res = run_python_cli(&args)?;
+        match res {
+            ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_python_cli_flags_ignore_environment() -> Result<()> {
+        let args = PythonArgs {
+            command: Some("import sys; assert sys.flags.ignore_environment == 1".to_string()),
+            ignore_environment: true,
+            ..Default::default()
+        };
+        let res = run_python_cli(&args)?;
+        match res {
+            ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_python_cli_flags_isolate() -> Result<()> {
+        let args = PythonArgs {
+            command: Some(
+                "import sys; assert sys.flags.isolated == 1 and sys.flags.ignore_environment == 1 and sys.flags.no_user_site == 1 and sys.flags.safe_path == 1 and '' not in sys.path"
+                    .to_string(),
+            ),
+            isolate: true,
             ..Default::default()
         };
         let res = run_python_cli(&args)?;

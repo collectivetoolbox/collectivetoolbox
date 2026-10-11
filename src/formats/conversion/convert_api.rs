@@ -39,7 +39,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! ## Streaming Conversions
 //!
-//! For bounded-memory processing of large documents and standard Unix pipelines:
+//! For pipeline processing of documents and standard Unix pipelines:
 //! - [`stream_reader_to_dcmwriter`]: Streams an input source into framed `.dcmm` bytes.
 //! - [`stream_file_to_dcmwriter`]: Streams a file on disk into framed `.dcmm` bytes.
 //! - [`stream_dcmreader_to_writer`]: Streams framed `.dcmm` bytes into a target format.

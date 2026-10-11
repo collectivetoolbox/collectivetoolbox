@@ -19,6 +19,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Streaming converters for translating input byte streams into framed `.dcmm` output,
 //! and streaming `.dcmm` input into target format streams.
+//!
+//! ## Streaming & Memory Characteristics
+//! Bounded-memory streaming (via 64 KiB chunks) is currently supported for UTF-8
+//! inputs and pass-through `DcMixed` streams. While Dc formats are architecturally
+//! designed to be streamable representations in principle (and capable of being
+//! transformed as streams), the current converter implementation buffers whole inputs
+//! for structured document formats (e.g. `DcIntegerList`, `Sems`, `DcText`, `CscJournal`)
+//! and non-`DcMixed` exports to perform document-level parsing and serialization.
 
 #[expect(
     unused_imports,
@@ -64,7 +72,10 @@ pub struct StreamExportReceipt {
     pub log: FormatLog,
 }
 
-/// Streams an input file to a framed `.dcmm` writer with bounded memory.
+/// Streams an input file to a framed `.dcmm` writer.
+///
+/// Bounded-memory chunked streaming is active for UTF-8 and pass-through `DcMixed`
+/// inputs; structured document formats currently buffer into memory for parsing.
 pub fn stream_file_to_dcmwriter<W: Write>(
     input_path: &Path,
     writer: &mut W,
@@ -83,7 +94,10 @@ pub fn stream_file_to_dcmwriter<W: Write>(
     }
 }
 
-/// Streams an input `Read` source to a framed `.dcmm` writer with bounded memory.
+/// Streams an input `Read` source to a framed `.dcmm` writer.
+///
+/// Bounded-memory chunked streaming is active for UTF-8 and pass-through `DcMixed`
+/// inputs; structured document formats currently buffer into memory for parsing.
 pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
@@ -243,6 +257,9 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
 }
 
 /// Streams a `.dcmm` source `Read` to a writer in the specified `SupportedDcOutputFormat`.
+///
+/// Bounded-memory pass-through streaming is active for `DcMixed` output; other target
+/// formats currently buffer the `.dcmm` payload in memory to serialize the output.
 pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     reader: &mut R,
     writer: &mut W,
