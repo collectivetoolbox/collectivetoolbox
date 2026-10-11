@@ -273,6 +273,39 @@ mod tests {
     use crate::{DcMixed, DcMixedReader, DcMstring};
 
     #[crate::ctb_test]
+    fn typed_dcutf_payload_is_binary_not_inline_text() -> Result<()> {
+        let mut payload = DcString::from("hello");
+        payload.push(DC_END_ENCAPSULATION_BINARY);
+        payload.push(DC_START_ENCAPSULATION_BINARY);
+        for dc in ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(b"data")? {
+            payload.push(DcChar::from_short(dc));
+        }
+        for checksummed in [false, true] {
+            let mut metadata = DcString::new();
+            metadata.push(FormatId::DcUtf.dc_char().context("Missing DcUtf type")?);
+            if checksummed {
+                metadata.push_dc_str(&checksum_text(
+                    ctb_utilities::format_id::DC_SHA256,
+                    &ctb_formats_checksum::sha256(payload.as_bytes()),
+                )?);
+            }
+            let mut mixed = DcMstring::new();
+            mixed.push_binary_with_metadata(payload.as_bytes(), &metadata)?;
+            let text = mixed.to_dc_string()?;
+            ctb_formats_dcdata::syntax::validate_dc_document_strict(
+                &text.chars().map(DcChar::to_u128).collect::<Vec<_>>(),
+            )?;
+            let restored = DcMstring::from_dc_str(&text)?;
+            assert_eq!(restored.as_bytes(), mixed.as_bytes());
+            let mut reader = DcMixedReader::new(&restored);
+            assert_eq!(reader.peek_char()?, Some(DC_START_ENCAPSULATION_BINARY));
+            assert_eq!(&*reader.read_binary_payload()?, payload.as_bytes());
+            assert!(reader.peek_char()?.is_none());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn typed_binary_metadata_and_non_sha256_checksum() -> Result<()> {
         let data = b"\xff\x00raw payload";
         let mut metadata = DcString::new();

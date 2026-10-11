@@ -2060,6 +2060,45 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_journal_revision_rejects_retired_dcmm_types() -> Result<()> {
+        let temp = tempdir()?;
+        let path = temp.path().join("retired.cscjournal");
+        for type_byte in [1, 4] {
+            let mut payload = DcMstring::new().into_bytes();
+            payload.extend_from_slice(&ctb_formats_dcstring::dc_mixed::DC_203_BYTES);
+            payload.push(type_byte);
+            let expected_offset = payload.len().saturating_sub(1);
+            payload.extend_from_slice(&0u128.to_be_bytes());
+            if type_byte == 4 {
+                payload.extend_from_slice(&ctb_formats_checksum::sha256(b""));
+            }
+            let mut bytes = JOURNAL_MAGIC_V4.to_vec();
+            bytes.extend_from_slice(&payload);
+            fs::write(&path, &bytes)?;
+            for error in [
+                read_journal_snapshot(&path)
+                    .err()
+                    .context("Retired types must not be recovered as a truncated journal")?,
+                convert_cscjournal_to_dcmstring(&bytes)
+                    .err()
+                    .context("Retired types must not be converted")?,
+            ] {
+                let cause = error
+                    .downcast_ref::<ctb_formats_dcstring::DcMixedError>()
+                    .context("Missing DcMixed error")?;
+                assert_eq!(
+                    cause,
+                    &ctb_formats_dcstring::DcMixedError::UnsupportedLegacyType {
+                        offset: expected_offset,
+                        type_byte,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_journal_conversion_all_revisions_to_v4_and_dcmstring() -> Result<()> {
         let fixtures_dir = ctb_utilities::manifest_fixture_path(
             env!("CARGO_MANIFEST_DIR"),

@@ -105,6 +105,10 @@ metadata, not a sequence of format and base64 Dcs stored under type 1.
   is rejected; valid source spellings may be normalized.
 - Retired type-1/4 runs fail validation before interpretation or conversion;
   no guessed migration or lossy textual export is provided.
+- Exception: the pass-through streaming copier currently validates only the
+  magic/UUID header, not body types, lengths, checksums, or DcUtf validity.
+  Bounded-memory body validation remains pending; it must not be treated as
+  a full validation path.
 - Arbitrary source sequences remain raw-editable in their original format.
   Exact restoration of transport bytes and alternative source spellings is
   outside the conversion contract. No new semantic Dc is allocated here.
