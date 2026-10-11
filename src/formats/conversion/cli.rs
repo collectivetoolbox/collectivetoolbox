@@ -456,7 +456,7 @@ mod tests {
             0x80, 0x80, 0x80, 0x20, 0x32, 0x5e, 0x31, 0x32, 0x38, 0x2d, 0x31,
             0x20, 0xff, 0x96, 0x83, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf,
             0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf, 0xbf,
-            0xbf, 0xbf,
+            0xbf, 0xbf, 0xbf,
         ];
         let args = CharacterDescriptionArgs {
             from: Some(CharacterDescriptionInputFormat::DcText),
@@ -527,10 +527,10 @@ mod tests {
         let fixture_dir =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../io/csc/fixtures/journals");
         let fixtures = [
-            "v1_ctbmeta1.cscjournal",
-            "v2_ctbmeta2.cscjournal",
-            "v3_ctbmeta3.cscjournal",
-            "v4_dcmixed.cscjournal",
+            "v1_ctbmeta1-20261011.cscjournal",
+            "v2_ctbmeta2-20261011.cscjournal",
+            "v3_ctbmeta3-20261011.cscjournal",
+            "v4_dcmixed-20261011.cscjournal",
         ];
 
         for fixture_name in fixtures {
@@ -566,7 +566,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_character_description_autodetect_dcmm() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../io/csc/fixtures/journals/v4_dcmixed_only.dcmm");
+            .join("../../io/csc/fixtures/journals/v4_dcmixed_only-20261010.dcmm");
         let bytes = std::fs::read(&fixture_path).expect("read dcmm fixture");
         let args = CharacterDescriptionArgs {
             file: Some(fixture_path),
@@ -626,7 +626,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_execute_cli_convert_cscjournal_to_dcal() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../io/csc/fixtures/journals/v1_ctbmeta1.cscjournal");
+            .join("../../io/csc/fixtures/journals/v1_ctbmeta1-20261011.cscjournal");
         let journal_bytes =
             std::fs::read(&fixture_path).expect("read journal fixture");
 

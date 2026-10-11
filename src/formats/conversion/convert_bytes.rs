@@ -543,10 +543,10 @@ mod tests {
         );
 
         for (filename, is_legacy) in [
-            ("v1_ctbmeta1.cscjournal", true),
-            ("v2_ctbmeta2.cscjournal", true),
-            ("v3_ctbmeta3.cscjournal", true),
-            ("v4_dcmixed.cscjournal", false),
+            ("v1_ctbmeta1-20261011.cscjournal", true),
+            ("v2_ctbmeta2-20261011.cscjournal", true),
+            ("v3_ctbmeta3-20261011.cscjournal", true),
+            ("v4_dcmixed-20261011.cscjournal", false),
         ] {
             let path = fixtures_dir.join(filename);
             let bytes = std::fs::read(&path).expect("read journal fixture");

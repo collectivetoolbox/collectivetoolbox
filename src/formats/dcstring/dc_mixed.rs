@@ -629,15 +629,18 @@ impl DcMstring {
         let mut offset = 0usize;
         while offset < s.len() {
             let remaining = s.get(offset..).context("Invalid DcUtf conversion boundary")?;
-            let ch = remaining.chars().next().context("Missing Dc character")?;
+            let (val, char_len) = match decode_utf_8e_128_buf(remaining.as_ref()) {
+                Some(res) => res,
+                None => anyhow::bail!("Missing Dc character"),
+            };
+            let ch = DcChar(val);
             if ch == DC_START_ENCAPSULATION_BINARY {
                 let (metadata, data, consumed) = crate::encapsulation::parse_text(remaining)?;
                 mst.push_binary_with_metadata(&data, &metadata)?;
                 offset = offset.saturating_add(consumed);
             } else {
                 mst.push_char(ch);
-                let mut encoded = [0u8; 24];
-                offset = offset.saturating_add(encode_utf_8e_128_buf(&mut encoded, ch.to_u128()));
+                offset = offset.saturating_add(char_len);
             }
         }
         Ok(mst)

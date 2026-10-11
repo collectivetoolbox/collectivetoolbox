@@ -15,8 +15,8 @@ datemagnitude,:[393:],A positive duration
 asciilatinletter,:([u41..u5a] | [u61..u7a]),ASCII Latin letter (A-Z or a-z)
 asciilatinletterdigit,:([u30..u39] | [u41..u5a] | [u61..u7a]),ASCII Latin letter or digit (0-9 A-Z a-z)
 asciiprintable,:[u20..u7e],ASCII printable character
-filename,:511 [f228:],
-filepath,:511 [f229:],
+filename,:511 [f228:] 512,
+filepath,:511 [f229:] 512,
 ipaddr,:511 [f226:] 512,
 statement,:([value] | 269:),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
 value,:([string] | 276: | 279:),One value expression: a quoted literal or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.

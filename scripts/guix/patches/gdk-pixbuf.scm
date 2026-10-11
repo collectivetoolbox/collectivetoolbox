@@ -34,7 +34,6 @@
         #~(list "-Dinstalled_tests=false"
                 "-Dgtk_doc=false"
                 "-Dintrospection=disabled"
-                "-Dglycin=disabled"
                 "-Dothers=enabled"
                 "--libdir=lib"))))
     (native-inputs
