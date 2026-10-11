@@ -74,7 +74,7 @@ pub enum FileEntityKind {
         size: u64,
         /// SHA-256 cryptographic digest of payload.
         #[serde(with = "crate::serde_helpers::hex_sha256")]
-        #[dc(short = 368, binary)]
+        #[dc(short = 368, checksum)]
         sha256: [u8; 32],
         /// True if any sparse extents (holes) exist.
         #[dc(short = 369)]

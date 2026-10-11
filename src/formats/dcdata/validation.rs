@@ -40,7 +40,8 @@ use crate::shared::{
     validate_cross_table_uniqueness, validate_general_category,
 };
 use crate::syntax::{
-    CharTarget, parse_dc_syntax, parse_target_token, validate_dc_syntax,
+    CharTarget, FormatValidationRegistry, build_format_validation_registry,
+    parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
 use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
 use ctb_storage_minimal::shorthand::parse_unicode_shorthand;
@@ -102,6 +103,8 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         .map(|b| extract_named_type_names(b))
         .unwrap_or_default();
 
+    let format_registry = build_format_validation_registry(&format_rows);
+
     // 5. Validate Document Characters category files
     let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
         validate_all_dc_files(
@@ -111,6 +114,7 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
             Some(&known_named_types),
             Some(&known_scripts),
             Some(&known_format_with_syntax),
+            Some(&format_registry),
             &mut report,
         )
     } else {
@@ -169,6 +173,7 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
             &known_format_ids,
             Some(&known_scripts),
             Some(&known_syntax_targets),
+            Some(&format_registry),
             &mut report,
         );
     } else {
@@ -268,6 +273,8 @@ pub fn validate_all_data_tables_from_repo(
         .map(|b| extract_named_type_names(b))
         .unwrap_or_default();
 
+    let format_registry = build_format_validation_registry(&format_rows);
+
     // 5. Validate Document Characters category files
     let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
     let dc_rows = validate_all_dc_files_from_disk(
@@ -277,6 +284,7 @@ pub fn validate_all_data_tables_from_repo(
         Some(&known_named_types),
         Some(&known_scripts),
         Some(&known_format_with_syntax),
+        Some(&format_registry),
         &mut report,
     );
 
@@ -325,6 +333,7 @@ pub fn validate_all_data_tables_from_repo(
             &known_format_ids,
             Some(&known_scripts),
             Some(&known_syntax_targets),
+            Some(&format_registry),
             &mut report,
         );
     } else {
@@ -570,6 +579,7 @@ pub fn validate_named_types_table(
     known_format_ids: &HashSet<usize>,
     known_scripts: Option<&HashSet<String>>,
     known_syntax_targets: Option<&HashSet<CharTarget>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) -> HashSet<String> {
     let all_known_names = extract_named_type_names(csv_bytes);
@@ -659,6 +669,7 @@ pub fn validate_named_types_table(
                         &all_known_names,
                         known_scripts,
                         syntax_targets,
+                        format_registry,
                         report,
                         file_path,
                         line_no,
@@ -1377,6 +1388,7 @@ pub fn validate_dc_files_data<'a, I>(
     known_named_types: Option<&HashSet<String>>,
     known_scripts: Option<&HashSet<String>>,
     known_format_with_syntax: Option<&HashSet<usize>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn>
 where
@@ -1619,6 +1631,7 @@ where
                 named_types,
                 known_scripts,
                 &known_syntax_targets,
+                format_registry,
                 report,
                 &row.source_file,
                 row.line_number,
@@ -1637,6 +1650,7 @@ pub fn validate_all_dc_files(
     known_named_types: Option<&HashSet<String>>,
     known_scripts: Option<&HashSet<String>>,
     known_format_with_syntax: Option<&HashSet<usize>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let mut files = Vec::new();
@@ -1653,6 +1667,7 @@ pub fn validate_all_dc_files(
         known_named_types,
         known_scripts,
         known_format_with_syntax,
+        format_registry,
         report,
     )
 }
@@ -1665,6 +1680,7 @@ pub fn validate_all_dc_files_from_disk(
     known_named_types: Option<&HashSet<String>>,
     known_scripts: Option<&HashSet<String>>,
     known_format_with_syntax: Option<&HashSet<usize>>,
+    format_registry: Option<&FormatValidationRegistry>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(dc_dir) else {
@@ -1729,6 +1745,7 @@ pub fn validate_all_dc_files_from_disk(
         known_named_types,
         known_scripts,
         known_format_with_syntax,
+        format_registry,
         report,
     )
 }
@@ -2365,6 +2382,7 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report,
             "test/syntax.csv",
             10,
@@ -2381,6 +2399,7 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report,
             "test/syntax.csv",
             11,
@@ -2400,6 +2419,7 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report2,
             "test/syntax.csv",
             12,
@@ -2418,6 +2438,7 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report3,
             "test/syntax.csv",
             13,
@@ -2436,6 +2457,7 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report4,
             "test/syntax.csv",
             14,
@@ -2454,12 +2476,144 @@ mod tests {
             &known_named_types,
             Some(&known_scripts),
             &known_syntax_targets,
+            None,
             &mut report5,
             "test/syntax.csv",
             15,
         );
         assert!(report5.has_errors());
         assert!(report5.format_report().contains("Unknown script '[script:Nonexistent]'"));
+
+        // [data] without subtype is valid
+        let mut report6 = ValidationReport::new();
+        let bare_data_rule = parse_dc_syntax(":[data]").unwrap();
+        validate_dc_syntax(
+            &bare_data_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            None,
+            &mut report6,
+            "test/syntax.csv",
+            16,
+        );
+        assert!(!report6.has_errors());
+
+        // Setup format registry for [data:...] tests
+        let mut fmt_registry = FormatValidationRegistry::new();
+        fmt_registry.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 248,
+            ident: Some("Sha256".to_string()),
+            category: "hash".to_string(),
+            nicknames: vec!["sha256".to_string()],
+            has_import_support: true,
+            has_export_support: true,
+        });
+        fmt_registry.add_format(crate::syntax::FormatValidationInfo {
+            short_id: 99,
+            ident: Some("NoExport".to_string()),
+            category: "archive".to_string(),
+            nicknames: vec![],
+            has_import_support: true,
+            has_export_support: false,
+        });
+
+        // [data:hash] rejects category name
+        let mut report_cat = ValidationReport::new();
+        let cat_data_rule = parse_dc_syntax(":[data:hash]").unwrap();
+        validate_dc_syntax(
+            &cat_data_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_cat,
+            "test/syntax.csv",
+            17,
+        );
+        assert!(report_cat.has_errors());
+        assert!(report_cat.format_report().contains("specifies a format category instead of a specific format identifier"));
+
+        // [data:checksum] rejects unknown format (not a specific format identifier)
+        let mut report_checksum = ValidationReport::new();
+        let checksum_data_rule = parse_dc_syntax(":[data:checksum]").unwrap();
+        validate_dc_syntax(
+            &checksum_data_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_checksum,
+            "test/syntax.csv",
+            17,
+        );
+        assert!(report_checksum.has_errors());
+        assert!(report_checksum.format_report().contains("Unknown format identifier 'checksum' in '[data:checksum]'"));
+
+        // [data:f9999] rejects unknown format
+        let mut report_unknown_fmt = ValidationReport::new();
+        let unknown_fmt_rule = parse_dc_syntax(":[data:f9999]").unwrap();
+        validate_dc_syntax(
+            &unknown_fmt_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_unknown_fmt,
+            "test/syntax.csv",
+            18,
+        );
+        assert!(report_unknown_fmt.has_errors());
+        assert!(report_unknown_fmt.format_report().contains("Unknown format identifier 'f9999' in '[data:f9999]'"));
+
+        // [data:NoExport] rejects format without both import and export
+        let mut report_no_export = ValidationReport::new();
+        let no_export_rule = parse_dc_syntax(":[data:NoExport]").unwrap();
+        validate_dc_syntax(
+            &no_export_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_no_export,
+            "test/syntax.csv",
+            19,
+        );
+        assert!(report_no_export.has_errors());
+        assert!(report_no_export.format_report().contains("must have both import and export support"));
+
+        // [data:Sha256] and [data:f248] succeed when format has both import and export
+        let mut report_ok = ValidationReport::new();
+        let ok_rule = parse_dc_syntax(":[data:Sha256] [data:f248]").unwrap();
+        validate_dc_syntax(
+            &ok_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            Some(&known_scripts),
+            &known_syntax_targets,
+            Some(&fmt_registry),
+            &mut report_ok,
+            "test/syntax.csv",
+            20,
+        );
+        assert!(!report_ok.has_errors());
     }
 
     #[crate::ctb_test]
@@ -2505,6 +2659,11 @@ mod tests {
             ("258:", &[258, 260, 262, 264, 263, 259, 261, 259], true),
             ("258:", &[258, 259], false),
             ("315:", &[315, 276, 270, 65, 271], true),
+            ("[checksum]", &[203, 2228469, 127, 128, 204], true),
+            ("[checksum]", &[203, 245, 127, 128, 204], true),
+            ("[checksum]", &[203, 2228469, 204], true),
+            ("[checksum]", &[203, 127, 128, 204], false),
+            ("[checksum]", &[203, 9999, 127, 204], false),
         ];
         for (syntax, stream, expected) in cases {
             let rule = parse_dc_syntax(syntax)?;
@@ -2835,6 +2994,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &mut report_equiv_dc,
         );
         assert!(report_equiv_dc.has_errors());
@@ -2851,6 +3011,7 @@ mod tests {
             [("test.csv", &csv_approx_dc[..])],
             "test",
             &known_formats,
+            None,
             None,
             None,
             None,
@@ -2875,6 +3036,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &mut report_equiv_uni,
         );
         assert!(report_equiv_uni.has_errors());
@@ -2891,6 +3053,7 @@ mod tests {
             [("test.csv", &csv_approx_uni[..])],
             "test",
             &known_formats,
+            None,
             None,
             None,
             None,
@@ -2915,6 +3078,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &mut report_allowed,
         );
         assert!(!report_allowed.has_errors());
@@ -2926,6 +3090,7 @@ mod tests {
             [("test.csv", &csv_valid[..])],
             "test",
             &known_formats,
+            None,
             None,
             None,
             None,
@@ -2953,6 +3118,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &mut report,
         );
         assert!(report.has_errors());
@@ -2966,6 +3132,7 @@ mod tests {
             "test",
             &known_formats,
             Some(&known_tags),
+            None,
             None,
             None,
             None,

@@ -448,7 +448,7 @@ impl JournalWriter {
 
         mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
         mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
-        mst.push_binary(&digest);
+        mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;

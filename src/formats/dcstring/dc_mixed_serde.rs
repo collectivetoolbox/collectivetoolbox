@@ -469,6 +469,7 @@ impl<'a> DcMixedReader<'a> {
 
     /// Reads direct or textual binary encapsulation in source coordinates.
     /// Direct mixed-mode payloads are borrowed; DcUtf base64 is decoded once.
+    /// Transparently accepts an optional leading format identifier `DcChar` inside `Dc 203`.
     ///
     /// # Errors
     /// Returns an error if the next element is not an encapsulated binary payload.
@@ -478,19 +479,129 @@ impl<'a> DcMixedReader<'a> {
             self.position = self.peeked_end;
             return Ok(Cow::Borrowed(data));
         }
-        ensure!(self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY), "Expected binary encapsulation");
-        self.next_char()?;
+        let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
+        if is_text_encapsulation {
+            self.next_char()?;
+        }
         let mut shorts = Vec::new();
+        let mut first = true;
         loop {
-            let ch = self.next_char().context("Incomplete textual binary encapsulation")?;
-            if ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
+            let Some(ch) = self.peek_char()? else {
+                break;
+            };
+            if is_text_encapsulation && ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
+                self.next_char()?;
                 break;
             }
+            if !is_text_encapsulation {
+                if first {
+                    let is_fmt = ch.to_format().is_ok();
+                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                    if !is_fmt && !is_b64 {
+                        break;
+                    }
+                } else {
+                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                    if !is_b64 {
+                        break;
+                    }
+                }
+            }
+            let ch = self.next_char()?;
+            if first {
+                first = false;
+                if let Some(short) = ch.to_short_dc() {
+                    if ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short) {
+                        shorts.push(short);
+                        continue;
+                    }
+                }
+                // Optional format DcChar inside Dc 203 (e.g. DC_SHA256)
+                continue;
+            }
             let short = ch.to_short()?;
-            ensure!(ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short), "Expected base64 Dc in binary encapsulation");
+            ensure!(
+                ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short),
+                "Expected base64 Dc in binary encapsulation"
+            );
             shorts.push(short);
         }
-        Ok(Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?))
+        ensure!(
+            !shorts.is_empty() || is_text_encapsulation,
+            "Expected binary encapsulation"
+        );
+        Ok(Cow::Owned(
+            ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?,
+        ))
+    }
+
+    /// Reads a typed checksum binary payload enclosed between `Dc 203` and `Dc 204`,
+    /// returning the optional format identifier and the decoded payload bytes.
+    ///
+    /// # Errors
+    /// Returns an error if the payload is not encapsulated binary data.
+    pub fn read_checksum_payload(&mut self) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
+        self.peek_char()?;
+        if let Some(data) = self.peeked_binary.take() {
+            self.position = self.peeked_end;
+            return Ok((None, Cow::Borrowed(data)));
+        }
+        let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
+        if is_text_encapsulation {
+            self.next_char()?;
+        }
+        let mut format_char = None;
+        let mut shorts = Vec::new();
+        let mut first = true;
+        loop {
+            let Some(ch) = self.peek_char()? else {
+                break;
+            };
+            if is_text_encapsulation && ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
+                self.next_char()?;
+                break;
+            }
+            if !is_text_encapsulation {
+                if first {
+                    let is_fmt = ch.to_format().is_ok();
+                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                    if !is_fmt && !is_b64 {
+                        break;
+                    }
+                } else {
+                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                    if !is_b64 {
+                        break;
+                    }
+                }
+            }
+            let ch = self.next_char()?;
+            if first {
+                first = false;
+                if let Some(short) = ch.to_short_dc() {
+                    if ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short) {
+                        shorts.push(short);
+                        continue;
+                    }
+                }
+                format_char = Some(ch);
+                continue;
+            }
+            let short = ch.to_short()?;
+            ensure!(
+                ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short),
+                "Expected base64 Dc in binary encapsulation"
+            );
+            shorts.push(short);
+        }
+        ensure!(
+            !shorts.is_empty() || is_text_encapsulation,
+            "Expected binary encapsulation"
+        );
+        Ok((
+            format_char,
+            Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?),
+        ))
     }
 
     /// Reads a string literal enclosed between `Dc 260` and `Dc 261`.
@@ -1999,6 +2110,37 @@ mod tests {
 
         let large_neg_int = -Integer::from(u128::MAX);
         assert_dc_roundtrip(&large_neg_int)?;
+
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 410, end = 411)]
+    struct ChecksumRecord {
+        #[dc(short = 368, checksum)]
+        sha256: [u8; 32],
+    }
+
+    #[crate::ctb_test]
+    fn test_checksum_field_and_payload_roundtrip() -> Result<()> {
+        let digest = [7u8; 32];
+        let record = ChecksumRecord { sha256: digest };
+        let mut mst = record.to_dc_mixed()?;
+        let mut r = DcMixedReader::new(&mst);
+        let decoded_mst = ChecksumRecord::decode_dc_mixed(&mut r)?;
+        assert_eq!(decoded_mst, record);
+
+        let dc_str = record.to_dc_string()?;
+        let decoded_str = dc_str.decode::<ChecksumRecord>()?;
+        assert_eq!(decoded_str, record);
+
+        // Test push_checksum and read_checksum_payload directly
+        let mut manual_mst = DcMstring::new();
+        manual_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
+        let mut reader = DcMixedReader::new(&manual_mst);
+        let (fmt, read_bytes) = reader.read_checksum_payload()?;
+        assert_eq!(fmt, Some(ctb_utilities::format_id::DC_SHA256));
+        assert_eq!(read_bytes.as_ref(), &digest);
 
         Ok(())
     }

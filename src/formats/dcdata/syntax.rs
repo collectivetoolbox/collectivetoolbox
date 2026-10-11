@@ -47,4 +47,7 @@ pub use parser::{
     parse_dc_syntax, parse_document_tokens, parse_target_token,
 };
 pub use resolver::{DatasetRuleResolver, SyntaxRuleResolver};
-pub use validator::validate_dc_syntax;
+pub use validator::{
+    FormatValidationInfo, FormatValidationRegistry,
+    build_format_validation_registry, validate_dc_syntax,
+};

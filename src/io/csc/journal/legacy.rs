@@ -461,7 +461,7 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
 
                 mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
                 mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
-                mst.push_binary(&digest);
+                mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
                 writer.write_all(mst.payload_bytes())?;
                 pending_entities.clear();

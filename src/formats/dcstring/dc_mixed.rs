@@ -737,6 +737,26 @@ impl DcMstring {
         self.inner.extend_from_slice(data);
     }
 
+    /// Appends a typed checksum payload enclosed between `Dc 203` and `Dc 204`.
+    ///
+    /// Formats the payload as `Dc 203` (`DC_START_ENCAPSULATION_BINARY`), followed by
+    /// the format `DcChar` (e.g. `DC_SHA256`), followed by base64 encapsulation digits,
+    /// followed by `Dc 204` (`DC_END_ENCAPSULATION_BINARY`).
+    ///
+    /// # Errors
+    /// Returns error if base64 encoding fails.
+    pub fn push_checksum(&mut self, format: impl Into<DcChar>, digest: &[u8]) -> Result<()> {
+        let fmt_char = format.into();
+        let raw_shorts = ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(digest)?;
+        let mut inner = DcString::new();
+        inner.push(fmt_char);
+        for short_id in raw_shorts {
+            inner.push(DcChar::from_short(short_id));
+        }
+        self.push_dcutf_str(&inner);
+        Ok(())
+    }
+
     /// Appends a binary payload read directly from a stream (`std::io::Read`).
     pub fn push_binary_from_reader<R: std::io::Read + ?Sized>(
         &mut self,

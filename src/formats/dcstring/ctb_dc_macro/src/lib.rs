@@ -138,6 +138,7 @@ struct FieldDcAttr {
     begin: Option<u128>,
     end: Option<u128>,
     binary: bool,
+    checksum: bool,
     skip: bool,
     default: bool,
     omit_default: bool,
@@ -336,6 +337,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut begin = None;
     let mut end = None;
     let mut binary = false;
+    let mut checksum = false;
     let mut skip = false;
     let mut skip_has_reason = false;
     let mut default = false;
@@ -488,6 +490,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                         let key = ident.to_string();
                         match key.as_str() {
                             "binary" => binary = true,
+                            "checksum" => checksum = true,
                             "skip" => skip = true,
                             "default" => default = true,
                             "flatten" => flatten = true,
@@ -540,7 +543,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         // absence of an Option wrapper is valid rather than an extraction error.
         let value_ty = extract_type_from_option(&field.ty).unwrap_or(&field.ty);
         if name.value().is_empty() || extract_type_from_container(value_ty, "Arc").is_none()
-            || nested.is_empty() || skip || binary || flatten || tag.is_some()
+            || nested.is_empty() || skip || binary || checksum || flatten || tag.is_some()
             || begin.is_some() || end.is_some() || equivalents.is_some() || omit_default
         {
             return Err(syn::Error::new(field.span(), "shared requires a nonempty name and a nested Arc<T> or Option<Arc<T>> field"));
@@ -580,6 +583,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         begin,
         end,
         binary,
+        checksum,
         skip,
         default: default || omit_default,
         omit_default,
@@ -1313,6 +1317,67 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             Ok(true)
                         }
                     });
+                } else if attr.checksum {
+                    if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                        encode_fields.push(quote! {
+                            if let ::std::option::Option::Some(ref val) = self.#field_ident {
+                                mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
+                            }
+                        });
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                self.#field_ident = ::std::option::Option::Some(val);
+                                Ok(true)
+                            }
+                        });
+                    } else {
+                        let encode_stmt = quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
+                        };
+                        if attr.omit_default {
+                            encode_fields.push(quote! {
+                                if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                    #encode_stmt
+                                }
+                            });
+                        } else {
+                            encode_fields.push(encode_stmt);
+                        }
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                #field_ident = ::std::option::Option::Some(val);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
+                    }
                 } else if attr.binary {
                     if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         encode_fields.push(quote! {
@@ -1598,7 +1663,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Decode temporary storage
-                if is_vec && !attr.binary {
+                if is_vec && !attr.binary && !attr.checksum {
                     field_inits.push(quote! {
                         let mut #field_ident: #field_ty = ::std::vec::Vec::new();
                     });
@@ -1609,7 +1674,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Field validation / construction
-                if is_vec && !attr.binary {
+                if is_vec && !attr.binary && !attr.checksum {
                     field_validations.push(quote! {
                         let #field_ident = #field_ident;
                     });
@@ -1966,7 +2031,34 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 )
                             })?;
 
-                            if attr.binary {
+                            if attr.checksum {
+                                if let Some(inner_ty) = extract_type_from_option(f_ty) {
+                                    encode_fields.push(quote! {
+                                        if let ::std::option::Option::Some(ref val) = #f_ident {
+                                            mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                            mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
+                                        }
+                                    });
+                                    decode_fields.push(quote! {
+                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                            .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#f_ident)))?;
+                                        let #f_ident = ::std::option::Option::Some(val);
+                                    });
+                                } else {
+                                    encode_fields.push(quote! {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                        mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(#f_ident))?;
+                                    });
+                                    decode_fields.push(quote! {
+                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                            .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#f_ident)))?;
+                                    });
+                                }
+                            } else if attr.binary {
                                 if let Some(inner_ty) = extract_type_from_option(f_ty) {
                                     encode_fields.push(quote! {
                                         if let ::std::option::Option::Some(ref val) = #f_ident {

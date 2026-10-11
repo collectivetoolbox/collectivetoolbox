@@ -40,8 +40,80 @@ pub trait SyntaxRuleResolver {
     fn resolve_rule(&self, target: &CharTarget) -> Option<&DcSyntaxRule>;
     /// Resolves the pattern definition for a named syntactic construct.
     fn resolve_named_type(&self, name: &str) -> Option<&SyntaxPattern>;
+    /// Resolves the pattern definition for a named construct with macro arguments substituted.
+    fn resolve_named_type_with_arg(&self, name: &str, arg: Option<&str>) -> Option<SyntaxPattern> {
+        let pattern = self.resolve_named_type(name)?;
+        if let Some(arg_val) = arg {
+            Some(substitute_pattern_param(pattern, "$type", arg_val))
+        } else {
+            Some(pattern.clone())
+        }
+    }
     /// Checks whether a character token belongs to a designated script.
     fn matches_script(&self, script_name: &str, token: u32) -> bool;
+}
+
+fn substitute_term_param(
+    term: &super::ast::SyntaxTerm,
+    param: &str,
+    value: &str,
+) -> super::ast::SyntaxTerm {
+    match term {
+        super::ast::SyntaxTerm::NamedConstruct {
+            name,
+            subtype,
+            capture_var,
+        } => {
+            let new_sub = subtype.as_ref().map(|s| {
+                if s == param {
+                    value.to_string()
+                } else if s.contains(param) {
+                    s.replace(param, value)
+                } else {
+                    s.clone()
+                }
+            });
+            super::ast::SyntaxTerm::NamedConstruct {
+                name: name.clone(),
+                subtype: new_sub,
+                capture_var: capture_var.clone(),
+            }
+        }
+        super::ast::SyntaxTerm::Group(nested) => {
+            super::ast::SyntaxTerm::Group(substitute_pattern_param(
+                nested, param, value,
+            ))
+        }
+        other => other.clone(),
+    }
+}
+
+fn substitute_pattern_param(
+    pat: &SyntaxPattern,
+    param: &str,
+    value: &str,
+) -> SyntaxPattern {
+    match pat {
+        SyntaxPattern::Sequence(elements) => {
+            SyntaxPattern::Sequence(
+                elements
+                    .iter()
+                    .map(|el| super::ast::SyntaxElement {
+                        term: substitute_term_param(&el.term, param, value),
+                        quantifier: el.quantifier,
+                    })
+                    .collect(),
+            )
+        }
+        SyntaxPattern::Alternation(patterns) => {
+            SyntaxPattern::Alternation(
+                patterns
+                    .iter()
+                    .map(|p| substitute_pattern_param(p, param, value))
+                    .collect(),
+            )
+        }
+    }
 }
 
 /// In-memory resolver caching syntax rules, named types, and script mappings.
@@ -107,6 +179,14 @@ impl DatasetRuleResolver {
                 };
                 if !defn.script.is_empty() {
                     resolver.add_script_char(defn.script.clone(), sid_u32);
+                    if let Ok(start) = u32::try_from(
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                    ) {
+                        resolver.add_script_char(
+                            defn.script.clone(),
+                            start.saturating_add(sid_u32),
+                        );
+                    }
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Format(short_id), rule.clone());

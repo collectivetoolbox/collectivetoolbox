@@ -201,6 +201,7 @@ where
             &input_bytes,
             filename_hint,
             &DcConversionOptions {
+                // Reason for fallback: When no source format is explicitly specified via CLI, auto-detection is used.
                 format: args.from.map_or(FormatSpec::Auto, FormatSpec::Format),
                 allow_binary_encapsulation: false,
             },

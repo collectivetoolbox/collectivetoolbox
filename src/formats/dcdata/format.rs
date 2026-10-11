@@ -638,6 +638,7 @@ where
         .collect();
     let empty_dcs = HashSet::new();
     let empty_named_types = HashSet::new();
+    let format_registry = crate::syntax::build_format_validation_registry(&all_rows);
 
     for row in &all_rows {
         if let Some(syntax_rule) = &row.syntax {
@@ -654,6 +655,7 @@ where
                 &empty_named_types,
                 known_scripts,
                 &known_syntax_targets,
+                Some(&format_registry),
                 report,
                 &row.source_file,
                 row.line_number,

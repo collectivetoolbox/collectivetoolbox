@@ -270,8 +270,8 @@ fn match_term_single(
                 }
             }
 
-            // Format category check: [format:<category>]
-            if name == "format" {
+            // Format or type category check: [format:<category>] or [type:<category>]
+            if (name == "format" || name == "type") && subtype.is_some() {
                 if let (Some(sub), Some(resolver)) = (subtype, &context.resolver) {
                     let script_name = format!("Formats:{sub}");
                     if resolver.matches_script(&script_name, first)
@@ -374,10 +374,10 @@ fn match_term_single(
                 if context.call_stack.contains(&frame_key) {
                     return MatchOutcome::Mismatch;
                 }
-                if let Some(pattern) = resolver.resolve_named_type(name) {
+                if let Some(pattern) = resolver.resolve_named_type_with_arg(name, subtype.as_deref()) {
                     context.call_stack.push(frame_key);
                     context.depth = context.depth.saturating_add(1);
-                    let outcome = match_pattern(stream, pattern, context);
+                    let outcome = match_pattern(stream, &pattern, context);
                     context.depth = context.depth.saturating_sub(1);
                     context.call_stack.pop();
                     if outcome.is_matched() {
