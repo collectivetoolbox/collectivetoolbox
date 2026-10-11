@@ -1324,6 +1324,16 @@ pub fn detect_format_id_in_categories(
         guess_format_candidates(&mut empty, hint.as_ref())
     };
 
+    if categories.contains(&FormatCategory::Document) {
+        if let Some(doc_fmt) = candidates
+            .iter()
+            .filter_map(|c| c.format_id)
+            .find(|fmt| fmt.category() == FormatCategory::Document)
+        {
+            return Some(doc_fmt);
+        }
+    }
+
     candidates
         .into_iter()
         .filter_map(|c| c.format_id)

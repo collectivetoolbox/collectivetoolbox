@@ -106,13 +106,13 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
             }
         }
         FormatSpec::Auto => {
-            let fid = ctb_formats_detection::detect_format_id(
+            let fid = ctb_formats_detection::detect_format_id_in_categories(
                 Some(peek_bytes),
                 filename_hint,
-                None,
+                &[ctb_utilities::FormatCategory::Document, ctb_utilities::FormatCategory::Encoding],
             );
             let detected = match fid {
-                Some(FormatId::Text | FormatId::Ascii) => Some(SupportedDcInputFormat::Utf8),
+                Some(FormatId::Text) => Some(SupportedDcInputFormat::Utf8),
                 Some(id) => SupportedDcInputFormat::from_format_id(id),
                 None => None,
             };

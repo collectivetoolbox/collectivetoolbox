@@ -2784,6 +2784,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-compression-cli",
+ "ctb-formats-conversion",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",

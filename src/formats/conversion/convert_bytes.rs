@@ -117,10 +117,13 @@ pub fn convert_bytes_to_dcmstring(
             }
         }
         FormatSpec::Auto => {
-            let fid = ctb_formats_detection::detect_format_id(Some(bytes), filename_hint, None);
-            eprintln!("DEBUG CONVERT_BYTES FID: {:?}", fid);
+            let fid = ctb_formats_detection::detect_format_id_in_categories(
+                Some(bytes),
+                filename_hint,
+                &[ctb_utilities::FormatCategory::Document, ctb_utilities::FormatCategory::Encoding],
+            );
             let detected = match fid {
-                Some(FormatId::Text | FormatId::Ascii) => Some(SupportedDcInputFormat::Utf8),
+                Some(FormatId::Text) => Some(SupportedDcInputFormat::Utf8),
                 Some(id) => SupportedDcInputFormat::from_format_id(id),
                 None => None,
             };
@@ -355,6 +358,19 @@ mod tests {
         )
         .expect("export dctext");
         assert_eq!(std::str::from_utf8(&export.bytes).unwrap(), "Hello A!");
+
+        // Also test autodetection with NO filename hint
+        let res_no_hint = convert_bytes_to_dcmstring(
+            input,
+            None,
+            &DcConversionOptions::default(),
+        )
+        .expect("autodetect dctext without filename");
+        assert_eq!(res_no_hint.detected_format, FormatId::DcText);
+        assert_eq!(
+            res_no_hint.document.to_dc_string().unwrap().as_str().unwrap(),
+            "Hello A!"
+        );
     }
 
     #[crate::ctb_test]

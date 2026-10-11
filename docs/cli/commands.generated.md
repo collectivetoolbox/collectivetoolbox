@@ -232,11 +232,13 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format: utf8 (default), dcal, dcil, dctext, or dcts [default: utf8] [possible values: utf8, dcal, dcil, dctext, dcts]
+          Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmm, sems, or ascii [default: utf8] [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
           Output file path (or - for stdout)
+  -F, --force
+          Overwrite existing output file without prompt
   -c, --codepoint <CODEPOINT>
           Specific character, Dc ID, or Global Graph ID (e.g. U+0041, dc:296, 1114408, fmt:80)
       --mode <MODE>
