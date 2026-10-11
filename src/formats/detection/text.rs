@@ -1178,7 +1178,7 @@ pub fn looks_ebcdic(buf: &[u8]) -> Option<IdentifiedEncoding> {
 #[must_use]
 pub fn detect_text_encoding(data: &[u8]) -> Option<IdentifiedEncoding> {
     let trimmed = trim_nuls(data);
-    if trimmed.len() < 2 {
+    if trimmed.is_empty() {
         return None;
     }
 
@@ -1648,7 +1648,7 @@ pub fn detect_text_candidate(
 ) -> Result<Option<DetectionCandidate>> {
     let mut sample_buf = vec![0u8; TEXT_ENCODING_MAX_BYTES.min(4096)];
     let n = source.read_at(0, &mut sample_buf)?;
-    if n < 2 {
+    if n == 0 {
         return Ok(None);
     }
     // Reason for fallback: slice indexing within read count `n` is always valid
@@ -1773,6 +1773,16 @@ mod tests {
         let binary_data = b"Hello\x00World";
         assert!(!looks_ascii(binary_data));
         assert_eq!(detect_text_encoding(binary_data), None);
+    }
+
+    #[crate::ctb_test]
+    fn test_single_byte_ascii_detection() {
+        assert!(looks_ascii(b"A"));
+        assert_eq!(detect_text_encoding(b"A"), Some(IdentifiedEncoding::Ascii));
+        let mut slice: &[u8] = b"A";
+        let cand = detect_text_candidate(&mut slice, None).unwrap();
+        assert!(cand.is_some());
+        assert_eq!(cand.unwrap().format_id, Some(FormatId::Ascii));
     }
 
     #[crate::ctb_test]

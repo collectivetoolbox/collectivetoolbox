@@ -135,7 +135,7 @@ pub fn convert_bytes_to_dcmstring(
             };
             if let Some(fmt) = detected {
                 fmt
-            } else if bytes.is_empty() || std::str::from_utf8(bytes).is_ok() {
+            } else if bytes.is_empty() {
                 SupportedDcInputFormat::Utf8
             } else if options.allow_binary_encapsulation {
                 let mut doc = DcMstring::new();
@@ -321,6 +321,22 @@ mod tests {
         )
         .expect("export utf8");
         assert_eq!(export.bytes, input);
+    }
+
+    #[crate::ctb_test]
+    fn test_convert_single_byte_ascii_autodetect() {
+        let input = b"A";
+        let res = convert_bytes_to_dcmstring(
+            input,
+            None,
+            &DcConversionOptions::default(),
+        )
+        .expect("autodetect single byte ascii");
+        assert_eq!(res.detected_format, FormatId::Ascii);
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "A"
+        );
     }
 
     #[crate::ctb_test]
