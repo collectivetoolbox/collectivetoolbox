@@ -42,7 +42,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114422,310,"Begin list (ordered, contiguous, typed)",0,BN,,!Cx,.EL Syntax,"@ident(""BeginList""), :~ [number $length?] [type] [^311]* 311","Begins an ordered, contiguous, typed homogenous or heterogenous list."
 1114423,311,End list,0,BN,,!Cx,.EL Syntax,"@ident(""EndList""), @closes(310)","Terminates a typed list begun by 310. Optionally, a length can be specified, in which case it must have that many elements declared."
 1114424,312,List element separator,0,BN,,!Cx,.EL Syntax,,Separates elements within a list or sequence.
-1114425,313,Begin key-value array (ordered),0,BN,,!Cx,.EL Syntax,"@ident(""BeginKvMap""), :~ [number $length?] [type] [type] ((([^(314 | 312)]) 312)* ([^(314 | 312)]))? 314",Begins an ordered key-value associative map.
+1114425,313,Begin key-value array (ordered),0,BN,,!Cx,.EL Syntax,"@ident(""BeginKvMap""), :~ [number $length?] [type $keyType] [type $valType] ((([^(314 | 312)]) 312)* ([^(314 | 312)]))? 314",Begins an ordered key-value associative map.
 1114426,314,End key-value array,0,BN,,!Cx,.EL Syntax,"@ident(""EndKvMap""), @closes(313)",Terminates an ordered key-value associative map begun by 313.
 1114427,315,Optional value present,0,BN,,!Cx,.EL Syntax,"@ident(""OptionalPresent""), :~ [value]",Indicates an optional value is present.
 1114428,316,Optional value absent,0,BN,,!Cx,.EL Syntax,"@ident(""OptionalAbsent"")",Indicates an optional value is absent.
