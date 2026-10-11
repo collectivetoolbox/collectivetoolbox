@@ -266,13 +266,23 @@ pub struct FramedLiteral {
     pub decoded_payload: Vec<u128>,
 }
 
-/// Framed identifier preserving both verbatim source tokens and decoded name.
+/// Framed identifier preserving both verbatim source tokens and decoded name tokens.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FramedIdentifier {
     /// Raw character tokens in source stream including delimiters and escapes.
     pub raw_tokens: Vec<u128>,
-    /// Decoded identifier name.
-    pub name: String,
+    /// Decoded unescaped identifier character tokens.
+    pub name: Vec<u128>,
+}
+
+impl std::fmt::Display for FramedIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let opts = crate::dcts::DctsOptions {
+            escape_control_chars: true,
+        };
+        let s = crate::dcts::dclist_to_dcts_string_with_options(&self.name, opts);
+        f.write_str(&s)
+    }
 }
 
 /// Parsed syntactic element in a Document Character document.

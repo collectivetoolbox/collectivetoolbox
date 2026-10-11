@@ -250,17 +250,11 @@ pub fn scan_identifier_frame(
         None => Vec::new(),
     };
 
-    // FIXME This is wrong/nonsensical. It can display different identifiers as identical, since it discards any non-Unicode characters. There might be some way to do this, but it should (a) use a real conversion API for it (maybe convert it to DcText for display? That should avoid collisions), and (b) possibly be revisited as converting a name for display seems like something to do in the *renderer* (or in a lightweight conversion tool), not in the parser.
-    let mut name = String::new();
-    for cp in &payload_chars {
-        if let Ok(cp_u32) = u32::try_from(*cp) {
-            if let Some(ch) = char::from_u32(cp_u32) {
-                name.push(ch);
-                continue;
-            }
-        }
-        name.push_str(&format!("\\u{{{cp:x}}}"));
-    }
-
-    Some((FramedIdentifier { raw_tokens, name }, consumed))
+    Some((
+        FramedIdentifier {
+            raw_tokens,
+            name: payload_chars,
+        },
+        consumed,
+    ))
 }

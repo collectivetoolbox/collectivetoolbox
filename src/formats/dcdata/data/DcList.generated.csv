@@ -346,7 +346,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.,,,,,,,,,
 1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.,,,,,,,,,
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.,,,,,,,,,
-1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [number] [^341]* 341",Begins an execution environment snapshot.,,,,,,,,,
+1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [^341]* 341",Begins an execution environment snapshot.,,,,,,,,,
 1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @closes(340)",Terminates an execution environment snapshot.,,,,,,,,,
 1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ [formats:os],Host operating system description.,,,,,,,,,
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.,,,,,,,,,

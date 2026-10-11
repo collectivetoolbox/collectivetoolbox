@@ -42,6 +42,7 @@ pub mod column_spec;
 pub mod dc_number_minimal;
 pub mod format_spec;
 pub mod syntax;
+pub mod dcts;
 pub mod updater;
 pub mod validation;
 
@@ -53,6 +54,10 @@ pub use ctb_storage_minimal::shorthand;
 pub use ctb_storage_minimal::shorthand::{
     DcShorthand, is_valid_shorthand, parse_format_shorthand,
     parse_unicode_shorthand,
+};
+pub use dcts::{
+    DctsOptions, dclist_to_dcts, dclist_to_dcts_string_with_options,
+    dclist_to_dcts_with_options,
 };
 
 pub use dc_char::{DcChar, DcCharExt};

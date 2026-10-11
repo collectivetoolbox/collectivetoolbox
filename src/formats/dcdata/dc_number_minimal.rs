@@ -142,6 +142,75 @@ pub fn u128_to_dc_number_short(val: u128) -> Vec<u32> {
     out
 }
 
+/// Reads a single unsigned 128-bit integer from a slice of Document Character
+/// Global Graph IDs (`&[u128]`), returning the parsed `u128` integer and the
+/// number of tokens consumed from the slice.
+///
+/// Expects the numeral sequence:
+/// `[DC_BEGIN_NUMBER, DC_INTEGER, ...Base64 encapsulation digits..., DC_END_NUMBER]`
+///
+/// # Errors
+/// Returns an error if the token stream does not start with a valid Dc integer
+/// numeral frame or if the value overflows `u128`.
+pub fn read_dc_number_u128(gids: &[u128]) -> Result<(u128, usize)> {
+    let Some(&first) = gids.first() else {
+        bail!("Empty GID stream");
+    };
+    let first_dc = DcChar::from_u128(first);
+    let is_begin = first_dc == DC_BEGIN_NUMBER
+        || (if let Ok(s) = first_dc.to_short() { s == 6 } else { first == 6 });
+    ensure!(
+        is_begin,
+        "Expected Dc 6 (Begin number), found {first}"
+    );
+
+    let Some(&second) = gids.get(1) else {
+        bail!("Unexpected end of stream after Dc 6");
+    };
+    let second_dc = DcChar::from_u128(second);
+    let is_integer = second_dc == DC_INTEGER
+        || (if let Ok(f) = second_dc.to_format() { f == 199 } else { second == 199 });
+    ensure!(
+        is_integer,
+        "Expected Format 199 (DC_INTEGER) after Dc 6, found {second}"
+    );
+
+    let mut idx = 2usize;
+    let mut val: u128 = 0;
+    let mut found_end = false;
+    let mut digit_count = 0usize;
+
+    while let Some(&gid) = gids.get(idx) {
+        idx = idx.saturating_add(1);
+        let dc = DcChar::from_u128(gid);
+        let is_end = dc == DC_END_NUMBER
+            || (if let Ok(s) = dc.to_short() { s == 7 } else { gid == 7 });
+        if is_end {
+            found_end = true;
+            break;
+        }
+
+        let digit = if let Ok(d) = dc_base64_char_to_digit(dc) {
+            d
+        } else if let Ok(s) = u32::try_from(gid) {
+            dc_base64_char_to_digit(DcChar::from_short(s))?
+        } else {
+            bail!("Token {gid} is not a valid Base64 encapsulation Dc");
+        };
+
+        ensure!(digit < 64, "Padding character not permitted in integer numeral");
+        val = val
+            .checked_mul(64)
+            .and_then(|v| v.checked_add(u128::from(digit)))
+            .ok_or_else(|| anyhow!("Overflow reading u128 integer numeral"))?;
+        digit_count = digit_count.saturating_add(1);
+    }
+
+    ensure!(found_end, "Unclosed Dc number: missing Dc 7 (End number)");
+    ensure!(digit_count > 0, "Dc number has no digits");
+    Ok((val, idx))
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -181,5 +250,16 @@ mod tests {
         // 64 in base 64 is digits 1 ('B' = 128) and 0 ('A' = 127)
         let res = u128_to_dc_number_short(64);
         assert_eq!(res, vec![6, 199, 128, 127, 7]);
+    }
+
+    #[crate::ctb_test]
+    fn test_read_dc_number_u128_roundtrip() {
+        for &val in &[0u128, 1, 42, 63, 64, 65, 4095, 4096, 1_000_000, u128::MAX] {
+            let chars = u128_to_dc_number_chars(val);
+            let gids: Vec<u128> = chars.iter().map(|c| c.to_u128()).collect();
+            let (parsed, consumed) = read_dc_number_u128(&gids).unwrap();
+            assert_eq!(parsed, val);
+            assert_eq!(consumed, gids.len());
+        }
     }
 }
