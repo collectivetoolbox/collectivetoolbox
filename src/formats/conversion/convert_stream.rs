@@ -109,7 +109,11 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
             let fid = ctb_formats_detection::detect_format_id_in_categories(
                 Some(peek_bytes),
                 filename_hint,
-                &[ctb_utilities::FormatCategory::Document, ctb_utilities::FormatCategory::Encoding],
+                &[
+                    ctb_utilities::FormatCategory::Document,
+                    ctb_utilities::FormatCategory::Encoding,
+                    ctb_utilities::FormatCategory::Database,
+                ],
             );
             let detected = match fid {
                 Some(FormatId::Text) => Some(SupportedDcInputFormat::Utf8),

@@ -13,6 +13,7 @@ ctb-io = { path = ".." }
 ctb-formats-checksum = { path = "../../formats/checksum" }
 ctb-formats-dcdata = { path = "../../formats/dcdata" }
 ctb-formats-dcstring = { path = "../../formats/dcstring" }
+ctb-formats-utilities = { path = "../../formats/utilities" }
 ctb-formats-string = { path = "../../formats/string" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }

@@ -766,6 +766,9 @@ pub enum SupportedDcInputFormat {
     /// ASCII
     #[value(name = "ascii", alias = "txt")]
     Ascii,
+    /// Collective Toolbox csc journal
+    #[value(name = "cscjournal")]
+    CscJournal,
 }
 
 impl SupportedDcInputFormat {
@@ -781,6 +784,7 @@ impl SupportedDcInputFormat {
         Self::Utf8,
         Self::AsciiSafeSubset,
         Self::Ascii,
+        Self::CscJournal,
     ];
 
     /// Ordered list of all canonical `FormatId`s supported by this capability.
@@ -795,6 +799,7 @@ impl SupportedDcInputFormat {
         FormatId::Utf8,
         FormatId::AsciiSafeSubset,
         FormatId::Ascii,
+        FormatId::CscJournal,
     ];
 
     /// Backward-compatible alias for [`Self::DcIntegerList`].
@@ -814,6 +819,7 @@ impl SupportedDcInputFormat {
             Self::Utf8 => FormatId::Utf8,
             Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
             Self::Ascii => FormatId::Ascii,
+            Self::CscJournal => FormatId::CscJournal,
         }
     }
 
@@ -831,6 +837,11 @@ impl SupportedDcInputFormat {
             FormatId::Utf8 => Some(Self::Utf8),
             FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
             FormatId::Ascii => Some(Self::Ascii),
+            FormatId::CscJournal => Some(Self::CscJournal),
+            FormatId::CscJournal1Meta1 => Some(Self::CscJournal),
+            FormatId::CscJournal1Meta2 => Some(Self::CscJournal),
+            FormatId::CscJournal1Meta3 => Some(Self::CscJournal),
+            FormatId::CscJournal4 => Some(Self::CscJournal),
             _ => None,
         }
     }

@@ -3083,7 +3083,9 @@ dependencies = [
  "ctb-formats-dcdata",
  "ctb-formats-dcstring",
  "ctb-formats-detection",
+ "ctb-formats-unicode",
  "ctb-formats-utilities",
+ "ctb-io-csc",
  "ctb-utilities",
 ]
 
@@ -3766,6 +3768,7 @@ dependencies = [
  "ctb-formats-string",
  "ctb-formats-text-extraction",
  "ctb-formats-time",
+ "ctb-formats-utilities",
  "ctb-io",
  "ctb-io-environment",
  "ctb-utilities",

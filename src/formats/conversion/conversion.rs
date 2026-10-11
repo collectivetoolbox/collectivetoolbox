@@ -28,6 +28,7 @@ pub(crate) use ctb_utilities::*;
 
 pub use crate as conversion;
 
+pub mod cli;
 pub mod convert_api;
 pub mod convert_bytes;
 pub mod convert_stream;

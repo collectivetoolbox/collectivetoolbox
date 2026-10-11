@@ -34,6 +34,8 @@ use ctb_formats_utilities::FormatLog;
 use ctb_utilities::format_support::{SupportedDcInputFormat, SupportedDcOutputFormat};
 use ctb_utilities::FormatId;
 
+pub use ctb_io_csc::journal::convert_cscjournal_to_dcmstring;
+
 /// Specification for input format: explicit format or automatic detection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FormatSpec {
@@ -120,7 +122,11 @@ pub fn convert_bytes_to_dcmstring(
             let fid = ctb_formats_detection::detect_format_id_in_categories(
                 Some(bytes),
                 filename_hint,
-                &[ctb_utilities::FormatCategory::Document, ctb_utilities::FormatCategory::Encoding],
+                &[
+                    ctb_utilities::FormatCategory::Document,
+                    ctb_utilities::FormatCategory::Encoding,
+                    ctb_utilities::FormatCategory::Database,
+                ],
             );
             let detected = match fid {
                 Some(FormatId::Text) => Some(SupportedDcInputFormat::Utf8),
@@ -150,7 +156,9 @@ pub fn convert_bytes_to_dcmstring(
 
     let (document, log) = match resolved_format {
         SupportedDcInputFormat::Utf8 => {
-            ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::utf8::utf8_to_dcmstring(bytes).context(
+                "NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line.",
+            )?
         }
         SupportedDcInputFormat::DcText => {
             ctb_formats_dcstring::converters::dctext::dctext_to_dcmstring(bytes)?
@@ -178,6 +186,9 @@ pub fn convert_bytes_to_dcmstring(
         }
         SupportedDcInputFormat::AsciiSafeSubset => {
             ctb_formats_dcstring::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
+        }
+        SupportedDcInputFormat::CscJournal => {
+            ctb_io_csc::journal::convert_cscjournal_to_dcmstring(bytes)?
         }
     };
 
@@ -453,5 +464,92 @@ mod tests {
         .expect("export ascii safe subset");
         assert_eq!(export.bytes, input);
     }
+
+    #[crate::ctb_test]
+    fn test_convert_cscjournal_fixtures_to_dcmstring() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let fixtures_dir = std::path::Path::new(manifest_dir)
+            .join("../../io/csc/fixtures/journals");
+
+        // Verify list_supported_input_formats includes CscJournal
+        let supported = crate::convert_api::list_supported_input_formats();
+        assert!(
+            supported.contains(&FormatId::CscJournal),
+            "Supported input formats must include CscJournal"
+        );
+
+        for (filename, is_legacy) in [
+            ("v1_ctbmeta1.cscjournal", true),
+            ("v2_ctbmeta2.cscjournal", true),
+            ("v3_ctbmeta3.cscjournal", true),
+            ("v4_dcmixed.cscjournal", false),
+        ] {
+            let path = fixtures_dir.join(filename);
+            let bytes = std::fs::read(&path).expect("read journal fixture");
+
+            // 1. Explicit format specification
+            let res_explicit = convert_bytes_to_dcmstring(
+                &bytes,
+                Some(filename),
+                &DcConversionOptions {
+                    format: FormatSpec::Format(SupportedDcInputFormat::CscJournal),
+                    allow_binary_encapsulation: false,
+                },
+            )
+            .expect("convert cscjournal explicit");
+            assert_eq!(res_explicit.detected_format, FormatId::CscJournal);
+            assert!(
+                res_explicit.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
+                "{filename}: DcMstring must contain payload beyond 21-byte header"
+            );
+
+            // 2. FormatId specification
+            let res_fid = convert_bytes_to_dcmstring(
+                &bytes,
+                None,
+                &DcConversionOptions {
+                    format: FormatSpec::FormatId(if is_legacy {
+                        FormatId::CscJournal1Meta1
+                    } else {
+                        FormatId::CscJournal4
+                    }),
+                    allow_binary_encapsulation: false,
+                },
+            )
+            .expect("convert cscjournal by FormatId");
+            assert_eq!(res_fid.detected_format, FormatId::CscJournal);
+            assert!(res_fid.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+
+            // 3. Autodetection with filename hint
+            let res_auto_hint = convert_bytes_to_dcmstring(
+                &bytes,
+                Some(filename),
+                &DcConversionOptions::default(),
+            )
+            .expect("autodetect cscjournal with filename");
+            assert_eq!(res_auto_hint.detected_format, FormatId::CscJournal);
+            assert!(res_auto_hint.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+
+            // 4. Autodetection from magic bytes alone (no filename hint)
+            let res_auto_magic = convert_bytes_to_dcmstring(
+                &bytes,
+                None,
+                &DcConversionOptions::default(),
+            )
+            .expect("autodetect cscjournal from magic alone");
+            assert_eq!(res_auto_magic.detected_format, FormatId::CscJournal);
+            assert!(res_auto_magic.document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+
+            // 5. File conversion API (convert_file_to_dcmstring)
+            let res_file = convert_file_to_dcmstring(
+                &path,
+                &DcConversionOptions::default(),
+            )
+            .expect("convert file cscjournal");
+            assert_eq!(res_file.detected_format, FormatId::CscJournal);
+            assert_eq!(res_file.document.as_bytes(), res_explicit.document.as_bytes());
+        }
+    }
 }
+
 

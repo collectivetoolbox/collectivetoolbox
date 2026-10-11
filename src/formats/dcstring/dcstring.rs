@@ -28,7 +28,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub mod character_description;
-pub mod cli;
 pub mod cli_identifiers;
 pub mod converters;
 pub mod dc_char;

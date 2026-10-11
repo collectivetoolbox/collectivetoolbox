@@ -21,3 +21,13 @@
 !:mime	application/octet-stream
 !:ext	dcmm
 
+# Collective Toolbox csc journal
+0	string		CTBCSCJ\x04	Collective Toolbox csc journal, version 4
+!:mime	application/octet-stream
+!:ext	cscjournal
+
+0	string		CTBCSCJ\x01	Collective Toolbox csc journal
+!:mime	application/octet-stream
+!:ext	cscjournal
+
+

@@ -282,6 +282,7 @@ pub fn generate_format_support_code(
     hash_csv: &Path,
     document_csv: &Path,
     encoding_csv: &Path,
+    database_csv: &Path,
 ) -> Result<String> {
     ensure!(
         compression_csv.is_file(),
@@ -303,11 +304,17 @@ pub fn generate_format_support_code(
         "Could not locate encoding.csv at {}",
         encoding_csv.display()
     );
+    ensure!(
+        database_csv.is_file(),
+        "Could not locate database.csv at {}",
+        database_csv.display()
+    );
 
     let compression_records = read_support_records(compression_csv)?;
     let hash_records = read_support_records(hash_csv)?;
     let document_records = read_support_records(document_csv)?;
     let encoding_records = read_support_records(encoding_csv)?;
+    let database_records = read_support_records(database_csv)?;
 
     let decompress_records: Vec<&FormatSupportRecord> = compression_records
         .iter()
@@ -327,6 +334,7 @@ pub fn generate_format_support_code(
     let dc_input_records: Vec<&FormatSupportRecord> = document_records
         .iter()
         .chain(encoding_records.iter())
+        .chain(database_records.iter())
         .filter(|r| r.import_support.dc >= 1)
         .collect();
 
@@ -380,11 +388,18 @@ pub fn generate_format_support_code(
         None,
     ));
 
+    let dc_input_family_mappings = [
+        ("CscJournal1Meta1", "CscJournal"),
+        ("CscJournal1Meta2", "CscJournal"),
+        ("CscJournal1Meta3", "CscJournal"),
+        ("CscJournal4", "CscJournal"),
+    ];
+
     out.push_str(&generate_enum_code(
         "SupportedDcInputFormat",
         "Document and text formats supported for conversion to Document Character String (DcMstring / DcString).",
         &dc_input_records,
-        &[],
+        &dc_input_family_mappings,
         "Dc input format",
         true,
         Some("Utf8"),
@@ -483,6 +498,14 @@ pub fn generate_format_support_file(base_dir: &Path) -> Result<bool> {
         .join("categories")
         .join("formats")
         .join("encoding.csv");
+    let database_csv = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("data")
+        .join("categories")
+        .join("formats")
+        .join("database.csv");
 
     let target_file = repo_root
         .join("src")
@@ -494,6 +517,7 @@ pub fn generate_format_support_file(base_dir: &Path) -> Result<bool> {
         &hash_csv,
         &document_csv,
         &encoding_csv,
+        &database_csv,
     )?;
     write_if_changed(&target_file, &code)
 }

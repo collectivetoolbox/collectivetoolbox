@@ -12,6 +12,8 @@ ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
 ctb-formats-dcstring = { path = "../dcstring" }
 ctb-formats-detection = { path = "../detection" }
+ctb-formats-unicode = { path = "../unicode" }
+ctb-io-csc = { path = "../../io/csc" }
 anyhow = "1.0"
 clap = { version = "4.5.54", features = ["derive"] }
 

@@ -24,7 +24,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Document conversion in Collective Toolbox is organized around [`DcMstring`] as the
 //! universal internal representation. Conversions are bidirectional:
 //! - **Import**: Converts external document formats (e.g. UTF-8, DcText, Dcts, Dcal,
-//!   DcIntegerList, DcMixed, DcUtf, SEMS, Ascii) into [`DcMstring`].
+//!   DcIntegerList, DcMixed, DcUtf, SEMS, Ascii, CscJournal) into [`DcMstring`].
 //! - **Export**: Serializes a [`DcMstring`] into any supported output format
 //!   ([`SupportedDcOutputFormat`]).
 //!
@@ -33,6 +33,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! For whole documents in memory or files on disk:
 //! - [`convert_bytes_to_dcmstring`]: Parses raw bytes with optional format detection.
 //! - [`convert_file_to_dcmstring`]: Reads a file from disk (or stdin) into a [`DcMstring`].
+//! - [`convert_cscjournal_to_dcmstring`]: Converts legacy and v4+ cscjournal files to a [`DcMstring`].
 //! - [`convert_dcmstring_to_bytes`]: Serializes [`DcMstring`] to target format bytes.
 //! - [`convert_dcmstring_to_file`]: Writes [`DcMstring`] to a target format file or stdout.
 //!
@@ -56,8 +57,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub use crate::convert_bytes::{
     DcConversionOptions, DcConversionResult, DcExportOptions, DcExportResult,
-    FormatSpec, convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
-    convert_dcmstring_to_file, convert_file_to_dcmstring,
+    FormatSpec, convert_bytes_to_dcmstring, convert_cscjournal_to_dcmstring,
+    convert_dcmstring_to_bytes, convert_dcmstring_to_file, convert_file_to_dcmstring,
 };
 pub use crate::convert_stream::{
     StreamConversionReceipt, StreamExportReceipt, stream_dcmfile_to_writer,

@@ -318,7 +318,7 @@ pub enum Command {
         alias = "chardesc",
         after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
     )]
-    CharacterDescription(ctb_formats_dcstring::cli::CharacterDescriptionArgs),
+    CharacterDescription(ctb_formats_conversion::cli::CharacterDescriptionArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
@@ -958,7 +958,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::CharacterDescription(args) => {
             let out =
-                ctb_formats_dcstring::cli::execute_cli_character_description(
+                ctb_formats_conversion::cli::execute_cli_character_description(
                     args.clone(),
                     read_file_or_stdin,
                 )?;

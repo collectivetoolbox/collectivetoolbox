@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! CLI execution helpers for unified character descriptions.
+//! CLI execution helpers for unified character descriptions across all supported document formats.
 
 #[expect(
     unused_imports,
@@ -34,9 +34,12 @@ pub use ctb_formats_unicode::cli::{
 };
 pub use ctb_utilities::SupportedDcInputFormat;
 use ctb_formats_utilities::{CliInputSourceArgs, CliOutputDestArgs};
-use crate::character_description::{
+use ctb_formats_dcstring::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe_dclist, describe_graph_id,
+};
+use crate::convert_api::{
+    DcConversionOptions, FormatSpec, convert_bytes_to_dcmstring,
 };
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
@@ -44,7 +47,7 @@ fn parse_codepoint_arg(token: &str) -> Result<u128> {
     if trimmed.is_empty() {
         bail!("Empty codepoint argument");
     }
-    crate::cli_identifiers::parse_graph_or_short_id(trimmed)
+    ctb_formats_dcstring::cli_identifiers::parse_graph_or_short_id(trimmed)
 }
 
 /// Supported input serialization formats for character descriptions.
@@ -59,7 +62,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmm, sems, or ascii
+    /// Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmm, sems, ascii, or cscjournal
     #[arg(long = "from", value_enum, default_value_t = SupportedDcInputFormat::Utf8)]
     pub from: SupportedDcInputFormat,
 
@@ -165,31 +168,11 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
 
 /// Executes `character_description` CLI command logic.
 ///
+/// Uses the unified single-function [`convert_bytes_to_dcmstring`] conversion API to
+/// parse any supported input format directly into a `DcMstring`.
+///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
-fn convert_input_to_dcmstring(
-    bytes: &[u8],
-    format: SupportedDcInputFormat,
-) -> Result<crate::DcMstring> {
-    let (doc, _log) = match format {
-        SupportedDcInputFormat::Utf8 => crate::converters::utf8::utf8_to_dcmstring(bytes).context(
-            "NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line.",
-        )?,
-        SupportedDcInputFormat::DcText => crate::converters::dctext::dctext_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::Dcts => crate::converters::dcts::dcts_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::Dcal => crate::converters::dcal::dcal_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::DcIntegerList => crate::converters::eite::dcil_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::DcMixed => crate::dc_mixed::dcmm_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::DcUtf => crate::converters::utf8::dcutf_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::Sems => crate::converters::eite::sems_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::Ascii => crate::converters::ascii::ascii_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::AsciiSafeSubset => {
-            crate::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
-        }
-    };
-    Ok(doc)
-}
-
 pub fn execute_cli_character_description<FRead>(
     args: CharacterDescriptionArgs,
     read_data: FRead,
@@ -206,8 +189,15 @@ where
         out
     } else {
         let input_bytes = args.input_source().read_bytes(&read_data)?;
-        let document = convert_input_to_dcmstring(&input_bytes, args.from)?;
-        let dc_string = document.to_dc_string()?;
+        let conversion = convert_bytes_to_dcmstring(
+            &input_bytes,
+            args.file.as_deref().and_then(|p| p.to_str()),
+            &DcConversionOptions {
+                format: FormatSpec::Format(args.from),
+                allow_binary_encapsulation: false,
+            },
+        )?;
+        let dc_string = conversion.document.to_dc_string()?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
     };
@@ -316,7 +306,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_execute_cli_dctext_binary_dcutf_input() {
         let text = "hi @64@ @L42@";
-        let raw_bytes = crate::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec())
+        let raw_bytes = ctb_formats_dcstring::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec())
             .expect("convert dctext to dcutf");
         let args = CharacterDescriptionArgs {
             from: CharacterDescriptionInputFormat::DcText,
@@ -364,7 +354,7 @@ mod tests {
                 .unwrap()
                 .unwrap();
         let desc = String::from_utf8(out).unwrap();
-        println!("OUTPUT:\n{desc}");
+        assert!(desc.contains("U+0068 : LATIN SMALL LETTER H"));
     }
 
     #[crate::ctb_test]
@@ -383,7 +373,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_character_description_dcal_and_short_commands() {
+    fn test_character_description_dcal_command() {
         let args_dcal = CharacterDescriptionArgs {
             input: Some("65 1114408 2228304".to_string()),
             from: CharacterDescriptionInputFormat::Dcal,
@@ -400,42 +390,6 @@ mod tests {
             "1114408 : <Dc> Next number is a Dc-equivalent reference"
         ));
         assert!(lines[2].starts_with("2228304 : String"));
-
-        let args_short_dc = crate::cli_identifiers::ShortDcArgs {
-            id: "296".to_string(),
-            info: false,
-        };
-        let res_dc = crate::cli_identifiers::execute_cli_short_dc(&args_short_dc)
-            .expect("Run short-dc");
-        assert_eq!(res_dc, "1114408\n");
-
-        let args_short_dc_i = crate::cli_identifiers::ShortDcArgs {
-            id: "296".to_string(),
-            info: true,
-        };
-        let res_dc_i = crate::cli_identifiers::execute_cli_short_dc(&args_short_dc_i)
-            .expect("Run short-dc -i");
-        assert!(res_dc_i.starts_with(
-            "1114408\nNext number is a Dc-equivalent reference"
-        ));
-        assert!(res_dc_i.contains("Type: !Cx (Control: Dc special)"));
-        assert!(res_dc_i.contains("Syntax: :~ [number]"));
-
-        let args_short_fmt = crate::cli_identifiers::ShortDcArgs {
-            id: "f80".to_string(),
-            info: false,
-        };
-        let res_fmt = crate::cli_identifiers::execute_cli_short_dc(&args_short_fmt)
-            .expect("Run short-dc f80");
-        assert_eq!(res_fmt, "2228304\n");
-
-        let args_short_fmt_i = crate::cli_identifiers::ShortDcArgs {
-            id: "f80".to_string(),
-            info: true,
-        };
-        let res_fmt_i = crate::cli_identifiers::execute_cli_short_dc(&args_short_fmt_i)
-            .expect("Run short-dc -i f80");
-        assert!(res_fmt_i.starts_with("2228304\nString\n\nCategory: semantic"));
     }
 
     #[crate::ctb_test]
@@ -453,5 +407,46 @@ mod tests {
         assert!(desc.contains("U+0061 : LATIN SMALL LETTER A"));
         assert!(desc.contains("1114235"));
         assert!(desc.contains("2228304"));
+    }
+
+    #[crate::ctb_test]
+    fn test_character_description_from_cscjournal() {
+        let fixture_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../io/csc/fixtures/journals");
+        let fixtures = [
+            "v1_ctbmeta1.cscjournal",
+            "v2_ctbmeta2.cscjournal",
+            "v3_ctbmeta3.cscjournal",
+            "v4_dcmixed.cscjournal",
+        ];
+
+        for fixture_name in fixtures {
+            let fixture_path = fixture_dir.join(fixture_name);
+            let journal_bytes =
+                std::fs::read(&fixture_path).expect("read journal fixture");
+
+            let args = CharacterDescriptionArgs {
+                from: CharacterDescriptionInputFormat::CscJournal,
+                file: Some(fixture_path.clone()),
+                ..Default::default()
+            };
+
+            let out = execute_cli_character_description(args, |_| {
+                Ok(journal_bytes.clone())
+            })
+            .expect("Run character_description with cscjournal")
+            .unwrap_or_default();
+
+            let desc = String::from_utf8(out).expect("UTF-8 output from description");
+            assert!(
+                !desc.is_empty(),
+                "Output for {fixture_name} should not be empty"
+            );
+            // Verify that Document Characters are present in description output
+            assert!(
+                desc.contains("1114408") || desc.contains("<Dc>"),
+                "Description for {fixture_name} should contain described Dcs"
+            );
+        }
     }
 }
