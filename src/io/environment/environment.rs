@@ -33,6 +33,7 @@ pub(crate) use ctb_utilities::*;
 use std::cell::RefCell;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -673,7 +674,7 @@ pub struct EnvDescription {
     #[dc(short = 343)]
     pub ctb_version: String,
     #[dc(short = 345)]
-    pub cwd: Option<String>,
+    pub cwd: Option<std::path::PathBuf>,
     #[dc(short = 346)]
     pub local_ips: Vec<IpAddr>,
     #[dc(short = 398)]
@@ -789,9 +790,7 @@ impl EnvDescription {
             os: os(),
             usize_width: usize(),
             ctb_version: ctb_version().to_string(),
-            cwd: std::env::current_dir()
-                .ok()
-                .map(|p| p.to_string_lossy().into_owned()),
+            cwd: std::env::current_dir().ok(),
             local_ips,
             public_ips,
             system_time_resolution_nanos: unix_system_time_resolution().ok(),
@@ -1617,7 +1616,7 @@ mod tests {
             os: "linux".to_string(),
             usize_width: 64,
             ctb_version: "0.1.49".to_string(),
-            cwd: Some("/workspace".to_string()),
+            cwd: Some(PathBuf::from("/workspace")),
             local_ips: vec![
                 IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
                 IpAddr::V6(std::net::Ipv6Addr::LOCALHOST),

@@ -27,6 +27,8 @@ use std::collections::BTreeMap;
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
+use std::path::PathBuf;
+#[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
 use crate::format_id::FormatId;
 
 ///  Detailed snapshot of the current application and platform environment.
@@ -39,7 +41,7 @@ pub struct EnvDescription {
     pub os: String,
     pub usize_width: u8,
     pub ctb_version: String,
-    pub cwd: Option < String >,
+    pub cwd: Option < std :: path :: PathBuf >,
     pub local_ips: Vec < IpAddr >,
     pub public_ips: Vec < IpAddr >,
     pub system_time_resolution_nanos: Option < u128 >,
