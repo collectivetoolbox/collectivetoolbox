@@ -63,9 +63,9 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format
-    #[arg(long = "from", value_enum, default_value_t = SupportedDcInputFormat::Utf8)]
-    pub from: SupportedDcInputFormat,
+    /// Input format (autodetected if omitted)
+    #[arg(long = "from", value_enum)]
+    pub from: Option<SupportedDcInputFormat>,
 
     /// Input file path (or - for stdin)
     #[arg(short = 'f', long = "file")]
@@ -190,11 +190,18 @@ where
         out
     } else {
         let input_bytes = args.input_source().read_bytes(&read_data)?;
+        let filename_hint = args.file.as_deref().and_then(|p| {
+            if p == Path::new("-") {
+                None
+            } else {
+                p.file_name().and_then(|n| n.to_str())
+            }
+        });
         let conversion = convert_bytes_to_dcmstring(
             &input_bytes,
-            args.file.as_deref().and_then(|p| p.to_str()),
+            filename_hint,
             &DcConversionOptions {
-                format: FormatSpec::Format(args.from),
+                format: args.from.map_or(FormatSpec::Auto, FormatSpec::Format),
                 allow_binary_encapsulation: false,
             },
         )?;
@@ -343,7 +350,7 @@ mod tests {
     fn test_execute_cli_dcal_format() {
         let args = CharacterDescriptionArgs {
             input: Some("65 1114408 2228304".to_string()),
-            from: CharacterDescriptionInputFormat::Dcal,
+            from: Some(CharacterDescriptionInputFormat::Dcal),
             ..Default::default()
         };
         let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
@@ -363,7 +370,7 @@ mod tests {
     fn test_execute_cli_dcil_format() {
         let args = CharacterDescriptionArgs {
             input: Some("296 21".to_string()),
-            from: CharacterDescriptionInputFormat::Dcil,
+            from: Some(CharacterDescriptionInputFormat::Dcil),
             ..Default::default()
         };
         let out = execute_cli_character_description(args, |_| Ok(Vec::new()))
@@ -397,7 +404,7 @@ mod tests {
     fn test_execute_cli_utf8_invalid_error_hint() {
         let invalid_utf8_bytes = vec![0x68, 0x69, 0xff, 0x84];
         let args = CharacterDescriptionArgs {
-            from: CharacterDescriptionInputFormat::Utf8,
+            from: Some(CharacterDescriptionInputFormat::Utf8),
             ..Default::default()
         };
         let err = execute_cli_character_description(args, |_| {
@@ -414,7 +421,7 @@ mod tests {
         let raw_bytes = ctb_formats_dcstring::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec())
             .expect("convert dctext to dcutf");
         let args = CharacterDescriptionArgs {
-            from: CharacterDescriptionInputFormat::DcText,
+            from: Some(CharacterDescriptionInputFormat::DcText),
             ..Default::default()
         };
         let out =
@@ -451,7 +458,7 @@ mod tests {
             0xbf, 0xbf,
         ];
         let args = CharacterDescriptionArgs {
-            from: CharacterDescriptionInputFormat::DcText,
+            from: Some(CharacterDescriptionInputFormat::DcText),
             ..Default::default()
         };
         let out =
@@ -481,7 +488,7 @@ mod tests {
     fn test_character_description_dcal_command() {
         let args_dcal = CharacterDescriptionArgs {
             input: Some("65 1114408 2228304".to_string()),
-            from: CharacterDescriptionInputFormat::Dcal,
+            from: Some(CharacterDescriptionInputFormat::Dcal),
             ..Default::default()
         };
         let out_dcal = execute_cli_character_description(args_dcal, |p| Ok(std::fs::read(p)?))
@@ -501,7 +508,7 @@ mod tests {
     fn test_character_description_from_dcts() {
         let args = CharacterDescriptionArgs {
             input: Some("a @123@ @f80@".to_string()),
-            from: CharacterDescriptionInputFormat::Dcts,
+            from: Some(CharacterDescriptionInputFormat::Dcts),
             ..Default::default()
         };
         let out =
@@ -531,7 +538,7 @@ mod tests {
                 std::fs::read(&fixture_path).expect("read journal fixture");
 
             let args = CharacterDescriptionArgs {
-                from: CharacterDescriptionInputFormat::CscJournal,
+                from: Some(CharacterDescriptionInputFormat::CscJournal),
                 file: Some(fixture_path.clone()),
                 ..Default::default()
             };
@@ -553,6 +560,23 @@ mod tests {
                 "Description for {fixture_name} should contain described Dcs"
             );
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_character_description_autodetect_dcmm() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../io/csc/fixtures/journals/v4_dcmixed_only.dcmm");
+        let bytes = std::fs::read(&fixture_path).expect("read dcmm fixture");
+        let args = CharacterDescriptionArgs {
+            file: Some(fixture_path),
+            ..Default::default()
+        };
+        let out = execute_cli_character_description(args, |_| Ok(bytes.clone()))
+            .expect("Run character_description with auto-detected dcmm")
+            .unwrap_or_default();
+        let desc = String::from_utf8(out).expect("UTF-8 output from description");
+        assert!(desc.contains("1114659 : <Dc> Begin operation session description"));
+        assert!(desc.contains("1114661 : <Dc> Source path"));
     }
 
     #[crate::ctb_test]

@@ -233,7 +233,7 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format [default: utf8] [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
+          Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>

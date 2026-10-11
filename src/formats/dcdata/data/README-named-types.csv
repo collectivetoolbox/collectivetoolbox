@@ -3,7 +3,7 @@ number,:6 [format:number] [^7]+ 7,
 string,:260:,A framed literal character sequence with a declared type. Its payload is quoted data; embedded expression markers are not evaluated.
 date,:[390:],
 data,:[203:],
-checksum,:[format:hash][203:],
+checksum,:[typed_data:hash],
 unicode_any,:[u0..u10ffff],includes unpaired surrogates
 identifier,:270:,A nonempty framed name. Naming an object does not itself dereference or invoke it.
 type,:([262:] | [format]),
@@ -21,3 +21,4 @@ ipaddr,:511 [f490:],
 statement,:([value] | 269:),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
 value,:([string] | 276: | 279:),One value expression: a quoted literal or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
 boolean,:(517 | 518),
+typed_data,:203 [type:$type] ([127..190] | 195)* 204,

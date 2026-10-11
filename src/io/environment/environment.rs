@@ -766,7 +766,6 @@ impl EnvDescription {
             .read()
             .ok()
             .and_then(|l| *l)
-            .or_else(|| local_ipv4().ok())
         {
             local_ips.push(IpAddr::V4(v4));
         }
@@ -774,7 +773,6 @@ impl EnvDescription {
             .read()
             .ok()
             .and_then(|l| *l)
-            .or_else(|| local_ipv6().ok())
         {
             local_ips.push(IpAddr::V6(v6));
         }
@@ -1044,6 +1042,15 @@ impl EnvDescription {
     /// prefer [`crate::environment::capture`].
     pub(crate) fn capture() -> Self {
         let mut desc = Self::capture_quick();
+        let mut local_ips = Vec::new();
+        if let Ok(v4) = cached_local_ipv4() {
+            local_ips.push(IpAddr::V4(v4));
+        }
+        if let Ok(v6) = cached_local_ipv6() {
+            local_ips.push(IpAddr::V6(v6));
+        }
+        desc.local_ips = local_ips;
+
         let mut public_ips = Vec::new();
         if let Ok(v4) = cached_public_ipv4() {
             public_ips.push(IpAddr::V4(v4));

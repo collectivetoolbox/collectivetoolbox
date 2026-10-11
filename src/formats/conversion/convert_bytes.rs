@@ -135,7 +135,7 @@ pub fn convert_bytes_to_dcmstring(
             };
             if let Some(fmt) = detected {
                 fmt
-            } else if bytes.is_empty() {
+            } else if bytes.is_empty() || std::str::from_utf8(bytes).is_ok() {
                 SupportedDcInputFormat::Utf8
             } else if options.allow_binary_encapsulation {
                 let mut doc = DcMstring::new();
