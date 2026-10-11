@@ -729,7 +729,7 @@ pub fn read_v4_journal_snapshot(
 
     let mut valid_slice_len = file_payload.len();
     loop {
-        if valid_slice_len < ctb_formats_dcstring::DCMX_HEADER_LEN {
+        if valid_slice_len < ctb_formats_dcstring::DCMM_HEADER_LEN {
             anyhow::bail!(
                 "Journal {} is too short to contain a valid DcMixed header",
                 journal_path.display()

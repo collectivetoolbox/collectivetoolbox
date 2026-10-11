@@ -117,7 +117,7 @@ impl DcSource for DcMstr {
         fragment: &DcMstr,
     ) -> Result<DcMstring> {
         ensure!(
-            range.start >= crate::dc_mixed::DCMX_HEADER_LEN,
+            range.start >= crate::dc_mixed::DCMM_HEADER_LEN,
             "Cannot replace string header"
         );
         ensure!(

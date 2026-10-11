@@ -56,7 +56,7 @@ pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
 pub use dc_char::{DcChar, DcCharExt};
 pub use dc_mixed::{
-    DCMX_HEADER_LEN, DCMX_MAGIC, DCMX_UUID, DcMixed, DcMixedChunk,
+    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcMixed, DcMixedChunk,
     DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice, validate_dcmst,
 };
 pub use ctb_dc_macro::DcMixed;

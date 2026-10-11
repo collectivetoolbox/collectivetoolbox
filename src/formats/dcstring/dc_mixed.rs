@@ -41,16 +41,16 @@ use sha2::{Digest, Sha256};
 use crate::{DcChar, DcStr, DcString, DcUtfError, validate_dcutf};
 
 /// Magic header bytes for the `DcMixed` format (`DcMM\0`).
-pub const DCMX_MAGIC: [u8; 5] = [b'D', b'c', b'M', b'M', 0];
+pub const DCMM_MAGIC: [u8; 5] = [b'D', b'c', b'M', b'M', 0];
 
 /// Binary equivalent of format UUID `d5ab819e-9b8e-4d61-adbc-933e8851e79a`.
-pub const DCMX_UUID: [u8; 16] = [
+pub const DCMM_UUID: [u8; 16] = [
     0xd5, 0xab, 0x81, 0x9e, 0x9b, 0x8e, 0x4d, 0x61, 0xad, 0xbc, 0x93, 0x3e,
     0x88, 0x51, 0xe7, 0x9a,
 ];
 
 /// Total length of the `DcMixed` document header (21 bytes).
-pub const DCMX_HEADER_LEN: usize = 21;
+pub const DCMM_HEADER_LEN: usize = 21;
 
 /// Type byte indicating direct binary encapsulation (unchecksummed).
 pub const TYPE_BINARY: u8 = 0;
@@ -406,7 +406,7 @@ impl DcMstr {
     /// Returns `true` if the document has no payload data (only contains the 21-byte header).
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.inner.len() <= DCMX_HEADER_LEN
+        self.inner.len() <= DCMM_HEADER_LEN
     }
 
     /// Returns the 21-byte document header (`DcMM\0` + UUID).
@@ -414,10 +414,10 @@ impl DcMstr {
     pub fn header(&self) -> &[u8] {
         #[expect(
             clippy::expect_used,
-            reason = "A valid DcMstr is guaranteed to be at least DCMX_HEADER_LEN (21 bytes)"
+            reason = "A valid DcMstr is guaranteed to be at least DCMM_HEADER_LEN (21 bytes)"
         )]
         self.inner
-            .get(..DCMX_HEADER_LEN)
+            .get(..DCMM_HEADER_LEN)
             .expect("DcMstr is guaranteed >= 21 bytes")
     }
 
@@ -426,17 +426,17 @@ impl DcMstr {
     pub fn payload_bytes(&self) -> &[u8] {
         #[expect(
             clippy::expect_used,
-            reason = "A valid DcMstr is guaranteed to be at least DCMX_HEADER_LEN (21 bytes)"
+            reason = "A valid DcMstr is guaranteed to be at least DCMM_HEADER_LEN (21 bytes)"
         )]
         self.inner
-            .get(DCMX_HEADER_LEN..)
+            .get(DCMM_HEADER_LEN..)
             .expect("DcMstr is guaranteed >= 21 bytes")
     }
 
     /// Returns the length in bytes of the payload after the 21-byte header.
     #[must_use]
     pub fn payload_len(&self) -> usize {
-        self.inner.len().saturating_sub(DCMX_HEADER_LEN)
+        self.inner.len().saturating_sub(DCMM_HEADER_LEN)
     }
 
     /// Returns an iterator yielding `DcMixed` chunks (text segments and encapsulated payloads).
@@ -563,19 +563,19 @@ impl DcMstring {
     /// Creates a new, empty `DcMstring` initialized with the standard 21-byte header.
     #[must_use]
     pub fn new() -> Self {
-        let mut inner = Vec::with_capacity(DCMX_HEADER_LEN);
-        inner.extend_from_slice(&DCMX_MAGIC);
-        inner.extend_from_slice(&DCMX_UUID);
+        let mut inner = Vec::with_capacity(DCMM_HEADER_LEN);
+        inner.extend_from_slice(&DCMM_MAGIC);
+        inner.extend_from_slice(&DCMM_UUID);
         Self { inner }
     }
 
     /// Creates an empty `DcMstring` with pre-allocated capacity in bytes.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
-        let cap = capacity.max(DCMX_HEADER_LEN);
+        let cap = capacity.max(DCMM_HEADER_LEN);
         let mut inner = Vec::with_capacity(cap);
-        inner.extend_from_slice(&DCMX_MAGIC);
-        inner.extend_from_slice(&DCMX_UUID);
+        inner.extend_from_slice(&DCMM_MAGIC);
+        inner.extend_from_slice(&DCMM_UUID);
         Self { inner }
     }
 
@@ -881,7 +881,7 @@ impl DcMstring {
     ///
     /// Must not shorten past the 21-byte header.
     pub fn truncate(&mut self, new_len: usize) {
-        let min_len = DCMX_HEADER_LEN;
+        let min_len = DCMM_HEADER_LEN;
         if new_len >= min_len && new_len <= self.inner.len() {
             self.inner.truncate(new_len);
         }
@@ -889,7 +889,7 @@ impl DcMstring {
 
     /// Clears the body of the document, resetting to an empty document with the 21-byte header.
     pub fn clear(&mut self) {
-        self.inner.truncate(DCMX_HEADER_LEN);
+        self.inner.truncate(DCMM_HEADER_LEN);
     }
 
     /// Reserves capacity for at least `additional` more bytes.
@@ -1063,14 +1063,14 @@ impl<'a> Iterator for DcMixedChunks<'a> {
 impl std::iter::FusedIterator for DcMixedChunks<'_> {}
 
 fn validate_header(bytes: &[u8]) -> Result<(), DcMixedError> {
-    if bytes.len() < DCMX_HEADER_LEN {
+    if bytes.len() < DCMM_HEADER_LEN {
         return Err(DcMixedError::TooShort { len: bytes.len() });
     }
 
     let Some(magic_slice) = bytes.get(..5) else {
         return Err(DcMixedError::TooShort { len: bytes.len() });
     };
-    if magic_slice != DCMX_MAGIC {
+    if magic_slice != DCMM_MAGIC {
         let mut found = [0u8; 5];
         found.copy_from_slice(magic_slice);
         return Err(DcMixedError::InvalidMagic { found });
@@ -1079,7 +1079,7 @@ fn validate_header(bytes: &[u8]) -> Result<(), DcMixedError> {
     let Some(uuid_slice) = bytes.get(5..21) else {
         return Err(DcMixedError::TooShort { len: bytes.len() });
     };
-    if uuid_slice != DCMX_UUID {
+    if uuid_slice != DCMM_UUID {
         let mut found = [0u8; 16];
         found.copy_from_slice(uuid_slice);
         return Err(DcMixedError::InvalidUuid { found });
@@ -1191,7 +1191,7 @@ fn validate_encapsulation_region(
 pub fn validate_dcmst(bytes: &[u8]) -> Result<(), DcMixedError> {
     validate_header(bytes)?;
 
-    let mut offset = DCMX_HEADER_LEN;
+    let mut offset = DCMM_HEADER_LEN;
     while offset < bytes.len() {
         let Some(slice) = bytes.get(offset..) else { break };
         if slice.starts_with(&DC_203_BYTES) {
@@ -1260,13 +1260,13 @@ mod tests {
         // Bad magic
         let mut bad_magic = [0u8; 21];
         bad_magic[..5].copy_from_slice(b"BADMM");
-        bad_magic[5..].copy_from_slice(&DCMX_UUID);
+        bad_magic[5..].copy_from_slice(&DCMM_UUID);
         let err = validate_dcmst(&bad_magic).unwrap_err();
         assert_eq!(err, DcMixedError::InvalidMagic { found: *b"BADMM" });
 
         // Bad UUID
         let mut bad_uuid = [0u8; 21];
-        bad_uuid[..5].copy_from_slice(&DCMX_MAGIC);
+        bad_uuid[..5].copy_from_slice(&DCMM_MAGIC);
         let err = validate_dcmst(&bad_uuid).unwrap_err();
         assert!(matches!(err, DcMixedError::InvalidUuid { .. }));
     }

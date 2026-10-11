@@ -39,7 +39,7 @@ use crate::convert_api::{
     DcConversionOptions, FormatSpec, convert_bytes_to_dcmstring,
     detect_supported_dc_format,
 };
-use crate::{DCMX_HEADER_LEN, DCMX_MAGIC, DCMX_UUID};
+use crate::{DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID};
 
 /// Summary of a completed streaming conversion operation.
 #[derive(Debug)]
@@ -97,10 +97,10 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
             if let Some(detected) = detect_supported_dc_format(Some(peek_bytes), filename_hint) {
                 detected
             } else if options.allow_binary_encapsulation {
-                // Write DCMX header
-                writer.write_all(&DCMX_MAGIC)?;
-                writer.write_all(&DCMX_UUID)?;
-                let mut bytes_written = u64::try_from(DCMX_HEADER_LEN)?;
+                // Write DCMM header
+                writer.write_all(&DCMM_MAGIC)?;
+                writer.write_all(&DCMM_UUID)?;
+                let mut bytes_written = u64::try_from(DCMM_HEADER_LEN)?;
 
                 let mut all_bytes = Vec::new();
                 buf_reader.read_to_end(&mut all_bytes)?;
@@ -126,10 +126,10 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
         }
     };
 
-    // For stream conversions, write the DCMX 21-byte header directly
-    writer.write_all(&DCMX_MAGIC)?;
-    writer.write_all(&DCMX_UUID)?;
-    let mut bytes_written = u64::try_from(DCMX_HEADER_LEN)?;
+    // For stream conversions, write the DCMM 21-byte header directly
+    writer.write_all(&DCMM_MAGIC)?;
+    writer.write_all(&DCMM_UUID)?;
+    let mut bytes_written = u64::try_from(DCMM_HEADER_LEN)?;
 
     let mut log = FormatLog::default();
 
@@ -182,8 +182,8 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
             }
         }
         SupportedDcInputFormat::DcMixed => {
-            // Validate incoming DCMX header from reader, then stream remaining payload directly
-            let mut header = [0u8; DCMX_HEADER_LEN];
+            // Validate incoming DCMM header from reader, then stream remaining payload directly
+            let mut header = [0u8; DCMM_HEADER_LEN];
             buf_reader.read_exact(&mut header)?;
             crate::dc_mixed::validate_dcmst(&header).context("Validating stream DcMixed header")?;
 

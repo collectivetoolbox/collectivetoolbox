@@ -35,7 +35,7 @@ use ctb_utilities::format_support::SupportedDcInputFormat;
 use ctb_utilities::FormatId;
 
 use crate::{
-    DCMX_MAGIC, DcChar, DcMixed, DcMstr, DcMstring, DcStr, DcString,
+    DCMM_MAGIC, DcChar, DcMixed, DcMstr, DcMstring, DcStr, DcString,
 };
 
 /// Specification for input format: explicit format or automatic detection.
@@ -107,7 +107,7 @@ pub fn detect_supported_dc_format(
 ) -> Option<SupportedDcInputFormat> {
     // 1. Check magic header for DcMixed (.dcmm)
     if let Some(b) = bytes {
-        if b.starts_with(&DCMX_MAGIC) {
+        if b.starts_with(&DCMM_MAGIC) {
             return Some(SupportedDcInputFormat::DcMixed);
         }
     }
