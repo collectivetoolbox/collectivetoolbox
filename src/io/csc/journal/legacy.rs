@@ -42,14 +42,14 @@ use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, Read, Seek, Write};
+use std::io::{BufRead, BufReader, Cursor, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{
-    JournalErrorRecord, JournalSnapshot, JournalWarningRecord, PLATFORM_WINDOWS,
-    SESSION_ENVIRONMENT_BINDING,
+    JournalErrorRecord, JournalSnapshot, JournalWarningRecord, JOURNAL_MAGIC_V4,
+    PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
 };
 
 pub const JOURNAL_MAGIC_V1: &[u8; 8] = b"CTBCSCJ\x01";
@@ -260,6 +260,292 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
         errors,
         warnings,
     })
+}
+
+/// Converts a legacy state journal (revisions 1..=3) to the v4 Dc format (`CTBCSCJ\x04`).
+pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
+    reader: &mut BufReader<R>,
+    writer: &mut W,
+) -> Result<()> {
+    // If the reader is at the start of the stream, consume and verify legacy magic
+    if reader.stream_position()? == 0 {
+        let mut magic = [0_u8; 8];
+        reader.read_exact(&mut magic).context("Incomplete journal magic")?;
+        anyhow::ensure!(
+            &magic == JOURNAL_MAGIC_V1,
+            "Expected legacy journal magic CTBCSCJ\\x01"
+        );
+    }
+
+    writer.write_all(JOURNAL_MAGIC_V4)?;
+    let header = DcMstring::new();
+    writer.write_all(header.as_bytes())?;
+
+    let mut origin_platform = 0_u8;
+    let mut sources = Vec::new();
+    let mut destination = PathBuf::new();
+    let mut environment: Option<Arc<EnvDescription>> = None;
+    let mut shared_context = SharedValueContext::default();
+
+    let mut pending_entities = Vec::new();
+    let mut batch_hasher = Sha256Stream::new();
+    let mut header_written = false;
+
+    let mut tag_buf = [0_u8; 1];
+    while reader.read_exact(&mut tag_buf).is_ok() {
+        match tag_buf[0] {
+            TAG_SESSION_HEADER => {
+                let Ok(plat) = read_u8(reader) else {
+                    break;
+                };
+                origin_platform = plat;
+
+                let Ok(src_count) = read_u32(reader) else {
+                    break;
+                };
+                let mut valid_sources = true;
+                for _ in 0..src_count {
+                    if let Ok(bytes) = read_bytes(reader) {
+                        let is_windows = origin_platform == PLATFORM_WINDOWS;
+                        let src_path =
+                            resolve_relative_path_for_os(&bytes, is_windows)?;
+                        sources.push(src_path);
+                    } else {
+                        valid_sources = false;
+                        break;
+                    }
+                }
+                if !valid_sources {
+                    break;
+                }
+                let Ok(dest_bytes) = read_bytes(reader) else {
+                    break;
+                };
+                let is_windows = origin_platform == PLATFORM_WINDOWS;
+                destination =
+                    resolve_relative_path_for_os(&dest_bytes, is_windows)?;
+
+                // Peek if TAG_SESSION_ENV immediately follows
+                let has_env = if let Ok(buf) = reader.fill_buf() {
+                    buf.first().copied() == Some(TAG_SESSION_ENV)
+                } else {
+                    false
+                };
+                if has_env {
+                    let mut env_tag = [0_u8; 1];
+                    let _ = reader.read_exact(&mut env_tag);
+                    if let Ok(env_bytes) = read_bytes(reader) {
+                        if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
+                            if let Ok(env_desc) = EnvDescription::from_json(json_str) {
+                                let definition = Arc::new(env_desc);
+                                let _ = shared_context.insert(
+                                    SESSION_ENVIRONMENT_BINDING,
+                                    Arc::clone(&definition),
+                                );
+                                let _ = shared_context
+                                    .insert("environment", Arc::clone(&definition));
+                                environment = Some(definition);
+                            }
+                        }
+                    }
+                }
+
+                let mut mst = DcMstring::new();
+                mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION);
+                for src in &sources {
+                    mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
+                    src.encode_dc_mixed(&mut mst)?;
+                }
+                mst.push_char(ctb_formats_dcdata::dc::DC_DESTINATION_PATH);
+                destination.encode_dc_mixed(&mut mst)?;
+                mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
+                u32::from(origin_platform).encode_dc_mixed(&mut mst)?;
+                if let Some(ref env) = environment {
+                    env.encode_dc_mixed_with_context(&mut mst, &shared_context)?;
+                }
+                mst.push_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION);
+
+                writer.write_all(mst.payload_bytes())?;
+                header_written = true;
+            }
+            TAG_SESSION_ENV => {
+                let Ok(env_bytes) = read_bytes(reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
+                    if let Ok(env_desc) = EnvDescription::from_json(json_str) {
+                        let definition = Arc::new(env_desc);
+                        let _ = shared_context.insert(
+                            SESSION_ENVIRONMENT_BINDING,
+                            Arc::clone(&definition),
+                        );
+                        let _ = shared_context
+                            .insert("environment", Arc::clone(&definition));
+                        environment = Some(definition);
+                    }
+                }
+            }
+            TAG_ENTITY => {
+                let Ok(payload_len) = read_u32(reader) else {
+                    break;
+                };
+                let mut expected_checksum = [0_u8; 8];
+                if reader.read_exact(&mut expected_checksum).is_err() {
+                    break;
+                }
+                let Ok(payload_len_usize) = usize::try_from(payload_len) else {
+                    break;
+                };
+                let mut payload = vec![0_u8; payload_len_usize];
+                if reader.read_exact(&mut payload).is_err() {
+                    break;
+                }
+                let actual_checksum = xxhash::xxhash3_64(&payload);
+                if actual_checksum != expected_checksum {
+                    break;
+                }
+
+                batch_hasher.update(&payload);
+
+                match read_entity_payload(
+                    &payload[..],
+                    origin_platform,
+                    &shared_context,
+                ) {
+                    Ok(entity) => {
+                        pending_entities.push(entity);
+                    }
+                    Err(error) => {
+                        return Err(error).context(
+                            "Checksummed journal entity cannot be decoded without losing metadata",
+                        );
+                    }
+                }
+            }
+            TAG_BATCH_COMMIT => {
+                let Ok(batch_id) = read_u64(reader) else {
+                    break;
+                };
+                let mut expected_batch_hash = [0_u8; 32];
+                if reader.read_exact(&mut expected_batch_hash).is_err() {
+                    break;
+                }
+                let actual_batch_hash = batch_hasher.finalize();
+                if actual_batch_hash != expected_batch_hash {
+                    break;
+                }
+                batch_hasher = Sha256Stream::new();
+
+                let mut mst = DcMstring::new();
+                mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
+
+                let payload_start = mst.payload_bytes().len();
+                mst.push_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER);
+                batch_id.encode_dc_mixed(&mut mst)?;
+
+                for entity in &pending_entities {
+                    if let Some(read_time) = entity.metadata.read_time {
+                        read_time
+                            .duration_since(UNIX_EPOCH)
+                            .context("Read time timestamp is before Unix epoch")?;
+                    }
+                    entity.encode_dc_mixed_with_context(&mut mst, &shared_context)?;
+                }
+
+                let payload_end = mst.payload_bytes().len();
+                let section_bytes = mst
+                    .payload_bytes()
+                    .get(payload_start..payload_end)
+                    .context("Invalid payload slice range for journal section")?;
+                let digest = ctb_formats_checksum::sha256(section_bytes);
+
+                mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
+                mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
+                mst.push_binary(&digest);
+
+                writer.write_all(mst.payload_bytes())?;
+                pending_entities.clear();
+            }
+            TAG_JOB_COMPLETED => {
+                anyhow::ensure!(
+                    pending_entities.is_empty(),
+                    "Completion marker precedes batch commit"
+                );
+                let mut mst = DcMstring::new();
+                mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
+                writer.write_all(mst.payload_bytes())?;
+            }
+            TAG_ERROR_RECORD => {
+                let Ok(err_bytes) = read_bytes(reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&err_bytes) {
+                    if let Ok(error) =
+                        serde_json::from_str::<JournalErrorRecord>(json_str)
+                    {
+                        let mut mst = DcMstring::new();
+                        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD);
+                        mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
+                        error.path.encode_dc_mixed(&mut mst)?;
+                        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
+                        let stage_code = u64::from(error.stage.to_code());
+                        let os_code = match error.os_error {
+                            Some(error_code) => {
+                                anyhow::ensure!(
+                                    error_code != 0,
+                                    "Zero OS error code cannot be distinguished from an absent error in this journal format"
+                                );
+                                u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
+                            }
+                            None => 0_u64,
+                        };
+                        let packed = (stage_code << 32) | os_code;
+                        packed.encode_dc_mixed(&mut mst)?;
+                        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
+                        error.error_message.encode_dc_mixed(&mut mst)?;
+                        error.timestamp_sec.encode_dc_mixed(&mut mst)?;
+                        mst.push_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD);
+                        writer.write_all(mst.payload_bytes())?;
+                    }
+                }
+            }
+            TAG_WARNING_RECORD => {
+                let Ok(warn_bytes) = read_bytes(reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&warn_bytes) {
+                    if let Ok(record) =
+                        serde_json::from_str::<JournalWarningRecord>(json_str)
+                    {
+                        let mut mst = DcMstring::new();
+                        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD);
+                        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
+                        format!("{}: {}", record.code, record.message)
+                            .encode_dc_mixed(&mut mst)?;
+                        record.timestamp_sec.encode_dc_mixed(&mut mst)?;
+                        mst.push_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD);
+                        writer.write_all(mst.payload_bytes())?;
+                    }
+                }
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+
+    anyhow::ensure!(header_written, "Journal session header is incomplete");
+    writer.flush()?;
+    Ok(())
+}
+
+/// Converts in-memory legacy journal bytes to v4 journal bytes (`CTBCSCJ\x04`).
+pub fn convert_legacy_journal_bytes_to_v4(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut cursor = Cursor::new(bytes);
+    let mut reader = BufReader::new(&mut cursor);
+    let mut out = Vec::new();
+    convert_legacy_journal_to_v4(&mut reader, &mut out)?;
+    Ok(out)
 }
 
 fn attach_legacy_session_environment(

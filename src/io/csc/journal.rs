@@ -47,6 +47,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub mod legacy;
 
+pub use legacy::{
+    convert_legacy_journal_bytes_to_v4, convert_legacy_journal_to_v4,
+};
+
 pub(crate) use legacy::{
     JOURNAL_MAGIC_V1, PreservationRecord, PreservedStream, TAG_BATCH_COMMIT,
     TAG_ENTITY, TAG_ERROR_RECORD, TAG_JOB_COMPLETED, TAG_SESSION_ENV,
@@ -712,6 +716,64 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 journal_path.display()
             );
         }
+    }
+}
+
+/// Converts any in-memory cscjournal bytes (legacy or v4+) to a `DcMstring` document.
+///
+/// Legacy journal versions (revisions 1..=3) are converted to the Dc format (version 4+),
+/// and then the 8 leading magic bytes are removed from the beginning of the version 4 data,
+/// yielding a native `DcMixed` document.
+pub fn convert_cscjournal_to_dcmstring(
+    bytes: &[u8],
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
+    let magic = bytes
+        .get(..8)
+        .context("Slice bounds invalid for journal magic")?;
+
+    let is_v4_or_newer = magic == JOURNAL_MAGIC_V4
+        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4));
+
+    let dcmm_bytes = if is_v4_or_newer {
+        bytes
+            .get(8..)
+            .context("Slice bounds invalid for journal payload")?
+    } else {
+        let is_legacy = magic == JOURNAL_MAGIC_V1
+            || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4));
+        anyhow::ensure!(
+            is_legacy,
+            "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
+        );
+        let v4_bytes = legacy::convert_legacy_journal_bytes_to_v4(bytes)?;
+        return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(
+            v4_bytes
+                .get(8..)
+                .context("Slice bounds invalid for converted journal payload")?,
+        );
+    };
+
+    ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(dcmm_bytes)
+}
+
+/// Converts in-memory cscjournal bytes to version 4+ journal bytes (`CTBCSCJ\x04`).
+/// If already version 4+, returns the bytes unmodified.
+pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
+    let magic = bytes
+        .get(..8)
+        .context("Slice bounds invalid for journal magic")?;
+    if magic == JOURNAL_MAGIC_V4
+        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
+    {
+        Ok(bytes.to_vec())
+    } else if magic == JOURNAL_MAGIC_V1
+        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4))
+    {
+        legacy::convert_legacy_journal_bytes_to_v4(bytes)
+    } else {
+        anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
     }
 }
 
@@ -1982,4 +2044,78 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_journal_conversion_all_revisions_to_v4_and_dcmstring() -> Result<()> {
+        let fixtures_dir = ctb_utilities::manifest_fixture_path(
+            env!("CARGO_MANIFEST_DIR"),
+            "fixtures/journals",
+        );
+
+        let temp = tempfile::tempdir()?;
+
+        // Test converting legacy revisions 1..=3 to v4 bytes and validating snapshot parity
+        for (rev_name, filename) in [
+            ("v1_ctbmeta1", "v1_ctbmeta1.cscjournal"),
+            ("v2_ctbmeta2", "v2_ctbmeta2.cscjournal"),
+            ("v3_ctbmeta3", "v3_ctbmeta3.cscjournal"),
+        ] {
+            let legacy_path = fixtures_dir.join(filename);
+            let legacy_bytes = fs::read(&legacy_path)?;
+            let orig_snap = read_journal_snapshot(&legacy_path)?;
+
+            let v4_bytes = convert_cscjournal_to_v4_bytes(&legacy_bytes)?;
+            assert!(
+                v4_bytes.starts_with(JOURNAL_MAGIC_V4),
+                "{rev_name} converted bytes must start with JOURNAL_MAGIC_V4"
+            );
+
+            let converted_v4_path = temp.path().join(format!("{rev_name}_converted.cscjournal"));
+            fs::write(&converted_v4_path, &v4_bytes)?;
+
+            let v4_snap = read_journal_snapshot(&converted_v4_path)?;
+            assert_eq!(
+                v4_snap.is_completed, orig_snap.is_completed,
+                "{rev_name}: completed status must match"
+            );
+            assert_eq!(
+                v4_snap.committed_entities.len(),
+                orig_snap.committed_entities.len(),
+                "{rev_name}: entity count must match"
+            );
+            assert_eq!(
+                v4_snap.origin_platform, orig_snap.origin_platform,
+                "{rev_name}: origin platform must match"
+            );
+            assert_eq!(
+                v4_snap.destination, orig_snap.destination,
+                "{rev_name}: destination must match"
+            );
+            for key in orig_snap.committed_entities.keys() {
+                assert!(
+                    v4_snap.committed_entities.contains_key(key),
+                    "{rev_name}: converted v4 journal must retain entity {key:?}"
+                );
+            }
+        }
+
+        // Test converting all 4 revisions directly to DcMstring
+        for filename in [
+            "v1_ctbmeta1.cscjournal",
+            "v2_ctbmeta2.cscjournal",
+            "v3_ctbmeta3.cscjournal",
+            "v4_dcmixed.cscjournal",
+        ] {
+            let bytes = fs::read(fixtures_dir.join(filename))?;
+            let (doc, log) = convert_cscjournal_to_dcmstring(&bytes)?;
+            assert!(
+                doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
+                "{filename}: DcMstring document must have payload beyond 21-byte header"
+            );
+            assert!(!log.has_errors(), "{filename}: conversion should not log errors");
+        }
+
+        Ok(())
+    }
 }
+

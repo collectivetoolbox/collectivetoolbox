@@ -59,3 +59,4 @@ pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};
+pub use ctb_formats_utilities::FormatLog;
