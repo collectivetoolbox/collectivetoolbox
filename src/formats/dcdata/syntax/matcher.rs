@@ -174,7 +174,33 @@ fn match_term_single(
         return MatchOutcome::Mismatch;
     };
 
-    match term {
+    // Equivalent representations wrapper: Dc 397 (can wrap alternative representations of any value)
+    let dc_equiv = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+        .saturating_add(397);
+    if first == dc_equiv
+        && !matches!(
+            term,
+            SyntaxTerm::SelfChar
+                | SyntaxTerm::CharRef(CharTarget::Dc(397))
+                | SyntaxTerm::RuleRef {
+                    target: CharTarget::Dc(397),
+                }
+        )
+    {
+        if let Some(ref resolver) = context.resolver.clone() {
+            if let Some(rule) = resolver.resolve_rule(&CharTarget::Dc(397)) {
+                let old_self = context.self_dc;
+                context.self_dc = Some(dc_equiv);
+                let alt_outcome = match_pattern(stream, &rule.pattern, context);
+                context.self_dc = old_self;
+                if alt_outcome.is_matched() {
+                    return alt_outcome;
+                }
+            }
+        }
+    }
+
+    let outcome = match term {
         SyntaxTerm::SelfChar => {
             if let Some(self_id) = context.self_dc {
                 if first == self_id {
@@ -259,7 +285,11 @@ fn match_term_single(
                 let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
                     ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                     .contains(&first);
+                    // FIXME: This should use a named Dc const from dcdata/dc.generated.rs.
+                let dc_path_delim = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(513);
                 let matches = is_format_token
+                    || first == dc_path_delim
                     || context.resolver.as_ref().map_or(false, |r| {
                         r.matches_script("EL Types", first) || r.matches_script("Formats", first)
                     });
@@ -272,6 +302,30 @@ fn match_term_single(
                             .push(first);
                     }
                     return MatchOutcome::Matched { consumed: 1 };
+                }
+
+                // Type constructor rules: Dc 516 (Type intersection) or Dc 300 (Type union)
+                let dc_intersect = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(516);
+                let dc_union = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(300);
+                if first == dc_intersect || first == dc_union {
+                    if let Some(ref resolver) = context.resolver.clone() {
+                        let target = if first == dc_intersect {
+                            CharTarget::Dc(516)
+                        } else {
+                            CharTarget::Dc(300)
+                        };
+                        if let Some(rule) = resolver.resolve_rule(&target) {
+                            let old_self = context.self_dc;
+                            context.self_dc = Some(first);
+                            let outcome = match_pattern(stream, &rule.pattern, context);
+                            context.self_dc = old_self;
+                            if outcome.is_matched() {
+                                return outcome;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -440,10 +494,32 @@ fn match_term_single(
                     context.self_dc = Some(target.to_u128());
                     context.call_stack.push(frame_key);
                     context.depth = context.depth.saturating_add(1);
-                    let outcome = match_pattern(stream, &rule.pattern, context);
+
+                    let (offset_after_fmt, has_fmt_token) = match target {
+                        CharTarget::Format(_) if stream.first() == Some(&target.to_u128()) => {
+                            (1usize, true)
+                        }
+                        _ => (0usize, false),
+                    };
+
+                    let sub_stream = stream.get(offset_after_fmt..).unwrap_or(&[]);
+                    let outcome = match_pattern(sub_stream, &rule.pattern, context);
+
                     context.depth = context.depth.saturating_sub(1);
                     context.call_stack.pop();
                     context.self_dc = old_self;
+
+                    if outcome.is_matched() {
+                        let consumed_payload = outcome.consumed_tokens();
+                        let mut total = offset_after_fmt.saturating_add(consumed_payload);
+                        let dc_end_repr =
+                            ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                                .saturating_add(512);
+                        if has_fmt_token && stream.get(total) == Some(&dc_end_repr) {
+                            total = total.saturating_add(1);
+                        }
+                        return MatchOutcome::Matched { consumed: total };
+                    }
                     return outcome;
                 }
                 return MatchOutcome::Mismatch;
@@ -455,7 +531,9 @@ fn match_term_single(
                 MatchOutcome::Mismatch
             }
         }
-    }
+    };
+
+    outcome
 }
 
 /// Matches a quantified `SyntaxElement` against a stream.

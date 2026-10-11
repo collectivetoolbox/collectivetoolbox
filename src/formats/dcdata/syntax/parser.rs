@@ -228,6 +228,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
 
         let mut name = "";
         let mut capture_var = None;
+        let mut elem_quantifier = Quantifier::ExactOne;
 
         for tok in name_part_raw.split_whitespace() {
             if let Some(var) = tok.strip_prefix('$') {
@@ -235,7 +236,17 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
                     capture_var.is_none(),
                     "Multiple capture variables in named construct '[{trimmed}]'"
                 );
-                capture_var = Some(var.trim().to_string());
+                let (clean_var, q) = if let Some(stripped) = var.strip_suffix('?') {
+                    (stripped, Quantifier::Optional)
+                } else if let Some(stripped) = var.strip_suffix('*') {
+                    (stripped, Quantifier::ZeroOrMore)
+                } else if let Some(stripped) = var.strip_suffix('+') {
+                    (stripped, Quantifier::OneOrMore)
+                } else {
+                    (var, Quantifier::ExactOne)
+                };
+                elem_quantifier = q;
+                capture_var = Some(clean_var.trim().to_string());
             } else if name.is_empty() {
                 name = tok;
             } else {
@@ -287,11 +298,14 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             "Named construct in brackets cannot have an empty subtype: '[{trimmed}]'"
         );
 
-        return Ok(SyntaxElement::exact(SyntaxTerm::NamedConstruct {
-            name: name.to_string(),
-            subtype: Some(subtype_str.to_string()),
-            capture_var,
-        }));
+        return Ok(SyntaxElement::with_quantifier(
+            SyntaxTerm::NamedConstruct {
+                name: name.to_string(),
+                subtype: Some(subtype_str.to_string()),
+                capture_var,
+            },
+            elem_quantifier,
+        ));
     }
 
     // Named construct without colon: [identifier $ident] or [statement]
@@ -332,6 +346,7 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
 
     let mut name = "";
     let mut capture_var = None;
+    let mut elem_quantifier = Quantifier::ExactOne;
 
     for tok in &tokens {
         if let Some(var) = tok.strip_prefix('$') {
@@ -339,7 +354,17 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
                 capture_var.is_none(),
                 "Multiple capture variables in named construct '[{trimmed}]'"
             );
-            capture_var = Some(var.trim().to_string());
+            let (clean_var, q) = if let Some(stripped) = var.strip_suffix('?') {
+                (stripped, Quantifier::Optional)
+            } else if let Some(stripped) = var.strip_suffix('*') {
+                (stripped, Quantifier::ZeroOrMore)
+            } else if let Some(stripped) = var.strip_suffix('+') {
+                (stripped, Quantifier::OneOrMore)
+            } else {
+                (var, Quantifier::ExactOne)
+            };
+            elem_quantifier = q;
+            capture_var = Some(clean_var.trim().to_string());
         } else if name.is_empty() {
             name = tok.as_str();
         } else {
@@ -352,11 +377,14 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         "Named construct in brackets must have a name: '[{trimmed}]'"
     );
 
-    Ok(SyntaxElement::exact(SyntaxTerm::NamedConstruct {
-        name: name.to_string(),
-        subtype: None,
-        capture_var,
-    }))
+    Ok(SyntaxElement::with_quantifier(
+        SyntaxTerm::NamedConstruct {
+            name: name.to_string(),
+            subtype: None,
+            capture_var,
+        },
+        elem_quantifier,
+    ))
 }
 
 /// Tokenizes and parses a pattern string into `SyntaxPattern`.
@@ -937,7 +965,68 @@ pub fn parse_document_tokens_with_resolver(
                                     == Some(&closer)
                         });
 
-                        let child_elements = if is_container && consumed > 2 {
+                        let child_elements = if target == CharTarget::Dc(511) && consumed > 3 {
+                            let fmt_tok = remaining.get(1).copied().unwrap_or(0);
+                            let payload_slice = match remaining.get(2..consumed.saturating_sub(1)) {
+                                Some(s) => s,
+                                None => &[],
+                            };
+                            if let Some(fmt_target) = CharTarget::from_u128(fmt_tok) {
+                                if let Some(fmt_rule) = res.resolve_rule(&fmt_target) {
+                                    let mut fmt_ctx = MatchContext::new_with_token(Some(fmt_tok)).with_mode(mode);
+                                    fmt_ctx.resolver = Some(default_syntax_resolver().clone());
+                                    let fmt_outcome = match_syntax_rule_with_context(payload_slice, fmt_rule, &mut fmt_ctx);
+                                    for diag in &fmt_ctx.diagnostics {
+                                        let mut diag = diag.clone();
+                                        diag.token_offset = diag
+                                            .token_offset
+                                            .saturating_add(offset)
+                                            .saturating_add(2);
+                                        diagnostics.push(diag);
+                                    }
+                                    if !fmt_outcome.is_matched() && mode == MatchMode::Strict {
+                                        let diag_msgs: Vec<String> = fmt_ctx.diagnostics.iter().map(|d| d.message.clone()).collect();
+                                        diagnostics.push(SyntaxDiagnostic {
+                                            message: format!(
+                                                "Format payload at offset {} failed to match syntax rule for {fmt_target}: {}. Diagnostics: {:?}",
+                                                offset.saturating_add(2),
+                                                fmt_rule.raw,
+                                                diag_msgs
+                                            ),
+                                            token_offset: offset.saturating_add(2),
+                                            is_error: true,
+                                        });
+                                        return ParsedDocument {
+                                            elements,
+                                            diagnostics,
+                                            has_errors: true,
+                                        };
+                                    }
+                                }
+                            }
+                            let payload_doc = parse_document_tokens_with_resolver(
+                                payload_slice,
+                                mode,
+                                Some(res),
+                            );
+                            for mut diag in payload_doc.diagnostics {
+                                diag.token_offset = diag
+                                    .token_offset
+                                    .saturating_add(offset)
+                                    .saturating_add(2);
+                                diagnostics.push(diag);
+                            }
+                            if payload_doc.has_errors && mode == MatchMode::Strict {
+                                return ParsedDocument {
+                                    elements,
+                                    diagnostics,
+                                    has_errors: true,
+                                };
+                            }
+                            let mut inner_elems = vec![ParsedElement::Atomic(fmt_tok)];
+                            inner_elems.extend(payload_doc.elements);
+                            inner_elems
+                        } else if is_container && consumed > 2 {
                             let inner_slice =
                                 match remaining.get(1..consumed.saturating_sub(1)) {
                                     Some(s) => s,

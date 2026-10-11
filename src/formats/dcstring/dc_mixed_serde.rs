@@ -2181,6 +2181,20 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_pathbuf_syntax_validation() -> Result<()> {
+        let p = std::path::PathBuf::from("/tmp/src");
+        let mut mst = DcMstring::new();
+        p.encode_dc_mixed(&mut mst)?;
+        let tokens = mst.to_dc_tokens()?;
+        println!("TOKENS LEN: {}", tokens.len());
+        for (i, tok) in tokens.iter().enumerate() {
+            println!("  [{}] 0x{:X} ({})", i, tok, tok);
+        }
+        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
+        Ok(())
+    }
 }
 
 

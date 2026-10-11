@@ -312,7 +312,9 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         // "EL Types" matches ".EL Types")
         for (name, set) in &self.script_chars {
             let clean_name = name.trim_start_matches('.');
-            if clean_name == clean_target && set.contains(&token) {
+            if (clean_name == clean_target || clean_name.starts_with(clean_target))
+                && set.contains(&token)
+            {
                 return true;
             }
             if let Some(suffix) = clean_name.split(':').last() {
