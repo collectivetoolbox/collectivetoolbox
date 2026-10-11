@@ -2031,10 +2031,10 @@ mod tests {
     fn test_all_journal_revision_fixtures() -> Result<()> {
         let fixtures_dir = ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals");
 
-        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1.cscjournal"))?;
-        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2.cscjournal"))?;
-        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3.cscjournal"))?;
-        let s4 = read_journal_snapshot(&fixtures_dir.join("v4_dcmixed.cscjournal"))?;
+        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"))?;
+        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"))?;
+        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal"))?;
+        let s4 = read_journal_snapshot(&fixtures_dir.join("v4_dcmixed-20261011.cscjournal"))?;
 
         // Verify snapshots across all four format revisions
         for (rev_name, snap) in [
@@ -2109,9 +2109,9 @@ mod tests {
 
         // Test converting legacy revisions 1..=3 to v4 bytes and validating snapshot parity
         for (rev_name, filename) in [
-            ("v1_ctbmeta1", "v1_ctbmeta1.cscjournal"),
-            ("v2_ctbmeta2", "v2_ctbmeta2.cscjournal"),
-            ("v3_ctbmeta3", "v3_ctbmeta3.cscjournal"),
+            ("v1_ctbmeta1", "v1_ctbmeta1-20261011.cscjournal"),
+            ("v2_ctbmeta2", "v2_ctbmeta2-20261011.cscjournal"),
+            ("v3_ctbmeta3", "v3_ctbmeta3-20261011.cscjournal"),
         ] {
             let legacy_path = fixtures_dir.join(filename);
             let legacy_bytes = fs::read(&legacy_path)?;
@@ -2154,10 +2154,10 @@ mod tests {
 
         // Test converting all 4 revisions directly to DcMstring
         for filename in [
-            "v1_ctbmeta1.cscjournal",
-            "v2_ctbmeta2.cscjournal",
-            "v3_ctbmeta3.cscjournal",
-            "v4_dcmixed.cscjournal",
+            "v1_ctbmeta1-20261011.cscjournal",
+            "v2_ctbmeta2-20261011.cscjournal",
+            "v3_ctbmeta3-20261011.cscjournal",
+            "v4_dcmixed-20261011.cscjournal",
         ] {
             let bytes = fs::read(fixtures_dir.join(filename))?;
             let (doc, log) = convert_cscjournal_to_dcmstring(&bytes)?;

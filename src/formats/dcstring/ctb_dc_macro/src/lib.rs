@@ -74,8 +74,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! - `#[dc(<id>)]`: Associates the field with the given Dc character.
 //!   - For regular types `T`: encodes `<id>` followed by `val.encode_dc_mixed`.
-//!   - For `Option<T>`: encodes `<id>` and `inner.encode_dc_mixed` if `Some`.
-//!     If `None`, the tag and payload are omitted.
+//!   - For `Option<T>`: encodes `<id>` followed by Dc 315 and the inner value
+//!     for `Some`, or `<id>` followed by Dc 316 for `None`. Nested options retain
+//!     a marker for each level. `omit_default` can omit a default-valued field.
 //!   - For `Vec<T>`: repeatedly emits `<id>` followed by each element's encoding.
 //! - `#[dc(<id>, default)]`: Tagged field that defaults to `Default::default()`
 //!   if not encountered in the serialized stream.
@@ -1640,28 +1641,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             reader.next_char()?;
                             let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                             self.#field_ident.push(elem);
-                            Ok(true)
-                        }
-                    });
-                } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
-                    encode_fields.push(quote! {
-                        if let ::std::option::Option::Some(ref val) = self.#field_ident {
-                            mst.push_char(#crate_root::DcChar::from_u128(#id));
-                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(val, mst, context)?;
-                        }
-                    });
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                            #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
-                        }
-                    });
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                            self.#field_ident = ::std::option::Option::Some(val);
                             Ok(true)
                         }
                     });

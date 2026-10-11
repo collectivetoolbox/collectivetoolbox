@@ -2076,6 +2076,61 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_tagged_optional_field_markers() -> Result<()> {
+        for optional_size in [None, Some(1024)] {
+            let mut record = sample_source_record(42);
+            record.optional_size = optional_size;
+            let mut expected = DcMstring::new();
+            expected.push_char(DcChar::from_short(336));
+            optional_size.encode_dc_mixed(&mut expected)?;
+
+            let mut field = DcMstring::new();
+            record.encode_dc_field("optional_size", &mut field)?;
+            assert_eq!(field, expected);
+            let mut reader = DcMixedReader::new(&field);
+            reader.expect_short_dc(336)?;
+            assert_eq!(reader.peek_char()?, Some(if optional_size.is_some() {
+                DC_OPTIONAL_PRESENT
+            } else {
+                DC_OPTIONAL_ABSENT
+            }));
+            assert_eq!(Option::<u64>::decode_dc_mixed(&mut reader)?, optional_size);
+            assert_eq!(reader.peek_char()?, None);
+
+            let mut decoded = sample_source_record(42);
+            let mut reader = DcMixedReader::new(&field);
+            assert!(decoded.decode_field(DcChar::from_short(336).0, &mut reader)?);
+            assert_eq!(decoded, record);
+            assert_eq!(reader.peek_char()?, None);
+            assert_dc_roundtrip(&record)?;
+
+            let source = sample_source_record(42).to_dc_mixed()?;
+            let revised = source.inspect::<SampleFileRecord>()
+                .replace_field("optional_size", &record)?;
+            assert_eq!(revised.decode::<SampleFileRecord>()?, record);
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+        #[dc(begin = 317, end = 318)]
+        struct NestedOptionalRecord {
+            #[dc(short = 336)]
+            value: Option<Option<u64>>,
+        }
+
+        for value in [None, Some(None), Some(Some(42))] {
+            let record = NestedOptionalRecord { value };
+            let mut expected = DcMstring::new();
+            expected.push_char(DcChar::from_short(317));
+            expected.push_char(DcChar::from_short(336));
+            value.encode_dc_mixed(&mut expected)?;
+            expected.push_char(DcChar::from_short(318));
+            assert_eq!(record.to_dc_mixed()?, expected);
+            assert_eq!(expected.decode::<NestedOptionalRecord>()?, record);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_derive_enum_roundtrip() -> Result<()> {
         assert_dc_roundtrip(&SampleKind::Regular)?;
         assert_dc_roundtrip(&SampleKind::Directory)?;

@@ -5,25 +5,25 @@ This directory maintains authentic, reproducible test fixtures for every histori
 ## Format Revisions and Provenance Commits
 
 ### 1. Revision 1: `v1_ctbmeta1`
-- **Files**: `v1_ctbmeta1.cscjournal`, `v1_ctbmeta1.cscdesc`
+- **Files**: `v1_ctbmeta1-20261011.cscjournal`, `v1_ctbmeta1-20261011.cscdesc`
 - **Magic**: `CTBCSCJ\x01`
 - **Preservation Record**: `CTBMETA1` (unstructured JSON preserving POSIX mode, uid, gid, mtime, atime, streams, and extents, prior to semantic identity encapsulation).
 - **Source Commit**: `d90071e257ebc4883e6027a4d55734fa0a484392` (*fix: Slightly less dubious edits. Still kind of dubious.*) — the last buildable commit before `CTBMETA2` was introduced in `8a1f3786d`.
 
 ### 2. Revision 2: `v2_ctbmeta2`
-- **Files**: `v2_ctbmeta2.cscjournal`, `v2_ctbmeta2.cscdesc`
+- **Files**: `v2_ctbmeta2-20261011.cscjournal`, `v2_ctbmeta2-20261011.cscdesc`
 - **Magic**: `CTBCSCJ\x01`
 - **Preservation Record**: `CTBMETA2` (contextual JSON metadata with structured `FileMetadata` definitions).
 - **Source Commit**: `02070a4959db621575ca9b50bf69cf0025fcf958` (*docs: Clarify Dcs*) — the last buildable commit before `CTBMETA3` was introduced in `14737998c`.
 
 ### 3. Revision 3: `v3_ctbmeta3`
-- **Files**: `v3_ctbmeta3.cscjournal`, `v3_ctbmeta3.cscdesc`
+- **Files**: `v3_ctbmeta3-20261011.cscjournal`, `v3_ctbmeta3-20261011.cscdesc`
 - **Magic**: `CTBCSCJ\x01`
 - **Preservation Record**: `CTBMETA3` (contextual JSON preservation record accompanied by semantic `FileIdentity` Dc encapsulation).
 - **Source Commit**: `14737998c369b65aa99e80143def8619b55bfc7d` (*fix: Continue work on Windows and csc bugs*) — the last buildable commit before DcMixed was introduced in `a48081c47`.
 
 ### 4. Revision 4: `v4_dcmixed`
-- **Files**: `v4_dcmixed.cscjournal`, `v4_dcmixed.cscdesc`
+- **Files**: `v4_dcmixed-20261011.cscjournal`, `v4_dcmixed-20261011.cscdesc`
 - **Magic**: `CTBCSCJ\x04`
 - **Preservation Record**: Native Document Character (Dc) mixed-mode stream (`DcMstring` container with UUID) using generalized ontological Dcs (`543..=558`):
   - Checksummed batch boundaries: `DC_BEGIN_CHECKSUMMED_SECTION` (543) .. `DC_END_CHECKSUMMED_SECTION` (544) sealed with `DC_SECTION_DIGEST` (545).
@@ -31,6 +31,10 @@ This directory maintains authentic, reproducible test fixtures for every histori
   - Session description: `DC_BEGIN_OPERATION_SESSION` (547) .. `DC_END_OPERATION_SESSION` (548).
   - Native file entity records: `DC_BEGIN_FILE_RECORD` (317) .. `DC_END_FILE_RECORD` (318) with deduplicated session environment sharing.
 - **Source Commit**: `HEAD` / `main` branch.
+
+The dated revision-4 fixture retains the explicit Dc 315/316 framing for tagged
+optional fields. It remains valid after reverting the unwrapped optional-field
+encoding introduced in `9b359d447`; it has not been regenerated or renamed.
 
 ## Regenerating Fixtures
 
