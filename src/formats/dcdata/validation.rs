@@ -3061,6 +3061,7 @@ mod tests {
         let valid_flags_list = vec![
             sdc(388),
             sdc(310),
+            sdc(275), // Built-in type identifier: * (Object or any subtype)
             sdc(409), // File flag: nodump (.Semantic:fileflag)
             sdc(410), // File flag: uchg (.Semantic:fileflag)
             sdc(311),
@@ -3084,7 +3085,9 @@ mod tests {
             sdc(388),
             sdc(397),
             sdc(310), // Begin list
-            sdc(310),
+            sdc(275), // Object type for outer list
+            sdc(310), // Begin list
+            sdc(275), // Object type for inner list
             sdc(409),
             sdc(311),
             sdc(539),

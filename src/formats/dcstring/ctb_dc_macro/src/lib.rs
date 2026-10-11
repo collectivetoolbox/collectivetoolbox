@@ -1247,6 +1247,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_char(#crate_root::DcChar::from_short(397));
                         mst.push_char(#crate_root::DcChar::from_short(310));
+                        mst.push_char(#crate_root::DcChar::from_short(275));
                         #(#eq_encoders)*
                         mst.push_char(#crate_root::DcChar::from_short(311));
                     };
@@ -1279,6 +1280,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             reader.read_short_dc()?;
                             let in_list = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
                                 reader.read_short_dc()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
+                                    reader.read_short_dc()?;
+                                }
                                 true
                             } else {
                                 false
@@ -1341,6 +1345,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                    reader.read_short_dc()?;
+                                }
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
@@ -1350,6 +1357,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_field_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                    reader.read_short_dc()?;
+                                }
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
@@ -1402,6 +1412,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                    reader.read_short_dc()?;
+                                }
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
@@ -1411,6 +1424,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_field_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                    reader.read_short_dc()?;
+                                }
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
                                     .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;

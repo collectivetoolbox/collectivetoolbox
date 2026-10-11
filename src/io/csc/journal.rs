@@ -950,7 +950,8 @@ pub fn read_v4_journal_snapshot(
                             };
                             pending_entities.insert(path_key, entity);
                         }
-                        Err(_) => {
+                        Err(err) => {
+                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:#}, peek={:?}", reader.position(), reader.peek_char());
                             batch_ok = false;
                             break;
                         }
@@ -964,22 +965,27 @@ pub fn read_v4_journal_snapshot(
                     .expect_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION)
                     .is_err()
                 {
+                    warn!("Failed to expect DC_END_CHECKSUMMED_SECTION");
                     break;
                 }
                 if reader
                     .expect_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST)
                     .is_err()
                 {
+                    warn!("Failed to expect DC_SECTION_DIGEST");
                     break;
                 }
                 let Ok(expected_digest) = reader.read_binary_payload() else {
+                    warn!("Failed to read expected digest");
                     break;
                 };
                 let Some(section_bytes) = mstr.as_bytes().get(section_start..section_end) else {
+                    warn!("Failed to get section bytes");
                     break;
                 };
                 let actual_digest = ctb_formats_checksum::sha256(section_bytes);
                 if actual_digest.as_slice() != expected_digest.as_ref() {
+                    warn!("Digest mismatch in read_journal_snapshot: actual={actual_digest:?}, expected={expected_digest:?}");
                     break;
                 }
 
