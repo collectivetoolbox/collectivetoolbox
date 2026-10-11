@@ -158,50 +158,10 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
     Ok(ConversionOutput::new(out.result.to_dclist(), out.log))
 }
 
-/// Serializes a `DcList` (`&[u128]`) to Dcts format bytes (`Vec<u8>`).
-#[must_use]
-pub fn dclist_to_dcts(dclist: &[u128]) -> Vec<u8> {
-    let mut output = String::new();
-    let mut i = 0usize;
-
-    while i < dclist.len() {
-        let Some(&dcid) = dclist.get(i) else { break };
-
-        if dcid == 64 {
-            output.push_str("@@");
-        } else if dcid <= UNICODE_REGION_END {
-            if let Ok(cp) = u32::try_from(dcid) {
-                if let Some(ch) = char::from_u32(cp) {
-                    output.push(ch);
-                } else {
-                    output.push_str(&format!("@u{cp:x}@"));
-                }
-            } else {
-                output.push_str(&format!("@u{dcid:x}@"));
-            }
-        } else if dcid == 1_114_408 {
-            if let Some(rest) = dclist.get(i.saturating_add(1)..) {
-                if let Ok((int_val, consumed)) = read_dc_number_global(rest) {
-                    output.push_str(&format!("@L{int_val}@"));
-                    i = i.saturating_add(1).saturating_add(consumed);
-                    continue;
-                }
-            }
-            output.push_str("@296@");
-        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dcid) {
-            let short_id = dcid.saturating_sub(SHORT_DC_REGION_START);
-            output.push_str(&format!("@{short_id}@"));
-        } else if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&dcid) {
-            let fmt_id = dcid.saturating_sub(FORMAT_REGION_START);
-            output.push_str(&format!("@f{fmt_id}@"));
-        } else {
-            output.push_str(&format!("@l{dcid}@"));
-        }
-        i = i.saturating_add(1);
-    }
-
-    output.into_bytes()
-}
+pub use ctb_formats_dcdata::dcts::{
+    DctsOptions, dclist_to_dcts, dclist_to_dcts_string_with_options,
+    dclist_to_dcts_with_options,
+};
 
 /// Serializes a `DcStr` to Dcts format bytes (`Vec<u8>`).
 #[must_use]

@@ -2825,6 +2825,8 @@ mod tests {
         .unwrap();
         assert_eq!(ident_consumed, 5);
         assert_eq!(ident.raw_tokens, ident_stream);
+        assert_eq!(ident.name, vec![65, sdc(271)]);
+        assert_eq!(format!("{ident}"), "A@271@");
         assert!(ident_diags.is_empty());
 
         // 6. Empty identifier in strict mode
@@ -2839,6 +2841,27 @@ mod tests {
             )
             .is_none()
         );
+
+        // 7. Identifier collision avoidance and control character escaping
+        let ident_a_stream = vec![sdc(270), sdc(255), sdc(271), sdc(271)]; // Identifier containing escaped short Dc 271
+        let (ident_a, _) = scan_identifier_frame(&ident_a_stream, MatchMode::Strict, &mut ident_diags, 0).unwrap();
+        assert_eq!(ident_a.name, vec![sdc(271)]);
+        assert_eq!(format!("{ident_a}"), "@271@");
+
+        let ident_b_stream = vec![sdc(270), 64, 50, 55, 49, 64, sdc(271)]; // Identifier containing literal "@271@"
+        let (ident_b, _) = scan_identifier_frame(&ident_b_stream, MatchMode::Strict, &mut ident_diags, 0).unwrap();
+        assert_eq!(ident_b.name, vec![64, 50, 55, 49, 64]);
+        assert_eq!(format!("{ident_b}"), "@@271@@");
+
+        // Identifiers ident_a and ident_b must NOT be identical in name or display
+        assert_ne!(ident_a.name, ident_b.name);
+        assert_ne!(format!("{ident_a}"), format!("{ident_b}"));
+
+        // Control characters in identifier are escaped with @u...
+        let ident_ctrl_stream = vec![sdc(270), 10, 0, sdc(271)]; // '\n', '\0'
+        let (ident_ctrl, _) = scan_identifier_frame(&ident_ctrl_stream, MatchMode::Strict, &mut ident_diags, 0).unwrap();
+        assert_eq!(ident_ctrl.name, vec![10, 0]);
+        assert_eq!(format!("{ident_ctrl}"), "@ua@@u0@");
     }
 
     #[crate::ctb_test]

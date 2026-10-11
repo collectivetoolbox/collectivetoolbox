@@ -348,7 +348,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.,,,,,,,,,
 1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,"@ident(""BeginEnvironmentDescription""), :~ [^341]* 341",Begins an execution environment snapshot.,,,,,,,,,
 1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,"@ident(""EndEnvironmentDescription""), @closes(340)",Terminates an execution environment snapshot.,,,,,,,,,
-1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ [formats:os],Host operating system description.,,,,,,,,,
+1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ ([formats:os] | [string]),Host operating system description.,,,,,,,,,
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.,,,,,,,,,
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.,,,,,,,,,
 1114457,345,Working directory path,0,BN,,!Cx,.Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)",,,,,,,,,
