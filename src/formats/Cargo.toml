@@ -19,6 +19,7 @@ ctb-formats-checksum = { path = "checksum" }
 ctb-formats-compression = { path = "compression" }
 ctb-formats-compression-cli = { path = "compression/cli" }
 ctb-formats-ctb-asset-bundle = { path = "ctb_asset_bundle" }
+ctb-formats-conversion = { path = "conversion" }
 ctb-formats-dcdata = { path = "dcdata" }
 ctb-formats-dceutils = { path = "dceutils" }
 ctb-formats-dcstring = { path = "dcstring" }

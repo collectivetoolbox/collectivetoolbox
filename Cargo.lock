@@ -2839,6 +2839,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-compression-cli",
+ "ctb-formats-conversion",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",
@@ -3069,6 +3070,19 @@ name = "ctb-formats-compression-szip"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-conversion"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctb-formats-dcdata",
+ "ctb-formats-dcstring",
+ "ctb-formats-detection",
+ "ctb-formats-utilities",
  "ctb-utilities",
 ]
 
@@ -4216,6 +4230,7 @@ dependencies = [
  "ctb-formats-compression-rzip",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-compression-szip",
+ "ctb-formats-conversion",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",

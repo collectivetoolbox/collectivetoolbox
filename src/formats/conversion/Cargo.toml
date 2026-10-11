@@ -1,0 +1,19 @@
+[package]
+name = "ctb-formats-conversion"
+edition = "2024"
+
+[lib]
+path = "conversion.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-dcdata = { path = "../dcdata" }
+ctb-formats-dcstring = { path = "../dcstring" }
+ctb-formats-detection = { path = "../detection" }
+anyhow = "1.0"
+clap = { version = "4.5.54", features = ["derive"] }
+
+[lints]
+workspace = true

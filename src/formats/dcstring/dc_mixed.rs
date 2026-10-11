@@ -1234,11 +1234,11 @@ pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
     reader: &mut R,
     writer: &mut W,
 ) -> Result<u64> {
-    let mut header = [0u8; DCMX_HEADER_LEN];
+    let mut header = [0u8; DCMM_HEADER_LEN];
     reader.read_exact(&mut header).context("Reading DcMixed header")?;
     validate_dcmst(&header).context("Validating stream DcMixed header")?;
     writer.write_all(&header)?;
-    let mut bytes_written = u64::try_from(DCMX_HEADER_LEN)?;
+    let mut bytes_written = u64::try_from(DCMM_HEADER_LEN)?;
 
     let mut chunk = vec![0u8; 64 * 1024];
     loop {

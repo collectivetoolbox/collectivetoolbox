@@ -648,7 +648,9 @@ use self::magic_data::{COMPILED_CTB_MAGIC_RULES, COMPILED_FILE_MAGIC_RULES};
 use self::mime_derivation::FORMAT_CATALOG;
 use self::polyfile::detect_polyglots;
 use self::readelf::inspect_elf_details;
-use self::extra_rules::detect_small_format_candidates;
+use self::extra_rules::{
+    detect_custom_text_format_candidate, detect_small_format_candidates,
+};
 use self::special::detect_special_entity;
 use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
 
@@ -1106,6 +1108,9 @@ pub fn guess_format_report(
                 for sc in small_cands {
                     candidates.push(sc);
                 }
+                if let Some(custom_cand) = detect_custom_text_format_candidate(&sample_buf, hint) {
+                    candidates.push(custom_cand);
+                }
             }
         }
     }
@@ -1282,6 +1287,14 @@ pub fn detect_format_id(
         {
             return Some(fmt);
         }
+    }
+
+    if let Some(non_enc) = candidates
+        .iter()
+        .filter_map(|c| c.format_id)
+        .find(|fmt| fmt.category() != FormatCategory::Encoding)
+    {
+        return Some(non_enc);
     }
 
     candidates.into_iter().find_map(|c| c.format_id)

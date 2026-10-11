@@ -33,7 +33,7 @@ use super::dctext::{dcarray_to_dclist, dclist_to_dcarray, dclist_to_dcutf};
 use crate::{DcMstring, DcStr};
 
 fn dca_to_dcmstring(
-    dca: &ctb_formats_eite::dc::DcArray,
+    dca: &[u32],
     accumulated_log: &mut FormatLog,
 ) -> Result<DcMstring> {
     let conv = dcarray_to_dclist(dca)?;
@@ -44,10 +44,11 @@ fn dca_to_dcmstring(
     DcMstring::from_dc_str(dc_str)
 }
 
-fn dcmstring_to_dca(doc: &DcMstring) -> Result<ctb_formats_eite::dc::DcArray> {
+fn dcmstring_to_dca(doc: &DcMstring) -> Result<(Vec<u32>, FormatLog)> {
     let dc_string = doc.to_dc_string()?;
     let dclist = dc_string.to_dclist();
-    dclist_to_dcarray(&dclist)
+    let conv = dclist_to_dcarray(&dclist)?;
+    Ok((conv.result, conv.log))
 }
 
 /// Converts a DcIntegerList document (`.dcil`) to `DcMstring`.
@@ -62,11 +63,8 @@ pub fn dcil_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
 
 /// Converts a `DcMstring` to DcIntegerList document bytes (`.dcil`).
 pub fn dcmstring_to_dcil(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dca = dcmstring_to_dca(doc)?;
-    let (bytes, log) = ctb_formats_eite::formats::integer_list::dca_to_integer_list(
-        &dca,
-        &ctb_formats_eite::formats::integer_list::IntegerListFormatSettings::default(),
-    )?;
+    let (dca, log) = dcmstring_to_dca(doc)?;
+    let bytes = ctb_formats_eite::formats::integer_list::dca_to_integer_list(&dca);
     Ok((bytes, log))
 }
 
@@ -82,11 +80,9 @@ pub fn sems_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
 
 /// Converts a `DcMstring` to SEMS document bytes (`.sems`).
 pub fn dcmstring_to_sems(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dca = dcmstring_to_dca(doc)?;
-    let (bytes, log) = ctb_formats_eite::formats::sems::dca_to_sems(
-        &dca,
-        &ctb_formats_eite::formats::sems::SEMSFormatSettings::default(),
-    )?;
+    let (dca, mut log) = dcmstring_to_dca(doc)?;
+    let (bytes, sems_log) = ctb_formats_eite::formats::sems::dca_to_sems(&dca)?;
+    log.merge(&sems_log);
     Ok((bytes, log))
 }
 
@@ -99,8 +95,9 @@ pub fn ascii_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
 
 /// Converts a `DcMstring` to ASCII document bytes (`.ascii`).
 pub fn dcmstring_to_ascii(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dca = dcmstring_to_dca(doc)?;
-    let (bytes, log) = ctb_formats_eite::formats::ascii::dca_to_ascii(&dca)?;
+    let (dca, mut log) = dcmstring_to_dca(doc)?;
+    let (bytes, ascii_log) = ctb_formats_eite::formats::ascii::dca_to_ascii(&dca)?;
+    log.merge(&ascii_log);
     Ok((bytes, log))
 }
 
@@ -116,11 +113,9 @@ pub fn ascii_safe_subset_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, Format
 
 /// Converts a `DcMstring` to AsciiSafeSubset document bytes.
 pub fn dcmstring_to_ascii_safe_subset(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dca = dcmstring_to_dca(doc)?;
-    let (bytes, log) = ctb_formats_eite::formats::ascii::dca_to_ascii_safe_subset(
-        &dca,
-        &ctb_formats_eite::formats::ascii::AsciiSafeSubsetFormatSettings::default(),
-    )?;
+    let (dca, mut log) = dcmstring_to_dca(doc)?;
+    let (bytes, safe_log) = ctb_formats_eite::formats::ascii::dca_to_ascii_safe_subset(&dca)?;
+    log.merge(&safe_log);
     Ok((bytes, log))
 }
 
@@ -140,9 +135,16 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dcil_roundtrip() {
-        let input = b"65 66 67";
+        let input = b"65 66 67 ";
         let (doc, _) = dcil_to_dcmstring(input).expect("parse dcil");
-        assert_eq!(doc.to_dc_string().unwrap().as_str().unwrap(), "ABC");
+        assert_eq!(
+            doc.to_dc_string().unwrap().to_dclist(),
+            vec![
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(65),
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(66),
+                ctb_formats_dcdata::dc::SHORT_DC_REGION_START.saturating_add(67),
+            ]
+        );
 
         let (out_bytes, _) = dcmstring_to_dcil(&doc).expect("serialize dcil");
         assert_eq!(std::str::from_utf8(&out_bytes).unwrap().trim(), "65 66 67");

@@ -172,7 +172,9 @@ fn convert_input_to_dcmstring(
     format: SupportedDcInputFormat,
 ) -> Result<crate::DcMstring> {
     let (doc, _log) = match format {
-        SupportedDcInputFormat::Utf8 => crate::converters::utf8::utf8_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Utf8 => crate::converters::utf8::utf8_to_dcmstring(bytes).context(
+            "NOTE: Parsing as UTF-8. If you want DcText, pass `--from dctext` on the command line.",
+        )?,
         SupportedDcInputFormat::DcText => crate::converters::dctext::dctext_to_dcmstring(bytes)?,
         SupportedDcInputFormat::Dcts => crate::converters::dcts::dcts_to_dcmstring(bytes)?,
         SupportedDcInputFormat::Dcal => crate::converters::dcal::dcal_to_dcmstring(bytes)?,

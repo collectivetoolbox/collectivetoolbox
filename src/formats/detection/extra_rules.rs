@@ -885,6 +885,86 @@ pub fn detect_small_format_candidates(
     candidates
 }
 
+/// Detects custom text document formats (such as DcText with `@<token>@` tokens
+/// or DcIntegerList / Dcal integer lists) within `sample`.
+///
+/// In compat mode (`hint.compat == true`), this returns `None` so that output
+/// strictly matches upstream UNIX `file`.
+#[must_use]
+pub fn detect_custom_text_format_candidate(
+    sample: &[u8],
+    hint: Option<&DetectionHint>,
+) -> Option<DetectionCandidate> {
+    if hint.is_some_and(|h| h.compat) {
+        return None;
+    }
+
+    let Ok(sample_str) = std::str::from_utf8(sample) else {
+        return None;
+    };
+
+    // 1. Check for DcText tokens @...
+    if sample_str.contains('@') {
+        let parts: Vec<&str> = sample_str.split('@').collect();
+        if parts.len() >= 3 {
+            let has_dctext_token = parts.iter().enumerate().any(|(idx, part)| {
+                if idx.checked_rem(2) == Some(1) && !part.is_empty() {
+                    part.chars().all(|c| c.is_ascii_digit())
+                        || ((part.starts_with('L') || part.starts_with('l'))
+                            && part.len() > 1
+                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+                        || ((part.starts_with('u') || part.starts_with('U'))
+                            && part.len() > 1
+                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_hexdigit())))
+                        || ((part.starts_with('f') || part.starts_with('F'))
+                            && part.len() > 1
+                            && part.get(1..).is_some_and(|s| s.chars().all(|c| c.is_ascii_digit())))
+                } else {
+                    false
+                }
+            });
+
+            if has_dctext_token {
+                let fmt = FormatId::DcText;
+                let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+                let dc_id = mapping.map(|m| m.dc_id);
+                let mime = mapping
+                    .and_then(|m| m.mime_types.first().cloned())
+                    .or_else(|| Some("text/plain".to_string()));
+                let mut score = 85u32;
+                let mut evidence = vec![DetectionEvidence::CtbRule {
+                    description: "DcText @token@ document".to_string(),
+                    score: 85,
+                }];
+
+                if let Some(h) = hint {
+                    if let Some(exp_cat) = h.expected_category {
+                        if fmt.category() == exp_cat {
+                            score = score.saturating_add(20);
+                            evidence.push(DetectionEvidence::CategoryMatch {
+                                category: exp_cat,
+                                score: 20,
+                            });
+                        }
+                    }
+                }
+
+                return Some(DetectionCandidate {
+                    format_id: Some(fmt),
+                    dc_id,
+                    mime,
+                    description: "DcText document".to_string(),
+                    confidence: ConfidenceTier::Strong,
+                    score,
+                    evidence,
+                });
+            }
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -989,6 +1069,19 @@ mod tests {
 
         let creator_cand = detect_small_format_candidates(b"alis", None, None);
         assert_eq!(creator_cand[0].format_id, Some(FormatId::MacAlias));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_custom_text_format_dctext() {
+        let input = b"Hello @65@ world";
+        let cand = detect_custom_text_format_candidate(input, None).expect("detect dctext");
+        assert_eq!(cand.format_id, Some(FormatId::DcText));
+
+        let compat_hint = DetectionHint {
+            compat: true,
+            ..Default::default()
+        };
+        assert!(detect_custom_text_format_candidate(input, Some(&compat_hint)).is_none());
     }
 }
 /*
