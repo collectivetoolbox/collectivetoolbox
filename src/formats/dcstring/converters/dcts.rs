@@ -179,7 +179,7 @@ pub fn dcts_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> 
 
 /// Converts a `DcMstring` to Dcts bytes.
 pub fn dcmstring_to_dcts(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dc_string = super::lossless_dc_string(doc)?;
+    let dc_string = super::document_dc_string(doc)?;
     let bytes = dcstring_to_dcts(&dc_string);
     Ok((bytes, FormatLog::default()))
 }

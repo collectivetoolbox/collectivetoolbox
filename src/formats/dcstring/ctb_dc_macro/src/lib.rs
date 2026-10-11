@@ -790,7 +790,7 @@ fn expand_named_representation(
                         let field = fields.unnamed.first().ok_or_else(|| syn::Error::new(variant.span(), "Missing variant payload"))?;
                         let field_ty = &field.ty;
                         let (encode_value, decode_value) = if binary {
-                            (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value)); },
+                            (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value))?; },
                              quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?.as_ref())
                                 .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))? })
                         } else {
@@ -1395,7 +1395,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
-                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val));
+                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                             }
                         });
                         decode_arms.push(quote! {
@@ -1420,7 +1420,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else {
                         let encode_stmt = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
-                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident));
+                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                         };
                         if attr.omit_default {
                             encode_fields.push(quote! {
@@ -2000,7 +2000,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             encode_variants.push(quote! {
                                 Self::#variant_ident(f0) => {
                                     mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
-                                    mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(f0));
+                                    mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(f0))?;
                                 }
                             });
                             decode_variants.push(quote! {
@@ -2097,7 +2097,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     encode_fields.push(quote! {
                                         if let ::std::option::Option::Some(ref val) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val));
+                                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                         }
                                     });
                                     decode_fields.push(quote! {
@@ -2110,7 +2110,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 } else {
                                     encode_fields.push(quote! {
                                         mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                        mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident));
+                                        mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident))?;
                                     });
                                     decode_fields.push(quote! {
                                         reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;

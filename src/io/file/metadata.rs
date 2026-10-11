@@ -1526,7 +1526,7 @@ mod tests {
         original.encode_dc_field("environment", &mut source)?;
         let suffix_start = source.len();
         source.push_char(DcChar::from_short(600));
-        source.push_binary_with_sha256(b"future metadata");
+        source.push_binary_with_sha256(b"future metadata").unwrap();
         source.push_char(DcChar::from_short(322));
         let view = source.inspect::<FileMetadata>();
         assert!(view.diagnostic().is_some());

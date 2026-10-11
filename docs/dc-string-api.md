@@ -51,6 +51,38 @@ metadata struct. Dependent checksums or encoded lengths require an explicit
 enclosing-format editing contract; they cannot be silently left invalid or
 claimed to remain byte-identical after changing covered content.
 
+### Binary Encapsulation
+
+Textual Dc 203 syntax is:
+
+```text
+203 [type]? [number $length]? [checksum]? ([127..190] | 195)* 204
+```
+
+Length counts decoded payload bytes. The checksum covers those same bytes and
+is itself a typed Dc 203 encapsulation declaring its hash format. Writers emit
+the length and retain any declared type and checksum. Readers accept older
+encapsulations without those optional fields and reject mismatched lengths or
+checksums. Verification uses the supported hash-algorithm registry; unsupported
+algorithms fail explicitly.
+
+New mixed-mode binary runs use:
+
+```text
+Dc 203 | byte 2 | u128 BE payload-byte length | u128 BE metadata-byte length
+       | metadata as DcUtf | raw binary payload
+```
+
+Metadata is `[type]? [checksum]?`, without an outer wrapper or payload length.
+An empty metadata block has length zero. Both lengths are independent of base64
+spelling. The payload is always binary; declaring its semantic type does not
+change its storage encoding. Dc 204 is implicit.
+
+Legacy types 0/3 (binary) and 1/4 (DcUtf character sequence) remain readable;
+3/4 retain their fixed binary SHA-256 header. Explicit DcUtf runs may still use
+1/4. A typed checksum value is now a type-2 binary digest with its hash format in
+metadata, rather than a type-1 sequence of format and base64 Dcs.
+
 ### Remaining Conversion Gaps
 
 - DcIntegerList conversion preserves deprecated map and routine Dcs; regression
@@ -58,20 +90,17 @@ claimed to remain byte-identical after changing covered content.
 - Mixed-mode validation already rejects ordinary top-level textual
   `203 ... 204`: Dc 203 must introduce a typed, length-delimited encapsulation.
   This does not make conversion byte-roundtrippable in both directions.
-- Mixed-mode export to textual Dc formats now verifies reimport against the
-  original bytes and rejects loss of checksums or run-type information.
-  Checksummed runs are valid mixed-mode input, but cannot currently be exported
-  losslessly to these formats. They produce an explicit conversion error.
-- DcUtf import interprets `203 ... 204` regions, validates the mixed-mode
-  result, and verifies exact DcUtf re-export. Unclosed Dc 203 or base64 spelling
-  that would be normalized is rejected rather than silently altered.
-- The low-level `DcMstr::to_dc_string()` remains a representation projection
-  used by application serialization; it is not a lossless document-export
-  contract. Document converters use the checked conversion path.
-- Lossless representations for all validly encoded Dc sequences and all
-  mixed-mode run metadata remain pending. No new encoding or semantic Dc is
-  allocated here. Unsupported conversions fail explicitly; arbitrary source
-  sequences remain raw-editable in their original format.
+- Binary conversion preserves declared types and checksums, including
+  translating legacy binary SHA-256 headers into textual checksum metadata.
+  It does not promise byte-identical framing or source spelling.
+- DcUtf import validates Dc 203 syntax, lengths, and checksums. Unclosed Dc 203
+  is rejected; valid source spellings may be normalized.
+- Legacy arbitrary DcUtf runs remain a representation projection on textual
+  export. Their storage-run identity is not preserved, and a non-base64 body
+  without the new binary syntax cannot be reimported as a binary encapsulation.
+- Arbitrary source sequences remain raw-editable in their original format.
+  Exact restoration of transport bytes and alternative source spellings is
+  outside the conversion contract. No new semantic Dc is allocated here.
 
 ## Annotations and Edits
 

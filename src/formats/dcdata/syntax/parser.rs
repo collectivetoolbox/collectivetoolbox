@@ -994,7 +994,22 @@ pub fn parse_document_tokens_with_resolver(
                             .map(|end| end.saturating_sub(1))
                         });
 
-                        let child_elements = if target == CharTarget::Dc(511) && consumed > 3 {
+                        let child_elements = if target == CharTarget::Dc(203) {
+                            // The matched header declares a binary payload type; it
+                            // does not invoke that format's document syntax.
+                            let Some(payload) = remaining.get(1..consumed.saturating_sub(1)) else {
+                                diagnostics.push(SyntaxDiagnostic {
+                                    message: "Invalid binary encapsulation bounds".to_owned(),
+                                    token_offset: offset,
+                                    is_error: true,
+                                });
+                                return ParsedDocument { elements, diagnostics, has_errors: true };
+                            };
+                            payload.iter()
+                                .copied()
+                                .map(ParsedElement::Atomic)
+                                .collect()
+                        } else if target == CharTarget::Dc(511) && consumed > 3 {
                             // Reason for fallback: missing format token inside 511 container defaults to 0
                             let fmt_tok = remaining.get(1).copied().unwrap_or(0);
                             let payload_slice = match remaining.get(2..consumed.saturating_sub(1)) {

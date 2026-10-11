@@ -1594,7 +1594,7 @@ mod tests {
         original.encode_dc_field("os", &mut source)?;
         let suffix_start = source.len();
         source.push_char(DcChar::from_short(600));
-        source.push_binary_with_sha256(b"future environment field");
+        source.push_binary_with_sha256(b"future environment field").unwrap();
         source.push_char(DcChar::from_short(341));
         let view = source.inspect::<EnvDescription>();
         assert!(view.value().is_none());

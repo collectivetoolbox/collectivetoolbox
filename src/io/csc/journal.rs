@@ -819,6 +819,7 @@ pub fn read_v4_journal_snapshot(
             | Err(ctb_formats_dcstring::DcMixedError::InvalidUtf8e128 { offset, .. })
             | Err(ctb_formats_dcstring::DcMixedError::InvalidEncapsulationType { offset, .. })
             | Err(ctb_formats_dcstring::DcMixedError::SizeOverflow { offset, .. })
+            | Err(ctb_formats_dcstring::DcMixedError::InvalidMetadata { offset, .. })
             | Err(ctb_formats_dcstring::DcMixedError::ChecksumMismatch { offset, .. }) => {
                 if offset >= valid_slice_len {
                     valid_slice_len = valid_slice_len.saturating_sub(1);
@@ -2131,4 +2132,3 @@ mod tests {
         Ok(())
     }
 }
-

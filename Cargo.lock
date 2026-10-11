@@ -3138,6 +3138,7 @@ dependencies = [
  "clap",
  "const-default",
  "ctb-dc-macro",
+ "ctb-formats-checksum",
  "ctb-formats-dcdata",
  "ctb-formats-eite",
  "ctb-formats-math",

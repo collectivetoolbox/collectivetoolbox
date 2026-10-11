@@ -187,8 +187,7 @@ impl From<BinaryPayload> for Vec<u8> {
 
 impl DcMixedEncode for BinaryPayload {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_binary_with_sha256(&self.0);
-        Ok(())
+        mst.push_binary_with_sha256(&self.0)
     }
 }
 
@@ -197,6 +196,15 @@ impl DcMixedDecode for BinaryPayload {
         let payload = reader.read_binary_payload()?;
         Ok(Self(payload.to_vec()))
     }
+}
+
+fn checksum_format(data_type: Option<&crate::DcStr>) -> Result<Option<DcChar>> {
+    let Some(data_type) = data_type else { return Ok(None) };
+    let mut chars = data_type.chars();
+    let format = chars.next().context("Missing checksum format")?;
+    ensure!(chars.next().is_none(), "Checksum requires a single hash format");
+    format.to_format()?;
+    Ok(Some(format))
 }
 
 /// A streaming cursor over a borrowed `DcMstr` slice.
@@ -214,6 +222,7 @@ pub struct DcMixedReader<'a> {
     current_text: Option<DcChars<'a>>,
     peeked_char: Option<DcChar>,
     peeked_binary: Option<&'a [u8]>,
+    peeked_metadata: Option<&'a crate::DcStr>,
     shared_context: Option<&'a crate::SharedValueContext>,
     reference_scope: crate::SharedValueContext,
 }
@@ -235,6 +244,7 @@ impl<'a> DcMixedReader<'a> {
             current_text: None,
             peeked_char: None,
             peeked_binary: None,
+            peeked_metadata: None,
             shared_context: None,
             reference_scope: crate::SharedValueContext::default(),
         }
@@ -256,6 +266,7 @@ impl<'a> DcMixedReader<'a> {
             current_text: Some(source.chars()),
             peeked_char: None,
             peeked_binary: None,
+            peeked_metadata: None,
             shared_context: None,
             reference_scope: crate::SharedValueContext::default(),
         }
@@ -392,6 +403,13 @@ impl<'a> DcMixedReader<'a> {
                     self.peeked_binary = Some(data);
                     return Ok(Some(DC_START_ENCAPSULATION_BINARY));
                 }
+                Some(DcMixed::BinaryWithMetadata { data, metadata }) => {
+                    self.peeked_start = start;
+                    self.peeked_end = end;
+                    self.peeked_binary = Some(data);
+                    self.peeked_metadata = Some(metadata);
+                    return Ok(Some(DC_START_ENCAPSULATION_BINARY));
+                }
                 Some(DcMixed::DcUtf { data, .. }) => {
                     self.text_end = end;
                     self.current_text = Some(data.chars());
@@ -492,8 +510,13 @@ impl<'a> DcMixedReader<'a> {
     pub fn read_binary_payload(&mut self) -> Result<Cow<'a, [u8]>> {
         self.peek_char()?;
         if let Some(data) = self.peeked_binary.take() {
+            self.peeked_metadata = None;
             self.position = self.peeked_end;
             return Ok(Cow::Borrowed(data));
+        }
+        if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+            let (_, data) = self.read_textual_binary()?;
+            return Ok(Cow::Owned(data));
         }
         let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
         if is_text_encapsulation {
@@ -559,8 +582,18 @@ impl<'a> DcMixedReader<'a> {
     pub fn read_checksum_payload(&mut self) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
         self.peek_char()?;
         if let Some(data) = self.peeked_binary.take() {
+            let format = if let Some(metadata) = self.peeked_metadata.take() {
+                checksum_format(crate::encapsulation::parse_metadata(metadata)?.data_type)?
+            } else {
+                None
+            };
             self.position = self.peeked_end;
-            return Ok((None, Cow::Borrowed(data)));
+            return Ok((format, Cow::Borrowed(data)));
+        }
+        if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+            let (metadata, data) = self.read_textual_binary()?;
+            let format = checksum_format(crate::encapsulation::parse_metadata(&metadata)?.data_type)?;
+            return Ok((format, Cow::Owned(data)));
         }
         let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
         if is_text_encapsulation {
@@ -618,6 +651,27 @@ impl<'a> DcMixedReader<'a> {
             format_char,
             Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?),
         ))
+    }
+
+    fn read_textual_binary(&mut self) -> Result<(crate::DcString, Vec<u8>)> {
+        let mut source = crate::DcString::new();
+        let mut depth = 0usize;
+        loop {
+            let ch = self.next_char()?;
+            source.push(ch);
+            if ch == DC_START_ENCAPSULATION_BINARY {
+                depth = depth.saturating_add(1);
+                ensure!(depth <= 32, "Encapsulation metadata nesting exceeds 32 levels");
+            } else if ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
+                depth = depth.checked_sub(1).context("Unexpected Dc 204")?;
+                if depth == 0 {
+                    break;
+                }
+            }
+        }
+        let (metadata, data, consumed) = crate::encapsulation::parse_text(&source)?;
+        ensure!(consumed == source.len(), "Trailing binary encapsulation content");
+        Ok((metadata, data))
     }
 
     /// Reads a string literal enclosed between `Dc 260` and `Dc 261`.
@@ -1184,10 +1238,10 @@ impl DcMixedEncode for PathBuf {
                     mst.push_char(DC_BEGIN_LIST);
                     mst.push_char(DcChar::from_short(275));
                     text.encode_dc_mixed(mst)?;
-                    mst.push_binary_with_sha256(segment);
+                    mst.push_binary_with_sha256(segment)?;
                     mst.push_char(DC_END_LIST);
                 } else {
-                    mst.push_binary_with_sha256(segment);
+                    mst.push_binary_with_sha256(segment)?;
                 }
                 mst.push_char(DcChar::from_short(512));
             }
@@ -1529,7 +1583,7 @@ mod tests {
             let stop = source.len();
             if unknown {
                 source.push_char(DcChar::from_short(600));
-                source.push_binary_with_sha256(b"unknown future syntax");
+                source.push_binary_with_sha256(b"unknown future syntax").unwrap();
                 original.encode_dc_field("path", &mut source)?;
                 source.push_char(DcChar::from_short(318));
             }
@@ -1660,7 +1714,7 @@ mod tests {
     fn test_source_reader_positions() -> Result<()> {
         let mut source = DcMstring::new();
         source.push_str("\u{e9}");
-        source.push_binary_with_sha256(b"payload");
+        source.push_binary_with_sha256(b"payload").unwrap();
         source.push_str("end");
         let mut reader = DcMixedReader::new(&source);
         let start = reader.position();
@@ -1698,7 +1752,7 @@ mod tests {
         original.encode_dc_map_field("count", &mut incomplete, crate::DcKvMapEncoding::Legacy)?;
         incomplete.push_char(DcChar::from_short(312));
         "future".encode_dc_mixed(&mut incomplete)?;
-        incomplete.push_binary_with_sha256(b"unknown value");
+        incomplete.push_binary_with_sha256(b"unknown value").unwrap();
         let view = incomplete.inspect::<SampleKeyedRecord>();
         assert!(view.diagnostic().is_some());
         let end = view.fields()[0].range().end;
@@ -1984,7 +2038,7 @@ mod tests {
         encoded.push_char(DC_BEGIN_LIST);
         encoded.push_char(DcChar::from_short(275));
         "text".encode_dc_mixed(&mut encoded)?;
-        encoded.push_binary_with_sha256(b"different");
+        encoded.push_binary_with_sha256(b"different").unwrap();
         encoded.push_char(DC_END_LIST);
         assert!(decode_filename_bytes(&mut DcMixedReader::new(&encoded)).is_err());
         Ok(())

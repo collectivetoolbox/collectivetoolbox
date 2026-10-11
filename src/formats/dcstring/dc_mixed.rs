@@ -58,6 +58,9 @@ pub const TYPE_BINARY: u8 = 0;
 /// Type byte indicating direct UTF-8e-128 (DcUtf) encapsulation (unchecksummed).
 pub const TYPE_DCUTF: u8 = 1;
 
+/// Direct binary payload with a length-delimited DcUtf metadata block.
+pub const TYPE_BINARY_METADATA: u8 = 2;
+
 /// Type byte indicating direct binary encapsulation with a 32-byte SHA-256
 /// checksum.
 pub const TYPE_BINARY_SHA256: u8 = 3;
@@ -76,6 +79,13 @@ pub const DC_203_BYTES: [u8; 6] = [0xFF, 0x84, 0x84, 0x90, 0x83, 0x8B];
 /// Errors encountered while parsing or validating `DcMixed` / `DcMstring` data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DcMixedError {
+    /// Invalid typed encapsulation metadata, length, or checksum.
+    InvalidMetadata {
+        /// Byte offset of the metadata block.
+        offset: usize,
+        /// Explanation of the failure.
+        message: String,
+    },
     /// Document is shorter than the 21-byte header.
     TooShort {
         /// Actual length of the slice in bytes.
@@ -135,6 +145,9 @@ pub enum DcMixedError {
 impl fmt::Display for DcMixedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidMetadata { offset, message } => {
+                write!(f, "Invalid encapsulation metadata at offset {offset}: {message}")
+            }
             Self::TooShort { len } => {
                 write!(
                     f,
@@ -203,6 +216,13 @@ pub enum DcMixed<'a> {
         /// Optional 32-byte SHA-256 digest.
         sha256: Option<[u8; 32]>,
     },
+    /// Direct binary payload with optional type and checksum encoded as DcUtf.
+    BinaryWithMetadata {
+        /// Raw binary slice.
+        data: &'a [u8],
+        /// DcUtf metadata containing `[type]? [checksum]?`.
+        metadata: &'a DcStr,
+    },
     /// Direct UTF-8e-128 (DcUtf) encapsulated data with optional SHA-256 digest.
     DcUtf {
         /// Encapsulated `DcStr` slice.
@@ -262,16 +282,18 @@ impl<'a> DcMixed<'a> {
     #[must_use]
     pub fn as_binary(&self) -> Option<&'a [u8]> {
         match self {
-            Self::Binary { data, .. } => Some(*data),
+            Self::Binary { data, .. } | Self::BinaryWithMetadata { data, .. } => Some(*data),
             _ => None,
         }
     }
 
-    /// Returns the SHA-256 checksum if present on this segment.
+    /// Returns the legacy fixed-header SHA-256 checksum, if present.
+    ///
+    /// Type-2 checksums are retained in the segment's DcUtf metadata instead.
     #[must_use]
     pub const fn sha256(&self) -> Option<[u8; 32]> {
         match self {
-            Self::Text(_) => None,
+            Self::Text(_) | Self::BinaryWithMetadata { .. } => None,
             Self::Binary { sha256, .. } | Self::DcUtf { sha256, .. } => *sha256,
         }
     }
@@ -283,6 +305,9 @@ impl<'a> DcMixed<'a> {
     pub fn verify_checksum(&self) -> bool {
         match self {
             Self::Text(_) => true,
+            Self::BinaryWithMetadata { data, metadata } => {
+                crate::encapsulation::validate_metadata(metadata, data).is_ok()
+            }
             Self::Binary { data, sha256 } => {
                 if let Some(expected) = sha256 {
                     let actual = Sha256::digest(data);
@@ -317,6 +342,13 @@ pub enum DcMixedOwned {
         data: Vec<u8>,
         /// Optional 32-byte SHA-256 digest.
         sha256: Option<[u8; 32]>,
+    },
+    /// Direct binary payload with optional type and checksum encoded as DcUtf.
+    BinaryWithMetadata {
+        /// Raw binary bytes.
+        data: Vec<u8>,
+        /// DcUtf metadata containing `[type]? [checksum]?`.
+        metadata: DcString,
     },
     /// Direct UTF-8e-128 (DcUtf) encapsulated data with optional SHA-256 digest.
     DcUtf {
@@ -449,8 +481,8 @@ impl DcMstr {
 
     /// Converts this `DcMstr` into a standard `DcString` (DcUtf) representation.
     ///
-    /// Encapsulated binary payloads (`TYPE_BINARY` and `TYPE_BINARY_SHA256`) are
-    /// converted into base64 characters between `Dc 203` and `Dc 204`.
+    /// Binary payloads are converted into base64 characters between Dc 203 and
+    /// Dc 204, with byte length and any declared type or checksum.
     /// DcUtf payloads (`TYPE_DCUTF` and `TYPE_DCUTF_SHA256`) are placed
     /// between `Dc 203` and `Dc 204`.
     ///
@@ -463,14 +495,16 @@ impl DcMstr {
                 DcMixed::Text(text) => {
                     out.push_dc_str(text);
                 }
-                DcMixed::Binary { data, .. } => {
-                    out.push(DC_START_ENCAPSULATION_BINARY);
-                    let raw_shorts =
-                        ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(data)?;
-                    for short_id in raw_shorts {
-                        out.push(DcChar::from_short(short_id));
-                    }
-                    out.push(DC_END_ENCAPSULATION_BINARY);
+                DcMixed::Binary { data, sha256 } => {
+                    let metadata = if let Some(digest) = sha256 {
+                        crate::encapsulation::checksum_text(ctb_utilities::format_id::DC_SHA256, &digest)?
+                    } else {
+                        DcString::new()
+                    };
+                    crate::encapsulation::write_text(&mut out, data, &metadata)?;
+                }
+                DcMixed::BinaryWithMetadata { data, metadata } => {
+                    crate::encapsulation::write_text(&mut out, data, metadata)?;
                 }
                 DcMixed::DcUtf { data, .. } => {
                     out.push(DC_START_ENCAPSULATION_BINARY);
@@ -537,6 +571,9 @@ impl fmt::Display for DcMstr {
                     } else {
                         write!(f, "[Binary blob: {} bytes]", data.len())?;
                     }
+                }
+                DcMixed::BinaryWithMetadata { data, .. } => {
+                    write!(f, "[Typed binary blob: {} bytes]", data.len())?;
                 }
                 DcMixed::DcUtf { data, sha256 } => {
                     if sha256.is_some() {
@@ -624,78 +661,28 @@ impl DcMstring {
 
     /// Converts a standard `DcStr` (DcUtf) into a `DcMstring` document.
     ///
-    /// Regions between `Dc 203` and `Dc 204` are analyzed:
-    /// - If composed entirely of base64-encapsulation or padding Dcs, they are
-    ///   decoded into binary bytes and stored as direct `TYPE_BINARY`.
-    /// - If other Dcs occur, the region is stored as direct `TYPE_DCUTF`.
+    /// Dc 203 regions contain an optional type, decoded byte length, checksum,
+    /// and base64 payload. They are stored as direct type-2 binary runs.
     ///
     /// # Errors
-    /// Returns an error if base64 decoding fails or conversion cannot preserve
-    /// the exact source Dc encoding. Quoted, escaped, or malformed regions are
-    /// not silently normalized.
+    /// Returns an error for malformed encapsulations or invalid lengths and
+    /// checksums. Base64 spelling and framing may be normalized.
     pub fn from_dc_str(s: &DcStr) -> Result<Self> {
         let mut mst = Self::new();
-        let chars: Vec<DcChar> = s.chars().collect();
-        let mut i = 0usize;
-
-        while i < chars.len() {
-            let Some(&ch) = chars.get(i) else { break };
+        let mut offset = 0usize;
+        while offset < s.len() {
+            let remaining = s.get(offset..).context("Invalid DcUtf conversion boundary")?;
+            let ch = remaining.chars().next().context("Missing Dc character")?;
             if ch == DC_START_ENCAPSULATION_BINARY {
-                // Find closing Dc 204
-                let mut j = i.saturating_add(1);
-                let mut found_end = false;
-                while j < chars.len() {
-                    let Some(&cur) = chars.get(j) else { break };
-                    if cur == DC_END_ENCAPSULATION_BINARY {
-                        found_end = true;
-                        break;
-                    }
-                    j = j.saturating_add(1);
-                }
-
-                if found_end {
-                    let inner_chars = match chars.get(i.saturating_add(1)..j) {
-                        Some(slice) => slice,
-                        None => &[],
-                    };
-                    let mut all_base64 = true;
-                    let mut shorts = Vec::with_capacity(inner_chars.len());
-                    for &c in inner_chars {
-                        if let Some(short_id) = c.to_short_dc() {
-                            if ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short_id) {
-                                shorts.push(short_id);
-                                continue;
-                            }
-                        }
-                        all_base64 = false;
-                        break;
-                    }
-
-                    if all_base64 {
-                        let decoded = ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?;
-                        mst.push_binary(&decoded);
-                    } else {
-                        let mut inner_str = DcString::new();
-                        for &c in inner_chars {
-                            inner_str.push(c);
-                        }
-                        mst.push_dcutf_str(&inner_str);
-                    }
-                    i = j.saturating_add(1);
-                    continue;
-                }
+                let (metadata, data, consumed) = crate::encapsulation::parse_text(remaining)?;
+                mst.push_binary_with_metadata(&data, &metadata)?;
+                offset = offset.saturating_add(consumed);
+            } else {
+                mst.push_char(ch);
+                let mut encoded = [0u8; 24];
+                offset = offset.saturating_add(encode_utf_8e_128_buf(&mut encoded, ch.to_u128()));
             }
-
-            mst.push_char(ch);
-            i = i.saturating_add(1);
         }
-
-        validate_dcmst(mst.as_bytes())
-            .context("DcUtf cannot be represented as valid mixed mode without changing its source")?;
-        ensure!(
-            mst.to_dc_string()?.as_bytes() == s.as_bytes(),
-            "DcUtf cannot be represented losslessly in mixed mode: encapsulation spelling would change"
-        );
         Ok(mst)
     }
 
@@ -730,49 +717,57 @@ impl DcMstring {
         }
     }
 
-    /// Appends an unchecksummed direct binary payload (`TYPE_BINARY`).
+    /// Appends a type-2 binary payload with an empty metadata block.
     pub fn push_binary(&mut self, data: &[u8]) {
         #[allow(
             clippy::expect_used,
             reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
         )]
         let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
-        self.write_encapsulation_header(TYPE_BINARY, len_u64, None);
+        self.write_encapsulation_header(TYPE_BINARY_METADATA, len_u64, None);
+        self.inner.extend_from_slice(&0u128.to_be_bytes());
         self.inner.extend_from_slice(data);
     }
 
-    /// Appends a SHA-256 checksummed direct binary payload (`TYPE_BINARY_SHA256`).
-    pub fn push_binary_with_sha256(&mut self, data: &[u8]) {
+    /// Appends binary data with `[type]? [checksum]?` DcUtf metadata.
+    ///
+    /// # Errors
+    /// Returns an error for invalid metadata or a mismatched checksum.
+    pub fn push_binary_with_metadata(&mut self, data: &[u8], metadata: &DcStr) -> Result<()> {
+        crate::encapsulation::validate_metadata(metadata, data)?;
+        self.inner.extend_from_slice(&DC_203_BYTES);
+        self.inner.push(TYPE_BINARY_METADATA);
+        self.inner.extend_from_slice(&u128::try_from(data.len())?.to_be_bytes());
+        self.inner.extend_from_slice(&u128::try_from(metadata.len())?.to_be_bytes());
+        self.inner.extend_from_slice(metadata.as_bytes());
+        self.inner.extend_from_slice(data);
+        Ok(())
+    }
+
+    /// Appends a type-2 binary payload with a DcUtf SHA-256 checksum.
+    ///
+    /// # Errors
+    /// Returns an error if checksum metadata cannot be encoded.
+    pub fn push_binary_with_sha256(&mut self, data: &[u8]) -> Result<()> {
         let hash = Sha256::digest(data);
         let mut sha = [0u8; 32];
         sha.copy_from_slice(hash.as_slice());
-        #[allow(
-            clippy::expect_used,
-            reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
-        )]
-        let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
-        self.write_encapsulation_header(TYPE_BINARY_SHA256, len_u64, Some(sha));
-        self.inner.extend_from_slice(data);
+        let metadata = crate::encapsulation::checksum_text(ctb_utilities::format_id::DC_SHA256, &sha)?;
+        self.push_binary_with_metadata(data, &metadata)
     }
 
     /// Appends a typed checksum payload enclosed between `Dc 203` and `Dc 204`.
     ///
     /// Formats the payload as `Dc 203` (`DC_START_ENCAPSULATION_BINARY`), followed by
-    /// the format `DcChar` (e.g. `DC_SHA256`), followed by base64 encapsulation digits,
-    /// followed by `Dc 204` (`DC_END_ENCAPSULATION_BINARY`).
+    /// a hash format and byte length, followed by base64 encapsulation digits
+    /// and Dc 204. Mixed mode stores the digest directly with its type.
     ///
     /// # Errors
     /// Returns error if base64 encoding fails.
     pub fn push_checksum(&mut self, format: impl Into<DcChar>, digest: &[u8]) -> Result<()> {
-        let fmt_char = format.into();
-        let raw_shorts = ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(digest)?;
-        let mut inner = DcString::new();
-        inner.push(fmt_char);
-        for short_id in raw_shorts {
-            inner.push(DcChar::from_short(short_id));
-        }
-        self.push_dcutf_str(&inner);
-        Ok(())
+        let mut metadata = DcString::new();
+        metadata.push(format.into());
+        self.push_binary_with_metadata(digest, &metadata)
     }
 
     /// Appends a binary payload read directly from a stream (`std::io::Read`).
@@ -785,35 +780,13 @@ impl DcMstring {
         let size_usize = usize::try_from(size).context(
             "Payload size exceeds addressable memory size for in-memory buffer; use write_binary_encapsulation instead",
         )?;
-        let type_byte = if sha256.is_some() {
-            TYPE_BINARY_SHA256
-        } else {
-            TYPE_BINARY
-        };
-        self.write_encapsulation_header(type_byte, size, sha256);
+        let start = self.inner.len();
         self.inner.reserve(size_usize);
-        let mut buf = [0u8; 64 * 1024];
-        let mut remaining = size;
-        while remaining > 0 {
-            let buf_cap = u64::try_from(buf.len()).context("65536 fits into u64")?;
-            let to_read_u64 = remaining.min(buf_cap);
-            let to_read = usize::try_from(to_read_u64)
-                .context("at most 65536 bytes fits in usize")?;
-            let Some(buf_slice) = buf.get_mut(..to_read) else {
-                bail!("Buffer slice out of range");
-            };
-            let n = reader.read(buf_slice)?;
-            if n == 0 {
-                bail!("Unexpected EOF reading binary payload from stream: expected {remaining} more bytes");
-            }
-            let Some(read_slice) = buf.get(..n) else {
-                bail!("Read slice out of range");
-            };
-            self.inner.extend_from_slice(read_slice);
-            let n_u64 = u64::try_from(n).context("n fits in u64")?;
-            remaining = remaining.saturating_sub(n_u64);
+        let result = Self::write_binary_encapsulation(&mut self.inner, reader, size, sha256);
+        if result.is_err() {
+            self.inner.truncate(start);
         }
-        Ok(())
+        result
     }
 
     /// Writes binary encapsulation directly to a `std::io::Write` stream from a `std::io::Read`.
@@ -823,20 +796,20 @@ impl DcMstring {
         size: u64,
         sha256: Option<[u8; 32]>,
     ) -> Result<()> {
-        let type_byte = if sha256.is_some() {
-            TYPE_BINARY_SHA256
+        let metadata = if let Some(digest) = sha256 {
+            crate::encapsulation::checksum_text(ctb_utilities::format_id::DC_SHA256, &digest)?
         } else {
-            TYPE_BINARY
+            DcString::new()
         };
         writer.write_all(&DC_203_BYTES)?;
-        writer.write_all(&[type_byte])?;
+        writer.write_all(&[TYPE_BINARY_METADATA])?;
         let size_u128 = u128::from(size);
         writer.write_all(&size_u128.to_be_bytes())?;
-        if let Some(hash) = sha256 {
-            writer.write_all(&hash)?;
-        }
+        writer.write_all(&u128::try_from(metadata.len())?.to_be_bytes())?;
+        writer.write_all(metadata.as_bytes())?;
         let mut buf = [0u8; 64 * 1024];
         let mut remaining = size;
+        let mut hasher = Sha256::new();
         while remaining > 0 {
             let buf_cap = u64::try_from(buf.len()).context("65536 fits into u64")?;
             let to_read_u64 = remaining.min(buf_cap);
@@ -852,9 +825,16 @@ impl DcMstring {
             let Some(read_slice) = buf.get(..n) else {
                 bail!("Read slice out of range");
             };
+            if sha256.is_some() {
+                hasher.update(read_slice);
+            }
             writer.write_all(read_slice)?;
             let n_u64 = u64::try_from(n).context("n fits in u64")?;
             remaining = remaining.saturating_sub(n_u64);
+        }
+        if let Some(expected) = sha256 {
+            ensure!(hasher.finalize().as_slice() == expected.as_slice(),
+                "Streamed binary payload SHA-256 checksum mismatch");
         }
         Ok(())
     }
@@ -885,15 +865,17 @@ impl DcMstring {
     }
 
     /// Appends a `DcMixed` segment.
-    pub fn push_chunk(&mut self, chunk: &DcMixed<'_>) {
+    ///
+    /// # Errors
+    /// Returns an error for invalid type-2 metadata or checksum.
+    pub fn push_chunk(&mut self, chunk: &DcMixed<'_>) -> Result<()> {
         match chunk {
             DcMixed::Text(text) => self.push_dc_str(text),
+            DcMixed::BinaryWithMetadata { data, metadata } => {
+                self.push_binary_with_metadata(data, metadata)?;
+            }
             DcMixed::Binary { data, sha256: Some(sha) } => {
-                #[allow(
-                    clippy::expect_used,
-                    reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
-                )]
-                let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+                let len_u64 = u64::try_from(data.len())?;
                 self.write_encapsulation_header(TYPE_BINARY_SHA256, len_u64, Some(*sha));
                 self.inner.extend_from_slice(data);
             }
@@ -901,11 +883,7 @@ impl DcMstring {
                 self.push_binary(data);
             }
             DcMixed::DcUtf { data, sha256: Some(sha) } => {
-                #[allow(
-                    clippy::expect_used,
-                    reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
-                )]
-                let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+                let len_u64 = u64::try_from(data.len())?;
                 self.write_encapsulation_header(TYPE_DCUTF_SHA256, len_u64, Some(*sha));
                 self.inner.extend_from_slice(data.as_bytes());
             }
@@ -913,6 +891,7 @@ impl DcMstring {
                 self.push_dcutf_str(data);
             }
         }
+        Ok(())
     }
 
     /// Shortens the `DcMstring` to `new_len` bytes.
@@ -1032,9 +1011,18 @@ impl<'a> Iterator for DcMixedChunks<'a> {
             let mut size_buf = [0u8; 16];
             size_buf.copy_from_slice(size_bytes);
             let size_usize = usize::try_from(u128::from_be_bytes(size_buf)).ok()?;
+            let metadata = if type_byte == TYPE_BINARY_METADATA {
+                Some(metadata_region(self.slice, 23).ok()?)
+            } else {
+                None
+            };
 
             let (payload_start, sha256) = match type_byte {
                 TYPE_BINARY | TYPE_DCUTF => (23usize, None),
+                TYPE_BINARY_METADATA => {
+                    let (payload_start, _) = metadata?;
+                    (payload_start, None)
+                }
                 TYPE_BINARY_SHA256 | TYPE_DCUTF_SHA256 => {
                     let sha_slice = self.slice.get(23..55)?;
                     let mut sha = [0u8; 32];
@@ -1051,6 +1039,10 @@ impl<'a> Iterator for DcMixedChunks<'a> {
             return match type_byte {
                 TYPE_BINARY | TYPE_BINARY_SHA256 => {
                     Some(DcMixed::Binary { data: payload, sha256 })
+                }
+                TYPE_BINARY_METADATA => {
+                    let (_, metadata) = metadata?;
+                    Some(DcMixed::BinaryWithMetadata { data: payload, metadata })
                 }
                 TYPE_DCUTF | TYPE_DCUTF_SHA256 => {
                     #[expect(
@@ -1161,6 +1153,12 @@ fn validate_encapsulation_region(
 
     let (payload_start, expected_sha) = match type_byte {
         TYPE_BINARY | TYPE_DCUTF => (size_end, None),
+        TYPE_BINARY_METADATA => {
+            let (payload_start, _) = metadata_region(bytes, size_end).map_err(|error| {
+                DcMixedError::InvalidMetadata { offset: enc_start, message: error.to_string() }
+            })?;
+            (payload_start, None)
+        }
         TYPE_BINARY_SHA256 | TYPE_DCUTF_SHA256 => {
             let sha_end = size_end.saturating_add(32);
             let Some(sha_slice) = bytes.get(size_end..sha_end) else {
@@ -1197,6 +1195,13 @@ fn validate_encapsulation_region(
         });
     };
 
+    if type_byte == TYPE_BINARY_METADATA {
+        let (_, metadata) = metadata_region(bytes, size_end)?;
+        crate::encapsulation::validate_metadata(metadata, payload).map_err(|error| {
+            DcMixedError::InvalidMetadata { offset: enc_start, message: format!("{error:#}") }
+        })?;
+    }
+
     if let Some(expected_checksum) = expected_sha {
         let actual = Sha256::digest(payload);
         if actual.as_slice() != expected_checksum.as_slice() {
@@ -1220,6 +1225,24 @@ fn validate_encapsulation_region(
     }
 
     Ok(payload_end)
+}
+
+fn metadata_region(bytes: &[u8], start: usize) -> Result<(usize, &DcStr), DcMixedError> {
+    let invalid = |message: &str| DcMixedError::InvalidMetadata {
+        offset: start, message: message.to_owned(),
+    };
+    let length_end = start.checked_add(16).ok_or_else(|| invalid("Metadata length overflow"))?;
+    let length = bytes.get(start..length_end).ok_or_else(|| invalid("Truncated metadata length"))?;
+    let mut encoded = [0u8; 16];
+    encoded.copy_from_slice(length);
+    let length = usize::try_from(u128::from_be_bytes(encoded))
+        .map_err(|_| invalid("Metadata exceeds addressable memory"))?;
+    let end = length_end.checked_add(length).ok_or_else(|| invalid("Metadata length overflow"))?;
+    let metadata = bytes.get(length_end..end).ok_or_else(|| invalid("Truncated metadata"))?;
+    let metadata = DcStr::from_bytes(metadata).map_err(|source| DcMixedError::InvalidUtf8e128 {
+        offset: length_end.saturating_add(source.valid_up_to()), source,
+    })?;
+    Ok((end, metadata))
 }
 
 /// Validates that `bytes` contains valid `DcMixed` format data.
@@ -1356,7 +1379,7 @@ mod tests {
         mst.push_binary(payload1);
         mst.push_str("\nSeparator\n");
         let payload2 = b"Checksummed binary content!";
-        mst.push_binary_with_sha256(payload2);
+        mst.push_binary_with_sha256(payload2).unwrap();
 
         assert!(validate_dcmst(mst.as_bytes()).is_ok());
 
@@ -1370,7 +1393,10 @@ mod tests {
 
         assert_eq!(chunks[2].as_text().unwrap().as_str(), Some("\nSeparator\n"));
         assert_eq!(chunks[3].as_binary(), Some(payload2.as_slice()));
-        assert!(chunks[3].sha256().is_some());
+        let DcMixed::BinaryWithMetadata { metadata, .. } = &chunks[3] else {
+            panic!("Expected metadata-bearing binary chunk");
+        };
+        assert!(crate::encapsulation::parse_metadata(metadata).unwrap().checksum.is_some());
         assert!(chunks[3].verify_checksum());
     }
 
@@ -1378,7 +1404,7 @@ mod tests {
     fn test_checksum_mismatch_detection() {
         let mut mst = DcMstring::new();
         let payload = b"Sensitive data";
-        mst.push_binary_with_sha256(payload);
+        mst.push_binary_with_sha256(payload).unwrap();
 
         let mut corrupted = mst.into_bytes();
         // Mutate a byte in the payload
@@ -1386,7 +1412,7 @@ mod tests {
         corrupted[last_idx] ^= 0xFF;
 
         let err = validate_dcmst(&corrupted).unwrap_err();
-        assert!(matches!(err, DcMixedError::ChecksumMismatch { .. }));
+        assert!(matches!(err, DcMixedError::InvalidMetadata { .. }));
     }
 
     #[crate::ctb_test]
@@ -1439,21 +1465,31 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_conversion_checksum_preservation_boundary() -> Result<()> {
+    fn test_conversion_preserves_checksum_metadata() -> Result<()> {
         let mut mixed = DcMstring::new();
-        mixed.push_binary_with_sha256(b"payload");
+        mixed.push_binary_with_sha256(b"payload").unwrap();
         validate_dcmst(mixed.as_bytes())?;
         let text = mixed.to_dc_string()?;
         let restored = DcMstring::from_dc_string(&text)?;
         validate_dcmst(restored.as_bytes())?;
-        assert_ne!(restored.as_bytes(), mixed.as_bytes());
-        assert!(restored.chunks().all(|chunk| chunk.sha256().is_none()));
+        assert_eq!(restored.as_bytes(), mixed.as_bytes());
+        assert!(restored.chunks().all(|chunk| chunk.verify_checksum()));
         assert_eq!(restored.to_dc_string()?.as_bytes(), text.as_bytes());
-        assert!(crate::converters::utf8::dcmstring_to_dcutf(&mixed).is_err());
-        assert!(crate::converters::dctext::dcmstring_to_dctext(&mixed).is_err());
-        assert!(crate::converters::dcts::dcmstring_to_dcts(&mixed).is_err());
-        assert!(crate::converters::dcal::dcmstring_to_dcal(&mixed).is_err());
-        assert!(crate::converters::eite::dcmstring_to_dcil(&mixed).is_err());
+        let (bytes, _) = crate::converters::utf8::dcmstring_to_dcutf(&mixed)?;
+        let (imported, _) = crate::converters::utf8::dcutf_to_dcmstring(&bytes)?;
+        assert_eq!(imported.as_bytes(), mixed.as_bytes());
+        let (bytes, _) = crate::converters::dctext::dcmstring_to_dctext(&mixed)?;
+        let (imported, _) = crate::converters::dctext::dctext_to_dcmstring(&bytes)?;
+        assert_eq!(imported.as_bytes(), mixed.as_bytes());
+        let (bytes, _) = crate::converters::dcts::dcmstring_to_dcts(&mixed)?;
+        let (imported, _) = crate::converters::dcts::dcts_to_dcmstring(&bytes)?;
+        assert_eq!(imported.as_bytes(), mixed.as_bytes());
+        let (bytes, _) = crate::converters::dcal::dcmstring_to_dcal(&mixed)?;
+        let (imported, _) = crate::converters::dcal::dcal_to_dcmstring(&bytes)?;
+        assert_eq!(imported.as_bytes(), mixed.as_bytes());
+        let (bytes, _) = crate::converters::eite::dcmstring_to_dcil(&mixed)?;
+        let (imported, _) = crate::converters::eite::dcil_to_dcmstring(&bytes)?;
+        assert_eq!(imported.as_bytes(), mixed.as_bytes());
         let mut typed_run = DcMstring::new();
         let mut digits = DcString::new();
         for dc in ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(b"payload")? {
@@ -1461,7 +1497,7 @@ mod tests {
         }
         typed_run.push_dcutf_str(&digits);
         validate_dcmst(typed_run.as_bytes())?;
-        assert!(crate::converters::utf8::dcmstring_to_dcutf(&typed_run).is_err());
+        assert!(crate::converters::utf8::dcmstring_to_dcutf(&typed_run).is_ok());
         let mut binary = DcMstring::new();
         binary.push_binary(b"payload");
         let (exported, _) = crate::converters::utf8::dcmstring_to_dcutf(&binary)?;
@@ -1497,9 +1533,12 @@ mod tests {
         mst.push_str("FILE archive.tar\n");
         // 1 MB binary payload
         let large_payload = vec![0x42u8; 1024 * 1024];
-        mst.push_binary_with_sha256(&large_payload);
+        mst.push_binary_with_sha256(&large_payload).unwrap();
 
-        assert_eq!(mst.len(), 21 + "FILE archive.tar\n".len() + 6 + 1 + 16 + 32 + (1024 * 1024));
+        let DcMixed::BinaryWithMetadata { metadata, .. } = mst.chunks().nth(1).unwrap() else {
+            panic!("Expected metadata-bearing binary chunk");
+        };
+        assert_eq!(mst.len(), 21 + "FILE archive.tar\n".len() + 6 + 1 + 16 + 16 + metadata.len() + (1024 * 1024));
 
         let slice = DcMstr::from_bytes(mst.as_bytes()).unwrap();
         let chunks: Vec<DcMixed<'_>> = slice.chunks().collect();

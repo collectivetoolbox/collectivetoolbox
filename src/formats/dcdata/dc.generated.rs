@@ -52,7 +52,7 @@ pub const DC_START_ENCAPSULATION_UTF8: DcChar = DcChar::from_short(191);
 pub const DC_END_ENCAPSULATION_UTF8: DcChar = DcChar::from_short(192);
 /// Base 64 encapsulation padding character (Dc 195).
 pub const DC_BASE64_PADDING: DcChar = DcChar::from_short(195);
-/// Arbitrary binary data (base64 encoded, no semantic significance assigned to it unless optional type is specified) (Dc 203).
+/// Arbitrary binary data (base64 encoded, no semantic significance assigned to it unless optional type is specified). Optional length counts decoded payload bytes; optional checksum covers those bytes. (Dc 203).
 pub const DC_START_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(203);
 /// See description for 203 (Dc 204).
 pub const DC_END_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(204);

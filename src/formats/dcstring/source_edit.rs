@@ -595,7 +595,7 @@ mod tests {
         old.push_char(DcChar::from_short(312));
         let mut old = old.to_dc_string()?;
         let mut textual = DcMstring::new();
-        textual.push_binary_with_sha256(b"\x00\xff\x80");
+        textual.push_binary_with_sha256(b"\x00\xff\x80").unwrap();
         old.push_dc_str(&textual.to_dc_string()?);
         old.push(DcChar::from_short(314));
         let mut updated = old
@@ -621,7 +621,7 @@ mod tests {
         legacy.encode_header(&mut mixed);
         "binary".encode_dc_mixed(&mut mixed)?;
         mixed.push_char(DcChar::from_short(312));
-        mixed.push_binary_with_sha256(b"\x00\xff\x80");
+        mixed.push_binary_with_sha256(b"\x00\xff\x80").unwrap();
         legacy.encode_end(&mut mixed);
         let revised = preserve_source(&mixed, &new)
             .context("Reconciling binary source map")?;
@@ -644,7 +644,7 @@ mod tests {
         for dc in [314, 559, 514, 312, 999, 255] {
             source.push_char(DcChar::from_short(dc));
         }
-        source.push_binary_with_sha256(b"unchanged");
+        source.push_binary_with_sha256(b"unchanged").unwrap();
         let original = source.as_bytes().to_vec();
         let mut replacement = DcMstring::new();
         replacement.push_char(DcChar::from_short(560));

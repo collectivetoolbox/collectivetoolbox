@@ -423,7 +423,7 @@ mod tests {
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(397));
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(310));
         "legacy.txt".encode_dc_mixed(&mut encoded)?;
-        encoded.push_binary_with_sha256(b"legacy.txt");
+        encoded.push_binary_with_sha256(b"legacy.txt").unwrap();
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(311));
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(355));
         1u64.encode_dc_mixed(&mut encoded)?;

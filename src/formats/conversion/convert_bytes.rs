@@ -330,12 +330,14 @@ mod tests {
         )?;
         assert_eq!(std::str::from_utf8(&output.bytes)?.trim(), std::str::from_utf8(input)?);
         let mut checksummed = DcMstring::new();
-        checksummed.push_binary_with_sha256(b"preserve metadata");
-        assert!(convert_dcmstring_to_bytes(
+        checksummed.push_binary_with_sha256(b"preserve metadata").unwrap();
+        let exported = convert_dcmstring_to_bytes(
             &checksummed,
             SupportedDcOutputFormat::DcUtf,
             &DcExportOptions::default(),
-        ).is_err());
+        )?;
+        let (restored, _) = ctb_formats_dcstring::converters::utf8::dcutf_to_dcmstring(&exported.bytes)?;
+        assert_eq!(restored.as_bytes(), checksummed.as_bytes());
         let unchanged = convert_dcmstring_to_bytes(
             &checksummed,
             SupportedDcOutputFormat::DcMixed,
@@ -613,4 +615,3 @@ mod tests {
         }
     }
 }
-

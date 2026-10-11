@@ -45,7 +45,7 @@ fn dca_to_dcmstring(
 }
 
 fn dcmstring_to_dca(doc: &DcMstring) -> Result<(Vec<u32>, FormatLog)> {
-    let dc_string = super::lossless_dc_string(doc)?;
+    let dc_string = super::document_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let conv = dclist_to_dcarray(&dclist)?;
     Ok((conv.result, conv.log))
