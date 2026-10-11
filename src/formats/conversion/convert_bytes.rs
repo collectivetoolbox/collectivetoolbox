@@ -300,6 +300,52 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test]
+    fn test_convert_legacy_dcs_without_upgrade() -> Result<()> {
+        let input = b"313 275 275 65 312 66 314 265 999";
+        let imported = convert_bytes_to_dcmstring(
+            input,
+            Some("legacy.dcil"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::DcIntegerList),
+                allow_binary_encapsulation: false,
+            },
+        )?;
+        let exported = convert_dcmstring_to_bytes(
+            &imported.document,
+            SupportedDcOutputFormat::DcUtf,
+            &DcExportOptions::default(),
+        )?;
+        let restored = convert_bytes_to_dcmstring(
+            &exported.bytes,
+            Some("legacy.dcutf"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::DcUtf),
+                allow_binary_encapsulation: false,
+            },
+        )?;
+        let output = convert_dcmstring_to_bytes(
+            &restored.document,
+            SupportedDcOutputFormat::DcIntegerList,
+            &DcExportOptions::default(),
+        )?;
+        assert_eq!(std::str::from_utf8(&output.bytes)?.trim(), std::str::from_utf8(input)?);
+        let mut checksummed = DcMstring::new();
+        checksummed.push_binary_with_sha256(b"preserve metadata");
+        assert!(convert_dcmstring_to_bytes(
+            &checksummed,
+            SupportedDcOutputFormat::DcUtf,
+            &DcExportOptions::default(),
+        ).is_err());
+        let unchanged = convert_dcmstring_to_bytes(
+            &checksummed,
+            SupportedDcOutputFormat::DcMixed,
+            &DcExportOptions::default(),
+        )?;
+        assert_eq!(unchanged.bytes, checksummed.as_bytes());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_convert_utf8_roundtrip() {
         let input = b"Hello, world!";
         let res = convert_bytes_to_dcmstring(
@@ -567,5 +613,4 @@ mod tests {
         }
     }
 }
-
 

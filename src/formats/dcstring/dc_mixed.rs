@@ -630,7 +630,9 @@ impl DcMstring {
     /// - If other Dcs occur, the region is stored as direct `TYPE_DCUTF`.
     ///
     /// # Errors
-    /// Returns error if base64 decoding fails.
+    /// Returns an error if base64 decoding fails or conversion cannot preserve
+    /// the exact source Dc encoding. Quoted, escaped, or malformed regions are
+    /// not silently normalized.
     pub fn from_dc_str(s: &DcStr) -> Result<Self> {
         let mut mst = Self::new();
         let chars: Vec<DcChar> = s.chars().collect();
@@ -688,6 +690,12 @@ impl DcMstring {
             i = i.saturating_add(1);
         }
 
+        validate_dcmst(mst.as_bytes())
+            .context("DcUtf cannot be represented as valid mixed mode without changing its source")?;
+        ensure!(
+            mst.to_dc_string()?.as_bytes() == s.as_bytes(),
+            "DcUtf cannot be represented losslessly in mixed mode: encapsulation spelling would change"
+        );
         Ok(mst)
     }
 
@@ -1406,6 +1414,60 @@ mod tests {
             }
             _ => panic!("Expected DcUtf chunk"),
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_textual_encapsulation_is_invalid_mixed_mode() -> Result<()> {
+        let mut text = DcString::new();
+        for dc in [203, 127, 204] {
+            text.push(DcChar::from_short(dc));
+        }
+        let mut bytes = DcMstring::new().into_bytes();
+        bytes.extend_from_slice(text.as_bytes());
+        assert!(validate_dcmst(&bytes).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_conversion_rejects_unrepresentable_dc_sequences() -> Result<()> {
+        let mut text = DcString::new();
+        for dc in [314, 999, 203, 127] {
+            text.push(DcChar::from_short(dc));
+        }
+        assert!(DcMstring::from_dc_string(&text).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_conversion_checksum_preservation_boundary() -> Result<()> {
+        let mut mixed = DcMstring::new();
+        mixed.push_binary_with_sha256(b"payload");
+        validate_dcmst(mixed.as_bytes())?;
+        let text = mixed.to_dc_string()?;
+        let restored = DcMstring::from_dc_string(&text)?;
+        validate_dcmst(restored.as_bytes())?;
+        assert_ne!(restored.as_bytes(), mixed.as_bytes());
+        assert!(restored.chunks().all(|chunk| chunk.sha256().is_none()));
+        assert_eq!(restored.to_dc_string()?.as_bytes(), text.as_bytes());
+        assert!(crate::converters::utf8::dcmstring_to_dcutf(&mixed).is_err());
+        assert!(crate::converters::dctext::dcmstring_to_dctext(&mixed).is_err());
+        assert!(crate::converters::dcts::dcmstring_to_dcts(&mixed).is_err());
+        assert!(crate::converters::dcal::dcmstring_to_dcal(&mixed).is_err());
+        assert!(crate::converters::eite::dcmstring_to_dcil(&mixed).is_err());
+        let mut typed_run = DcMstring::new();
+        let mut digits = DcString::new();
+        for dc in ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(b"payload")? {
+            digits.push(DcChar::from_short(dc));
+        }
+        typed_run.push_dcutf_str(&digits);
+        validate_dcmst(typed_run.as_bytes())?;
+        assert!(crate::converters::utf8::dcmstring_to_dcutf(&typed_run).is_err());
+        let mut binary = DcMstring::new();
+        binary.push_binary(b"payload");
+        let (exported, _) = crate::converters::utf8::dcmstring_to_dcutf(&binary)?;
+        let (imported, _) = crate::converters::utf8::dcutf_to_dcmstring(&exported)?;
+        assert_eq!(imported.as_bytes(), binary.as_bytes());
+        Ok(())
     }
 
     #[crate::ctb_test]

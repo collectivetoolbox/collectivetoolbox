@@ -33,6 +33,21 @@ pub mod dctext;
 pub mod utf8;
 pub mod eite;
 
+/// Produces DcUtf only when reimport preserves the mixed-mode source bytes.
+///
+/// # Errors
+/// Returns an error for invalid input or unrepresentable run metadata.
+pub(crate) fn lossless_dc_string(doc: &crate::DcMstring) -> Result<crate::DcString> {
+    crate::validate_dcmst(doc.as_bytes())?;
+    let text = doc.to_dc_string()?;
+    let restored = crate::DcMstring::from_dc_string(&text)?;
+    ensure!(
+        restored.as_bytes() == doc.as_bytes(),
+        "Document conversion would discard mixed-mode run type or checksum information"
+    );
+    Ok(text)
+}
+
 pub use ascii::{
     AsciiSettings, AsciiUnmappablePolicy, ascii_safe_subset_to_dcmstring,
     ascii_safe_subset_to_dcmstring_with_settings, ascii_to_dcmstring,
@@ -56,4 +71,3 @@ pub use dctext::{
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };
-

@@ -89,7 +89,7 @@ pub fn dcal_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> 
 
 /// Converts a `DcMstring` to Dcal bytes.
 pub fn dcmstring_to_dcal(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dc_string = doc.to_dc_string()?;
+    let dc_string = super::lossless_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let bytes = dclist_to_dcal(&dclist);
     Ok((bytes, FormatLog::default()))

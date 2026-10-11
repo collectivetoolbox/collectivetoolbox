@@ -524,7 +524,7 @@ pub fn utf8_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> 
 
 /// Converts a `DcMstring` to UTF-8 bytes.
 pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dc_string = doc.to_dc_string()?;
+    let dc_string = super::lossless_dc_string(doc)?;
     if let Some(s) = dc_string.as_str() {
         return Ok((s.as_bytes().to_vec(), FormatLog::default()));
     }
@@ -543,7 +543,7 @@ pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)>
 
 /// Converts a `DcMstring` to DcUtf bytes.
 pub fn dcmstring_to_dcutf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let dc_string = doc.to_dc_string()?;
+    let dc_string = super::lossless_dc_string(doc)?;
     Ok((dc_string.into_bytes(), FormatLog::default()))
 }
 

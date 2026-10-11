@@ -34,6 +34,45 @@ strings. Conversion between mixed mode and DcUtf is not implicit when saving
 or editing an existing string. Direct binary payloads are borrowed when read;
 textual base64 encapsulations require an owned decoded byte buffer.
 
+## Format Conversion and Application Serialization
+
+Document format conversion must preserve Dc identities and ordering, including
+deprecated characters, without evaluating syntax or applying preference links.
+Changing the transport encoding is not permission to upgrade document syntax.
+For example, converting DcIntegerList to DcUtf must retain Dc 313 rather than
+replace it with Dc 559. Source-format whitespace and encoding bytes need not be
+identical across different formats; the decoded Dc sequence must be.
+
+Application serialization is a different operation. Decoding metadata into
+Rust structs and serializing a new value does not promise preservation of the
+original document. An editor operating on that same file must use its source
+bytes and replace only the selected filename range, not serialize the whole
+metadata struct. Dependent checksums or encoded lengths require an explicit
+enclosing-format editing contract; they cannot be silently left invalid or
+claimed to remain byte-identical after changing covered content.
+
+### Remaining Conversion Gaps
+
+- DcIntegerList conversion preserves deprecated map and routine Dcs; regression
+  coverage includes Dc 313, Dc 265, explicit pairs, and an unknown Dc.
+- Mixed-mode validation already rejects ordinary top-level textual
+  `203 ... 204`: Dc 203 must introduce a typed, length-delimited encapsulation.
+  This does not make conversion byte-roundtrippable in both directions.
+- Mixed-mode export to textual Dc formats now verifies reimport against the
+  original bytes and rejects loss of checksums or run-type information.
+  Checksummed runs are valid mixed-mode input, but cannot currently be exported
+  losslessly to these formats. They produce an explicit conversion error.
+- DcUtf import interprets `203 ... 204` regions, validates the mixed-mode
+  result, and verifies exact DcUtf re-export. Unclosed Dc 203 or base64 spelling
+  that would be normalized is rejected rather than silently altered.
+- The low-level `DcMstr::to_dc_string()` remains a representation projection
+  used by application serialization; it is not a lossless document-export
+  contract. Document converters use the checked conversion path.
+- Lossless representations for all validly encoded Dc sequences and all
+  mixed-mode run metadata remain pending. No new encoding or semantic Dc is
+  allocated here. Unsupported conversions fail explicitly; arbitrary source
+  sequences remain raw-editable in their original format.
+
 ## Annotations and Edits
 
 Tagged and keyed record derives produce `DcMixedFields` implementations and

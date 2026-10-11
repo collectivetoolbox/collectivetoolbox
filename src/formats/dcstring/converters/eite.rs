@@ -45,7 +45,7 @@ fn dca_to_dcmstring(
 }
 
 fn dcmstring_to_dca(doc: &DcMstring) -> Result<(Vec<u32>, FormatLog)> {
-    let dc_string = doc.to_dc_string()?;
+    let dc_string = super::lossless_dc_string(doc)?;
     let dclist = dc_string.to_dclist();
     let conv = dclist_to_dcarray(&dclist)?;
     Ok((conv.result, conv.log))
@@ -104,6 +104,17 @@ pub use crate::converters::ascii::{
 )]
 mod tests {
     use super::*;
+
+    #[crate::ctb_test]
+    fn test_dcil_conversion_preserves_legacy_dcs() -> Result<()> {
+        let input = b"313 275 275 65 312 66 314 265 514 65 312 66 515 999";
+        let (doc, _) = dcil_to_dcmstring(input)?;
+        let (utf, _) = crate::converters::utf8::dcmstring_to_dcutf(&doc)?;
+        let (restored, _) = crate::converters::utf8::dcutf_to_dcmstring(&utf)?;
+        let (output, _) = dcmstring_to_dcil(&restored)?;
+        assert_eq!(std::str::from_utf8(&output)?.trim(), std::str::from_utf8(input)?);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_dcil_roundtrip() {
