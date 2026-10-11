@@ -225,7 +225,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114648,536,File warning,0,BN,,!Cx,.Semantic,:~ [string],Operational warning or fidelity notice observed for a file entity.
 1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.
 1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist."
-1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,:~ ([key_value] | [data]),Raw file flag bitmask with an unparsed-bits indicator.
+1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,:~ [data],Raw file flag bitmask with an unparsed-bits indicator.
 1114655,543,Begin checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""BeginChecksummedSection""), :~ [^544]+ 544 [545:]",Begins a delimited section of a document or stream verified by an end checksum.
 1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection""), @closes(543)",Terminates a checksummed section.
 1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), :~ [checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
