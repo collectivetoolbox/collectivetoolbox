@@ -232,7 +232,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228447,f223,Panorama SuperDate,0,BN,,!Cx,.Formats:date,"@ident(""PanSuperDate"")",,,,,,,,,,
 2228448,f224,Math expression (not an equation/relation),0,BN,,!Cx,.Formats:math,"@ident(""MathExpression""), @implies(f14)",,,,,,,,,,
 2228449,f225,"PEM printable encoding (Privacy-Enhanced Mail, RFC 7468)",0,BN,,!Cx,.Formats:database,"@ident(""Pem"")",See more specific formats below,".pem, .crt",application/x-pem-file,,,,,,,
-2228450,f226,IP address,0,BN,,!Cx,.Formats:identifier,"@ident(""IpAddr""), :(f490 | f491)",,,,,,,,,,
+2228450,f226,IP address,0,BN,,!Cx,.Formats:identifier,"@ident(""IpAddr""), :([f490:] | [f491:])",,,,,,,,,,
 2228451,f227,URI (Uniform Resource Identifier),0,BN,,!Cx,.Formats:identifier,"@ident(""Uri""), @implies(f14)",,,,,,,,,,
 2228452,f228,File name,0,BN,,!Cx,.Formats:identifier,"@ident(""FileName""), :([string] | [data])",,,,,,,,,,
 2228453,f229,File path,0,BN,,!Cx,.Formats:identifier,"@ident(""FilePath""), :[list:([filename] | 513)]",,,,,,,,,,

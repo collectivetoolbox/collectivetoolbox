@@ -950,13 +950,22 @@ pub fn parse_document_tokens_with_resolver(
                 if let Some(rule) = res.resolve_rule(&target) {
                     let mut ctx = MatchContext::new_with_token(Some(first)).with_mode(mode);
                     ctx.resolver = Some(default_syntax_resolver().clone());
-                    let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
+                    let (payload_slice, fmt_lead_consumed) = match target {
+                        CharTarget::Format(_) if remaining.first() == Some(&target.to_u128()) => {
+                            (remaining.get(1..).unwrap_or(&[]), 1usize)
+                        }
+                        _ => (remaining, 0usize),
+                    };
+                    let outcome = match_syntax_rule_with_context(payload_slice, rule, &mut ctx);
                     for mut diag in ctx.diagnostics.clone() {
-                        diag.token_offset = diag.token_offset.saturating_add(offset);
+                        diag.token_offset = diag
+                            .token_offset
+                            .saturating_add(offset)
+                            .saturating_add(fmt_lead_consumed);
                         diagnostics.push(diag);
                     }
                 if outcome.is_matched() {
-                    let consumed = outcome.consumed_tokens();
+                    let consumed = fmt_lead_consumed.saturating_add(outcome.consumed_tokens());
                     if consumed > 0 {
                         let closer_opt = res.closer_for_opener(&target);
                         let is_container = closer_opt.is_some_and(|closer| {

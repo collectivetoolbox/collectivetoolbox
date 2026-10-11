@@ -48,7 +48,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.
 1114457,345,Working directory path,0,BN,,!Cx,.Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
-1114458,346,Host local network IP address,0,BN,,!Cx,.Semantic,:~ 511 [f226:],Local network IP address of an execution environment host.
+1114458,346,Host local network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Local network IP address of an execution environment host.
 1114459,347,System clock resolution nanoseconds,0,BN,,!Cx,.Semantic,:~ [number],System time resolution in nanoseconds.
 1114460,348,Ambiguous values,0,BN,,!Cx,.Semantic,:~ [list],Indicates that any of the values in the list may be the case.
 1114461,349,Begin file origin description,0,BN,,!Cx,.Semantic,:~ [^350]+ 350,Begins a file origin descriptor.
@@ -100,7 +100,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,:~ [formats:duration] [^396]+ 396,
 1114508,396,End date duration description,0,BN,,!Cx,.Semantic,,
 1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), :~ [list]",Indicates that all values within the list have the same underlying meaning.
-1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ 511 [f226:],Public or remote network IP address of an execution environment host.
+1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,.Semantic,:~ [string],File comment string.
 1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,.Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.

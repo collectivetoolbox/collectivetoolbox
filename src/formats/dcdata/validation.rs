@@ -2992,6 +2992,17 @@ mod tests {
         // 6. Number container: Dc 6 ... Dc 7
         let dangling_number_closer = vec![sdc(7)];
         assert!(validate_dc_document_strict(&dangling_number_closer).is_err());
+
+        // 7. Date timestamp
+        use crate::syntax::SyntaxRuleResolver;
+        let fmt = |id: u32| DcChar::from_format(id).to_u128();
+        let resolver = crate::syntax::default_syntax_resolver();
+        let date_pattern = resolver.resolve_named_type("date");
+        eprintln!("DATE PATTERN: {date_pattern:?}");
+        let date_timestamp = vec![sdc(330), sdc(6), fmt(199), sdc(127), sdc(7)];
+        if let Err(e) = validate_dc_document_strict(&date_timestamp) {
+            panic!("date_timestamp failed validation: {e:?}");
+        }
     }
 
     #[crate::ctb_test]

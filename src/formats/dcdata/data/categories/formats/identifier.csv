@@ -15,7 +15,7 @@ Import/export/tests support columns take two space-separated levels: '<general> 
    3=complete implementation of format (general) / complete semantic roundtripping to Dc syntax (dc)
    4=3+losslessly roundtrippable (for dc: preserving all info for unambiguous bit-for-bit reconstruction)
    5=4+optional strict validation.",References
-2228450,226,IpAddr,IP address,identifier,:(f490 | f491),,,,,,,,,,,
+2228450,226,IpAddr,IP address,identifier,:([f490:] | [f491:]),,,,,,,,,,,
 2228451,227,Uri,URI (Uniform Resource Identifier),identifier,@implies(f14),,,,,,,,,,,
 2228452,228,FileName,File name,identifier,:([string] | [data]),,,,,,,,,,,
 2228453,229,FilePath,File path,identifier,:[list:([filename] | 513)],,,,,,,,,,,
