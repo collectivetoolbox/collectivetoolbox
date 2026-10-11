@@ -230,14 +230,10 @@ pub fn convert_bytes_to_dcmstring(
                 detected
             } else if options.allow_binary_encapsulation {
                 let mut doc = DcMstring::new();
-                doc.push_segment(DcMixed::Binary {
-                    data: bytes,
-                    sha256: None,
-                });
+                doc.push_binary(bytes);
                 return Ok(DcConversionResult {
                     document: doc,
-                    detected_format: FormatId::from_shorthand("f12")
-                        .unwrap_or(FormatId::Utf8),
+                    detected_format: FormatId::DcMixed,
                     log: FormatLog::default(),
                 });
             } else {
@@ -262,12 +258,12 @@ pub fn convert_bytes_to_dcmstring(
         SupportedDcInputFormat::DcText => {
             let conv = crate::converters::dctext::dctext_to_dcstring(bytes)?;
             log.merge(&conv.log);
-            DcMstring::from_dc_str(conv.result.as_dc_str())?
+            DcMstring::from_dc_string(&conv.result)?
         }
         SupportedDcInputFormat::Dcts => {
             let conv = crate::converters::dcts::dcts_to_dcstring(bytes)?;
             log.merge(&conv.log);
-            DcMstring::from_dc_str(conv.result.as_dc_str())?
+            DcMstring::from_dc_string(&conv.result)?
         }
         SupportedDcInputFormat::Dcal => {
             let conv = crate::converters::dcal::dcal_to_dclist(bytes)?;
@@ -296,7 +292,7 @@ pub fn convert_bytes_to_dcmstring(
         SupportedDcInputFormat::Sems => {
             let (dca, dca_log) = ctb_formats_eite::formats::sems::dca_from_sems(
                 bytes,
-                &ctb_formats_eite::formats::sems::SemsFormatSettings::default(),
+                &ctb_formats_eite::formats::sems::SEMSFormatSettings::default(),
             )?;
             log.merge(&dca_log);
             let conv = crate::converters::dctext::dcarray_to_dclist(&dca)?;
@@ -306,7 +302,6 @@ pub fn convert_bytes_to_dcmstring(
         SupportedDcInputFormat::Ascii => {
             let (dca, dca_log) = ctb_formats_eite::formats::ascii::dca_from_ascii(
                 bytes,
-                &ctb_formats_eite::formats::ascii::AsciiFormatSettings::default(),
             )?;
             log.merge(&dca_log);
             let conv = crate::converters::dctext::dcarray_to_dclist(&dca)?;
@@ -377,7 +372,10 @@ mod tests {
         )
         .expect("convert utf8");
         assert_eq!(res.detected_format, FormatId::Utf8);
-        assert_eq!(res.document.as_dc_str().as_str(), "Hello, world!");
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "Hello, world!"
+        );
     }
 
     #[crate::ctb_test]
@@ -390,7 +388,10 @@ mod tests {
         )
         .expect("convert dcal");
         assert_eq!(res.detected_format, FormatId::Dcal);
-        assert_eq!(res.document.as_dc_str().as_str(), "ABC");
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "ABC"
+        );
     }
 
     #[crate::ctb_test]
@@ -403,17 +404,17 @@ mod tests {
         )
         .expect("convert dctext");
         assert_eq!(res.detected_format, FormatId::DcText);
-        assert_eq!(res.document.as_dc_str().as_str(), "Hello A!");
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "Hello A!"
+        );
     }
 
     #[crate::ctb_test]
     fn test_convert_dcmm() {
         let mut dcmm = DcMstring::new();
         dcmm.push_str("Mixed document: ");
-        dcmm.push_segment(DcMixed::Binary {
-            data: b"raw-bytes",
-            sha256: None,
-        });
+        dcmm.push_binary(b"raw-bytes");
         let bytes = dcmm.as_bytes();
 
         let res = convert_bytes_to_dcmstring(

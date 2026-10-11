@@ -106,17 +106,14 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
                 buf_reader.read_to_end(&mut all_bytes)?;
 
                 let mut doc = crate::DcMstring::new();
-                doc.push_segment(crate::DcMixed::Binary {
-                    data: &all_bytes,
-                    sha256: None,
-                });
+                doc.push_binary(&all_bytes);
                 let payload = doc.payload_bytes();
                 writer.write_all(payload)?;
                 let payload_len = u64::try_from(payload.len())?;
                 bytes_written = bytes_written.saturating_add(payload_len);
 
                 return Ok(StreamConversionReceipt {
-                    detected_format: FormatId::from_shorthand("f12").unwrap_or(FormatId::Utf8),
+                    detected_format: FormatId::DcMixed,
                     bytes_written,
                     log: FormatLog::default(),
                 });
@@ -266,7 +263,10 @@ mod tests {
 
         // Validate resulting bytes as DcMstring
         let dcmm = crate::DcMstring::from_bytes(out).expect("validate dcmm");
-        assert_eq!(dcmm.as_dc_str().as_str(), "Streaming UTF-8 text document");
+        assert_eq!(
+            dcmm.to_dc_string().unwrap().as_str().unwrap(),
+            "Streaming UTF-8 text document"
+        );
     }
 
     #[crate::ctb_test]
@@ -285,6 +285,9 @@ mod tests {
 
         assert_eq!(receipt.detected_format, FormatId::DcText);
         let dcmm = crate::DcMstring::from_bytes(out).expect("validate dcmm");
-        assert_eq!(dcmm.as_dc_str().as_str(), "Stream A token");
+        assert_eq!(
+            dcmm.to_dc_string().unwrap().as_str().unwrap(),
+            "Stream A token"
+        );
     }
 }
