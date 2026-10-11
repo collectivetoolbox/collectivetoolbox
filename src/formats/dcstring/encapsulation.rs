@@ -221,6 +221,36 @@ pub(crate) fn validate_metadata(source: &DcStr, data: &[u8]) -> Result<()> {
     verify(&parse_metadata(source)?, data, 0)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChecksumSpec {
+    pub algorithm: SupportedHashFormat,
+    pub expected_digest: Vec<u8>,
+}
+
+pub(crate) fn parse_checksum_spec(source: &DcStr) -> Result<Option<ChecksumSpec>> {
+    let metadata = parse_metadata(source)?;
+    if let Some(checksum) = metadata.checksum {
+        let mut cursor = Cursor::new(checksum);
+        let (digest_metadata, digest) = cursor.read_payload(1)?;
+        ensure!(cursor.peek().is_none(), "Trailing checksum content");
+        let format = single_format(
+            digest_metadata.data_type.context("Missing checksum type")?,
+        )?;
+        let algorithm = SupportedHashFormat::from_format_id(format)
+            .with_context(|| {
+                format!(
+                    "Unsupported encapsulation checksum algorithm: {format:?}"
+                )
+            })?;
+        Ok(Some(ChecksumSpec {
+            algorithm,
+            expected_digest: digest,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 pub(crate) fn parse_text(source: &DcStr) -> Result<(DcString, Vec<u8>, usize)> {
     let mut cursor = Cursor::new(source);
     let (metadata, data) = cursor.read_payload(0)?;
@@ -268,6 +298,16 @@ pub(crate) fn checksum_text(format: DcChar, digest: &[u8]) -> Result<DcString> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
     use crate::{DcMixed, DcMixedReader, DcMstring};

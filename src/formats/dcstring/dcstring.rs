@@ -47,8 +47,10 @@ pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, eite, utf8};
 pub use dc_char::{DcChar, DcCharExt};
 pub use dc_mixed::{
-    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcMixed, DcMixedChunk,
-    DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice, validate_dcmst,
+    DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcmmStreamOptions, DcMixed, DcMixedChunk,
+    DcMixedError, DcMixedOwned, DcMstr, DcMstring, DcMstSlice,
+    validate_and_copy_dcmm_stream, validate_and_copy_dcmm_stream_with_options,
+    validate_dcmst,
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{

@@ -128,33 +128,119 @@ impl std::io::Write for Sha256Stream {
     }
 }
 
+/// Streaming hasher for incremental hashing across all supported algorithms.
+#[derive(Clone)]
+pub enum StreamingHasher {
+    Sha256(Sha256Stream),
+    XxHash32(twox_hash::XxHash32),
+    XxHash64(twox_hash::XxHash64),
+    XxHash3_64(twox_hash::XxHash3_64),
+    XxHash3_128(twox_hash::XxHash3_128),
+    Fnv0_32(fnv::FnvStream<4>),
+    Fnv0_64(fnv::FnvStream<8>),
+    Fnv0_128(fnv::FnvStream<16>),
+    Fnv0_256(fnv::FnvStream<32>),
+    Fnv0_512(fnv::FnvStream<64>),
+    Fnv0_1024(fnv::FnvStream<128>),
+    Fnv1_32(fnv::FnvStream<4>),
+    Fnv1_64(fnv::FnvStream<8>),
+    Fnv1_128(fnv::FnvStream<16>),
+    Fnv1_256(fnv::FnvStream<32>),
+    Fnv1_512(fnv::FnvStream<64>),
+    Fnv1_1024(fnv::FnvStream<128>),
+    Fnv1a_32(fnv::FnvStream<4>),
+    Fnv1a_64(fnv::FnvStream<8>),
+    Fnv1a_128(fnv::FnvStream<16>),
+    Fnv1a_256(fnv::FnvStream<32>),
+    Fnv1a_512(fnv::FnvStream<64>),
+    Fnv1a_1024(fnv::FnvStream<128>),
+}
+
+impl StreamingHasher {
+    /// Creates a new streaming hasher for the given hash algorithm.
+    #[must_use]
+    pub fn new(algo: HashAlgorithm) -> Self {
+        match algo {
+            HashAlgorithm::Sha256 => Self::Sha256(Sha256Stream::new()),
+            HashAlgorithm::XxHash32 => Self::XxHash32(twox_hash::XxHash32::with_seed(0)),
+            HashAlgorithm::XxHash64 => Self::XxHash64(twox_hash::XxHash64::with_seed(0)),
+            HashAlgorithm::XxHash3_64 => Self::XxHash3_64(twox_hash::XxHash3_64::new()),
+            HashAlgorithm::XxHash3_128 => Self::XxHash3_128(twox_hash::XxHash3_128::new()),
+            HashAlgorithm::Fnv0_32 => Self::Fnv0_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_32, fnv::B_32)),
+            HashAlgorithm::Fnv0_64 => Self::Fnv0_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_64, fnv::B_64)),
+            HashAlgorithm::Fnv0_128 => Self::Fnv0_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_128, fnv::B_128)),
+            HashAlgorithm::Fnv0_256 => Self::Fnv0_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_256, fnv::B_256)),
+            HashAlgorithm::Fnv0_512 => Self::Fnv0_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_512, fnv::B_512)),
+            HashAlgorithm::Fnv0_1024 => Self::Fnv0_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv0, fnv::K_1024, fnv::B_1024)),
+            HashAlgorithm::Fnv1_32 => Self::Fnv1_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_32, fnv::B_32)),
+            HashAlgorithm::Fnv1_64 => Self::Fnv1_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_64, fnv::B_64)),
+            HashAlgorithm::Fnv1_128 => Self::Fnv1_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_128, fnv::B_128)),
+            HashAlgorithm::Fnv1_256 => Self::Fnv1_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_256, fnv::B_256)),
+            HashAlgorithm::Fnv1_512 => Self::Fnv1_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_512, fnv::B_512)),
+            HashAlgorithm::Fnv1_1024 => Self::Fnv1_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv1, fnv::K_1024, fnv::B_1024)),
+            HashAlgorithm::Fnv1a_32 => Self::Fnv1a_32(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_32, fnv::B_32)),
+            HashAlgorithm::Fnv1a_64 => Self::Fnv1a_64(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_64, fnv::B_64)),
+            HashAlgorithm::Fnv1a_128 => Self::Fnv1a_128(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_128, fnv::B_128)),
+            HashAlgorithm::Fnv1a_256 => Self::Fnv1a_256(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_256, fnv::B_256)),
+            HashAlgorithm::Fnv1a_512 => Self::Fnv1a_512(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_512, fnv::B_512)),
+            HashAlgorithm::Fnv1a_1024 => Self::Fnv1a_1024(fnv::FnvStream::new(fnv::FnvVariant::Fnv1a, fnv::K_1024, fnv::B_1024)),
+        }
+    }
+
+    /// Feeds additional bytes into the hasher.
+    pub fn update(&mut self, data: &[u8]) {
+        use std::hash::Hasher;
+        match self {
+            Self::Sha256(s) => s.update(data),
+            Self::XxHash32(h) => h.write(data),
+            Self::XxHash64(h) => h.write(data),
+            Self::XxHash3_64(h) => h.write(data),
+            Self::XxHash3_128(h) => h.write(data),
+            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => s.update(data),
+            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => s.update(data),
+            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => s.update(data),
+            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => s.update(data),
+            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => s.update(data),
+            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => s.update(data),
+        }
+    }
+
+    /// Finalizes the hash computation and returns the raw digest bytes.
+    #[must_use]
+    pub fn finalize(self) -> Vec<u8> {
+        use std::hash::Hasher;
+        match self {
+            Self::Sha256(s) => s.finalize().to_vec(),
+            Self::XxHash32(h) => h.finish_32().to_be_bytes().to_vec(),
+            Self::XxHash64(h) => h.finish().to_be_bytes().to_vec(),
+            Self::XxHash3_64(h) => h.finish().to_be_bytes().to_vec(),
+            Self::XxHash3_128(h) => h.finish_128().to_be_bytes().to_vec(),
+            Self::Fnv0_32(s) | Self::Fnv1_32(s) | Self::Fnv1a_32(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_64(s) | Self::Fnv1_64(s) | Self::Fnv1a_64(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_128(s) | Self::Fnv1_128(s) | Self::Fnv1a_128(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_256(s) | Self::Fnv1_256(s) | Self::Fnv1a_256(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_512(s) | Self::Fnv1_512(s) | Self::Fnv1a_512(s) => s.finalize().to_be_bytes().to_vec(),
+            Self::Fnv0_1024(s) | Self::Fnv1_1024(s) | Self::Fnv1a_1024(s) => s.finalize().to_be_bytes().to_vec(),
+        }
+    }
+}
+
+impl std::io::Write for StreamingHasher {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.update(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// Computes the hash of the given data using the specified algorithm.
 pub fn hash(data: &[u8], algo: HashAlgorithm) -> Vec<u8> {
-    match algo {
-        HashAlgorithm::XxHash32 => xxhash::xxhash32(data).to_vec(),
-        HashAlgorithm::XxHash64 => xxhash::xxhash64(data).to_vec(),
-        HashAlgorithm::XxHash3_64 => xxhash::xxhash3_64(data).to_vec(),
-        HashAlgorithm::XxHash3_128 => xxhash::xxhash3_128(data).to_vec(),
-        HashAlgorithm::Sha256 => sha256(data).to_vec(),
-        HashAlgorithm::Fnv0_32 => fnv::fnv0_32(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv0_64 => fnv::fnv0_64(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv0_128 => fnv::fnv0_128(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv0_256 => fnv::fnv0_256(data).to_vec(),
-        HashAlgorithm::Fnv0_512 => fnv::fnv0_512(data).to_vec(),
-        HashAlgorithm::Fnv0_1024 => fnv::fnv0_1024(data).to_vec(),
-        HashAlgorithm::Fnv1_32 => fnv::fnv1_32(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1_64 => fnv::fnv1_64(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1_128 => fnv::fnv1_128(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1_256 => fnv::fnv1_256(data).to_vec(),
-        HashAlgorithm::Fnv1_512 => fnv::fnv1_512(data).to_vec(),
-        HashAlgorithm::Fnv1_1024 => fnv::fnv1_1024(data).to_vec(),
-        HashAlgorithm::Fnv1a_32 => fnv::fnv1a_32(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1a_64 => fnv::fnv1a_64(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1a_128 => fnv::fnv1a_128(data).to_be_bytes().to_vec(),
-        HashAlgorithm::Fnv1a_256 => fnv::fnv1a_256(data).to_vec(),
-        HashAlgorithm::Fnv1a_512 => fnv::fnv1a_512(data).to_vec(),
-        HashAlgorithm::Fnv1a_1024 => fnv::fnv1a_1024(data).to_vec(),
-    }
+    let mut hasher = StreamingHasher::new(algo);
+    hasher.update(data);
+    hasher.finalize()
 }
 
 /// Computes the hash of the given data using the specified algorithm and

@@ -168,12 +168,16 @@ pub fn stream_reader_to_dcmwriter<R: Read, W: Write>(
     };
 
     if resolved_format == SupportedDcInputFormat::DcMixed {
-        let bytes_written =
-            ctb_formats_dcstring::dc_mixed::validate_and_copy_dcmm_stream(&mut buf_reader, writer)?;
+        let (bytes_written, log) =
+            ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
+                &mut buf_reader,
+                writer,
+                &ctb_formats_dcstring::DcmmStreamOptions::default(),
+            )?;
         return Ok(StreamConversionReceipt {
             detected_format: FormatId::DcMixed,
             bytes_written,
-            log: FormatLog::default(),
+            log,
         });
     }
 
@@ -267,12 +271,16 @@ pub fn stream_dcmreader_to_writer<R: Read, W: Write>(
     options: &DcExportOptions,
 ) -> Result<StreamExportReceipt> {
     if format == SupportedDcOutputFormat::DcMixed {
-        let bytes_written =
-            ctb_formats_dcstring::dc_mixed::validate_and_copy_dcmm_stream(reader, writer)?;
+        let (bytes_written, log) =
+            ctb_formats_dcstring::validate_and_copy_dcmm_stream_with_options(
+                reader,
+                writer,
+                &ctb_formats_dcstring::DcmmStreamOptions::default(),
+            )?;
         return Ok(StreamExportReceipt {
             target_format: FormatId::DcMixed,
             bytes_written,
-            log: FormatLog::default(),
+            log,
         });
     }
 
@@ -387,5 +395,44 @@ mod tests {
 
         assert_eq!(export_receipt.target_format, FormatId::Utf8);
         assert_eq!(text_out, input);
+    }
+
+    #[crate::ctb_test]
+    fn test_streaming_dcmm_passthrough() {
+        let mut original = DcMstring::new();
+        original.push_str("Pass-through streaming test");
+        original.push_binary(b"Binary payload in dcmm stream");
+        let input_bytes = original.into_bytes();
+
+        let mut cursor = std::io::Cursor::new(&input_bytes);
+        let mut dcmm_out = Vec::new();
+
+        let receipt = stream_reader_to_dcmwriter(
+            &mut cursor,
+            &mut dcmm_out,
+            Some("doc.dcmm"),
+            &DcConversionOptions::default(),
+        )
+        .expect("stream dcmm passthrough");
+
+        assert_eq!(receipt.detected_format, FormatId::DcMixed);
+        assert_eq!(receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
+        assert_eq!(dcmm_out, input_bytes);
+
+        // Test stream_dcmreader_to_writer with SupportedDcOutputFormat::DcMixed
+        let mut dcmm_cursor = std::io::Cursor::new(&input_bytes);
+        let mut export_out = Vec::new();
+
+        let export_receipt = stream_dcmreader_to_writer(
+            &mut dcmm_cursor,
+            &mut export_out,
+            SupportedDcOutputFormat::DcMixed,
+            &DcExportOptions::default(),
+        )
+        .expect("stream dcmm export passthrough");
+
+        assert_eq!(export_receipt.target_format, FormatId::DcMixed);
+        assert_eq!(export_receipt.bytes_written, u64::try_from(input_bytes.len()).unwrap());
+        assert_eq!(export_out, input_bytes);
     }
 }

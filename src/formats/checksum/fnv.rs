@@ -441,8 +441,8 @@ impl<const BYTES: usize> std::io::Write for FnvStream<BYTES> {
 // 32-bit FNV Implementations (s=5, k=3, b=0x93)
 // ----------------------------------------------------------------------------
 
-const K_32: usize = 3;
-const B_32: u8 = 0x93;
+pub(crate) const K_32: usize = 3;
+pub(crate) const B_32: u8 = 0x93;
 
 /// Computes the 32-bit FNV-0 hash of `data`.
 #[must_use]
@@ -499,8 +499,8 @@ pub fn fnv1a_32_hex(data: impl AsRef<[u8]>) -> String {
 // 64-bit FNV Implementations (s=6, k=5, b=0xb3)
 // ----------------------------------------------------------------------------
 
-const K_64: usize = 5;
-const B_64: u8 = 0xb3;
+pub(crate) const K_64: usize = 5;
+pub(crate) const B_64: u8 = 0xb3;
 
 /// Computes the 64-bit FNV-0 hash of `data`.
 #[must_use]
@@ -557,8 +557,8 @@ pub fn fnv1a_64_hex(data: impl AsRef<[u8]>) -> String {
 // 128-bit FNV Implementations (s=7, k=11, b=0x3b)
 // ----------------------------------------------------------------------------
 
-const K_128: usize = 11;
-const B_128: u8 = 0x3b;
+pub(crate) const K_128: usize = 11;
+pub(crate) const B_128: u8 = 0x3b;
 
 /// Computes the 128-bit FNV-0 hash of `data`.
 #[must_use]
@@ -615,8 +615,8 @@ pub fn fnv1a_128_hex(data: impl AsRef<[u8]>) -> String {
 // 256-bit FNV Implementations (s=8, k=21, b=0x63)
 // ----------------------------------------------------------------------------
 
-const K_256: usize = 21;
-const B_256: u8 = 0x63;
+pub(crate) const K_256: usize = 21;
+pub(crate) const B_256: u8 = 0x63;
 
 /// Computes the 256-bit FNV-0 hash of `data` as big-endian bytes.
 #[must_use]
@@ -660,8 +660,8 @@ pub fn fnv1a_256_hex(data: impl AsRef<[u8]>) -> String {
 // 512-bit FNV Implementations (s=9, k=43, b=0x57)
 // ----------------------------------------------------------------------------
 
-const K_512: usize = 43;
-const B_512: u8 = 0x57;
+pub(crate) const K_512: usize = 43;
+pub(crate) const B_512: u8 = 0x57;
 
 /// Computes the 512-bit FNV-0 hash of `data` as big-endian bytes.
 #[must_use]
@@ -705,8 +705,8 @@ pub fn fnv1a_512_hex(data: impl AsRef<[u8]>) -> String {
 // 1024-bit FNV Implementations (s=10, k=85, b=0x8d)
 // ----------------------------------------------------------------------------
 
-const K_1024: usize = 85;
-const B_1024: u8 = 0x8d;
+pub(crate) const K_1024: usize = 85;
+pub(crate) const B_1024: u8 = 0x8d;
 
 /// Computes the 1024-bit FNV-0 hash of `data` as big-endian bytes.
 #[must_use]
