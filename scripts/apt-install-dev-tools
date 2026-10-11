@@ -60,7 +60,7 @@ if [[ "${1:-}" == "--remove" || "${1:-}" == "--purge" ]]; then
         exit 1
     fi
     echo "Purging developer utilities..."
-    apt-get purge -y --no-install-recommends --allow-remove-essential "${dev_packages[@]}" corepack "libnode*" "node-*" 2>/dev/null || true
+    apt-get purge -y --no-install-recommends --allow-remove-essential "${dev_packages[@]}" corepack "libnode*" "node-*" "liblzma-dev*" 2>/dev/null || true
 else
     echo "Installing developer utilities..."
     apt-get update

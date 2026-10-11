@@ -154,4 +154,39 @@ assert data["hello"] == "world"
         let data = get_python_data("nonexistent");
         assert!(data.is_none());
     }
+
+    #[crate::ctb_test]
+    fn test_python_lzma_module() -> Result<()> {
+        let handle = std::thread::Builder::new()
+            .name("python-lzma-test".to_owned())
+            .stack_size(8 * 1024 * 1024)
+            .spawn(|| {
+                let code = r#"
+import lzma
+data = b"hello world from pure-rust lzma2 in rustpython!"
+
+# Test default XZ container
+compressed_xz = lzma.compress(data)
+decompressed_xz = lzma.decompress(compressed_xz)
+assert decompressed_xz == data
+
+# Test ALONE (.lzma) container
+compressed_alone = lzma.compress(data, format=lzma.FORMAT_ALONE)
+decompressed_alone = lzma.decompress(compressed_alone, format=lzma.FORMAT_ALONE)
+assert decompressed_alone == data
+
+# Test auto-detection on ALONE container
+decompressed_auto = lzma.decompress(compressed_alone)
+assert decompressed_auto == data
+
+assert lzma.is_check_supported(lzma.CHECK_CRC32)
+assert lzma.is_check_supported(lzma.CHECK_CRC64)
+assert lzma.is_check_supported(lzma.CHECK_SHA256)
+"#;
+                run_python_code(code)
+            })
+            .expect("Failed to spawn thread");
+        handle.join().expect("Thread panicked")
+    }
 }
+

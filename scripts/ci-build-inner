@@ -227,11 +227,18 @@ echo "Cleaning generated files to verify offline regeneration..."
 echo "Purging developer utilities and non-build dependencies before build..."
 PLEASE_BREAK_MY_SYSTEM="y" "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/apt-install-dev-tools" --remove
 
-apt-get remove -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base 2>/dev/null || true
-apt-get purge -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base 2>/dev/null || true
+apt-get remove -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base "liblzma-dev*" "liblzma*-dev*" 2>/dev/null || true
+apt-get purge -y --no-install-recommends --allow-remove-essential nodejs corepack npm "node-*" "libnode*" python3 python3-minimal "python3.*" python2 "python2.*" "openjdk-*" default-jre default-jdk java-common perl perl-base "liblzma-dev*" "liblzma*-dev*" 2>/dev/null || true
 apt-get autoremove --purge -y 2>/dev/null || true
 apt-get clean 2>/dev/null || true
 rm -rf /var/lib/apt/lists/*
+
+echo "Removing any development liblzma static/shared libraries and headers..."
+find /usr/lib /usr/lib64 /usr/local/lib /usr/include \( -name 'liblzma.a' -o -name 'liblzma.so' -o -name 'lzma.h' -o -name 'liblzma.pc' \) 2>/dev/null | while IFS= read -r f; do
+    if [[ -e "$f" || -L "$f" ]]; then
+        rm "$f"
+    fi
+done
 
 if [[ -d /usr/local/share/nvm ]]; then
     rm -rf /usr/local/share/nvm
@@ -285,6 +292,19 @@ for prohibited in "${SKIP_BINS[@]}"; do
         exit 1
     fi
 done
+
+echo "Verifying no host liblzma development packages or libraries are present..."
+if dpkg -l "liblzma-dev*" 2>/dev/null | grep -q "^ii"; then
+    echo "ERROR: liblzma-dev is installed; CI builds must not depend on host liblzma." >&2
+    exit 1
+fi
+
+while IFS= read -r prohibited_lib; do
+    if [[ -n "$prohibited_lib" ]]; then
+        echo "ERROR: Found prohibited liblzma library or header at: $prohibited_lib" >&2
+        exit 1
+    fi
+done < <(find /usr/lib /usr/lib64 /usr/local/lib /usr/include \( -name 'liblzma.a' -o -name 'liblzma.so' -o -name 'lzma.h' \) 2>/dev/null || true)
 
 echo "Running offline build..."
 # Cargo deny produces an enormous amount of output when running in Docker, due
