@@ -1631,6 +1631,28 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             Ok(true)
                         }
                     });
+                } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                    encode_fields.push(quote! {
+                        if let ::std::option::Option::Some(ref val) = self.#field_ident {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(val, mst, context)?;
+                        }
+                    });
+                    decode_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
+                        }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            self.#field_ident = ::std::option::Option::Some(val);
+                            Ok(true)
+                        }
+                    });
                 } else {
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
