@@ -26,6 +26,7 @@ Commands:
   gid                        Convert Global Graph ID to short representation or show full metadata
   range_gen                  Generate a range of numbers in various bases
   character_description      Describe Unicode characters, Dcs, and Graph IDs with annotations, aliases, and meanings. This feature may be changed or simplified in future
+  convert                    Convert documents or text between supported formats
   gdb_instructions_generate  Generate GDB instructions from symbols
   x86-instruction-sets       Analyze an x86/x64 object or archive file and list CPU instruction set features
   ia                         Internet Archive utilities
@@ -232,7 +233,7 @@ Arguments:
 
 Options:
       --from <FROM>
-          Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmm, sems, ascii, or cscjournal [default: utf8] [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
+          Input format [default: utf8] [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
   -f, --file <FILE>
           Input file path (or - for stdin)
   -o, --output <OUTPUT>
@@ -308,6 +309,32 @@ Supported compression formats:
   lzma2: LZMA container format
   szip: szip (Michael Schindler)
   szip111, szip-1.11: szip (Michael Schindler) version 1.11+
+```
+
+### `ctoolbox convert`
+
+```text
+Convert documents or text between supported formats
+
+Usage: ctoolbox convert [OPTIONS] [INPUT]
+
+Arguments:
+  [INPUT]  Input data string. If not provided, reads from stdin or --file
+
+Options:
+      --from <FROM>                 Input format (autodetected if omitted) [possible values: dcil, sems, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii, cscjournal]
+  -t, --to <TO>                     Output format [default: utf8] [possible values: dcil, html, htmlfragment, elad, eitecolorcoded, dctext, dcutf, dcal, dcts, dcmm, utf8, asciisafesubset, ascii]
+  -f, --file <FILE>                 Input file path (or - for stdin)
+  -o, --output <OUTPUT>             Output file path (or - for stdout)
+  -F, --force                       Overwrite existing output file without prompt
+      --allow-binary-encapsulation  Allow encapsulating arbitrary binary bytes into DcMixed mode if input format cannot be decoded
+  -h, --help                        Print help (see more with '--help')
+
+Examples:
+  $ ctoolbox convert --from dcal --to dctext "65 1114408 2228304"
+  $ ctoolbox convert -f input.dcal -o output.txt --to utf8
+  $ ctoolbox convert --to dcts "hello world"
+  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal
 ```
 
 ### `ctoolbox cp`

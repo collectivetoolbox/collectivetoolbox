@@ -32,14 +32,15 @@ use std::path::{Path, PathBuf};
 pub use ctb_formats_unicode::cli::{
     CliControlNameFormat, CliDescriptionMode, CliUnicodeVersion,
 };
-pub use ctb_utilities::SupportedDcInputFormat;
+pub use ctb_utilities::{SupportedDcInputFormat, SupportedDcOutputFormat};
 use ctb_formats_utilities::{CliInputSourceArgs, CliOutputDestArgs};
 use ctb_formats_dcstring::character_description::{
     ControlNameFormat, DescriptionMode, DescriptionOptions, UnicodeVersion,
     describe_dclist, describe_graph_id,
 };
 use crate::convert_api::{
-    DcConversionOptions, FormatSpec, convert_bytes_to_dcmstring,
+    DcConversionOptions, DcExportOptions, FormatSpec,
+    convert_bytes_to_dcmstring, convert_dcmstring_to_bytes,
 };
 
 fn parse_codepoint_arg(token: &str) -> Result<u128> {
@@ -62,7 +63,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal, dcil, dctext, dcts, dcutf, dcmm, sems, ascii, or cscjournal
+    /// Input format
     #[arg(long = "from", value_enum, default_value_t = SupportedDcInputFormat::Utf8)]
     pub from: SupportedDcInputFormat,
 
@@ -203,6 +204,110 @@ where
     };
 
     args.output_dest().write_or_stdout(result.into_bytes())
+}
+
+/// Execution arguments for the `convert` CLI tool.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq, Default)]
+#[command(
+    after_help = "Examples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal"
+)]
+pub struct ConvertArgs {
+    /// Input data string. If not provided, reads from stdin or --file.
+    pub input: Option<String>,
+
+    /// Input format (autodetected if omitted)
+    #[arg(long = "from", value_enum)]
+    pub from: Option<SupportedDcInputFormat>,
+
+    /// Output format
+    #[arg(short = 't', long = "to", value_enum, default_value_t = SupportedDcOutputFormat::Utf8)]
+    pub to: SupportedDcOutputFormat,
+
+    /// Input file path (or - for stdin)
+    #[arg(short = 'f', long = "file")]
+    pub file: Option<PathBuf>,
+
+    /// Output file path (or - for stdout)
+    #[arg(short = 'o', long = "output")]
+    pub output: Option<PathBuf>,
+
+    /// Overwrite existing output file without prompt
+    #[arg(short = 'F', long = "force")]
+    pub force: bool,
+
+    /// Allow encapsulating arbitrary binary bytes into DcMixed mode if input format cannot be decoded
+    #[arg(long = "allow-binary-encapsulation")]
+    pub allow_binary_encapsulation: bool,
+}
+
+impl ConvertArgs {
+    /// Adapts the CLI input fields into [`CliInputSourceArgs`].
+    #[must_use]
+    pub fn input_source(&self) -> CliInputSourceArgs {
+        CliInputSourceArgs {
+            input: self.input.clone(),
+            file: self.file.clone(),
+        }
+    }
+
+    /// Adapts the CLI output fields into [`CliOutputDestArgs`].
+    #[must_use]
+    pub fn output_dest(&self) -> CliOutputDestArgs {
+        CliOutputDestArgs {
+            output: self.output.clone(),
+            force: self.force,
+        }
+    }
+}
+
+/// Executes `convert` CLI command logic.
+///
+/// Converts documents between supported formats using [`convert_bytes_to_dcmstring`]
+/// and [`convert_dcmstring_to_bytes`].
+///
+/// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
+/// `Ok(None)` if output was written to a destination file.
+pub fn execute_cli_convert<FRead>(
+    args: ConvertArgs,
+    read_data: FRead,
+) -> Result<Option<Vec<u8>>>
+where
+    FRead: Fn(&Path) -> Result<Vec<u8>>,
+{
+    let input_bytes = args.input_source().read_bytes(&read_data)?;
+    let filename_hint = args.file.as_deref().and_then(|p| {
+        if p == Path::new("-") {
+            None
+        } else {
+            p.file_name().and_then(|n| n.to_str())
+        }
+    });
+
+    let conversion_options = DcConversionOptions {
+        format: match args.from {
+            Some(fmt) => FormatSpec::Format(fmt),
+            None => FormatSpec::Auto,
+        },
+        allow_binary_encapsulation: args.allow_binary_encapsulation,
+    };
+
+    let conversion = convert_bytes_to_dcmstring(
+        &input_bytes,
+        filename_hint,
+        &conversion_options,
+    )?;
+
+    let export_options = DcExportOptions {
+        format: args.to,
+    };
+
+    let export = convert_dcmstring_to_bytes(
+        &conversion.document,
+        args.to,
+        &export_options,
+    )?;
+
+    args.output_dest().write_or_stdout(export.bytes)
 }
 
 #[cfg(test)]
@@ -448,5 +553,71 @@ mod tests {
                 "Description for {fixture_name} should contain described Dcs"
             );
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_utf8_to_dcal() {
+        let args = ConvertArgs {
+            input: Some("Hello".to_string()),
+            from: Some(SupportedDcInputFormat::Utf8),
+            to: SupportedDcOutputFormat::Dcal,
+            ..Default::default()
+        };
+        let out = execute_cli_convert(args, |_| Ok(Vec::new()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(String::from_utf8(out).unwrap(), "72 101 108 108 111 ");
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_dcal_to_utf8() {
+        let args = ConvertArgs {
+            input: Some("72 101 108 108 111 ".to_string()),
+            from: Some(SupportedDcInputFormat::Dcal),
+            to: SupportedDcOutputFormat::Utf8,
+            ..Default::default()
+        };
+        let out = execute_cli_convert(args, |_| Ok(Vec::new()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(String::from_utf8(out).unwrap(), "Hello");
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_dcal_to_dctext() {
+        let args = ConvertArgs {
+            input: Some("65 1114408 2228304".to_string()),
+            from: Some(SupportedDcInputFormat::Dcal),
+            to: SupportedDcOutputFormat::DcText,
+            ..Default::default()
+        };
+        let out = execute_cli_convert(args, |_| Ok(Vec::new()))
+            .unwrap()
+            .unwrap();
+        let s = String::from_utf8(out).unwrap();
+        assert!(s.contains('A'));
+    }
+
+    #[crate::ctb_test]
+    fn test_execute_cli_convert_cscjournal_to_dcal() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../io/csc/fixtures/journals/v1_ctbmeta1.cscjournal");
+        let journal_bytes =
+            std::fs::read(&fixture_path).expect("read journal fixture");
+
+        let args = ConvertArgs {
+            file: Some(fixture_path.clone()),
+            from: Some(SupportedDcInputFormat::CscJournal),
+            to: SupportedDcOutputFormat::Dcal,
+            ..Default::default()
+        };
+        let out = execute_cli_convert(args, |_| Ok(journal_bytes.clone()))
+            .expect("Run convert cscjournal to dcal")
+            .unwrap_or_default();
+        let s = String::from_utf8(out).expect("UTF-8 dcal output");
+        assert!(!s.is_empty());
+        assert!(s
+            .split_ascii_whitespace()
+            .all(|token| token.chars().all(|c| c.is_ascii_digit())));
     }
 }

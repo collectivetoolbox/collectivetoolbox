@@ -114,6 +114,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "character_description"
             | "character-description"
             | "chardesc"
+            | "convert"
     )
 }
 
@@ -319,6 +320,12 @@ pub enum Command {
         after_help = "Examples:\n  $ ctoolbox character_description \"Hello\"\n  $ ctoolbox character_description --codepoint U+1F602\n  $ ctoolbox character_description --wuc-compat \"Hello\"\n  $ ctoolbox character_description --from dcal \"65 1114408 2228304\"\n  $ ctoolbox character_description --codepoint dc:296\n  $ ctoolbox character_description -f input.txt -o output.txt"
     )]
     CharacterDescription(ctb_formats_conversion::cli::CharacterDescriptionArgs),
+    /// Convert documents or text between supported formats
+    #[command(
+        name = "convert",
+        after_help = "Examples:\n  $ ctoolbox convert --from dcal --to dctext \"65 1114408 2228304\"\n  $ ctoolbox convert -f input.dcal -o output.txt --to utf8\n  $ ctoolbox convert --to dcts \"hello world\"\n  $ ctoolbox convert -f input.cscjournal -o output.dcal --to dcal"
+    )]
+    Convert(ctb_formats_conversion::cli::ConvertArgs),
     /// Generate GDB instructions from symbols
     #[command(name = "gdb_instructions_generate")]
     GdbInstructionsGenerate {},
@@ -962,6 +969,17 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
                     args.clone(),
                     read_file_or_stdin,
                 )?;
+            let bytes = match out {
+                Some(b) => b,
+                None => Vec::new(),
+            };
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        Command::Convert(args) => {
+            let out = ctb_formats_conversion::cli::execute_cli_convert(
+                args.clone(),
+                read_file_or_stdin,
+            )?;
             let bytes = match out {
                 Some(b) => b,
                 None => Vec::new(),

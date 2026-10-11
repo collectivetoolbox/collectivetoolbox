@@ -436,6 +436,7 @@ mod tests {
         assert!(docs.contains("ctoolbox ia"));
         assert!(docs.contains("ctoolbox warcat"));
         assert!(docs.contains("ctoolbox warcat export"));
+        assert!(docs.contains("ctoolbox convert"));
 
         // If running in repository workspace, ensure docs/cli/commands.generated.md is written / up to date
         if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
@@ -446,6 +447,27 @@ mod tests {
             }
             let _ = std::fs::write(&path, &docs);
         }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_convert_command_lightweight() {
+        let args = vec![
+            "ctoolbox".to_string(),
+            "convert".to_string(),
+            "--from".to_string(),
+            "dcal".to_string(),
+            "--to".to_string(),
+            "utf8".to_string(),
+            "72 101 108 108 111 ".to_string(),
+        ];
+        let invocation =
+            parse_invocation(Some(args)).expect("parse invocation");
+        let cli = invocation.expect_cli().expect("expect cli");
+        let exit_code = maybe_run_lightweight(cli)
+            .await
+            .expect("maybe_run_lightweight")
+            .expect("should return exit code for subcommand");
+        assert_eq!(exit_code, 0);
     }
 
     #[crate::ctb_test("tokio")]
