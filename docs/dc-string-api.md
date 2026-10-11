@@ -78,10 +78,18 @@ An empty metadata block has length zero. Both lengths are independent of base64
 spelling. The payload is always binary; declaring its semantic type does not
 change its storage encoding. Dc 204 is implicit.
 
-Legacy types 0/3 (binary) and 1/4 (DcUtf character sequence) remain readable;
-3/4 retain their fixed binary SHA-256 header. Explicit DcUtf runs may still use
-1/4. A typed checksum value is now a type-2 binary digest with its hash format in
-metadata, rather than a type-1 sequence of format and base64 Dcs.
+Legacy types 0/3 (binary) remain readable; type 3 retains its fixed binary
+SHA-256 header. Types 1/4 are retired and rejected on read with
+`DcMixedError::UnsupportedLegacyType`, reporting the type byte and its offset.
+Their original definition selected a DcUtf fallback for non-base64 content
+inside Dc 203, contradicting its textual syntax. Neither the payload's meaning
+nor a faithful textual conversion can be inferred from that definition.
+The corresponding writer APIs have been removed.
+
+To encapsulate DcUtf bytes, use type 2 with a declared DcUtf type in metadata.
+Those bytes remain an encapsulated payload, not inline document characters.
+A typed checksum value is a type-2 binary digest with its hash format in
+metadata, not a sequence of format and base64 Dcs stored under type 1.
 
 ### Remaining Conversion Gaps
 
@@ -95,9 +103,8 @@ metadata, rather than a type-1 sequence of format and base64 Dcs.
   It does not promise byte-identical framing or source spelling.
 - DcUtf import validates Dc 203 syntax, lengths, and checksums. Unclosed Dc 203
   is rejected; valid source spellings may be normalized.
-- Legacy arbitrary DcUtf runs remain a representation projection on textual
-  export. Their storage-run identity is not preserved, and a non-base64 body
-  without the new binary syntax cannot be reimported as a binary encapsulation.
+- Retired type-1/4 runs fail validation before interpretation or conversion;
+  no guessed migration or lossy textual export is provided.
 - Arbitrary source sequences remain raw-editable in their original format.
   Exact restoration of transport bytes and alternative source spellings is
   outside the conversion contract. No new semantic Dc is allocated here.
@@ -138,8 +145,8 @@ annotations. Borrowed views prevent mutating their source while in use;
 annotations from another inspection are rejected.
 
 Replacement values inline shared references rather than changing their outer
-declarations. Edits reject source boundaries inside mixed-mode encapsulations,
-including checksummed DcUtf payloads. Whole binary fields can be replaced with
+declarations. Edits reject source boundaries inside mixed-mode encapsulations.
+Whole binary fields can be replaced with
 new framing and checksums. No unknown syntax is collected and moved to an
 overflow bucket.
 

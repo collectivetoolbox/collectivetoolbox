@@ -410,10 +410,6 @@ impl<'a> DcMixedReader<'a> {
                     self.peeked_metadata = Some(metadata);
                     return Ok(Some(DC_START_ENCAPSULATION_BINARY));
                 }
-                Some(DcMixed::DcUtf { data, .. }) => {
-                    self.text_end = end;
-                    self.current_text = Some(data.chars());
-                }
                 None => return Ok(None),
             }
         }
@@ -1658,16 +1654,9 @@ mod tests {
         let field = view.fields().iter().find(|field| field.field() == "bytes").context("Missing binary field")?;
         let prefix_end = field.range().start;
         assert_eq!(revised.as_bytes().get(..prefix_end), source.as_bytes().get(..prefix_end));
-        let text = sample_source_record(42).to_dc_string()?;
-        for checksummed in [false, true] {
-            let mut encapsulated = DcMstring::new();
-            if checksummed { encapsulated.push_dcutf_str_with_sha256(&text); }
-            else { encapsulated.push_dcutf_str(&text); }
-            let view = encapsulated.inspect::<SampleFileRecord>();
-            assert!(view.diagnostic().is_none());
-            assert!(view.replace_field("inode", &sample_source_record(999)).is_err());
-            assert!(encapsulated.replace_source_field(22..23, &source).is_err());
-        }
+        let mut encapsulated = DcMstring::new();
+        encapsulated.push_binary(b"payload");
+        assert!(encapsulated.replace_source_field(22..23, &source).is_err());
         Ok(())
     }
 
