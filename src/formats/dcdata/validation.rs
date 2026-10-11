@@ -3059,6 +3059,95 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_dc_syntax_key_value_pair_arrays() -> Result<()> {
+        use crate::syntax::{
+            MatchMode, ParsedElement, SyntaxRuleResolver,
+            default_syntax_resolver, parse_document_tokens,
+            validate_dc_document_strict,
+        };
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+        let pair = vec![sdc(514), 107, sdc(312), 118, sdc(515)];
+        validate_dc_document_strict(&pair)?;
+        let resolver = default_syntax_resolver();
+        let pair_rule = resolver.resolve_rule(&CharTarget::Dc(514)).context("Missing pair rule")?;
+        let mut context = crate::syntax::MatchContext::new(Some(514))
+            .with_mode(MatchMode::Strict)
+            .with_resolver(resolver.clone());
+        assert_eq!(
+            crate::syntax::match_syntax_rule_with_context(&pair, pair_rule, &mut context).consumed_tokens(),
+            pair.len(),
+        );
+
+        for (begin, end) in [(559, 560), (313, 314)] {
+            let empty = vec![sdc(begin), sdc(275), sdc(275), sdc(end)];
+            validate_dc_document_strict(&empty)?;
+            let mut map = vec![sdc(begin), sdc(275), sdc(275)];
+            if begin == 559 {
+                map.extend_from_slice(&pair);
+                map.extend_from_slice(&pair);
+            } else {
+                map.extend([107, sdc(312), 118, sdc(312), 107, sdc(312), 118]);
+            }
+            map.push(sdc(end));
+            validate_dc_document_strict(&map)?;
+        }
+
+        let mut nested = vec![sdc(514)];
+        nested.extend_from_slice(&pair);
+        nested.push(sdc(312));
+        nested.extend_from_slice(&pair);
+        nested.push(sdc(515));
+        validate_dc_document_strict(&nested)?;
+        let doc = parse_document_tokens(&nested, MatchMode::Strict);
+        let Some(ParsedElement::Construct { children, consumed, .. }) = doc.elements.first() else {
+            bail!("Nested pair was not parsed as a construct");
+        };
+        assert_eq!(*consumed, nested.len());
+        assert_eq!(children.iter().filter(|child| matches!(child, ParsedElement::Construct { target: CharTarget::Dc(514), .. })).count(), 2);
+
+        let quoted = vec![
+            sdc(514), sdc(260), sdc(262), sdc(264), sdc(263),
+            sdc(515), sdc(312), sdc(514), sdc(261),
+            sdc(312), 118, sdc(515),
+        ];
+        validate_dc_document_strict(&quoted)?;
+        let escaped = vec![
+            sdc(514), sdc(255), sdc(515), sdc(312),
+            sdc(255), sdc(312), sdc(515),
+        ];
+        validate_dc_document_strict(&escaped)?;
+        let truncated = vec![sdc(514), 107, sdc(312), 118];
+        let recovered = parse_document_tokens(&truncated, MatchMode::Permissive);
+        assert!(recovered.has_errors);
+        assert!(matches!(
+            recovered.elements.first(),
+            Some(ParsedElement::Construct { target: CharTarget::Dc(514), consumed, .. })
+                if *consumed == truncated.len()
+        ));
+        for broken in [
+            vec![sdc(514), 107, sdc(312), 118],
+            vec![sdc(514), sdc(312), 118, sdc(515)],
+            vec![sdc(514), 107, sdc(312), sdc(515)],
+            vec![sdc(559), sdc(275), sdc(275), 107, sdc(312), 118, sdc(560)],
+            vec![sdc(559), sdc(275), sdc(275), sdc(514), 107, sdc(312), 118, sdc(560)],
+            vec![sdc(313), sdc(275), sdc(275), 107, sdc(314)],
+        ] {
+            assert!(validate_dc_document_strict(&broken).is_err(), "{broken:?}");
+        }
+
+        let mut damaged = vec![sdc(559), sdc(275), sdc(275), sdc(312)];
+        damaged.extend_from_slice(&pair);
+        damaged.push(sdc(560));
+        let doc = parse_document_tokens(&damaged, MatchMode::Permissive);
+        assert!(doc.elements.iter().any(|element| matches!(element, ParsedElement::Construct { target: CharTarget::Dc(514), .. })));
+        let mut legacy_tuple_key = vec![sdc(313), sdc(275), sdc(275)];
+        legacy_tuple_key.extend_from_slice(&pair);
+        legacy_tuple_key.extend([sdc(312), 118, sdc(314)]);
+        validate_dc_document_strict(&legacy_tuple_key)?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_dc_syntax_resolver_and_expansion_bounds() {
         use crate::syntax::{
             DatasetRuleResolver, MatchContext, MatchOutcome,
@@ -3450,4 +3539,3 @@ mod tests {
         assert!(!report_ok.has_errors());
     }
 }
-

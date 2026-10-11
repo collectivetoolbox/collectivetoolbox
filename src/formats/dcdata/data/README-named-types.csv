@@ -9,7 +9,7 @@ identifier,:270:,A nonempty framed name. Naming an object does not itself derefe
 type,:([262:] | [format]),
 format,:[f0..f1114111],
 list,:[310:],
-key_value,:[313:],
+key_value,:(559: | 313:),Ordered key-value array. Dc 559 is canonical; Dc 313 remains readable for existing documents.
 duration,:[395:],
 datemagnitude,:[393:],A positive duration
 asciilatinletter,:([u41..u5a] | [u61..u7a]),ASCII Latin letter (A-Z or a-z)

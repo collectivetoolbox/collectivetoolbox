@@ -42,9 +42,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! matched via `DcChar::from_u128`. No field mapping is ever done by field name
 //! or reflection: all mappings are explicit and stable across schema versions.
 //!
-//! `#[dc(key_value)]` selects a Dc 313..314 map with explicit
+//! `#[dc(key_value)]` writes a Dc 559..560 array of Dc 514..515 pairs with explicit
 //! `#[dc(key = "...")]` fields. Keys and values have Object type headers;
-//! Dc 312 separates each key and value. All declared keys are required,
+//! Dc 312 separates each key and value; pairs are adjacent without separators.
+//! Deprecated flat Dc 313..314 maps remain readable. Field replacement preserves
+//! the source array's framing. All declared keys are required,
 //! including fields whose value is an explicitly encoded `Option`.
 //! `#[dc(names)]` selects explicit `#[dc(name = "...")]` enum names.
 //! Payload variants require boundaries and may use `binary`.
@@ -311,10 +313,12 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
 
     if begin == SHORT_DC_REGION_START.saturating_add(313)
         || end == SHORT_DC_REGION_START.saturating_add(314)
+        || begin == SHORT_DC_REGION_START.saturating_add(559)
+        || end == SHORT_DC_REGION_START.saturating_add(560)
     {
         return Err(syn::Error::new(
             input.span(),
-            "Dc 313..314 requires #[dc(key_value)] with explicit field keys",
+            "Dc key-value arrays require #[dc(key_value)] with explicit field keys",
         ));
     }
 
@@ -561,6 +565,8 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
 
     if begin == Some(SHORT_DC_REGION_START.saturating_add(313))
         || end == Some(SHORT_DC_REGION_START.saturating_add(314))
+        || begin == Some(SHORT_DC_REGION_START.saturating_add(559))
+        || end == Some(SHORT_DC_REGION_START.saturating_add(560))
     {
         return Err(syn::Error::new(
             field.span(),
@@ -638,13 +644,15 @@ fn expand_named_representation(
         return Err(syn::Error::new(input.span(), "Choose exactly one of key_value or names"));
     }
     if key_value && (begin.is_some() || end.is_some()) {
-        return Err(syn::Error::new(input.span(), "key_value uses the Dc 313..314 map boundaries"));
+        return Err(syn::Error::new(input.span(), "key_value uses the Dc 559..560 array boundaries"));
     }
     if begin.is_some() != end.is_some() || (begin.is_some() && begin == end) {
         return Err(syn::Error::new(input.span(), "Supply distinct begin and end boundaries together"));
     }
     if begin == Some(SHORT_DC_REGION_START.saturating_add(313))
         || end == Some(SHORT_DC_REGION_START.saturating_add(314))
+        || begin == Some(SHORT_DC_REGION_START.saturating_add(559))
+        || end == Some(SHORT_DC_REGION_START.saturating_add(560))
     {
         return Err(syn::Error::new(input.span(), "Named variants cannot use map boundaries; use key_value on a record"));
     }
@@ -662,7 +670,7 @@ fn expand_named_representation(
             let Fields::Named(fields) = &data.fields else {
                 return Err(syn::Error::new(input.span(), "key_value requires named struct fields"));
             };
-            for (field_index, field) in fields.named.iter().enumerate() {
+            for field in &fields.named {
                 let field_ident = field.ident.as_ref().ok_or_else(|| syn::Error::new(field.span(), "Expected named field"))?;
                 let field_ty = &field.ty;
                 let mut key = None;
@@ -682,20 +690,20 @@ fn expand_named_representation(
                 if !seen_names.insert(key.value()) {
                     return Err(syn::Error::new(key.span(), "Duplicate map key"));
                 }
-                let separator = if field_index == 0 { None } else {
-                    Some(quote! { mst.push_char(#crate_root::DcChar::from_short(312)); })
-                };
                 encode_parts.push(quote! {
-                    #separator
+                    encoding.encode_entry_begin(mst, true);
                     #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#key, mst, context)?;
                     mst.push_char(#crate_root::DcChar::from_short(312));
                     #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                    encoding.encode_entry_end(mst);
                 });
                 field_encode_parts.push(quote! {
                     stringify!(#field_ident) => {
+                        encoding.encode_entry_begin(mst, true);
                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#key, mst, context)?;
                         mst.push_char(#crate_root::DcChar::from_short(312));
                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                        encoding.encode_entry_end(mst);
                         Ok(())
                     },
                 });
@@ -707,38 +715,38 @@ fn expand_named_representation(
                         #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate map key {}", #key);
                         reader.expect_short_dc(312)?;
                         #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
-                        reader.annotate_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start);
+                        encoding.decode_entry_end(reader)?;
+                        reader.annotate_map_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start, encoding);
                     }
                 });
                 construct_fields.push(quote! {
                     #field_ident: #field_ident.ok_or_else(|| #anyhow_path::anyhow!("Missing map key {}", #key))?
                 });
             }
-            let map_begin = SHORT_DC_REGION_START.saturating_add(313);
-            let map_end = SHORT_DC_REGION_START.saturating_add(314);
             (quote! {
-                mst.push_char(#crate_root::DcChar::from_u128(#map_begin));
-                mst.push_char(#crate_root::DcChar::from_short(275));
-                mst.push_char(#crate_root::DcChar::from_short(275));
+                let encoding = #crate_root::DcKvMapEncoding::Pairs;
+                encoding.encode_header(mst);
                 #(#encode_parts)*
-                mst.push_char(#crate_root::DcChar::from_u128(#map_end));
+                encoding.encode_end(mst);
             }, quote! {
-                reader.expect_char(#crate_root::DcChar::from_u128(#map_begin))?;
-                reader.expect_short_dc(275)?;
-                reader.expect_short_dc(275)?;
+                let encoding = #crate_root::DcKvMapEncoding::decode_header(reader)?;
                 #(#field_inits)*
                 let mut first = true;
-                while reader.peek_char()? != Some(#crate_root::DcChar::from_u128(#map_end)) {
-                    if !first { reader.expect_short_dc(312)?; }
-                    first = false;
+                loop {
                     let field_start = reader.position();
+                    if !encoding.decode_entry_begin(reader, first)? { break; }
+                    let field_start = if encoding == #crate_root::DcKvMapEncoding::Legacy {
+                        reader.position()
+                    } else {
+                        field_start
+                    };
+                    first = false;
                     let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                     match key.as_str() {
                         #(#decode_parts)*
                         _ => #anyhow_path::bail!("Unknown map key {:?} for {}", key, stringify!(#type_name)),
                     }
                 }
-                reader.expect_char(#crate_root::DcChar::from_u128(#map_end))?;
                 Self { #(#construct_fields),* }
             })
         }
@@ -834,6 +842,10 @@ fn expand_named_representation(
                 fn dc_field_owner() -> &'static str { ::std::any::type_name::<Self>() }
 
                 fn encode_dc_field(&self, field: &str, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                    self.encode_dc_map_field(field, mst, #crate_root::DcKvMapEncoding::Pairs)
+                }
+
+                fn encode_dc_map_field(&self, field: &str, mst: &mut #crate_root::DcMstring, encoding: #crate_root::DcKvMapEncoding) -> #anyhow_path::Result<()> {
                     let context = &#crate_root::SharedValueContext::default();
                     match field {
                         #(#field_encode_parts)*

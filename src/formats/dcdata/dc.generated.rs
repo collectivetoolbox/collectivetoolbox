@@ -68,10 +68,10 @@ pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
 pub const DC_BEGIN_LIST: DcChar = DcChar::from_short(310);
 /// Terminates a typed list begun by 310. Optionally, a length can be specified, in which case it must have that many elements declared. (Dc 311).
 pub const DC_END_LIST: DcChar = DcChar::from_short(311);
-/// Begins an ordered key-value associative map. (Dc 313).
-pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(313);
-/// Terminates an ordered key-value associative map begun by 313. (Dc 314).
-pub const DC_END_KV_MAP: DcChar = DcChar::from_short(314);
+/// Legacy ordered key-value associative map. Keys and values alternate with Dc 312 between every operand. The optional length counts pairs. Retained for reading existing documents; new documents should use Dc 559. (Dc 313).
+pub const DC_BEGIN_LEGACY_KV_MAP: DcChar = DcChar::from_short(313);
+/// Terminates a legacy ordered key-value associative map begun by 313. (Dc 314).
+pub const DC_END_LEGACY_KV_MAP: DcChar = DcChar::from_short(314);
 /// Indicates an optional value is present. (Dc 315).
 pub const DC_OPTIONAL_PRESENT: DcChar = DcChar::from_short(315);
 /// Indicates an optional value is absent. (Dc 316).
@@ -82,6 +82,10 @@ pub const DC_BEGIN_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(340);
 pub const DC_END_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(341);
 /// Indicates that all values within the list have the same underlying meaning. (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
+/// Begins a key-value pair. Dc 312 separates the nonempty key and value regions; Dc 515 closes the pair. Nested framed data and escaped characters belong to their operand rather than delimiting the enclosing pair. Operand regions retain their historical syntax; this rule does not impose a narrower expression grammar. (Dc 514).
+pub const DC_BEGIN_KV_PAIR: DcChar = DcChar::from_short(514);
+/// Terminates the key-value pair begun by Dc 514. (Dc 515).
+pub const DC_END_KV_PAIR: DcChar = DcChar::from_short(515);
 /// Boolean true (Dc 517).
 pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
 /// Boolean false (Dc 518).
@@ -120,6 +124,10 @@ pub const DC_LOG_MESSAGE: DcChar = DcChar::from_short(556);
 pub const DC_TRACE_IDENTIFIER: DcChar = DcChar::from_short(557);
 /// Numeric status or return code associated with an operation. (Dc 558).
 pub const DC_OPERATION_STATUS_CODE: DcChar = DcChar::from_short(558);
+/// Begins an ordered key-value associative map of adjacent explicitly closed Dc 514 pairs. No Dc 312 occurs between pairs. The optional length counts pairs. The declared key and value types apply to each pair; inherited declarations must accompany independently extracted fragments. Invalid pair framing must not be reinterpreted as the legacy Dc 313 form. (Dc 559).
+pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(559);
+/// Terminates an ordered key-value associative map begun by Dc 559. (Dc 560).
+pub const DC_END_KV_MAP: DcChar = DcChar::from_short(560);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

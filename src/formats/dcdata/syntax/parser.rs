@@ -32,7 +32,7 @@ use super::ast::{
     SyntaxPattern, SyntaxTerm,
 };
 use super::framing::{
-    DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,
+    DC_ESCAPE, DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,
     scan_literal_frame,
 };
 use super::matcher::{MatchContext, match_syntax_rule_with_context};
@@ -726,6 +726,25 @@ pub fn parse_document_tokens_with_resolver(
             break;
         };
 
+        if first == DC_ESCAPE {
+            if let Some(&escaped) = remaining.get(1) {
+                elements.push(ParsedElement::RawTokens(vec![first, escaped]));
+                offset = offset.saturating_add(2);
+                continue;
+            }
+            diagnostics.push(SyntaxDiagnostic {
+                message: "Dangling escape character Dc 255 at end-of-stream".to_string(),
+                token_offset: offset,
+                is_error: true,
+            });
+            if mode == MatchMode::Strict {
+                return ParsedDocument { elements, diagnostics, has_errors: true };
+            }
+            elements.push(ParsedElement::Atomic(first));
+            offset = offset.saturating_add(1);
+            continue;
+        }
+
         // 1. Check for illegal / dangling closing delimiter
         if let Some(opener) = resolver.and_then(|r| r.closing_opener_for(first)) {
             diagnostics.push(SyntaxDiagnostic {
@@ -967,12 +986,12 @@ pub fn parse_document_tokens_with_resolver(
                     if consumed > 0 {
                         let closer_opt = res.closer_for_opener(&target);
                         let closer_pos = closer_opt.and_then(|closer| {
-                            remaining.get(1..consumed).and_then(|slice| {
-                                slice
-                                    .iter()
-                                    .position(|&tok| tok == closer)
-                                    .map(|pos| pos.saturating_add(1))
-                            })
+                            super::matcher::find_balanced_closing(
+                                remaining.get(..consumed)?,
+                                first,
+                                closer,
+                            )
+                            .map(|end| end.saturating_sub(1))
                         });
 
                         let child_elements = if target == CharTarget::Dc(511) && consumed > 3 {
@@ -1037,7 +1056,7 @@ pub fn parse_document_tokens_with_resolver(
                             let mut inner_elems = vec![ParsedElement::Atomic(fmt_tok)];
                             inner_elems.extend(payload_doc.elements);
                             inner_elems
-                        } else if target == CharTarget::Dc(310) && consumed > 2 {
+                        } else if matches!(target, CharTarget::Dc(310 | 313 | 559)) && consumed > 2 {
                             let slice_after_310 = match remaining.get(1..consumed.saturating_sub(1)) {
                                 Some(s) => s,
                                 None => &[],
@@ -1059,13 +1078,14 @@ pub fn parse_document_tokens_with_resolver(
 
                             // Reason for fallback: slice beyond header bounds defaults to empty slice
                             let slice_for_type = slice_after_310.get(header_len..).unwrap_or(&[]);
+                            let type_count = if target == CharTarget::Dc(310) { 1 } else { 2 };
                             let type_outcome = super::matcher::match_element(
                                 slice_for_type,
-                                &SyntaxElement::exact(SyntaxTerm::NamedConstruct {
+                                &SyntaxElement::with_quantifier(SyntaxTerm::NamedConstruct {
                                     name: "type".to_string(),
                                     subtype: None,
                                     capture_var: None,
-                                }),
+                                }, Quantifier::Range { min: type_count, max: Some(type_count) }),
                                 &mut ctx,
                             );
                             header_len = header_len.saturating_add(type_outcome.consumed_tokens());
@@ -1222,7 +1242,8 @@ pub fn parse_document_tokens_with_resolver(
         let mut raw_chunk = vec![first];
         offset = offset.saturating_add(1);
         while let Some(&tok) = stream.get(offset) {
-            if tok == DC_LITERAL_BEGIN
+            if tok == DC_ESCAPE
+                || tok == DC_LITERAL_BEGIN
                 || tok == DC_IDENTIFIER_BEGIN
                 || tok == DC_PARAM_BEGIN
                 || tok == DC_REF_NAMED

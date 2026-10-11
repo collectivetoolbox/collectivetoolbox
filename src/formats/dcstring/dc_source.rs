@@ -43,6 +43,20 @@ pub trait DcMixedFields: DcMixedDecode {
         field: &str,
         target: &mut DcMstring,
     ) -> Result<()>;
+
+    /// Encodes a keyed field using the source array's framing.
+    ///
+    /// # Errors
+    /// Returns an error if this record does not support keyed field encoding.
+    fn encode_dc_map_field(
+        &self,
+        field: &str,
+        target: &mut DcMstring,
+        encoding: crate::DcKvMapEncoding,
+    ) -> Result<()> {
+        let _ = (field, target, encoding);
+        bail!("Record does not support key-value field encoding")
+    }
 }
 
 /// An interpretation failure at a byte position in the original string.
@@ -290,7 +304,11 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             "Updated record does not own this annotated field"
         );
         let mut fragment = DcMstring::new();
-        updated.encode_dc_field(annotation.field, &mut fragment)?;
+        if let Some(encoding) = annotation.map_encoding {
+            updated.encode_dc_map_field(annotation.field, &mut fragment, encoding)?;
+        } else {
+            updated.encode_dc_field(annotation.field, &mut fragment)?;
+        }
         self.source
             .replace_source_field(annotation.range(), &fragment)
     }
@@ -398,6 +416,7 @@ pub struct DcFieldAnnotation {
     field: &'static str,
     range: Range<usize>,
     depth: usize,
+    map_encoding: Option<crate::DcKvMapEncoding>,
 }
 
 impl DcFieldAnnotation {
@@ -412,7 +431,13 @@ impl DcFieldAnnotation {
             field,
             range,
             depth,
+            map_encoding: None,
         }
+    }
+
+    pub(crate) fn with_map_encoding(mut self, encoding: crate::DcKvMapEncoding) -> Self {
+        self.map_encoding = Some(encoding);
+        self
     }
 
     /// Returns the fully qualified Rust type responsible for interpretation.

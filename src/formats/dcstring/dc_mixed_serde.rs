@@ -295,6 +295,22 @@ impl<'a> DcMixedReader<'a> {
         }
     }
 
+    #[doc(hidden)]
+    pub fn annotate_map_field(
+        &mut self,
+        owner: &'static str,
+        field: &'static str,
+        start: usize,
+        encoding: crate::DcKvMapEncoding,
+    ) {
+        if self.annotating {
+            self.annotations.push(
+                crate::DcFieldAnnotation::new(owner, field, start..self.position, self.record_depth)
+                    .with_map_encoding(encoding),
+            );
+        }
+    }
+
     /// Creates a reader with definitions loaded from an enclosing document.
     #[must_use]
     pub fn with_context(mstr: &'a DcMstr, context: &'a crate::SharedValueContext) -> Self {
@@ -1077,20 +1093,18 @@ where
         self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        mst.push_char(DC_BEGIN_KV_MAP); // Begin map of types
-        mst.push_char(DcChar::from_short(275));
-        mst.push_char(DcChar::from_short(275));
+        let encoding = crate::DcKvMapEncoding::Pairs;
+        encoding.encode_header(mst);
         let mut first = true;
         for (k, v) in self {
-            if !first {
-                mst.push_char(DcChar::from_short(312));
-            }
+            encoding.encode_entry_begin(mst, first);
             first = false;
             k.encode_dc_mixed_with_context(mst, context)?;
             mst.push_char(DcChar::from_short(312));
             v.encode_dc_mixed_with_context(mst, context)?;
+            encoding.encode_entry_end(mst);
         }
-        mst.push_char(DC_END_KV_MAP); // End map of types
+        encoding.encode_end(mst);
         Ok(())
     }
 }
@@ -1101,23 +1115,15 @@ where
     V: DcMixedDecode,
 {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        reader.expect_char(DC_BEGIN_KV_MAP)?;
-        reader.expect_short_dc(275)?;
-        reader.expect_short_dc(275)?;
+        let encoding = crate::DcKvMapEncoding::decode_header(reader)?;
         let mut map = BTreeMap::new();
         let mut first = true;
-        loop {
-            if reader.peek_char()? == Some(DC_END_KV_MAP) {
-                reader.next_char()?;
-                break;
-            }
-            if !first {
-                reader.expect_short_dc(312)?;
-            }
+        while encoding.decode_entry_begin(reader, first)? {
             first = false;
             let key = K::decode_dc_mixed(reader)?;
             reader.expect_short_dc(312)?;
             let value = V::decode_dc_mixed(reader)?;
+            encoding.decode_entry_end(reader)?;
             ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
         }
         Ok(map)
@@ -1689,7 +1695,7 @@ mod tests {
         incomplete.push_char(DcChar::from_short(313));
         incomplete.push_char(DcChar::from_short(275));
         incomplete.push_char(DcChar::from_short(275));
-        original.encode_dc_field("count", &mut incomplete)?;
+        original.encode_dc_map_field("count", &mut incomplete, crate::DcKvMapEncoding::Legacy)?;
         incomplete.push_char(DcChar::from_short(312));
         "future".encode_dc_mixed(&mut incomplete)?;
         incomplete.push_binary_with_sha256(b"unknown value");
@@ -1753,17 +1759,20 @@ mod tests {
         let mut encoded = DcMstring::new();
         record.encode_dc_mixed(&mut encoded)?;
         let mut reader = DcMixedReader::new(&encoded);
-        reader.expect_short_dc(313)?;
+        reader.expect_short_dc(559)?;
         reader.expect_short_dc(275)?;
         reader.expect_short_dc(275)?;
+        reader.expect_short_dc(514)?;
         assert_eq!(String::decode_dc_mixed(&mut reader)?, "count");
         reader.expect_short_dc(312)?;
         assert_eq!(u64::decode_dc_mixed(&mut reader)?, u64::MAX);
-        reader.expect_short_dc(312)?;
+        reader.expect_short_dc(515)?;
+        reader.expect_short_dc(514)?;
         assert_eq!(String::decode_dc_mixed(&mut reader)?, "label");
         reader.expect_short_dc(312)?;
         assert_eq!(Option::<String>::decode_dc_mixed(&mut reader)?, None);
-        reader.expect_short_dc(314)?;
+        reader.expect_short_dc(515)?;
+        reader.expect_short_dc(560)?;
         assert_eq!(reader.peek_char()?, None);
         let map = BTreeMap::from([
             ("count".to_string(), SampleNamedValue::Unsigned(u64::MAX)),
@@ -1788,19 +1797,31 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_named_key_value_rejects_malformed() -> Result<()> {
-        for keys in [vec!["count"], vec!["count", "count"], vec!["unknown"], vec!["label", "count"]] {
-            let mut encoded = DcMstring::new();
-            encoded.push_char(DC_BEGIN_KV_MAP);
-            encoded.push_char(DcChar::from_short(275));
-            encoded.push_char(DcChar::from_short(275));
-            for (index, key) in keys.iter().enumerate() {
-                if index != 0 { encoded.push_char(DcChar::from_short(312)); }
-                key.encode_dc_mixed(&mut encoded)?;
-                encoded.push_char(DcChar::from_short(312));
-                1u64.encode_dc_mixed(&mut encoded)?;
+        for encoding in [crate::DcKvMapEncoding::Legacy, crate::DcKvMapEncoding::Pairs] {
+            for keys in [vec!["count"], vec!["count", "count"], vec!["unknown"], vec!["label", "count"]] {
+                let mut encoded = DcMstring::new();
+                encoding.encode_header(&mut encoded);
+                for (index, key) in keys.iter().enumerate() {
+                    encoding.encode_entry_begin(&mut encoded, index == 0);
+                    key.encode_dc_mixed(&mut encoded)?;
+                    encoded.push_char(DcChar::from_short(312));
+                    1u64.encode_dc_mixed(&mut encoded)?;
+                    encoding.encode_entry_end(&mut encoded);
+                }
+                encoding.encode_end(&mut encoded);
+                assert!(encoded.decode::<SampleKeyedRecord>().is_err());
             }
-            encoded.push_char(DC_END_KV_MAP);
-            assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+            let mut duplicate = DcMstring::new();
+            encoding.encode_header(&mut duplicate);
+            for value in [1u64, 2] {
+                encoding.encode_entry_begin(&mut duplicate, value == 1);
+                "count".encode_dc_mixed(&mut duplicate)?;
+                duplicate.push_char(DcChar::from_short(312));
+                value.encode_dc_mixed(&mut duplicate)?;
+                encoding.encode_entry_end(&mut duplicate);
+            }
+            encoding.encode_end(&mut duplicate);
+            assert!(duplicate.decode::<BTreeMap<String, u64>>().is_err());
         }
         for separators in [false, true] {
             let mut encoded = DcMstring::new();
@@ -1812,19 +1833,6 @@ mod tests {
             1u64.encode_dc_mixed(&mut encoded)?;
             assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
         }
-        let mut duplicate = DcMstring::new();
-        duplicate.push_char(DC_BEGIN_KV_MAP);
-        duplicate.push_char(DcChar::from_short(275));
-        duplicate.push_char(DcChar::from_short(275));
-        "count".encode_dc_mixed(&mut duplicate)?;
-        duplicate.push_char(DcChar::from_short(312));
-        1u64.encode_dc_mixed(&mut duplicate)?;
-        duplicate.push_char(DcChar::from_short(312));
-        "count".encode_dc_mixed(&mut duplicate)?;
-        duplicate.push_char(DcChar::from_short(312));
-        2u64.encode_dc_mixed(&mut duplicate)?;
-        duplicate.push_char(DC_END_KV_MAP);
-        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&duplicate)).is_err());
         let mut legacy = DcMstring::new();
         legacy.push_char(DC_BEGIN_KV_MAP);
         "count".encode_dc_mixed(&mut legacy)?;
@@ -1832,6 +1840,94 @@ mod tests {
         legacy.push_char(DC_END_KV_MAP);
         assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
         assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_named_key_value_legacy_reads_and_edits() -> Result<()> {
+        let original = SampleKeyedRecord { count: 42, label: Some("old".to_owned()) };
+        let updated = SampleKeyedRecord { count: 999, label: None };
+        let encoding = crate::DcKvMapEncoding::Legacy;
+        let mut source = DcMstring::new();
+        encoding.encode_header(&mut source);
+        original.encode_dc_map_field("count", &mut source, encoding)?;
+        source.push_char(DcChar::from_short(312));
+        original.encode_dc_map_field("label", &mut source, encoding)?;
+        encoding.encode_end(&mut source);
+        assert_eq!(source.decode::<SampleKeyedRecord>()?, original);
+        let view = source.inspect::<SampleKeyedRecord>();
+        let range = view.fields()[0].range();
+        let revised = view.replace_field("count", &updated)?;
+        assert_eq!(revised.decode::<SampleKeyedRecord>()?.count, 999);
+        let revised_range = revised.inspect::<SampleKeyedRecord>().fields()[0].range();
+        assert_eq!(source.as_bytes().get(..range.start), revised.as_bytes().get(..revised_range.start));
+        assert_eq!(source.as_bytes().get(range.end..), revised.as_bytes().get(revised_range.end..));
+        let text = source.to_dc_string()?;
+        let revised = text.inspect::<SampleKeyedRecord>().replace_field("label", &updated)?;
+        assert_eq!(revised.decode::<SampleKeyedRecord>()?.label, None);
+
+        for entries in [vec![], vec![("a", 1u64), ("b", 2)]] {
+            let mut legacy = DcMstring::new();
+            encoding.encode_header(&mut legacy);
+            for (index, (key, value)) in entries.iter().enumerate() {
+                encoding.encode_entry_begin(&mut legacy, index == 0);
+                key.encode_dc_mixed(&mut legacy)?;
+                legacy.push_char(DcChar::from_short(312));
+                value.encode_dc_mixed(&mut legacy)?;
+            }
+            encoding.encode_end(&mut legacy);
+            let decoded = legacy.decode::<BTreeMap<String, u64>>()?;
+            assert_eq!(decoded, entries.iter().map(|(key, value)| ((*key).to_owned(), *value)).collect());
+            let canonical = decoded.to_dc_mixed()?;
+            assert_eq!(DcMixedReader::new(&canonical).next_char()?, DC_BEGIN_KV_MAP);
+            assert_dc_document_roundtrip(&decoded)?;
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_named_key_value_pair_boundaries() -> Result<()> {
+        let nested = BTreeMap::from([("inner".to_owned(), 42u64)]);
+        let outer = BTreeMap::from([("outer".to_owned(), nested)]);
+        assert_dc_document_roundtrip(&outer)?;
+        let source = outer.to_dc_mixed()?;
+        let tokens = source.to_dc_tokens()?;
+        let doc = ctb_formats_dcdata::syntax::parse_document_tokens(
+            &tokens,
+            ctb_formats_dcdata::syntax::MatchMode::Strict,
+        );
+        assert!(!doc.has_errors, "{:?}", doc.diagnostics);
+        let original = SampleKeyedRecord { count: 42, label: None };
+        let source = original.to_dc_mixed()?;
+        let view = source.inspect::<SampleKeyedRecord>();
+        let range = view.fields()[0].range();
+        let payload = source.as_bytes().get(range).context("Missing pair field range")?;
+        let mut pair_bytes = DcMstring::new().into_bytes();
+        pair_bytes.extend_from_slice(payload);
+        let pair = DcMstring::from_bytes(pair_bytes)?;
+        let mut reader = DcMixedReader::new(&pair);
+        reader.expect_short_dc(514)?;
+        assert_eq!(String::decode_dc_mixed(&mut reader)?, "count");
+        reader.expect_short_dc(312)?;
+        assert_eq!(u64::decode_dc_mixed(&mut reader)?, 42);
+        reader.expect_short_dc(515)?;
+        assert!(reader.peek_char()?.is_none());
+        ctb_formats_dcdata::syntax::validate_dc_document_strict(&pair.to_dc_tokens()?)?;
+
+        for body in [
+            vec![514, 517, 312, 518],
+            vec![514, 517, 312, 518, 515, 312, 514, 517, 312, 518, 515],
+            vec![517, 312, 518],
+        ] {
+            let mut invalid = DcMstring::new();
+            crate::DcKvMapEncoding::Pairs.encode_header(&mut invalid);
+            for dc in body {
+                invalid.push_char(DcChar::from_short(dc));
+            }
+            crate::DcKvMapEncoding::Pairs.encode_end(&mut invalid);
+            assert!(invalid.decode::<BTreeMap<bool, bool>>().is_err());
+            assert!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&invalid.to_dc_tokens()?).is_err());
+        }
         Ok(())
     }
 
@@ -2301,5 +2397,3 @@ mod tests {
         Ok(())
     }
 }
-
-

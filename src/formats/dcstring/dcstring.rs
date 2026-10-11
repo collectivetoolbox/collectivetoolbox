@@ -38,6 +38,7 @@ pub mod dc_source;
 pub mod dc_str;
 pub mod dcstring_impl;
 pub mod error;
+pub mod kv_map;
 pub mod shared;
 
 pub use converters::dctext::DcList;
@@ -56,6 +57,7 @@ pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
+pub use kv_map::DcKvMapEncoding;
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};
 pub use ctb_formats_utilities::FormatLog;

@@ -860,7 +860,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
     #[serde(default)]
-    #[dc(nested = 313)]
+    #[dc(nested = [559, 313])]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
     #[serde(default)]
@@ -1570,9 +1570,41 @@ mod tests {
             metadata.encode_dc_mixed(&mut encoded).unwrap();
             let mut reader = DcMixedReader::new(&encoded);
             reader.expect_short_dc(321).unwrap();
-            assert_eq!(reader.peek_short_dc().unwrap(), Some(313));
+            assert_eq!(reader.peek_short_dc().unwrap(), Some(559));
             assert_eq!(NativeMetadata::decode_dc_mixed(&mut reader).unwrap(), metadata.native.unwrap());
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_native_metadata_legacy_key_value_array() -> Result<()> {
+        let mut source = DcMstring::new();
+        source.push_char(DcChar::from_short(321));
+        let encoding = ctb_formats_dcstring::DcKvMapEncoding::Legacy;
+        encoding.encode_header(&mut source);
+        "source_os".encode_dc_mixed(&mut source)?;
+        source.push_char(DcChar::from_short(312));
+        OsFamily::Other.encode_dc_mixed(&mut source)?;
+        source.push_char(DcChar::from_short(312));
+        "values".encode_dc_mixed(&mut source)?;
+        source.push_char(DcChar::from_short(312));
+        encoding.encode_header(&mut source);
+        encoding.encode_end(&mut source);
+        encoding.encode_end(&mut source);
+        source.push_char(DcChar::from_short(322));
+        let mut expected = FileMetadata::empty();
+        expected.native = Some(NativeMetadata {
+            source_os: OsFamily::Other,
+            values: std::collections::BTreeMap::new(),
+        });
+        assert_eq!(source.decode::<FileMetadata>()?, expected);
+        let inspection = source.inspect::<FileMetadata>();
+        assert!(inspection.diagnostic().is_none());
+        let updated = inspection.replace_field("native", &expected)?;
+        assert_eq!(updated.decode::<FileMetadata>()?, expected);
+        let mut reader = DcMixedReader::new(&updated);
+        reader.expect_short_dc(321)?;
+        reader.expect_short_dc(559)?;
+        Ok(())
     }
 
     #[crate::ctb_test]

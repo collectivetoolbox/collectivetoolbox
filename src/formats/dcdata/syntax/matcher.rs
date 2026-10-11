@@ -168,12 +168,14 @@ fn target_matches_token(target: &CharTarget, token: u128) -> bool {
 }
 
 /// Locates the end of a balanced container sequence taking escaping into account.
-fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<usize> {
+pub(super) fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<usize> {
     let dc_escape = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
         .saturating_add(255);
     let mut depth = 0usize;
     let mut skip_next = false;
-    for (idx, &tok) in stream.iter().enumerate() {
+    let mut idx = 0usize;
+    while let Some(&tok) = stream.get(idx) {
+        idx = idx.saturating_add(1);
         if skip_next {
             skip_next = false;
             continue;
@@ -182,12 +184,32 @@ fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<
             skip_next = true;
             continue;
         }
+        if depth > 0 && tok != opener {
+            let remaining = stream.get(idx.saturating_sub(1)..)?;
+            let mut diagnostics = Vec::new();
+            let framed_len = if tok == DC_LITERAL_BEGIN {
+                scan_literal_frame(remaining, MatchMode::Strict, &mut diagnostics, 0)
+                    .map(|(_, consumed)| consumed)
+            } else if tok == DC_IDENTIFIER_BEGIN {
+                scan_identifier_frame(remaining, MatchMode::Strict, &mut diagnostics, 0)
+                    .map(|(_, consumed)| consumed)
+            } else {
+                None
+            };
+            if let Some(consumed) = framed_len {
+                idx = idx.saturating_sub(1).saturating_add(consumed);
+                continue;
+            }
+            if tok == DC_LITERAL_BEGIN || tok == DC_IDENTIFIER_BEGIN {
+                return None;
+            }
+        }
         if tok == opener {
             depth = depth.saturating_add(1);
         } else if tok == closer {
             depth = depth.saturating_sub(1);
             if depth == 0 {
-                return Some(idx.saturating_add(1));
+                return Some(idx);
             }
         }
     }

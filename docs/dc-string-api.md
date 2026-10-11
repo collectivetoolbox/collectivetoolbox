@@ -71,6 +71,41 @@ overflow bucket.
 This is a byte-preservation contract, not a promise that unknown syntax retains
 its meaning when a value it depends on is deliberately edited.
 
+## Key-Value Arrays and Pairs
+
+New `BTreeMap` and `#[dc(key_value)]` encodings use Dc 559..560. The header
+declares Object key and value types (Dc 275), followed by adjacent explicitly
+closed pairs:
+
+```text
+559 275 275 514 key1 312 value1 515 514 key2 312 value2 515 560
+```
+
+There is no separator between pairs. Dc 514 identifies the key-value pair,
+Dc 312 separates its key and value, and Dc 515 closes it. Pair operand regions
+retain their historical nonempty syntax, including nested framed data; the
+tuple rule now consumes its declared closing delimiter. This does not change
+the separate Rust `(A, B)` codec, which still concatenates its operands.
+
+Readers also accept deprecated Dc 313..314 arrays with alternating keys and
+values separated by Dc 312. The opening Dc selects the interpretation; broken
+559 arrays are never retried as flat 313 arrays. Decoding and re-encoding a
+legacy array creates a new canonical 559 array, not a lossless reproduction.
+Keep the source string when the original representation must be preserved.
+
+Keyed-field annotations include both pair boundaries in new arrays. Field
+replacement preserves legacy framing when editing a legacy array and leaves
+all bytes outside the selected field unchanged. `encode_dc_field()` creates a
+new framed pair; `encode_dc_map_field()` can explicitly encode a legacy field.
+
+The database grammar allows an optional length counting pairs and declared
+key/value types. The typed Rust map codecs currently accept only uncounted
+Object/Object headers. Dependent type checks, length validation, and recovery
+of ambiguous damaged operands remain pending; explicit framing improves local
+recognition but cannot reconstruct lost declarations or distinguish structural
+markers from quoted payload after arbitrary damage. Copy inherited type
+declarations with pairs extracted as independently interpreted fragments.
+
 ## File Paths
 
 Derived fields with path values use the shared `PathBuf` codec. File identity
@@ -126,6 +161,11 @@ fail deserialization. There is no JSON overflow map or embedded JSON payload.
 
 - Inspection stops at its first error; it does not infer unknown syntax
   boundaries or resume after malformed/incomplete constructs.
+- Map codecs accept uncounted Object/Object headers only. General operand
+  grammars, dependent key/value type checks, pair-count validation, and
+  ambiguity-aware recovery after damaged framing remain pending. Historical
+  unclosed pairs are malformed but can still be inspected permissively with
+  diagnostics; no compact pair spelling is emitted or accepted as strict syntax.
 - There is no generic insertion of absent fields, batch edit transaction,
   persistent annotation identity, incremental reinspection, or GUI integration.
 - Automatic field annotations cover tagged and keyed record derives. Custom
