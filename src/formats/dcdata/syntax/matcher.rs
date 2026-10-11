@@ -290,6 +290,30 @@ fn match_term_single(
                 }
             }
 
+            // General type check: [type] (matches EL Types, format types, or type definitions)
+            if name == "type" && subtype.is_none() {
+                if let Some(ref resolver) = context.resolver {
+                    let is_format_token = u32::try_from(
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                    )
+                    .map(|start| first >= start)
+                    .unwrap_or(false);
+                    if is_format_token
+                        || resolver.matches_script("EL Types", first)
+                        || resolver.matches_script("Formats", first)
+                    {
+                        if let Some(var) = capture_var {
+                            context
+                                .captured_vars
+                                .entry(var.clone())
+                                .or_default()
+                                .push(first);
+                        }
+                        return MatchOutcome::Matched { consumed: 1 };
+                    }
+                }
+            }
+
             // Typed literal framing: [string]
             if name == "string" {
                 if first == DC_LITERAL_BEGIN {

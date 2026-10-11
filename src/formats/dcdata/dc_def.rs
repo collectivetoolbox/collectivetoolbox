@@ -104,6 +104,36 @@ where
     Ok(res)
 }
 
+fn serialize_opt_shorthand<S>(
+    shorthand: &Option<ctb_storage_minimal::shorthand::DcShorthand>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match shorthand {
+        Some(sh) => serializer.serialize_some(&sh.to_string()),
+        None => serializer.serialize_none(),
+    }
+}
+
+fn deserialize_opt_shorthand<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<ctb_storage_minimal::shorthand::DcShorthand>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt_str = Option::<String>::deserialize(deserializer)?;
+    match opt_str {
+        Some(s) => {
+            let sh = ctb_storage_minimal::shorthand::DcShorthand::parse(&s)
+                .map_err(serde::de::Error::custom)?;
+            Ok(Some(sh))
+        }
+        None => Ok(None),
+    }
+}
+
 /// Unified Document Character definition for characters and formats.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DcDefn {
@@ -139,6 +169,13 @@ pub struct DcDefn {
     // Syntax Rule
     #[serde(skip_serializing_if = "Option::is_none")]
     pub syntax: Option<DcSyntaxRule>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_opt_shorthand",
+        deserialize_with = "deserialize_opt_shorthand"
+    )]
+    pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
 
     // Documentation
     pub description: String,

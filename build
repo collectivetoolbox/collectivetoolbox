@@ -472,6 +472,8 @@ for p in "${platforms[@]}"; do
         test_harness_args=(--include-ignored --skip tests::test_bootstrap_ts_compilation)
         if [[ "$target" == *windows* ]]; then
             export WINEDEBUG="-all"
+            export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
+            mkdir -p "$WINEPREFIX"
             if command -v wine64 >/dev/null 2>&1; then
                 export CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER="wine64"
                 # export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
@@ -634,6 +636,8 @@ for p in "${platforms[@]}"; do
                 run_prefix=""
                 if [[ "$target" == *windows* ]]; then
                     export WINEDEBUG="-all"
+                    export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
+                    mkdir -p "$WINEPREFIX"
                     if command -v wine64 >/dev/null 2>&1; then
                         run_prefix="wine64 "
                     elif command -v wine >/dev/null 2>&1; then

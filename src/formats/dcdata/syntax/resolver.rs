@@ -33,6 +33,7 @@ use crate::utilities::*;
 use super::ast::{CharTarget, DcSyntaxRule, SyntaxPattern};
 use super::parser::parse_dc_syntax;
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, LazyLock};
 
 /// Trait providing resolution of syntax rules, named types, and script sets.
 pub trait SyntaxRuleResolver {
@@ -51,6 +52,14 @@ pub trait SyntaxRuleResolver {
     }
     /// Checks whether a character token belongs to a designated script.
     fn matches_script(&self, script_name: &str, token: u32) -> bool;
+    /// Returns the opener target if this character token is a closing delimiter.
+    fn closing_opener_for(&self, _token: u32) -> Option<&CharTarget> {
+        None
+    }
+    /// Returns the closing token for an opener target if known.
+    fn closer_for_opener(&self, _opener: &CharTarget) -> Option<u32> {
+        None
+    }
 }
 
 fn substitute_term_param(
@@ -116,12 +125,32 @@ fn substitute_pattern_param(
     }
 }
 
+fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u32> {
+    let elements = match pattern {
+        SyntaxPattern::Sequence(elems) => elems,
+        _ => return None,
+    };
+    if elements.len() < 2 {
+        return None;
+    }
+    let last = elements.last()?;
+    if last.quantifier != super::ast::Quantifier::ExactOne {
+        return None;
+    }
+    match &last.term {
+        super::ast::SyntaxTerm::CharRef(CharTarget::Dc(closer_tok)) => Some(*closer_tok),
+        _ => None,
+    }
+}
+
 /// In-memory resolver caching syntax rules, named types, and script mappings.
 #[derive(Debug, Clone, Default)]
 pub struct DatasetRuleResolver {
     rules: HashMap<CharTarget, DcSyntaxRule>,
     named_types: HashMap<String, SyntaxPattern>,
     script_chars: HashMap<String, HashSet<u32>>,
+    closing_delimiters: HashMap<u32, CharTarget>,
+    opener_to_closer: HashMap<CharTarget, u32>,
 }
 
 impl DatasetRuleResolver {
@@ -146,6 +175,12 @@ impl DatasetRuleResolver {
         self.script_chars.entry(script).or_default().insert(token);
     }
 
+    /// Registers a delimiter token as closing an opener target.
+    pub fn register_closing_delimiter(&mut self, closer_token: u32, opener: CharTarget) {
+        self.opener_to_closer.insert(opener.clone(), closer_token);
+        self.closing_delimiters.insert(closer_token, opener);
+    }
+
     /// Loads the authoritative dataset from embedded tables.
     #[must_use]
     pub fn load() -> Self {
@@ -162,6 +197,26 @@ impl DatasetRuleResolver {
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Dc(sid_u32), rule.clone());
+                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                        resolver.register_closing_delimiter(closer_tok, CharTarget::Dc(sid_u32));
+                    }
+                }
+                if let Some(ref closes) = defn.closes {
+                    let opener_target = match closes {
+                        ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
+                            u32::try_from(*id).ok().map(CharTarget::Dc)
+                        }
+                        ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
+                            Some(CharTarget::Format(*id))
+                        }
+                        ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
+                            Some(CharTarget::Unicode(*cp))
+                        }
+                        _ => None,
+                    };
+                    if let Some(target) = opener_target {
+                        resolver.register_closing_delimiter(sid_u32, target);
+                    }
                 }
             }
         }
@@ -190,6 +245,9 @@ impl DatasetRuleResolver {
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Format(short_id), rule.clone());
+                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                        resolver.register_closing_delimiter(closer_tok, CharTarget::Format(short_id));
+                    }
                 }
             }
         }
@@ -214,7 +272,21 @@ impl DatasetRuleResolver {
                     continue;
                 }
                 if let Ok(rule) = parse_dc_syntax(syntax_raw) {
-                    resolver.add_named_type(name.to_string(), rule.pattern);
+                    resolver.add_named_type(name.to_string(), rule.pattern.clone());
+                    if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
+                        if let Some(first_elem) = elems.first() {
+                            if first_elem.quantifier == super::ast::Quantifier::ExactOne {
+                                if let super::ast::SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
+                                    if !resolver.rules.contains_key(lead_target) {
+                                        resolver.add_rule(lead_target.clone(), rule.clone());
+                                    }
+                                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                                        resolver.register_closing_delimiter(closer_tok, lead_target.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -258,4 +330,21 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 
         false
     }
+
+    fn closing_opener_for(&self, token: u32) -> Option<&CharTarget> {
+        self.closing_delimiters.get(&token)
+    }
+
+    fn closer_for_opener(&self, opener: &CharTarget) -> Option<u32> {
+        self.opener_to_closer.get(opener).copied()
+    }
+}
+
+static DEFAULT_RESOLVER: LazyLock<Arc<DatasetRuleResolver>> =
+    LazyLock::new(|| Arc::new(DatasetRuleResolver::load()));
+
+/// Returns the lazily loaded shared default syntax resolver instance.
+#[must_use]
+pub fn default_syntax_resolver() -> &'static Arc<DatasetRuleResolver> {
+    &DEFAULT_RESOLVER
 }

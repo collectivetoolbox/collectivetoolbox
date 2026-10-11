@@ -481,6 +481,36 @@ impl DcMstr {
         }
         Ok(out)
     }
+
+    /// Converts this `DcMstr` into a token stream of `u32` character and
+    /// format identifiers suitable for syntax parsing and validation.
+    ///
+    /// # Errors
+    /// Returns an error if any character or payload cannot be converted.
+    pub fn to_dc_tokens(&self) -> Result<Vec<u32>> {
+        let dc_str = self.to_dc_string()?;
+        let mut tokens = Vec::with_capacity(dc_str.len());
+        // Format tokens use their global graph ID to avoid clashing with short Dc IDs
+        let format_start = u32::try_from(
+            ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+        ).unwrap_or(2_228_224);
+        for c in dc_str.chars() {
+            let tok = if let Ok(short) = c.to_short() {
+                short
+            } else if let Ok(fmt) = c.to_format() {
+                format_start.saturating_add(fmt)
+            } else if let Ok(cp) = c.to_unicode() {
+                cp
+            } else {
+                bail!(
+                    "DcChar(0x{:X}) cannot be represented as a u32 syntax token",
+                    c.to_u128()
+                );
+            };
+            tokens.push(tok);
+        }
+        Ok(tokens)
+    }
 }
 
 impl AsRef<[u8]> for DcMstr {

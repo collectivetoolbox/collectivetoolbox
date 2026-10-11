@@ -1350,6 +1350,43 @@ where
     Ok(())
 }
 
+/// Asserts that a document struct serializes into a valid DcMixed buffer,
+/// conforms strictly to all documented syntax rules from the Dc database,
+/// decodes to an identical instance, and re-encodes identically.
+///
+/// # Errors
+/// Returns an error if encoding, syntax validation, decoding, or canonical
+/// check fails.
+pub fn assert_dc_document_roundtrip<T>(original: &T) -> Result<()>
+where
+    T: DcMixedEncode + DcMixedDecode + PartialEq + fmt::Debug,
+{
+    let mut mst = DcMstring::new();
+    original.encode_dc_mixed(&mut mst)?;
+
+    let tokens = mst.to_dc_tokens()?;
+    ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
+        .context("Strict Dc syntax validation failed during document roundtrip check")?;
+
+    let mut reader = DcMixedReader::new(&mst);
+    let decoded = T::decode_dc_mixed(&mut reader)
+        .context("Failed to decode struct during DcMixed roundtrip verification")?;
+
+    ensure!(
+        *original == decoded,
+        "DcMixed roundtrip value mismatch!\nOriginal: {original:#?}\nDecoded:  {decoded:#?}"
+    );
+
+    let mut re_encoded = DcMstring::new();
+    decoded.encode_dc_mixed(&mut re_encoded)?;
+    ensure!(
+        mst == re_encoded,
+        "DcMixed serialization is not canonical (re-encoding produced different bytes)"
+    );
+
+    Ok(())
+}
+
 
 
 #[cfg(test)]

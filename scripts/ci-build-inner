@@ -23,6 +23,16 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 # Ensure git trusts the repository directory when running in container
 git config --global --add safe.directory '*' || true
 
+# If running in a container as root (e.g. GitHub Actions container job), ensure HOME is owned
+# by the container user to prevent permission issues with tools that inspect HOME ownership.
+if [[ -d "${HOME:-}" && "$(id -u)" == "0" ]]; then
+    chown -R root:root "$HOME" 2>/dev/null || true
+fi
+
+# Ensure Wine has an isolated, accessible configuration directory
+export WINEPREFIX="${WINEPREFIX:-/tmp/ctb-wine}"
+mkdir -p "$WINEPREFIX"
+
 # Ensure robust DNS resolution inside the container
 echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 echo "nameserver 1.1.1.1" >> /etc/resolv.conf

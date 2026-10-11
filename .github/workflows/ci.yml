@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+      env:
+        WINEPREFIX: /tmp/ctb-wine
 
     steps:
       - name: Checkout repository

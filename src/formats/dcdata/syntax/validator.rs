@@ -598,3 +598,48 @@ pub fn validate_dc_syntax(
     }
 }
 
+/// Validates a character token stream strictly against the provided syntax
+/// rule resolver.
+///
+/// Under strict validation, any unclosed frames, unexpected closing
+/// delimiters, or rule matching failures produce an error.
+///
+/// # Errors
+/// Returns an error if the document violates syntax rules or framing
+/// constraints.
+pub fn validate_dc_stream_strict(
+    stream: &[u32],
+    resolver: &dyn super::resolver::SyntaxRuleResolver,
+) -> Result<()> {
+    let parsed = super::parser::parse_document_tokens_with_resolver(
+        stream,
+        super::ast::MatchMode::Strict,
+        Some(resolver),
+    );
+    if parsed.has_errors {
+        let mut err_msg = String::from("Strict Dc syntax validation failed:\n");
+        for diag in &parsed.diagnostics {
+            if diag.is_error {
+                err_msg.push_str(&format!(
+                    "  [offset {}] {}\n",
+                    diag.token_offset, diag.message
+                ));
+            }
+        }
+        bail!("{err_msg}");
+    }
+    Ok(())
+}
+
+/// Validates a character token stream strictly against the authoritative
+/// default syntax dataset resolver.
+///
+/// # Errors
+/// Returns an error if the document violates syntax rules or framing
+/// constraints.
+pub fn validate_dc_document_strict(stream: &[u32]) -> Result<()> {
+    let resolver = super::resolver::default_syntax_resolver();
+    validate_dc_stream_strict(stream, resolver.as_ref())
+}
+
+

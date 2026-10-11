@@ -1194,6 +1194,7 @@ pub fn validate_dc_category_file(
             cross_references,
             annotations,
             syntax: dc_syntax,
+            closes: parsed_col.closes,
             description,
             format: format_details,
             source_file: file_path.to_string(),
@@ -2904,6 +2905,57 @@ mod tests {
         assert!(mangled_doc.has_errors);
         assert!(!mangled_doc.diagnostics.is_empty());
         assert!(!mangled_doc.elements.is_empty());
+    }
+
+    #[crate::ctb_test]
+    fn test_strict_document_syntax_validation() {
+        use crate::syntax::{
+            CharTarget, MatchMode, ParsedElement, parse_document_tokens,
+            validate_dc_document_strict,
+        };
+
+        // 1. Valid operation session document (Dc 547 ... 548)
+        let valid_session = vec![547, 270, 99, 115, 99, 271, 548];
+        if let Err(e) = validate_dc_document_strict(&valid_session) {
+            panic!("valid_session failed validation: {e:?}");
+        }
+
+        let doc = parse_document_tokens(&valid_session, MatchMode::Strict);
+        assert!(!doc.has_errors);
+        assert_eq!(doc.elements.len(), 1);
+        let Some(ParsedElement::Construct { target, children, .. }) = doc.elements.first() else {
+            panic!("Expected Construct element");
+        };
+        assert_eq!(*target, CharTarget::Dc(547));
+        assert_eq!(children.len(), 1);
+
+        // 2. Dangling closing delimiter: unexpected Dc 548 without opener
+        let dangling_closer = vec![548];
+        let err = validate_dc_document_strict(&dangling_closer);
+        assert!(err.is_err());
+        let err_str = err.unwrap_err().to_string();
+        assert!(err_str.contains("Unexpected closing delimiter Dc 548"));
+
+        // In permissive mode, dangling closer is preserved without aborting
+        let permissive_doc = parse_document_tokens(&dangling_closer, MatchMode::Permissive);
+        assert_eq!(permissive_doc.elements.len(), 1);
+
+        // 3. Unclosed container: Dc 547 without Dc 548
+        let unclosed_session = vec![547, 546, 270, 99, 115, 99, 271];
+        let err = validate_dc_document_strict(&unclosed_session);
+        assert!(err.is_err());
+
+        // 4. Checksum section container: Dc 543 ... 544
+        let valid_checksummed = vec![543, 270, 100, 271, 544];
+        assert!(validate_dc_document_strict(&valid_checksummed).is_ok());
+
+        // 5. Dangling checksum section closer: Dc 544
+        let dangling_checksum_closer = vec![544];
+        assert!(validate_dc_document_strict(&dangling_checksum_closer).is_err());
+
+        // 6. Number container: Dc 6 ... Dc 7
+        let dangling_number_closer = vec![7];
+        assert!(validate_dc_document_strict(&dangling_number_closer).is_err());
     }
 
     #[crate::ctb_test]

@@ -475,6 +475,7 @@ pub fn validate_formats_category_file(
             cross_references,
             annotations: Vec::new(),
             syntax,
+            closes: parsed.closes,
             description: comments,
             format: Some(format_details),
             source_file: file_path.to_string(),

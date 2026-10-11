@@ -35,6 +35,8 @@ use super::framing::{
     DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,
     scan_literal_frame,
 };
+use super::matcher::{MatchContext, match_syntax_rule_with_context};
+use super::resolver::{SyntaxRuleResolver, default_syntax_resolver};
 use anyhow::{Context, Result, bail, ensure};
 
 /// Parses a target token strictly according to canonical shorthand formatting rules:
@@ -661,7 +663,7 @@ const DC_REF_NAMED: u32 = 276;
 const DC_INVOCATION: u32 = 279;
 
 /// Parses a character token stream into a structured, non-evaluating
-/// document representation.
+/// document representation using the shared default syntax resolver.
 ///
 /// Under `MatchMode::Permissive`, mangled or broken structures are preserved
 /// as `ParsedElement::RawTokens` and diagnostics are logged without aborting
@@ -669,6 +671,21 @@ const DC_INVOCATION: u32 = 279;
 /// return with `has_errors: true`.
 #[must_use]
 pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument {
+    parse_document_tokens_with_resolver(
+        stream,
+        mode,
+        Some(default_syntax_resolver().as_ref()),
+    )
+}
+
+/// Parses a character token stream into a structured, non-evaluating
+/// document representation using an optional explicit syntax rule resolver.
+#[must_use]
+pub fn parse_document_tokens_with_resolver(
+    stream: &[u32],
+    mode: MatchMode,
+    resolver: Option<&dyn SyntaxRuleResolver>,
+) -> ParsedDocument {
     let mut elements = Vec::new();
     let mut diagnostics = Vec::new();
     let mut offset = 0usize;
@@ -682,7 +699,28 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
             break;
         };
 
-        // Framed literal (Dc 260 ... Dc 261)
+        // 1. Check for illegal / dangling closing delimiter
+        if let Some(opener) = resolver.and_then(|r| r.closing_opener_for(first)) {
+            diagnostics.push(SyntaxDiagnostic {
+                message: format!(
+                    "Unexpected closing delimiter Dc {first} without matching opener {opener}"
+                ),
+                token_offset: offset,
+                is_error: true,
+            });
+            if mode == MatchMode::Strict {
+                return ParsedDocument {
+                    elements,
+                    diagnostics,
+                    has_errors: true,
+                };
+            }
+            elements.push(ParsedElement::Atomic(first));
+            offset = offset.saturating_add(1);
+            continue;
+        }
+
+        // 2. Framed literal (Dc 260 ... Dc 261)
         if first == DC_LITERAL_BEGIN {
             if let Some((lit, consumed)) =
                 scan_literal_frame(remaining, mode, &mut diagnostics, offset)
@@ -699,7 +737,7 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
             }
         }
 
-        // Framed identifier (Dc 270 ... Dc 271)
+        // 3. Framed identifier (Dc 270 ... Dc 271)
         if first == DC_IDENTIFIER_BEGIN {
             if let Some((ident, consumed)) =
                 scan_identifier_frame(remaining, mode, &mut diagnostics, offset)
@@ -716,7 +754,7 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
             }
         }
 
-        // Parameter frame (Dc 258 ... Dc 259)
+        // 4. Parameter frame (Dc 258 ... Dc 259)
         if first == DC_PARAM_BEGIN {
             let mut param_consumed = 1usize;
             let mut inner_tokens = Vec::new();
@@ -747,7 +785,8 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
                 }
             }
 
-            let inner_doc = parse_document_tokens(&inner_tokens, mode);
+            let inner_doc =
+                parse_document_tokens_with_resolver(&inner_tokens, mode, resolver);
             for mut diag in inner_doc.diagnostics {
                 diag.token_offset = diag
                     .token_offset
@@ -755,12 +794,19 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
                     .saturating_add(1);
                 diagnostics.push(diag);
             }
+            if inner_doc.has_errors && mode == MatchMode::Strict {
+                return ParsedDocument {
+                    elements,
+                    diagnostics,
+                    has_errors: true,
+                };
+            }
             elements.push(ParsedElement::Parameter(inner_doc.elements));
             offset = offset.saturating_add(param_consumed);
             continue;
         }
 
-        // Reference named object (Dc 276 [identifier])
+        // 5. Reference named object (Dc 276 [identifier])
         if first == DC_REF_NAMED {
             let after_ref = match remaining.get(1..) {
                 Some(s) => s,
@@ -778,7 +824,7 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
             }
         }
 
-        // Routine invocation or built-in routine marker (e.g. Dc 256 lang.say or Dc 279)
+        // 6. Routine invocation or built-in routine marker (e.g. Dc 256 lang.say or Dc 279)
         if first == DC_INVOCATION || first == 256 {
             let mut inv_consumed = 1usize;
             let mut args = Vec::new();
@@ -827,8 +873,32 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
                                 .saturating_add(p_consumed),
                             is_error: true,
                         });
+                        if mode == MatchMode::Strict {
+                            return ParsedDocument {
+                                elements,
+                                diagnostics,
+                                has_errors: true,
+                            };
+                        }
                     }
-                    let p_doc = parse_document_tokens(&p_tokens, mode);
+                    let p_doc = parse_document_tokens_with_resolver(
+                        &p_tokens, mode, resolver,
+                    );
+                    for mut diag in p_doc.diagnostics {
+                        diag.token_offset = diag
+                            .token_offset
+                            .saturating_add(offset)
+                            .saturating_add(inv_consumed)
+                            .saturating_add(1);
+                        diagnostics.push(diag);
+                    }
+                    if p_doc.has_errors && mode == MatchMode::Strict {
+                        return ParsedDocument {
+                            elements,
+                            diagnostics,
+                            has_errors: true,
+                        };
+                    }
                     args.push(ParsedElement::Parameter(p_doc.elements));
                     inv_consumed = inv_consumed.saturating_add(p_consumed);
                 } else {
@@ -844,7 +914,130 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
             continue;
         }
 
-        // Fallback for unparsed raw token: accumulate contiguous raw tokens
+        // 7. General construct resolution via SyntaxRuleResolver
+        if let Some(res) = resolver {
+            let target = if let Ok(start) = u32::try_from(
+                ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+            ) {
+                if first >= start {
+                    let fmt_id = first.saturating_sub(start);
+                    match usize::try_from(fmt_id) {
+                        Ok(fid) => CharTarget::Format(fid),
+                        Err(_) => CharTarget::Dc(first),
+                    }
+                } else {
+                    CharTarget::Dc(first)
+                }
+            } else {
+                CharTarget::Dc(first)
+            };
+            if let Some(rule) = res.resolve_rule(&target) {
+                let mut ctx = MatchContext::new(Some(first)).with_mode(mode);
+                ctx.resolver = Some(default_syntax_resolver().clone());
+                let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
+                for mut diag in ctx.diagnostics {
+                    diag.token_offset = diag.token_offset.saturating_add(offset);
+                    diagnostics.push(diag);
+                }
+                if outcome.is_matched() {
+                    let consumed = outcome.consumed_tokens();
+                    if consumed > 0 {
+                        let closer_opt = res.closer_for_opener(&target);
+                        let is_container = closer_opt.is_some_and(|closer| {
+                            consumed >= 2
+                                && remaining.get(consumed.saturating_sub(1))
+                                    == Some(&closer)
+                        });
+
+                        let child_elements = if is_container && consumed > 2 {
+                            let inner_slice =
+                                match remaining.get(1..consumed.saturating_sub(1)) {
+                                    Some(s) => s,
+                                    None => &[],
+                                };
+                            let inner_doc = parse_document_tokens_with_resolver(
+                                inner_slice,
+                                mode,
+                                Some(res),
+                            );
+                            for mut diag in inner_doc.diagnostics {
+                                diag.token_offset = diag
+                                    .token_offset
+                                    .saturating_add(offset)
+                                    .saturating_add(1);
+                                diagnostics.push(diag);
+                            }
+                            if inner_doc.has_errors && mode == MatchMode::Strict {
+                                return ParsedDocument {
+                                    elements,
+                                    diagnostics,
+                                    has_errors: true,
+                                };
+                            }
+                            inner_doc.elements
+                        } else if !is_container && consumed > 1 {
+                            let operand_slice = match remaining.get(1..consumed) {
+                                Some(s) => s,
+                                None => &[],
+                            };
+                            let operand_doc = parse_document_tokens_with_resolver(
+                                operand_slice,
+                                mode,
+                                Some(res),
+                            );
+                            for mut diag in operand_doc.diagnostics {
+                                diag.token_offset = diag
+                                    .token_offset
+                                    .saturating_add(offset)
+                                    .saturating_add(1);
+                                diagnostics.push(diag);
+                            }
+                            if operand_doc.has_errors && mode == MatchMode::Strict {
+                                return ParsedDocument {
+                                    elements,
+                                    diagnostics,
+                                    has_errors: true,
+                                };
+                            }
+                            operand_doc.elements
+                        } else {
+                            Vec::new()
+                        };
+
+                        elements.push(ParsedElement::Construct {
+                            target,
+                            consumed,
+                            children: child_elements,
+                        });
+                        offset = offset.saturating_add(consumed);
+                        continue;
+                    }
+                } else if mode == MatchMode::Strict {
+                    diagnostics.push(SyntaxDiagnostic {
+                        message: format!(
+                            "Token stream at offset {offset} failed to match syntax rule for {target}: {}",
+                            rule.raw
+                        ),
+                        token_offset: offset,
+                        is_error: true,
+                    });
+                    return ParsedDocument {
+                        elements,
+                        diagnostics,
+                        has_errors: true,
+                    };
+                }
+            }
+        }
+
+        // 8. Atomic / Raw token fallback
+        if mode == MatchMode::Strict {
+            elements.push(ParsedElement::Atomic(first));
+            offset = offset.saturating_add(1);
+            continue;
+        }
+
+        // Permissive mode fallback: accumulate contiguous raw tokens
         let mut raw_chunk = vec![first];
         offset = offset.saturating_add(1);
         while let Some(&tok) = stream.get(offset) {
@@ -854,6 +1047,10 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
                 || tok == DC_REF_NAMED
                 || tok == DC_INVOCATION
                 || tok == 256
+                || resolver.is_some_and(|r| {
+                    r.closing_opener_for(tok).is_some()
+                        || r.resolve_rule(&CharTarget::Dc(tok)).is_some()
+                })
             {
                 break;
             }

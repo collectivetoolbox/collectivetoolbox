@@ -264,6 +264,17 @@ pub enum ParsedElement {
     },
     /// Named object reference (Dc 276).
     Reference(FramedIdentifier),
+    /// Structured construct matched against a syntax rule or container.
+    Construct {
+        /// Defining character target of the construct.
+        target: CharTarget,
+        /// Number of tokens consumed by this construct.
+        consumed: usize,
+        /// Child syntactic elements parsed within this construct.
+        children: Vec<ParsedElement>,
+    },
+    /// Atomic Document Character or token.
+    Atomic(u32),
     /// Unparsed raw tokens preserved when broken structures are encountered.
     RawTokens(Vec<u32>),
 }

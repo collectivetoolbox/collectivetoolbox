@@ -348,6 +348,14 @@ impl JournalWriter {
         self.noatime_used
     }
 
+    /// Validates a serialized DcMstring segment strictly against authoritative Dc syntax rules.
+    fn validate_segment(&self, mst: &DcMstring) -> Result<()> {
+        let tokens = mst.to_dc_tokens()?;
+        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
+            .context("CSC Journal segment failed strict Dc syntax validation")?;
+        Ok(())
+    }
+
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
         let mut mst = DcMstring::new();
         mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION);
@@ -364,6 +372,7 @@ impl JournalWriter {
         }
         mst.push_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION);
 
+        self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
@@ -450,6 +459,7 @@ impl JournalWriter {
         mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
         mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
+        self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
@@ -475,6 +485,7 @@ impl JournalWriter {
         }
         let mut mst = DcMstring::new();
         mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
+        self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
@@ -518,6 +529,7 @@ impl JournalWriter {
         error.timestamp_sec.encode_dc_mixed(&mut mst)?;
         mst.push_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD);
 
+        self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
@@ -556,6 +568,7 @@ impl JournalWriter {
         now_sec.encode_dc_mixed(&mut mst)?;
         mst.push_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD);
 
+        self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;

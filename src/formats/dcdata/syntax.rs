@@ -44,10 +44,14 @@ pub use matcher::{
     match_syntax_rule, match_syntax_rule_with_context,
 };
 pub use parser::{
-    parse_dc_syntax, parse_document_tokens, parse_target_token,
+    parse_dc_syntax, parse_document_tokens, parse_document_tokens_with_resolver,
+    parse_target_token,
 };
-pub use resolver::{DatasetRuleResolver, SyntaxRuleResolver};
+pub use resolver::{
+    DatasetRuleResolver, SyntaxRuleResolver, default_syntax_resolver,
+};
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
-    build_format_validation_registry, validate_dc_syntax,
+    build_format_validation_registry, validate_dc_document_strict,
+    validate_dc_stream_strict, validate_dc_syntax,
 };

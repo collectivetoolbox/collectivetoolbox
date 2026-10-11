@@ -86,6 +86,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub varies: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
     /// File magic description strings extracted from `@magic_name(...)`.
     pub magic_names: Vec<String>,
+    /// Opening target character closed by this character, extracted from `@closes(...)`.
+    pub closes: Option<ctb_storage_minimal::shorthand::DcShorthand>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -801,13 +803,39 @@ fn process_column_item(
                     Some("Ensure '@varies(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@closes(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let trimmed = stripped.trim();
+                match ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+                    Ok(target) => {
+                        parsed.closes = Some(target);
+                    }
+                    Err(e) => {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Invalid target in '@closes({trimmed})': {e}"),
+                            Some("Provide a valid Dc target inside '@closes(...)', e.g. '@closes(547)'"),
+                        );
+                    }
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@closes(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@closes(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', and '@varies(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', '@varies(...)', and '@closes(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
