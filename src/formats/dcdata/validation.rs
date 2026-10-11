@@ -2254,7 +2254,7 @@ mod tests {
             panic!("Expected sequence pattern");
         }
 
-        // Rule with optional macro expansion: :~ [260:] 259
+        // Rule with macro expansion: :~ [260:] 259
         let rule2 = parse_dc_syntax(":~ [260:] 259").unwrap();
         if let SyntaxPattern::Sequence(elements) = &rule2.pattern {
             assert_eq!(elements.len(), 3);
@@ -2264,7 +2264,7 @@ mod tests {
                     target: CharTarget::Dc(260)
                 }
             );
-            assert_eq!(elements[1].quantifier, Quantifier::Optional);
+            assert_eq!(elements[1].quantifier, Quantifier::ExactOne);
         } else {
             panic!("Expected sequence pattern");
         }
@@ -2981,9 +2981,25 @@ mod tests {
         let err = validate_dc_document_strict(&unclosed_session);
         assert!(err.is_err());
 
-        // 4. Checksum section container: Dc 543 ... 544
-        let valid_checksummed = vec![sdc(543), sdc(270), 100, sdc(271), sdc(544)];
-        assert!(validate_dc_document_strict(&valid_checksummed).is_ok());
+        let fmt = |id: u32| DcChar::from_format(id).to_u128();
+
+        // 4. Checksum section container: Dc 543 ... 544 [545:]
+        let valid_checksummed = vec![
+            sdc(543),
+            sdc(270),
+            100,
+            sdc(271),
+            sdc(544),
+            sdc(545),
+            sdc(203),
+            fmt(245),
+            sdc(127),
+            sdc(204),
+        ];
+        if let Err(e) = validate_dc_document_strict(&valid_checksummed) {
+            eprintln!("Error for valid_checksummed: {e:#}");
+            panic!("failed: {e:#}");
+        }
 
         // 5. Dangling checksum section closer: Dc 544
         let dangling_checksum_closer = vec![sdc(544)];
@@ -2994,7 +3010,6 @@ mod tests {
         assert!(validate_dc_document_strict(&dangling_number_closer).is_err());
 
         // 7. Date timestamp with Dc 390 ... 391
-        let fmt = |id: u32| DcChar::from_format(id).to_u128();
         let valid_date = vec![
             sdc(330),
             sdc(390),

@@ -58,8 +58,6 @@ pub const REGISTERED_NAMED_TYPES: &[&str] = &[
     "asciiprintable",
     "filename",
     "filepath",
-    "ipv4",
-    "ipv6",
     "ipaddr",
     "statement",
     "value",

@@ -93,6 +93,8 @@ pub struct MatchContext {
     pub call_stack: Vec<String>,
     /// Optional rule resolver for expanding rule references and named types.
     pub resolver: Option<Arc<dyn SyntaxRuleResolver + Send + Sync>>,
+    /// True if greedy trailing Dc 512 consumption should be suppressed because the enclosing sequence explicitly expects 512.
+    pub suppress_trailing_dc_512: bool,
 }
 
 impl Default for MatchContext {
@@ -138,6 +140,7 @@ impl MatchContext {
             max_depth: MAX_SYNTAX_EXPANSION_DEPTH,
             call_stack: Vec::new(),
             resolver: None,
+            suppress_trailing_dc_512: false,
         }
     }
 
@@ -561,7 +564,10 @@ fn match_term_single(
                         let dc_end_repr =
                             ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
                                 .saturating_add(512);
-                        if has_fmt_token && stream.get(total) == Some(&dc_end_repr) {
+                        if has_fmt_token
+                            && !context.suppress_trailing_dc_512
+                            && stream.get(total) == Some(&dc_end_repr)
+                        {
                             total = total.saturating_add(1);
                         }
                         return MatchOutcome::Matched { consumed: total };
@@ -725,7 +731,15 @@ pub fn match_pattern(
                     };
                 }
 
+                let next_is_512 = elements
+                    .get(idx.saturating_add(1))
+                    .is_some_and(|e| e.term == SyntaxTerm::CharRef(CharTarget::Dc(512)));
+                let old_suppress = context.suppress_trailing_dc_512;
+                if next_is_512 {
+                    context.suppress_trailing_dc_512 = true;
+                }
                 let outcome = match_element(remaining, elem, context);
+                context.suppress_trailing_dc_512 = old_suppress;
                 match outcome {
                     MatchOutcome::Matched { consumed } => {
                         total_consumed = total_consumed.saturating_add(consumed);

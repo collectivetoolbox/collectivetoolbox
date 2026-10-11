@@ -140,15 +140,12 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         }));
     }
 
-    // Optional rule macro expansion: [260:]
+    // Rule macro expansion: [260:]
     if let Some(rule_tok) = trimmed.strip_suffix(':') {
         let target = parse_target_token(rule_tok).with_context(|| {
             format!("Invalid rule reference target in '[{trimmed}]': '{rule_tok}'")
         })?;
-        return Ok(SyntaxElement::with_quantifier(
-            SyntaxTerm::RuleRef { target },
-            Quantifier::Optional,
-        ));
+        return Ok(SyntaxElement::exact(SyntaxTerm::RuleRef { target }));
     }
 
     // Range: [260-265] or [u41..u5a]
@@ -969,10 +966,13 @@ pub fn parse_document_tokens_with_resolver(
                     let consumed = fmt_lead_consumed.saturating_add(outcome.consumed_tokens());
                     if consumed > 0 {
                         let closer_opt = res.closer_for_opener(&target);
-                        let is_container = closer_opt.is_some_and(|closer| {
-                            consumed >= 2
-                                && remaining.get(consumed.saturating_sub(1))
-                                    == Some(&closer)
+                        let closer_pos = closer_opt.and_then(|closer| {
+                            remaining.get(1..consumed).and_then(|slice| {
+                                slice
+                                    .iter()
+                                    .position(|&tok| tok == closer)
+                                    .map(|pos| pos.saturating_add(1))
+                            })
                         });
 
                         let child_elements = if target == CharTarget::Dc(511) && consumed > 3 {
@@ -1101,12 +1101,11 @@ pub fn parse_document_tokens_with_resolver(
                             }
                             inner_elems.extend(payload_doc.elements);
                             inner_elems
-                        } else if is_container && consumed > 2 {
-                            let inner_slice =
-                                match remaining.get(1..consumed.saturating_sub(1)) {
-                                    Some(s) => s,
-                                    None => &[],
-                                };
+                        } else if let Some(pos) = closer_pos {
+                            let inner_slice = match remaining.get(1..pos) {
+                                Some(s) => s,
+                                None => &[],
+                            };
                             let inner_doc = parse_document_tokens_with_resolver(
                                 inner_slice,
                                 mode,
@@ -1126,8 +1125,37 @@ pub fn parse_document_tokens_with_resolver(
                                     has_errors: true,
                                 };
                             }
-                            inner_doc.elements
-                        } else if !is_container && consumed > 1 {
+                            let mut combined_children = inner_doc.elements;
+
+                            let trailing_slice =
+                                match remaining.get(pos.saturating_add(1)..consumed) {
+                                    Some(s) => s,
+                                    None => &[],
+                                };
+                            if !trailing_slice.is_empty() {
+                                let trailing_doc = parse_document_tokens_with_resolver(
+                                    trailing_slice,
+                                    mode,
+                                    Some(res),
+                                );
+                                for mut diag in trailing_doc.diagnostics {
+                                    diag.token_offset = diag
+                                        .token_offset
+                                        .saturating_add(offset)
+                                        .saturating_add(pos.saturating_add(1));
+                                    diagnostics.push(diag);
+                                }
+                                if trailing_doc.has_errors && mode == MatchMode::Strict {
+                                    return ParsedDocument {
+                                        elements,
+                                        diagnostics,
+                                        has_errors: true,
+                                    };
+                                }
+                                combined_children.extend(trailing_doc.elements);
+                            }
+                            combined_children
+                        } else if closer_pos.is_none() && consumed > 1 {
                             let operand_slice = match remaining.get(1..consumed) {
                                 Some(s) => s,
                                 None => &[],
