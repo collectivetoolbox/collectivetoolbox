@@ -943,17 +943,27 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
 
 impl DcMixedEncode for Ipv4Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        mst.push_char(DcChar::from_short(511));
         mst.push_char(DcChar::from_format(490));
         let octets = u32::from_be_bytes(self.octets());
-        octets.encode_dc_mixed(mst)
+        octets.encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(512));
+        Ok(())
     }
 }
 
 impl DcMixedDecode for Ipv4Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        if has_511 {
+            reader.next_char()?;
+        }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(490)) {
             reader.next_char()?;
             let val = u32::decode_dc_mixed(reader)?;
+            if has_511 && reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                reader.next_char()?;
+            }
             Ok(Ipv4Addr::from(val))
         } else {
             let s = reader.read_string()?;
@@ -964,17 +974,27 @@ impl DcMixedDecode for Ipv4Addr {
 
 impl DcMixedEncode for Ipv6Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        mst.push_char(DcChar::from_short(511));
         mst.push_char(DcChar::from_format(491));
         let octets = u128::from_be_bytes(self.octets());
-        octets.encode_dc_mixed(mst)
+        octets.encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(512));
+        Ok(())
     }
 }
 
 impl DcMixedDecode for Ipv6Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        if has_511 {
+            reader.next_char()?;
+        }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(491)) {
             reader.next_char()?;
             let val = u128::decode_dc_mixed(reader)?;
+            if has_511 && reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                reader.next_char()?;
+            }
             Ok(Ipv6Addr::from(val))
         } else {
             let s = reader.read_string()?;
@@ -994,11 +1014,35 @@ impl DcMixedEncode for std::net::IpAddr {
 
 impl DcMixedDecode for std::net::IpAddr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        if has_511 {
+            reader.next_char()?;
+            let fmt_char = reader.peek_char()?;
+            if fmt_char == Some(DcChar::from_format(490)) {
+                reader.next_char()?;
+                let val = u32::decode_dc_mixed(reader)?;
+                if reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                    reader.next_char()?;
+                }
+                return Ok(Self::V4(Ipv4Addr::from(val)));
+            } else if fmt_char == Some(DcChar::from_format(491)) {
+                reader.next_char()?;
+                let val = u128::decode_dc_mixed(reader)?;
+                if reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                    reader.next_char()?;
+                }
+                return Ok(Self::V6(Ipv6Addr::from(val)));
+            }
+        }
         if let Some(c) = reader.peek_char()? {
             if c == DcChar::from_format(490) {
-                return Ok(Self::V4(Ipv4Addr::decode_dc_mixed(reader)?));
+                reader.next_char()?;
+                let val = u32::decode_dc_mixed(reader)?;
+                return Ok(Self::V4(Ipv4Addr::from(val)));
             } else if c == DcChar::from_format(491) {
-                return Ok(Self::V6(Ipv6Addr::decode_dc_mixed(reader)?));
+                reader.next_char()?;
+                let val = u128::decode_dc_mixed(reader)?;
+                return Ok(Self::V6(Ipv6Addr::from(val)));
             }
         }
         let s = reader.read_string()?;
@@ -1279,28 +1323,59 @@ impl DcMixedEncode for SystemTime {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
         let nanos = dur.as_nanos();
-        nanos.encode_dc_mixed(mst)
+        mst.push_char(DcChar::from_short(390));
+        mst.push_char(DcChar::from_format(487));
+        nanos.encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(391));
+        Ok(())
     }
 }
 
 impl DcMixedDecode for SystemTime {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let nanos = u128::decode_dc_mixed(reader)?;
-        let secs = u64::try_from(
-            nanos
-                .checked_div(1_000_000_000)
-                .context("Division failed")?,
-        )
-        .context("SystemTime seconds out of range")?;
-        let sub_nanos = u32::try_from(
-            nanos
-                .checked_rem(1_000_000_000)
-                .context("Modulo failed")?,
-        )
-        .context("SystemTime sub-nanoseconds out of range")?;
-        std::time::UNIX_EPOCH
-            .checked_add(std::time::Duration::new(secs, sub_nanos))
-            .context("SystemTime overflow")
+        let is_moment = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(390));
+        if is_moment {
+            reader.next_char()?;
+            let fmt_char = reader.next_char()?;
+            let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
+            let (secs, sub_nanos) = if fmt_tok == 487 {
+                let nanos = u128::decode_dc_mixed(reader)?;
+                let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                (s, ns)
+            } else if fmt_tok == 486 {
+                let s = u64::decode_dc_mixed(reader)?;
+                (s, 0u32)
+            } else {
+                let nanos = u128::decode_dc_mixed(reader)?;
+                let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                (s, ns)
+            };
+            let end_tok = reader.next_char()?;
+            ensure!(end_tok == DcChar::from_short(391), "Expected Dc 391 closing time moment description");
+            std::time::UNIX_EPOCH
+                .checked_add(std::time::Duration::new(secs, sub_nanos))
+                .context("SystemTime overflow")
+        } else {
+            // Legacy / unwrapped number fallback
+            let nanos = u128::decode_dc_mixed(reader)?;
+            let secs = u64::try_from(
+                nanos
+                    .checked_div(1_000_000_000)
+                    .context("Division failed")?,
+            )
+            .context("SystemTime seconds out of range")?;
+            let sub_nanos = u32::try_from(
+                nanos
+                    .checked_rem(1_000_000_000)
+                    .context("Modulo failed")?,
+            )
+            .context("SystemTime sub-nanoseconds out of range")?;
+            std::time::UNIX_EPOCH
+                .checked_add(std::time::Duration::new(secs, sub_nanos))
+                .context("SystemTime overflow")
+        }
     }
 }
 

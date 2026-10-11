@@ -606,6 +606,10 @@ pub(crate) fn match_element(
                     break;
                 }
             }
+            MatchOutcome::Matched { consumed: 0 } => {
+                count = count.saturating_add(1);
+                break;
+            }
             MatchOutcome::MatchedWithRecovery { consumed, warning } => {
                 total_consumed = total_consumed.saturating_add(consumed);
                 count = count.saturating_add(1);
@@ -658,13 +662,22 @@ pub fn match_pattern(
 ) -> MatchOutcome {
     match pattern {
         SyntaxPattern::Alternation(branches) => {
+            let mut zero_match = None;
             for branch in branches {
                 let mut trial_ctx = context.clone();
                 let outcome = match_pattern(stream, branch, &mut trial_ctx);
                 if outcome.is_matched() {
-                    *context = trial_ctx;
-                    return outcome;
+                    if outcome.consumed_tokens() > 0 {
+                        *context = trial_ctx;
+                        return outcome;
+                    } else if zero_match.is_none() {
+                        zero_match = Some((outcome, trial_ctx));
+                    }
                 }
+            }
+            if let Some((outcome, trial_ctx)) = zero_match {
+                *context = trial_ctx;
+                return outcome;
             }
             MatchOutcome::Mismatch
         }
