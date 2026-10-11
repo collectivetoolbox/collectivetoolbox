@@ -88,6 +88,16 @@ pub trait DcSource {
     /// Returns the original encoded string, including its format header.
     fn source_bytes(&self) -> &[u8];
 
+    /// Reconciles a typed replacement with its original source representation.
+    ///
+    /// # Errors
+    /// Returns an error for invalid ranges or ambiguous source correspondence.
+    fn replace_typed_source_field(
+        &self,
+        range: Range<usize>,
+        fragment: &DcMstr,
+    ) -> Result<Self::Owned>;
+
     /// Splices an encoded field after checking source and fragment boundaries.
     ///
     /// # Errors
@@ -123,6 +133,17 @@ impl DcSource for DcMstr {
 
     fn source_bytes(&self) -> &[u8] {
         self.as_bytes()
+    }
+
+    fn replace_typed_source_field(&self, range: Range<usize>, fragment: &DcMstr) -> Result<DcMstring> {
+        ensure!(range.start >= crate::DCMM_HEADER_LEN, "Cannot select string header");
+        let payload = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
+        let mut bytes = DcMstring::new().into_bytes();
+        bytes.extend_from_slice(payload);
+        let original = DcMstring::from_bytes(bytes)?;
+        let replacement = DcMstring::from_slice(fragment.as_bytes())?;
+        let revised = crate::source_edit::preserve_source(&original, &replacement)?;
+        self.replace_source_field(range, &revised)
     }
 
     fn replace_source_field(
@@ -180,6 +201,17 @@ impl DcSource for DcStr {
 
     fn source_bytes(&self) -> &[u8] {
         self.as_bytes()
+    }
+
+    fn replace_typed_source_field(&self, range: Range<usize>, fragment: &DcMstr) -> Result<DcString> {
+        ensure!(
+            self.is_char_boundary(range.start) && self.is_char_boundary(range.end),
+            "Source range splits a Dc character"
+        );
+        let bytes = self.as_bytes().get(range.clone()).context("Invalid source fragment range")?;
+        let replacement = fragment.to_dc_string()?;
+        let revised = crate::source_edit::preserve_text(DcStr::from_bytes(bytes)?, &replacement)?;
+        Ok(DcString::from_dcutf(splice(self.as_bytes(), range, revised.as_bytes())?)?)
     }
 
     fn replace_source_field(
@@ -282,12 +314,15 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
     /// The annotation must belong to this inspection and the supplied record
     /// must have the annotated type. Repeated fields encode the supplied field
     /// collection in place of the selected occurrence, leaving others intact.
+    /// Existing nested map framing, entry order, and unchanged source subtrees
+    /// are retained. Deprecated syntax is not upgraded as part of an edit.
     /// Bytes outside the selected range are preserved; dependent unknown syntax
     /// may change meaning. Edits inline reference values, not their declarations.
     ///
     /// # Errors
     /// Returns an error for foreign annotations, type mismatches, encoding
-    /// failures, or ranges that split encapsulations.
+    /// failures, ambiguous source correspondence, unsupported map headers, or
+    /// ranges that split encapsulations.
     pub fn replace_annotation<C: DcMixedFields>(
         &self,
         annotation: &DcFieldAnnotation,
@@ -310,15 +345,16 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             updated.encode_dc_field(annotation.field, &mut fragment)?;
         }
         self.source
-            .replace_source_field(annotation.range(), &fragment)
+            .replace_typed_source_field(annotation.range(), &fragment)
     }
 }
 
 impl<T: DcMixedFields, S: DcSource + ?Sized> DcInspection<'_, T, S> {
     /// Replaces one fully decoded outer field using the supplied typed record.
     ///
-    /// Every byte outside the field remains unchanged. The new field is encoded
-    /// with inline bindings. This does not guarantee unchanged semantics for
+    /// Every byte outside the field remains unchanged. Replacement encoding is
+    /// reconciled against the source to retain nested map representations.
+    /// New values use inline bindings. This does not guarantee unchanged semantics for
     /// unknown syntax that depends on the edited value. Reinspect after editing.
     ///
     /// # Errors

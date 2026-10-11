@@ -1601,9 +1601,21 @@ mod tests {
         assert!(inspection.diagnostic().is_none());
         let updated = inspection.replace_field("native", &expected)?;
         assert_eq!(updated.decode::<FileMetadata>()?, expected);
+        assert_eq!(updated.as_bytes(), source.as_bytes());
         let mut reader = DcMixedReader::new(&updated);
         reader.expect_short_dc(321)?;
-        reader.expect_short_dc(559)?;
+        reader.expect_short_dc(313)?;
+        let mut changed = expected;
+        changed.native.as_mut().context("Missing native metadata")?.values.insert(
+            "added".to_owned(), NativeMetadataValue::Unsigned(42),
+        );
+        let updated = inspection.replace_field("native", &changed)?;
+        assert_eq!(updated.decode::<FileMetadata>()?, changed);
+        let mut reader = DcMixedReader::new(&updated);
+        reader.expect_short_dc(321)?;
+        reader.expect_short_dc(313)?;
+        let tokens = updated.to_dc_tokens()?;
+        assert!(!tokens.contains(&DcChar::from_short(559).0));
         Ok(())
     }
 

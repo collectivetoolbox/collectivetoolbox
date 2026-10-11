@@ -40,6 +40,7 @@ pub mod dcstring_impl;
 pub mod error;
 pub mod kv_map;
 pub mod shared;
+mod source_edit;
 
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, eite, utf8};

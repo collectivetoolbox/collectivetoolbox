@@ -5,6 +5,13 @@ Keep the original `DcString`/`DcStr` or `DcMstring`/`DcMstr` as the source of
 truth. Typed values are interpretations; serialization creates new strings,
 not lossless reconstructions of existing ones.
 
+Editing or saving an existing document must never automatically upgrade
+deprecated syntax, normalize unknown Dcs, or reconstruct the document from a
+typed value. Syntax upgrades are separate, explicitly accepted user actions.
+Any valid Dc encoding remains editable through source-range replacement,
+regardless of whether its Dc sequence satisfies a recognized syntax rule.
+Untouched bytes, including malformed syntax and unknown Dcs, remain verbatim.
+
 ## Decoding and Inspection
 
 Both borrowed string types provide:
@@ -89,14 +96,26 @@ the separate Rust `(A, B)` codec, which still concatenates its operands.
 
 Readers also accept deprecated Dc 313..314 arrays with alternating keys and
 values separated by Dc 312. The opening Dc selects the interpretation; broken
-559 arrays are never retried as flat 313 arrays. Decoding and re-encoding a
-legacy array creates a new canonical 559 array, not a lossless reproduction.
-Keep the source string when the original representation must be preserved.
+559 arrays are never retried as flat 313 arrays. Fresh serialization of a typed
+value uses 559, but it is not a document editing or saving operation. Editors
+must retain and splice the original source; they must not save by decoding and
+re-encoding it. An upgrade from 313 to 559 may only be offered as a separate
+operation requiring explicit user acceptance.
 
 Keyed-field annotations include both pair boundaries in new arrays. Field
 replacement preserves legacy framing when editing a legacy array and leaves
 all bytes outside the selected field unchanged. `encode_dc_field()` creates a
 new framed pair; `encode_dc_map_field()` can explicitly encode a legacy field.
+Typed replacements reconcile their proposed fragment against the selected
+source range, including when replacing a whole field containing nested maps.
+Existing maps retain their opening/closing Dcs and surviving entry order.
+Entries are matched by their source-independent key representation; unchanged
+subtrees and opaque binary payloads are copied byte-for-byte. Added entries
+are appended without upgrading the containing map. Nested maps retain their
+own framing independently, including mixtures of 313 and 559 arrays.
+Ambiguous correspondence or unsupported map headers produces an explicit error
+rather than guessing or silently canonicalizing. Use a more specific nested
+annotation or an explicit source-range edit in that case.
 
 The database grammar allows an optional length counting pairs and declared
 key/value types. The typed Rust map codecs currently accept only uncounted
@@ -166,6 +185,10 @@ fail deserialization. There is no JSON overflow map or embedded JSON payload.
   ambiguity-aware recovery after damaged framing remain pending. Historical
   unclosed pairs are malformed but can still be inspected permissively with
   diagnostics; no compact pair spelling is emitted or accepted as strict syntax.
+- Typed source reconciliation is not a universal semantic editor: ambiguous
+  frame correspondence and unsupported map headers are rejected. Raw
+  source-range edits do not require syntax recognition. No automatic syntax
+  migration or user-facing upgrade command is provided.
 - There is no generic insertion of absent fields, batch edit transaction,
   persistent annotation identity, incremental reinspection, or GUI integration.
 - Automatic field annotations cover tagged and keyed record derives. Custom
