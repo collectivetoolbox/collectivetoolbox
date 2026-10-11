@@ -164,6 +164,33 @@ fn target_matches_token(target: &CharTarget, token: u128) -> bool {
     target.to_u128() == token
 }
 
+/// Locates the end of a balanced container sequence taking escaping into account.
+fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<usize> {
+    let dc_escape = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+        .saturating_add(255);
+    let mut depth = 0usize;
+    let mut skip_next = false;
+    for (idx, &tok) in stream.iter().enumerate() {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        if tok == dc_escape {
+            skip_next = true;
+            continue;
+        }
+        if tok == opener {
+            depth = depth.saturating_add(1);
+        } else if tok == closer {
+            depth = depth.saturating_sub(1);
+            if depth == 0 {
+                return Some(idx.saturating_add(1));
+            }
+        }
+    }
+    None
+}
+
 /// Evaluates a single `SyntaxTerm` against a character stream.
 fn match_term_single(
     stream: &[u128],
@@ -221,8 +248,24 @@ fn match_term_single(
         }
         SyntaxTerm::CharSet { negated, members } => {
             let in_set = members.iter().any(|m| target_matches_token(m, first));
-            let matches = if *negated { !in_set } else { in_set };
-            if matches {
+            if *negated {
+                if in_set {
+                    return MatchOutcome::Mismatch;
+                }
+                let dc_escape = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(255);
+                if first == dc_escape && stream.len() >= 2 {
+                    return MatchOutcome::Matched { consumed: 2 };
+                }
+                if let Some(closer_tok) = context.resolver.as_ref().and_then(|r| {
+                    CharTarget::from_u128(first).and_then(|target| r.closer_for_opener(&target))
+                }) {
+                    if let Some(balanced_len) = find_balanced_closing(stream, first, closer_tok) {
+                        return MatchOutcome::Matched { consumed: balanced_len };
+                    }
+                }
+                MatchOutcome::Matched { consumed: 1 }
+            } else if in_set {
                 MatchOutcome::Matched { consumed: 1 }
             } else {
                 MatchOutcome::Mismatch
@@ -537,7 +580,7 @@ fn match_term_single(
 }
 
 /// Matches a quantified `SyntaxElement` against a stream.
-fn match_element(
+pub(crate) fn match_element(
     stream: &[u128],
     element: &SyntaxElement,
     context: &mut MatchContext,

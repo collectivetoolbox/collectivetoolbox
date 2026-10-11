@@ -951,7 +951,7 @@ pub fn parse_document_tokens_with_resolver(
                     let mut ctx = MatchContext::new_with_token(Some(first)).with_mode(mode);
                     ctx.resolver = Some(default_syntax_resolver().clone());
                     let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
-                    for mut diag in ctx.diagnostics {
+                    for mut diag in ctx.diagnostics.clone() {
                         diag.token_offset = diag.token_offset.saturating_add(offset);
                         diagnostics.push(diag);
                     }
@@ -1024,6 +1024,67 @@ pub fn parse_document_tokens_with_resolver(
                                 };
                             }
                             let mut inner_elems = vec![ParsedElement::Atomic(fmt_tok)];
+                            inner_elems.extend(payload_doc.elements);
+                            inner_elems
+                        } else if target == CharTarget::Dc(310) && consumed > 2 {
+                            let slice_after_310 = match remaining.get(1..consumed.saturating_sub(1)) {
+                                Some(s) => s,
+                                None => &[],
+                            };
+                            let mut header_len = 0usize;
+                            let num_outcome = super::matcher::match_element(
+                                slice_after_310,
+                                &SyntaxElement::with_quantifier(
+                                    SyntaxTerm::NamedConstruct {
+                                        name: "number".to_string(),
+                                        subtype: None,
+                                        capture_var: Some("length".to_string()),
+                                    },
+                                    Quantifier::Optional,
+                                ),
+                                &mut ctx,
+                            );
+                            header_len = header_len.saturating_add(num_outcome.consumed_tokens());
+
+                            let slice_for_type = slice_after_310.get(header_len..).unwrap_or(&[]);
+                            let type_outcome = super::matcher::match_element(
+                                slice_for_type,
+                                &SyntaxElement::exact(SyntaxTerm::NamedConstruct {
+                                    name: "type".to_string(),
+                                    subtype: None,
+                                    capture_var: None,
+                                }),
+                                &mut ctx,
+                            );
+                            header_len = header_len.saturating_add(type_outcome.consumed_tokens());
+
+                            let header_slice = slice_after_310.get(..header_len).unwrap_or(&[]);
+                            let payload_slice = slice_after_310.get(header_len..).unwrap_or(&[]);
+
+                            let payload_doc = parse_document_tokens_with_resolver(
+                                payload_slice,
+                                mode,
+                                Some(res),
+                            );
+                            for mut diag in payload_doc.diagnostics {
+                                diag.token_offset = diag
+                                    .token_offset
+                                    .saturating_add(offset)
+                                    .saturating_add(1)
+                                    .saturating_add(header_len);
+                                diagnostics.push(diag);
+                            }
+                            if payload_doc.has_errors && mode == MatchMode::Strict {
+                                return ParsedDocument {
+                                    elements,
+                                    diagnostics,
+                                    has_errors: true,
+                                };
+                            }
+                            let mut inner_elems = Vec::new();
+                            if !header_slice.is_empty() {
+                                inner_elems.push(ParsedElement::RawTokens(header_slice.to_vec()));
+                            }
                             inner_elems.extend(payload_doc.elements);
                             inner_elems
                         } else if is_container && consumed > 2 {

@@ -610,6 +610,17 @@ impl<'a> DcMixedReader<'a> {
     /// Returns an error if delimiters are missing or if stream ends prematurely.
     pub fn read_string(&mut self) -> Result<String> {
         self.expect_short_dc(260)?; // Begin literal value
+        if self.peek_char()?.and_then(|c| c.to_short_dc()) == Some(262) {
+            self.next_char()?;
+            loop {
+                let ch = self
+                    .next_char()
+                    .context("Unexpected EOF while reading literal type header")?;
+                if ch.to_short_dc() == Some(263) {
+                    break;
+                }
+            }
+        }
         let mut s = String::new();
         loop {
             let ch = self
@@ -734,6 +745,9 @@ impl DcMixedDecode for String {
 impl DcMixedEncode for str {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
         mst.push_char(DcChar::from_short(260)); // Begin literal value
+        mst.push_char(DcChar::from_short(262)); // Begin type definition
+        mst.push_char(DcChar::from_short(264)); // Built-in type identifier: String
+        mst.push_char(DcChar::from_short(263)); // End type definition
         mst.push_str(self);
         mst.push_char(DcChar::from_short(261)); // End literal value
         Ok(())
@@ -2188,10 +2202,6 @@ mod tests {
         let mut mst = DcMstring::new();
         p.encode_dc_mixed(&mut mst)?;
         let tokens = mst.to_dc_tokens()?;
-        println!("TOKENS LEN: {}", tokens.len());
-        for (i, tok) in tokens.iter().enumerate() {
-            println!("  [{}] 0x{:X} ({})", i, tok, tok);
-        }
         ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
         Ok(())
     }
