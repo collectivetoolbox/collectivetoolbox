@@ -360,7 +360,11 @@ cmd_run() {
         echo "VM is not running. Starting VM..."
         cmd_start
         echo "Waiting for VM to reach desktop..."
-        sleep 25
+        local boot_wait="25"
+        if [[ "$VARIANT" == "win11" ]]; then
+            boot_wait="75"
+        fi
+        sleep "$boot_wait"
     fi
 
     local user_cmd="$*"
@@ -391,15 +395,26 @@ EOF
         touch "$SERIAL_LOG"
     fi
 
-    # Dismiss any stray dialogs or AutoPlay popups before invoking Run
-    cmd_send_keys "esc"
-    sleep 0.5
+    local launch_attempt
+    for launch_attempt in 1 2 3; do
+        # Dismiss any stray dialogs, Start menu, or AutoPlay popups before invoking Run
+        cmd_send_keys "esc"
+        sleep 0.5
+        cmd_send_keys "esc"
+        sleep 0.5
 
-    cmd_send_keys "meta_l-r"
-    sleep 1.2
-    cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run.bat %d:\\run.bat"
-    sleep 0.8
-    cmd_send_keys "ret"
+        cmd_send_keys "meta_l-r"
+        sleep 1.5
+        cmd_send_keys "ctrl-a"
+        cmd_type "cmd /c for %d in (D E F G) do @if exist %d:\\run.bat %d:\\run.bat"
+        sleep 0.8
+        cmd_send_keys "ret"
+
+        if vm_wait_for_marker "$SERIAL_LOG" "$start_offset" "---CTB_START---" 35; then
+            break
+        fi
+        echo "VM run startup marker missing after launch attempt $launch_attempt; retrying..." >&2
+    done
 
     python3 -c "
 import sys, time
@@ -464,7 +479,11 @@ cmd_test() {
     if ! is_running; then
         cmd_start
         echo "Waiting for VM to reach desktop..."
-        sleep 25
+        local boot_wait="25"
+        if [[ "$VARIANT" == "win11" ]]; then
+            boot_wait="75"
+        fi
+        sleep "$boot_wait"
     fi
 
     echo "=== Running $OS_TITLE Smoke Tests in VM ==="
@@ -774,7 +793,11 @@ EOF
     else
         cmd_start
         echo "Waiting for VM to reach desktop..."
-        sleep 25
+        local boot_wait="25"
+        if [[ "$VARIANT" == "win11" ]]; then
+            boot_wait="75"
+        fi
+        sleep "$boot_wait"
     fi
 
     local log_dir="$LOG_DIR"
