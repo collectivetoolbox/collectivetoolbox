@@ -252,6 +252,43 @@ fn match_term_single(
         }
     }
 
+    // Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
+    let dc_opt_present = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+        .saturating_add(315);
+    let dc_opt_absent = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+        .saturating_add(316);
+    if first == dc_opt_present
+        && !matches!(
+            term,
+            SyntaxTerm::SelfChar
+                | SyntaxTerm::CharRef(CharTarget::Dc(315))
+                | SyntaxTerm::RuleRef {
+                    target: CharTarget::Dc(315),
+                }
+        )
+    {
+        if let Some(sub_stream) = stream.get(1..) {
+            let inner_outcome = match_term_single(sub_stream, term, context);
+            if inner_outcome.is_matched() {
+                return MatchOutcome::Matched {
+                    consumed: inner_outcome.consumed_tokens().saturating_add(1),
+                };
+            }
+        }
+    }
+    if first == dc_opt_absent
+        && !matches!(
+            term,
+            SyntaxTerm::SelfChar
+                | SyntaxTerm::CharRef(CharTarget::Dc(316))
+                | SyntaxTerm::RuleRef {
+                    target: CharTarget::Dc(316),
+                }
+        )
+    {
+        return MatchOutcome::Matched { consumed: 1 };
+    }
+
     let outcome = match term {
         SyntaxTerm::SelfChar => {
             if let Some(self_id) = context.self_dc {

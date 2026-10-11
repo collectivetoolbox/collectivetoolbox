@@ -1093,14 +1093,15 @@ pub fn parse_document_tokens_with_resolver(
 
                             // Reason for fallback: slice beyond header bounds defaults to empty slice
                             let slice_for_type = slice_after_310.get(header_len..).unwrap_or(&[]);
-                            let type_count = if target == CharTarget::Dc(310) { 1 } else { 2 };
+                            let min_type_count = if target == CharTarget::Dc(310) { 0 } else { 2 };
+                            let max_type_count = if target == CharTarget::Dc(310) { 1 } else { 2 };
                             let type_outcome = super::matcher::match_element(
                                 slice_for_type,
                                 &SyntaxElement::with_quantifier(SyntaxTerm::NamedConstruct {
                                     name: "type".to_string(),
                                     subtype: None,
                                     capture_var: None,
-                                }, Quantifier::Range { min: type_count, max: Some(type_count) }),
+                                }, Quantifier::Range { min: min_type_count, max: Some(max_type_count) }),
                                 &mut ctx,
                             );
                             header_len = header_len.saturating_add(type_outcome.consumed_tokens());

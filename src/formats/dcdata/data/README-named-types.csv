@@ -19,6 +19,6 @@ filename,:511 [f228:] 512,
 filepath,:511 [f229:] 512,
 ipaddr,:511 [f226:] 512,
 statement,:([value] | 269:),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
-value,:([string] | 276: | 279:),One value expression: a quoted literal or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
+value,:([string] | [number] | [boolean] | [data] | [date] | [duration] | [datemagnitude] | [list] | [key_value] | 511: | 276: | 540: | 279:),One value expression: a literal (string number boolean data date duration datemagnitude format representation) a compound sequence (list key_value) or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
 boolean,:(517 | 518),
 typed_data,:203 [type:$type] [number $length]? [checksum]? ([127..190] | 195)* 204,
