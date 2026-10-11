@@ -20,5 +20,7 @@
 # Helper script to manage, snapshot, and run tests/commands in the Windows 11 VM in QEMU.
 set -euo pipefail
 
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
 export CTB_WIN_VARIANT="win11"
-exec "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/win-vm" "$@"
+exec scripts/win-vm "$@"

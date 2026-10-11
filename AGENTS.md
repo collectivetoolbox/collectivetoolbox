@@ -25,7 +25,7 @@
   - If you were asked to do a bounded subset of a feature (e.g. "implement the ones available so far"), your conclusion must frame it as partial progress toward the whole, not as the feature being finished.
 - **Lead responses with what is left, broken, or deferred:**
   - When summarizing work, do NOT write cheerful "all done!" recaps. Start with:
-    1. **Failing / Skipped Tests** (if any).
+    1. **Failing / Skipped Tests or Lints** (if any).
     2. **Known Gaps & What's Left** (what still needs to be done for full parity/completion).
     3. **Deferred Items** (what was deliberately omitted and why).
   - Only summarize what was implemented as secondary context under the gaps. If something is done, the operator can see the code and tests; what the operator needs from you is an accurate accounting of the remaining debt so context is not lost.

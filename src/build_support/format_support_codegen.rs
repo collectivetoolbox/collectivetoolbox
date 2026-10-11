@@ -331,11 +331,23 @@ pub fn generate_format_support_code(
         .filter(|r| r.export_support.general >= 2 || r.import_support.general >= 2)
         .collect();
 
+    let dc_input_family_mappings = [
+        ("CscJournal1Meta1", "CscJournal"),
+        ("CscJournal1Meta2", "CscJournal"),
+        ("CscJournal1Meta3", "CscJournal"),
+        ("CscJournal4", "CscJournal"),
+    ];
+
     let dc_input_records: Vec<&FormatSupportRecord> = document_records
         .iter()
         .chain(encoding_records.iter())
         .chain(database_records.iter())
-        .filter(|r| r.import_support.dc >= 1)
+        .filter(|r| {
+            r.import_support.dc >= 1
+                && !dc_input_family_mappings
+                    .iter()
+                    .any(|(src, _)| *src == r.ident.as_str())
+        })
         .collect();
 
     let dc_output_records: Vec<&FormatSupportRecord> = document_records
@@ -387,13 +399,6 @@ pub fn generate_format_support_code(
         false,
         None,
     ));
-
-    let dc_input_family_mappings = [
-        ("CscJournal1Meta1", "CscJournal"),
-        ("CscJournal1Meta2", "CscJournal"),
-        ("CscJournal1Meta3", "CscJournal"),
-        ("CscJournal4", "CscJournal"),
-    ];
 
     out.push_str(&generate_enum_code(
         "SupportedDcInputFormat",

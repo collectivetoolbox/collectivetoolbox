@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-set -euxo pipefail
+set -euo pipefail
 
 # Change directory to the repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
@@ -25,6 +25,21 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 export RUSTFLAGS="${RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
 export RUSTDOCFLAGS="${RUSTDOCFLAGS:--Awarnings}"
 export CARGO_HOST_RUSTFLAGS="${CARGO_HOST_RUSTFLAGS:--Awarnings -Aunfulfilled_lint_expectations}"
+
+usage() {
+    set +x
+    cat << 'EOF'
+Usage: ./lint [OPTIONS]
+
+Run the Collective Toolbox repository lint and validation suite.
+
+Options:
+  --quick       Run quick checks (fast TypeScript typecheck via system tsc, skip building docs)
+  --offline     Run in offline mode (passed to cargo and cargo deny)
+  -h, --help    Show this help message and exit
+EOF
+    exit 0
+}
 
 offline=""
 quick=""
@@ -35,6 +50,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --quick)
             quick="--quick"
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            echo "Run ./lint --help for usage." >&2
+            exit 1
             ;;
     esac
     shift
