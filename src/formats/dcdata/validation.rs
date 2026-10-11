@@ -2993,10 +2993,54 @@ mod tests {
         let dangling_number_closer = vec![sdc(7)];
         assert!(validate_dc_document_strict(&dangling_number_closer).is_err());
 
-        // 7. Date timestamp
+        // 7. Date timestamp with Dc 390 ... 391
         let fmt = |id: u32| DcChar::from_format(id).to_u128();
-        let date_timestamp = vec![sdc(330), sdc(6), fmt(199), sdc(127), sdc(7)];
-        assert!(validate_dc_document_strict(&date_timestamp).is_ok());
+        let valid_date = vec![
+            sdc(330),
+            sdc(390),
+            fmt(487),
+            sdc(6),
+            fmt(199),
+            sdc(127),
+            sdc(7),
+            sdc(391),
+        ];
+        assert!(validate_dc_document_strict(&valid_date).is_ok());
+
+        // 8. Raw number without Dc 390 fails strict validation
+        let raw_number_date = vec![sdc(330), sdc(6), fmt(199), sdc(127), sdc(7)];
+        assert!(validate_dc_document_strict(&raw_number_date).is_err());
+
+        // 9. Host local network IP address (Dc 346: :~ [ipaddr]) with IPv4 (f490) and IPv6 (f491)
+        let valid_ipv4 = vec![
+            sdc(346),
+            sdc(511),
+            fmt(490),
+            sdc(6),
+            fmt(199),
+            sdc(127),
+            sdc(7),
+            sdc(512),
+        ];
+        let v4_doc = parse_document_tokens(&valid_ipv4, MatchMode::Strict);
+        eprintln!("v4_doc: elements={:?}, diags={:?}, has_errors={}", v4_doc.elements, v4_doc.diagnostics, v4_doc.has_errors);
+        assert!(!v4_doc.has_errors);
+
+        let valid_ipv6 = vec![
+            sdc(346),
+            sdc(511),
+            fmt(491),
+            sdc(6),
+            fmt(199),
+            sdc(127),
+            sdc(7),
+            sdc(512),
+        ];
+        assert!(validate_dc_document_strict(&valid_ipv6).is_ok());
+
+        // 10. Raw number without 511/f490/f491 fails IP address strict validation
+        let raw_number_ip = vec![sdc(346), sdc(6), fmt(199), sdc(127), sdc(7)];
+        assert!(validate_dc_document_strict(&raw_number_ip).is_err());
     }
 
     #[crate::ctb_test]

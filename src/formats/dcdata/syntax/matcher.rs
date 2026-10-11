@@ -303,8 +303,8 @@ fn match_term_single(
                 }
             }
 
-            // Format or type category check: [format:<category>] or [type:<category>]
-            if (name == "format" || name == "type") && subtype.is_some() {
+            // Format or type category check: [format:<category>] or [formats:<category>] or [type:<category>]
+            if (name == "format" || name == "formats" || name == "type") && subtype.is_some() {
                 if let (Some(sub), Some(resolver)) = (subtype, &context.resolver) {
                     let script_name = format!("Formats:{sub}");
                     if resolver.matches_script(&script_name, first)
@@ -333,6 +333,7 @@ fn match_term_single(
                     .saturating_add(513);
                 let matches = is_format_token
                     || first == dc_path_delim
+                    // Reason for fallback: when syntax resolver is omitted, cannot verify membership in EL Types or Formats scripts
                     || context.resolver.as_ref().map_or(false, |r| {
                         r.matches_script("EL Types", first) || r.matches_script("Formats", first)
                     });
@@ -378,6 +379,7 @@ fn match_term_single(
                     ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
                     .contains(&first);
                 let matches = is_format_token
+                    // Reason for fallback: when syntax resolver is omitted, cannot verify membership in Formats script
                     || context
                         .resolver
                         .as_ref()
@@ -545,6 +547,7 @@ fn match_term_single(
                         _ => (0usize, false),
                     };
 
+                    // Reason for fallback: slice beyond stream bounds defaults to empty slice
                     let sub_stream = stream.get(offset_after_fmt..).unwrap_or(&[]);
                     let outcome = match_pattern(sub_stream, &rule.pattern, context);
 

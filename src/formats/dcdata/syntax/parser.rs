@@ -952,6 +952,7 @@ pub fn parse_document_tokens_with_resolver(
                     ctx.resolver = Some(default_syntax_resolver().clone());
                     let (payload_slice, fmt_lead_consumed) = match target {
                         CharTarget::Format(_) if remaining.first() == Some(&target.to_u128()) => {
+                            // Reason for fallback: slice beyond format token defaults to empty slice
                             (remaining.get(1..).unwrap_or(&[]), 1usize)
                         }
                         _ => (remaining, 0usize),
@@ -975,6 +976,7 @@ pub fn parse_document_tokens_with_resolver(
                         });
 
                         let child_elements = if target == CharTarget::Dc(511) && consumed > 3 {
+                            // Reason for fallback: missing format token inside 511 container defaults to 0
                             let fmt_tok = remaining.get(1).copied().unwrap_or(0);
                             let payload_slice = match remaining.get(2..consumed.saturating_sub(1)) {
                                 Some(s) => s,
@@ -1055,6 +1057,7 @@ pub fn parse_document_tokens_with_resolver(
                             );
                             header_len = header_len.saturating_add(num_outcome.consumed_tokens());
 
+                            // Reason for fallback: slice beyond header bounds defaults to empty slice
                             let slice_for_type = slice_after_310.get(header_len..).unwrap_or(&[]);
                             let type_outcome = super::matcher::match_element(
                                 slice_for_type,
@@ -1067,7 +1070,9 @@ pub fn parse_document_tokens_with_resolver(
                             );
                             header_len = header_len.saturating_add(type_outcome.consumed_tokens());
 
+                            // Reason for fallback: slice within header bounds defaults to empty slice
                             let header_slice = slice_after_310.get(..header_len).unwrap_or(&[]);
+                            // Reason for fallback: slice beyond header bounds defaults to empty slice
                             let payload_slice = slice_after_310.get(header_len..).unwrap_or(&[]);
 
                             let payload_doc = parse_document_tokens_with_resolver(

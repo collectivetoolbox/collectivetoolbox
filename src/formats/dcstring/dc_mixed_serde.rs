@@ -1999,6 +1999,25 @@ mod tests {
 
         let ip_v6: std::net::IpAddr = std::net::IpAddr::V6(v6);
         assert_dc_roundtrip(&ip_v6)?;
+
+        // Ensure IPv4 and IPv6 representations cannot be confused or cross-decoded:
+        let mut v4_mst = DcMstring::new();
+        v4.encode_dc_mixed(&mut v4_mst)?;
+        let mut v4_reader = DcMixedReader::new(&v4_mst);
+        assert!(std::net::Ipv6Addr::decode_dc_mixed(&mut v4_reader).is_err());
+
+        let mut v6_mst = DcMstring::new();
+        v6.encode_dc_mixed(&mut v6_mst)?;
+        let mut v6_reader = DcMixedReader::new(&v6_mst);
+        assert!(std::net::Ipv4Addr::decode_dc_mixed(&mut v6_reader).is_err());
+
+        let mut v4_as_ip_reader = DcMixedReader::new(&v4_mst);
+        let decoded_v4_ip = std::net::IpAddr::decode_dc_mixed(&mut v4_as_ip_reader)?;
+        assert_eq!(decoded_v4_ip, ip_v4);
+
+        let mut v6_as_ip_reader = DcMixedReader::new(&v6_mst);
+        let decoded_v6_ip = std::net::IpAddr::decode_dc_mixed(&mut v6_as_ip_reader)?;
+        assert_eq!(decoded_v6_ip, ip_v6);
         Ok(())
     }
 

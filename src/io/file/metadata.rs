@@ -728,38 +728,26 @@ pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::Fi
 impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         self.validate()?;
-        let atime_nanos = (i128::from(self.atime_sec))
-            .checked_mul(1_000_000_000)
-            .context("atime sec overflow")?
-            .checked_add(i128::from(self.atime_nsec))
-            .context("atime nsec overflow")?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(330));
-        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&atime_nanos, mst)?;
+        let encode_ts = |tag: u32, sec: i64, nsec: u32, mst: &mut ctb_formats_dcstring::DcMstring| -> Result<()> {
+            let nanos = (i128::from(sec))
+                .checked_mul(1_000_000_000)
+                .context("sec overflow")?
+                .checked_add(i128::from(nsec))
+                .context("nsec overflow")?;
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(tag));
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(390));
+            mst.push_char(ctb_formats_dcstring::DcChar::from_format(487));
+            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&nanos, mst)?;
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(391));
+            Ok(())
+        };
 
-        let mtime_nanos = (i128::from(self.mtime_sec))
-            .checked_mul(1_000_000_000)
-            .context("mtime sec overflow")?
-            .checked_add(i128::from(self.mtime_nsec))
-            .context("mtime nsec overflow")?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(329));
-        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&mtime_nanos, mst)?;
-
-        let ctime_nanos = (i128::from(self.ctime_sec))
-            .checked_mul(1_000_000_000)
-            .context("ctime sec overflow")?
-            .checked_add(i128::from(self.ctime_nsec))
-            .context("ctime nsec overflow")?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(332));
-        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&ctime_nanos, mst)?;
+        encode_ts(330, self.atime_sec, self.atime_nsec, mst)?;
+        encode_ts(329, self.mtime_sec, self.mtime_nsec, mst)?;
+        encode_ts(332, self.ctime_sec, self.ctime_nsec, mst)?;
 
         if let (Some(b_sec), Some(b_nsec)) = (self.birthtime_sec, self.birthtime_nsec) {
-            let birth_nanos = (i128::from(b_sec))
-                .checked_mul(1_000_000_000)
-                .context("birthtime sec overflow")?
-                .checked_add(i128::from(b_nsec))
-                .context("birthtime nsec overflow")?;
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(331));
-            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&birth_nanos, mst)?;
+            encode_ts(331, b_sec, b_nsec, mst)?;
         }
 
         if let Some(res) = self.resolution_nsec {
@@ -768,6 +756,28 @@ impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
         }
 
         Ok(())
+    }
+}
+
+fn decode_timestamp_nanos(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<i128> {
+    if reader.peek_char()?.is_some_and(|c| c == ctb_formats_dcstring::DcChar::from_short(390)) {
+        reader.next_char()?;
+        let fmt_char = reader.next_char()?;
+        let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
+        let nanos = if fmt_tok == 487 {
+            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+        } else if fmt_tok == 486 {
+            let secs = <i64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            i128::from(secs).checked_mul(1_000_000_000).context("secs to nanos overflow")?
+        } else {
+            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+        };
+        let end_tok = reader.next_char()?;
+        ensure!(end_tok == ctb_formats_dcstring::DcChar::from_short(391), "Expected Dc 391 closing time moment description");
+        Ok(nanos)
+    } else {
+        // Fallback for legacy unformatted numbers
+        <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)
     }
 }
 
@@ -791,7 +801,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
             match tag {
                 330 => {
                     reader.read_short_dc()?;
-                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let nanos = decode_timestamp_nanos(reader)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     atime_sec = sec;
@@ -799,7 +809,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 329 => {
                     reader.read_short_dc()?;
-                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let nanos = decode_timestamp_nanos(reader)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     mtime_sec = sec;
@@ -807,7 +817,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 332 => {
                     reader.read_short_dc()?;
-                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let nanos = decode_timestamp_nanos(reader)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     ctime_sec = sec;
@@ -815,7 +825,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 331 => {
                     reader.read_short_dc()?;
-                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let nanos = decode_timestamp_nanos(reader)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     birthtime_sec = Some(sec);
