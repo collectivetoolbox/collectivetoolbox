@@ -38,6 +38,7 @@ use super::framing::{
 use super::matcher::{MatchContext, match_syntax_rule_with_context};
 use super::resolver::{SyntaxRuleResolver, default_syntax_resolver};
 use anyhow::{Context, Result, bail, ensure};
+use ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START;
 
 /// Parses a target token strictly according to canonical shorthand formatting rules:
 /// - Format ID: `f<digits>` (e.g. `f80`)
@@ -657,10 +658,11 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
     })
 }
 
-const DC_PARAM_BEGIN: u32 = 258;
-const DC_PARAM_END: u32 = 259;
-const DC_REF_NAMED: u32 = 276;
-const DC_INVOCATION: u32 = 279;
+const DC_PARAM_BEGIN: u128 = SHORT_DC_REGION_START.saturating_add(258);
+const DC_PARAM_END: u128 = SHORT_DC_REGION_START.saturating_add(259);
+const DC_REF_NAMED: u128 = SHORT_DC_REGION_START.saturating_add(276);
+const DC_INVOCATION: u128 = SHORT_DC_REGION_START.saturating_add(279);
+const DC_ROUTINE_SAY: u128 = SHORT_DC_REGION_START.saturating_add(256);
 
 /// Parses a character token stream into a structured, non-evaluating
 /// document representation using the shared default syntax resolver.
@@ -670,7 +672,7 @@ const DC_INVOCATION: u32 = 279;
 /// parsing. Under `MatchMode::Strict`, framing violations cause immediate
 /// return with `has_errors: true`.
 #[must_use]
-pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument {
+pub fn parse_document_tokens(stream: &[u128], mode: MatchMode) -> ParsedDocument {
     parse_document_tokens_with_resolver(
         stream,
         mode,
@@ -682,7 +684,7 @@ pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument 
 /// document representation using an optional explicit syntax rule resolver.
 #[must_use]
 pub fn parse_document_tokens_with_resolver(
-    stream: &[u32],
+    stream: &[u128],
     mode: MatchMode,
     resolver: Option<&dyn SyntaxRuleResolver>,
 ) -> ParsedDocument {
@@ -825,7 +827,7 @@ pub fn parse_document_tokens_with_resolver(
         }
 
         // 6. Routine invocation or built-in routine marker (e.g. Dc 256 lang.say or Dc 279)
-        if first == DC_INVOCATION || first == 256 {
+        if first == DC_INVOCATION || first == DC_ROUTINE_SAY {
             let mut inv_consumed = 1usize;
             let mut args = Vec::new();
 
@@ -916,29 +918,15 @@ pub fn parse_document_tokens_with_resolver(
 
         // 7. General construct resolution via SyntaxRuleResolver
         if let Some(res) = resolver {
-            let target = if let Ok(start) = u32::try_from(
-                ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
-            ) {
-                if first >= start {
-                    let fmt_id = first.saturating_sub(start);
-                    match usize::try_from(fmt_id) {
-                        Ok(fid) => CharTarget::Format(fid),
-                        Err(_) => CharTarget::Dc(first),
+            if let Some(target) = CharTarget::from_u128(first) {
+                if let Some(rule) = res.resolve_rule(&target) {
+                    let mut ctx = MatchContext::new_with_token(Some(first)).with_mode(mode);
+                    ctx.resolver = Some(default_syntax_resolver().clone());
+                    let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
+                    for mut diag in ctx.diagnostics {
+                        diag.token_offset = diag.token_offset.saturating_add(offset);
+                        diagnostics.push(diag);
                     }
-                } else {
-                    CharTarget::Dc(first)
-                }
-            } else {
-                CharTarget::Dc(first)
-            };
-            if let Some(rule) = res.resolve_rule(&target) {
-                let mut ctx = MatchContext::new(Some(first)).with_mode(mode);
-                ctx.resolver = Some(default_syntax_resolver().clone());
-                let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
-                for mut diag in ctx.diagnostics {
-                    diag.token_offset = diag.token_offset.saturating_add(offset);
-                    diagnostics.push(diag);
-                }
                 if outcome.is_matched() {
                     let consumed = outcome.consumed_tokens();
                     if consumed > 0 {
@@ -1012,20 +1000,21 @@ pub fn parse_document_tokens_with_resolver(
                         offset = offset.saturating_add(consumed);
                         continue;
                     }
-                } else if mode == MatchMode::Strict {
-                    diagnostics.push(SyntaxDiagnostic {
-                        message: format!(
-                            "Token stream at offset {offset} failed to match syntax rule for {target}: {}",
-                            rule.raw
-                        ),
-                        token_offset: offset,
-                        is_error: true,
-                    });
-                    return ParsedDocument {
-                        elements,
-                        diagnostics,
-                        has_errors: true,
-                    };
+                    } else if mode == MatchMode::Strict {
+                        diagnostics.push(SyntaxDiagnostic {
+                            message: format!(
+                                "Token stream at offset {offset} failed to match syntax rule for {target}: {}",
+                                rule.raw
+                            ),
+                            token_offset: offset,
+                            is_error: true,
+                        });
+                        return ParsedDocument {
+                            elements,
+                            diagnostics,
+                            has_errors: true,
+                        };
+                    }
                 }
             }
         }
@@ -1046,10 +1035,10 @@ pub fn parse_document_tokens_with_resolver(
                 || tok == DC_PARAM_BEGIN
                 || tok == DC_REF_NAMED
                 || tok == DC_INVOCATION
-                || tok == 256
+                || tok == DC_ROUTINE_SAY
                 || resolver.is_some_and(|r| {
                     r.closing_opener_for(tok).is_some()
-                        || r.resolve_rule(&CharTarget::Dc(tok)).is_some()
+                        || CharTarget::from_u128(tok).is_some_and(|tgt| r.resolve_rule(&tgt).is_some())
                 })
             {
                 break;

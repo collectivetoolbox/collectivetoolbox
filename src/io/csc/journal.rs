@@ -351,8 +351,10 @@ impl JournalWriter {
     /// Validates a serialized DcMstring segment strictly against authoritative Dc syntax rules.
     fn validate_segment(&self, mst: &DcMstring) -> Result<()> {
         let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
-            .context("CSC Journal segment failed strict Dc syntax validation")?;
+        if let Err(e) = ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens) {
+            eprintln!("validate_segment failed on tokens: {:?}", tokens);
+            return Err(e).context("CSC Journal segment failed strict Dc syntax validation");
+        }
         Ok(())
     }
 

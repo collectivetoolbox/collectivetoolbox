@@ -608,7 +608,7 @@ pub fn validate_dc_syntax(
 /// Returns an error if the document violates syntax rules or framing
 /// constraints.
 pub fn validate_dc_stream_strict(
-    stream: &[u32],
+    stream: &[u128],
     resolver: &dyn super::resolver::SyntaxRuleResolver,
 ) -> Result<()> {
     let parsed = super::parser::parse_document_tokens_with_resolver(
@@ -637,7 +637,7 @@ pub fn validate_dc_stream_strict(
 /// # Errors
 /// Returns an error if the document violates syntax rules or framing
 /// constraints.
-pub fn validate_dc_document_strict(stream: &[u32]) -> Result<()> {
+pub fn validate_dc_document_strict(stream: &[u128]) -> Result<()> {
     let resolver = super::resolver::default_syntax_resolver();
     validate_dc_stream_strict(stream, resolver.as_ref())
 }

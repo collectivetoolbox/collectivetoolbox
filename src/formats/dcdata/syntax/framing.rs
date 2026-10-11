@@ -34,21 +34,22 @@ use crate::utilities::*;
 use super::ast::{
     FramedIdentifier, FramedLiteral, MatchMode, SyntaxDiagnostic,
 };
+use ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START;
 
 /// Escape character protecting the next character token.
-pub const DC_ESCAPE: u32 = 255;
+pub const DC_ESCAPE: u128 = SHORT_DC_REGION_START.saturating_add(255);
 /// Opening delimiter for a typed literal value.
-pub const DC_LITERAL_BEGIN: u32 = 260;
+pub const DC_LITERAL_BEGIN: u128 = SHORT_DC_REGION_START.saturating_add(260);
 /// Closing delimiter for a typed literal value.
-pub const DC_LITERAL_END: u32 = 261;
+pub const DC_LITERAL_END: u128 = SHORT_DC_REGION_START.saturating_add(261);
 /// Opening delimiter for a literal type definition header.
-pub const DC_TYPE_BEGIN: u32 = 262;
+pub const DC_TYPE_BEGIN: u128 = SHORT_DC_REGION_START.saturating_add(262);
 /// Closing delimiter for a literal type definition header.
-pub const DC_TYPE_END: u32 = 263;
+pub const DC_TYPE_END: u128 = SHORT_DC_REGION_START.saturating_add(263);
 /// Opening delimiter for a framed identifier.
-pub const DC_IDENTIFIER_BEGIN: u32 = 270;
+pub const DC_IDENTIFIER_BEGIN: u128 = SHORT_DC_REGION_START.saturating_add(270);
 /// Closing delimiter for a framed identifier.
-pub const DC_IDENTIFIER_END: u32 = 271;
+pub const DC_IDENTIFIER_END: u128 = SHORT_DC_REGION_START.saturating_add(271);
 
 /// Scans a framed literal (`260 <header> <payload> 261`) from a character
 /// stream.
@@ -58,7 +59,7 @@ pub const DC_IDENTIFIER_END: u32 = 271;
 /// under `MatchMode::Strict`.
 #[must_use]
 pub fn scan_literal_frame(
-    stream: &[u32],
+    stream: &[u128],
     mode: MatchMode,
     diagnostics: &mut Vec<SyntaxDiagnostic>,
     token_offset: usize,
@@ -178,7 +179,7 @@ pub fn scan_literal_frame(
 /// Scans a framed identifier (`270 <payload> 271`) from a character stream.
 #[must_use]
 pub fn scan_identifier_frame(
-    stream: &[u32],
+    stream: &[u128],
     mode: MatchMode,
     diagnostics: &mut Vec<SyntaxDiagnostic>,
     token_offset: usize,
@@ -249,13 +250,16 @@ pub fn scan_identifier_frame(
         None => Vec::new(),
     };
 
+    // FIXME This is wrong/nonsensical. It can display different identifiers as identical, since it discards any non-Unicode characters. There might be some way to do this, but it should (a) use a real conversion API for it (maybe convert it to DcText for display? That should avoid collisions), and (b) possibly be revisited as converting a name for display seems like something to do in the *renderer* (or in a lightweight conversion tool), not in the parser.
     let mut name = String::new();
     for cp in &payload_chars {
-        if let Some(ch) = char::from_u32(*cp) {
-            name.push(ch);
-        } else {
-            name.push_str(&format!("\\u{{{cp:x}}}"));
+        if let Ok(cp_u32) = u32::try_from(*cp) {
+            if let Some(ch) = char::from_u32(cp_u32) {
+                name.push(ch);
+                continue;
+            }
         }
+        name.push_str(&format!("\\u{{{cp:x}}}"));
     }
 
     Some((FramedIdentifier { raw_tokens, name }, consumed))

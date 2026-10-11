@@ -39,6 +39,38 @@ pub enum CharTarget {
     Unicode(u32),
 }
 
+impl CharTarget {
+    /// Returns the canonical global graph layout `u128` identifier for this target.
+    #[must_use]
+    pub fn to_u128(&self) -> u128 {
+        match self {
+            Self::Dc(id) => DcChar::from_short(*id).to_u128(),
+            Self::Format(id) => {
+                let Ok(fid) = u32::try_from(*id) else {
+                    return 0;
+                };
+                DcChar::from_format(fid).to_u128()
+            }
+            Self::Unicode(cp) => u128::from(*cp),
+        }
+    }
+
+    /// Attempts to resolve a global graph layout `u128` identifier into a `CharTarget`.
+    #[must_use]
+    pub fn from_u128(val: u128) -> Option<Self> {
+        let dc = DcChar::from_u128(val);
+        if let Ok(short) = dc.to_short() {
+            Some(Self::Dc(short))
+        } else if let Ok(fmt) = dc.to_format() {
+            usize::try_from(fmt).ok().map(Self::Format)
+        } else if let Ok(cp) = dc.to_unicode() {
+            Some(Self::Unicode(cp))
+        } else {
+            None
+        }
+    }
+}
+
 impl std::fmt::Display for CharTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -227,18 +259,18 @@ pub struct SyntaxDiagnostic {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FramedLiteral {
     /// Raw character tokens in source stream including delimiters and escapes.
-    pub raw_tokens: Vec<u32>,
+    pub raw_tokens: Vec<u128>,
     /// Type header character tokens (between Dc 262 and Dc 263).
-    pub type_header: Vec<u32>,
+    pub type_header: Vec<u128>,
     /// Decoded unescaped payload character tokens.
-    pub decoded_payload: Vec<u32>,
+    pub decoded_payload: Vec<u128>,
 }
 
 /// Framed identifier preserving both verbatim source tokens and decoded name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FramedIdentifier {
     /// Raw character tokens in source stream including delimiters and escapes.
-    pub raw_tokens: Vec<u32>,
+    pub raw_tokens: Vec<u128>,
     /// Decoded identifier name.
     pub name: String,
 }
@@ -274,9 +306,9 @@ pub enum ParsedElement {
         children: Vec<ParsedElement>,
     },
     /// Atomic Document Character or token.
-    Atomic(u32),
+    Atomic(u128),
     /// Unparsed raw tokens preserved when broken structures are encountered.
-    RawTokens(Vec<u32>),
+    RawTokens(Vec<u128>),
 }
 
 /// Structured document representation produced by the non-evaluating parser.

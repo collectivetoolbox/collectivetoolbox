@@ -73,10 +73,10 @@ impl MatchOutcome {
 /// Execution context for pattern matching, recording variable captures and diagnostics.
 #[derive(Clone)]
 pub struct MatchContext {
-    /// The Short ID of the defining character (for resolving `~`).
-    pub self_dc: Option<u32>,
+    /// The global ID of the defining character (for resolving `~`).
+    pub self_dc: Option<u128>,
     /// Captured character token sequences keyed by variable name (e.g. `ident`, `val`).
-    pub captured_vars: HashMap<String, Vec<u32>>,
+    pub captured_vars: HashMap<String, Vec<u128>>,
     /// Diagnostic warnings collected during resilient recovery.
     pub warnings: Vec<String>,
     /// Mode governing matching: Permissive (tag-soup) vs Strict.
@@ -118,9 +118,15 @@ impl std::fmt::Debug for MatchContext {
 }
 
 impl MatchContext {
-    /// Creates a new match context for a specific defining Dc in Permissive mode.
+    /// Creates a new match context for a specific defining short Dc in Permissive mode.
     #[must_use]
     pub fn new(self_dc: Option<u32>) -> Self {
+        Self::new_with_token(self_dc.map(|id| DcChar::from_short(id).to_u128()))
+    }
+
+    /// Creates a new match context for a specific defining global character token in Permissive mode.
+    #[must_use]
+    pub fn new_with_token(self_dc: Option<u128>) -> Self {
         Self {
             self_dc,
             captured_vars: HashMap::new(),
@@ -154,32 +160,13 @@ impl MatchContext {
 }
 
 /// Helper checking if a single character token matches a `CharTarget`.
-fn target_matches_token(target: &CharTarget, token: u32) -> bool {
-    match target {
-        CharTarget::Dc(id) => *id == token,
-        CharTarget::Unicode(cp) => *cp == token,
-        CharTarget::Format(fmt_id) => {
-            let Ok(fid) = u32::try_from(*fmt_id) else {
-                return false;
-            };
-            if token == fid {
-                return true;
-            }
-            if let Ok(start) = u32::try_from(
-                ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
-            ) {
-                if token == start.saturating_add(fid) {
-                    return true;
-                }
-            }
-            false
-        }
-    }
+fn target_matches_token(target: &CharTarget, token: u128) -> bool {
+    target.to_u128() == token
 }
 
 /// Evaluates a single `SyntaxTerm` against a character stream.
 fn match_term_single(
-    stream: &[u32],
+    stream: &[u128],
     term: &SyntaxTerm,
     context: &mut MatchContext,
 ) -> MatchOutcome {
@@ -216,32 +203,9 @@ fn match_term_single(
             }
         }
         SyntaxTerm::CharRange { start, end } => {
-            let matches = match (start, end) {
-                (CharTarget::Dc(s), CharTarget::Dc(e)) => (*s..=*e).contains(&first),
-                (CharTarget::Unicode(s), CharTarget::Unicode(e)) => (*s..=*e).contains(&first),
-                (CharTarget::Format(s), CharTarget::Format(e)) => {
-                    let Ok(s_u32) = u32::try_from(*s) else {
-                        return MatchOutcome::Mismatch;
-                    };
-                    let Ok(e_u32) = u32::try_from(*e) else {
-                        return MatchOutcome::Mismatch;
-                    };
-                    let in_short = (s_u32..=e_u32).contains(&first);
-                    if in_short {
-                        true
-                    } else if let Ok(start_gid) = u32::try_from(
-                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
-                    ) {
-                        let s_gid = start_gid.saturating_add(s_u32);
-                        let e_gid = start_gid.saturating_add(e_u32);
-                        (s_gid..=e_gid).contains(&first)
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            };
-            if matches {
+            let s = start.to_u128();
+            let e = end.to_u128();
+            if (s..=e).contains(&first) {
                 MatchOutcome::Matched { consumed: 1 }
             } else {
                 MatchOutcome::Mismatch
@@ -292,25 +256,44 @@ fn match_term_single(
 
             // General type check: [type] (matches EL Types, format types, or type definitions)
             if name == "type" && subtype.is_none() {
-                if let Some(ref resolver) = context.resolver {
-                    let is_format_token = u32::try_from(
-                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
-                    )
-                    .map(|start| first >= start)
-                    .unwrap_or(false);
-                    if is_format_token
-                        || resolver.matches_script("EL Types", first)
-                        || resolver.matches_script("Formats", first)
-                    {
-                        if let Some(var) = capture_var {
-                            context
-                                .captured_vars
-                                .entry(var.clone())
-                                .or_default()
-                                .push(first);
-                        }
-                        return MatchOutcome::Matched { consumed: 1 };
+                let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                    .contains(&first);
+                let matches = is_format_token
+                    || context.resolver.as_ref().map_or(false, |r| {
+                        r.matches_script("EL Types", first) || r.matches_script("Formats", first)
+                    });
+                if matches {
+                    if let Some(var) = capture_var {
+                        context
+                            .captured_vars
+                            .entry(var.clone())
+                            .or_default()
+                            .push(first);
                     }
+                    return MatchOutcome::Matched { consumed: 1 };
+                }
+            }
+
+            // Format check: [format] or [formats]
+            if (name == "format" || name == "formats") && subtype.is_none() {
+                let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
+                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
+                    .contains(&first);
+                let matches = is_format_token
+                    || context
+                        .resolver
+                        .as_ref()
+                        .map_or(false, |r| r.matches_script("Formats", first));
+                if matches {
+                    if let Some(var) = capture_var {
+                        context
+                            .captured_vars
+                            .entry(var.clone())
+                            .or_default()
+                            .push(first);
+                    }
+                    return MatchOutcome::Matched { consumed: 1 };
                 }
             }
 
@@ -454,9 +437,7 @@ fn match_term_single(
                 }
                 if let Some(rule) = resolver.resolve_rule(target) {
                     let old_self = context.self_dc;
-                    if let CharTarget::Dc(id) = target {
-                        context.self_dc = Some(*id);
-                    }
+                    context.self_dc = Some(target.to_u128());
                     context.call_stack.push(frame_key);
                     context.depth = context.depth.saturating_add(1);
                     let outcome = match_pattern(stream, &rule.pattern, context);
@@ -479,7 +460,7 @@ fn match_term_single(
 
 /// Matches a quantified `SyntaxElement` against a stream.
 fn match_element(
-    stream: &[u32],
+    stream: &[u128],
     element: &SyntaxElement,
     context: &mut MatchContext,
 ) -> MatchOutcome {
@@ -550,7 +531,7 @@ fn match_element(
 
 /// Evaluates a `SyntaxPattern` against a character token stream.
 pub fn match_pattern(
-    stream: &[u32],
+    stream: &[u128],
     pattern: &SyntaxPattern,
     context: &mut MatchContext,
 ) -> MatchOutcome {
@@ -629,7 +610,7 @@ pub fn match_pattern(
 /// explicit `MatchContext`.
 #[must_use]
 pub fn match_syntax_rule_with_context(
-    stream: &[u32],
+    stream: &[u128],
     rule: &DcSyntaxRule,
     context: &mut MatchContext,
 ) -> MatchOutcome {
@@ -637,14 +618,27 @@ pub fn match_syntax_rule_with_context(
 }
 
 /// Evaluates a full `DcSyntaxRule` against a character token stream in default
-/// permissive mode.
+/// permissive mode with an optional defining short Dc ID.
 #[must_use]
 pub fn match_syntax_rule(
-    stream: &[u32],
+    stream: &[u128],
     rule: &DcSyntaxRule,
     self_dc: Option<u32>,
 ) -> (MatchOutcome, MatchContext) {
     let mut context = MatchContext::new(self_dc);
+    let outcome = match_pattern(stream, &rule.pattern, &mut context);
+    (outcome, context)
+}
+
+/// Evaluates a full `DcSyntaxRule` against a character token stream in default
+/// permissive mode with an optional defining global character token.
+#[must_use]
+pub fn match_syntax_rule_with_token(
+    stream: &[u128],
+    rule: &DcSyntaxRule,
+    self_token: Option<u128>,
+) -> (MatchOutcome, MatchContext) {
+    let mut context = MatchContext::new_with_token(self_token);
     let outcome = match_pattern(stream, &rule.pattern, &mut context);
     (outcome, context)
 }

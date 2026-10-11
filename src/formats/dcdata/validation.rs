@@ -2621,50 +2621,51 @@ mod tests {
     fn test_expression_data_boundaries() -> Result<()> {
         use crate::syntax::{DatasetRuleResolver, MatchMode};
         use std::sync::Arc;
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+        let fmt = |id: u32| DcChar::from_format(id).to_u128();
 
         let resolver = Arc::new(DatasetRuleResolver::load());
 
-        let cases: &[(&str, &[u32], bool)] = &[
-            ("[string]", &[260, 262, 264, 263, 261], true),
-            ("[string]", &[260, 262, 264, 263, 255, 261, 261], true),
-            ("[string]", &[260, 262, 264, 263, 255, 255, 261], true),
-            ("[string]", &[260, 262, 264, 263, 255, 65, 261], true),
-            ("[string]", &[260, 262, 264, 263, 279, 270, 65, 271, 261], true),
-            ("[string]", &[260, 262, 264, 263, 260, 262, 264, 263, 255, 261, 261], true),
-            ("[string]", &[], false),
-            ("[string]", &[65], false),
-            ("[string]", &[260, 261], false),
-            ("[string]", &[260, 262, 264, 263, 255], false),
-            ("[string]", &[260, 262, 264, 263, 255, 261], false),
-            ("[identifier]", &[270, 65, 271], true),
-            ("[identifier]", &[270, 255, 271, 271], true),
-            ("[identifier]", &[270, 255, 255, 271], true),
-            ("[identifier]", &[], false),
-            ("[identifier]", &[270, 271], false),
-            ("[identifier]", &[270, 65, 255], false),
-            ("[value]", &[], false),
-            ("[value]", &[65], false),
-            ("[value]", &[270, 65, 271], false),
-            ("[value]", &[276, 270, 65, 271], true),
-            ("[value]", &[276, 262, 264, 263, 270, 65, 271], true),
-            ("[value]", &[262, 264, 263, 270, 65, 271], false),
-            ("[value]", &[279, 270, 65, 271], true),
-            ("[value]", &[279], false),
-            ("[statement]", &[], false),
-            ("[statement]", &[65], false),
-            ("[statement]", &[260, 262, 264, 263, 261], true),
-            ("[statement]", &[279, 270, 65, 271], true),
-            ("[statement]", &[270, 65, 271, 269, 276, 270, 66, 271], true),
-            ("[statement]", &[270, 65, 271, 269], false),
-            ("258:", &[258, 279, 270, 65, 271, 259], true),
-            ("258:", &[258, 260, 262, 264, 263, 259, 261, 259], true),
-            ("258:", &[258, 259], false),
-            ("315:", &[315, 276, 270, 65, 271], true),
-            ("[checksum]", &[203, 2228469, 127, 128, 204], true),
-            ("[checksum]", &[203, 245, 127, 128, 204], true),
-            ("[checksum]", &[203, 2228469, 204], true),
-            ("[checksum]", &[203, 127, 128, 204], false),
-            ("[checksum]", &[203, 9999, 127, 204], false),
+        let cases: &[(&str, Vec<u128>, bool)] = &[
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(261)], true),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(261), sdc(261)], true),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(255), sdc(261)], true),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), 65, sdc(261)], true),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(279), sdc(270), 65, sdc(271), sdc(261)], true),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(261), sdc(261)], true),
+            ("[string]", vec![], false),
+            ("[string]", vec![65], false),
+            ("[string]", vec![sdc(260), sdc(261)], false),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(255)], false),
+            ("[string]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(261)], false),
+            ("[identifier]", vec![sdc(270), 65, sdc(271)], true),
+            ("[identifier]", vec![sdc(270), sdc(255), sdc(271), sdc(271)], true),
+            ("[identifier]", vec![sdc(270), sdc(255), sdc(255), sdc(271)], true),
+            ("[identifier]", vec![], false),
+            ("[identifier]", vec![sdc(270), sdc(271)], false),
+            ("[identifier]", vec![sdc(270), 65, sdc(255)], false),
+            ("[value]", vec![], false),
+            ("[value]", vec![65], false),
+            ("[value]", vec![sdc(270), 65, sdc(271)], false),
+            ("[value]", vec![sdc(276), sdc(270), 65, sdc(271)], true),
+            ("[value]", vec![sdc(276), sdc(262), sdc(264), sdc(263), sdc(270), 65, sdc(271)], true),
+            ("[value]", vec![sdc(262), sdc(264), sdc(263), sdc(270), 65, sdc(271)], false),
+            ("[value]", vec![sdc(279), sdc(270), 65, sdc(271)], true),
+            ("[value]", vec![sdc(279)], false),
+            ("[statement]", vec![], false),
+            ("[statement]", vec![65], false),
+            ("[statement]", vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(261)], true),
+            ("[statement]", vec![sdc(279), sdc(270), 65, sdc(271)], true),
+            ("[statement]", vec![sdc(270), 65, sdc(271), sdc(269), sdc(276), sdc(270), 66, sdc(271)], true),
+            ("[statement]", vec![sdc(270), 65, sdc(271), sdc(269)], false),
+            ("258:", vec![sdc(258), sdc(279), sdc(270), 65, sdc(271), sdc(259)], true),
+            ("258:", vec![sdc(258), sdc(260), sdc(262), sdc(264), sdc(263), sdc(259), sdc(261), sdc(259)], true),
+            ("258:", vec![sdc(258), sdc(259)], false),
+            ("315:", vec![sdc(315), sdc(276), sdc(270), 65, sdc(271)], true),
+            ("[checksum]", vec![sdc(203), fmt(245), sdc(127), sdc(128), sdc(204)], true),
+            ("[checksum]", vec![sdc(203), fmt(245), sdc(204)], true),
+            ("[checksum]", vec![sdc(203), sdc(127), sdc(128), sdc(204)], false),
+            ("[checksum]", vec![sdc(203), 9999, sdc(127), sdc(204)], false),
         ];
         for (syntax, stream, expected) in cases {
             let rule = parse_dc_syntax(syntax)?;
@@ -2678,7 +2679,10 @@ mod tests {
         }
 
         let rule = parse_dc_syntax("[value]")?;
-        let stream = [260, 262, 264, 263, 255, 261, 261, 279, 270, 65, 271];
+        let stream = vec![
+            sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(261), sdc(261),
+            sdc(279), sdc(270), 65, sdc(271),
+        ];
         let mut context = crate::syntax::MatchContext::default()
             .with_resolver(resolver.clone())
             .with_mode(MatchMode::Strict);
@@ -2692,17 +2696,19 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dc_syntax_matcher_resilient_tag_soup() {
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
+
         // Test matching single line comment: :~ [^248 255]+ 248
         let rule = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
 
         // Exact match with Dc 246 (self), content [65, 66], closing Dc 248
-        let stream = vec![246, 65, 66, 248];
+        let stream = vec![sdc(246), 65, 66, sdc(248)];
         let (outcome, ctx) = match_syntax_rule(&stream, &rule, Some(246));
         assert_eq!(outcome, MatchOutcome::Matched { consumed: 4 });
         assert!(ctx.warnings.is_empty());
 
         // Resilient tag-soup recovery: Unclosed comment at EOF [246, 65, 66] (missing 248)
-        let unclosed_stream = vec![246, 65, 66];
+        let unclosed_stream = vec![sdc(246), 65, 66];
         let (outcome_rec, ctx_rec) =
             match_syntax_rule(&unclosed_stream, &rule, Some(246));
         assert!(outcome_rec.is_matched());
@@ -2713,7 +2719,7 @@ mod tests {
         // Variable capture test
         let assign_rule =
             parse_dc_syntax(":[identifier $ident] ~ [value $val]").unwrap();
-        let assign_stream = vec![100, 269, 200];
+        let assign_stream = vec![100, sdc(269), 200];
         let (outcome_assign, ctx_assign) =
             match_syntax_rule(&assign_stream, &assign_rule, Some(269));
         assert_eq!(outcome_assign, MatchOutcome::Matched { consumed: 3 });
@@ -2726,21 +2732,25 @@ mod tests {
         use crate::syntax::{
             MatchMode, scan_identifier_frame, scan_literal_frame,
         };
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
 
         // 1. Valid typed literal with escape sequences
-        let stream = vec![260, 262, 264, 263, 255, 261, 255, 255, 65, 261];
+        let stream = vec![
+            sdc(260), sdc(262), sdc(264), sdc(263), sdc(255), sdc(261),
+            sdc(255), sdc(255), 65, sdc(261),
+        ];
         let mut diags = Vec::new();
         let scanned = scan_literal_frame(&stream, MatchMode::Strict, &mut diags, 0);
         assert!(scanned.is_some());
         let (lit, consumed) = scanned.unwrap();
         assert_eq!(consumed, 10);
         assert_eq!(lit.raw_tokens, stream);
-        assert_eq!(lit.type_header, vec![264]);
-        assert_eq!(lit.decoded_payload, vec![261, 255, 65]);
+        assert_eq!(lit.type_header, vec![sdc(264)]);
+        assert_eq!(lit.decoded_payload, vec![sdc(261), sdc(255), 65]);
         assert!(diags.is_empty());
 
         // 2. Delimiter belonging to another construct inside literal payload
-        let param_stream = vec![260, 262, 264, 263, 259, 261];
+        let param_stream = vec![sdc(260), sdc(262), sdc(264), sdc(263), sdc(259), sdc(261)];
         let (lit_p, consumed_p) = scan_literal_frame(
             &param_stream,
             MatchMode::Strict,
@@ -2749,10 +2759,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(consumed_p, 6);
-        assert_eq!(lit_p.decoded_payload, vec![259]);
+        assert_eq!(lit_p.decoded_payload, vec![sdc(259)]);
 
         // 3. Dangling escape 255 at EOF
-        let dangling_stream = vec![260, 262, 264, 263, 65, 255];
+        let dangling_stream = vec![sdc(260), sdc(262), sdc(264), sdc(263), 65, sdc(255)];
         let mut strict_diags = Vec::new();
         assert!(
             scan_literal_frame(
@@ -2778,7 +2788,7 @@ mod tests {
         );
 
         // 4. Missing terminator 261
-        let unclosed_stream = vec![260, 262, 264, 263, 65, 66];
+        let unclosed_stream = vec![sdc(260), sdc(262), sdc(264), sdc(263), 65, 66];
         let mut strict_diags2 = Vec::new();
         assert!(
             scan_literal_frame(
@@ -2804,7 +2814,7 @@ mod tests {
         );
 
         // 5. Identifier framing
-        let ident_stream = vec![270, 65, 255, 271, 271];
+        let ident_stream = vec![sdc(270), 65, sdc(255), sdc(271), sdc(271)];
         let mut ident_diags = Vec::new();
         let (ident, ident_consumed) = scan_identifier_frame(
             &ident_stream,
@@ -2818,7 +2828,7 @@ mod tests {
         assert!(ident_diags.is_empty());
 
         // 6. Empty identifier in strict mode
-        let empty_ident = vec![270, 271];
+        let empty_ident = vec![sdc(270), sdc(271)];
         let mut empty_diags = Vec::new();
         assert!(
             scan_identifier_frame(
@@ -2838,6 +2848,7 @@ mod tests {
             match_syntax_rule_with_context,
         };
         use std::sync::Arc;
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
 
         let resolver = Arc::new(DatasetRuleResolver::load());
         let rule = parse_dc_syntax(":~ [script:.EL Types] 263").unwrap();
@@ -2845,7 +2856,7 @@ mod tests {
         // Dc 262 defines type definition header: matches String (264), Object (275), Number (278), Routine (280), Routine name (306)
         let valid_type_dcs = [264u32, 275, 278, 280, 306];
         for type_dc in valid_type_dcs {
-            let stream = vec![262, type_dc, 263];
+            let stream = vec![sdc(262), sdc(type_dc), sdc(263)];
             let mut ctx = MatchContext::new(Some(262))
                 .with_resolver(resolver.clone());
             let outcome = match_syntax_rule_with_context(&stream, &rule, &mut ctx);
@@ -2857,7 +2868,7 @@ mod tests {
         }
 
         // Non-EL Types character (e.g. comment begin Dc 246) must fail to match
-        let invalid_stream = vec![262, 246, 263];
+        let invalid_stream = vec![sdc(262), sdc(246), sdc(263)];
         let mut ctx = MatchContext::new(Some(262))
             .with_resolver(resolver.clone());
         let outcome = match_syntax_rule_with_context(&invalid_stream, &rule, &mut ctx);
@@ -2867,11 +2878,12 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc_syntax_non_evaluating_document_parser() {
         use crate::syntax::{MatchMode, ParsedElement, parse_document_tokens};
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
 
         // 1. Parse idiomatic-hello-world.sems: say 'Hello, World!'
         let stream = vec![
-            256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96,
-            99, 93, 85, 19, 261, 259,
+            sdc(256), sdc(258), sdc(260), sdc(262), sdc(264), sdc(263), 57, 86, 93, 93, 96, 30, 18, 72, 96,
+            99, 93, 85, 19, sdc(261), sdc(259),
         ];
         let doc = parse_document_tokens(&stream, MatchMode::Permissive);
         assert!(!doc.has_errors);
@@ -2882,7 +2894,7 @@ mod tests {
         else {
             panic!("Expected Invocation element");
         };
-        assert_eq!(**target, ParsedElement::RawTokens(vec![256]));
+        assert_eq!(**target, ParsedElement::RawTokens(vec![sdc(256)]));
         assert_eq!(args.len(), 1);
 
         let Some(ParsedElement::Parameter(param_children)) = args.first() else {
@@ -2893,14 +2905,14 @@ mod tests {
         let Some(ParsedElement::Literal(lit)) = param_children.first() else {
             panic!("Expected Literal element");
         };
-        assert_eq!(lit.type_header, vec![264]);
+        assert_eq!(lit.type_header, vec![sdc(264)]);
         assert_eq!(
             lit.decoded_payload,
             vec![57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19]
         );
 
         // 2. Mangled / broken document: unclosed literal followed by unparsed tokens
-        let mangled = vec![260, 262, 264, 263, 10, 20, 99, 100];
+        let mangled = vec![sdc(260), sdc(262), sdc(264), sdc(263), 10, 20, 99, 100];
         let mangled_doc = parse_document_tokens(&mangled, MatchMode::Permissive);
         assert!(mangled_doc.has_errors);
         assert!(!mangled_doc.diagnostics.is_empty());
@@ -2913,9 +2925,10 @@ mod tests {
             CharTarget, MatchMode, ParsedElement, parse_document_tokens,
             validate_dc_document_strict,
         };
+        let sdc = |id: u32| DcChar::from_short(id).to_u128();
 
         // 1. Valid operation session document (Dc 547 ... 548)
-        let valid_session = vec![547, 270, 99, 115, 99, 271, 548];
+        let valid_session = vec![sdc(547), sdc(270), 99, 115, 99, sdc(271), sdc(548)];
         if let Err(e) = validate_dc_document_strict(&valid_session) {
             panic!("valid_session failed validation: {e:?}");
         }
@@ -2930,31 +2943,31 @@ mod tests {
         assert_eq!(children.len(), 1);
 
         // 2. Dangling closing delimiter: unexpected Dc 548 without opener
-        let dangling_closer = vec![548];
+        let dangling_closer = vec![sdc(548)];
         let err = validate_dc_document_strict(&dangling_closer);
         assert!(err.is_err());
         let err_str = err.unwrap_err().to_string();
-        assert!(err_str.contains("Unexpected closing delimiter Dc 548"));
+        assert!(err_str.contains("Unexpected closing delimiter"));
 
         // In permissive mode, dangling closer is preserved without aborting
         let permissive_doc = parse_document_tokens(&dangling_closer, MatchMode::Permissive);
         assert_eq!(permissive_doc.elements.len(), 1);
 
         // 3. Unclosed container: Dc 547 without Dc 548
-        let unclosed_session = vec![547, 546, 270, 99, 115, 99, 271];
+        let unclosed_session = vec![sdc(547), sdc(546), sdc(270), 99, 115, 99, sdc(271)];
         let err = validate_dc_document_strict(&unclosed_session);
         assert!(err.is_err());
 
         // 4. Checksum section container: Dc 543 ... 544
-        let valid_checksummed = vec![543, 270, 100, 271, 544];
+        let valid_checksummed = vec![sdc(543), sdc(270), 100, sdc(271), sdc(544)];
         assert!(validate_dc_document_strict(&valid_checksummed).is_ok());
 
         // 5. Dangling checksum section closer: Dc 544
-        let dangling_checksum_closer = vec![544];
+        let dangling_checksum_closer = vec![sdc(544)];
         assert!(validate_dc_document_strict(&dangling_checksum_closer).is_err());
 
         // 6. Number container: Dc 6 ... Dc 7
-        let dangling_number_closer = vec![7];
+        let dangling_number_closer = vec![sdc(7)];
         assert!(validate_dc_document_strict(&dangling_number_closer).is_err());
     }
 
@@ -2980,7 +2993,7 @@ mod tests {
             .with_resolver(resolver.clone());
         ctx.max_depth = 5;
         ctx.depth = 5;
-        let outcome = match_pattern(&[1, 2, 3], &recursive_rule.pattern, &mut ctx);
+        let outcome = match_pattern(&[1u128, 2, 3], &recursive_rule.pattern, &mut ctx);
         assert_eq!(outcome, MatchOutcome::Mismatch);
     }
 

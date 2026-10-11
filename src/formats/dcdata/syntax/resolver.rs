@@ -51,13 +51,13 @@ pub trait SyntaxRuleResolver {
         }
     }
     /// Checks whether a character token belongs to a designated script.
-    fn matches_script(&self, script_name: &str, token: u32) -> bool;
+    fn matches_script(&self, script_name: &str, token: u128) -> bool;
     /// Returns the opener target if this character token is a closing delimiter.
-    fn closing_opener_for(&self, _token: u32) -> Option<&CharTarget> {
+    fn closing_opener_for(&self, _token: u128) -> Option<&CharTarget> {
         None
     }
     /// Returns the closing token for an opener target if known.
-    fn closer_for_opener(&self, _opener: &CharTarget) -> Option<u32> {
+    fn closer_for_opener(&self, _opener: &CharTarget) -> Option<u128> {
         None
     }
 }
@@ -125,7 +125,7 @@ fn substitute_pattern_param(
     }
 }
 
-fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u32> {
+fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
     let elements = match pattern {
         SyntaxPattern::Sequence(elems) => elems,
         _ => return None,
@@ -138,7 +138,7 @@ fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u32> {
         return None;
     }
     match &last.term {
-        super::ast::SyntaxTerm::CharRef(CharTarget::Dc(closer_tok)) => Some(*closer_tok),
+        super::ast::SyntaxTerm::CharRef(target) => Some(target.to_u128()),
         _ => None,
     }
 }
@@ -148,9 +148,9 @@ fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u32> {
 pub struct DatasetRuleResolver {
     rules: HashMap<CharTarget, DcSyntaxRule>,
     named_types: HashMap<String, SyntaxPattern>,
-    script_chars: HashMap<String, HashSet<u32>>,
-    closing_delimiters: HashMap<u32, CharTarget>,
-    opener_to_closer: HashMap<CharTarget, u32>,
+    script_chars: HashMap<String, HashSet<u128>>,
+    closing_delimiters: HashMap<u128, CharTarget>,
+    opener_to_closer: HashMap<CharTarget, u128>,
 }
 
 impl DatasetRuleResolver {
@@ -171,12 +171,12 @@ impl DatasetRuleResolver {
     }
 
     /// Registers a character token under a script name.
-    pub fn add_script_char(&mut self, script: String, token: u32) {
+    pub fn add_script_char(&mut self, script: String, token: u128) {
         self.script_chars.entry(script).or_default().insert(token);
     }
 
     /// Registers a delimiter token as closing an opener target.
-    pub fn register_closing_delimiter(&mut self, closer_token: u32, opener: CharTarget) {
+    pub fn register_closing_delimiter(&mut self, closer_token: u128, opener: CharTarget) {
         self.opener_to_closer.insert(opener.clone(), closer_token);
         self.closing_delimiters.insert(closer_token, opener);
     }
@@ -192,8 +192,9 @@ impl DatasetRuleResolver {
                 let Ok(sid_u32) = u32::try_from(short_id) else {
                     continue;
                 };
+                let sid_u128 = DcChar::from_short(sid_u32).to_u128();
                 if !defn.script.is_empty() {
-                    resolver.add_script_char(defn.script.clone(), sid_u32);
+                    resolver.add_script_char(defn.script.clone(), sid_u128);
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Dc(sid_u32), rule.clone());
@@ -215,7 +216,7 @@ impl DatasetRuleResolver {
                         _ => None,
                     };
                     if let Some(target) = opener_target {
-                        resolver.register_closing_delimiter(sid_u32, target);
+                        resolver.register_closing_delimiter(sid_u128, target);
                     }
                 }
             }
@@ -232,16 +233,9 @@ impl DatasetRuleResolver {
                 let Ok(sid_u32) = u32::try_from(short_id) else {
                     continue;
                 };
+                let fid_u128 = DcChar::from_format(sid_u32).to_u128();
                 if !defn.script.is_empty() {
-                    resolver.add_script_char(defn.script.clone(), sid_u32);
-                    if let Ok(start) = u32::try_from(
-                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
-                    ) {
-                        resolver.add_script_char(
-                            defn.script.clone(),
-                            start.saturating_add(sid_u32),
-                        );
-                    }
+                    resolver.add_script_char(defn.script.clone(), fid_u128);
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Format(short_id), rule.clone());
@@ -304,7 +298,7 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         self.named_types.get(name)
     }
 
-    fn matches_script(&self, script_name: &str, token: u32) -> bool {
+    fn matches_script(&self, script_name: &str, token: u128) -> bool {
         if self
             .script_chars
             .get(script_name)
@@ -331,11 +325,11 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         false
     }
 
-    fn closing_opener_for(&self, token: u32) -> Option<&CharTarget> {
+    fn closing_opener_for(&self, token: u128) -> Option<&CharTarget> {
         self.closing_delimiters.get(&token)
     }
 
-    fn closer_for_opener(&self, opener: &CharTarget) -> Option<u32> {
+    fn closer_for_opener(&self, opener: &CharTarget) -> Option<u128> {
         self.opener_to_closer.get(opener).copied()
     }
 }
