@@ -1199,7 +1199,7 @@ pub fn dcmstring_to_dcmm(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utilit
     Ok((doc.as_bytes().to_vec(), ctb_formats_utilities::FormatLog::default()))
 }
 
-/// Validates the 21-byte DCMX header from reader, then streams the verified `.dcmm` stream to writer.
+/// Validates the 21-byte DcMM header from reader, then streams the verified `.dcmm` stream to writer.
 /// Returns the total bytes written.
 pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
     reader: &mut R,
