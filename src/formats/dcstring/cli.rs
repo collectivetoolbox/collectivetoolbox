@@ -167,6 +167,27 @@ impl From<&CharacterDescriptionArgs> for DescriptionOptions {
 ///
 /// Returns `Ok(Some(bytes))` if stdout output should be emitted, or
 /// `Ok(None)` if output was written to a destination file.
+fn convert_input_to_dcmstring(
+    bytes: &[u8],
+    format: SupportedDcInputFormat,
+) -> Result<crate::DcMstring> {
+    let (doc, _log) = match format {
+        SupportedDcInputFormat::Utf8 => crate::converters::utf8::utf8_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::DcText => crate::converters::dctext::dctext_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Dcts => crate::converters::dcts::dcts_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Dcal => crate::converters::dcal::dcal_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::DcIntegerList => crate::converters::eite::dcil_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::DcMixed => crate::dc_mixed::dcmm_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::DcUtf => crate::converters::utf8::dcutf_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Sems => crate::converters::eite::sems_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Ascii => crate::converters::eite::ascii_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::AsciiSafeSubset => {
+            crate::converters::eite::ascii_safe_subset_to_dcmstring(bytes)?
+        }
+    };
+    Ok(doc)
+}
+
 pub fn execute_cli_character_description<FRead>(
     args: CharacterDescriptionArgs,
     read_data: FRead,
@@ -183,15 +204,8 @@ where
         out
     } else {
         let input_bytes = args.input_source().read_bytes(&read_data)?;
-        let conversion = crate::convert_api::convert_bytes_to_dcmstring(
-            &input_bytes,
-            args.file.as_deref().and_then(|p| p.to_str()),
-            &crate::convert_api::DcConversionOptions {
-                format: crate::convert_api::FormatSpec::Format(args.from),
-                allow_binary_encapsulation: false,
-            },
-        )?;
-        let dc_string = conversion.document.to_dc_string()?;
+        let document = convert_input_to_dcmstring(&input_bytes, args.from)?;
+        let dc_string = document.to_dc_string()?;
         let dclist = dc_string.to_dclist();
         describe_dclist(&dclist, options)
     };

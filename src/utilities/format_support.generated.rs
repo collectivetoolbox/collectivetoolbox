@@ -889,6 +889,185 @@ impl std::str::FromStr for SupportedDcInputFormat {
     }
 }
 
+/// Document and text formats supported for conversion from Document Character String (DcMstring / DcString).
+#[expect(
+    non_camel_case_types,
+    reason = "Variant names align with canonical FormatId identifier naming"
+)]
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub enum SupportedDcOutputFormat {
+    /// Dc Integer List (short Dcs)
+    #[value(name = "dcil", alias = "dcintegerlist")]
+    DcIntegerList,
+    /// HTML
+    #[value(name = "html", alias = "htm")]
+    Html,
+    /// HTML fragment
+    #[value(name = "htmlfragment", alias = "htmfrag")]
+    HtmlFragment,
+    /// EITE Language in ASCII documents (ELAD)
+    #[value(name = "elad")]
+    Elad,
+    /// Color-coded HTML integer list
+    #[value(name = "eitecolorcoded", alias = "htm")]
+    EiteColorCoded,
+    /// DcText
+    #[value(name = "dctext")]
+    DcText,
+    /// DcUtf
+    #[value(name = "dcutf")]
+    DcUtf,
+    /// Dc ASCII List (long Dcs)
+    #[value(name = "dcal")]
+    Dcal,
+    /// DcText short
+    #[value(name = "dcts")]
+    Dcts,
+    /// DcUtf mixed mode
+    #[value(name = "dcmm", alias = "dcmstr", alias = "dcmixed")]
+    DcMixed,
+    /// UTF-8
+    #[default]
+    #[value(name = "utf8", alias = "utf-8", alias = "txt")]
+    Utf8,
+    /// Printable ASCII
+    #[value(name = "asciisafesubset", alias = "txt", alias = "ascii")]
+    AsciiSafeSubset,
+    /// ASCII
+    #[value(name = "ascii", alias = "txt")]
+    Ascii,
+}
+
+impl SupportedDcOutputFormat {
+    /// Ordered list of all formats supported by this capability.
+    pub const ALL: &'static [SupportedDcOutputFormat] = &[
+        Self::DcIntegerList,
+        Self::Html,
+        Self::HtmlFragment,
+        Self::Elad,
+        Self::EiteColorCoded,
+        Self::DcText,
+        Self::DcUtf,
+        Self::Dcal,
+        Self::Dcts,
+        Self::DcMixed,
+        Self::Utf8,
+        Self::AsciiSafeSubset,
+        Self::Ascii,
+    ];
+
+    /// Ordered list of all canonical `FormatId`s supported by this capability.
+    pub const ALL_FORMAT_IDS: &'static [FormatId] = &[
+        FormatId::DcIntegerList,
+        FormatId::Html,
+        FormatId::HtmlFragment,
+        FormatId::Elad,
+        FormatId::EiteColorCoded,
+        FormatId::DcText,
+        FormatId::DcUtf,
+        FormatId::Dcal,
+        FormatId::Dcts,
+        FormatId::DcMixed,
+        FormatId::Utf8,
+        FormatId::AsciiSafeSubset,
+        FormatId::Ascii,
+    ];
+
+    /// Maps this variant to the canonical global `FormatId`.
+    #[must_use]
+    pub const fn to_format_id(&self) -> FormatId {
+        match self {
+            Self::DcIntegerList => FormatId::DcIntegerList,
+            Self::Html => FormatId::Html,
+            Self::HtmlFragment => FormatId::HtmlFragment,
+            Self::Elad => FormatId::Elad,
+            Self::EiteColorCoded => FormatId::EiteColorCoded,
+            Self::DcText => FormatId::DcText,
+            Self::DcUtf => FormatId::DcUtf,
+            Self::Dcal => FormatId::Dcal,
+            Self::Dcts => FormatId::Dcts,
+            Self::DcMixed => FormatId::DcMixed,
+            Self::Utf8 => FormatId::Utf8,
+            Self::AsciiSafeSubset => FormatId::AsciiSafeSubset,
+            Self::Ascii => FormatId::Ascii,
+        }
+    }
+
+    /// Converts a global `FormatId` to `SupportedDcOutputFormat` if supported.
+    #[must_use]
+    pub const fn from_format_id(id: FormatId) -> Option<Self> {
+        match id {
+            FormatId::DcIntegerList => Some(Self::DcIntegerList),
+            FormatId::Html => Some(Self::Html),
+            FormatId::HtmlFragment => Some(Self::HtmlFragment),
+            FormatId::Elad => Some(Self::Elad),
+            FormatId::EiteColorCoded => Some(Self::EiteColorCoded),
+            FormatId::DcText => Some(Self::DcText),
+            FormatId::DcUtf => Some(Self::DcUtf),
+            FormatId::Dcal => Some(Self::Dcal),
+            FormatId::Dcts => Some(Self::Dcts),
+            FormatId::DcMixed => Some(Self::DcMixed),
+            FormatId::Utf8 => Some(Self::Utf8),
+            FormatId::AsciiSafeSubset => Some(Self::AsciiSafeSubset),
+            FormatId::Ascii => Some(Self::Ascii),
+            _ => None,
+        }
+    }
+
+    /// Returns true if the given `FormatId` is supported by this capability.
+    #[must_use]
+    pub const fn is_supported(id: FormatId) -> bool {
+        Self::from_format_id(id).is_some()
+    }
+}
+
+impl From<SupportedDcOutputFormat> for FormatId {
+    fn from(fmt: SupportedDcOutputFormat) -> Self {
+        fmt.to_format_id()
+    }
+}
+
+impl TryFrom<FormatId> for SupportedDcOutputFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
+        Self::from_format_id(id).ok_or_else(|| anyhow::anyhow!("Format {id:?} is not a supported Dc output format"))
+    }
+}
+
+impl TryFrom<&str> for SupportedDcOutputFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        if let Ok(val) = <Self as clap::ValueEnum>::from_str(s, true) {
+            return Ok(val);
+        }
+        let clean = s.trim().to_ascii_lowercase();
+        if let Some(id) = FormatId::from_ident(&clean) {
+            if let Some(fmt) = Self::from_format_id(id) {
+                return Ok(fmt);
+            }
+        }
+        anyhow::bail!("Unknown Dc output format: '{s}'")
+    }
+}
+
+impl TryFrom<String> for SupportedDcOutputFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+impl std::str::FromStr for SupportedDcOutputFormat {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
 impl FormatId {
     /// Converts this `FormatId` to [`SupportedDecompressionFormat`] if supported.
     ///
@@ -920,5 +1099,13 @@ impl FormatId {
     /// Returns an error if this format is not a supported Dc input format.
     pub fn to_supported_dc_input_format(self) -> Result<SupportedDcInputFormat> {
         SupportedDcInputFormat::try_from(self)
+    }
+
+    /// Converts this `FormatId` to [`SupportedDcOutputFormat`] if supported.
+    ///
+    /// # Errors
+    /// Returns an error if this format is not a supported Dc output format.
+    pub fn to_supported_dc_output_format(self) -> Result<SupportedDcOutputFormat> {
+        SupportedDcOutputFormat::try_from(self)
     }
 }

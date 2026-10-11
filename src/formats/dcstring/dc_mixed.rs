@@ -1216,6 +1216,45 @@ pub fn validate_dcmst(bytes: &[u8]) -> Result<(), DcMixedError> {
 /// Slice alias for consistency.
 pub type DcMstSlice = DcMstr;
 
+/// Decodes in-memory bytes into a `DcMstring`.
+pub fn dcmm_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    let doc = DcMstring::from_slice(bytes)
+        .context("Input bytes do not conform to valid DcMixed (.dcmm) format")?;
+    Ok((doc, ctb_formats_utilities::FormatLog::default()))
+}
+
+/// Encodes a `DcMstring` into `.dcmm` bytes.
+pub fn dcmstring_to_dcmm(doc: &DcMstring) -> Result<(Vec<u8>, ctb_formats_utilities::FormatLog)> {
+    Ok((doc.as_bytes().to_vec(), ctb_formats_utilities::FormatLog::default()))
+}
+
+/// Validates the 21-byte DCMX header from reader, then streams the verified `.dcmm` stream to writer.
+/// Returns the total bytes written.
+pub fn validate_and_copy_dcmm_stream<R: std::io::Read, W: std::io::Write>(
+    reader: &mut R,
+    writer: &mut W,
+) -> Result<u64> {
+    let mut header = [0u8; DCMX_HEADER_LEN];
+    reader.read_exact(&mut header).context("Reading DcMixed header")?;
+    validate_dcmst(&header).context("Validating stream DcMixed header")?;
+    writer.write_all(&header)?;
+    let mut bytes_written = u64::try_from(DCMX_HEADER_LEN)?;
+
+    let mut chunk = vec![0u8; 64 * 1024];
+    loop {
+        let n = reader.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        if let Some(slice) = chunk.get(..n) {
+            writer.write_all(slice)?;
+            let written_len = u64::try_from(n)?;
+            bytes_written = bytes_written.saturating_add(written_len);
+        }
+    }
+    Ok(bytes_written)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

@@ -210,6 +210,20 @@ pub fn dcstring_to_dcts(s: &DcStr) -> Vec<u8> {
     dclist_to_dcts(&dclist)
 }
 
+/// Converts a Dcts document to `DcMstring`.
+pub fn dcts_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    let conv = dcts_to_dcstring(bytes)?;
+    let doc = crate::DcMstring::from_dc_string(&conv.result)?;
+    Ok((doc, conv.log))
+}
+
+/// Converts a `DcMstring` to Dcts bytes.
+pub fn dcmstring_to_dcts(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = doc.to_dc_string()?;
+    let bytes = dcstring_to_dcts(&dc_string);
+    Ok((bytes, FormatLog::default()))
+}
+
 /// Converts Dcts format bytes to DcUtf format bytes.
 ///
 /// # Errors

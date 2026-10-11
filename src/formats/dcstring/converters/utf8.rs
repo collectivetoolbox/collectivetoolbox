@@ -511,6 +511,39 @@ pub fn utf8_to_dclist(
     dclist_from_utf8(utf8_bytes, settings)
 }
 
+/// Converts UTF-8 text bytes to a `DcMstring`.
+pub fn utf8_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    let text = std::str::from_utf8(bytes).map_err(|e| {
+        anyhow!("Input is not valid UTF-8 text: {e}")
+    })?;
+    let dc_str = crate::DcStr::from_bytes(text.as_bytes())
+        .map_err(|e| anyhow!("UTF-8 text contains invalid Dc sequences: {e}"))?;
+    let doc = crate::DcMstring::from_dc_str(dc_str)?;
+    Ok((doc, FormatLog::default()))
+}
+
+/// Converts a `DcMstring` to UTF-8 bytes.
+pub fn dcmstring_to_utf8(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = doc.to_dc_string()?;
+    let dclist = dc_string.to_dclist();
+    let (out_bytes, log) = dclist_to_utf8(&dclist, &DcListUtf8Settings::default())?;
+    Ok((out_bytes, log))
+}
+
+/// Converts DcUtf bytes to a `DcMstring`.
+pub fn dcutf_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    let dc_str = crate::DcStr::from_bytes(bytes)
+        .map_err(|e| anyhow!("Input bytes do not conform to valid DcUtf format: {e}"))?;
+    let doc = crate::DcMstring::from_dc_str(dc_str)?;
+    Ok((doc, FormatLog::default()))
+}
+
+/// Converts a `DcMstring` to DcUtf bytes.
+pub fn dcmstring_to_dcutf(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = doc.to_dc_string()?;
+    Ok((dc_string.into_bytes(), FormatLog::default()))
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

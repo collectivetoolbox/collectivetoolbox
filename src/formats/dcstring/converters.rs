@@ -30,6 +30,7 @@ pub mod dcal;
 pub mod dcts;
 pub mod dctext;
 pub mod utf8;
+pub mod eite;
 
 pub use dcal::{dcal_to_dclist, dclist_to_dcal};
 pub use dcts::{

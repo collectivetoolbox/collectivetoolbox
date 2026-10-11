@@ -77,6 +77,24 @@ pub fn dclist_to_dcal(dclist: &[u128]) -> Vec<u8> {
     output.into_bytes()
 }
 
+/// Converts a Dcal document to `DcMstring`.
+pub fn dcal_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    let conv = dcal_to_dclist(bytes)?;
+    let dcutf_bytes = super::dctext::dclist_to_dcutf(&conv.result);
+    let dc_str = crate::DcStr::from_bytes(&dcutf_bytes)
+        .context("Converting dcal list to valid UTF-8e-128 DcStr")?;
+    let doc = crate::DcMstring::from_dc_str(dc_str)?;
+    Ok((doc, conv.log))
+}
+
+/// Converts a `DcMstring` to Dcal bytes.
+pub fn dcmstring_to_dcal(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = doc.to_dc_string()?;
+    let dclist = dc_string.to_dclist();
+    let bytes = dclist_to_dcal(&dclist);
+    Ok((bytes, FormatLog::default()))
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

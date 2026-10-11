@@ -244,6 +244,20 @@ pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
     dclist_to_dctext(&dclist)
 }
 
+/// Converts a DcText document to `DcMstring`.
+pub fn dctext_to_dcmstring(bytes: &[u8]) -> Result<(crate::DcMstring, FormatLog)> {
+    let conv = dctext_to_dcstring(bytes)?;
+    let doc = crate::DcMstring::from_dc_string(&conv.result)?;
+    Ok((doc, conv.log))
+}
+
+/// Converts a `DcMstring` to DcText bytes.
+pub fn dcmstring_to_dctext(doc: &crate::DcMstring) -> Result<(Vec<u8>, FormatLog)> {
+    let dc_string = doc.to_dc_string()?;
+    let bytes = dcstring_to_dctext(&dc_string);
+    Ok((bytes, FormatLog::default()))
+}
+
 /// Converts DcText format bytes to DcUtf format bytes.
 ///
 /// # Errors

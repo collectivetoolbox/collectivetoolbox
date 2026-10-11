@@ -16,3 +16,8 @@
 !:mime	application/x-freeze
 !:ext	F
 
+# Dc Mixed Mode document
+0	string		DcMM\0\xd5\xab\x81\x9e\x9b\x8e\x4d\x61\xad\xbc\x93\x3e\x88\x51\xe7\x9a	Dc Mixed Mode document
+!:mime	application/octet-stream
+!:ext	dcmm
+
