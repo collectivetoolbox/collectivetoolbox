@@ -785,11 +785,53 @@ pub fn parse_document_tokens_with_resolver(
 
         // 3. Framed identifier (Dc 270 ... Dc 271)
         if first == DC_IDENTIFIER_BEGIN {
-            if let Some((ident, consumed)) =
+            if let Some((ident, ident_consumed)) =
                 scan_identifier_frame(remaining, mode, &mut diagnostics, offset)
             {
+                if let Some(res) = resolver {
+                    // Reason for fallback: slice beyond consumed identifier bounds defaults to empty slice
+                    let after_ident = remaining.get(ident_consumed..).unwrap_or(&[]);
+                    let dc_assign = SHORT_DC_REGION_START.saturating_add(269);
+                    if after_ident.first() == Some(&dc_assign) {
+                        let assign_target = CharTarget::Dc(269);
+                        if let Some(rule) = res.resolve_rule(&assign_target) {
+                            let mut ctx = MatchContext::new_with_token(Some(dc_assign)).with_mode(mode);
+                            ctx.resolver = Some(default_syntax_resolver().clone());
+                            let outcome = match_syntax_rule_with_context(remaining, rule, &mut ctx);
+                            for mut diag in ctx.diagnostics.clone() {
+                                diag.token_offset = diag.token_offset.saturating_add(offset);
+                                diagnostics.push(diag);
+                            }
+                            if outcome.is_matched() {
+                                let total_consumed = outcome.consumed_tokens();
+                                // Reason for fallback: slice beyond operator bounds defaults to empty slice
+                                let after_op = remaining.get(ident_consumed.saturating_add(1)..total_consumed).unwrap_or(&[]);
+                                let val_doc = parse_document_tokens_with_resolver(after_op, mode, Some(res));
+                                for mut diag in val_doc.diagnostics {
+                                    diag.token_offset = diag.token_offset.saturating_add(offset).saturating_add(ident_consumed).saturating_add(1);
+                                    diagnostics.push(diag);
+                                }
+                                if val_doc.has_errors && mode == MatchMode::Strict {
+                                    return ParsedDocument {
+                                        elements,
+                                        diagnostics,
+                                        has_errors: true,
+                                    };
+                                }
+                                // Reason for fallback: empty value expression defaults to raw tokens payload
+                                let val_elem = val_doc.elements.into_iter().next().unwrap_or(ParsedElement::RawTokens(after_op.to_vec()));
+                                elements.push(ParsedElement::Assignment {
+                                    ident,
+                                    value: Box::new(val_elem),
+                                });
+                                offset = offset.saturating_add(total_consumed);
+                                continue;
+                            }
+                        }
+                    }
+                }
                 elements.push(ParsedElement::Identifier(ident));
-                offset = offset.saturating_add(consumed);
+                offset = offset.saturating_add(ident_consumed);
                 continue;
             } else if mode == MatchMode::Strict {
                 return ParsedDocument {

@@ -291,7 +291,7 @@ pub struct AttachedStream {
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
     #[serde(default, with = "crate::serde_helpers::opt_base64")]
-    #[dc(short = 385, default)]
+    #[dc(short = 385, binary, default)]
     pub data: Option<Vec<u8>>,
 }
 

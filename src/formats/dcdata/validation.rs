@@ -3056,6 +3056,45 @@ mod tests {
         // 10. Raw number without 511/f490/f491 fails IP address strict validation
         let raw_number_ip = vec![sdc(346), sdc(6), fmt(199), sdc(127), sdc(7)];
         assert!(validate_dc_document_strict(&raw_number_ip).is_err());
+
+        // 11. File flags description: Dc 388 ... 389 with [list:Semantic:fileflag]
+        let valid_flags_list = vec![
+            sdc(388),
+            sdc(310),
+            sdc(409), // File flag: nodump (.Semantic:fileflag)
+            sdc(410), // File flag: uchg (.Semantic:fileflag)
+            sdc(311),
+            sdc(389),
+        ];
+        assert!(validate_dc_document_strict(&valid_flags_list).is_ok());
+
+        // 12. File flags description: Dc 388 ... 389 with raw flags Dc 539
+        let valid_flags_raw = vec![
+            sdc(388),
+            sdc(539),
+            sdc(203), // Begin binary data [data]
+            sdc(127),
+            sdc(204), // End binary data
+            sdc(389),
+        ];
+        assert!(validate_dc_document_strict(&valid_flags_raw).is_ok());
+
+        // 13. File flags description: Dc 388 ... 389 with equivalent representations Dc 397
+        let valid_flags_equiv = vec![
+            sdc(388),
+            sdc(397),
+            sdc(310), // Begin list
+            sdc(310),
+            sdc(409),
+            sdc(311),
+            sdc(539),
+            sdc(203),
+            sdc(127),
+            sdc(204),
+            sdc(311), // End list
+            sdc(389),
+        ];
+        assert!(validate_dc_document_strict(&valid_flags_equiv).is_ok());
     }
 
     #[crate::ctb_test]
