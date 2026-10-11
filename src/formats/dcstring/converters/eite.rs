@@ -86,38 +86,10 @@ pub fn dcmstring_to_sems(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
     Ok((bytes, log))
 }
 
-/// Converts an ASCII document (`.ascii`) to `DcMstring`.
-pub fn ascii_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
-    let (dca, mut log) = ctb_formats_eite::formats::ascii::dca_from_ascii(bytes)?;
-    let doc = dca_to_dcmstring(&dca, &mut log)?;
-    Ok((doc, log))
-}
-
-/// Converts a `DcMstring` to ASCII document bytes (`.ascii`).
-pub fn dcmstring_to_ascii(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let (dca, mut log) = dcmstring_to_dca(doc)?;
-    let (bytes, ascii_log) = ctb_formats_eite::formats::ascii::dca_to_ascii(&dca)?;
-    log.merge(&ascii_log);
-    Ok((bytes, log))
-}
-
-/// Converts an AsciiSafeSubset document to `DcMstring`.
-pub fn ascii_safe_subset_to_dcmstring(bytes: &[u8]) -> Result<(DcMstring, FormatLog)> {
-    let (dca, mut log) = ctb_formats_eite::formats::ascii::dca_from_ascii_safe_subset(
-        bytes,
-        &ctb_formats_eite::formats::ascii::AsciiSafeSubsetFormatSettings::default(),
-    )?;
-    let doc = dca_to_dcmstring(&dca, &mut log)?;
-    Ok((doc, log))
-}
-
-/// Converts a `DcMstring` to AsciiSafeSubset document bytes.
-pub fn dcmstring_to_ascii_safe_subset(doc: &DcMstring) -> Result<(Vec<u8>, FormatLog)> {
-    let (dca, mut log) = dcmstring_to_dca(doc)?;
-    let (bytes, safe_log) = ctb_formats_eite::formats::ascii::dca_to_ascii_safe_subset(&dca)?;
-    log.merge(&safe_log);
-    Ok((bytes, log))
-}
+pub use crate::converters::ascii::{
+    ascii_safe_subset_to_dcmstring, ascii_to_dcmstring, dcmstring_to_ascii,
+    dcmstring_to_ascii_safe_subset,
+};
 
 #[cfg(test)]
 #[allow(

@@ -174,10 +174,10 @@ pub fn convert_bytes_to_dcmstring(
             ctb_formats_dcstring::converters::eite::sems_to_dcmstring(bytes)?
         }
         SupportedDcInputFormat::Ascii => {
-            ctb_formats_dcstring::converters::eite::ascii_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::ascii::ascii_to_dcmstring(bytes)?
         }
         SupportedDcInputFormat::AsciiSafeSubset => {
-            ctb_formats_dcstring::converters::eite::ascii_safe_subset_to_dcmstring(bytes)?
+            ctb_formats_dcstring::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
         }
     };
 
@@ -217,10 +217,10 @@ pub fn convert_dcmstring_to_bytes(
             ctb_formats_dcstring::converters::utf8::dcmstring_to_dcutf(doc)?
         }
         SupportedDcOutputFormat::Ascii => {
-            ctb_formats_dcstring::converters::eite::dcmstring_to_ascii(doc)?
+            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii(doc)?
         }
         SupportedDcOutputFormat::AsciiSafeSubset => {
-            ctb_formats_dcstring::converters::eite::dcmstring_to_ascii_safe_subset(doc)?
+            ctb_formats_dcstring::converters::ascii::dcmstring_to_ascii_safe_subset(doc)?
         }
         unhandled => {
             bail!("Export to format {unhandled:?} is not yet implemented");
@@ -397,4 +397,61 @@ mod tests {
         .expect("export dcmm");
         assert_eq!(export.bytes, bytes);
     }
+
+    #[crate::ctb_test]
+    fn test_convert_ascii_roundtrip() {
+        let input = b"Hello, ASCII world!\n";
+        let res = convert_bytes_to_dcmstring(
+            input,
+            Some("test.txt"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(SupportedDcInputFormat::Ascii),
+                allow_binary_encapsulation: false,
+            },
+        )
+        .expect("convert ascii");
+        assert_eq!(res.detected_format, FormatId::Ascii);
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "Hello, ASCII world!\n"
+        );
+
+        let export = convert_dcmstring_to_bytes(
+            &res.document,
+            SupportedDcOutputFormat::Ascii,
+            &DcExportOptions::default(),
+        )
+        .expect("export ascii");
+        assert_eq!(export.bytes, input);
+    }
+
+    #[crate::ctb_test]
+    fn test_convert_ascii_safe_subset_roundtrip() {
+        let input = b"Safe Line 1\r\nSafe Line 2\r\n";
+        let res = convert_bytes_to_dcmstring(
+            input,
+            Some("test.txt"),
+            &DcConversionOptions {
+                format: FormatSpec::Format(
+                    SupportedDcInputFormat::AsciiSafeSubset,
+                ),
+                allow_binary_encapsulation: false,
+            },
+        )
+        .expect("convert ascii safe subset");
+        assert_eq!(res.detected_format, FormatId::AsciiSafeSubset);
+        assert_eq!(
+            res.document.to_dc_string().unwrap().as_str().unwrap(),
+            "Safe Line 1\nSafe Line 2\n"
+        );
+
+        let export = convert_dcmstring_to_bytes(
+            &res.document,
+            SupportedDcOutputFormat::AsciiSafeSubset,
+            &DcExportOptions::default(),
+        )
+        .expect("export ascii safe subset");
+        assert_eq!(export.bytes, input);
+    }
 }
+

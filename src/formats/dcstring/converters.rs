@@ -26,12 +26,21 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+pub mod ascii;
 pub mod dcal;
 pub mod dcts;
 pub mod dctext;
 pub mod utf8;
 pub mod eite;
 
+pub use ascii::{
+    AsciiSettings, AsciiUnmappablePolicy, ascii_safe_subset_to_dcmstring,
+    ascii_safe_subset_to_dcmstring_with_settings, ascii_to_dcmstring,
+    ascii_to_dcmstring_with_settings, dcmstring_to_ascii,
+    dcmstring_to_ascii_safe_subset,
+    dcmstring_to_ascii_safe_subset_with_settings,
+    dcmstring_to_ascii_with_settings,
+};
 pub use dcal::{dcal_to_dclist, dclist_to_dcal};
 pub use dcts::{
     dcarray_to_dcts, dclist_to_dcts, dcstring_to_dcts, dcts_to_dcarray,
@@ -47,3 +56,4 @@ pub use dctext::{
 pub use utf8::{
     DcListUtf8Settings, dclist_from_utf8, dclist_to_utf8, utf8_to_dclist,
 };
+

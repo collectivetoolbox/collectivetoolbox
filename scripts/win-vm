@@ -17,43 +17,91 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# Helper script to manage, snapshot, and run tests/commands in the Windows 7 VM in QEMU.
+# Helper script to manage, snapshot, and run tests/commands in the Windows (7 / 11) VM in QEMU.
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 REPO_ROOT="$(pwd)"
-DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/Windows/win7.qcow2"
-SOCKET_DIR="/tmp/ctb-win7-vm"
+
+source "$SCRIPT_DIR/vm-common.sh"
+
+SCRIPT_INVOCATION_NAME="$(basename "${BASH_SOURCE[0]}")"
+VARIANT="${CTB_WIN_VARIANT:-}"
+
+if [[ "${1:-}" == "--win11" ]]; then
+    VARIANT="win11"
+    shift
+elif [[ "${1:-}" == "--win7" ]]; then
+    VARIANT="win7"
+    shift
+elif [[ -z "$VARIANT" ]]; then
+    if [[ "$SCRIPT_INVOCATION_NAME" == *"11"* ]]; then
+        VARIANT="win11"
+    else
+        VARIANT="win7"
+    fi
+fi
+
+if [[ "$VARIANT" == "win11" ]]; then
+    OS_TITLE="Windows 11"
+    SCRIPT_NAME="win11-vm"
+    DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/Win11/win11.qcow2"
+    SOCKET_DIR="/tmp/ctb-win11-vm"
+    EXCHANGE_DIR="/tmp/ctb-win11-exchange"
+    EXCHANGE_ISO="/tmp/ctb-win11-exchange.iso"
+    SCREENSHOT_DEFAULT="/tmp/win11-screen.png"
+    LOG_DIR="$REPO_ROOT/ci-logs/Win11"
+    DEFAULT_SSH_PORT="2225"
+    DEFAULT_VNC_PORT="4"
+    DEFAULT_BIOS=""
+    for cand in /usr/share/ovmf/OVMF.fd /usr/share/qemu/OVMF.fd /usr/share/OVMF/OVMF.fd; do
+        if [[ -f "$cand" ]]; then
+            DEFAULT_BIOS="$cand"
+            break
+        fi
+    done
+else
+    OS_TITLE="Windows 7"
+    SCRIPT_NAME="win-vm"
+    DEFAULT_IMAGE="$REPO_ROOT/ci-logs/VMs/Windows/win7.qcow2"
+    SOCKET_DIR="/tmp/ctb-win7-vm"
+    EXCHANGE_DIR="/tmp/ctb-win7-exchange"
+    EXCHANGE_ISO="/tmp/ctb-exchange.iso"
+    SCREENSHOT_DEFAULT="/tmp/win7-screen.png"
+    LOG_DIR="$REPO_ROOT/ci-logs/Windows"
+    DEFAULT_SSH_PORT="2222"
+    DEFAULT_VNC_PORT="1"
+    DEFAULT_BIOS=""
+fi
+
 MONITOR_SOCK="$SOCKET_DIR/monitor.sock"
 VNC_SOCK="$SOCKET_DIR/vnc.sock"
 PID_FILE="$SOCKET_DIR/qemu.pid"
 SERIAL_LOG="$SOCKET_DIR/serial.log"
-EXCHANGE_DIR="/tmp/ctb-win7-exchange"
-EXCHANGE_ISO="/tmp/ctb-exchange.iso"
-
-source "$SCRIPT_DIR/vm-common.sh"
 
 mkdir -p "$SOCKET_DIR"
 
 usage() {
     cat <<EOF
-Usage: ./scripts/win-vm <command> [options]
+Usage: ./scripts/$SCRIPT_NAME <command> [options]
 
 VM Lifecycle:
-  start          Start the Windows 7 VM in the background (QEMU)
+  start          Start the $OS_TITLE VM in the background (QEMU)
                  Options:
                    --persist      Write changes directly to the qcow2 image
                                   (default: runs with -snapshot to protect image)
                    --net          Attach an isolated local loopback NIC (restrict=on,
                                   guest cannot access external LAN or internet; forwards
-                                  localhost:2222 -> guest:22 for SSH)
-                   --vnc-port P   Also listen on TCP port P for VNC (e.g. 5901)
-                   --image PATH   Use a custom qcow2 image (default: ci-logs/VMs/Windows/win7.qcow2)
-                   --iso PATH     Attach a custom CD-ROM ISO (default: /tmp/ctb-exchange.iso)
-                   --mem MB       Memory in MB (default: 2048)
-                   --smp CORES    CPU cores (default: 2)
+                                  localhost:$DEFAULT_SSH_PORT -> guest:22 for SSH)
+                   --ssh-port P   Custom SSH forward port (default: $DEFAULT_SSH_PORT)
+                   --vnc-port P   Also listen on TCP port P for VNC (e.g. 590$DEFAULT_VNC_PORT)
+                   --bios PATH    Custom UEFI/BIOS firmware file (default: ${DEFAULT_BIOS:-none})
+                   --image PATH   Use a custom qcow2 image (default: $DEFAULT_IMAGE)
+                   --iso PATH     Attach a custom CD-ROM ISO (default: $EXCHANGE_ISO)
+                   --mem MB       Memory in MB (default: 4096)
+                   --smp CORES    CPU cores (default: 4)
 
   stop           Stop the running VM (graceful ACPI shutdown, or --force)
   status         Check if the VM is running and display resource usage
@@ -80,17 +128,17 @@ Execution & Testing:
                               --timeout <sec>  Timeout waiting for test suite (default: 14400)
 
 Interactive / Inspection:
-  screenshot [path]         Capture the VM display buffer to a PNG image (default: /tmp/win7-screen.png)
+  screenshot [path]         Capture the VM display buffer to a PNG image (default: $SCREENSHOT_DEFAULT)
   send-keys <key>...        Send QEMU monitor keys (e.g. "ret", "down", "ctrl-alt-delete", "meta_l-r")
   type <text>               Type arbitrary text into the VM via simulated key events
   monitor <cmd>             Execute an arbitrary command on the QEMU monitor
 
 Examples:
-  ./scripts/win-vm start
-  ./scripts/win-vm test
-  ./scripts/win-vm run ctoolbox.exe --version
-  ./scripts/win-vm screenshot
-  ./scripts/win-vm stop
+  ./scripts/$SCRIPT_NAME start
+  ./scripts/$SCRIPT_NAME test
+  ./scripts/$SCRIPT_NAME run ctoolbox.exe --version
+  ./scripts/$SCRIPT_NAME screenshot
+  ./scripts/$SCRIPT_NAME stop
 EOF
 }
 
@@ -111,6 +159,8 @@ cmd_start() {
     local iso="$EXCHANGE_ISO"
     local mem="4096"
     local smp="4"
+    local ssh_port="$DEFAULT_SSH_PORT"
+    local bios="$DEFAULT_BIOS"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -119,15 +169,27 @@ cmd_start() {
                 ;;
             --net)
                 # restrict=on isolates guest completely from the internet and external network.
-                # Only explicitly forwarded ports (127.0.0.1:2222 -> guest:22) are reachable.
+                # Only explicitly forwarded ports are reachable.
                 net_flags=(
-                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:2222-:22"
+                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:${ssh_port}-:22"
+                    "-device" "e1000,netdev=net0"
+                )
+                ;;
+            --ssh-port)
+                shift
+                ssh_port="${1:-$DEFAULT_SSH_PORT}"
+                net_flags=(
+                    "-netdev" "user,id=net0,restrict=on,hostfwd=tcp:127.0.0.1:${ssh_port}-:22"
                     "-device" "e1000,netdev=net0"
                 )
                 ;;
             --vnc-port)
                 shift
-                vnc_args=("-vnc" "127.0.0.1:${1:-1},websocket=off")
+                vnc_args=("-vnc" "127.0.0.1:${1:-$DEFAULT_VNC_PORT},websocket=off")
+                ;;
+            --bios)
+                shift
+                bios="$1"
                 ;;
             --image)
                 shift
@@ -170,12 +232,15 @@ cmd_start() {
 
     remove_if_exists "$MONITOR_SOCK" "$VNC_SOCK" "$PID_FILE"
 
-    echo "Starting Windows 7 VM..."
+    echo "Starting $OS_TITLE VM..."
     echo "  Image:    $image"
     echo "  ISO:      $iso"
     echo "  Memory:   ${mem}MB | SMP: $smp"
+    if [[ -n "$bios" ]]; then
+        echo "  Firmware: $bios"
+    fi
     echo "  Snapshot: $(if [[ -n "$snapshot_flag" ]]; then echo "Enabled (read-only mode)"; else echo "Disabled (writes persist)"; fi)"
-    echo "  Network:  $(if [[ ${#net_flags[@]} -gt 0 ]]; then echo "Isolated loopback port-forward (restrict=on)"; else echo "Air-gapped (no NIC)"; fi)"
+    echo "  Network:  $(if [[ ${#net_flags[@]} -gt 0 ]]; then echo "Isolated loopback port-forward (127.0.0.1:${ssh_port} -> guest:22, restrict=on)"; else echo "Air-gapped (no NIC)"; fi)"
 
     local qemu_cmd=(
         qemu-system-x86_64
@@ -184,6 +249,13 @@ cmd_start() {
         -cpu max
         -m "$mem"
         -smp "$smp,cores=$smp,sockets=1"
+    )
+
+    if [[ -n "$bios" ]]; then
+        qemu_cmd+=("-bios" "$bios")
+    fi
+
+    qemu_cmd+=(
         -device ahci,id=ahci0
         -drive "file=$image,if=none,id=drive0,format=qcow2"
         -device ide-hd,bus=ahci0.0,drive=drive0
@@ -222,11 +294,11 @@ cmd_stop() {
     if [[ "${1:-}" == "--force" ]]; then
         force="true"
     fi
-    vm_cmd_stop "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK" "$force" "Windows 7 VM"
+    vm_cmd_stop "$PID_FILE" "$MONITOR_SOCK" "$VNC_SOCK" "$force" "$OS_TITLE VM"
 }
 
 cmd_status() {
-    vm_cmd_status "$PID_FILE" "Windows 7 VM"
+    vm_cmd_status "$PID_FILE" "$OS_TITLE VM"
 }
 
 cmd_monitor() {
@@ -234,7 +306,7 @@ cmd_monitor() {
 }
 
 cmd_screenshot() {
-    local out_path="${1:-/tmp/win7-screen.png}"
+    local out_path="${1:-$SCREENSHOT_DEFAULT}"
     vm_cmd_screenshot "$MONITOR_SOCK" "$out_path"
 }
 
@@ -293,7 +365,7 @@ cmd_run() {
 
     local user_cmd="$*"
     if [[ -z "$user_cmd" ]]; then
-        echo "Usage: ./scripts/win-vm run <command...>" >&2
+        echo "Usage: ./scripts/$SCRIPT_NAME run <command...>" >&2
         return 1
     fi
 
@@ -395,7 +467,7 @@ cmd_test() {
         sleep 25
     fi
 
-    echo "=== Running Windows Smoke Tests in VM ==="
+    echo "=== Running $OS_TITLE Smoke Tests in VM ==="
     echo "1. Testing ctoolbox-installer.exe --version..."
     cmd_run "ctoolbox-installer.exe --version"
     echo ""
@@ -410,7 +482,7 @@ cmd_test() {
         cmd_run "ctoolbox.exe --help"
         echo ""
     fi
-    echo "=== Windows VM Tests Completed Successfully ==="
+    echo "=== $OS_TITLE VM Tests Completed Successfully ==="
 }
 
 cmd_test_suite() {
@@ -705,13 +777,13 @@ EOF
         sleep 25
     fi
 
-    local log_dir="$REPO_ROOT/ci-logs/Windows"
+    local log_dir="$LOG_DIR"
     mkdir -p "$log_dir"
     local log_ts
     log_ts="$(date +%Y%m%d-%H%M%S)"
-    local suite_log="$log_dir/Windows-${log_ts}.log"
+    local suite_log="$log_dir/${OS_TITLE// /-}-${log_ts}.log"
 
-    echo "=== Executing Test Suite in Windows 7 VM ==="
+    echo "=== Executing Test Suite in $OS_TITLE VM ==="
     echo "Streaming VM test output to $suite_log..."
     local start_offset=0
     if [[ -f "$SERIAL_LOG" ]]; then
@@ -738,14 +810,14 @@ EOF
         echo "VM suite startup marker missing after launch attempt $launch_attempt." >&2
     done
 
-    vm_stream_suite_output "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" "Windows 7" "$binary_count" || py_exit=$?
+    vm_stream_suite_output "$SERIAL_LOG" "$start_offset" "$timeout" "$suite_log" "$OS_TITLE" "$binary_count" || py_exit=$?
 
     trap - EXIT INT TERM
     if is_running; then
         if [[ "${py_exit:-0}" -ne 0 ]]; then
-            vm_capture_failure_artifacts "$MONITOR_SOCK" "$SERIAL_LOG" "$REPO_ROOT/ci-logs/Windows" "Windows 7"
+            vm_capture_failure_artifacts "$MONITOR_SOCK" "$SERIAL_LOG" "$log_dir" "$OS_TITLE"
         fi
-        echo "Stopping Windows VM..."
+        echo "Stopping $OS_TITLE VM..."
         cmd_stop
     fi
     return ${py_exit:-0}

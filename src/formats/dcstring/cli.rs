@@ -182,9 +182,9 @@ fn convert_input_to_dcmstring(
         SupportedDcInputFormat::DcMixed => crate::dc_mixed::dcmm_to_dcmstring(bytes)?,
         SupportedDcInputFormat::DcUtf => crate::converters::utf8::dcutf_to_dcmstring(bytes)?,
         SupportedDcInputFormat::Sems => crate::converters::eite::sems_to_dcmstring(bytes)?,
-        SupportedDcInputFormat::Ascii => crate::converters::eite::ascii_to_dcmstring(bytes)?,
+        SupportedDcInputFormat::Ascii => crate::converters::ascii::ascii_to_dcmstring(bytes)?,
         SupportedDcInputFormat::AsciiSafeSubset => {
-            crate::converters::eite::ascii_safe_subset_to_dcmstring(bytes)?
+            crate::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
         }
     };
     Ok(doc)

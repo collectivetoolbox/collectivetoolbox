@@ -60,6 +60,7 @@ pub fn ellipsize_to_max_bytes(s: &str, max_len: usize) -> String {
 }
 
 /// Roughly transliterate a UTF-8 string to ASCII.
+/// I have in mind a new transliteration "transformation" (defined in transformations.csv) which could be applied in some general way as a fallback encoding handler (that isn't a concept that exists anywhere in code yet, but basically a generalization of the "replacement character" idea where a Dc format chain could be defined to perform more complex conversion operations on text during an export).
 pub fn to_ascii_translit(input: &str) -> String {
     deunicode::deunicode(input)
 }
