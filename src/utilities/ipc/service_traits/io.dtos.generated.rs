@@ -31,7 +31,6 @@ use std::path::PathBuf;
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
 use crate::format_id::FormatId;
 
-///  Detailed snapshot of the current application and platform environment.
 /// 
 ///  Serializes to a format where omitted fields assume default values on
 ///  JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
@@ -61,5 +60,78 @@ pub struct EnvDescription {
     pub is_local: bool,
     pub kernel_version: Option < String >,
     pub additional_support: Vec < FormatId >,
+    pub identity: EnvironmentIdentity,
+    pub capabilities: EnvironmentCapabilities,
+    pub is_wine: bool,
+    pub process_role: ProcessRole,
+}
+
+///  Display, terminal, and interactive rendering capabilities.
+#[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+pub struct EnvironmentCapabilities {
+///  Active device capabilities (e.g. `[FormatId::RasterDisplay,
+///  FormatId::Videoterminal, FormatId::WebUi]`).
+    pub device_caps: Vec < FormatId >,
+///  Supported render modes (e.g. `[FormatId::RenderModeInteractive,
+///  FormatId::RenderModeImmediate]`).
+    pub render_modes: Vec < FormatId >,
+///  Videoterminal protocol capabilities (e.g. `[FormatId::Vt100,
+///  FormatId::TerminalCanEdit, FormatId::TerminalColors24bit]`).
+    pub terminal_caps: Vec < FormatId >,
+///  Active display server protocol if any (e.g. `FormatId::WaylandDisplay`,
+///  `FormatId::X11Display`, `FormatId::QuartzDisplay`,
+///  `FormatId::Win32Display`, or `FormatId::HeadlessDisplay`).
+    pub display_server: Option < FormatId >,
+///  Standard input is connected to an interactive terminal.
+    pub is_stdin_terminal: bool,
+///  Standard output is connected to an interactive terminal.
+    pub is_stdout_terminal: bool,
+///  Standard error is connected to an interactive terminal.
+    pub is_stderr_terminal: bool,
+}
+
+///  Operating system, kernel, libc, userspace, and architecture identity.
+#[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
+pub struct EnvironmentIdentity {
+///  Authoritative kernel format if detected (e.g. `FormatId::Linux`,
+///  `FormatId::Xnu`, `FormatId::WinNtKernel`, `FormatId::Wsl2`).
+    pub kernel: Option < FormatId >,
+///  Kernel release / version string if available (e.g. "6.12.11-amd64").
+    pub kernel_version: Option < String >,
+///  Authoritative C standard library if detected (e.g. `FormatId::Gnu`,
+///  `FormatId::MuslLibc`, `FormatId::Darwin`, `FormatId::BsdLibc`).
+    pub libc: Option < FormatId >,
+///  Active userspace environments, utilities, and subsystems.
+    pub userspace: Vec < FormatId >,
+///  Primary operating system format if detected (e.g. `FormatId::GnuLinux`,
+///  `FormatId::MacOsDarwin`, `FormatId::Windows`).
+    pub os: Option < FormatId >,
+///  Operating system family ancestor formats (e.g. `[FormatId::Unix]`).
+    pub os_families: Vec < FormatId >,
+///  Machine architecture format if detected (e.g. `FormatId::amd64`,
+///  `FormatId::arm64`).
+    pub architecture: Option < FormatId >,
+}
+
+///  Detailed snapshot of the current application and platform environment.
+///  Operating system family for platform-specific file attributes, flags, and APIs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
+pub enum OsFamily {
+///  Apple macOS / Darwin.
+    Darwin,
+///  FreeBSD.
+    FreeBSD,
+///  OpenBSD.
+    OpenBSD,
+///  NetBSD.
+    NetBSD,
+///  DragonFly BSD.
+    DragonFly,
+///  Linux kernel.
+    Linux,
+///  Microsoft Windows.
+    Windows,
+///  Unknown or other operating system.
+    Other,
 }
 

@@ -734,7 +734,7 @@ pub fn audit_entity_detailed(
                 .metadata
                 .environment
                 .as_ref()
-                .map(|env| OsFamily::from_os_str(&env.os))
+                .map(|env| env.os_family())
                 .unwrap_or(OsFamily::CURRENT);
             let matches_raw = source_os == OsFamily::CURRENT
                 && actual_raw

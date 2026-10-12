@@ -279,7 +279,7 @@ pub fn apply_entity_metadata(
     let has_flags = meta.flags.is_some() || meta.platform_raw_flags.is_some();
     if apply_flags && has_flags {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = meta.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+        let source_os = meta.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
         apply_file_flags_with_source(
             dest,
             flags_slice,
@@ -1122,7 +1122,7 @@ pub fn materialize_entity(
             let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
             if has_flags {
                 let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-                let source_os = entity.metadata.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+                let source_os = entity.metadata.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
                 apply_file_flags_with_source(
                     &dest_path,
                     flags_slice,
@@ -1455,7 +1455,7 @@ fn try_update_existing_regular_entity(
         || dest_raw.is_some()
     {
         let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        let source_os = entity.metadata.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+        let source_os = entity.metadata.environment.as_ref().map(|env| env.os_family()).unwrap_or(OsFamily::CURRENT);
         apply_file_flags_with_source(
             dest_path,
             flags_slice,

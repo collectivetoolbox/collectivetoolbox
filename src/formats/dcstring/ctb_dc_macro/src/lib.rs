@@ -127,6 +127,7 @@ struct StructDcAttr {
     begin: u128,
     end: u128,
     flags: bool,
+    post_decode: Option<syn::Ident>,
 }
 
 #[derive(Clone, Debug)]
@@ -254,10 +255,14 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                                     flags = b.value;
                                 }
                             }
+                            "post_decode" => {
+                                let func: syn::Ident = stream.parse()?;
+                                post_decode = Some(func);
+                            }
                             other => {
                                 return Err(syn::Error::new(
                                     ident.span(),
-                                    format!("Unknown container attribute key `{other}`; expected `begin` or `end`"),
+                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, or `post_decode`"),
                                 ));
                             }
                         }
@@ -324,7 +329,7 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         ));
     }
 
-    Ok(Some(StructDcAttr { begin, end, flags }))
+    Ok(Some(StructDcAttr { begin, end, flags, post_decode }))
 }
 
 fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
@@ -2052,9 +2057,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         }
                         #(#field_validations)*
-                        Ok(Self {
+                        let post_decode_stmt = if let Some(ref func) = container.post_decode {
+                            quote! { val.#func(); }
+                        } else {
+                            quote! {}
+                        };
+                        let mut val = Self {
                             #(#construct_fields),*
-                        })
+                        };
+                        #post_decode_stmt
+                        Ok(val)
                         })();
                         reader.leave_record();
                         result

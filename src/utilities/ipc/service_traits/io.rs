@@ -31,7 +31,7 @@ use async_trait::async_trait;
     unused_imports,
     reason = "serde imports might be unused depending on generated code"
 )]
-use serde::{Deserialize, Serialize};
+use crate::environment::ProcessRole;
 
 include!("io.dtos.generated.rs");
 include!("io.generated.rs");

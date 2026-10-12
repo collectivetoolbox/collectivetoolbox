@@ -21,7 +21,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! This module intentionally hides postcard encoding and `call_raw` from
 //! application code. Normal code should call these helper methods instead of
-//! invoking raw IPC.
+use crate::environment::ProcessRole;
+use crate::ipc::service_traits::io::{EnvironmentCapabilities, EnvironmentIdentity};
 
 include!("workspace_ipc_methods.dtos.generated.rs");
 include!("workspace_ipc_methods.generated.rs");

@@ -35,6 +35,7 @@ use ctb_formats_utilities::format_id::{FormatCategory, FormatId};
 use serde::{Deserialize, Serialize};
 
 /// Operating system, kernel, libc, userspace, and architecture identity.
+#[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EnvironmentIdentity {
     /// Authoritative kernel format if detected (e.g. `FormatId::Linux`,
@@ -64,6 +65,7 @@ impl Default for EnvironmentIdentity {
 }
 
 /// Display, terminal, and interactive rendering capabilities.
+#[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EnvironmentCapabilities {
     /// Active device capabilities (e.g. `[FormatId::RasterDisplay,
@@ -328,6 +330,12 @@ pub fn detect_identity() -> EnvironmentIdentity {
                     | FormatId::Windows
                     | FormatId::MacOs
                     | FormatId::WinClassic
+                    | FormatId::Linux
+                    | FormatId::Darwin
+                    | FormatId::FreeBsd
+                    | FormatId::OpenBsd
+                    | FormatId::NetBsd
+                    | FormatId::DragonFlyBsd
             )
         })
         .collect();
@@ -787,7 +795,6 @@ pub fn decode_environment_from_formats(
     let mut libc: Option<FormatId> = None;
     let mut architecture: Option<FormatId> = None;
     let mut primary_os: Option<FormatId> = None;
-    let mut os_families = Vec::new();
     let mut userspace = Vec::new();
     let mut display_server: Option<FormatId> = None;
     let mut device_caps = Vec::new();
@@ -854,20 +861,18 @@ pub fn decode_environment_from_formats(
                 }
             }
             FormatCategory::Os => {
-                if matches!(
+                if !matches!(
                     f,
                     FormatId::Unix
                         | FormatId::Windows
                         | FormatId::MacOs
                         | FormatId::WinClassic
-                ) {
-                    if !os_families.contains(&f) {
-                        os_families.push(f);
-                    }
-                } else if primary_os.is_none() {
+                        | FormatId::FreeBsd
+                        | FormatId::OpenBsd
+                        | FormatId::NetBsd
+                        | FormatId::DragonFlyBsd
+                ) && primary_os.is_none() {
                     primary_os = Some(f);
-                } else if !os_families.contains(&f) {
-                    os_families.push(f);
                 }
             }
             FormatCategory::Userspace

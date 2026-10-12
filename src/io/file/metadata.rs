@@ -86,120 +86,7 @@ pub fn read_symlink_target(
     result
 }
 
-/// Operating system family where raw bits or file descriptors originated.
-/// You may want to consider using the `FileMetadata` `environment` instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(names)]
-pub enum OsFamily {
-    /// Apple macOS / Darwin.
-    #[dc(name = "Darwin")]
-    Darwin,
-    /// FreeBSD.
-    #[dc(name = "FreeBSD")]
-    FreeBSD,
-    /// OpenBSD.
-    #[dc(name = "OpenBSD")]
-    OpenBSD,
-    /// NetBSD.
-    #[dc(name = "NetBSD")]
-    NetBSD,
-    /// DragonFly BSD.
-    #[dc(name = "DragonFly")]
-    DragonFly,
-    /// Linux kernel.
-    #[dc(name = "Linux")]
-    Linux,
-    /// Microsoft Windows.
-    #[dc(name = "Windows")]
-    Windows,
-    /// Unknown or other operating system.
-    #[dc(name = "Other")]
-    Other,
-}
-
-impl OsFamily {
-    /// Identifies the compile-target OS family.
-    pub const CURRENT: Self = {
-        #[cfg(target_vendor = "apple")]
-        {
-            Self::Darwin
-        }
-        #[cfg(target_os = "freebsd")]
-        {
-            Self::FreeBSD
-        }
-        #[cfg(target_os = "openbsd")]
-        {
-            Self::OpenBSD
-        }
-        #[cfg(target_os = "netbsd")]
-        {
-            Self::NetBSD
-        }
-        #[cfg(target_os = "dragonfly")]
-        {
-            Self::DragonFly
-        }
-        #[cfg(target_os = "linux")]
-        {
-            Self::Linux
-        }
-        #[cfg(target_os = "windows")]
-        {
-            Self::Windows
-        }
-        #[cfg(not(any(
-            target_vendor = "apple",
-            target_os = "freebsd",
-            target_os = "openbsd",
-            target_os = "netbsd",
-            target_os = "dragonfly",
-            target_os = "linux",
-            target_os = "windows"
-        )))]
-        {
-            Self::Other
-        }
-    };
-
-    /// String name of the OS family.
-    #[must_use]
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Darwin => "darwin",
-            Self::FreeBSD => "freebsd",
-            Self::OpenBSD => "openbsd",
-            Self::NetBSD => "netbsd",
-            Self::DragonFly => "dragonfly",
-            Self::Linux => "linux",
-            Self::Windows => "windows",
-            Self::Other => "other",
-        }
-    }
-
-    /// Parses an operating system name string into an [`OsFamily`].
-    #[must_use]
-    pub fn from_os_str(name: &str) -> Self {
-        let lower = name.to_ascii_lowercase();
-        if lower.contains("darwin") || lower.contains("macos") || lower.contains("mac os") {
-            Self::Darwin
-        } else if lower.contains("linux") {
-            Self::Linux
-        } else if lower.contains("freebsd") {
-            Self::FreeBSD
-        } else if lower.contains("openbsd") {
-            Self::OpenBSD
-        } else if lower.contains("netbsd") {
-            Self::NetBSD
-        } else if lower.contains("dragonfly") {
-            Self::DragonFly
-        } else if lower.contains("windows") {
-            Self::Windows
-        } else {
-            Self::Other
-        }
-    }
-}
+pub use ctb_io_environment::OsFamily;
 
 /// Operating system permission or privilege level required to alter a file
 /// flag.
@@ -772,7 +659,7 @@ impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
     fn is_lossless(&self, context: &ctb_formats_dcstring::SharedValueContext) -> bool {
         let os = context
             .resolve::<EnvDescription>("environment")
-            .map(|env| OsFamily::from_os_str(&env.os))
+            .map(|env| env.os_family())
             .or_else(|_| context.resolve::<OsFamily>("os").map(|arc| *arc))
             .unwrap_or(OsFamily::CURRENT);
         !self.has_unparsed_flags(os)

@@ -657,6 +657,128 @@ pub fn is_branded_build() -> bool {
 }
 
 /// Detailed snapshot of the current application and platform environment.
+/// Operating system family for platform-specific file attributes, flags, and APIs.
+#[ipc_dto]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(names)]
+pub enum OsFamily {
+    /// Apple macOS / Darwin.
+    #[dc(name = "Darwin")]
+    Darwin,
+    /// FreeBSD.
+    #[dc(name = "FreeBSD")]
+    FreeBSD,
+    /// OpenBSD.
+    #[dc(name = "OpenBSD")]
+    OpenBSD,
+    /// NetBSD.
+    #[dc(name = "NetBSD")]
+    NetBSD,
+    /// DragonFly BSD.
+    #[dc(name = "DragonFly")]
+    DragonFly,
+    /// Linux kernel.
+    #[dc(name = "Linux")]
+    Linux,
+    /// Microsoft Windows.
+    #[dc(name = "Windows")]
+    Windows,
+    /// Unknown or other operating system.
+    #[dc(name = "Other")]
+    Other,
+}
+
+impl OsFamily {
+    /// Identifies the compile-target OS family.
+    pub const CURRENT: Self = {
+        #[cfg(target_vendor = "apple")]
+        {
+            Self::Darwin
+        }
+        #[cfg(target_os = "freebsd")]
+        {
+            Self::FreeBSD
+        }
+        #[cfg(target_os = "openbsd")]
+        {
+            Self::OpenBSD
+        }
+        #[cfg(target_os = "netbsd")]
+        {
+            Self::NetBSD
+        }
+        #[cfg(target_os = "dragonfly")]
+        {
+            Self::DragonFly
+        }
+        #[cfg(target_os = "linux")]
+        {
+            Self::Linux
+        }
+        #[cfg(target_os = "windows")]
+        {
+            Self::Windows
+        }
+        #[cfg(not(any(
+            target_vendor = "apple",
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd",
+            target_os = "dragonfly",
+            target_os = "linux",
+            target_os = "windows"
+        )))]
+        {
+            Self::Other
+        }
+    };
+
+    /// String name of the OS family.
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Darwin => "darwin",
+            Self::FreeBSD => "freebsd",
+            Self::OpenBSD => "openbsd",
+            Self::NetBSD => "netbsd",
+            Self::DragonFly => "dragonfly",
+            Self::Linux => "linux",
+            Self::Windows => "windows",
+            Self::Other => "other",
+        }
+    }
+
+    /// Primary [`FormatId`] representing this operating system family.
+    #[must_use]
+    pub const fn format_id(&self) -> Option<FormatId> {
+        match self {
+            Self::Darwin => Some(FormatId::Darwin),
+            Self::FreeBSD => Some(FormatId::FreeBsd),
+            Self::OpenBSD => Some(FormatId::OpenBsd),
+            Self::NetBSD => Some(FormatId::NetBsd),
+            Self::DragonFly => Some(FormatId::DragonFlyBsd),
+            Self::Linux => Some(FormatId::Linux),
+            Self::Windows => Some(FormatId::Windows),
+            Self::Other => None,
+        }
+    }
+
+    /// Converts an authoritative [`FormatId`] into an [`OsFamily`].
+    #[must_use]
+    pub const fn from_format_id(format: FormatId) -> Option<Self> {
+        match format {
+            FormatId::Darwin | FormatId::MacOsDarwin | FormatId::MacOs => Some(Self::Darwin),
+            FormatId::FreeBsd => Some(Self::FreeBSD),
+            FormatId::OpenBsd => Some(Self::OpenBSD),
+            FormatId::NetBsd => Some(Self::NetBSD),
+            FormatId::DragonFlyBsd => Some(Self::DragonFly),
+            FormatId::Linux | FormatId::GnuLinux | FormatId::Wsl | FormatId::Wsl2 => Some(Self::Linux),
+            FormatId::Windows | FormatId::WinNt | FormatId::WinClassic => Some(Self::Windows),
+            _ => None,
+        }
+    }
+}
+
 ///
 /// Serializes to a format where omitted fields assume default values on
 /// JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
@@ -664,7 +786,7 @@ pub fn is_branded_build() -> bool {
 #[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[serde(default, deny_unknown_fields)]
-#[dc(begin = 340, end = 341)]
+#[dc(begin = 340, end = 341, post_decode = update_derived)]
 #[expect(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
 pub struct EnvDescription {
     #[dc(short = 342)]
@@ -713,6 +835,18 @@ pub struct EnvDescription {
     pub kernel_version: Option<String>,
     #[dc(flatten)]
     pub additional_support: Vec<FormatId>,
+    #[serde(default)]
+    #[dc(skip, reason = "Identity formats are represented losslessly within additional_support")]
+    pub identity: EnvironmentIdentity,
+    #[serde(default)]
+    #[dc(skip, reason = "Capabilities formats are represented losslessly within additional_support")]
+    pub capabilities: EnvironmentCapabilities,
+    #[serde(default)]
+    #[dc(skip, reason = "Wine compatibility runtime flag is represented by FormatId::Wine in additional_support")]
+    pub is_wine: bool,
+    #[serde(default)]
+    #[dc(skip, reason = "Process role is represented by the individual role booleans")]
+    pub process_role: ProcessRole,
 }
 
 impl EnvDescription {
@@ -811,29 +945,72 @@ impl EnvDescription {
             is_official_public_website: is_official_public_website(),
             is_public_website: is_public_website(),
             is_local: is_local(),
-            kernel_version: ident.kernel_version,
+            kernel_version: ident.kernel_version.clone(),
             additional_support,
+            identity: ident,
+            capabilities: caps,
+            is_wine: is_wine(),
+            process_role: get_process_role(),
         }
+    }
+
+    /// Synchronizes derived identity, capabilities, and role attributes from
+    /// the decoded format stream and kernel version.
+    pub fn update_derived(&mut self) {
+        let (ident, caps) = detection::decode_environment_from_formats(
+            &self.additional_support,
+            self.kernel_version.clone(),
+        );
+        self.identity = ident;
+        self.capabilities = caps;
+        self.is_wine = self.additional_support.contains(&FormatId::Wine);
+        self.process_role = if self.is_workspace_main_process {
+            ProcessRole::WorkspaceMain
+        } else if self.is_service_subprocess {
+            ProcessRole::ServiceSubprocess
+        } else if self.is_cli_lightweight {
+            ProcessRole::LightweightCli
+        } else {
+            ProcessRole::Unknown
+        };
     }
 
     /// Return the structured OS, kernel, libc, and architecture identity.
     #[must_use]
-    pub fn identity(&self) -> EnvironmentIdentity {
-        let (ident, _) = detection::decode_environment_from_formats(
-            &self.additional_support,
-            self.kernel_version.clone(),
-        );
-        ident
+    pub fn identity(&self) -> &EnvironmentIdentity {
+        &self.identity
     }
 
     /// Return the active display, terminal, and renderer capabilities.
     #[must_use]
-    pub fn capabilities(&self) -> EnvironmentCapabilities {
-        let (_, caps) = detection::decode_environment_from_formats(
-            &self.additional_support,
-            self.kernel_version.clone(),
-        );
-        caps
+    pub fn capabilities(&self) -> &EnvironmentCapabilities {
+        &self.capabilities
+    }
+
+    /// Returns the operating system family where this environment originated.
+    #[must_use]
+    pub fn os_family(&self) -> OsFamily {
+        for fam in &self.identity.os_families {
+            if let Some(family) = OsFamily::from_format_id(*fam) {
+                return family;
+            }
+        }
+        if let Some(os) = self.identity.os {
+            if let Some(family) = OsFamily::from_format_id(os) {
+                return family;
+            }
+        }
+        if let Some(kernel) = self.identity.kernel {
+            if let Some(family) = OsFamily::from_format_id(kernel) {
+                return family;
+            }
+        }
+        for format in &self.additional_support {
+            if let Some(family) = OsFamily::from_format_id(*format) {
+                return family;
+            }
+        }
+        OsFamily::Other
     }
 
     /// Returns all [`FormatId`] elements that apply to this environment

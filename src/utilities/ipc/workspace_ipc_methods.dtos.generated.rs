@@ -31,7 +31,6 @@ use std::path::PathBuf;
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
 use crate::format_id::FormatId;
 
-///  Detailed snapshot of the current application and platform environment.
 /// 
 ///  Serializes to a format where omitted fields assume default values on
 ///  JSON deserialization. Unknown JSON fields are rejected; JSON is a debugging
@@ -61,5 +60,9 @@ pub struct EnvDescription {
     pub is_local: bool,
     pub kernel_version: Option < String >,
     pub additional_support: Vec < FormatId >,
+    pub identity: EnvironmentIdentity,
+    pub capabilities: EnvironmentCapabilities,
+    pub is_wine: bool,
+    pub process_role: ProcessRole,
 }
 
