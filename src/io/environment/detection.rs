@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 
 /// Operating system, kernel, libc, userspace, and architecture identity.
 #[ipc_dto]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct EnvironmentIdentity {
     /// Authoritative kernel format if detected (e.g. `FormatId::Linux`,
     /// `FormatId::Xnu`, `FormatId::WinNtKernel`, `FormatId::Wsl2`).
@@ -58,15 +58,9 @@ pub struct EnvironmentIdentity {
     pub architecture: Option<FormatId>,
 }
 
-impl Default for EnvironmentIdentity {
-    fn default() -> Self {
-        detect_identity()
-    }
-}
-
 /// Display, terminal, and interactive rendering capabilities.
 #[ipc_dto]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct EnvironmentCapabilities {
     /// Active device capabilities (e.g. `[FormatId::RasterDisplay,
     /// FormatId::Videoterminal, FormatId::WebUi]`).
@@ -87,12 +81,6 @@ pub struct EnvironmentCapabilities {
     pub is_stdout_terminal: bool,
     /// Standard error is connected to an interactive terminal.
     pub is_stderr_terminal: bool,
-}
-
-impl Default for EnvironmentCapabilities {
-    fn default() -> Self {
-        detect_capabilities()
-    }
 }
 
 /// Detect the target machine architecture as an authoritative [`FormatId`].
@@ -887,11 +875,42 @@ pub fn decode_environment_from_formats(
                 if !terminal_caps.contains(&f) {
                     terminal_caps.push(f);
                 }
+                if f == FormatId::Videoterminal && !device_caps.contains(&f) {
+                    device_caps.push(f);
+                }
             }
             FormatCategory::DeviceCaps => match f {
-                FormatId::IsStdinTerminal => is_stdin_terminal = true,
-                FormatId::IsStdoutTerminal => is_stdout_terminal = true,
-                FormatId::IsStderrTerminal => is_stderr_terminal = true,
+                FormatId::IsStdinTerminal => {
+                    is_stdin_terminal = true;
+                    if !terminal_caps.contains(&f) {
+                        terminal_caps.push(f);
+                    }
+                }
+                FormatId::IsStdoutTerminal => {
+                    is_stdout_terminal = true;
+                    if !terminal_caps.contains(&f) {
+                        terminal_caps.push(f);
+                    }
+                }
+                FormatId::IsStderrTerminal => {
+                    is_stderr_terminal = true;
+                    if !terminal_caps.contains(&f) {
+                        terminal_caps.push(f);
+                    }
+                }
+                FormatId::Teleprinter => {
+                    if !device_caps.contains(&f) {
+                        device_caps.push(f);
+                    }
+                    if !terminal_caps.contains(&f) {
+                        terminal_caps.push(f);
+                    }
+                }
+                FormatId::LineModeTerminal | FormatId::TerminalColors1bit => {
+                    if !terminal_caps.contains(&f) {
+                        terminal_caps.push(f);
+                    }
+                }
                 FormatId::RenderModeInteractive | FormatId::RenderModeImmediate => {
                     if !render_modes.contains(&f) {
                         render_modes.push(f);
