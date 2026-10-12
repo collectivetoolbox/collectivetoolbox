@@ -753,7 +753,7 @@ impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
         if let Some(res) = self.resolution_nsec {
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(378));
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(393));
-            mst.push_char(ctb_formats_dcstring::DcChar::from_format(489));
+            mst.push_char(ctb_utilities::format_id::DC_NANOSECOND);
             ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&res, mst)?;
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(394));
         }
@@ -839,14 +839,13 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                     if reader.peek_short_dc()? == Some(393) {
                         reader.read_short_dc()?;
                         let fmt_char = reader.next_char()?;
-                        let fmt_tok = fmt_char.to_format().context("Expected duration format token after 393")?;
-                        let res = match fmt_tok {
-                            489 => <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?,
-                            488 => {
-                                let secs = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-                                secs.checked_mul(1_000_000_000).context("duration overflow")?
-                            }
-                            other => bail!("Unsupported duration format {other} for clock resolution"),
+                        let res = if fmt_char == ctb_utilities::format_id::DC_NANOSECOND {
+                            <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+                        } else if fmt_char == ctb_utilities::format_id::DC_SECOND {
+                            let secs = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            secs.checked_mul(1_000_000_000).context("duration overflow")?
+                        } else {
+                            bail!("Unsupported duration format {fmt_char:?} for clock resolution");
                         };
                         reader.expect_short_dc(394)?;
                         resolution_nsec = Some(res);

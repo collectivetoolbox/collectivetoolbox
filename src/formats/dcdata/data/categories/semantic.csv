@@ -74,7 +74,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114481,369,File sparse allocation flag,0,BN,,!Cx,.Semantic,,Flag indicating sparse hole allocation.
 1114482,370,File device node number,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Encoded device node identifier (dev_t / rdev).
 1114483,371,File bundle type format,0,BN,,!Cx,.Semantic,:~ [asciilatinletterdigit:1..16],Application bundle type format identifier.
-1114484,372,Begin file extents descriptor,0,BN,,!Cx,.Semantic,:~ [^373]+ 373,Begins a list of sparse and data extents.
+1114484,372,Begin file extents descriptor,0,BN,,!Cx,.Semantic,:~ [^373]* 373,Begins a list of sparse and data extents.
 1114485,373,End file extents descriptor,0,BN,,!Cx,.Semantic,@closes(372),Terminates a list of sparse and data extents.
 1114486,374,File data extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a data extent region.
 1114487,375,File sparse hole extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a sparse hole extent region.
