@@ -514,6 +514,16 @@ impl<'a> DcMixedReader<'a> {
             let (_, data) = self.read_textual_binary()?;
             return Ok(Cow::Owned(data));
         }
+        if self.peek_char()? == Some(DC_BEGIN_LIST) {
+            self.next_char()?;
+            let mut bytes = Vec::new();
+            while self.peek_char()? != Some(DC_END_LIST) {
+                let b = u8::decode_dc_mixed(self)?;
+                bytes.push(b);
+            }
+            self.expect_char(DC_END_LIST)?;
+            return Ok(Cow::Owned(bytes));
+        }
         let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
         if is_text_encapsulation {
             self.next_char()?;
@@ -984,7 +994,6 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
         mst.push_char(DC_BEGIN_LIST); // Begin list of type
-        mst.push_char(DcChar::from_short(275)); // Object
         for item in self {
             item.encode_dc_mixed_with_context(mst, context)?;
         }
@@ -996,9 +1005,6 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
 impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
         reader.expect_char(DC_BEGIN_LIST)?;
-        if reader.peek_short_dc()? == Some(275) {
-            reader.read_short_dc()?;
-        }
         let mut list = Vec::new();
         loop {
             if reader.peek_char()? == Some(DC_END_LIST) {

@@ -1247,7 +1247,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_char(#crate_root::DcChar::from_short(397));
                         mst.push_char(#crate_root::DcChar::from_short(310));
-                        mst.push_char(#crate_root::DcChar::from_short(275));
                         #(#eq_encoders)*
                         mst.push_char(#crate_root::DcChar::from_short(311));
                     };
@@ -1280,9 +1279,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             reader.read_short_dc()?;
                             let in_list = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
                                 reader.read_short_dc()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
-                                    reader.read_short_dc()?;
-                                }
                                 true
                             } else {
                                 false
@@ -1339,31 +1335,42 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                mst.push_char(#crate_root::DcChar::from_short(315));
                                 mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
                             }
                         });
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
                                     reader.read_short_dc()?;
+                                    #field_ident = ::std::option::Option::Some(::std::option::Option::None);
+                                } else {
+                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                        reader.read_short_dc()?;
+                                    }
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                         .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                                 }
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
                         decode_field_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
                                     reader.read_short_dc()?;
+                                    self.#field_ident = ::std::option::Option::None;
+                                } else {
+                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                        reader.read_short_dc()?;
+                                    }
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                         .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    self.#field_ident = ::std::option::Option::Some(val);
                                 }
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                self.#field_ident = ::std::option::Option::Some(val);
                                 Ok(true)
                             }
                         });
@@ -1386,7 +1393,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
@@ -1395,7 +1402,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 reader.next_char()?;
                                 let raw_payload_bytes = reader.read_binary_payload()?;
                                 let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                 self.#field_ident = val;
                                 Ok(true)
                             }
@@ -1406,31 +1413,42 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                mst.push_char(#crate_root::DcChar::from_short(315));
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                             }
                         });
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
                                     reader.read_short_dc()?;
+                                    #field_ident = ::std::option::Option::Some(::std::option::Option::None);
+                                } else {
+                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                        reader.read_short_dc()?;
+                                    }
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                                 }
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
                         decode_field_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
                                     reader.read_short_dc()?;
+                                    self.#field_ident = ::std::option::Option::None;
+                                } else {
+                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
+                                        reader.read_short_dc()?;
+                                    }
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    self.#field_ident = ::std::option::Option::Some(val);
                                 }
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                self.#field_ident = ::std::option::Option::Some(val);
                                 Ok(true)
                             }
                         });
