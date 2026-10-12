@@ -730,9 +730,16 @@ pub fn audit_entity_detailed(
     {
         let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
         if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
-            let matches_raw = actual_raw
+            let source_os = expected
+                .metadata
+                .environment
                 .as_ref()
-                .is_some_and(|actual| raw_flags_match(expected_raw, actual));
+                .map(|env| OsFamily::from_os_str(&env.os))
+                .unwrap_or(OsFamily::CURRENT);
+            let matches_raw = source_os == OsFamily::CURRENT
+                && actual_raw
+                    .as_ref()
+                    .is_some_and(|actual| raw_flags_match(expected_raw, actual, source_os));
             if !matches_raw {
                 let details = format!("Raw flags expected {expected_raw:?}, got {actual_raw:?}");
                 if options.best_effort {

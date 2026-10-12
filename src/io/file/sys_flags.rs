@@ -858,6 +858,27 @@ pub const fn flag_settability(flag: FileFlag, os: OsFamily) -> FlagSettability {
     }
 }
 
+/// Parses a platform raw file flag bitmask according to the specified OS family.
+///
+/// Returns the list of parsed [`FileFlag`]s and a boolean indicating whether any
+/// unparsed bits remain.
+#[must_use]
+pub fn parse_platform_flags(raw_val: u64, os: OsFamily) -> (Vec<FileFlag>, bool) {
+    let Ok(raw_u32) = u32::try_from(raw_val) else {
+        return (Vec::new(), true);
+    };
+    match os {
+        OsFamily::Darwin => parse_darwin_flags(raw_u32),
+        OsFamily::FreeBSD => parse_freebsd_flags(raw_u32),
+        OsFamily::OpenBSD => parse_openbsd_flags(raw_u32),
+        OsFamily::DragonFly => parse_dragonfly_flags(raw_u32),
+        OsFamily::NetBSD => parse_netbsd_flags(raw_u32),
+        OsFamily::Linux => parse_linux_flags(raw_u32),
+        OsFamily::Windows => parse_windows_flags(raw_u32),
+        OsFamily::Other => (Vec::new(), raw_val != 0),
+    }
+}
+
 
 
 
@@ -912,14 +933,9 @@ pub fn query_file_flags(
             Err(error) => return Err(error).context("Failed to read file flags"),
         };
 
-        let (flags, has_unparsed) = parse_linux_flags(iflags.bits());
+        let (flags, _has_unparsed) = parse_linux_flags(iflags.bits());
         let raw_u64 = u64::from(iflags.bits());
-
-        let platform_raw = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: raw_u64,
-            has_unparsed_flags: has_unparsed,
-        };
+        let platform_raw = PlatformRawFlags::from_raw(raw_u64);
 
         Ok((flags, Some(platform_raw)))
     }
@@ -930,14 +946,9 @@ pub fn query_file_flags(
         let meta = std::fs::symlink_metadata(path)?;
         let raw_val = meta.st_flags();
 
-        let (flags, has_unparsed) = parse_darwin_flags(raw_val);
+        let (flags, _has_unparsed) = parse_darwin_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
-
-        let platform_raw = PlatformRawFlags {
-            source_os: OsFamily::Darwin,
-            raw_value: raw_u64,
-            has_unparsed_flags: has_unparsed,
-        };
+        let platform_raw = PlatformRawFlags::from_raw(raw_u64);
 
         Ok((flags, Some(platform_raw)))
     }
@@ -948,14 +959,9 @@ pub fn query_file_flags(
         let meta = std::fs::symlink_metadata(path)?;
         let raw_val = meta.st_flags();
 
-        let (flags, has_unparsed) = parse_freebsd_flags(raw_val);
+        let (flags, _has_unparsed) = parse_freebsd_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
-
-        let platform_raw = PlatformRawFlags {
-            source_os: OsFamily::FreeBSD,
-            raw_value: raw_u64,
-            has_unparsed_flags: has_unparsed,
-        };
+        let platform_raw = PlatformRawFlags::from_raw(raw_u64);
 
         Ok((flags, Some(platform_raw)))
     }
@@ -976,14 +982,9 @@ pub fn query_file_flags(
         let stat_buf = unsafe { stat_buf.assume_init() };
         let raw_val = stat_buf.st_flags;
 
-        let (flags, has_unparsed) = parse_openbsd_flags(raw_val);
+        let (flags, _has_unparsed) = parse_openbsd_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
-
-        let platform_raw = PlatformRawFlags {
-            source_os: OsFamily::OpenBSD,
-            raw_value: raw_u64,
-            has_unparsed_flags: has_unparsed,
-        };
+        let platform_raw = PlatformRawFlags::from_raw(raw_u64);
 
         Ok((flags, Some(platform_raw)))
     }
@@ -1004,14 +1005,9 @@ pub fn query_file_flags(
         let stat_buf = unsafe { stat_buf.assume_init() };
         let raw_val = stat_buf.st_flags;
 
-        let (flags, has_unparsed) = parse_dragonfly_flags(raw_val);
+        let (flags, _has_unparsed) = parse_dragonfly_flags(raw_val);
         let raw_u64 = u64::from(raw_val);
-
-        let platform_raw = PlatformRawFlags {
-            source_os: OsFamily::DragonFly,
-            raw_value: raw_u64,
-            has_unparsed_flags: has_unparsed,
-        };
+        let platform_raw = PlatformRawFlags::from_raw(raw_u64);
 
         Ok((flags, Some(platform_raw)))
     }
@@ -1030,16 +1026,13 @@ pub fn query_file_flags(
 }
 
 /// Compares raw flags for equality, allowing kernel-managed (non-settable)
-/// flags to differ when comparing within the same OS.
+/// flags to differ when comparing within the specified OS.
 #[must_use]
-pub fn raw_flags_match(expected: &PlatformRawFlags, actual: &PlatformRawFlags) -> bool {
+pub fn raw_flags_match(expected: &PlatformRawFlags, actual: &PlatformRawFlags, os: OsFamily) -> bool {
     if expected == actual {
         return true;
     }
-    if expected.source_os != actual.source_os {
-        return false;
-    }
-    let settable_mask: u64 = match expected.source_os {
+    let settable_mask: u64 = match os {
         OsFamily::Linux => u64::from(LINUX_SETTABLE_MASK),
         OsFamily::Darwin => u64::from(DARWIN_SETTABLE_MASK),
         OsFamily::FreeBSD => u64::from(FREEBSD_SETTABLE_MASK),
@@ -1049,7 +1042,7 @@ pub fn raw_flags_match(expected: &PlatformRawFlags, actual: &PlatformRawFlags) -
         _ => return false,
     };
     (expected.raw_value & settable_mask) == (actual.raw_value & settable_mask)
-        && expected.has_unparsed_flags == actual.has_unparsed_flags
+        && expected.has_unparsed_flags(os) == actual.has_unparsed_flags(os)
 }
 
 /// Applies file flags to `path`.
@@ -1074,7 +1067,33 @@ pub fn apply_file_flags(
     raw: Option<&PlatformRawFlags>,
     strict_lossless: bool,
 ) -> Result<()> {
-    apply_file_flags_native(path, flags, raw, strict_lossless)?;
+    apply_file_flags_with_source(path, flags, raw, OsFamily::CURRENT, strict_lossless)
+}
+
+/// Applies file flags to `path` with a known source operating system.
+///
+/// If `strict_lossless` is true, fails with an error if flags cannot be
+/// losslessly transferred.
+#[cfg_attr(
+    any(
+        target_vendor = "apple",
+        target_os = "freebsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    ),
+    expect(
+        unsafe_code,
+        reason = "Invoking BSD chflags system call requires unsafe C FFI"
+    )
+)]
+pub fn apply_file_flags_with_source(
+    path: &Path,
+    flags: &[FileFlag],
+    raw: Option<&PlatformRawFlags>,
+    source_os: OsFamily,
+    strict_lossless: bool,
+) -> Result<()> {
+    apply_file_flags_native(path, flags, raw, source_os, strict_lossless)?;
     let is_symlink = std::fs::symlink_metadata(path)?.file_type().is_symlink();
     let (actual, actual_raw) = query_file_flags(path, is_symlink)?;
     let semantic_match = flags.iter().all(|flag| actual.contains(flag))
@@ -1084,7 +1103,7 @@ pub fn apply_file_flags(
     let raw_match = raw.is_none_or(|expected| {
         actual_raw
             .as_ref()
-            .is_some_and(|actual_val| raw_flags_match(expected, actual_val))
+            .is_some_and(|actual_val| raw_flags_match(expected, actual_val, source_os))
     });
     if !semantic_match || !raw_match {
         if strict_lossless {
@@ -1108,14 +1127,15 @@ fn apply_file_flags_native(
     path: &Path,
     flags: &[FileFlag],
     raw: Option<&PlatformRawFlags>,
+    source_os: OsFamily,
     strict_lossless: bool,
 ) -> Result<()> {
     if let Some(raw_info) = raw {
-        if raw_info.has_unparsed_flags && raw_info.source_os != OsFamily::CURRENT && strict_lossless
+        if raw_info.has_unparsed_flags(source_os) && source_os != OsFamily::CURRENT && strict_lossless
         {
             anyhow::bail!(
                 "Cannot losslessly restore unparsed file flags from {} on target {}: {}",
-                raw_info.source_os.as_str(),
+                source_os.as_str(),
                 OsFamily::CURRENT.as_str(),
                 path.display()
             );
@@ -1152,7 +1172,7 @@ fn apply_file_flags_native(
         let mut has_linux_raw = false;
 
         if let Some(raw_info) = raw {
-            if raw_info.source_os == OsFamily::Linux {
+            if source_os == OsFamily::Linux {
                 let bits = u32::try_from(raw_info.raw_value).context("Invalid Linux file flag width")?;
                 target_mask = bits & LINUX_SETTABLE_MASK;
                 has_linux_raw = true;
@@ -1260,7 +1280,7 @@ fn apply_file_flags_native(
         let mut has_bsd_raw = false;
 
         if let Some(raw_info) = raw {
-            if raw_info.source_os == OsFamily::CURRENT {
+            if source_os == OsFamily::CURRENT {
                 target_mask = u32::try_from(raw_info.raw_value).context("Invalid BSD file flag width")?;
                 has_bsd_raw = true;
             }
@@ -1987,51 +2007,25 @@ mod tests {
     #[crate::ctb_test]
     fn test_raw_flags_match_kernel_managed_bits() {
         // Linux: LINUX_FS_EXTENT_FL (0x0008_0000 = 524288) is kernel-managed (KernelOnly)
-        let raw_zero = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: 0,
-            has_unparsed_flags: false,
-        };
-        let raw_extent = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: 524288,
-            has_unparsed_flags: false,
-        };
-        assert!(raw_flags_match(&raw_zero, &raw_extent));
-        assert!(raw_flags_match(&raw_extent, &raw_zero));
+        let raw_zero = PlatformRawFlags::from_raw(0);
+        let raw_extent = PlatformRawFlags::from_raw(524288);
+        assert!(raw_flags_match(&raw_zero, &raw_extent, OsFamily::Linux));
+        assert!(raw_flags_match(&raw_extent, &raw_zero, OsFamily::Linux));
 
         // Settable bits like LINUX_FS_NODUMP_FL (0x0040) must NOT match if they differ
-        let raw_nodump = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: 0x40,
-            has_unparsed_flags: false,
-        };
-        assert!(!raw_flags_match(&raw_zero, &raw_nodump));
-        assert!(!raw_flags_match(&raw_extent, &raw_nodump));
+        let raw_nodump = PlatformRawFlags::from_raw(0x40);
+        assert!(!raw_flags_match(&raw_zero, &raw_nodump, OsFamily::Linux));
+        assert!(!raw_flags_match(&raw_extent, &raw_nodump, OsFamily::Linux));
 
         // Settable bits match even when kernel-managed extent bit differs
-        let raw_nodump_extent = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: 0x40 | 524288,
-            has_unparsed_flags: false,
-        };
-        assert!(raw_flags_match(&raw_nodump, &raw_nodump_extent));
+        let raw_nodump_extent = PlatformRawFlags::from_raw(0x40 | 524288);
+        assert!(raw_flags_match(&raw_nodump, &raw_nodump_extent, OsFamily::Linux));
 
         // Differing unparsed flags flag must not match
-        let raw_unparsed = PlatformRawFlags {
-            source_os: OsFamily::Linux,
-            raw_value: 0,
-            has_unparsed_flags: true,
-        };
-        assert!(!raw_flags_match(&raw_zero, &raw_unparsed));
-
-        // Cross-OS raw flags must not match
-        let raw_darwin = PlatformRawFlags {
-            source_os: OsFamily::Darwin,
-            raw_value: 0,
-            has_unparsed_flags: false,
-        };
-        assert!(!raw_flags_match(&raw_zero, &raw_darwin));
+        let raw_unparsed = PlatformRawFlags::from_raw(0x0100_0000);
+        assert!(raw_unparsed.has_unparsed_flags(OsFamily::Linux));
+        assert!(!raw_zero.has_unparsed_flags(OsFamily::Linux));
+        assert!(!raw_flags_match(&raw_zero, &raw_unparsed, OsFamily::Linux));
     }
 }
 

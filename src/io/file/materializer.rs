@@ -32,14 +32,14 @@ use crate::apple_double::{
 };
 use crate::entity::{FileEntity, FileEntityKind};
 use crate::identity::resolve_relative_path_for_os;
-use crate::metadata::FileMetadata;
+use crate::metadata::{FileMetadata, OsFamily};
 use crate::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
 use crate::payload::{Extent, PayloadSource};
 use crate::sandboxable_dir::{DirHandleRef, SandboxableDir};
 use crate::streams::{read_and_hash_streams, remove_stream, write_streams};
-use crate::sys_flags::{apply_file_flags, query_file_flags};
+use crate::sys_flags::{apply_file_flags, apply_file_flags_with_source, query_file_flags};
 use crate::verifier::{EntityAuditOptions, audit_entity_detailed};
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
@@ -279,10 +279,12 @@ pub fn apply_entity_metadata(
     let has_flags = meta.flags.is_some() || meta.platform_raw_flags.is_some();
     if apply_flags && has_flags {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        apply_file_flags(
+        let source_os = meta.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+        apply_file_flags_with_source(
             dest,
             flags_slice,
             meta.platform_raw_flags.as_ref(),
+            source_os,
             strict_lossless,
         )?;
     }
@@ -1120,10 +1122,12 @@ pub fn materialize_entity(
             let has_flags = entity.metadata.flags.is_some() || entity.metadata.platform_raw_flags.is_some();
             if has_flags {
                 let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-                apply_file_flags(
+                let source_os = entity.metadata.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+                apply_file_flags_with_source(
                     &dest_path,
                     flags_slice,
                     entity.metadata.platform_raw_flags.as_ref(),
+                    source_os,
                     options.strict_lossless,
                 )?;
             }
@@ -1451,10 +1455,12 @@ fn try_update_existing_regular_entity(
         || dest_raw.is_some()
     {
         let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
-        apply_file_flags(
+        let source_os = entity.metadata.environment.as_ref().map(|env| OsFamily::from_os_str(&env.os)).unwrap_or(OsFamily::CURRENT);
+        apply_file_flags_with_source(
             dest_path,
             flags_slice,
             entity.metadata.platform_raw_flags.as_ref(),
+            source_os,
             options.strict_lossless,
         )?;
     }

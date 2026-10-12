@@ -1437,11 +1437,7 @@ mod tests {
                 ("signed".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Signed(i64::MIN)),
             ]),
         });
-        file_entity.metadata.platform_raw_flags = Some(ctb_io::file::PlatformRawFlags {
-            source_os: ctb_io::file::OsFamily::Darwin,
-            raw_value: u64::MAX,
-            has_unparsed_flags: true,
-        });
+        file_entity.metadata.platform_raw_flags = Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX));
         if let FileEntityKind::Regular { extents, .. } = &mut file_entity.kind {
             extents.push(ctb_io::file::Extent::Data { offset: 0, length: 42 });
         }

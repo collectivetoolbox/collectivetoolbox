@@ -176,6 +176,29 @@ impl OsFamily {
             Self::Other => "other",
         }
     }
+
+    /// Parses an operating system name string into an [`OsFamily`].
+    #[must_use]
+    pub fn from_os_str(name: &str) -> Self {
+        let lower = name.to_ascii_lowercase();
+        if lower.contains("darwin") || lower.contains("macos") || lower.contains("mac os") {
+            Self::Darwin
+        } else if lower.contains("linux") {
+            Self::Linux
+        } else if lower.contains("freebsd") {
+            Self::FreeBSD
+        } else if lower.contains("openbsd") {
+            Self::OpenBSD
+        } else if lower.contains("netbsd") {
+            Self::NetBSD
+        } else if lower.contains("dragonfly") {
+            Self::DragonFly
+        } else if lower.contains("windows") {
+            Self::Windows
+        } else {
+            Self::Other
+        }
+    }
 }
 
 /// Operating system permission or privilege level required to alter a file
@@ -646,19 +669,113 @@ impl FileFlag {
     }
 }
 
-/// Raw platform bitmask with provenance tracking and completeness flag.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(key_value)]
+/// Raw platform bitmask as reported by the OS kernel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlatformRawFlags {
-    /// Operating system where the raw bits were queried.
-    #[dc(key = "source_os")]
-    pub source_os: OsFamily,
     /// Raw integer bitmask as reported by the OS kernel.
-    #[dc(key = "raw_value")]
     pub raw_value: u64,
-    /// True if the bitmask had bits that could not be parsed into known `FileFlag`s.
-    #[dc(key = "has_unparsed_flags")]
-    pub has_unparsed_flags: bool,
+    bytes: [u8; 8],
+}
+
+impl Serialize for PlatformRawFlags {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw_value.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for PlatformRawFlags {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = u64::deserialize(deserializer)?;
+        Ok(Self::from_raw(raw))
+    }
+}
+
+impl PlatformRawFlags {
+    /// Constructs a new raw platform flags instance from a `u64` bitmask.
+    #[must_use]
+    pub const fn from_raw(raw_value: u64) -> Self {
+        Self {
+            raw_value,
+            bytes: raw_value.to_le_bytes(),
+        }
+    }
+
+    /// Returns the raw integer bitmask.
+    #[must_use]
+    pub const fn raw_value(&self) -> u64 {
+        self.raw_value
+    }
+
+    /// Parses the raw bitmask against the specified operating system definition.
+    #[must_use]
+    pub fn parse(&self, os: OsFamily) -> (Vec<FileFlag>, bool) {
+        crate::sys_flags::parse_platform_flags(self.raw_value, os)
+    }
+
+    /// Returns true if the raw bitmask contains bits not recognized by the specified OS.
+    #[must_use]
+    pub fn has_unparsed_flags(&self, os: OsFamily) -> bool {
+        self.parse(os).1
+    }
+}
+
+impl AsRef<[u8]> for PlatformRawFlags {
+    fn as_ref(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+impl TryFrom<&[u8]> for PlatformRawFlags {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() == 8 {
+            let arr: [u8; 8] = bytes
+                .try_into()
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            Ok(Self::from_raw(u64::from_le_bytes(arr)))
+        } else if bytes.len() == 4 {
+            let arr: [u8; 4] = bytes
+                .try_into()
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            Ok(Self::from_raw(u64::from(u32::from_le_bytes(arr))))
+        } else {
+            bail!(
+                "Expected 4 or 8 bytes for raw file flags payload, got {}",
+                bytes.len()
+            );
+        }
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for PlatformRawFlags {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        mst.push_binary_with_sha256(self.as_ref())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for PlatformRawFlags {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        let bytes = reader.read_binary_payload()?;
+        Self::try_from(bytes.as_ref())
+    }
+}
+
+impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
+    fn is_lossless(&self, context: &ctb_formats_dcstring::SharedValueContext) -> bool {
+        let os = context
+            .resolve::<EnvDescription>("environment")
+            .map(|env| OsFamily::from_os_str(&env.os))
+            .or_else(|_| context.resolve::<OsFamily>("os").map(|arc| *arc))
+            .unwrap_or(OsFamily::CURRENT);
+        !self.has_unparsed_flags(os)
+    }
 }
 
 /// Complete nanosecond timestamp records for a file.
@@ -899,10 +1016,11 @@ pub struct FileMetadata {
     pub timestamps: Option<FileTimestamps>,
     /// Semantic file flags.
     #[serde(default)]
-    #[dc(begin = 388, end = 389)]
+    #[dc(begin = 388, end = 389, raw = (platform_raw_flags, 539))]
     pub flags: Option<Vec<FileFlag>>,
     /// Raw platform-specific flags if captured on a native filesystem.
-    #[dc(short = 539)]
+    #[serde(default)]
+    #[dc(short = 539, binary)]
     pub platform_raw_flags: Option<PlatformRawFlags>,
     /// Timestamp when this file record was read/inspected from the filesystem,
     /// documenting when that file is current as of.
@@ -1580,9 +1698,7 @@ mod tests {
                     ("empty.bytes".to_string(), NativeMetadataValue::Bytes(Vec::new())),
                 ]),
             });
-            metadata.platform_raw_flags = Some(PlatformRawFlags {
-                source_os, raw_value: u64::MAX, has_unparsed_flags: true,
-            });
+            metadata.platform_raw_flags = Some(PlatformRawFlags::from_raw(u64::MAX));
             metadata.push_warning("Native metadata could not be reproduced");
             ctb_formats_dcstring::assert_dc_roundtrip(&metadata).unwrap();
             let mut encoded = DcMstring::new();
@@ -1691,11 +1807,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_platform_raw_flags_safety() {
-        let raw = PlatformRawFlags {
-            source_os: OsFamily::Darwin,
-            raw_value: 0x80, // UF_DATAVAULT on Darwin, but UF_SYSTEM on FreeBSD
-            has_unparsed_flags: true,
-        };
+        let raw = PlatformRawFlags::from_raw(0x80); // UF_DATAVAULT on Darwin, but UF_SYSTEM on FreeBSD
 
         // If target is Linux or FreeBSD, applying Darwin raw flags with strict_lossless must fail!
         if OsFamily::CURRENT != OsFamily::Darwin {
@@ -1703,10 +1815,11 @@ mod tests {
             let test_file = temp_dir.path().join("test.txt");
             fs::write(&test_file, b"content").unwrap();
 
-            let res = apply_file_flags(
+            let res = crate::sys_flags::apply_file_flags_with_source(
                 &test_file,
                 &[FileFlag::DataVault],
                 Some(&raw),
+                OsFamily::Darwin,
                 true,
             );
             assert!(
@@ -1782,7 +1895,7 @@ mod tests {
         assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.contains(&FileFlag::NoDump));
         crate::sys_flags::apply_file_flags(&path, &baseline_flags, None, true).unwrap();
         assert_eq!(crate::sys_flags::query_file_flags(&path, false).unwrap().0, baseline_flags);
-        let raw = PlatformRawFlags { source_os: OsFamily::Linux, raw_value: u64::MAX, has_unparsed_flags: true };
+        let raw = PlatformRawFlags::from_raw(u64::MAX);
         assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
     }
 

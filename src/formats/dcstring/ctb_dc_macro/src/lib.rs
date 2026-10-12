@@ -1567,12 +1567,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         if let Some((ref raw_ident, raw_tag)) = attr.raw {
                             let encode_stmt = quote! {
-                                let has_semantic = self.#field_ident.is_some();
-                                let has_raw = self.#raw_ident.is_some();
-                                if has_semantic || has_raw {
-                                    mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                    if has_semantic && has_raw {
-                                        let raw_val = self.#raw_ident.as_ref().unwrap();
+                                match (&self.#field_ident, &self.#raw_ident) {
+                                    (::std::option::Option::Some(sem), ::std::option::Option::Some(raw_val)) => {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                         let is_lossless = #crate_root::LosslessWithContext::is_lossless(raw_val, context);
                                         if is_lossless {
                                             mst.push_char(#crate_root::DcChar::from_short(397));
@@ -1581,20 +1578,24 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                         mst.push_char(#crate_root::DcChar::from_short(310));
                                         mst.push_char(#crate_root::DcChar::from_short(275));
-                                        if let ::std::option::Option::Some(ref sem) = self.#field_ident {
-                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(sem, mst, context)?;
-                                        }
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(sem, mst, context)?;
                                         mst.push_char(#crate_root::DcChar::from_u128(#raw_tag));
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(raw_val, mst, context)?;
                                         mst.push_char(#crate_root::DcChar::from_short(311));
-                                    } else if has_raw {
-                                        let raw_val = self.#raw_ident.as_ref().unwrap();
+                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                                    }
+                                    (::std::option::Option::None, ::std::option::Option::Some(raw_val)) => {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                         mst.push_char(#crate_root::DcChar::from_u128(#raw_tag));
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(raw_val, mst, context)?;
-                                    } else if let ::std::option::Option::Some(ref sem) = self.#field_ident {
-                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(sem, mst, context)?;
+                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                     }
-                                    mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                                    (::std::option::Option::Some(sem), ::std::option::Option::None) => {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(sem, mst, context)?;
+                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                                    }
+                                    (::std::option::Option::None, ::std::option::Option::None) => {}
                                 }
                             };
                             encode_fields.push(encode_stmt);
@@ -1822,6 +1823,23 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             reader.next_char()?;
                             let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                             self.#field_ident.push(elem);
+                            Ok(true)
+                        }
+                    });
+                } else if is_paired_raw {
+                    encode_fields.push(quote! {});
+                    decode_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            #field_ident = ::std::option::Option::Some(val);
+                        }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            self.#field_ident = val;
                             Ok(true)
                         }
                     });
