@@ -767,12 +767,22 @@ impl OsFamily {
     #[must_use]
     pub const fn from_format_id(format: FormatId) -> Option<Self> {
         match format {
-            FormatId::Darwin | FormatId::MacOsDarwin | FormatId::MacOs => Some(Self::Darwin),
+            FormatId::Darwin
+            | FormatId::MacOsDarwin
+            | FormatId::MacOs
+            | FormatId::AppleIos
+            | FormatId::WatchOs
+            | FormatId::TvOs
+            | FormatId::VisionOs => Some(Self::Darwin),
             FormatId::FreeBsd => Some(Self::FreeBSD),
             FormatId::OpenBsd => Some(Self::OpenBSD),
             FormatId::NetBsd => Some(Self::NetBSD),
             FormatId::DragonFlyBsd => Some(Self::DragonFly),
-            FormatId::Linux | FormatId::GnuLinux | FormatId::Wsl | FormatId::Wsl2 => Some(Self::Linux),
+            FormatId::Linux
+            | FormatId::GnuLinux
+            | FormatId::Wsl
+            | FormatId::Wsl2
+            | FormatId::Android => Some(Self::Linux),
             FormatId::Windows | FormatId::WinNt | FormatId::WinClassic => Some(Self::Windows),
             _ => None,
         }
@@ -786,7 +796,7 @@ impl OsFamily {
 #[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[serde(default, deny_unknown_fields)]
-#[dc(begin = 340, end = 341, post_decode = update_derived)]
+#[dc(begin = 340, end = 341)]
 #[expect(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
 pub struct EnvDescription {
     #[dc(short = 342)]
@@ -833,20 +843,16 @@ pub struct EnvDescription {
     pub is_local: bool,
     #[dc(short = 533)]
     pub kernel_version: Option<String>,
+    /// Authoritative format identifiers representing this environment.
+    ///
+    /// This flattened format list encapsulates all platform identity,
+    /// device capability, display server, and terminal protocol attributes.
+    /// Structured views corresponding to [`EnvironmentIdentity`] and
+    /// [`EnvironmentCapabilities`] are derived directly from this data and
+    /// can be retrieved via the [`Self::identity`] and [`Self::capabilities`]
+    /// accessors.
     #[dc(flatten)]
     pub additional_support: Vec<FormatId>,
-    #[serde(default)]
-    #[dc(skip, reason = "Identity formats are represented losslessly within additional_support")]
-    pub identity: EnvironmentIdentity,
-    #[serde(default)]
-    #[dc(skip, reason = "Capabilities formats are represented losslessly within additional_support")]
-    pub capabilities: EnvironmentCapabilities,
-    #[serde(default)]
-    #[dc(skip, reason = "Wine compatibility runtime flag is represented by FormatId::Wine in additional_support")]
-    pub is_wine: bool,
-    #[serde(default)]
-    #[dc(skip, reason = "Process role is represented by the individual role booleans")]
-    pub process_role: ProcessRole,
 }
 
 impl EnvDescription {
@@ -945,26 +951,51 @@ impl EnvDescription {
             is_official_public_website: is_official_public_website(),
             is_public_website: is_public_website(),
             is_local: is_local(),
-            kernel_version: ident.kernel_version.clone(),
+            kernel_version: ident.kernel_version,
             additional_support,
-            identity: ident,
-            capabilities: caps,
-            is_wine: ctb_utilities::environment::is_wine(),
-            process_role: get_process_role(),
         }
     }
 
-    /// Synchronizes derived identity, capabilities, and role attributes from
-    /// the decoded format stream and kernel version.
-    pub fn update_derived(&mut self) {
-        let (ident, caps) = detection::decode_environment_from_formats(
+    /// Return the structured OS, kernel, libc, and architecture identity.
+    #[must_use]
+    pub fn identity(&self) -> EnvironmentIdentity {
+        let (ident, _) = detection::decode_environment_from_formats(
             &self.additional_support,
             self.kernel_version.clone(),
         );
-        self.identity = ident;
-        self.capabilities = caps;
-        self.is_wine = self.additional_support.contains(&FormatId::Wine);
-        self.process_role = if self.is_workspace_main_process {
+        ident
+    }
+
+    /// Return the active display, terminal, and renderer capabilities.
+    #[must_use]
+    pub fn capabilities(&self) -> EnvironmentCapabilities {
+        let (_, caps) = detection::decode_environment_from_formats(
+            &self.additional_support,
+            self.kernel_version.clone(),
+        );
+        caps
+    }
+
+    /// Returns the operating system family where this environment originated.
+    #[must_use]
+    pub fn os_family(&self) -> OsFamily {
+        for format in &self.additional_support {
+            if let Some(family) = OsFamily::from_format_id(*format) {
+                return family;
+            }
+            for &imp in format.implies() {
+                if let Some(family) = OsFamily::from_format_id(imp) {
+                    return family;
+                }
+            }
+        }
+        OsFamily::Other
+    }
+
+    /// Return the execution role of the current process within the workspace architecture.
+    #[must_use]
+    pub fn process_role(&self) -> ProcessRole {
+        if self.is_workspace_main_process {
             ProcessRole::WorkspaceMain
         } else if self.is_service_subprocess {
             ProcessRole::ServiceSubprocess
@@ -972,45 +1003,7 @@ impl EnvDescription {
             ProcessRole::LightweightCli
         } else {
             ProcessRole::Unknown
-        };
-    }
-
-    /// Return the structured OS, kernel, libc, and architecture identity.
-    #[must_use]
-    pub fn identity(&self) -> &EnvironmentIdentity {
-        &self.identity
-    }
-
-    /// Return the active display, terminal, and renderer capabilities.
-    #[must_use]
-    pub fn capabilities(&self) -> &EnvironmentCapabilities {
-        &self.capabilities
-    }
-
-    /// Returns the operating system family where this environment originated.
-    #[must_use]
-    pub fn os_family(&self) -> OsFamily {
-        for fam in &self.identity.os_families {
-            if let Some(family) = OsFamily::from_format_id(*fam) {
-                return family;
-            }
         }
-        if let Some(os) = self.identity.os {
-            if let Some(family) = OsFamily::from_format_id(os) {
-                return family;
-            }
-        }
-        if let Some(kernel) = self.identity.kernel {
-            if let Some(family) = OsFamily::from_format_id(kernel) {
-                return family;
-            }
-        }
-        for format in &self.additional_support {
-            if let Some(family) = OsFamily::from_format_id(*format) {
-                return family;
-            }
-        }
-        OsFamily::Other
     }
 
     /// Returns all [`FormatId`] elements that apply to this environment
@@ -1826,9 +1819,9 @@ mod tests {
             ],
             ..Default::default()
         };
-        let mut env = env;
-        env.update_derived();
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
+        assert_eq!(env.os_family(), OsFamily::Linux);
+        assert_eq!(env.identity().os, Some(FormatId::GnuLinux));
         Ok(())
     }
 

@@ -35,7 +35,11 @@ use ctb_formats_utilities::format_id::{FormatCategory, FormatId};
 use serde::{Deserialize, Serialize};
 
 /// Operating system, kernel, libc, userspace, and architecture identity.
-#[ipc_dto]
+///
+/// The format identifiers comprising this identity are stored losslessly
+/// within the `additional_support` field of [`crate::environment::EnvDescription`]
+/// (along with its `kernel_version`), and this structured representation can be
+/// retrieved via the [`crate::environment::EnvDescription::identity`] accessor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct EnvironmentIdentity {
     /// Authoritative kernel format if detected (e.g. `FormatId::Linux`,
@@ -59,7 +63,11 @@ pub struct EnvironmentIdentity {
 }
 
 /// Display, terminal, and interactive rendering capabilities.
-#[ipc_dto]
+///
+/// The format identifiers comprising these capabilities are stored losslessly
+/// within the `additional_support` field of [`crate::environment::EnvDescription`],
+/// and this structured representation can be retrieved via the
+/// [`crate::environment::EnvDescription::capabilities`] accessor.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct EnvironmentCapabilities {
     /// Active device capabilities (e.g. `[FormatId::RasterDisplay,
@@ -786,7 +794,7 @@ pub fn decode_environment_from_formats(
     let mut userspace = Vec::new();
     let mut display_server: Option<FormatId> = None;
     let mut device_caps = Vec::new();
-    let mut terminal_caps = Vec::new();
+    let mut other_terminal_caps = Vec::new();
     let mut render_modes = Vec::new();
     let mut is_stdin_terminal = false;
     let mut is_stdout_terminal = false;
@@ -872,8 +880,8 @@ pub fn decode_environment_from_formats(
                 }
             }
             FormatCategory::Videoterminal => {
-                if !terminal_caps.contains(&f) {
-                    terminal_caps.push(f);
+                if !other_terminal_caps.contains(&f) {
+                    other_terminal_caps.push(f);
                 }
                 if f == FormatId::Videoterminal && !device_caps.contains(&f) {
                     device_caps.push(f);
@@ -882,33 +890,24 @@ pub fn decode_environment_from_formats(
             FormatCategory::DeviceCaps => match f {
                 FormatId::IsStdinTerminal => {
                     is_stdin_terminal = true;
-                    if !terminal_caps.contains(&f) {
-                        terminal_caps.push(f);
-                    }
                 }
                 FormatId::IsStdoutTerminal => {
                     is_stdout_terminal = true;
-                    if !terminal_caps.contains(&f) {
-                        terminal_caps.push(f);
-                    }
                 }
                 FormatId::IsStderrTerminal => {
                     is_stderr_terminal = true;
-                    if !terminal_caps.contains(&f) {
-                        terminal_caps.push(f);
-                    }
                 }
                 FormatId::Teleprinter => {
                     if !device_caps.contains(&f) {
                         device_caps.push(f);
                     }
-                    if !terminal_caps.contains(&f) {
-                        terminal_caps.push(f);
+                    if !other_terminal_caps.contains(&f) {
+                        other_terminal_caps.push(f);
                     }
                 }
                 FormatId::LineModeTerminal | FormatId::TerminalColors1bit => {
-                    if !terminal_caps.contains(&f) {
-                        terminal_caps.push(f);
+                    if !other_terminal_caps.contains(&f) {
+                        other_terminal_caps.push(f);
                     }
                 }
                 FormatId::RenderModeInteractive | FormatId::RenderModeImmediate => {
@@ -960,6 +959,22 @@ pub fn decode_environment_from_formats(
         os_families,
         architecture,
     };
+
+    let mut terminal_caps = Vec::new();
+    if is_stdin_terminal {
+        terminal_caps.push(FormatId::IsStdinTerminal);
+    }
+    if is_stdout_terminal {
+        terminal_caps.push(FormatId::IsStdoutTerminal);
+    }
+    if is_stderr_terminal {
+        terminal_caps.push(FormatId::IsStderrTerminal);
+    }
+    for cap in other_terminal_caps {
+        if !terminal_caps.contains(&cap) {
+            terminal_caps.push(cap);
+        }
+    }
 
     let caps = EnvironmentCapabilities {
         device_caps,

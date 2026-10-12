@@ -59,10 +59,14 @@ pub struct EnvDescription {
     pub is_public_website: bool,
     pub is_local: bool,
     pub kernel_version: Option < String >,
+///  Authoritative format identifiers representing this environment.
+/// 
+///  This flattened format list encapsulates all platform identity,
+///  device capability, display server, and terminal protocol attributes.
+///  Structured views corresponding to [`EnvironmentIdentity`] and
+///  [`EnvironmentCapabilities`] are derived directly from this data and
+///  can be retrieved via the [`Self::identity`] and [`Self::capabilities`]
+///  accessors.
     pub additional_support: Vec < FormatId >,
-    pub identity: EnvironmentIdentity,
-    pub capabilities: EnvironmentCapabilities,
-    pub is_wine: bool,
-    pub process_role: ProcessRole,
 }
 

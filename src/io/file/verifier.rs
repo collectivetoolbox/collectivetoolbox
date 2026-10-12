@@ -730,6 +730,7 @@ pub fn audit_entity_detailed(
     {
         let (actual_flags, actual_raw) = query_file_flags(path, expected.is_symlink())?;
         if let Some(expected_raw) = &expected.metadata.platform_raw_flags {
+            // Reason for fallback: absent environment metadata defaults to compile-target OS family
             let source_os = expected
                 .metadata
                 .environment

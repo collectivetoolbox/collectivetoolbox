@@ -49,34 +49,6 @@ fn to_ctb_io_environment_env_description(v: &::ctb_utilities::ipc::service_trait
         is_local: v.is_local.clone(),
         kernel_version: v.kernel_version.clone(),
         additional_support: v.additional_support.clone(),
-        identity: to_ctb_io_environment_environment_identity(&v.identity),
-        capabilities: to_ctb_io_environment_environment_capabilities(&v.capabilities),
-        is_wine: v.is_wine.clone(),
-        process_role: v.process_role.clone(),
-    }
-}
-
-fn to_ctb_io_environment_environment_capabilities(v: &::ctb_utilities::ipc::service_traits::io::EnvironmentCapabilities) -> ::ctb_io_environment::detection::EnvironmentCapabilities {
-    ::ctb_io_environment::detection::EnvironmentCapabilities {
-        device_caps: v.device_caps.clone(),
-        render_modes: v.render_modes.clone(),
-        terminal_caps: v.terminal_caps.clone(),
-        display_server: v.display_server.clone(),
-        is_stdin_terminal: v.is_stdin_terminal.clone(),
-        is_stdout_terminal: v.is_stdout_terminal.clone(),
-        is_stderr_terminal: v.is_stderr_terminal.clone(),
-    }
-}
-
-fn to_ctb_io_environment_environment_identity(v: &::ctb_utilities::ipc::service_traits::io::EnvironmentIdentity) -> ::ctb_io_environment::detection::EnvironmentIdentity {
-    ::ctb_io_environment::detection::EnvironmentIdentity {
-        kernel: v.kernel.clone(),
-        kernel_version: v.kernel_version.clone(),
-        libc: v.libc.clone(),
-        userspace: v.userspace.clone(),
-        os: v.os.clone(),
-        os_families: v.os_families.clone(),
-        architecture: v.architecture.clone(),
     }
 }
 

@@ -657,6 +657,7 @@ impl ctb_formats_dcstring::DcMixedDecode for PlatformRawFlags {
 
 impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
     fn is_lossless(&self, context: &ctb_formats_dcstring::SharedValueContext) -> bool {
+        // Reason for fallback: absent environment context defaults to compile-target OS family
         let os = context
             .resolve::<EnvDescription>("environment")
             .map(|env| env.os_family())
