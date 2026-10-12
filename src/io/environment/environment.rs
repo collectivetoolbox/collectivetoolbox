@@ -626,12 +626,12 @@ pub fn all_format_ids() -> Vec<FormatId> {
 
 /// Return the structured OS and platform identity for the active environment.
 pub fn identity() -> EnvironmentIdentity {
-    capture_quick_arc().identity()
+    capture_quick_arc().identity().clone()
 }
 
 /// Return the display, terminal, and renderer capabilities for the active environment.
 pub fn capabilities() -> EnvironmentCapabilities {
-    capture_quick_arc().capabilities()
+    capture_quick_arc().capabilities().clone()
 }
 
 /// Return a human-readable summary of the active environment.
@@ -949,7 +949,7 @@ impl EnvDescription {
             additional_support,
             identity: ident,
             capabilities: caps,
-            is_wine: is_wine(),
+            is_wine: ctb_utilities::environment::is_wine(),
             process_role: get_process_role(),
         }
     }
@@ -1824,7 +1824,10 @@ mod tests {
                 FormatId::amd64,
                 FormatId::Unix,
             ],
+            ..Default::default()
         };
+        let mut env = env;
+        env.update_derived();
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
         Ok(())
     }

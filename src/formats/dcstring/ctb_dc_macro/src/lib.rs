@@ -214,6 +214,7 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
     let mut begin = None;
     let mut end = None;
     let mut flags = false;
+    let mut post_decode = None;
     let mut has_dc_attr = false;
 
     for attr in &input.attrs {
@@ -1961,6 +1962,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 })
             };
 
+            let post_decode_stmt = if let Some(ref func) = struct_attrs.post_decode {
+                quote! { val.#func(); }
+            } else {
+                quote! {}
+            };
+
             Ok(quote! {
                 #shared_json_impl
                 #[automatically_derived]
@@ -2057,11 +2064,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         }
                         #(#field_validations)*
-                        let post_decode_stmt = if let Some(ref func) = container.post_decode {
-                            quote! { val.#func(); }
-                        } else {
-                            quote! {}
-                        };
                         let mut val = Self {
                             #(#construct_fields),*
                         };

@@ -452,6 +452,18 @@ mod tests {
         assert_eq!(entity.identity.filename_bytes(), Some(name.as_encoded_bytes()));
         assert!(entity.identity.path_bytes().is_some());
         ctb_formats_dcstring::assert_dc_roundtrip(&entity.identity)?;
+        let encoded = ctb_formats_dcstring::to_dc_mixed_mstring(&entity)?;
+        let decoded: crate::FileEntity = ctb_formats_dcstring::from_dc_mixed_reader(&mut ctb_formats_dcstring::DcMixedReader::new(&encoded))?;
+        assert_eq!(entity.identity, decoded.identity, "identity mismatch");
+        assert_eq!(entity.kind, decoded.kind, "kind mismatch");
+        assert_eq!(entity.streams, decoded.streams, "streams mismatch");
+        assert_eq!(entity.metadata.native, decoded.metadata.native, "metadata.native mismatch");
+        assert_eq!(entity.metadata.mode, decoded.metadata.mode, "metadata.mode mismatch");
+        assert_eq!(entity.metadata.timestamps, decoded.metadata.timestamps, "metadata.timestamps mismatch");
+        assert_eq!(entity.metadata.flags, decoded.metadata.flags, "metadata.flags mismatch");
+        assert_eq!(entity.metadata.platform_raw_flags, decoded.metadata.platform_raw_flags, "metadata.platform_raw_flags mismatch");
+        assert_eq!(entity.metadata.environment, decoded.metadata.environment, "metadata.environment mismatch");
+        assert_eq!(entity.metadata, decoded.metadata, "metadata mismatch");
         ctb_formats_dcstring::assert_dc_roundtrip(&entity)?;
         Ok(())
     }

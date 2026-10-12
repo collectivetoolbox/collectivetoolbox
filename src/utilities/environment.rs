@@ -26,10 +26,11 @@ use crate::bin2hex;
 use crate::pc_settings::{self, PcSettingBoolKey, get_bool_setting};
 
 /// Process role classification for execution contexts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 #[repr(u8)]
 pub enum ProcessRole {
     /// Uninitialized or test runner context.
+    #[default]
     Unknown = 0,
     /// Lightweight CLI command executing without booting the workspace.
     LightweightCli = 1,

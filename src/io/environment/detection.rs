@@ -907,6 +907,31 @@ pub fn decode_environment_from_formats(
         }
     }
 
+    let os_families: Vec<FormatId> = expanded
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::Unix
+                    | FormatId::Windows
+                    | FormatId::MacOs
+                    | FormatId::WinClassic
+                    | FormatId::Linux
+                    | FormatId::Darwin
+                    | FormatId::FreeBsd
+                    | FormatId::OpenBsd
+                    | FormatId::NetBsd
+                    | FormatId::DragonFlyBsd
+            )
+        })
+        .fold(Vec::new(), |mut acc, f| {
+            if !acc.contains(&f) {
+                acc.push(f);
+            }
+            acc
+        });
+
     let ident = EnvironmentIdentity {
         kernel,
         kernel_version,
