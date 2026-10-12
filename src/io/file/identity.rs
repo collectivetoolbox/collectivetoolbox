@@ -32,11 +32,14 @@ use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 
 /// Unique filesystem inode identifier across mounts.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(flatten)]
 pub struct InodeKey {
     /// Device identifier (`st_dev`).
+    #[dc(short = 328)]
     pub device_id: u64,
     /// Inode number on the device (`st_ino`).
+    #[dc(short = 327)]
     #[serde(with = "crate::serde_helpers::natural_flexible")]
     pub inode: Natural,
 }
@@ -73,26 +76,6 @@ impl From<(u64, u128)> for InodeKey {
 impl From<(u64, Natural)> for InodeKey {
     fn from((device_id, inode): (u64, Natural)) -> Self {
         Self { device_id, inode }
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for InodeKey {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(328));
-        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&self.device_id, mst)?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(327));
-        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&self.inode, mst)?;
-        Ok(())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for InodeKey {
-    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
-        reader.expect_short_dc(328)?;
-        let device_id = <u64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-        reader.expect_short_dc(327)?;
-        let inode = <Natural as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
-        Ok(Self { device_id, inode })
     }
 }
 

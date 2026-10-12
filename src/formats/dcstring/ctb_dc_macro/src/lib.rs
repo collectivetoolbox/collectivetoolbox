@@ -124,9 +124,11 @@ pub fn derive_dc_mixed(input: TokenStream) -> TokenStream {
 }
 
 struct StructDcAttr {
-    begin: u128,
-    end: u128,
+    begin: Option<u128>,
+    end: Option<u128>,
     flags: bool,
+    binary: bool,
+    flatten: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -213,6 +215,8 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
     let mut begin = None;
     let mut end = None;
     let mut flags = false;
+    let mut binary = false;
+    let mut flatten = false;
     let mut has_dc_attr = false;
 
     for attr in &input.attrs {
@@ -254,10 +258,22 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                                     flags = b.value;
                                 }
                             }
+                            "binary" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    binary = b.value;
+                                }
+                            }
+                            "flatten" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    flatten = b.value;
+                                }
+                            }
                             other => {
                                 return Err(syn::Error::new(
                                     ident.span(),
-                                    format!("Unknown container attribute key `{other}`; expected `begin` or `end`"),
+                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, `flags`, `binary`, or `flatten`"),
                                 ));
                             }
                         }
@@ -265,6 +281,10 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                         let ident_str = ident.to_string();
                         if ident_str == "flags" {
                             flags = true;
+                        } else if ident_str == "binary" {
+                            binary = true;
+                        } else if ident_str == "flatten" {
+                            flatten = true;
                         } else {
                             let gid = parse_shorthand_str(&ident_str, ident.span())?;
                             if begin.is_none() {
@@ -290,6 +310,16 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
 
     if !has_dc_attr {
         return Ok(None);
+    }
+
+    if binary || flatten {
+        return Ok(Some(StructDcAttr {
+            begin,
+            end,
+            flags,
+            binary,
+            flatten,
+        }));
     }
 
     let begin = begin.ok_or_else(|| {
@@ -324,7 +354,13 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         ));
     }
 
-    Ok(Some(StructDcAttr { begin, end, flags }))
+    Ok(Some(StructDcAttr {
+        begin: Some(begin),
+        end: Some(end),
+        flags,
+        binary,
+        flatten,
+    }))
 }
 
 fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
@@ -332,7 +368,7 @@ fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
     container.ok_or_else(|| {
         syn::Error::new(
             input.span(),
-            "Missing `#[dc(begin = ..., end = ...)]` attribute on struct. Compound structs require explicit boundary Dcs.",
+            "Missing `#[dc(...)]` attribute on struct. Structs require `#[dc(begin = ..., end = ...)]`, `#[dc(binary)]`, or `#[dc(flatten)]`.",
         )
     })
 }
@@ -917,8 +953,29 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
     match &input.data {
         Data::Struct(data_struct) => {
             let struct_attrs = parse_struct_attrs(input)?;
-            let begin_dc = struct_attrs.begin;
-            let end_dc = struct_attrs.end;
+
+            if struct_attrs.binary {
+                return Ok(quote! {
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                            self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+                        fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, _context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(self))
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                        fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                            let bytes = reader.read_binary_payload()?;
+                            <Self as ::std::convert::TryFrom<&[u8]>>::try_from(bytes.as_ref())
+                                .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)))
+                        }
+                    }
+                });
+            }
 
             let fields = match &data_struct.fields {
                 Fields::Named(named) => &named.named,
@@ -929,6 +986,129 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     ));
                 }
             };
+
+            if struct_attrs.flatten {
+                let mut encode_stmts = Vec::new();
+                let mut decode_stmts = Vec::new();
+                let mut construct_fields = Vec::new();
+
+                for field in fields {
+                    let Some(field_ident) = field.ident.as_ref() else {
+                        return Err(syn::Error::new(field.span(), "Expected named field in flattened struct"));
+                    };
+                    let field_ty = &field.ty;
+                    let attr = parse_field_attrs(field)?;
+
+                    if attr.skip {
+                        construct_fields.push(quote! {
+                            #field_ident: ::std::default::Default::default()
+                        });
+                        continue;
+                    }
+
+                    construct_fields.push(quote! {
+                        #field_ident
+                    });
+
+                    if attr.flatten {
+                        encode_stmts.push(quote! {
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                        });
+                        decode_stmts.push(quote! {
+                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                        });
+                    } else if attr.binary {
+                        if let Some(id) = attr.tag {
+                            encode_stmts.push(quote! {
+                                mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
+                            });
+                            decode_stmts.push(quote! {
+                                reader.expect_char(#crate_root::DcChar::from_u128(#id))?;
+                                let raw_bytes = reader.read_binary_payload()?;
+                                let #field_ident = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                            });
+                        } else {
+                            encode_stmts.push(quote! {
+                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
+                            });
+                            decode_stmts.push(quote! {
+                                let raw_bytes = reader.read_binary_payload()?;
+                                let #field_ident = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                            });
+                        }
+                    } else if let Some(inner_ty) = extract_type_from_option(field_ty) {
+                        let id = attr.tag.ok_or_else(|| {
+                            syn::Error::new(
+                                field.span(),
+                                format!("Optional field `{field_ident}` in flattened struct must have an assigned Dc tag"),
+                            )
+                        })?;
+                        encode_stmts.push(quote! {
+                            if let ::std::option::Option::Some(ref val) = self.#field_ident {
+                                mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(val, mst, context)?;
+                            }
+                        });
+                        decode_stmts.push(quote! {
+                            let #field_ident = if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#id) {
+                                reader.next_char()?;
+                                ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?)
+                            } else {
+                                ::std::option::Option::None
+                            };
+                        });
+                    } else if let Some(id) = attr.tag {
+                        encode_stmts.push(quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                        });
+                        decode_stmts.push(quote! {
+                            reader.expect_char(#crate_root::DcChar::from_u128(#id))?;
+                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                        });
+                    } else {
+                        encode_stmts.push(quote! {
+                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                        });
+                        decode_stmts.push(quote! {
+                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                        });
+                    }
+                }
+
+                return Ok(quote! {
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                            self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+                        fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            #(#encode_stmts)*
+                            Ok(())
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                        fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                            #(#decode_stmts)*
+                            Ok(Self {
+                                #(#construct_fields),*
+                            })
+                        }
+                    }
+                });
+            }
+
+            let begin_dc = struct_attrs.begin.ok_or_else(|| {
+                syn::Error::new(input.span(), "Compound struct missing begin Dc")
+            })?;
+            let end_dc = struct_attrs.end.ok_or_else(|| {
+                syn::Error::new(input.span(), "Compound struct missing end Dc")
+            })?;
 
             if struct_attrs.flags {
                 let mut encode_flag_fields = Vec::new();
@@ -1270,11 +1450,21 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     }
 
+                    let mut eq_encoders_with_sep = Vec::new();
+                    for (idx, enc) in eq_encoders.into_iter().enumerate() {
+                        if idx > 0 {
+                            eq_encoders_with_sep.push(quote! {
+                                mst.push_char(#crate_root::DcChar::from_short(312));
+                            });
+                        }
+                        eq_encoders_with_sep.push(enc);
+                    }
+
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_char(#crate_root::DcChar::from_short(397));
                         mst.push_char(#crate_root::DcChar::from_short(310));
-                        #(#eq_encoders)*
+                        #(#eq_encoders_with_sep)*
                         mst.push_char(#crate_root::DcChar::from_short(311));
                     };
 
@@ -1314,6 +1504,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 if in_list && peek_tag == 311 {
                                     reader.read_short_dc()?;
                                     break;
+                                }
+                                if in_list && peek_tag == 312 {
+                                    reader.read_short_dc()?;
+                                    continue;
                                 }
                                 if peek_tag == 6 {
                                     let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader)?;
@@ -1579,6 +1773,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         mst.push_char(#crate_root::DcChar::from_short(310));
                                         mst.push_char(#crate_root::DcChar::from_short(275));
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(sem, mst, context)?;
+                                        mst.push_char(#crate_root::DcChar::from_short(312));
                                         mst.push_char(#crate_root::DcChar::from_u128(#raw_tag));
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(raw_val, mst, context)?;
                                         mst.push_char(#crate_root::DcChar::from_short(311));
@@ -1615,7 +1810,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                             if reader.peek_char()?.is_none() {
                                                 #anyhow_path::bail!("Unexpected EOF in representations list");
                                             }
-                                            if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
+                                            if reader.peek_short_dc()? == ::std::option::Option::Some(312) {
+                                                reader.read_short_dc()?;
+                                            } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
                                                 reader.next_char()?;
                                                 let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader)?;
                                                 #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
@@ -1654,7 +1851,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                             if reader.peek_char()?.is_none() {
                                                 #anyhow_path::bail!("Unexpected EOF in representations list");
                                             }
-                                            if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
+                                            if reader.peek_short_dc()? == ::std::option::Option::Some(312) {
+                                                reader.read_short_dc()?;
+                                            } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
                                                 reader.next_char()?;
                                                 let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader)?;
                                                 self.#raw_ident = ::std::option::Option::Some(r);
@@ -2066,8 +2265,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let container_attrs = parse_optional_container_attrs(input)?;
             let mut seen_ids = HashSet::new();
             if let Some(ref ca) = container_attrs {
-                seen_ids.insert(ca.begin);
-                seen_ids.insert(ca.end);
+                if let Some(b) = ca.begin {
+                    seen_ids.insert(b);
+                }
+                if let Some(e) = ca.end {
+                    seen_ids.insert(e);
+                }
             }
             let mut encode_variants = Vec::new();
             let mut decode_variants = Vec::new();
@@ -2419,10 +2622,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             }
 
             if let Some(attrs) = container_attrs {
-                let begin_dc = attrs.begin;
-                let end_dc = attrs.end;
-
-                Ok(quote! {
+                if let (Some(begin_dc), Some(end_dc)) = (attrs.begin, attrs.end) {
+                    return Ok(quote! {
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
@@ -2466,9 +2667,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             Ok(res)
                         }
                     }
-                })
-            } else {
-                Ok(quote! {
+                });
+                }
+            }
+
+            Ok(quote! {
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
@@ -2509,7 +2712,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     }
                 })
-            }
         }
         Data::Union(_) => Err(syn::Error::new(
             input.span(),

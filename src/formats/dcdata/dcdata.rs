@@ -60,7 +60,7 @@ pub use dcts::{
     dclist_to_dcts_with_options,
 };
 
-pub use dc_char::{DcChar, DcCharExt};
+pub use dc_char::{DcChar, DcCharExt, is_type_token};
 pub use ctb_utilities::DC_INTEGER;
 pub use dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,
@@ -74,7 +74,7 @@ pub use dc::{
     DC_POSITIVE, DC_REPLACEMENT_UNAVAIL_DC, DC_REPLACEMENT_UNAVAIL_UNICODE,
     DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_SOURCE_PATH,
     DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8,
-    DC_TRACE_IDENTIFIER, SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+    DC_TRACE_IDENTIFIER, DC_LIST_ELEMENT_SEPARATOR, SHORT_DC_REGION_END, SHORT_DC_REGION_START,
     long_to_short_dc, short_to_long_dc,
 };
 pub use dc_number_minimal::{

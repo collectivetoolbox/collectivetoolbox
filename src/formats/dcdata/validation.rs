@@ -3063,6 +3063,7 @@ mod tests {
             sdc(310),
             sdc(275), // Built-in type identifier: * (Object or any subtype)
             sdc(409), // File flag: nodump (.Semantic:fileflag)
+            sdc(312), // List element separator
             sdc(410), // File flag: uchg (.Semantic:fileflag)
             sdc(311),
             sdc(389),
@@ -3090,6 +3091,7 @@ mod tests {
             sdc(275), // Object type for inner list
             sdc(409),
             sdc(311),
+            sdc(312), // List element separator (outer list)
             sdc(539),
             sdc(203),
             sdc(127),

@@ -387,19 +387,16 @@ fn match_term_single(
 
             // General type check: [type] (matches EL Types, format types, or type definitions)
             if name == "type" && subtype.is_none() {
-                let is_format_token = (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
-                    ..=ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END)
-                    .contains(&first);
-                    // FIXME: This should use a named Dc const from dcdata/dc.generated.rs.
-                let dc_path_delim = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(513);
-                let matches = is_format_token
-                    || first == dc_path_delim
+                let dc_intersect = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(516);
+                let dc_union = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
+                    .saturating_add(300);
+                let matches = crate::dc_char::is_type_token(first)
                     // Reason for fallback: when syntax resolver is omitted, cannot verify membership in EL Types or Formats scripts
                     || context.resolver.as_ref().map_or(false, |r| {
                         r.matches_script("EL Types", first) || r.matches_script("Formats", first)
                     });
-                if matches {
+                if matches && first != dc_intersect && first != dc_union {
                     if let Some(var) = capture_var {
                         context
                             .captured_vars
@@ -411,10 +408,6 @@ fn match_term_single(
                 }
 
                 // Type constructor rules: Dc 516 (Type intersection) or Dc 300 (Type union)
-                let dc_intersect = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(516);
-                let dc_union = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(300);
                 if first == dc_intersect || first == dc_union {
                     if let Some(ref resolver) = context.resolver.clone() {
                         let target = if first == dc_intersect {

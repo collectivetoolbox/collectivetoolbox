@@ -68,6 +68,8 @@ pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
 pub const DC_BEGIN_LIST: DcChar = DcChar::from_short(310);
 /// Terminates a typed list begun by 310. Optionally, a length can be specified, in which case it must have that many elements declared. (Dc 311).
 pub const DC_END_LIST: DcChar = DcChar::from_short(311);
+/// Separates elements within a list or sequence. (Dc 312).
+pub const DC_LIST_ELEMENT_SEPARATOR: DcChar = DcChar::from_short(312);
 /// Legacy ordered key-value associative map. Keys and values alternate with Dc 312 between every operand. The optional length counts pairs. Retained for reading existing documents; new documents should use Dc 559. (Dc 313).
 pub const DC_BEGIN_LEGACY_KV_MAP: DcChar = DcChar::from_short(313);
 /// Terminates a legacy ordered key-value associative map begun by 313. (Dc 314).

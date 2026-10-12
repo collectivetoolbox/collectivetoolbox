@@ -28,9 +28,35 @@ use crate::utilities::*;
 
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 pub use ctb_utilities::dc_char::DcChar;
+use ctb_utilities::dc_char::{
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START,
+};
+
+/// Returns whether the given token (u128 character code) represents a type
+/// token in Document Character syntax.
+///
+/// This includes:
+/// - Format identifiers (`FORMAT_REGION_START..=FORMAT_REGION_END`)
+/// - Built-in EL Type identifiers (Dc 264, 275, 278, 280, 306)
+/// - Type path delimiter (Dc 513)
+/// - Type constructors: Type union (Dc 300) and Type intersection (Dc 516)
+#[must_use]
+pub fn is_type_token(token: u128) -> bool {
+    if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token) {
+        return true;
+    }
+    if let Some(short_id) = token.checked_sub(SHORT_DC_REGION_START) {
+        return matches!(short_id, 264 | 275 | 278 | 280 | 306 | 513 | 300 | 516);
+    }
+    false
+}
 
 /// Extension methods for [`DcChar`] specific to document formats and serialization.
 pub trait DcCharExt {
+    /// Returns whether this character represents a type token.
+    #[must_use]
+    fn is_type_token(self) -> bool;
+
     /// Converts this character into a sequence of short Document Character IDs.
     #[must_use]
     fn to_short_vec(self) -> Vec<u32>;
@@ -50,6 +76,9 @@ pub trait DcCharExt {
 }
 
 impl DcCharExt for DcChar {
+    fn is_type_token(self) -> bool {
+        is_type_token(self.0)
+    }
     fn to_short_vec(self) -> Vec<u32> {
         // Reason for fallback: DC_ESCAPE is canonically Dc 255 which maps to short id 255
         let escape = crate::dc::DC_ESCAPE.to_short().unwrap_or(255);
@@ -189,5 +218,25 @@ mod tests {
         let uni = DcChar::from_char('Z');
         assert_eq!(uni, 'Z');
         assert!(uni.eq(&'Z'));
+    }
+
+    #[crate::ctb_test]
+    fn test_is_type_token() {
+        assert!(is_type_token(DcChar::from_format(490).to_u128()));
+        assert!(is_type_token(DcChar::from_format(0).to_u128()));
+        assert!(DcChar::from_format(80).is_type_token());
+
+        assert!(is_type_token(DcChar::from_short(275).to_u128()));
+        assert!(is_type_token(DcChar::from_short(264).to_u128()));
+        assert!(is_type_token(DcChar::from_short(278).to_u128()));
+        assert!(is_type_token(DcChar::from_short(280).to_u128()));
+        assert!(is_type_token(DcChar::from_short(306).to_u128()));
+        assert!(is_type_token(DcChar::from_short(513).to_u128()));
+        assert!(is_type_token(DcChar::from_short(300).to_u128()));
+        assert!(is_type_token(DcChar::from_short(516).to_u128()));
+
+        assert!(!is_type_token(DcChar::from_short(42).to_u128()));
+        assert!(!is_type_token(DcChar::from_char('A').to_u128()));
+        assert!(!DcChar::from_short(310).is_type_token());
     }
 }

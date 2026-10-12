@@ -557,7 +557,8 @@ impl FileFlag {
 }
 
 /// Raw platform bitmask as reported by the OS kernel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(binary)]
 pub struct PlatformRawFlags {
     /// Raw integer bitmask as reported by the OS kernel.
     pub raw_value: u64,
@@ -638,20 +639,6 @@ impl TryFrom<&[u8]> for PlatformRawFlags {
                 bytes.len()
             );
         }
-    }
-}
-
-// FIXME violates prohibition on ad-hoc serialization
-impl ctb_formats_dcstring::DcMixedEncode for PlatformRawFlags {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        mst.push_binary_with_sha256(self.as_ref())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for PlatformRawFlags {
-    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
-        let bytes = reader.read_binary_payload()?;
-        Self::try_from(bytes.as_ref())
     }
 }
 

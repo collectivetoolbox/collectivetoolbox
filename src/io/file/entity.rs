@@ -1623,7 +1623,7 @@ mod tests {
         // Clear in-memory / platform-specific skipped fields for pure canonical comparison
         entity.metadata.environment = None;
         entity.metadata.native = None;
-        entity.metadata.platform_raw_flags = None;
+        entity.metadata.platform_raw_flags = Some(crate::PlatformRawFlags::from_raw(0x42));
 
         // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
         entity.metadata.apple = Some(crate::AppleMetadata {

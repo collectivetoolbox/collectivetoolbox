@@ -42,8 +42,9 @@ use std::time::SystemTime;
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BOOLEAN_FALSE,
     DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP,
-    DC_EQUIVALENT_REPRESENTATIONS, DC_OPTIONAL_ABSENT,
-    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_LIST_ELEMENT_SEPARATOR,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
     DC_START_ENCAPSULATION_BINARY,
 };
 
@@ -506,6 +507,22 @@ impl<'a> DcMixedReader<'a> {
         self.expect_char(end)
     }
 
+    /// Checks if the next character is a Document Character type token
+    /// (an EL type identifier, format token, type path delimiter, or type constructor),
+    /// and if so consumes and returns it.
+    ///
+    /// # Errors
+    /// Returns an error if advancing or peeking fails.
+    pub fn skip_type_header(&mut self) -> Result<Option<DcChar>> {
+        if let Some(ch) = self.peek_char()? {
+            if ctb_formats_dcdata::is_type_token(ch.0) {
+                self.next_char()?;
+                return Ok(Some(ch));
+            }
+        }
+        Ok(None)
+    }
+
     /// Reads direct or textual binary encapsulation in source coordinates.
     /// Direct mixed-mode payloads are borrowed; DcUtf base64 is decoded once.
     /// Transparently accepts an optional leading format identifier `DcChar` inside `Dc 203`.
@@ -522,16 +539,6 @@ impl<'a> DcMixedReader<'a> {
         if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
             let (_, data) = self.read_textual_binary()?;
             return Ok(Cow::Owned(data));
-        }
-        if self.peek_char()? == Some(DC_BEGIN_LIST) {
-            self.next_char()?;
-            let mut bytes = Vec::new();
-            while self.peek_char()? != Some(DC_END_LIST) {
-                let b = u8::decode_dc_mixed(self)?;
-                bytes.push(b);
-            }
-            self.expect_char(DC_END_LIST)?;
-            return Ok(Cow::Owned(bytes));
         }
         let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
         if is_text_encapsulation {
@@ -1004,7 +1011,10 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
         mst.push_char(DC_BEGIN_LIST); // Begin list of type
         mst.push_char(DcChar::from_short(275)); // Built-in type identifier: * (Object or any subtype)
-        for item in self {
+        for (idx, item) in self.iter().enumerate() {
+            if idx > 0 {
+                mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+            }
             item.encode_dc_mixed_with_context(mst, context)?;
         }
         mst.push_char(DC_END_LIST); // End list of type
@@ -1015,15 +1025,18 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
 impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
         reader.expect_char(DC_BEGIN_LIST)?;
-        if reader.peek_short_dc()? == Some(275) {
-            reader.read_short_dc()?;
-        }
+        reader.skip_type_header()?;
         let mut list = Vec::new();
+        let mut first = true;
         loop {
             if reader.peek_char()? == Some(DC_END_LIST) {
                 reader.next_char()?;
                 break;
             }
+            if !first && reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
+                reader.next_char()?;
+            }
+            first = false;
             list.push(T::decode_dc_mixed(reader)?);
         }
         Ok(list)
@@ -1257,6 +1270,7 @@ impl DcMixedEncode for PathBuf {
                     mst.push_char(DC_BEGIN_LIST);
                     mst.push_char(DcChar::from_short(275));
                     text.encode_dc_mixed(mst)?;
+                    mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
                     mst.push_binary_with_sha256(segment)?;
                     mst.push_char(DC_END_LIST);
                 } else {
@@ -1312,6 +1326,9 @@ fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
         reader.expect_char(DC_BEGIN_LIST)?;
         reader.expect_short_dc(275)?;
         let text = String::decode_dc_mixed(reader)?;
+        if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
+            reader.next_char()?;
+        }
         let bytes = reader.read_binary_payload()?.to_vec();
         ensure!(text.as_bytes() == bytes, "Conflicting filename representations");
         reader.expect_char(DC_END_LIST)?;
@@ -1365,6 +1382,10 @@ impl DcMixedDecode for PathBuf {
             while reader.peek_char()? != Some(DC_END_LIST) {
                 if reader.peek_char()?.is_none() {
                     bail!("Unexpected EOF waiting for closing Dc in equivalent representations list");
+                }
+                if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
+                    reader.next_char()?;
+                    continue;
                 }
                 if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
                     let bytes = reader.read_binary_payload()?;
@@ -2515,6 +2536,37 @@ mod tests {
         p.encode_dc_mixed(&mut mst)?;
         let tokens = mst.to_dc_tokens()?;
         ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_vec_dc_mixed_roundtrip_with_separator() -> Result<()> {
+        let items = vec![10u32, 20u32, 30u32];
+        let mut mst = DcMstring::new();
+        items.encode_dc_mixed(&mut mst)?;
+
+        // Verify tokens: DC_BEGIN_LIST, 275, 10, DC_LIST_ELEMENT_SEPARATOR, 20, DC_LIST_ELEMENT_SEPARATOR, 30, DC_END_LIST
+        let tokens = mst.to_dc_tokens()?;
+        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
+
+        let mut reader = DcMixedReader::new(&mst);
+        let decoded = Vec::<u32>::decode_dc_mixed(&mut reader)?;
+        assert_eq!(decoded, items);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_skip_type_header() -> Result<()> {
+        let mut mst = DcMstring::new();
+        mst.push_char(DcChar::from_short(275)); // EL Type *
+        mst.push_char(DcChar::from_format(490)); // Format 490
+        mst.push_char(DcChar::from_short(42)); // Non-type short Dc
+
+        let mut reader = DcMixedReader::new(&mst);
+        assert_eq!(reader.skip_type_header()?, Some(DcChar::from_short(275)));
+        assert_eq!(reader.skip_type_header()?, Some(DcChar::from_format(490)));
+        assert_eq!(reader.skip_type_header()?, None);
+        assert_eq!(reader.next_char()?, DcChar::from_short(42));
         Ok(())
     }
 }
