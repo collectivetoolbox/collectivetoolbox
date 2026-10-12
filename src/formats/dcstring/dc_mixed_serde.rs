@@ -43,7 +43,8 @@ use ctb_formats_dcdata::dc::{
     DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BOOLEAN_FALSE,
     DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP,
     DC_EQUIVALENT_REPRESENTATIONS, DC_OPTIONAL_ABSENT,
-    DC_OPTIONAL_PRESENT, DC_START_ENCAPSULATION_BINARY,
+    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_START_ENCAPSULATION_BINARY,
 };
 
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstring, DcMstr};
@@ -83,6 +84,14 @@ pub trait DcMixedDecode: Sized {
     /// Returns an error if unexpected characters, malformed data, or missing
     /// required fields are encountered.
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self>;
+}
+
+/// Trait indicating whether an alternative representation is lossless given serialization context.
+pub trait LosslessWithContext {
+    /// Returns true if this representation is completely lossless in the current context.
+    fn is_lossless(&self, _context: &crate::SharedValueContext) -> bool {
+        true
+    }
 }
 
 impl crate::DcMstr {

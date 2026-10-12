@@ -90,8 +90,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,:~ ([list:Semantic:fileflag] | [539:] | [397:]) 389,Begins a collection of semantic file flags attached to a file.
-1114501,389,End file flags description,0,BN,,!Cx,.Semantic,@closes(388),Terminates a collection of semantic file flags attached to a file.
+1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:]) 389",Begins a collection of semantic file flags attached to a file.
+1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @closes(388)",Terminates a collection of semantic file flags attached to a file.
 1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,:~ [formats:date] [^391]+ 391,Begins a time moment description.
 1114503,391,End time moment description,0,BN,,!Cx,.Semantic,,Terminates a time moment description.
 1114504,392,File data,0,BN,,!Cx,.Semantic,:~ [data],File contents
@@ -225,7 +225,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114648,536,File warning,0,BN,,!Cx,.Semantic,:~ [string],Operational warning or fidelity notice observed for a file entity.
 1114649,537,File error,0,BN,,!Cx,.Semantic,:~ [string],Error condition or failure encountered when inspecting or reading a file entity.
 1114650,538,File kind: inaccessible,0,BN,,!Cx,.Semantic,,"Identifies a file entity that could not be accessed, read, or does not exist."
-1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,:~ [data],Raw file flag bitmask with an unparsed-bits indicator.
+1114651,539,Raw file flags,0,BN,,!Cx,.Semantic,"@ident(""RawFileFlags""), :~ [data]",Raw file flag bitmask with an unparsed-bits indicator.
 1114655,543,Begin checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""BeginChecksummedSection""), :~ [^544]+ 544 [545:]",Begins a delimited section of a document or stream verified by an end checksum.
 1114656,544,End checksummed document section,0,BN,,!Cx,.Semantic,"@ident(""EndChecksummedSection""), @closes(543)",Terminates a checksummed section.
 1114657,545,Section digest,0,BN,,!Cx,.Semantic,"@ident(""SectionDigest""), :~ [checksum]",Cryptographic or cyclic redundancy checksum verifying the integrity of the preceding section.
@@ -242,3 +242,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
 1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
 1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
+1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."

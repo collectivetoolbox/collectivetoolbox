@@ -80,6 +80,10 @@ pub const DC_OPTIONAL_ABSENT: DcChar = DcChar::from_short(316);
 pub const DC_BEGIN_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(340);
 /// Terminates an execution environment snapshot. (Dc 341).
 pub const DC_END_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(341);
+/// Begins a collection of semantic file flags attached to a file. (Dc 388).
+pub const DC_BEGIN_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(388);
+/// Terminates a collection of semantic file flags attached to a file. (Dc 389).
+pub const DC_END_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(389);
 /// Indicates that all values within the list have the same underlying meaning. (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
 /// Begins a key-value pair. Dc 312 separates the nonempty key and value regions; Dc 515 closes the pair. Nested framed data and escaped characters belong to their operand rather than delimiting the enclosing pair. Operand regions retain their historical syntax; this rule does not impose a narrower expression grammar. (Dc 514).
@@ -92,6 +96,8 @@ pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
 pub const DC_BOOLEAN_FALSE: DcChar = DcChar::from_short(518);
 /// Applies typed parameter bindings to a format in a format specification expression. (Dc 535).
 pub const DC_FORMAT_PARAM_APPLICATION: DcChar = DcChar::from_short(535);
+/// Raw file flag bitmask with an unparsed-bits indicator. (Dc 539).
+pub const DC_RAW_FILE_FLAGS: DcChar = DcChar::from_short(539);
 /// Begins a delimited section of a document or stream verified by an end checksum. (Dc 543).
 pub const DC_BEGIN_CHECKSUMMED_SECTION: DcChar = DcChar::from_short(543);
 /// Terminates a checksummed section. (Dc 544).
@@ -128,6 +134,8 @@ pub const DC_OPERATION_STATUS_CODE: DcChar = DcChar::from_short(558);
 pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(559);
 /// Terminates an ordered key-value associative map begun by Dc 559. (Dc 560).
 pub const DC_END_KV_MAP: DcChar = DcChar::from_short(560);
+/// Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others. (Dc 561).
+pub const DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(561);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]
