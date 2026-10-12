@@ -34,9 +34,6 @@ This file remains the issue inbox; its ordering is not the implementation order.
 
 
 - Dc-mixed-serde.rs:     // FIXME doesn't look right. 422 is File flag: read only; 423 is File flag: reparse. Name and format list should proabbly be alternate representations, and 342 the overarching type for this, maybe?
-.
-+                    // FIXME: This should use a named Dc const from dcdata/dc.generated.rs.
-+                let dc_path_delim = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
 
 Windows-style streams (:Zone.Identifier)
 

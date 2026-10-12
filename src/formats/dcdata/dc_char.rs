@@ -32,21 +32,31 @@ use ctb_utilities::dc_char::{
     FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START,
 };
 
+use crate::dc::{
+    DC_FILE_PATH_DELIMITER, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
+};
+
 /// Returns whether the given token (u128 character code) represents a type
 /// token in Document Character syntax.
 ///
 /// This includes:
 /// - Format identifiers (`FORMAT_REGION_START..=FORMAT_REGION_END`)
 /// - Built-in EL Type identifiers (Dc 264, 275, 278, 280, 306)
-/// - Type path delimiter (Dc 513)
-/// - Type constructors: Type union (Dc 300) and Type intersection (Dc 516)
+/// - Type path delimiter ([`DC_FILE_PATH_DELIMITER`], Dc 513)
+/// - Type constructors: Type union ([`DC_TYPE_UNION`], Dc 300) and Type intersection ([`DC_TYPE_INTERSECTION`], Dc 516)
 #[must_use]
 pub fn is_type_token(token: u128) -> bool {
     if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token) {
         return true;
     }
+    if token == DC_FILE_PATH_DELIMITER.to_u128()
+        || token == DC_TYPE_UNION.to_u128()
+        || token == DC_TYPE_INTERSECTION.to_u128()
+    {
+        return true;
+    }
     if let Some(short_id) = token.checked_sub(SHORT_DC_REGION_START) {
-        return matches!(short_id, 264 | 275 | 278 | 280 | 306 | 513 | 300 | 516);
+        return matches!(short_id, 264 | 275 | 278 | 280 | 306);
     }
     false
 }

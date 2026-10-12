@@ -40,12 +40,13 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BOOLEAN_FALSE,
-    DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP,
-    DC_EQUIVALENT_REPRESENTATIONS, DC_LIST_ELEMENT_SEPARATOR,
+    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_LIST,
+    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_END_FORMAT_REPRESENTATION,
+    DC_END_KV_MAP, DC_END_LIST, DC_EQUIVALENT_REPRESENTATIONS,
+    DC_FILE_PATH_DELIMITER, DC_LIST_ELEMENT_SEPARATOR,
     DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
     DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
-    DC_START_ENCAPSULATION_BINARY,
+    DC_START_ENCAPSULATION_BINARY, DC_TYPE_INTERSECTION,
 };
 
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstring, DcMstr};
@@ -1045,25 +1046,25 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
 
 impl DcMixedEncode for Ipv4Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DcChar::from_short(511));
+        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
         mst.push_char(DcChar::from_format(490));
         let octets = u32::from_be_bytes(self.octets());
         octets.encode_dc_mixed(mst)?;
-        mst.push_char(DcChar::from_short(512));
+        mst.push_char(DC_END_FORMAT_REPRESENTATION);
         Ok(())
     }
 }
 
 impl DcMixedDecode for Ipv4Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
         }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(490)) {
             reader.next_char()?;
             let val = u32::decode_dc_mixed(reader)?;
-            if has_511 && reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+            if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                 reader.next_char()?;
             }
             Ok(Ipv4Addr::from(val))
@@ -1076,25 +1077,25 @@ impl DcMixedDecode for Ipv4Addr {
 
 impl DcMixedEncode for Ipv6Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DcChar::from_short(511));
+        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
         mst.push_char(DcChar::from_format(491));
         let octets = u128::from_be_bytes(self.octets());
         octets.encode_dc_mixed(mst)?;
-        mst.push_char(DcChar::from_short(512));
+        mst.push_char(DC_END_FORMAT_REPRESENTATION);
         Ok(())
     }
 }
 
 impl DcMixedDecode for Ipv6Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
         }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(491)) {
             reader.next_char()?;
             let val = u128::decode_dc_mixed(reader)?;
-            if has_511 && reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+            if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                 reader.next_char()?;
             }
             Ok(Ipv6Addr::from(val))
@@ -1116,21 +1117,21 @@ impl DcMixedEncode for std::net::IpAddr {
 
 impl DcMixedDecode for std::net::IpAddr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let has_511 = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(511));
+        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
             let fmt_char = reader.peek_char()?;
             if fmt_char == Some(DcChar::from_format(490)) {
                 reader.next_char()?;
                 let val = u32::decode_dc_mixed(reader)?;
-                if reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                     reader.next_char()?;
                 }
                 return Ok(Self::V4(Ipv4Addr::from(val)));
             } else if fmt_char == Some(DcChar::from_format(491)) {
                 reader.next_char()?;
                 let val = u128::decode_dc_mixed(reader)?;
-                if reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(512)) {
+                if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                     reader.next_char()?;
                 }
                 return Ok(Self::V6(Ipv6Addr::from(val)));
@@ -1252,18 +1253,18 @@ impl DcMixedEncode for PathBuf {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
         let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
         let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-        mst.push_char(DcChar::from_short(511));
+        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
         mst.push_char(path_format);
         mst.push_char(DC_BEGIN_LIST);
-        mst.push_char(DcChar::from_short(516));
+        mst.push_char(DC_TYPE_INTERSECTION);
         mst.push_char(filename_format);
-        mst.push_char(DcChar::from_short(513));
+        mst.push_char(DC_FILE_PATH_DELIMITER);
         let mut segments = self.as_os_str().as_encoded_bytes().split(|byte| {
             *byte == b'/' || (cfg!(windows) && *byte == b'\\')
         }).peekable();
         while let Some(segment) = segments.next() {
             if !segment.is_empty() {
-                mst.push_char(DcChar::from_short(511));
+                mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
                 mst.push_char(filename_format);
                 if let Ok(text) = std::str::from_utf8(segment) {
                     mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
@@ -1276,14 +1277,14 @@ impl DcMixedEncode for PathBuf {
                 } else {
                     mst.push_binary_with_sha256(segment)?;
                 }
-                mst.push_char(DcChar::from_short(512));
+                mst.push_char(DC_END_FORMAT_REPRESENTATION);
             }
             if segments.peek().is_some() {
-                mst.push_char(DcChar::from_short(513));
+                mst.push_char(DC_FILE_PATH_DELIMITER);
             }
         }
         mst.push_char(DC_END_LIST);
-        mst.push_char(DcChar::from_short(512));
+        mst.push_char(DC_END_FORMAT_REPRESENTATION);
         Ok(())
     }
 }
@@ -1342,37 +1343,37 @@ fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
 
 impl DcMixedDecode for PathBuf {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        if reader.peek_short_dc()? == Some(511) {
+        if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
             let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
             let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-            reader.expect_short_dc(511)?;
+            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
             reader.expect_char(path_format)?;
             reader.expect_char(DC_BEGIN_LIST)?;
-            reader.expect_short_dc(516)?;
+            reader.expect_char(DC_TYPE_INTERSECTION)?;
             reader.expect_char(filename_format)?;
-            reader.expect_short_dc(513)?;
+            reader.expect_char(DC_FILE_PATH_DELIMITER)?;
             let mut bytes = Vec::new();
             let mut previous_was_filename = false;
             while reader.peek_char()? != Some(DC_END_LIST) {
-                if reader.peek_short_dc()? == Some(513) {
+                if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
                     reader.next_char()?;
                     bytes.push(if cfg!(windows) { b'\\' } else { b'/' });
                     previous_was_filename = false;
                 } else {
                     ensure!(!previous_was_filename, "Missing delimiter between filename segments");
-                    reader.expect_short_dc(511)?;
+                    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
                     reader.expect_char(filename_format)?;
                     let segment = decode_filename_bytes(reader)?;
                     ensure!(!segment.is_empty(), "Empty filename segment");
                     ensure!(!segment.contains(&b'/') && !(cfg!(windows) && segment.contains(&b'\\')),
                         "Filename segment contains a path delimiter");
                     bytes.extend(segment);
-                    reader.expect_short_dc(512)?;
+                    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
                     previous_was_filename = true;
                 }
             }
             reader.expect_char(DC_END_LIST)?;
-            reader.expect_short_dc(512)?;
+            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
             return path_from_native_bytes(&bytes);
         }
         if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
@@ -2048,18 +2049,18 @@ mod tests {
         let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
         let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
         let mut reader = DcMixedReader::new(&encoded);
-        reader.expect_short_dc(511)?;
+        reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
         reader.expect_char(path_format)?;
         reader.expect_char(DC_BEGIN_LIST)?;
-        reader.expect_short_dc(516)?;
+        reader.expect_char(DC_TYPE_INTERSECTION)?;
         reader.expect_char(filename_format)?;
-        reader.expect_short_dc(513)?;
-        reader.expect_short_dc(511)?;
+        reader.expect_char(DC_FILE_PATH_DELIMITER)?;
+        reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
         reader.expect_char(filename_format)?;
         assert_eq!(decode_filename_bytes(&mut reader)?, b"name");
-        reader.expect_short_dc(512)?;
+        reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
         reader.expect_char(DC_END_LIST)?;
-        reader.expect_short_dc(512)?;
+        reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
         assert_eq!(reader.peek_char()?, None);
         Ok(())
     }

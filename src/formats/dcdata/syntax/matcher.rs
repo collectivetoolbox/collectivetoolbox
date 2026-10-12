@@ -36,6 +36,10 @@ use super::framing::{
     scan_literal_frame,
 };
 use super::resolver::SyntaxRuleResolver;
+use crate::dc::{
+    DC_END_FORMAT_REPRESENTATION, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -169,8 +173,7 @@ fn target_matches_token(target: &CharTarget, token: u128) -> bool {
 
 /// Locates the end of a balanced container sequence taking escaping into account.
 pub(super) fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<usize> {
-    let dc_escape = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-        .saturating_add(255);
+    let dc_escape = DC_ESCAPE.to_u128();
     let mut depth = 0usize;
     let mut skip_next = false;
     let mut idx = 0usize;
@@ -227,8 +230,7 @@ fn match_term_single(
     };
 
     // Equivalent representations wrapper: Dc 397 (can wrap alternative representations of any value)
-    let dc_equiv = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-        .saturating_add(397);
+    let dc_equiv = DC_EQUIVALENT_REPRESENTATIONS.to_u128();
     if first == dc_equiv
         && !matches!(
             term,
@@ -253,10 +255,8 @@ fn match_term_single(
     }
 
     // Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
-    let dc_opt_present = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-        .saturating_add(315);
-    let dc_opt_absent = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-        .saturating_add(316);
+    let dc_opt_present = DC_OPTIONAL_PRESENT.to_u128();
+    let dc_opt_absent = DC_OPTIONAL_ABSENT.to_u128();
     if first == dc_opt_present
         && !matches!(
             term,
@@ -314,8 +314,7 @@ fn match_term_single(
                 if in_set {
                     return MatchOutcome::Mismatch;
                 }
-                let dc_escape = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(255);
+                let dc_escape = DC_ESCAPE.to_u128();
                 if first == dc_escape && stream.len() >= 2 {
                     return MatchOutcome::Matched { consumed: 2 };
                 }
@@ -387,10 +386,8 @@ fn match_term_single(
 
             // General type check: [type] (matches EL Types, format types, or type definitions)
             if name == "type" && subtype.is_none() {
-                let dc_intersect = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(516);
-                let dc_union = ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                    .saturating_add(300);
+                let dc_intersect = DC_TYPE_INTERSECTION.to_u128();
+                let dc_union = DC_TYPE_UNION.to_u128();
                 let matches = crate::dc_char::is_type_token(first)
                     // Reason for fallback: when syntax resolver is omitted, cannot verify membership in EL Types or Formats scripts
                     || context.resolver.as_ref().map_or(false, |r| {
@@ -613,9 +610,7 @@ fn match_term_single(
                     if outcome.is_matched() {
                         let consumed_payload = outcome.consumed_tokens();
                         let mut total = offset_after_fmt.saturating_add(consumed_payload);
-                        let dc_end_repr =
-                            ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START
-                                .saturating_add(512);
+                        let dc_end_repr = DC_END_FORMAT_REPRESENTATION.to_u128();
                         if has_fmt_token
                             && !context.suppress_trailing_dc_512
                             && stream.get(total) == Some(&dc_end_repr)

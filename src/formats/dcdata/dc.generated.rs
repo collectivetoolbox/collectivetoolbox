@@ -62,6 +62,8 @@ pub const DC_REPLACEMENT_UNAVAIL_UNICODE: DcChar = DcChar::from_short(206);
 pub const DC_REPLACEMENT_UNAVAIL_DC: DcChar = DcChar::from_short(207);
 /// Indicates that the next character should be ignored. (Dc 255).
 pub const DC_ESCAPE: DcChar = DcChar::from_short(255);
+/// Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”. (Dc 300).
+pub const DC_TYPE_UNION: DcChar = DcChar::from_short(300);
 /// Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back. (Dc 308).
 pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
 /// Begins an ordered, contiguous, typed homogenous or heterogenous list. (Dc 310).
@@ -88,10 +90,18 @@ pub const DC_BEGIN_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(388);
 pub const DC_END_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(389);
 /// Indicates that all values within the list have the same underlying meaning. (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
+/// E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc” (Dc 511).
+pub const DC_BEGIN_FORMAT_REPRESENTATION: DcChar = DcChar::from_short(511);
+/// End Dc representation of format (Dc 512).
+pub const DC_END_FORMAT_REPRESENTATION: DcChar = DcChar::from_short(512);
+/// File path delimiter (Dc 513).
+pub const DC_FILE_PATH_DELIMITER: DcChar = DcChar::from_short(513);
 /// Begins a key-value pair. Dc 312 separates the nonempty key and value regions; Dc 515 closes the pair. Nested framed data and escaped characters belong to their operand rather than delimiting the enclosing pair. Operand regions retain their historical syntax; this rule does not impose a narrower expression grammar. (Dc 514).
 pub const DC_BEGIN_KV_PAIR: DcChar = DcChar::from_short(514);
 /// Terminates the key-value pair begun by Dc 514. (Dc 515).
 pub const DC_END_KV_PAIR: DcChar = DcChar::from_short(515);
+/// Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description. (Dc 516).
+pub const DC_TYPE_INTERSECTION: DcChar = DcChar::from_short(516);
 /// Boolean true (Dc 517).
 pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
 /// Boolean false (Dc 518).
