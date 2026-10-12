@@ -36,6 +36,7 @@ use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{
     FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os,
 };
+use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use ctb_io::file::Natural;
@@ -690,13 +691,13 @@ pub(crate) fn write_entity_payload(
         }
         FileEntityKind::Symlink { target } => {
             w.write_all(&[2])?;
-            write_bytes(w, target)?;
+            write_bytes(w, &target.to_bytes())?;
         }
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
             w.write_all(&[3])?;
-            write_bytes(w, target_relative_path)?;
+            write_bytes(w, &target_relative_path.to_bytes())?;
         }
         FileEntityKind::Fifo => {
             w.write_all(&[4])?;
@@ -781,9 +782,9 @@ pub fn read_entity_payload(
     let raw_rel_path = read_bytes(&mut r)?;
     let raw_filename = read_bytes(&mut r)?;
     let has_enc = read_u8(&mut r)?;
+    let is_windows = origin_platform == PLATFORM_WINDOWS;
     let enclosing_path = if has_enc == 1 {
         let enc_bytes = read_bytes(&mut r)?;
-        let is_windows = origin_platform == PLATFORM_WINDOWS;
         Some(resolve_relative_path_for_os(&enc_bytes, is_windows)?)
     } else {
         None
@@ -850,12 +851,14 @@ pub fn read_entity_payload(
         1 => FileEntityKind::Directory,
         2 => {
             let target = read_bytes(&mut r)?;
-            FileEntityKind::Symlink { target }
+            FileEntityKind::Symlink {
+                target: LinkPath::from_bytes(&target, is_windows),
+            }
         }
         3 => {
             let target_relative_path = read_bytes(&mut r)?;
             FileEntityKind::Hardlink {
-                target_relative_path,
+                target_relative_path: LinkPath::from_bytes(&target_relative_path, is_windows),
             }
         }
         4 => FileEntityKind::Fifo,
@@ -1021,7 +1024,7 @@ pub fn read_entity_payload(
             "Unknown preservation record version"
         );
         legacy = &magic == b"CTBMETA1";
-        let record: PreservationRecord =
+        let mut record: PreservationRecord =
             serde_json::from_slice(&read_bytes(&mut r)?)?;
         anyhow::ensure!(
             record.streams.len() == entity.streams.len(),
@@ -1049,6 +1052,13 @@ pub fn read_entity_payload(
                 "Semantic journal identity disagrees with its primary path"
             );
             entity.identity = identity;
+        }
+        if let Some(flags) = record.metadata.get_mut("platform_raw_flags") {
+            if flags.is_object() {
+                if let Some(raw) = flags.get("raw_value").and_then(|v| v.as_u64()) {
+                    *flags = serde_json::Value::from(raw);
+                }
+            }
         }
         entity.metadata = if legacy {
             serde_json::from_value(record.metadata)?

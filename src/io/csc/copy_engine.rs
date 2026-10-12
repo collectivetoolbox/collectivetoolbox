@@ -31,6 +31,7 @@ use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalWriter};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileOrigin, InodeKey};
+use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
 };
@@ -165,7 +166,7 @@ pub fn execute_copy_pipeline(
                     if let Some(ref rel) = entity.identity.relative_path {
                         let dest_path = journal.destination().join(rel);
                         if dest_path.exists() {
-                            hardlink_map.insert(key.clone(), dest_path);
+                            hardlink_map.insert(key.clone(), rel.clone());
                         }
                     }
                 }
@@ -246,14 +247,14 @@ pub fn execute_copy_pipeline(
             let dest_dir = if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?
             } else {
-                SandboxableDir::create_or_open(tgt_root)?
+                SandboxableDir::create_or_open(journal.destination())?
             };
 
             let mut dir_queue: Vec<(PathBuf, PathBuf)> =
                 vec![(src_root.clone(), tgt_root.clone())];
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
-                let dir_entity = match FileEntity::from_filesystem_with_apple_options(
+                let mut dir_entity = match FileEntity::from_filesystem_with_apple_options(
                     &curr_src,
                     Some(src_root),
                     &apple_read_options,
@@ -290,9 +291,12 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
 
+                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
+                dir_entity.identity.relative_path = Some(rel.clone());
+
                 if !args.dry_run {
                     // Reason for fallback: absent relative path defaults to current directory "." as destination root
-                    let rel_dir = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
+                    let rel_dir = if rel.as_os_str().is_empty() { Path::new(".") } else { &rel };
                     if let Err(e) = dest_dir.ensure_dir_all(
                         rel_dir,
                         options.path_policy,
@@ -311,10 +315,7 @@ pub fn execute_copy_pipeline(
                 }
                 stats.dirs_created = stats.dirs_created.saturating_add(1);
 
-                let mut journal_dir = dir_entity.clone();
-                let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
-                journal_dir.identity.relative_path = Some(rel);
-                journal.record_entity(&journal_dir);
+                journal.record_entity(&dir_entity);
                 if !args.dry_run {
                     journal.commit_batch()?;
                 }
@@ -429,7 +430,7 @@ pub fn execute_copy_pipeline(
                             src_path: entry_src,
                             dest_path: entry_tgt,
                             entity: sym_entity,
-                            dest_dir_root: tgt_root.clone(),
+                            dest_dir_root: dest_dir.root_path().to_path_buf(),
                         });
                     } else {
                         let created_path = copy_single_item(
@@ -608,7 +609,7 @@ pub fn execute_copy_pipeline(
                 }
             };
             if let FileEntityKind::Symlink { target } = &entity.kind {
-                if dest_target.as_os_str().as_encoded_bytes() != target.as_slice() {
+                if dest_target.as_os_str().as_encoded_bytes() != target.to_bytes().as_slice() {
                     let err = anyhow::anyhow!(
                         "Target filesystem altered or normalized symlink target for {}",
                         dest_path.display()
@@ -986,14 +987,15 @@ fn copy_single_item(
                 Some(p) => dest_dir.root_path().join(p),
                 None => dest_dir.root_path().to_path_buf(),
             };
-            let is_self = effective_dest_path == *first_target_rel
-                || this_full_path == *first_target_rel
+            let first_full_path = dest_dir.root_path().join(first_target_rel);
+            let is_self = effective_dest_path == first_full_path
+                || this_full_path == first_full_path
                 || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
-                    == std::fs::canonicalize(first_target_rel).ok().as_deref();
+                    == std::fs::canonicalize(&first_full_path).ok().as_deref();
             if !is_self {
                 let original_entity = entity.clone();
                 entity.kind = FileEntityKind::Hardlink {
-                    target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
+                    target_relative_path: LinkPath::from_relative_path(first_target_rel),
                 };
                 if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
                     record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
@@ -1357,7 +1359,7 @@ fn copy_single_item(
             if let Some(ref rel) = entity.identity.relative_path {
                 hardlink_map.insert(
                     key.clone(),
-                    dest_dir.root_path().join(rel),
+                    rel.clone(),
                 );
             }
         }
@@ -1437,12 +1439,17 @@ fn record_journal_entry(
     let rel = compute_journal_relative_path(journal.destination(), dest_path)?;
     journal_entity.identity.relative_path = Some(rel);
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
-        let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
+        let target = ctb_io::file::resolve_relative_path_for_os(&target_relative_path.to_bytes(), cfg!(windows))?;
         // Reason for fallback: if destination cannot be canonicalized, use destination path directly
         let journal_root = std::fs::canonicalize(journal.destination())
             .unwrap_or_else(|_| journal.destination().to_path_buf());
-        *target_relative_path = compute_journal_relative_path(&journal_root, &target)?
-            .as_os_str().as_encoded_bytes().to_vec();
+        let full_target = if target.is_absolute() {
+            target
+        } else {
+            journal.destination().join(&target)
+        };
+        let rel_target = compute_journal_relative_path(&journal_root, &full_target)?;
+        *target_relative_path = LinkPath::from_relative_path(&rel_target);
     }
     journal.record_entity(&journal_entity);
     Ok(())

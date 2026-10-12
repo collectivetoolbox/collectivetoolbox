@@ -59,6 +59,8 @@ The standard ncurses terminfo database is included here under its own historical
 
 - Handlebars `{{ var }}` is escaped; `{{{ var }}}` is unescaped.
 
+- Seeing outcomes from a `crater` run: tar --zstd -xOf all.tar.zst --wildcards 'broken/gh/collectivetoolbox/collectivetoolbox/*/*.txt'
+
 #### Pushing Docker container
 
 ##### Step 1: Create the Classic Token

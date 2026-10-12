@@ -969,6 +969,41 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                         fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                            if reader.peek_char()? == ::std::option::Option::Some(#crate_root::dc::DC_BEGIN_KV_MAP)
+                                || reader.peek_char()? == ::std::option::Option::Some(#crate_root::dc::DC_BEGIN_LEGACY_KV_MAP)
+                            {
+                                let encoding = #crate_root::DcKvMapEncoding::decode_header(reader)?;
+                                let mut raw_val = 0u64;
+                                let mut raw_bytes: ::std::option::Option<::std::vec::Vec<u8>> = ::std::option::Option::None;
+                                let mut first = true;
+                                while encoding.decode_entry_begin(reader, first)? {
+                                    first = false;
+                                    let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    match key.as_str() {
+                                        "raw_value" => {
+                                            reader.expect_short_dc(312)?;
+                                            raw_val = <u64 as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                            raw_bytes = ::std::option::Option::Some(raw_val.to_le_bytes().to_vec());
+                                            encoding.decode_entry_end(reader)?;
+                                        }
+                                        "bytes" => {
+                                            reader.expect_short_dc(312)?;
+                                            let b = reader.read_binary_payload()?.to_vec();
+                                            raw_bytes = ::std::option::Option::Some(b);
+                                            encoding.decode_entry_end(reader)?;
+                                        }
+                                        _ => {
+                                            reader.expect_short_dc(312)?;
+                                            let _ = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader);
+                                            encoding.decode_entry_end(reader)?;
+                                        }
+                                    }
+                                }
+                                if let ::std::option::Option::Some(bytes) = raw_bytes {
+                                    return <Self as ::std::convert::TryFrom<&[u8]>>::try_from(bytes.as_ref())
+                                        .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)));
+                                }
+                            }
                             let bytes = reader.read_binary_payload()?;
                             <Self as ::std::convert::TryFrom<&[u8]>>::try_from(bytes.as_ref())
                                 .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)))
@@ -1630,16 +1665,18 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     }
                 } else if attr.binary {
-                    if is_paired_raw {
-                        encode_fields.push(quote! {});
-                    } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
-                        encode_fields.push(quote! {
-                            if let ::std::option::Option::Some(ref val) = self.#field_ident {
-                                mst.push_char(#crate_root::DcChar::from_u128(#id));
-                                mst.push_char(#crate_root::DcChar::from_short(315));
-                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
-                            }
-                        });
+                    if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                        if !is_paired_raw {
+                            encode_fields.push(quote! {
+                                if let ::std::option::Option::Some(ref val) = self.#field_ident {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                    mst.push_char(#crate_root::DcChar::from_short(315));
+                                    mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
+                                }
+                            });
+                        } else {
+                            encode_fields.push(quote! {});
+                        }
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
@@ -1650,9 +1687,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
                                         reader.read_short_dc()?;
                                     }
-                                    let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    let val = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
+                                        <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
+                                    } else {
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                             .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?
+                                    };
                                     #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                                 }
                             }
@@ -1667,9 +1708,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
                                         reader.read_short_dc()?;
                                     }
-                                    let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    let val = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
+                                        <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
+                                    } else {
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                             .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?
+                                    };
                                     self.#field_ident = ::std::option::Option::Some(val);
                                 }
                                 Ok(true)
@@ -1696,18 +1741,26 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                let val = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
+                                    <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
+                                } else {
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?
+                                };
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
                         decode_field_arms.push(quote! {
                             #(#all_match_tags)|* => {
                                 reader.next_char()?;
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                let val = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
+                                    <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
+                                } else {
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?
+                                };
                                 self.#field_ident = val;
                                 Ok(true)
                             }

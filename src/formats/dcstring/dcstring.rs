@@ -65,3 +65,4 @@ pub use kv_map::DcKvMapEncoding;
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};
 pub use ctb_formats_utilities::FormatLog;
+pub use ctb_formats_dcdata::dc;

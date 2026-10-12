@@ -66,7 +66,11 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
                 }
             }
             Self::WindowsUtf16(units) => {
-                ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(units, mst)
+                let bytes: Vec<u8> = units.iter().flat_map(|unit| unit.to_le_bytes()).collect();
+                let mut metadata = ctb_formats_dcstring::DcString::new();
+                metadata.push(ctb_formats_dcstring::DcChar::from_format(2));
+                mst.push_binary_with_metadata(&bytes, &metadata)?;
+                Ok(())
             }
         }
     }
@@ -75,7 +79,14 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
 impl ctb_formats_dcstring::DcMixedDecode for StreamName {
     fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
         if reader.peek_short_dc()? == Some(203) {
-            let bytes = reader.read_binary_payload()?;
+            let (format, bytes) = reader.read_checksum_payload()?;
+            if format == Some(ctb_formats_dcstring::DcChar::from_format(2)) {
+                let units: Vec<u16> = bytes
+                    .chunks_exact(2)
+                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+                    .collect();
+                return Ok(Self::WindowsUtf16(units));
+            }
             Ok(Self::Bytes(bytes.to_vec()))
         } else if reader.peek_short_dc()? == Some(310) {
             let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;

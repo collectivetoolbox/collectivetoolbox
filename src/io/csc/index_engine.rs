@@ -688,12 +688,12 @@ pub(crate) async fn ingest_journal_snapshot(
                 }
                 FileEntityKind::Symlink { target } => (
                     0_i64,
-                    Some(String::from_utf8_lossy(target).to_string()),
+                    Some(target.to_string()),
                     None,
                 ),
                 FileEntityKind::Hardlink { target_relative_path } => (
                     0_i64,
-                    Some(String::from_utf8_lossy(target_relative_path).to_string()),
+                    Some(target_relative_path.to_string()),
                     None,
                 ),
                 _ => (0_i64, None, None),

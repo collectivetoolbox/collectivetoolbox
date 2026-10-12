@@ -216,6 +216,7 @@ pub mod clean_name;
 pub mod entity;
 pub mod filesystem;
 pub mod identity;
+pub mod link_path;
 pub mod materializer;
 pub mod metadata;
 pub mod metadata_json;
@@ -244,6 +245,7 @@ pub use clean_name::{
     clean_file_name_windows,
 };
 pub use entity::{File, FileEntity, FileEntityKind, FileEntityType};
+pub use link_path::LinkPath;
 pub use filesystem::{
     FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache, extract_device_id,
     extract_device_id_for_path, is_cross_device_error, query_filesystem_info,

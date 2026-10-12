@@ -33,6 +33,7 @@ use crate::journal::{read_journal_snapshot, resolve_journal_path, JournalErrorRe
 use crate::journal::PLATFORM_WINDOWS;
 use ctb_io::file::entity::FileEntityKind;
 use ctb_io::file::identity::{extract_file_identity, resolve_relative_path_for_os};
+use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, audit_entity_detailed, try_drop_system_caches};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
@@ -328,7 +329,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
             FileEntityKind::Hardlink {
                 target_relative_path,
             } => {
-                let tgt_rel = match resolve_relative_path_for_os(target_relative_path, is_windows) {
+                let tgt_rel = match resolve_relative_path_for_os(&target_relative_path.to_bytes(), is_windows) {
                     Ok(p) => p,
                     Err(e) => {
                         changed_entries.push(EntryDiff {
@@ -773,7 +774,7 @@ mod tests {
         let FileEntityKind::Hardlink { target_relative_path } = &entity.kind else {
             panic!("expected hardlink");
         };
-        let target = resolve_relative_path_for_os(target_relative_path, snapshot.origin_platform == PLATFORM_WINDOWS)
+        let target = resolve_relative_path_for_os(&target_relative_path.to_bytes(), snapshot.origin_platform == PLATFORM_WINDOWS)
             .expect("resolve target path");
         fs::remove_file(relocated.join(&link)).expect("remove hardlink");
         fs::write(relocated.join(&link), b"shared payload").expect("write identical independent file");
@@ -813,7 +814,7 @@ mod tests {
             ).unwrap();
             let mut entity = ctb_io::file::FileEntity::from_vec(Vec::new());
             entity.identity.relative_path = Some(PathBuf::from(link));
-            entity.kind = FileEntityKind::Hardlink { target_relative_path: target.as_bytes().to_vec() };
+            entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_bytes(target.as_bytes(), cfg!(windows)) };
             writer.record_entity(&entity);
             writer.commit_batch().unwrap();
             writer.mark_completed().unwrap();

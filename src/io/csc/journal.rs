@@ -32,6 +32,7 @@ use ctb_formats_dcstring::{
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
+use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use ctb_io::file::Natural;
@@ -951,7 +952,11 @@ pub fn read_v4_journal_snapshot(
                             pending_entities.insert(path_key, entity);
                         }
                         Err(err) => {
-                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:#}, peek={:?}", reader.position(), reader.peek_char());
+                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:?}, peek={:?}", reader.position(), reader.peek_char());
+                            let mut debug_r = reader.clone();
+                            for _ in 0..20 {
+                                eprintln!("DEBUG AT 11526: {:?}", debug_r.next_char());
+                            }
                             batch_ok = false;
                             break;
                         }
@@ -1420,7 +1425,7 @@ mod tests {
                 errors: Vec::new(),
             },
             kind: FileEntityKind::Hardlink {
-                target_relative_path: b"hello.txt".to_vec(),
+                target_relative_path: LinkPath::from_bytes(b"hello.txt", cfg!(windows)),
             },
             streams: Vec::new(),
         };

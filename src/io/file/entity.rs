@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::identity::{FileIdentity, FileOrigin, InodeKey};
+use crate::link_path::LinkPath;
 use malachite::Natural;
 use crate::materializer::{MaterializeOptions, MaterializeReceipt};
 use crate::metadata::{FileMetadata, FileTimestamps};
@@ -89,18 +90,16 @@ pub enum FileEntityKind {
     /// A symbolic link pointing to raw target bytes.
     #[dc(short = 360)]
     Symlink {
-        /// Exact target bytes (not lossily decoded).
-        #[serde(with = "crate::serde_helpers::text_or_base64")]
-        #[dc(short = 339, binary)]
-        target: Vec<u8>,
+        /// Exact target link path.
+        #[dc(short = 339)]
+        target: LinkPath,
     },
     /// A hardlink to an existing path or inode in the session.
     #[dc(short = 361)]
     Hardlink {
-        /// Relative path to the original linked file in raw bytes.
-        #[serde(with = "crate::serde_helpers::text_or_base64")]
-        #[dc(short = 339, binary)]
-        target_relative_path: Vec<u8>,
+        /// Relative path to the original linked file.
+        #[dc(short = 339)]
+        target_relative_path: LinkPath,
     },
     /// A named pipe (FIFO).
     #[dc(short = 362)]
@@ -851,7 +850,7 @@ impl FileEntity {
                 Vec::new()
             };
             FileEntityKind::Symlink {
-                target: target_bytes,
+                target: LinkPath::from_bytes(&target_bytes, cfg!(windows)),
             }
         } else if file_type.is_dir() {
             FileEntityKind::Directory
@@ -960,7 +959,7 @@ impl FileEntity {
                 warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
             let target = target_result?;
-            Some(target.as_os_str().as_encoded_bytes().to_vec())
+            Some(LinkPath::from_path(&target))
         } else {
             None
         };

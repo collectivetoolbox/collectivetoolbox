@@ -896,7 +896,7 @@ pub struct FileMetadata {
     pub flags: Option<Vec<FileFlag>>,
     /// Raw platform-specific flags if captured on a native filesystem.
     #[serde(default)]
-    #[dc(short = 539, binary)]
+    #[dc(short = 539)]
     pub platform_raw_flags: Option<PlatformRawFlags>,
     /// Timestamp when this file record was read/inspected from the filesystem,
     /// documenting when that file is current as of.

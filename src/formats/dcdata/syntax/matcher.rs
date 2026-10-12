@@ -457,6 +457,27 @@ fn match_term_single(
                         &mut context.diagnostics,
                         0,
                     ) {
+                        if let Some(subtype_str) = subtype {
+                            if let Ok(sub_rule) = crate::syntax::parser::parse_dc_syntax(subtype_str) {
+                                let mut sub_context = MatchContext {
+                                    self_dc: None,
+                                    captured_vars: HashMap::new(),
+                                    warnings: Vec::new(),
+                                    mode: context.mode,
+                                    diagnostics: Vec::new(),
+                                    has_errors: false,
+                                    depth: context.depth.saturating_add(1),
+                                    max_depth: context.max_depth,
+                                    call_stack: context.call_stack.clone(),
+                                    resolver: context.resolver.clone(),
+                                    suppress_trailing_dc_512: false,
+                                };
+                                let sub_outcome = match_pattern(&lit.decoded_payload, &sub_rule.pattern, &mut sub_context);
+                                if !sub_outcome.is_matched() || sub_outcome.consumed_tokens() != lit.decoded_payload.len() {
+                                    return MatchOutcome::Mismatch;
+                                }
+                            }
+                        }
                         if let Some(var) = capture_var {
                             context
                                 .captured_vars

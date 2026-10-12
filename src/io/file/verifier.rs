@@ -880,9 +880,10 @@ pub fn audit_entity_detailed(
     {
         let actual_target = crate::metadata::read_symlink_target(path, &dest_meta)?;
         let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
-        if actual_bytes != expected_target.as_slice() {
+        let expected_bytes = expected_target.to_bytes();
+        if actual_bytes != expected_bytes.as_slice() {
             diffs.push(DiffKind::SymlinkTargetMismatch {
-                expected: String::from_utf8_lossy(expected_target).to_string(),
+                expected: String::from_utf8_lossy(&expected_bytes).to_string(),
                 actual: String::from_utf8_lossy(actual_bytes).to_string(),
             });
         }
