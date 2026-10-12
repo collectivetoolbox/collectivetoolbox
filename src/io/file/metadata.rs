@@ -754,6 +754,7 @@ impl TryFrom<&[u8]> for PlatformRawFlags {
     }
 }
 
+// FIXME violates prohibition on ad-hoc serialization
 impl ctb_formats_dcstring::DcMixedEncode for PlatformRawFlags {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         mst.push_binary_with_sha256(self.as_ref())
