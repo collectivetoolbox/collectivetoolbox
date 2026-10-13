@@ -64,7 +64,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   Dc characters.
 //! - `#[dc(begin = <id>, end = <id>, flags)]`: Encodes enabled boolean fields
 //!   as a typed Object list of semantic flag Dcs inside the boundaries.
-//!   Readers also accept the older bare flag sequences.
 //!
 //! During serialization, the macro emits `mst.push_char(begin)`, serializes all
 //! active fields, and then emits `mst.push_char(end)`. During deserialization,
@@ -85,7 +84,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   if not encountered in the serialized stream.
 //! - `#[dc(<id>, equivalents = (<semantic_id>, number))]`: Emits Dc 397 with a
 //!   typed Object list containing semantic and numeric representations.
-//!   Readers also accept the older emitted lists without the Object header.
 //! - `#[dc(<id>, binary)]`: Binary byte payload. Enclosed within Dc binary
 //!   delimiter characters (Dc 203..204).
 //! - `#[dc(<id>, representation = f524)]`: Encloses a single field value in
@@ -1215,20 +1213,17 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                         fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
                             reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
-                            let typed_list = reader.peek_char()? == Some(#crate_root::dc::DC_BEGIN_LIST);
-                            if typed_list {
-                                reader.next_char()?;
-                                reader.expect_short_dc(275)?;
-                            }
+                            reader.expect_char(#crate_root::dc::DC_BEGIN_LIST)?;
+                            reader.expect_short_dc(275)?;
                             #(#init_flag_fields)*
                             let mut first = true;
                             loop {
-                                if typed_list && reader.peek_char()? == Some(#crate_root::dc::DC_END_LIST) {
+                                if reader.peek_char()? == Some(#crate_root::dc::DC_END_LIST) {
                                     reader.next_char()?;
                                     reader.expect_char(#crate_root::DcChar::from_u128(#end_dc))?;
                                     break;
                                 }
-                                if typed_list && !first {
+                                if !first {
                                     reader.expect_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
                                 }
                                 first = false;
@@ -1241,10 +1236,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         );
                                     }
                                 };
-                                if !typed_list && tag == #end_dc {
-                                    reader.next_char()?;
-                                    break;
-                                }
                                 match tag {
                                     #(#decode_flag_arms)*
                                     other => {
@@ -1580,54 +1571,41 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(encode_stmt);
                     }
 
-                    let mut equiv_short_tags: Vec<u32> = Vec::new();
-                    for item in eq_items {
-                        if let EquivalentItem::Dc(d) = item {
-                            if let Some(short_tag) = d.checked_sub(SHORT_DC_REGION_START).and_then(|x| u32::try_from(x).ok()) {
-                                equiv_short_tags.push(short_tag);
-                            }
-                        }
-                    }
-                    if let Some(short_id) = id.checked_sub(SHORT_DC_REGION_START).and_then(|x| u32::try_from(x).ok()) {
-                        equiv_short_tags.push(short_id);
-                    }
-
                     let decode_body = quote! {
                         reader.read_short_dc()?;
                         if reader.peek_short_dc()? == ::std::option::Option::Some(397) {
                             reader.read_short_dc()?;
-                            let in_list = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                reader.read_short_dc()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
-                                    reader.read_short_dc()?;
-                                }
-                                true
-                            } else {
-                                false
-                            };
-                            while let ::std::option::Option::Some(peek_tag) = reader.peek_short_dc()? {
-                                if in_list && peek_tag == 311 {
+                            reader.expect_short_dc(310)?;
+                            reader.expect_short_dc(275)?;
+                            let mut first = true;
+                            loop {
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(311) {
                                     reader.read_short_dc()?;
                                     break;
                                 }
-                                if in_list && peek_tag == 312 {
-                                    reader.read_short_dc()?;
-                                    continue;
+                                if !first {
+                                    reader.expect_short_dc(312)?;
                                 }
+                                first = false;
+                                let peek_tag = reader.peek_short_dc()?
+                                    .ok_or_else(|| #anyhow_path::anyhow!(
+                                        "Unexpected EOF in equivalent representations for {}",
+                                        stringify!(#field_ident)
+                                    ))?;
                                 if peek_tag == 6 {
                                     let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader)?;
                                     if #field_ident.is_none() {
                                         #field_ident = ::std::option::Option::Some(n);
                                     }
-                                } else if in_list || matches!(peek_tag, #(#equiv_short_tags)|*) {
+                                } else {
                                     let v = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                     if #field_ident.is_none() {
                                         #field_ident = ::std::option::Option::Some(v);
                                     }
-                                } else {
-                                    break;
                                 }
                             }
+                            #anyhow_path::ensure!(#field_ident.is_some(),
+                                "Empty equivalent representations for {}", stringify!(#field_ident));
                         } else {
                             let peek_tag = reader.peek_short_dc()?;
                             if peek_tag == ::std::option::Option::Some(6) {

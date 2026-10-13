@@ -123,10 +123,15 @@ roundtrips now cover all labels, all flags, coordinate extremes, absent/present
 scroll positions, rectangles, and default extended records. All 490 affected
 library tests passed without failures or ignored tests; targeted Clippy passed.
 
+The compatibility cleanup removes generic decoding of bare flag sequences and
+Dc 397 lists without their required typed-list framing. Regression tests now
+require both invalid forms to fail. All 490 affected library tests, including
+historical journal fixtures, still pass; no new journal compatibility adapter
+was needed.
+
 Remaining verification: the full workspace and native Windows suites have not
-been rerun for this follow-up. Older bare flag sequences remain readable but
-fail strict validation; historical untyped coordinate tuples are not accepted
-by the format-representation decoder.
+been rerun for this follow-up. Historical untyped flag sequences, equivalent
+lists, and coordinate tuples are not accepted by the generic decoders.
 
 
 

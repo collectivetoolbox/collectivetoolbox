@@ -2380,6 +2380,9 @@ mod tests {
     #[crate::ctb_test]
     fn test_flag_lists_reject_malformed_framing() -> Result<()> {
         for tokens in [
+            vec![388, 389],
+            vec![388, 499, 389],
+            vec![388, 499, 500, 389],
             vec![388, 310, 499, 311, 389],
             vec![388, 310, 275, 499, 500, 311, 389],
             vec![388, 310, 275, 499, 312, 311, 389],
@@ -2426,7 +2429,10 @@ mod tests {
         mst.push_char(DcChar::from_short(401));
         mst.push_char(DcChar::from_short(406));
         mst.push_char(DcChar::from_short(388));
+        mst.push_char(DC_BEGIN_LIST);
+        mst.push_char(DcChar::from_short(275));
         mst.push_char(DcChar::from_short(499));
+        mst.push_char(DC_END_LIST);
         mst.push_char(DcChar::from_short(389));
         mst.push_char(DcChar::from_short(402));
 

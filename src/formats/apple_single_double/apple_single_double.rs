@@ -2144,7 +2144,23 @@ mod tests {
             old_encoded.push_char(DcChar::from_u128(token));
         }
         let mut reader = DcMixedReader::new(&old_encoded);
-        ensure!(FinderInfo::decode_dc_mixed(&mut reader)? == finfo);
+        ensure!(FinderInfo::decode_dc_mixed(&mut reader).is_err(),
+            "Untyped equivalent list was decoded");
+        for malformed in [
+            vec![401, 405, 397, 487, 402],
+            vec![401, 405, 397, 310, 275, 311, 402],
+            vec![401, 405, 397, 310, 275, 487, 487, 311, 402],
+            vec![401, 405, 397, 310, 275, 487, 312, 311, 402],
+            vec![401, 405, 397, 310, 275, 487, 402],
+            vec![401, 405, 397, 310, 275, 487],
+        ] {
+            let mut mst = ctb_formats_dcstring::DcMstring::new();
+            for token in malformed {
+                mst.push_char(DcChar::from_short(token));
+            }
+            ensure!(FinderInfo::decode_dc_mixed(&mut DcMixedReader::new(&mst)).is_err(),
+                "Malformed equivalent list was decoded");
+        }
         Ok(())
     }
 
@@ -2248,9 +2264,14 @@ mod tests {
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
+        custom_mst.push_char(ctb_formats_dcstring::dc::DC_BEGIN_LIST);
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(275));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(499)); // ondesk
+        custom_mst.push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(501)); // noinits
+        custom_mst.push_char(ctb_formats_dcstring::dc::DC_LIST_ELEMENT_SEPARATOR);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(507)); // invisible
+        custom_mst.push_char(ctb_formats_dcstring::dc::DC_END_LIST);
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
 

@@ -74,8 +74,8 @@ Verified on the Linux host:
   The Dc 405 alternatives are grouped under their common `~` tag so direct
   semantic labels match, retaining the same numeric bound and label Dcs.
   All eight label values and direct semantic/numeric forms are regression
-  tested without broadening database syntax. Older untyped lists remain
-  readable but still fail strict validation.
+  tested without broadening database syntax. Older untyped lists are now
+  rejected by the generic decoder, as well as strict validation.
 - Full Finder-record strict validation at Dc 388 and Dc 407 is fixed in the
   follow-up below. Strict record checks now include flags, location, extended
   flags, scroll position, and default extended records.
@@ -149,9 +149,8 @@ Verified on the Linux host:
 ### Finder Strict-Validation Follow-Up — 2026-10-13
 
 - Shared `flags` derives emit enabled semantic flags as a typed Object list
-  with element separators inside their declared boundaries. Older bare flag
-  sequences remain readable; malformed typed lists and unknown flags return
-  explicit errors.
+  with element separators inside their declared boundaries. Bare flag
+  sequences, malformed typed lists, and unknown flags return explicit errors.
 - Finder icon location and extended scroll position use the existing
   `representation = f523` attribute. No database syntax was relaxed.
 - Extended Finder info always emits its icon ID, including zero, so records
@@ -166,15 +165,21 @@ Verified on the Linux host:
   This includes the four CSC Apple archive integration tests that initially
   exposed empty extended records. Targeted Clippy passed for the affected
   crates and derive macro; the earlier lint blockers no longer reproduce.
+- Compatibility cleanup removes generic fallback decoding for bare flags and
+  Dc 397 lists without typed-list framing. Missing boundaries/type headers,
+  malformed separators, and empty equivalent lists fail explicitly. Direct
+  semantic and numeric alternatives remain supported where declared.
+  The same 490 library tests, including historical journal fixtures, pass;
+  no additional adapter in `journal/legacy.rs` was required.
 
 #### Pending Work / Remaining Verification
 
 - Full-workspace and native Windows validation have not been rerun for this
   follow-up. The platform/filesystem gaps above remain unchanged.
-- Historical bare flag sequences remain readable but do not pass strict syntax
-  validation. Historical untyped location tuples are not accepted by the
-  format-representation decoder; this follow-up does not add a compatibility
-  parser for invalid coordinate encodings.
+- Historical bare flag sequences, untyped equivalent lists, and untyped
+  location tuples are rejected by the generic decoders. This follow-up does
+  not add compatibility parsers for these invalid encodings; future journal
+  compatibility, if needed, belongs only in `journal/legacy.rs`.
 
 ---
 
