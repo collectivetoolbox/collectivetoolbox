@@ -37,6 +37,9 @@ pub use ctb_io_environment::EnvDescription;
 /// Returns an error if environment capture fails.
 #[ipc_method]
 pub async fn capture() -> Result<EnvDescription> {
+    if let Some(cached) = ctb_io_environment::get_boot_cached_env() {
+        return Ok((*cached).clone());
+    }
     Ok(ctb_io_environment::capture())
 }
 

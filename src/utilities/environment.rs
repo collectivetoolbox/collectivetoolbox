@@ -146,8 +146,21 @@ pub fn is_official_public_website() -> bool {
 
 
 
-pub fn is_official_signed_build() -> bool {
-    if !crate::branding::is_branded_build() {
+static OFFICIAL_SIGNATURE_CACHE: OnceLock<bool> = OnceLock::new();
+
+/// Check if the binary is verified as an official signed build, returning the cached result
+/// if available. If verification has not yet run, returns false without performing network queries.
+pub fn is_official_signed_build_cached() -> bool {
+    if is_in_test() || !crate::branding::is_branded_build() {
+        return false;
+    }
+    OFFICIAL_SIGNATURE_CACHE.get().copied().unwrap_or(false)
+}
+
+/// Verify whether the running binary is an official signed build by querying the official server.
+/// This is a slow, network-dependent operation that is cached once run.
+pub fn verify_official_signed_build() -> bool {
+    if is_in_test() || !crate::branding::is_branded_build() {
         return false;
     }
 
@@ -156,13 +169,24 @@ pub fn is_official_signed_build() -> bool {
         return false;
     }
 
-    static CACHE: OnceLock<bool> = OnceLock::new();
-    *CACHE.get_or_init(|| {
+    *OFFICIAL_SIGNATURE_CACHE.get_or_init(|| {
         IN_VERIFICATION.store(true, Ordering::Relaxed);
         let result = verify_official_signature_impl();
         IN_VERIFICATION.store(false, Ordering::Relaxed);
         result
     })
+}
+
+pub fn is_official_signed_build() -> bool {
+    if !crate::branding::is_branded_build() || is_in_test() {
+        return false;
+    }
+
+    if get_process_role() == ProcessRole::LightweightCli {
+        return is_official_signed_build_cached();
+    }
+
+    verify_official_signed_build()
 }
 
 fn verify_official_signature_impl() -> bool {

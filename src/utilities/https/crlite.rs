@@ -568,6 +568,13 @@ where
     })
 }
 
+pub fn has_test_download_override() -> bool {
+    let Some(test_name) = crate::testing::try_get_current_test_name() else {
+        return false;
+    };
+    lock_test_download_overrides().contains_key(&test_name)
+}
+
 fn try_download_from_override(url: &str) -> Result<Option<Vec<u8>>> {
     let Some(test_name) = crate::testing::try_get_current_test_name() else {
         return Ok(None);

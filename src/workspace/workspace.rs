@@ -226,7 +226,7 @@ impl Workspace for CtbWorkspace {
         );
 
         // Concurrently run full environment capture/cache refill during boot
-        tokio::task::spawn_blocking(ctb_io_environment::env_cache_reset);
+        tokio::task::spawn_blocking(ctb_io_environment::init_boot_env);
 
         if self.args().no_update {
             log!("Skipping update checks due to --no-update");

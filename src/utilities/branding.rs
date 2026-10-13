@@ -76,7 +76,7 @@ pub fn application_name() -> &'static str {
 
 pub fn user_agent_name() -> String {
     let string = application_name().replace(' ', "");
-    if crate::environment::is_official_signed_build() {
+    if crate::environment::is_official_signed_build_cached() {
         string
     } else if is_branded_build() {
         format!("{string}-UnofficialBuild")

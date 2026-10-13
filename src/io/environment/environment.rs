@@ -50,8 +50,9 @@ pub use ctb_formats_utilities::format_id::FormatId;
 
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
-    is_debug_build, is_official_public_website, is_official_signed_build, is_public_website,
-    reset_process_role_for_testing, set_process_role,
+    is_debug_build, is_official_public_website, is_official_signed_build,
+    is_official_signed_build_cached, is_public_website, reset_process_role_for_testing,
+    set_process_role, verify_official_signed_build,
 };
 
 /// Is a lightweight CLI command running (without workspace boot)?
@@ -226,6 +227,9 @@ fn sample_system_time_resolution() -> Result<u128> {
 
 /// Discover the local outbound IPv4 address by querying the routing table.
 pub fn local_ipv4() -> Result<Ipv4Addr> {
+    if is_in_test() {
+        return Ok(Ipv4Addr::LOCALHOST);
+    }
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
         .context("Failed to bind UDP socket for local IPv4 discovery")?;
     socket
@@ -239,6 +243,9 @@ pub fn local_ipv4() -> Result<Ipv4Addr> {
 
 /// Discover the local outbound IPv6 address by querying the routing table.
 pub fn local_ipv6() -> Result<Ipv6Addr> {
+    if is_in_test() {
+        return Ok(Ipv6Addr::LOCALHOST);
+    }
     let socket = UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 0))
         .context("Failed to bind UDP socket for local IPv6 discovery")?;
     let target = "2001:4860:4860::8888"
@@ -294,6 +301,31 @@ pub fn cached_local_ipv6_u128() -> u128 {
 }
 
 fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        bail!("Invalid endpoint URL scheme: {url}");
+    }
+    let rest = if let Some(stripped) = url.strip_prefix("https://") {
+        stripped
+    } else if let Some(stripped) = url.strip_prefix("http://") {
+        stripped
+    } else {
+        bail!("Invalid endpoint URL scheme: {url}");
+    };
+    let host = rest.split(['/', ':', '?', '#']).next().unwrap_or("");
+    if host.is_empty() {
+        bail!("Invalid endpoint URL host: {url}");
+    }
+
+    if is_in_test() && !ctb_utilities::https::crlite::has_test_download_override() {
+        let now = unix_system_time_now();
+        let ip = if url.contains("ipv6") {
+            IpAddr::V6(Ipv6Addr::LOCALHOST)
+        } else {
+            IpAddr::V4(Ipv4Addr::LOCALHOST)
+        };
+        return Ok((ip, now, now, now));
+    }
+
     let url_string = url.to_string();
     let test_name = crate::testing::try_get_current_test_name();
     let test_storage_dir = crate::testing::try_get_test_storage_dir();
@@ -934,16 +966,13 @@ impl EnvDescription {
             local_ips,
             public_ips,
             system_time_resolution_nanos: unix_system_time_resolution().ok(),
-            server_system_time_offset_nanos: CACHED_SERVER_TIME_OFFSET_NANOS
-                .read()
-                .ok()
-                .and_then(|l| *l),
+            server_system_time_offset_nanos: None,
             is_release_build: is_release_build(),
             is_debug_build: is_debug_build(),
             is_cargo_target_binary: is_cargo_target_binary(),
             is_in_test: is_in_test(),
             is_branded_build: is_branded_build(),
-            is_official_signed_build: is_official_signed_build(),
+            is_official_signed_build: is_official_signed_build_cached(),
             is_cli_lightweight: is_cli_lightweight(),
             is_workspace: is_workspace(),
             is_workspace_main_process: is_workspace_main_process(),
@@ -1211,6 +1240,7 @@ impl EnvDescription {
     /// prefer [`crate::environment::capture`].
     pub(crate) fn capture() -> Self {
         let mut desc = Self::capture_quick();
+        desc.is_official_signed_build = verify_official_signed_build();
         let mut local_ips = Vec::new();
         if let Ok(v4) = cached_local_ipv4() {
             local_ips.push(IpAddr::V4(v4));
@@ -1267,19 +1297,78 @@ pub fn capture() -> EnvDescription {
     EnvDescription::capture()
 }
 
+static BOOT_CACHED_ENV: RwLock<Option<Arc<EnvDescription>>> = RwLock::new(None);
+
+/// Initializes and caches the startup boot environment using a full (slow)
+/// environment capture.
+pub fn init_boot_env() -> Arc<EnvDescription> {
+    env_cache_reset();
+    let env = Arc::new(EnvDescription::capture());
+    if let Ok(mut lock) = BOOT_CACHED_ENV.write() {
+        *lock = Some(Arc::clone(&env));
+    }
+    env
+}
+
+/// Returns the boot-cached environment recorded during workspace startup, if present.
+pub fn get_boot_cached_env() -> Option<Arc<EnvDescription>> {
+    BOOT_CACHED_ENV
+        .read()
+        .ok()
+        .and_then(|lock| lock.as_ref().map(Arc::clone))
+}
+
+/// Reset the boot-cached environment (primarily used for test isolation).
+pub fn reset_boot_cached_env() {
+    if let Ok(mut lock) = BOOT_CACHED_ENV.write() {
+        *lock = None;
+    }
+}
+
 /// Capture a quick snapshot of the current execution environment as an
 /// [`EnvDescription`], omitting slow or network-dependent queries unless
 /// already cached.
+///
+/// If called after a full workspace boot, returns the cached value that was
+/// recorded during startup.
 pub fn capture_quick() -> EnvDescription {
+    if let Some(cached) = get_boot_cached_env() {
+        return (*cached).clone();
+    }
     EnvDescription::capture_quick()
 }
 
-static GLOBAL_OPERATION_ENV: RwLock<Option<Arc<EnvDescription>>> =
+#[derive(Clone, Debug)]
+enum ScopeSlot {
+    Concrete(Arc<EnvDescription>),
+    LazyQuick(Arc<OnceLock<Arc<EnvDescription>>>),
+    LazyFull(Arc<OnceLock<Arc<EnvDescription>>>),
+}
+
+impl ScopeSlot {
+    fn resolve(&self) -> Arc<EnvDescription> {
+        match self {
+            Self::Concrete(env) => Arc::clone(env),
+            Self::LazyQuick(lock) => Arc::clone(lock.get_or_init(|| {
+                if let Some(cached) = get_boot_cached_env() {
+                    cached
+                } else {
+                    Arc::new(capture_quick())
+                }
+            })),
+            Self::LazyFull(lock) => Arc::clone(lock.get_or_init(|| {
+                Arc::new(capture())
+            })),
+        }
+    }
+}
+
+static GLOBAL_OPERATION_ENV: RwLock<Option<ScopeSlot>> =
     RwLock::new(None);
 static OPERATION_EPOCH: AtomicU64 = AtomicU64::new(1);
 
 thread_local! {
-    static ACTIVE_SCOPE: RefCell<Option<Arc<EnvDescription>>> =
+    static ACTIVE_SCOPE: RefCell<Option<ScopeSlot>> =
         const { RefCell::new(None) };
     static EPOCH_CACHE: RefCell<(u64, Option<Arc<EnvDescription>>)> =
         const { RefCell::new((0, None)) };
@@ -1292,27 +1381,34 @@ thread_local! {
 /// exact [`Arc<EnvDescription>`] without re-probing or allocating.
 #[derive(Debug)]
 pub struct EnvironmentScope {
-    previous: Option<Arc<EnvDescription>>,
+    previous: Option<ScopeSlot>,
 }
 
 impl EnvironmentScope {
     /// Enters a new thread-local environment scope with the given environment.
     pub fn enter(env: Arc<EnvDescription>) -> Self {
+        let slot = ScopeSlot::Concrete(env);
         let previous =
-            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(env));
+            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
         Self { previous }
     }
 
-    /// Captures a fresh quick environment snapshot and enters a thread-local
-    /// scope.
+    /// Enters a thread-local scope that lazily captures a quick environment
+    /// snapshot only upon first access.
     pub fn enter_fresh() -> Self {
-        Self::enter(Arc::new(capture_quick()))
+        let slot = ScopeSlot::LazyQuick(Arc::new(OnceLock::new()));
+        let previous =
+            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
+        Self { previous }
     }
 
-    /// Captures a full environment snapshot (using slow environment detection
-    /// including network queries) and enters a thread-local scope.
+    /// Enters a thread-local scope that lazily captures a full environment
+    /// snapshot (including network queries) only upon first access.
     pub fn enter_full() -> Self {
-        Self::enter(Arc::new(capture()))
+        let slot = ScopeSlot::LazyFull(Arc::new(OnceLock::new()));
+        let previous =
+            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
+        Self { previous }
     }
 }
 
@@ -1328,30 +1424,43 @@ impl Drop for EnvironmentScope {
 /// multi-threaded operations (such as parallel directory traversal).
 #[derive(Debug)]
 pub struct GlobalEnvironmentScope {
-    previous: Option<Arc<EnvDescription>>,
+    previous: Option<ScopeSlot>,
 }
 
 impl GlobalEnvironmentScope {
     /// Enters a process-wide environment scope with the given environment.
     pub fn enter(env: Arc<EnvDescription>) -> Self {
+        let slot = ScopeSlot::Concrete(env);
         let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
-            lock.replace(env)
+            lock.replace(slot)
         } else {
             None
         };
         Self { previous }
     }
 
-    /// Captures a fresh quick environment snapshot and enters a process-wide
-    /// scope.
+    /// Enters a process-wide scope that lazily captures a quick environment
+    /// snapshot only upon first access.
     pub fn enter_fresh() -> Self {
-        Self::enter(Arc::new(capture_quick()))
+        let slot = ScopeSlot::LazyQuick(Arc::new(OnceLock::new()));
+        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
+            lock.replace(slot)
+        } else {
+            None
+        };
+        Self { previous }
     }
 
-    /// Captures a full environment snapshot (using slow environment detection
-    /// including network queries) and enters a process-wide scope.
+    /// Enters a process-wide scope that lazily captures a full environment
+    /// snapshot (including network queries) only upon first access.
     pub fn enter_full() -> Self {
-        Self::enter(Arc::new(capture()))
+        let slot = ScopeSlot::LazyFull(Arc::new(OnceLock::new()));
+        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
+            lock.replace(slot)
+        } else {
+            None
+        };
+        Self { previous }
     }
 }
 
@@ -1403,17 +1512,22 @@ pub fn reset_quick_env_cache() {
 /// Prioritizes:
 /// 1. An active thread-local [`EnvironmentScope`].
 /// 2. An active process-wide [`GlobalEnvironmentScope`].
-/// 3. An unscoped thread-local epoch cache (invalidated per-operation via
+/// 3. The boot-cached environment recorded during workspace startup, if present.
+/// 4. An unscoped thread-local epoch cache (invalidated per-operation via
 ///    [`advance_operation_epoch()`] or [`reset_quick_env_cache()`]).
 pub fn capture_quick_arc() -> Arc<EnvDescription> {
-    if let Some(env) = ACTIVE_SCOPE.with(|scope| scope.borrow().clone()) {
-        return env;
+    if let Some(slot) = ACTIVE_SCOPE.with(|scope| scope.borrow().clone()) {
+        return slot.resolve();
     }
 
     if let Ok(lock) = GLOBAL_OPERATION_ENV.read() {
-        if let Some(ref env) = *lock {
-            return Arc::clone(env);
+        if let Some(ref slot) = *lock {
+            return slot.resolve();
         }
+    }
+
+    if let Some(cached) = get_boot_cached_env() {
+        return cached;
     }
 
     let current_epoch = OPERATION_EPOCH.load(Ordering::Relaxed);
@@ -1646,6 +1760,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_capture_quick_arc() {
         let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_boot_cached_env();
         // Repeated calls within the same epoch share the exact same Arc
         let arc1 = capture_quick_arc();
         let arc2 = capture_quick_arc();
@@ -1685,6 +1800,63 @@ mod tests {
             let _ = advance_operation_epoch();
             let cached_after = CACHED_LOCAL_IPV4.read().unwrap();
             assert_eq!(*cached_after, Some(ip));
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_boot_cached_env() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_boot_cached_env();
+        assert!(get_boot_cached_env().is_none());
+
+        // Initializing boot env populates cache
+        let boot_env = init_boot_env();
+        assert!(get_boot_cached_env().is_some());
+        let cached = get_boot_cached_env().unwrap();
+        assert!(Arc::ptr_eq(&boot_env, &cached));
+
+        // capture_quick_arc returns the boot-cached env directly
+        let quick_arc = capture_quick_arc();
+        assert!(Arc::ptr_eq(&quick_arc, &boot_env));
+
+        // capture_quick returns a clone of the boot-cached env
+        let quick = capture_quick();
+        assert_eq!(quick.os, boot_env.os);
+
+        // Reset clears it
+        reset_boot_cached_env();
+        assert!(get_boot_cached_env().is_none());
+    }
+
+    #[crate::ctb_test]
+    fn test_lazy_scopes() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_boot_cached_env();
+
+        // 1. Thread-local lazy scope: enter_fresh lazily resolves on first capture_quick_arc
+        {
+            let _scope = EnvironmentScope::enter_fresh();
+            let arc1 = capture_quick_arc();
+            let arc2 = capture_quick_arc();
+            assert!(Arc::ptr_eq(&arc1, &arc2));
+        }
+
+        // 2. Process-wide lazy scope: successive enter_fresh scopes get distinct snapshots
+        let arc_op1 = {
+            let _scope1 = GlobalEnvironmentScope::enter_fresh();
+            capture_quick_arc()
+        };
+        let arc_op2 = {
+            let _scope2 = GlobalEnvironmentScope::enter_fresh();
+            capture_quick_arc()
+        };
+        assert!(!Arc::ptr_eq(&arc_op1, &arc_op2));
+
+        // 3. enter_full lazily resolves full provenance
+        {
+            let _scope_full = GlobalEnvironmentScope::enter_full();
+            let arc_full = capture_quick_arc();
+            assert_eq!(arc_full.os, os());
         }
     }
 
