@@ -136,7 +136,6 @@ exceptions = [
         "CC-BY-4.0",
         "GPL-3.0-only",
         "LGPL-3.0-only",
-        "PSF-2.0",
         "AGPL-3.0-only",
         "BSD-2-Clause-Darwin",
         "BSD-1-Clause",
