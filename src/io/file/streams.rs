@@ -53,6 +53,8 @@ use ctb_utilities::format_id::FormatId;
 pub enum StreamName {
     Bytes(Vec<u8>),
     WindowsUtf16(Vec<u16>),
+    /// Encoded source bytes that cannot yet be interpreted losslessly.
+    Encoded { format: FormatId, bytes: Vec<u8> },
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for StreamName {
@@ -75,6 +77,14 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
                 mst.push_binary_with_metadata(&bytes, &metadata)?;
                 Ok(())
             }
+            Self::Encoded { format, bytes } => {
+                let mut metadata = ctb_formats_dcstring::DcString::new();
+                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
+                    format.dc_id().context("Missing stream name format identifier")?
+                ));
+                mst.push_binary_with_metadata(bytes, &metadata)?;
+                Ok(())
+            }
         }
     }
 }
@@ -86,12 +96,13 @@ impl ctb_formats_dcstring::DcMixedDecode for StreamName {
             if format == Some(ctb_formats_dcstring::DcChar::from_u128(
                 FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
             )) {
-                let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(&bytes)?;
-                anyhow::ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == bytes.as_ref(),
-                    "Stream name is not canonical WTF-8");
-                return Ok(Self::WindowsUtf16(units));
+                return Self::from_encoded(FormatId::Wtf8, bytes.to_vec());
             }
-            anyhow::ensure!(format.is_none(), "Unsupported stream name byte encoding");
+            if let Some(format) = format {
+                let format = FormatId::from_dc_id(format.to_u128())
+                    .context("Unsupported stream name byte encoding")?;
+                return Self::from_encoded(format, bytes.to_vec());
+            }
             Ok(Self::Bytes(bytes.to_vec()))
         } else if reader.peek_short_dc()? == Some(310) {
             let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
@@ -124,12 +135,28 @@ impl StreamName {
             Self::WindowsUtf16(units) => std::borrow::Cow::Owned(
                 units.iter().flat_map(|unit| unit.to_le_bytes()).collect(),
             ),
+            Self::Encoded { bytes, .. } => std::borrow::Cow::Borrowed(bytes),
         }
     }
 
     #[must_use]
     pub fn from_windows_utf16(units: &[u16]) -> Self {
         Self::WindowsUtf16(units.to_vec())
+    }
+
+    /// Retains encoded bytes if decoding would reject or change their spelling.
+    ///
+    /// `DcIntegerList` is retained only as the declared historical encoding;
+    /// its incorrectly tagged UTF-16 bytes are interpreted at the journal boundary.
+    pub fn from_encoded(format: FormatId, bytes: Vec<u8>) -> Result<Self> {
+        if format == FormatId::Wtf8 {
+            if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(&bytes) {
+                if ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == bytes {
+                    return Ok(Self::WindowsUtf16(units));
+                }
+            }
+        }
+        Ok(Self::Encoded { format, bytes })
     }
 
     #[must_use]
@@ -151,6 +178,7 @@ impl StreamName {
             Self::WindowsUtf16(units) => {
                 std::borrow::Cow::Owned(String::from_utf16_lossy(units))
             }
+            Self::Encoded { bytes, .. } => String::from_utf8_lossy(bytes),
         }
     }
 
@@ -192,6 +220,14 @@ impl StreamName {
     /// Converts only at the filesystem boundary, rejecting lossy transcoding.
     pub fn to_os_string(&self) -> Result<OsString> {
         match self {
+            Self::Encoded { format, bytes } => {
+                anyhow::ensure!(*format == FormatId::Wtf8,
+                    "Cannot use stream name with uninterpreted source encoding {format:?}");
+                let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(bytes)?;
+                anyhow::ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == *bytes,
+                    "Stream name is not canonical WTF-8");
+                Self::WindowsUtf16(units).to_os_string()
+            }
             Self::Bytes(bytes) => {
                 #[cfg(unix)]
                 {

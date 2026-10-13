@@ -1309,6 +1309,28 @@ impl DcMixedEncode for std::path::Path {
     }
 }
 
+/// Encodes a value within the declared format representation boundaries.
+pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
+    value: &T, format: DcChar, mst: &mut DcMstring, context: &SharedValueContext,
+) -> Result<()> {
+    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
+    mst.push_char(format);
+    value.encode_dc_mixed_with_context(mst, context)?;
+    mst.push_char(DC_END_FORMAT_REPRESENTATION);
+    Ok(())
+}
+
+/// Decodes a value within the declared format representation boundaries.
+pub fn decode_format_representation<T: DcMixedDecode>(
+    reader: &mut DcMixedReader<'_>, format: DcChar,
+) -> Result<T> {
+    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+    reader.expect_char(format)?;
+    let value = T::decode_dc_mixed(reader)?;
+    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
+    Ok(value)
+}
+
 /// Resolves native Unix bytes or canonical Windows WTF-8 without replacement.
 ///
 /// # Errors

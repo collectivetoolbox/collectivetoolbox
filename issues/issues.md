@@ -79,14 +79,14 @@ magic-square
 
 ### Installer
 
-- `"-  - Reject invalid or noncanonical WTF-8.` and `reject odd-length historical payloads.` should preserve lossless until used and validate and reject on use of it
+- `"-  - Reject invalid or noncanonical WTF-8.` and `reject odd-length historical payloads.` This sounds wrong; it should preserve lossless until used and validate and reject on use of it.
 -```
 
 +1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file type code.,,,,,,,,,
 +1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file creator code.,,,,,,,,,
 
 ```
-    They should be constrained to 4 bytes.
+    Even `[data]` should be constrained to 4 bytes. Maybe there should be some syntax that could indicate the allowed length of data? Or a new `[byte]` named type, so it could be `[byte]{4}` (though that would need special-case handling to make it a single encapsulated data region, probably...? not sure how to elegantly express the syntax for that.)
 
 - ```
 
@@ -94,7 +94,7 @@ magic-square
 +1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ ([filename] | [string] | [data]),Original real file name preserved in AppleSingle or AppleDouble archive.,,,,,,,,,
 ```
 
-Edit is just wrong
+This edit is just wrong.
 
 
 - ```
@@ -105,6 +105,8 @@ Edit is just wrong
 Again wrong, looks like changing the accepted syntax to make a broken implementation pass validation.
 
 -`+                    match legacy::decode_v4_entity(&mut reader, &shared_context) {` ??? v4 is the current format, not legacy. The test fixture may be a mangled document due to bugs, maybe this is trying to parse a document with invalid syntax? I'm not convinced it's worth implementing deserialization of a buggy format. One less weird way to do that might be to use the existing fuzzy 'tag-soup'-style parser and then map the larger already-parsed structures onto the Rust structs. Maintaining a dedicated parser layer for one-off serialization bugs during development doesn't smell right.
+
+- The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways?
 
 
 "Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).

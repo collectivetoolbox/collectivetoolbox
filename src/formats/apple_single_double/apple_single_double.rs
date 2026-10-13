@@ -861,7 +861,7 @@ pub struct FinderInfo {
     #[dc(nested = (490))]
     pub extended: Option<ExtendedFinderInfo>,
     /// Folder window rectangle `[top, left, bottom, right]` for directory records (`DInfo`).
-    #[dc(510, default, omit_default)]
+    #[dc(510, representation = f524, default, omit_default)]
     pub window_bounds: Option<[i16; 4]>,
 }
 

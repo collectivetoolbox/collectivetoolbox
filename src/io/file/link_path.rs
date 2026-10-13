@@ -43,7 +43,8 @@ use std::path::{Path, PathBuf};
 
 /// Exact source bytes of a link target, independent of the reader's host OS.
 ///
-/// Windows bytes use canonical WTF-8. The source separator convention is
+/// Windows bytes are retained as WTF-8 without decoding until use. The source
+/// separator convention is
 /// retained so splitting never mistakes a Unix backslash for a delimiter.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
 pub struct LinkPath {
@@ -107,6 +108,7 @@ impl LinkPath {
     /// Returns an error if bytes or path components cannot be represented on the
     /// host without changing their interpretation.
     pub fn to_path_buf(&self) -> Result<PathBuf> {
+        self.validate_source_encoding()?;
         if self.is_windows == cfg!(windows) {
             return path_from_native_bytes(&self.bytes);
         }
@@ -239,7 +241,6 @@ impl PartialEq<Path> for LinkPath {
 
 impl DcMixedEncode for LinkPath {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        self.validate_source_encoding()?;
         // A typed path retains segments but not the source separator spelling.
         mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
         mst.push_char(DC_BEGIN_LIST);
@@ -271,7 +272,6 @@ impl DcMixedDecode for LinkPath {
             ensure!(format.is_none() || format == Some(windows_format),
                 "Unsupported link target byte encoding");
             let path = Self::from_bytes(&bytes, format == Some(windows_format));
-            path.validate_source_encoding()?;
             ensure!(segments == path.segments(), "Conflicting link path representations");
             reader.expect_char(DC_END_LIST)?;
             return Ok(path);

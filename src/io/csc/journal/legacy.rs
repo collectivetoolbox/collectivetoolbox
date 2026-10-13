@@ -138,11 +138,15 @@ fn normalize_v4_entity(reader: &mut DcMixedReader<'_>) -> Result<(DcMstring, boo
                         FormatId::DcIntegerList.dc_id().context("Missing Dc Integer List format identifier")?
                     );
                     if format == Some(incorrect_format) {
-                        ensure!(bytes.len().is_multiple_of(2), "Historical UTF-16 stream name has odd byte length");
-                        let units = bytes.chunks_exact(2)
-                            .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
-                            .collect::<Result<Vec<_>>>()?;
-                        StreamName::from_windows_utf16(&units).encode_dc_mixed(&mut normalized)?;
+                        let name = if bytes.len().is_multiple_of(2) {
+                            let units = bytes.chunks_exact(2)
+                                .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
+                                .collect::<Result<Vec<_>>>()?;
+                            StreamName::from_windows_utf16(&units)
+                        } else {
+                            StreamName::from_encoded(FormatId::DcIntegerList, bytes.to_vec())?
+                        };
+                        name.encode_dc_mixed(&mut normalized)?;
                         *reader = trial;
                         changed = true;
                     }
@@ -225,21 +229,23 @@ mod compatibility_tests {
             old.push_binary_with_metadata(bytes, &metadata)?;
             old.push_char(DcChar::from_short(318));
             let mut reader = DcMixedReader::new(&old);
-            if bytes.len().is_multiple_of(2) {
                 let (normalized, changed) = normalize_v4_entity(&mut reader)?;
                 ensure!(changed, "Historical stream name was not adapted");
                 let mut decoded = DcMixedReader::new(&normalized);
                 decoded.expect_short_dc(317)?;
                 decoded.expect_short_dc(338)?;
                 decoded.expect_short_dc(315)?;
-                ensure!(StreamName::decode_dc_mixed(&mut decoded)?
-                    == StreamName::from_windows_utf16(&[0x61, 0xd800]),
-                    "Historical stream units changed");
+                let name = StreamName::decode_dc_mixed(&mut decoded)?;
+                if bytes.len().is_multiple_of(2) {
+                    ensure!(name == StreamName::from_windows_utf16(&[0x61, 0xd800]),
+                        "Historical stream units changed");
+                } else {
+                    ensure!(name.as_bytes().as_ref() == bytes, "Odd historical payload changed");
+                    ensure!(name.to_os_string().is_err(), "Odd historical payload was materialized");
+                    ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
+                }
                 decoded.expect_short_dc(318)?;
                 ensure!(reader.peek_char()?.is_none(), "Original cursor did not advance");
-            } else {
-                ensure!(normalize_v4_entity(&mut reader).is_err(), "Odd UTF-16 length was truncated");
-            }
         }
         Ok(())
     }

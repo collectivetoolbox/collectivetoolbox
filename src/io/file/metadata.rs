@@ -968,7 +968,15 @@ impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
         }
         if let Some(ref rn) = self.real_name {
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(496));
-            rn.encode_dc_mixed(mst)?;
+            ctb_formats_dcstring::dc_mixed_serde::encode_format_representation(
+                rn,
+                ctb_formats_dcstring::DcChar::from_u128(
+                    ctb_utilities::format_id::FormatId::FileName.dc_id()
+                        .context("Missing filename format identifier")?
+                ),
+                mst,
+                &ctb_formats_dcstring::SharedValueContext::default(),
+            )?;
         }
         if let Some(ref c) = self.comment {
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(400));
@@ -1004,7 +1012,13 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
             match tag {
                 496 => {
                     reader.read_short_dc()?;
-                    real_name = Some(String::decode_dc_mixed(reader)?);
+                    real_name = Some(ctb_formats_dcstring::dc_mixed_serde::decode_format_representation(
+                        reader,
+                        ctb_formats_dcstring::DcChar::from_u128(
+                            ctb_utilities::format_id::FormatId::FileName.dc_id()
+                                .context("Missing filename format identifier")?
+                        ),
+                    )?);
                 }
                 400 => {
                     reader.read_short_dc()?;
@@ -1014,7 +1028,7 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
                     reader.read_short_dc()?;
                     backup_timestamp_sec = Some(i64::decode_dc_mixed(reader)?);
                 }
-                finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490) => {
+                finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490 | 510) => {
                     let fi = finder_info.get_or_insert_with(FinderInfo::default);
                     if !fi.decode_field(finder_tag, reader)? {
                         reader.next_char()?;

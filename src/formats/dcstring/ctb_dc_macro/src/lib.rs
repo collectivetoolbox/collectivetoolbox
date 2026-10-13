@@ -152,6 +152,7 @@ struct FieldDcAttr {
     flatten: bool,
     shared: Option<syn::LitStr>,
     raw: Option<(syn::Ident, u128)>,
+    representation: Option<u128>,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -389,6 +390,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut flatten = false;
     let mut shared = None;
     let mut raw = None;
+    let mut representation = None;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -417,6 +419,14 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                         match key.as_str() {
                             "shared" => {
                                 shared = Some(stream.parse::<syn::LitStr>()?);
+                            }
+                            "representation" => {
+                                let expr: Expr = stream.parse()?;
+                                let format = parse_dc_expr(&expr)?;
+                                if !(FORMAT_REGION_START..=FORMAT_REGION_START.saturating_add(u128::from(MAX_SHORT_DC))).contains(&format) {
+                                    return Err(syn::Error::new(expr.span(), "representation requires a format identifier"));
+                                }
+                                representation = Some(format);
                             }
                             "short" => {
                                 let expr: Expr = stream.parse()?;
@@ -605,6 +615,14 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         {
             return Err(syn::Error::new(field.span(), "shared requires a nonempty name and a nested Arc<T> or Option<Arc<T>> field"));
         }
+
+        if representation.is_some() && (tag.is_none() || !nested.is_empty()
+            || begin.is_some() || end.is_some() || binary || checksum || flatten
+            || skip || equivalents.is_some() || shared.is_some() || raw.is_some())
+        {
+            return Err(syn::Error::new(field.span(),
+                "representation requires a tagged value field without another codec"));
+        }
     }
 
     if let (Some(b), Some(e)) = (begin, end) {
@@ -651,6 +669,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         flatten,
         shared,
         raw,
+        representation,
     })
 }
 
@@ -1376,7 +1395,52 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let type_str = quote!(#field_ty).to_string();
                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
 
-                if let Some(ref shared_name) = attr.shared {
+                if let Some(format) = attr.representation {
+                    if is_vec {
+                        return Err(syn::Error::new(field.span(), "representation requires a single value, not a repeated Vec field"));
+                    }
+                    let (encode, decode) = if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                        (quote! {
+                            if let Some(value) = &self.#field_ident {
+                                mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                #crate_root::dc_mixed_serde::encode_format_representation(
+                                    value, #crate_root::DcChar::from_u128(#format), mst, context)?;
+                            }
+                        }, quote! {
+                            Some(#crate_root::dc_mixed_serde::decode_format_representation::<#inner_ty>(
+                                reader, #crate_root::DcChar::from_u128(#format))?)
+                        })
+                    } else {
+                        let encode = quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            #crate_root::dc_mixed_serde::encode_format_representation(
+                                &self.#field_ident, #crate_root::DcChar::from_u128(#format), mst, context)?;
+                        };
+                        let encode = if attr.omit_default {
+                            quote! {
+                                if self.#field_ident != <#field_ty as Default>::default() { #encode }
+                            }
+                        } else { encode };
+                        (encode, quote! {
+                            #crate_root::dc_mixed_serde::decode_format_representation::<#field_ty>(
+                                reader, #crate_root::DcChar::from_u128(#format))?
+                        })
+                    };
+                    encode_fields.push(encode);
+                    decode_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            #field_ident = Some(#decode);
+                        }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            self.#field_ident = #decode;
+                            Ok(true)
+                        }
+                    });
+                } else if let Some(ref shared_name) = attr.shared {
                     if !shared_names.insert(shared_name.value()) {
                         return Err(syn::Error::new(shared_name.span(), "Duplicate shared field name"));
                     }
