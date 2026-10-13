@@ -2351,6 +2351,52 @@ mod tests {
         }
     }
 
+    #[crate::ctb_test]
+    fn test_flag_lists_strict_roundtrip() -> Result<()> {
+        for mask in 0..=7 {
+            let flags = SampleFlags::from_u8(mask);
+            assert_dc_document_roundtrip(&flags)?;
+            let mut expected = vec![388, 310, 275];
+            for (enabled, tag) in [
+                (flags.flag_a, 499),
+                (flags.flag_b, 500),
+                (flags.flag_c, 501),
+            ] {
+                if enabled {
+                    if expected.len() > 3 {
+                        expected.push(312);
+                    }
+                    expected.push(tag);
+                }
+            }
+            expected.extend([311, 389]);
+            let expected = expected.into_iter()
+                .map(|id| DcChar::from_short(id).to_u128()).collect::<Vec<_>>();
+            ensure!(flags.to_dc_mixed()?.to_dc_tokens()? == expected);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_flag_lists_reject_malformed_framing() -> Result<()> {
+        for tokens in [
+            vec![388, 310, 499, 311, 389],
+            vec![388, 310, 275, 499, 500, 311, 389],
+            vec![388, 310, 275, 499, 312, 311, 389],
+            vec![388, 310, 275, 403, 311, 389],
+            vec![388, 310, 275, 499, 389],
+            vec![388, 310, 275, 499, 311],
+            vec![388, 310, 275, 499],
+        ] {
+            let mut mst = DcMstring::new();
+            for token in tokens {
+                mst.push_char(DcChar::from_short(token));
+            }
+            ensure!(SampleFlags::decode_dc_mixed(&mut DcMixedReader::new(&mst)).is_err());
+        }
+        Ok(())
+    }
+
     #[derive(Debug, Clone, PartialEq, Eq, Default, DcMixed)]
     #[dc(begin = 401, end = 402)]
     struct SampleEquivalentParent {

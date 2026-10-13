@@ -816,7 +816,7 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
 #[dc(begin = 490, end = 491)]
 pub struct ExtendedFinderInfo {
     /// Custom icon ID (for files).
-    #[dc(492, default, omit_default)]
+    #[dc(492, default)]
     pub icon_id: i16,
     /// Script system code.
     #[dc(493, default, omit_default)]
@@ -831,7 +831,7 @@ pub struct ExtendedFinderInfo {
     #[dc(495, default, omit_default)]
     pub put_away: u32,
     /// Icon view scroll position for folders (DXInfo `frScroll`).
-    #[dc(407)]
+    #[dc(407, representation = f523)]
     pub scroll_position: Option<(i16, i16)>,
 }
 
@@ -852,7 +852,7 @@ pub struct FinderInfo {
     #[dc(406, equivalents = (388, number), default, omit_default)]
     pub flags: FinderFlags,
     /// Icon coordinates in QuickDraw grid `(v, h)`.
-    #[dc(407, default, omit_default)]
+    #[dc(407, representation = f523, default, omit_default)]
     pub location: (i16, i16),
     /// Window / folder ID (or folder view mode `frView`).
     #[dc(408, default, omit_default)]
@@ -2149,6 +2149,44 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_finder_full_record_strict_roundtrip() -> Result<()> {
+        for index in 0..=7 {
+            for location in [(i16::MIN, i16::MAX), (-1, 1), (0, 0)] {
+                for scroll_position in [None, Some((0, 0)), Some(location)] {
+                    let extended = ExtendedFinderInfo {
+                        icon_id: i16::MIN,
+                        script: i8::MIN,
+                        xflags: ExtendedFlags::from_raw_u8(0x85),
+                        comment: i16::MAX,
+                        put_away: u32::MAX,
+                        scroll_position,
+                    };
+                    ctb_formats_dcstring::assert_dc_document_roundtrip(&extended)?;
+                    let finfo = FinderInfo {
+                        file_type: "TEXT".to_string(),
+                        file_creator: "ttxt".to_string(),
+                        label: FinderLabel::try_from(index)?,
+                        flags: FinderFlags::from_raw_u16(0xffc1),
+                        location,
+                        folder_id: i16::MIN,
+                        extended: Some(extended),
+                        window_bounds: Some([i16::MIN, -1, 1, i16::MAX]),
+                    };
+                    ctb_formats_dcstring::assert_dc_document_roundtrip(&finfo)?;
+                }
+            }
+        }
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderFlags::default())?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&ExtendedFlags::default())?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&ExtendedFinderInfo::default())?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderInfo {
+            extended: Some(ExtendedFinderInfo::default()),
+            ..FinderInfo::default()
+        })?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
         use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
@@ -2174,6 +2212,7 @@ mod tests {
         let mut reader = DcMixedReader::new(&mst);
         let decoded_ext = ExtendedFinderInfo::decode_dc_mixed(&mut reader)?;
         ensure!(decoded_ext == ext);
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&ext)?;
 
         // 3. FinderFlags bitmask conversion
         let label = FinderLabel::from_index(5);
@@ -2202,12 +2241,7 @@ mod tests {
         let mut reader = DcMixedReader::new(&mst);
         let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
         ensure!(decoded_finfo == finfo);
-        ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderInfo {
-            flags: FinderFlags::default(),
-            location: (0, 0),
-            extended: None,
-            ..finfo.clone()
-        })?;
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&finfo)?;
 
         // 5. Test decoding from Dc with semantic flags only
         let mut custom_mst = DcMstring::new();

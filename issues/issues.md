@@ -112,11 +112,21 @@ The pre-existing Finder-label failure at Dc 405 is fixed: `equivalents` derives
 now emit the required Object type header in the Dc 397 list, without relaxing
 database syntax. All eight label values and direct semantic/numeric forms have
 strict-validation regression coverage; Dc 405 alternatives are now grouped
-under their common tag, retaining the same bound and label Dcs. Remaining gaps:
-full Finder records still fail strict validation at Dc 388 because `flags`
-derives emit bare flags instead of a typed list, and at Dc 407 because location
-emits an untyped tuple instead of an f523 representation. Ordinary full-record
-roundtrips remain covered.
+under their common tag, retaining the same bound and label Dcs.
+
+The Dc 388 and Dc 407 follow-up is fixed: `flags` derives emit a typed Object
+list with separators, and both Finder icon location and extended scroll position
+use the existing f523 representation attribute. Malformed flag-list framing and
+unknown flags fail explicitly. Extended Finder info always emits its icon ID so
+default records satisfy Dc 490's nonempty-content rule. Full-record strict
+roundtrips now cover all labels, all flags, coordinate extremes, absent/present
+scroll positions, rectangles, and default extended records. All 490 affected
+library tests passed without failures or ignored tests; targeted Clippy passed.
+
+Remaining verification: the full workspace and native Windows suites have not
+been rerun for this follow-up. Older bare flag sequences remain readable but
+fail strict validation; historical untyped coordinate tuples are not accepted
+by the format-representation decoder.
 
 
 

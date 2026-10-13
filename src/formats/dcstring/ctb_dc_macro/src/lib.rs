@@ -62,6 +62,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - `#[dc(begin = <id>, end = <id>)]` or `#[dc(<begin_id>, <end_id>)]`:
 //!   Specifies the container's opening (`begin`) and closing (`end`) delimiter
 //!   Dc characters.
+//! - `#[dc(begin = <id>, end = <id>, flags)]`: Encodes enabled boolean fields
+//!   as a typed Object list of semantic flag Dcs inside the boundaries.
+//!   Readers also accept the older bare flag sequences.
 //!
 //! During serialization, the macro emits `mst.push_char(begin)`, serializes all
 //! active fields, and then emits `mst.push_char(end)`. During deserialization,
@@ -1164,6 +1167,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     encode_flag_fields.push(quote! {
                         if self.#field_ident {
+                            if !first {
+                                mst.push_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR);
+                            }
+                            first = false;
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
                         }
                     });
@@ -1193,7 +1200,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
                         let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
+                            mst.push_char(#crate_root::dc::DC_BEGIN_LIST);
+                            mst.push_char(#crate_root::DcChar::from_short(275));
+                            let mut first = true;
                             #(#encode_flag_fields)*
+                            let _ = first;
+                            mst.push_char(#crate_root::dc::DC_END_LIST);
                             mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                             Ok(())
                         }
@@ -1203,8 +1215,23 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                         fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
                             reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
+                            let typed_list = reader.peek_char()? == Some(#crate_root::dc::DC_BEGIN_LIST);
+                            if typed_list {
+                                reader.next_char()?;
+                                reader.expect_short_dc(275)?;
+                            }
                             #(#init_flag_fields)*
+                            let mut first = true;
                             loop {
+                                if typed_list && reader.peek_char()? == Some(#crate_root::dc::DC_END_LIST) {
+                                    reader.next_char()?;
+                                    reader.expect_char(#crate_root::DcChar::from_u128(#end_dc))?;
+                                    break;
+                                }
+                                if typed_list && !first {
+                                    reader.expect_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
+                                }
+                                first = false;
                                 let tag = match reader.peek_char()? {
                                     ::std::option::Option::Some(t) => t.0,
                                     ::std::option::Option::None => {
@@ -1214,14 +1241,17 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         );
                                     }
                                 };
-                                if tag == #end_dc {
+                                if !typed_list && tag == #end_dc {
                                     reader.next_char()?;
                                     break;
                                 }
                                 match tag {
                                     #(#decode_flag_arms)*
-                                    _other => {
-                                        reader.next_char()?;
+                                    other => {
+                                        #anyhow_path::bail!(
+                                            "Unknown flag Dc {other:#X} for {}",
+                                            stringify!(#type_name)
+                                        );
                                     }
                                 }
                             }

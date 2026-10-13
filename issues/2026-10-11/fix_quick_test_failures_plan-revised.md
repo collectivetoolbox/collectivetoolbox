@@ -76,13 +76,9 @@ Verified on the Linux host:
   All eight label values and direct semantic/numeric forms are regression
   tested without broadening database syntax. Older untyped lists remain
   readable but still fail strict validation.
-- Full Finder-record strict validation additionally exposes a pre-existing
-  Dc 388 flags failure: `flags` derives emit bare flag Dcs rather than the
-  typed list required by the database. Dc 407 location also emits an untyped
-  tuple rather than its required f523 representation. These remain unresolved.
-  Strict record checks cover labels, codes, folder ID, and rectangle without
-  flags, location, or extended flags; ordinary full-record roundtrips remain
-  covered.
+- Full Finder-record strict validation at Dc 388 and Dc 407 is fixed in the
+  follow-up below. Strict record checks now include flags, location, extended
+  flags, scroll position, and default extended records.
 - Finder-label follow-up verification: 198 library tests across
   AppleSingle/Double, DcString, and DcData passed with no failures or ignored
   tests. Data-table validation and regeneration passed. Targeted Clippy is
@@ -123,7 +119,7 @@ Verified on the Linux host:
 - Verification: 478 library tests across AppleSingle/Double, conversion,
   DcData, DcString, file, and CSC passed with no failures or ignored tests.
   Targeted Clippy passed for changed crates and the derive macro.
-- Remaining verification and the unrelated Finder-label gap are listed above;
+- Remaining platform and full-workspace verification gaps are listed above;
   no full-workspace or native Windows run is claimed.
 
 ### Destination-Aware Materialization Follow-Up — 2026-10-13
@@ -149,6 +145,36 @@ Verified on the Linux host:
 - Verification: 261 library tests across file and CSC passed with no failures
   or ignored tests; targeted Clippy passed. Platform/filesystem verification
   gaps remain explicitly listed above.
+
+### Finder Strict-Validation Follow-Up — 2026-10-13
+
+- Shared `flags` derives emit enabled semantic flags as a typed Object list
+  with element separators inside their declared boundaries. Older bare flag
+  sequences remain readable; malformed typed lists and unknown flags return
+  explicit errors.
+- Finder icon location and extended scroll position use the existing
+  `representation = f523` attribute. No database syntax was relaxed.
+- Extended Finder info always emits its icon ID, including zero, so records
+  with otherwise-default fields satisfy Dc 490's nonempty-content rule.
+  Absent scroll positions remain absent rather than emitting an Option marker
+  where a QuickDraw point is required.
+- Regression coverage checks full Finder records, all eight labels, all flag
+  combinations in the shared derive fixture, coordinate extremes, absent and
+  present scroll positions, rectangles, and default extended records.
+- Verification: 490 library tests across AppleSingle/Double, conversion,
+  DcData, DcString, file, and CSC passed with no failures or ignored tests.
+  This includes the four CSC Apple archive integration tests that initially
+  exposed empty extended records. Targeted Clippy passed for the affected
+  crates and derive macro; the earlier lint blockers no longer reproduce.
+
+#### Pending Work / Remaining Verification
+
+- Full-workspace and native Windows validation have not been rerun for this
+  follow-up. The platform/filesystem gaps above remain unchanged.
+- Historical bare flag sequences remain readable but do not pass strict syntax
+  validation. Historical untyped location tuples are not accepted by the
+  format-representation decoder; this follow-up does not add a compatibility
+  parser for invalid coordinate encodings.
 
 ---
 
