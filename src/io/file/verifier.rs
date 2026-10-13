@@ -801,29 +801,6 @@ pub fn audit_entity_detailed(
                 on_disk_streams = check_entity.streams;
             }
         }
-        let mut expected_map = HashMap::new();
-        for s in &expected.streams {
-            let hash = match &s.entity.kind {
-                FileEntityKind::Regular { sha256, .. } => *sha256,
-                _ => [0_u8; 32],
-            };
-            let native_name = match &s.name {
-                Some(name) => name.canonicalize_native()?,
-                None => match s.kind {
-                    crate::streams::StreamKind::MacOsResourceFork => {
-                        crate::streams::StreamName::from_str(
-                            crate::streams::RESOURCE_FORK_XATTR_NAME,
-                        ).canonicalize_native()?
-                    }
-                    _ => continue,
-                },
-            };
-            anyhow::ensure!(
-                expected_map.insert(native_name, hash).is_none(),
-                "Stream names collide on the destination platform"
-            );
-        }
-
         let mut disk_map = HashMap::new();
         for s in &on_disk_streams {
             let hash = match &s.entity.kind {
@@ -842,6 +819,40 @@ pub fn audit_entity_detailed(
                 },
             };
             disk_map.insert(native_name, hash);
+        }
+
+        let mut expected_map = HashMap::new();
+        for s in &expected.streams {
+            let hash = match &s.entity.kind {
+                FileEntityKind::Regular { sha256, .. } => *sha256,
+                _ => [0_u8; 32],
+            };
+            let mut native_name = match &s.name {
+                Some(name) => name.canonicalize_native_for_materialization(!options.best_effort)?,
+                None => match s.kind {
+                    crate::streams::StreamKind::MacOsResourceFork => {
+                        crate::streams::StreamName::from_str(
+                            crate::streams::RESOURCE_FORK_XATTR_NAME,
+                        ).canonicalize_native()?
+                    }
+                    _ => continue,
+                },
+            };
+            if options.best_effort {
+                let raw_name = native_name.to_os_string()?;
+                let adapted = crate::streams::StreamName::from_str(&raw_name.to_string_lossy())
+                    .canonicalize_native()?;
+                if adapted != native_name {
+                    if !disk_map.contains_key(&native_name) && disk_map.contains_key(&adapted) {
+                        warn!("Auditing replacement-encoded stream name (best-effort)");
+                        native_name = adapted;
+                    }
+                }
+            }
+            anyhow::ensure!(
+                expected_map.insert(native_name, hash).is_none(),
+                "Stream names collide on the destination platform"
+            );
         }
 
         for (exp_name, exp_hash) in &expected_map {
@@ -880,9 +891,14 @@ pub fn audit_entity_detailed(
     {
         let actual_target = crate::metadata::read_symlink_target(path, &dest_meta)?;
         let actual_bytes = actual_target.as_os_str().as_encoded_bytes();
-        let expected_path = expected_target.to_path_buf()?;
+        let expected_path = expected_target.to_path_buf_for_materialization(!options.best_effort)?;
         let expected_bytes = expected_path.as_os_str().as_encoded_bytes();
-        if actual_bytes != expected_bytes {
+        let adapted = expected_path.to_string_lossy();
+        let accepts_replacement = options.best_effort && actual_bytes == adapted.as_bytes();
+        if accepts_replacement && actual_bytes != expected_bytes {
+            warn!("Auditing replacement-encoded symlink target (best-effort)");
+        }
+        if actual_bytes != expected_bytes && !accepts_replacement {
             diffs.push(DiffKind::SymlinkTargetMismatch {
                 expected: String::from_utf8_lossy(&expected_bytes).to_string(),
                 actual: String::from_utf8_lossy(actual_bytes).to_string(),

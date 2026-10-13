@@ -197,7 +197,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114618,506,File flag: has bundle,0,BN,,!Cx,.Semantic:fileflag,hasbundle,Mac OS application has bundle resource.
 1114619,507,File flag: invisible,0,BN,,!Cx,.Semantic:fileflag,invisible,Mac OS Finder invisible flag.
 1114620,508,File flag: alias,0,BN,,!Cx,.Semantic:fileflag,alias,Mac OS object is an alias file.
-1114621,509,File flag: extended flags invalid,0,BN,,!Cx,.Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
+1114621,509,File flag: extended flags invalid,0,BN,,!Cx,.Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.,
 1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:] 512,Mac OS Finder folder window bounds rectangle coordinates.
 1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""BeginFormatRepresentation""), :~ [format] [^512]+ [512]",E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
 1114624,512,End Dc representation of format,0,BN,,!Cx,.Semantic,"@ident(""EndFormatRepresentation""), @closes(511)",

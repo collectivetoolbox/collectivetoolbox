@@ -609,7 +609,12 @@ pub fn execute_copy_pipeline(
                 }
             };
             if let FileEntityKind::Symlink { target } = &entity.kind {
-                if dest_target.as_os_str().as_encoded_bytes() != target.to_path_buf()?.as_os_str().as_encoded_bytes() {
+                let expected_target = target.to_path_buf_for_materialization(strict_lossless)?;
+                let exact = dest_target.as_os_str().as_encoded_bytes()
+                    == expected_target.as_os_str().as_encoded_bytes();
+                let adapted = !strict_lossless && dest_target.as_os_str().as_encoded_bytes()
+                    == expected_target.to_string_lossy().as_bytes();
+                if !exact && !adapted {
                     let err = anyhow::anyhow!(
                         "Target filesystem altered or normalized symlink target for {}",
                         dest_path.display()

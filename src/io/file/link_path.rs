@@ -41,11 +41,25 @@ use ctb_utilities::format_id::FormatId;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
 
+pub(crate) fn is_destination_encoding_error(error: &anyhow::Error) -> bool {
+    #[cfg(unix)]
+    if error.downcast_ref::<rustix::io::Errno>() == Some(&rustix::io::Errno::ILSEQ) {
+        return true;
+    }
+    if let Some(error) = error.downcast_ref::<std::io::Error>() {
+        #[cfg(unix)]
+        return error.raw_os_error() == Some(libc::EILSEQ);
+        #[cfg(windows)]
+        return error.raw_os_error() == Some(1113); // ERROR_NO_UNICODE_TRANSLATION
+    }
+    false
+}
+
 /// Exact source bytes of a link target, independent of the reader's host OS.
 ///
-/// Windows bytes are retained as WTF-8 without decoding until use. The source
-/// separator convention is
-/// retained so splitting never mistakes a Unix backslash for a delimiter.
+/// Windows bytes are retained as WTF-8 without decoding until required by the
+/// destination. The source separator convention is retained so splitting never
+/// mistakes a Unix backslash for a delimiter.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
 pub struct LinkPath {
     #[serde(with = "crate::serde_helpers::text_or_bytes")]
@@ -108,19 +122,46 @@ impl LinkPath {
     /// Returns an error if bytes or path components cannot be represented on the
     /// host without changing their interpretation.
     pub fn to_path_buf(&self) -> Result<PathBuf> {
-        self.validate_source_encoding()?;
+        self.to_path_buf_for_materialization(true)
+    }
+
+    /// Converts for the destination OS, adapting unrepresentable encoding only
+    /// in best-effort mode. Path interpretation and traversal guards still apply.
+    pub fn to_path_buf_for_materialization(&self, strict_lossless: bool) -> Result<PathBuf> {
+        #[cfg(windows)]
+        let bytes = match path_from_native_bytes(&self.bytes) {
+            Ok(_) => self.bytes.clone(),
+            Err(error) => {
+                ensure!(!strict_lossless, "Cannot represent link target on Windows: {error:#}");
+                warn_fmt!("Adapting link target encoding for Windows (best-effort): {error:#}");
+                if let Ok(units) = ctb_formats_wtf8::decode_wtf8_to_ucs2(&self.bytes) {
+                    ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)?
+                } else {
+                    String::from_utf8_lossy(&self.bytes).into_owned().into_bytes()
+                }
+            }
+        };
+        #[cfg(not(windows))]
+        let bytes = self.bytes.clone();
+        let bytes = if bytes.contains(&0) {
+            ensure!(!strict_lossless, "Link target contains a NUL unsupported by the destination OS");
+            warn!("Replacing NUL in link target (best-effort)");
+            bytes.split(|byte| *byte == 0).collect::<Vec<_>>().join("\u{fffd}".as_bytes())
+        } else {
+            bytes
+        };
         if self.is_windows == cfg!(windows) {
-            return path_from_native_bytes(&self.bytes);
+            return path_from_native_bytes(&bytes);
         }
         if cfg!(windows) {
-            ensure!(!self.bytes.contains(&b'\\') && !self.bytes.starts_with(b"/"),
+            ensure!(!bytes.contains(&b'\\') && !bytes.starts_with(b"/"),
                 "Unix link target contains a root or backslash that Windows would reinterpret");
         } else {
-            ensure!(!self.bytes.starts_with(b"\\") && !self.bytes.starts_with(b"/")
-                && self.bytes.get(1) != Some(&b':'),
+            ensure!(!bytes.starts_with(b"\\") && !bytes.starts_with(b"/")
+                && bytes.get(1) != Some(&b':'),
                 "Windows rooted or prefixed link target cannot be adapted losslessly to Unix");
         }
-        crate::identity::resolve_relative_path_for_os(&self.bytes, self.is_windows)
+        crate::identity::resolve_relative_path_for_os(&bytes, self.is_windows)
     }
 
     /// Returns true if the link path is empty.
@@ -135,14 +176,6 @@ impl LinkPath {
         String::from_utf8_lossy(&self.bytes).into_owned()
     }
 
-    fn validate_source_encoding(&self) -> Result<()> {
-        if self.is_windows {
-            let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(&self.bytes)?;
-            ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == self.bytes,
-                "Windows link target is not canonical WTF-8");
-        }
-        Ok(())
-    }
 }
 
 impl std::fmt::Display for LinkPath {
@@ -396,8 +429,26 @@ mod tests {
             )?;
             let restored: LinkPath = serde_json::from_value(serde_json::to_value(&target)?)?;
             ensure!(restored == target, "Malformed link target changed");
-            ensure!(target.to_path_buf().is_err(), "Malformed Windows target was used");
+            #[cfg(unix)]
+            ensure!(target.to_path_buf()?.as_os_str().as_encoded_bytes() == bytes,
+                "Unix can preserve the original target bytes");
+            #[cfg(windows)]
+            {
+                ensure!(target.to_path_buf().is_err(), "Unrepresentable Windows target was used");
+                ensure!(target.to_path_buf_for_materialization(false).is_ok(),
+                    "Best-effort target encoding adaptation failed");
+            }
         }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn nul_target_requires_explicit_best_effort_adaptation() -> Result<()> {
+        let target = LinkPath::from_bytes(b"parent/\0file", false);
+        ensure!(target.to_path_buf().is_err(), "NUL target was accepted losslessly");
+        let adapted = target.to_path_buf_for_materialization(false)?;
+        ensure!(adapted == Path::new("parent/\u{fffd}file"), "Unexpected NUL replacement");
+        ensure!(target.to_bytes() == b"parent/\0file", "Stored link target changed");
         Ok(())
     }
 }

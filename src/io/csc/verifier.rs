@@ -329,7 +329,8 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
             FileEntityKind::Hardlink {
                 target_relative_path,
             } => {
-                let tgt_rel = match target_relative_path.to_path_buf() {
+                let tgt_rel = match target_relative_path
+                    .to_path_buf_for_materialization(!args.best_effort || args.strict) {
                     Ok(p) => p,
                     Err(e) => {
                         changed_entries.push(EntryDiff {

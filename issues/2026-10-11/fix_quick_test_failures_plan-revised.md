@@ -41,7 +41,9 @@ not fully satisfy the losslessness and legacy-isolation requirements.
   little-endian units are adapted only at the journal boundary; odd byte
   lengths remain opaque with their original declared format and bytes.
   Malformed or noncanonical WTF-8 is likewise retained without normalization.
-  Interpretation and filesystem use fail explicitly, not archival reads.
+  Filesystem use depends on the destination's ability to reproduce the name,
+  not on whether the source encoding can be decoded. Unix may retain raw bytes;
+  unrepresentable names fail in strict mode or adapt explicitly in best-effort.
 - Keep hardlink targets destination-relative without rebasing them through a
   canonical absolute root. Do not treat two canonicalization failures as the
   same file.
@@ -76,6 +78,9 @@ Verified on the Linux host:
   full target build would risk violating that reserve.
 - Native Windows materialization and the Windows-only test branches have not
   been executed. Windows-source representations are tested on Linux.
+- Encoding-restrictive filesystems have not been exercised directly. Encoding
+  error classification and best-effort replacement auditing are regression
+  tested; Unix raw-byte replication is tested against the host filesystem.
 - Historical writers' already-discarded link bytes cannot be reconstructed.
   Old bare JSON targets have no separator convention and retain the previous
   host-native interpretation with an explicit warning. New JSON includes the
@@ -85,8 +90,9 @@ Verified on the Linux host:
 
 - Malformed/noncanonical Windows WTF-8 and odd historical stream-name payloads
   survive Dc and JSON storage without truncation or normalization. Filesystem
-  conversion rejects uninterpretable names. Interpretable historical UTF-16
-  remains adapted only at the journal boundary.
+  conversion preserves destination-representable bytes. Interpretable
+  historical UTF-16 remains adapted at the journal boundary; opaque historical
+  payloads retain their bytes until destination conversion is requested.
 - Dc 403/404 binary alternatives now require `[data:bytes=4]`; format and byte
   constraints can be combined as `[data:f84;bytes=4]`. Length is measured from
   the actual decoded payload, not its optional declared length or checksum.
@@ -103,6 +109,30 @@ Verified on the Linux host:
   Targeted Clippy passed for changed crates and the derive macro.
 - Remaining verification and the unrelated Finder-label gap are listed above;
   no full-workspace or native Windows run is claimed.
+
+### Destination-Aware Materialization Follow-Up — 2026-10-13
+
+- Remove blanket source-encoding validation from link materialization. Unix
+  accepts malformed/noncanonical Windows-tagged targets when their exact bytes
+  are representable. Windows requires native representability and preserves
+  canonical WTF-8 surrogates rather than requiring scalar UTF-8.
+- Preserve raw encoded stream names on Unix, including odd historical payloads.
+  Decoded Windows UTF-16 names use WTF-8 for byte-native destinations so
+  unpaired surrogates are retained where supported.
+- Strict mode rejects unrepresentable names; explicit best-effort mode replaces
+  NULs and incomplete/invalid encoding without modifying archived source data.
+  Historical UTF-16 adaptation preserves Windows-representable unpaired
+  surrogates. Unknown encodings are not guessed on encoding-dependent hosts.
+- Writers first attempt native names. Symlink and Unix stream writes may retry
+  with replacement characters only for destination encoding errors, never for
+  permission, storage, or generic invalid-input failures. Colliding stream
+  names remain errors, including after replacement.
+- Writers, in-place stream reconciliation, file audits, and CSC's symlink
+  post-write check use consistent strict/best-effort conversion. Best-effort
+  audits accept replacement names without hiding stream payload corruption.
+- Verification: 261 library tests across file and CSC passed with no failures
+  or ignored tests; targeted Clippy passed. Platform/filesystem verification
+  gaps remain explicitly listed above.
 
 ---
 
@@ -202,10 +232,13 @@ pub struct LinkPath {
 - Update `StreamName::encode_dc_mixed` and `decode_dc_mixed`:
   - Encode valid and invalid UTF-16 as WTF-8-typed `[data]` using the existing
     workspace codec, preserving every unit and the Windows variant.
-  - Preserve invalid/noncanonical WTF-8 losslessly; reject it on filesystem use.
+  - Preserve invalid/noncanonical WTF-8 losslessly. Replicate raw names on
+    byte-native destinations; reject only when the destination cannot represent
+    them, or adapt explicitly in best-effort mode.
   - Never label UTF-16 bytes as `f2`; historical instances are adapted at the
-    journal boundary; preserve odd byte lengths without truncation and reject
-    their use as native names.
+    journal boundary; preserve odd byte lengths without truncation. Replicate
+    raw bytes where supported, or replace the incomplete unit only when
+    best-effort conversion to UTF-16 is requested.
   - Both strictly satisfy rule 338 `:~ ([string] | [data])`.
 
 ---

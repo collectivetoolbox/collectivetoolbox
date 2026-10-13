@@ -260,6 +260,10 @@ mod compatibility_tests {
                         "Historical stream units changed");
                 } else {
                     ensure!(name.as_bytes().as_ref() == bytes, "Odd historical payload changed");
+                    #[cfg(unix)]
+                    ensure!(name.to_os_string()?.as_encoded_bytes() == bytes,
+                        "Unix historical payload bytes changed");
+                    #[cfg(windows)]
                     ensure!(name.to_os_string().is_err(), "Odd historical payload was materialized");
                     ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
                 }
@@ -288,6 +292,10 @@ mod compatibility_tests {
                     "Historical stream encoding was not adapted");
             } else {
                 ensure!(name.as_bytes().as_ref() == bytes, "Odd stream payload changed");
+                #[cfg(unix)]
+                ensure!(name.to_os_string()?.as_encoded_bytes() == bytes,
+                    "Unix historical stream bytes changed");
+                #[cfg(windows)]
                 ensure!(name.to_os_string().is_err(), "Odd stream payload was used");
             }
         }

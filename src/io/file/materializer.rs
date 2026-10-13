@@ -459,15 +459,29 @@ pub fn materialize_entity(
             if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce symlink birth time on this platform");
             }
-            dest_dir.create_symlink_at(
+            let target_path = target.to_path_buf_for_materialization(options.strict_lossless)?;
+            let mut adaptation_warnings = Vec::new();
+            let create = |path: &Path| dest_dir.create_symlink_at(
                 &parent_dir_fd.as_fd(),
                 &file_name,
                 &dest_path,
-                target.to_path_buf()?.as_os_str().as_encoded_bytes(),
+                path.as_os_str().as_encoded_bytes(),
                 options.symlink_policy,
-            )?;
+            );
+            if let Err(error) = create(&target_path) {
+                if options.strict_lossless || !crate::link_path::is_destination_encoding_error(&error) {
+                    return Err(error);
+                }
+                let adapted = PathBuf::from(target_path.to_string_lossy().into_owned());
+                anyhow::ensure!(adapted != target_path,
+                    "Destination rejected symlink encoding and no replacement adaptation is available: {error:#}");
+                let warning = format!("Destination rejected symlink encoding; retrying with replacement characters (best-effort): {error:#}");
+                warn_fmt!("{warning}");
+                create(&adapted)?;
+                adaptation_warnings.push(warning);
+            }
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
-            let warnings = apply_entity_metadata(
+            let mut warnings = apply_entity_metadata(
                 &dest_path,
                 None,
                 &entity.metadata,
@@ -475,6 +489,7 @@ pub fn materialize_entity(
                 true,
                 options.strict_lossless,
             )?;
+            warnings.extend(adaptation_warnings);
 
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -487,7 +502,7 @@ pub fn materialize_entity(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let target_path = target_relative_path.to_path_buf()?;
+            let target_path = target_relative_path.to_path_buf_for_materialization(options.strict_lossless)?;
             if options.path_policy == PathTraversalPolicy::StrictSandboxed {
                 for comp in target_path.components() {
                     match comp {
@@ -1339,13 +1354,20 @@ fn try_update_existing_regular_entity(
         }
     };
 
+    let source_names = entity.streams.iter().map(|stream| {
+        stream.name.as_ref().map(|name| name.canonicalize_native_for_materialization(
+            options.strict_lossless,
+        )).transpose()
+    }).collect::<Result<Vec<_>>>()?;
+    let disk_names = on_disk_streams.iter().map(|stream| {
+        stream.name.as_ref().map(crate::streams::StreamName::canonicalize_native).transpose()
+    }).collect::<Result<Vec<_>>>()?;
+
     // Remove any extra streams that do not exist on the source entity
-    for disk_stream in &on_disk_streams {
-        let exists_in_source = entity.streams.iter().any(|s| {
-            match (&s.name, &disk_stream.name) {
-                (Some(s_name), Some(d_name)) => {
-                    s_name.canonicalize_native().ok() == d_name.canonicalize_native().ok()
-                }
+    for (disk_stream, disk_name) in on_disk_streams.iter().zip(&disk_names) {
+        let exists_in_source = entity.streams.iter().zip(&source_names).any(|(s, source_name)| {
+            match (source_name, disk_name) {
+                (Some(s_name), Some(d_name)) => s_name == d_name,
                 (None, None) => s.kind == disk_stream.kind,
                 _ => false,
             }
@@ -1384,12 +1406,10 @@ fn try_update_existing_regular_entity(
         write_apple_double_companion(entity, dest_path, parent_dir, style)?;
     } else {
         // Write missing or mismatched streams
-        for stream in &entity.streams {
-            let matches_on_disk = on_disk_streams.iter().any(|d| {
-                let names_match = match (&d.name, &stream.name) {
-                    (Some(d_name), Some(s_name)) => {
-                        d_name.canonicalize_native().ok() == s_name.canonicalize_native().ok()
-                    }
+        for (stream, source_name) in entity.streams.iter().zip(&source_names) {
+            let matches_on_disk = on_disk_streams.iter().zip(&disk_names).any(|(d, disk_name)| {
+                let names_match = match (disk_name, source_name) {
+                    (Some(d_name), Some(s_name)) => d_name == s_name,
                     (None, None) => d.kind == stream.kind,
                     _ => false,
                 };
@@ -1540,6 +1560,58 @@ mod tests {
     use ctb_formats_checksum::Sha256Stream;
     use std::fs;
     use std::path::{PathBuf};
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_symlink_encoding_depends_on_destination_and_lossless_policy() -> Result<()> {
+        use std::os::unix::ffi::OsStrExt;
+        let temp = tempfile::tempdir()?;
+        let directory = SandboxableDir::open(temp.path())?;
+        for (bytes, is_windows, strict_lossless, succeeds) in [
+            (&b"target\xed\xa0"[..], true, true, true),
+            (&b"target\xed\xa0\x80\xed\xb0\x80"[..], true, true, true),
+            (&b"target\0name"[..], false, true, false),
+            (&b"target\0name"[..], false, false, true),
+        ] {
+            let mut entity = FileEntity::from_vec(Vec::new());
+            let target = crate::link_path::LinkPath::from_bytes(bytes, is_windows);
+            entity.kind = FileEntityKind::Symlink { target: target.clone() };
+            entity.identity.relative_path = Some(PathBuf::from("link"));
+            let options = MaterializeOptions { strict_lossless, ..Default::default() };
+            let result = materialize_entity(&entity, None, &directory, &options);
+            ensure!(result.is_ok() == succeeds, "Unexpected symlink result: {result:?}");
+            if succeeds {
+                let expected = target.to_path_buf_for_materialization(strict_lossless)?;
+                ensure!(fs::read_link(temp.path().join("link"))?.as_os_str().as_bytes()
+                    == expected.as_os_str().as_bytes(), "Symlink target changed");
+                let audit_options = EntityAuditOptions {
+                    best_effort: !strict_lossless, ..Default::default()
+                };
+                ensure!(!audit_entity(&temp.path().join("link"), &entity, &audit_options)?
+                    .iter().any(|diff| matches!(diff, DiffKind::SymlinkTargetMismatch { .. })),
+                    "Audit did not recognize materialized symlink target");
+            }
+            ensure!(target.to_bytes() == bytes, "Source symlink target changed");
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_destination_encoding_retry_is_limited_to_encoding_errors() -> Result<()> {
+        let encoding = anyhow::Error::from(std::io::Error::from_raw_os_error(libc::EILSEQ))
+            .context("Filesystem rejected encoding");
+        ensure!(crate::link_path::is_destination_encoding_error(&encoding));
+        ensure!(crate::link_path::is_destination_encoding_error(
+            &anyhow::Error::from(rustix::io::Errno::ILSEQ).context("Failed to stage symlink"),
+        ));
+        for code in [libc::EACCES, libc::EINVAL, libc::ENOSPC, libc::EIO] {
+            ensure!(!crate::link_path::is_destination_encoding_error(
+                &anyhow::Error::from(std::io::Error::from_raw_os_error(code)),
+            ), "Non-encoding failure triggered replacement adaptation");
+        }
+        Ok(())
+    }
 
     #[cfg(unix)]
     #[crate::ctb_test]

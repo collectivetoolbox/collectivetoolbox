@@ -162,6 +162,7 @@ fn native_names_equal(first: &[u16], second: &[u16]) -> Result<bool> {
 pub fn write_windows_streams(
     dest: &Path,
     streams: &[AttachedStream],
+    strict_lossless: bool,
 ) -> Result<()> {
     let mut validated = Vec::new();
     let mut names: Vec<Vec<u16>> = Vec::new();
@@ -173,7 +174,7 @@ pub fn write_windows_streams(
             );
         };
         let name = match &stream.name {
-            Some(name) => name.to_os_string()?,
+            Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
             None => match stream.kind {
                 StreamKind::MacOsResourceFork => {
                     OsString::from("com.apple.ResourceFork")
@@ -238,7 +239,34 @@ pub fn write_windows_streams(
         let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
         stream_wide.extend(name.encode_wide());
         let stream_path = OsString::from_wide(&stream_wide);
-        std::fs::write(PathBuf::from(stream_path), data).with_context(|| {
+        let write = std::fs::write(PathBuf::from(stream_path), data);
+        if let Err(error) = &write {
+            // ERROR_NO_UNICODE_TRANSLATION is an encoding failure, not a
+            // permission or storage failure that replacement could conceal.
+            if !strict_lossless && error.raw_os_error() == Some(1113) {
+                let adapted = OsString::from(name.to_string_lossy().into_owned());
+                if adapted != name {
+                    let units: Vec<u16> = adapted.encode_wide().collect();
+                    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+                    let bare = units.get(1..units.len().saturating_sub(suffix.len()))
+                        .context("Invalid adapted stream name bounds")?;
+                    for existing in &names {
+                        anyhow::ensure!(!native_names_equal(existing, bare)?,
+                            "Replacement stream names collide on the destination filesystem");
+                    }
+                    names.push(bare.to_vec());
+                    let mut adapted_path = wide.get(..wide.len().saturating_sub(1))
+                        .context("Invalid path length")?.to_vec();
+                    adapted_path.extend_from_slice(&units);
+                    warn_fmt!("Destination rejected stream name encoding on {}; retrying with replacement characters (best-effort): {error}",
+                        dest.display());
+                    std::fs::write(PathBuf::from(OsString::from_wide(&adapted_path)), data)
+                        .context("Destination also rejected adapted Windows stream name")?;
+                    continue;
+                }
+            }
+        }
+        write.with_context(|| {
             format!(
                 "Failed to write Windows alternate data stream {:?} ({:?}) to {}",
                 stream.to_string_lossy(),
@@ -273,4 +301,3 @@ pub fn remove_windows_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> 
         }
     }
 }
-
