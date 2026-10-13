@@ -230,6 +230,16 @@ fn read_v4_raw_flags(reader: &mut DcMixedReader<'_>) -> Result<ctb_io::file::Pla
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod compatibility_tests {
     use super::*;
     use ctb_utilities::format_id::FormatId;
