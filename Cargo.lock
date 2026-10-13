@@ -3815,6 +3815,7 @@ dependencies = [
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-formats-unicode",
+ "ctb-formats-wtf8",
  "ctb-io-environment",
  "ctb-utilities",
  "file-id",

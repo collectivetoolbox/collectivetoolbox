@@ -943,7 +943,7 @@ pub fn read_v4_journal_snapshot(
                     if inner_ch == ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION {
                         break;
                     }
-                    match FileEntity::decode_dc_mixed(&mut reader) {
+                    match legacy::decode_v4_entity(&mut reader, &shared_context) {
                         Ok(entity) => {
                             let path_key = match entity.identity.path_bytes() {
                                 Some(b) => b.to_vec(),
@@ -952,11 +952,7 @@ pub fn read_v4_journal_snapshot(
                             pending_entities.insert(path_key, entity);
                         }
                         Err(err) => {
-                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:?}, peek={:?}", reader.position(), reader.peek_char());
-                            let mut debug_r = reader.clone();
-                            for _ in 0..20 {
-                                eprintln!("DEBUG AT 11526: {:?}", debug_r.next_char());
-                            }
+                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:#}, peek={:?}", reader.position(), reader.peek_char());
                             batch_ok = false;
                             break;
                         }
@@ -1224,6 +1220,38 @@ mod tests {
         invalid.extend_from_slice(b"CTBMETA3");
         write_bytes(&mut invalid, &serde_json::to_vec(&record)?)?;
         assert!(read_entity_payload(&invalid, current_platform(), &context).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_legacy_raw_flags_normalized_only_at_journal_boundary() -> Result<()> {
+        let context = SharedValueContext::default();
+        let entity = FileEntity::from_vec(b"payload".to_vec());
+        let mut encoded = Vec::new();
+        write_entity_payload(&mut encoded, &entity, &context)?;
+        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+            .context("Missing preservation record marker")?;
+        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
+        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        let flags = serde_json::json!({
+            "source_os": "linux", "raw_value": u64::MAX, "has_unparsed_flags": true
+        });
+        record.metadata["platform_raw_flags"] = flags.clone();
+        assert!(serde_json::from_value::<ctb_io::file::PlatformRawFlags>(flags).is_err());
+        for magic in [b"CTBMETA1", b"CTBMETA2", b"CTBMETA3"] {
+            let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
+            legacy.extend_from_slice(magic);
+            write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
+            let decoded = read_entity_payload(&legacy, current_platform(), &context)?;
+            assert_eq!(decoded.metadata.platform_raw_flags,
+                Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX)));
+        }
+        record.metadata["platform_raw_flags"] = serde_json::json!({"raw_value": -1});
+        let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
+        legacy.extend_from_slice(b"CTBMETA3");
+        write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
+        assert!(read_entity_payload(&legacy, current_platform(), &context).is_err());
         Ok(())
     }
 

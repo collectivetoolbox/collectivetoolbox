@@ -27,27 +27,29 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_formats_dcstring::dc::{
-    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_LIST, DC_END_FORMAT_REPRESENTATION,
-    DC_END_LIST, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
-    DC_LIST_ELEMENT_SEPARATOR, DC_START_ENCAPSULATION_BINARY,
-    DC_TYPE_INTERSECTION,
+    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_LIST, DC_END_LIST,
+    DC_LIST_ELEMENT_SEPARATOR, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_START_ENCAPSULATION_BINARY,
 };
-use ctb_formats_dcstring::dc_mixed_serde::path_from_native_bytes;
+use ctb_formats_dcstring::dc_mixed_serde::{
+    decode_filepath_segments, encode_filepath_segments, path_from_native_bytes,
+};
 use ctb_formats_dcstring::{
     DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring,
 };
 use ctb_utilities::format_id::FormatId;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Cross-platform representation of a symlink or hardlink target path,
-/// preserving raw segment bytes losslessly across differing host operating systems.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+/// Exact source bytes of a link target, independent of the reader's host OS.
+///
+/// Windows bytes use canonical WTF-8. The source separator convention is
+/// retained so splitting never mistakes a Unix backslash for a delimiter.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
 pub struct LinkPath {
-    /// True if the target path is absolute.
-    pub is_absolute: bool,
-    /// Raw byte segments of the target path.
-    pub segments: Vec<Vec<u8>>,
+    #[serde(with = "crate::serde_helpers::text_or_bytes")]
+    bytes: Vec<u8>,
+    is_windows: bool,
 }
 
 impl LinkPath {
@@ -55,32 +57,17 @@ impl LinkPath {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            is_absolute: false,
-            segments: Vec::new(),
+            bytes: Vec::new(),
+            is_windows: false,
         }
     }
 
-    /// Constructs a link path from raw bytes, interpreting separators for the target OS family.
+    /// Retains raw bytes and the source OS separator convention without parsing.
     #[must_use]
     pub fn from_bytes(bytes: &[u8], is_windows: bool) -> Self {
-        if bytes.is_empty() {
-            return Self::new();
-        }
-
-        let is_abs = bytes.starts_with(b"/")
-            || (is_windows && bytes.starts_with(b"\\"))
-            || (is_windows && bytes.len() >= 2 && bytes.get(1) == Some(&b':'));
-
-        let mut segments = Vec::new();
-        for chunk in bytes.split(|b| *b == b'/' || (is_windows && *b == b'\\')) {
-            if !chunk.is_empty() {
-                segments.push(chunk.to_vec());
-            }
-        }
-
         Self {
-            is_absolute: is_abs,
-            segments,
+            bytes: bytes.to_vec(),
+            is_windows,
         }
     }
 
@@ -90,75 +77,69 @@ impl LinkPath {
         Self::from_bytes(path.as_os_str().as_encoded_bytes(), cfg!(windows))
     }
 
-    /// Constructs a guaranteed relative link path from a filesystem path.
-    #[must_use]
-    pub fn from_relative_path(path: &Path) -> Self {
-        let mut lp = Self::from_path(path);
-        lp.is_absolute = false;
-        lp
+    /// Constructs a relative link path without removing roots or prefixes.
+    ///
+    /// # Errors
+    /// Returns an error if the path contains a root or Windows prefix.
+    pub fn from_relative_path(path: &Path) -> Result<Self> {
+        ensure!(!path.components().any(|component| matches!(
+            component, std::path::Component::RootDir | std::path::Component::Prefix(_)
+        )), "Link path must be relative");
+        Ok(Self::from_path(path))
     }
 
-    /// Returns the raw byte serialization of this link path for the specified OS family.
+    /// Splits on source separators, preserving empty segments and path prefixes.
     #[must_use]
-    pub fn to_bytes_for_os(&self, is_windows: bool) -> Vec<u8> {
-        let sep = if is_windows { b'\\' } else { b'/' };
-        if self.segments.is_empty() {
-            if self.is_absolute {
-                return vec![sep];
-            }
-            return Vec::new();
-        }
-
-        let mut out = Vec::new();
-        let starts_with_drive = is_windows
-            && self.segments.first().is_some_and(|s| s.len() == 2 && s.get(1) == Some(&b':'));
-
-        if self.is_absolute && !starts_with_drive {
-            out.push(sep);
-        }
-
-        for (i, seg) in self.segments.iter().enumerate() {
-            if i > 0 {
-                out.push(sep);
-            }
-            out.extend_from_slice(seg);
-        }
-        out
+    pub fn segments(&self) -> Vec<Vec<u8>> {
+        self.bytes.split(|byte| *byte == b'/' || (self.is_windows && *byte == b'\\'))
+            .map(<[u8]>::to_vec).collect()
     }
 
-    /// Returns the raw byte representation of this link path for the current host OS.
+    /// Returns the exact source bytes, without host-dependent adaptation.
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes_for_os(cfg!(windows))
+        self.bytes.clone()
     }
 
     /// Converts this link path into a host [`PathBuf`].
     ///
     /// # Errors
-    /// Returns an error if the raw segment bytes cannot be represented in the host encoding.
+    /// Returns an error if bytes or path components cannot be represented on the
+    /// host without changing their interpretation.
     pub fn to_path_buf(&self) -> Result<PathBuf> {
-        self.to_path_buf_for_os(cfg!(windows))
-    }
-
-    /// Converts this link path into a [`PathBuf`] configured for a specific OS family.
-    ///
-    /// # Errors
-    /// Returns an error if the raw segment bytes cannot be represented in the target OS encoding.
-    pub fn to_path_buf_for_os(&self, is_windows: bool) -> Result<PathBuf> {
-        let bytes = self.to_bytes_for_os(is_windows);
-        path_from_native_bytes(&bytes)
+        if self.is_windows == cfg!(windows) {
+            return path_from_native_bytes(&self.bytes);
+        }
+        if cfg!(windows) {
+            ensure!(!self.bytes.contains(&b'\\') && !self.bytes.starts_with(b"/"),
+                "Unix link target contains a root or backslash that Windows would reinterpret");
+        } else {
+            ensure!(!self.bytes.starts_with(b"\\") && !self.bytes.starts_with(b"/")
+                && self.bytes.get(1) != Some(&b':'),
+                "Windows rooted or prefixed link target cannot be adapted losslessly to Unix");
+        }
+        crate::identity::resolve_relative_path_for_os(&self.bytes, self.is_windows)
     }
 
     /// Returns true if the link path is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.is_absolute && self.segments.is_empty()
+        self.bytes.is_empty()
     }
 
     /// Converts this link path into a lossy UTF-8 string for display or logging.
     #[must_use]
     pub fn to_lossy_string(&self) -> String {
-        String::from_utf8_lossy(&self.to_bytes()).into_owned()
+        String::from_utf8_lossy(&self.bytes).into_owned()
+    }
+
+    fn validate_source_encoding(&self) -> Result<()> {
+        if self.is_windows {
+            let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(&self.bytes)?;
+            ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == self.bytes,
+                "Windows link target is not canonical WTF-8");
+        }
+        Ok(())
     }
 }
 
@@ -168,22 +149,31 @@ impl std::fmt::Display for LinkPath {
     }
 }
 
-impl Serialize for LinkPath {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        crate::serde_helpers::text_or_base64::serialize(&self.to_bytes(), serializer)
-    }
-}
-
 impl<'de> Deserialize<'de> for LinkPath {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let bytes = crate::serde_helpers::text_or_base64::deserialize(deserializer)?;
-        Ok(Self::from_bytes(&bytes, cfg!(windows)))
+        #[derive(Deserialize)]
+        #[serde(untagged, deny_unknown_fields)]
+        enum Input {
+            Stored {
+                #[serde(with = "crate::serde_helpers::text_or_bytes")]
+                bytes: Vec<u8>,
+                is_windows: bool,
+            },
+            Native(#[serde(with = "crate::serde_helpers::text_or_bytes")] Vec<u8>),
+        }
+
+        match Input::deserialize(deserializer)? {
+            Input::Stored { bytes, is_windows } => Ok(Self { bytes, is_windows }),
+            Input::Native(bytes) => {
+                // Historical JSON has no separator convention. Preserve its
+                // existing host-native interpretation, but report the ambiguity.
+                warn!("Historical link target JSON lacks source separator metadata; interpreting it as host-native");
+                Ok(Self::from_bytes(&bytes, cfg!(windows)))
+            }
+        }
     }
 }
 
@@ -249,105 +239,149 @@ impl PartialEq<Path> for LinkPath {
 
 impl DcMixedEncode for LinkPath {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-        let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(path_format);
+        self.validate_source_encoding()?;
+        // A typed path retains segments but not the source separator spelling.
+        mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
         mst.push_char(DC_BEGIN_LIST);
-        mst.push_char(DC_TYPE_INTERSECTION);
-        mst.push_char(filename_format);
-        mst.push_char(DC_FILE_PATH_DELIMITER);
-        if self.is_absolute {
-            mst.push_char(DC_FILE_PATH_DELIMITER);
-        }
-        let mut segments = self.segments.iter().peekable();
-        while let Some(segment) = segments.next() {
-            if !segment.is_empty() {
-                mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-                mst.push_char(filename_format);
-                if let Ok(text) = std::str::from_utf8(segment) {
-                    mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-                    mst.push_char(DC_BEGIN_LIST);
-                    mst.push_char(DcChar::from_short(275));
-                    text.encode_dc_mixed(mst)?;
-                    mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
-                    mst.push_binary_with_sha256(segment)?;
-                    mst.push_char(DC_END_LIST);
-                } else {
-                    mst.push_binary_with_sha256(segment)?;
-                }
-                mst.push_char(DC_END_FORMAT_REPRESENTATION);
-            }
-            if segments.peek().is_some() {
-                mst.push_char(DC_FILE_PATH_DELIMITER);
-            }
+        mst.push_char(DcChar::from_short(275));
+        encode_filepath_segments(&self.segments(), mst)?;
+        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        if self.is_windows {
+            let mut metadata = ctb_formats_dcstring::DcString::new();
+            metadata.push(DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?));
+            mst.push_binary_with_metadata(&self.bytes, &metadata)?;
+        } else {
+            mst.push_binary_with_sha256(&self.bytes)?;
         }
         mst.push_char(DC_END_LIST);
-        mst.push_char(DC_END_FORMAT_REPRESENTATION);
         Ok(())
     }
 }
 
 impl DcMixedDecode for LinkPath {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-            let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-            reader.expect_char(path_format)?;
+        if reader.peek_char()? == Some(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS) {
+            reader.next_char()?;
             reader.expect_char(DC_BEGIN_LIST)?;
-            reader.expect_char(DC_TYPE_INTERSECTION)?;
-            reader.expect_char(filename_format)?;
-            reader.expect_char(DC_FILE_PATH_DELIMITER)?;
-
-            let mut is_absolute = false;
-            let mut segments = Vec::new();
-            if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
-                reader.next_char()?;
-                is_absolute = true;
-            }
-
-            while reader.peek_char()? != Some(DC_END_LIST) {
-                if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
-                    reader.next_char()?;
-                } else {
-                    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-                    reader.expect_char(filename_format)?;
-                    let segment = if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
-                        reader.next_char()?;
-                        reader.expect_char(DC_BEGIN_LIST)?;
-                        reader.expect_short_dc(275)?;
-                        let text = String::decode_dc_mixed(reader)?;
-                        if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
-                            reader.next_char()?;
-                        }
-                        let bytes = reader.read_binary_payload()?.to_vec();
-                        ensure!(text.as_bytes() == bytes.as_slice(), "Conflicting filename representations");
-                        reader.expect_char(DC_END_LIST)?;
-                        bytes
-                    } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-                        reader.read_binary_payload()?.to_vec()
-                    } else {
-                        String::decode_dc_mixed(reader)?.into_bytes()
-                    };
-                    segments.push(segment);
-                    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-                }
-            }
+            reader.expect_short_dc(275)?;
+            let segments = decode_filepath_segments(reader)?;
+            reader.expect_char(DC_LIST_ELEMENT_SEPARATOR)?;
+            let (format, bytes) = reader.read_checksum_payload()?;
+            let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
+            ensure!(format.is_none() || format == Some(windows_format),
+                "Unsupported link target byte encoding");
+            let path = Self::from_bytes(&bytes, format == Some(windows_format));
+            path.validate_source_encoding()?;
+            ensure!(segments == path.segments(), "Conflicting link path representations");
             reader.expect_char(DC_END_LIST)?;
-            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-            return Ok(Self {
-                is_absolute,
-                segments,
-            });
+            return Ok(path);
+        }
+        if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
+            let segments = decode_filepath_segments(reader)?;
+            return Ok(Self::from_bytes(&segments.join(&b'/'), false));
         }
 
         if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
             let bytes = reader.read_binary_payload()?;
-            return Ok(Self::from_bytes(bytes.as_ref(), cfg!(windows)));
+            return Ok(Self::from_bytes(bytes.as_ref(), false));
         }
 
         let s = String::decode_dc_mixed(reader)?;
-        Ok(Self::from_bytes(s.as_bytes(), cfg!(windows)))
+        Ok(Self::from_bytes(s.as_bytes(), false))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn exact_targets_roundtrip_across_source_platforms() -> Result<()> {
+        for (bytes, is_windows) in [
+            (&b""[..], false),
+            (&b"/"[..], false),
+            (&b"//server///share/"[..], false),
+            (&b"./parent//child/../\xff\\"[..], false),
+            (&b"C:relative\\file"[..], true),
+            (&b"C:\\absolute//file\\"[..], true),
+            (&b"\\\\server\\share\\file"[..], true),
+            (&b"\\\\?\\UNC\\server\\share\\file"[..], true),
+            (&b"\\rooted\\file"[..], true),
+            (&b"surrogate\\\xed\xa0\x80"[..], true),
+            (&b""[..], true),
+        ] {
+            let target = LinkPath::from_bytes(bytes, is_windows);
+            ctb_formats_dcstring::assert_dc_roundtrip(&target)?;
+            let restored: LinkPath = serde_json::from_value(serde_json::to_value(&target)?)?;
+            ensure!(restored == target && restored.to_bytes() == bytes,
+                "Link target changed during JSON roundtrip: {bytes:?}");
+            let encoded = target.to_dc_mixed()?;
+            let restored = encoded.decode::<LinkPath>()?;
+            ensure!(restored.to_bytes() == bytes, "Link target bytes changed");
+            ctb_formats_dcstring::assert_dc_document_roundtrip(
+                &crate::entity::FileEntityKind::Symlink { target: target.clone() }
+            )?;
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn typed_paths_preserve_empty_segments_and_reject_malformed_filenames() -> Result<()> {
+        for bytes in [&b""[..], &b"//a///b/"[..], &b"/"[..], &b"a\\b/\xff"[..]] {
+            let path = LinkPath::from_bytes(bytes, false);
+            let mut encoded = DcMstring::new();
+            encode_filepath_segments(&path.segments(), &mut encoded)?;
+            ensure!(encoded.decode::<LinkPath>()?.to_bytes() == bytes,
+                "Typed filepath changed separators");
+        }
+        let mut malformed = DcMstring::new();
+        ensure!(encode_filepath_segments(&[b"a/b".to_vec()], &mut malformed).is_err(),
+            "Embedded delimiter must be rejected");
+
+        let mut conflicting = DcMstring::new();
+        conflicting.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+        conflicting.push_char(DC_BEGIN_LIST);
+        conflicting.push_char(DcChar::from_short(275));
+        encode_filepath_segments(&[b"first".to_vec()], &mut conflicting)?;
+        conflicting.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        conflicting.push_binary_with_sha256(b"second")?;
+        conflicting.push_char(DC_END_LIST);
+        ensure!(conflicting.decode::<LinkPath>().is_err(), "Conflicting paths must be rejected");
+        let historical: LinkPath = serde_json::from_value(serde_json::json!("parent/file"))?;
+        ensure!(historical == LinkPath::from_bytes(b"parent/file", cfg!(windows)),
+            "Historical JSON link target changed");
+        let historical: LinkPath = serde_json::from_value(serde_json::json!([255, 47, 97]))?;
+        ensure!(historical.to_bytes() == b"\xff/a", "Historical raw JSON bytes changed");
+        ensure!(serde_json::from_value::<LinkPath>(serde_json::json!({
+            "bytes": "name", "is_windows": false, "unknown": true
+        })).is_err(), "Unknown link path fields were silently discarded");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn materialization_does_not_reinterpret_foreign_path_components() -> Result<()> {
+        #[cfg(unix)]
+        {
+            ensure!(LinkPath::from_bytes(b"\\\\server\\share", true).to_path_buf().is_err(),
+                "UNC prefix must not collapse to a Unix root");
+            ensure!(LinkPath::from_bytes(b"C:relative", true).to_path_buf().is_err(),
+                "Drive-relative path must not become an ordinary Unix filename");
+            ensure!(LinkPath::from_bytes(b"/rooted", true).to_path_buf().is_err(),
+                "Windows drive-rooted path must not become a Unix absolute path");
+            ensure!(LinkPath::from_bytes(b"parent\\file", true).to_path_buf()? == Path::new("parent/file"),
+                "Windows separators must be adapted only when materializing");
+            ensure!(LinkPath::from_bytes(b"parent\\file", false).to_path_buf()? == Path::new("parent\\file"),
+                "Unix backslash must remain a filename character");
+            ensure!(LinkPath::from_relative_path(Path::new("/absolute")).is_err(),
+                "Relative path constructor must reject roots");
+        }
+        #[cfg(windows)]
+        {
+            ensure!(LinkPath::from_bytes(b"parent\\file", false).to_path_buf().is_err(),
+                "Unix backslash must not become a Windows separator");
+            ensure!(LinkPath::from_bytes(b"\xff", false).to_path_buf().is_err(),
+                "Non-WTF-8 Unix bytes must remain readable but not materializable");
+        }
+        Ok(())
     }
 }

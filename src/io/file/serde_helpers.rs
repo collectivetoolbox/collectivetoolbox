@@ -152,10 +152,10 @@ pub mod opt_base64 {
 }
 
 /// Serde helper for byte sequences that prefer UTF-8 strings when losslessly encodable.
-pub mod text_or_base64 {
+pub mod text_or_bytes {
     use super::*;
 
-    /// Serializes bytes as a UTF-8 string if valid, otherwise as Base64.
+    /// Serializes bytes as a UTF-8 string if valid, otherwise as a byte sequence.
     pub fn serialize<S>(val: &[u8], serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -163,7 +163,7 @@ pub mod text_or_base64 {
         if let Ok(utf8_str) = std::str::from_utf8(val) {
             serializer.serialize_str(utf8_str)
         } else {
-            serializer.serialize_str(&BASE64_STANDARD.encode(val))
+            serializer.serialize_bytes(val)
         }
     }
 

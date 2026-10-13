@@ -329,7 +329,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
             FileEntityKind::Hardlink {
                 target_relative_path,
             } => {
-                let tgt_rel = match resolve_relative_path_for_os(&target_relative_path.to_bytes(), is_windows) {
+                let tgt_rel = match target_relative_path.to_path_buf() {
                     Ok(p) => p,
                     Err(e) => {
                         changed_entries.push(EntryDiff {
@@ -774,7 +774,7 @@ mod tests {
         let FileEntityKind::Hardlink { target_relative_path } = &entity.kind else {
             panic!("expected hardlink");
         };
-        let target = resolve_relative_path_for_os(&target_relative_path.to_bytes(), snapshot.origin_platform == PLATFORM_WINDOWS)
+        let target = target_relative_path.to_path_buf()
             .expect("resolve target path");
         fs::remove_file(relocated.join(&link)).expect("remove hardlink");
         fs::write(relocated.join(&link), b"shared payload").expect("write identical independent file");

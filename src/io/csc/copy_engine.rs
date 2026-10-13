@@ -609,7 +609,7 @@ pub fn execute_copy_pipeline(
                 }
             };
             if let FileEntityKind::Symlink { target } = &entity.kind {
-                if dest_target.as_os_str().as_encoded_bytes() != target.to_bytes().as_slice() {
+                if dest_target.as_os_str().as_encoded_bytes() != target.to_path_buf()?.as_os_str().as_encoded_bytes() {
                     let err = anyhow::anyhow!(
                         "Target filesystem altered or normalized symlink target for {}",
                         dest_path.display()
@@ -991,11 +991,11 @@ fn copy_single_item(
             let is_self = effective_dest_path == first_full_path
                 || this_full_path == first_full_path
                 || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
-                    == std::fs::canonicalize(&first_full_path).ok().as_deref();
+                    .is_some_and(|path| std::fs::canonicalize(&first_full_path).is_ok_and(|first| path == first));
             if !is_self {
                 let original_entity = entity.clone();
                 entity.kind = FileEntityKind::Hardlink {
-                    target_relative_path: LinkPath::from_relative_path(first_target_rel),
+                    target_relative_path: LinkPath::from_relative_path(first_target_rel)?,
                 };
                 if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
                     record_materialization_failure(journal, &effective_dest_path, &original_entity, &err)?;
@@ -1438,19 +1438,6 @@ fn record_journal_entry(
     let mut journal_entity = entity.clone();
     let rel = compute_journal_relative_path(journal.destination(), dest_path)?;
     journal_entity.identity.relative_path = Some(rel);
-    if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
-        let target = ctb_io::file::resolve_relative_path_for_os(&target_relative_path.to_bytes(), cfg!(windows))?;
-        // Reason for fallback: if destination cannot be canonicalized, use destination path directly
-        let journal_root = std::fs::canonicalize(journal.destination())
-            .unwrap_or_else(|_| journal.destination().to_path_buf());
-        let full_target = if target.is_absolute() {
-            target
-        } else {
-            journal.destination().join(&target)
-        };
-        let rel_target = compute_journal_relative_path(&journal_root, &full_target)?;
-        *target_relative_path = LinkPath::from_relative_path(&rel_target);
-    }
     journal.record_entity(&journal_entity);
     Ok(())
 }
@@ -1773,6 +1760,42 @@ mod tests {
             ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
             _ => panic!("Expected immediate verification result"),
         }
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_relative_destination_preserves_hardlinks_and_exact_symlink_bytes() -> Result<()> {
+        use crate::journal::read_journal_snapshot;
+        use std::os::unix::ffi::OsStrExt;
+
+        let cwd = std::env::current_dir()?;
+        let temp = tempfile::tempdir_in(&cwd)?;
+        let source = temp.path().join("source");
+        let destination = temp.path().strip_prefix(&cwd)?.join("destination");
+        let state = temp.path().join("state");
+        fs::create_dir(&source)?;
+        fs::create_dir(&state)?;
+        fs::write(source.join("first"), b"shared data")?;
+        fs::hard_link(source.join("first"), source.join("second"))?;
+        let target = std::ffi::OsStr::from_bytes(b"./first//../\xff/");
+        std::os::unix::fs::symlink(target, source.join("link"))?;
+
+        run_csc(default_test_args(vec![source.join(""), destination.clone()], state.clone()))?;
+        assert_eq!(fs::metadata(destination.join("first"))?.ino(),
+            fs::metadata(destination.join("second"))?.ino());
+        assert_eq!(fs::read_link(destination.join("link"))?.as_os_str().as_encoded_bytes(),
+            target.as_bytes());
+        let journal_path = find_cscjournal(&state);
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert!(snapshot.committed_entities.values().any(|entity|
+            matches!(&entity.kind, FileEntityKind::Hardlink { target_relative_path }
+                if !target_relative_path.to_bytes().starts_with(b"/"))));
+        let result = run_csc_verify(&default_verify_args(journal_path, Some(destination)))?;
+        match result {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate verification result"),
+        }
+        Ok(())
     }
 
     #[cfg(unix)]

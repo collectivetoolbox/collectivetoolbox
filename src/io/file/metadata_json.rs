@@ -332,6 +332,8 @@ mod tests {
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_export_and_rematerialize_symlink() {
+        use std::os::unix::ffi::OsStrExt;
+
         let temp = tempfile::tempdir().unwrap();
         let target_path = PathBuf::from("some_relative_target.txt");
         let link_path = temp.path().join("my_link");
@@ -345,5 +347,14 @@ mod tests {
         rematerialize_from_metadata_json(&json_str, &dst_link).unwrap();
         assert!(dst_link.is_symlink());
         assert_eq!(fs::read_link(&dst_link).unwrap(), target_path);
+
+        let raw_target = std::ffi::OsStr::from_bytes(b"./target//../\xff/");
+        let raw_link = temp.path().join("raw_link");
+        std::os::unix::fs::symlink(raw_target, &raw_link).unwrap();
+        let json_str = export_file_metadata_json(&raw_link, false, true).unwrap();
+        let dst_link = temp.path().join("raw_link_restored");
+        rematerialize_from_metadata_json(&json_str, &dst_link).unwrap();
+        assert_eq!(fs::read_link(&dst_link).unwrap().as_os_str().as_encoded_bytes(),
+            raw_target.as_bytes());
     }
 }

@@ -38,7 +38,8 @@ use super::framing::{
 use super::resolver::SyntaxRuleResolver;
 use crate::dc::{
     DC_END_FORMAT_REPRESENTATION, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
-    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+    DC_TYPE_INTERSECTION, DC_TYPE_UNION,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -229,22 +230,24 @@ fn match_term_single(
         return MatchOutcome::Mismatch;
     };
 
-    // Equivalent representations wrapper: Dc 397 (can wrap alternative representations of any value)
+    // Equivalent and partially equivalent representations can wrap any value.
     let dc_equiv = DC_EQUIVALENT_REPRESENTATIONS.to_u128();
-    if first == dc_equiv
+    let dc_partial_equiv = DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128();
+    if (first == dc_equiv || first == dc_partial_equiv)
         && !matches!(
             term,
             SyntaxTerm::SelfChar
-                | SyntaxTerm::CharRef(CharTarget::Dc(397))
+                | SyntaxTerm::CharRef(CharTarget::Dc(397 | 561))
                 | SyntaxTerm::RuleRef {
-                    target: CharTarget::Dc(397),
+                    target: CharTarget::Dc(397 | 561),
                 }
         )
     {
         if let Some(ref resolver) = context.resolver.clone() {
-            if let Some(rule) = resolver.resolve_rule(&CharTarget::Dc(397)) {
+            let wrapper = if first == dc_equiv { 397 } else { 561 };
+            if let Some(rule) = resolver.resolve_rule(&CharTarget::Dc(wrapper)) {
                 let old_self = context.self_dc;
-                context.self_dc = Some(dc_equiv);
+                context.self_dc = Some(first);
                 let alt_outcome = match_pattern(stream, &rule.pattern, context);
                 context.self_dc = old_self;
                 if alt_outcome.is_matched() {
@@ -458,24 +461,45 @@ fn match_term_single(
                         0,
                     ) {
                         if let Some(subtype_str) = subtype {
-                            if let Ok(sub_rule) = crate::syntax::parser::parse_dc_syntax(subtype_str) {
-                                let mut sub_context = MatchContext {
-                                    self_dc: None,
-                                    captured_vars: HashMap::new(),
-                                    warnings: Vec::new(),
-                                    mode: context.mode,
-                                    diagnostics: Vec::new(),
-                                    has_errors: false,
-                                    depth: context.depth.saturating_add(1),
-                                    max_depth: context.max_depth,
-                                    call_stack: context.call_stack.clone(),
-                                    resolver: context.resolver.clone(),
-                                    suppress_trailing_dc_512: false,
-                                };
-                                let sub_outcome = match_pattern(&lit.decoded_payload, &sub_rule.pattern, &mut sub_context);
-                                if !sub_outcome.is_matched() || sub_outcome.consumed_tokens() != lit.decoded_payload.len() {
+                            if context.depth >= context.max_depth {
+                                context.has_errors = true;
+                                context.diagnostics.push(SyntaxDiagnostic {
+                                    message: "String constraint expansion depth limit reached".to_owned(),
+                                    token_offset: 0,
+                                    is_error: true,
+                                });
+                                return MatchOutcome::Mismatch;
+                            }
+                            let sub_rule = match crate::syntax::parser::parse_dc_syntax(subtype_str) {
+                                Ok(rule) => rule,
+                                Err(error) => {
+                                    context.has_errors = true;
+                                    context.diagnostics.push(SyntaxDiagnostic {
+                                        message: format!("Invalid string constraint: {error}"),
+                                        token_offset: 0,
+                                        is_error: true,
+                                    });
                                     return MatchOutcome::Mismatch;
                                 }
+                            };
+                            let mut sub_context = MatchContext::new_with_token(None).with_mode(context.mode);
+                            sub_context.depth = context.depth.saturating_add(1);
+                            sub_context.max_depth = context.max_depth;
+                            sub_context.call_stack = context.call_stack.clone();
+                            sub_context.resolver = Some(if let Some(resolver) = &context.resolver {
+                                Arc::clone(resolver)
+                            } else {
+                                super::resolver::default_syntax_resolver().clone()
+                            });
+                            let sub_outcome = match_pattern(&lit.decoded_payload, &sub_rule.pattern, &mut sub_context);
+                            let has_errors = sub_context.has_errors;
+                            context.has_errors |= has_errors;
+                            context.diagnostics.extend(sub_context.diagnostics);
+                            context.warnings.extend(sub_context.warnings);
+                            if has_errors || !sub_outcome.is_matched()
+                                || sub_outcome.consumed_tokens() != lit.decoded_payload.len()
+                            {
+                                return MatchOutcome::Mismatch;
                             }
                         }
                         if let Some(var) = capture_var {
@@ -489,7 +513,7 @@ fn match_term_single(
                     }
                     return MatchOutcome::Mismatch;
                 }
-                if context.resolver.is_none() {
+                if context.resolver.is_none() && subtype.is_none() {
                     if let Some(var) = capture_var {
                         context
                             .captured_vars
@@ -860,4 +884,71 @@ pub fn match_syntax_rule_with_token(
     let mut context = MatchContext::new_with_token(self_token);
     let outcome = match_pattern(stream, &rule.pattern, &mut context);
     (outcome, context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::syntax::parser::parse_dc_syntax;
+
+    fn literal(text: &str) -> Vec<u128> {
+        let mut tokens = vec![
+            DcChar::from_short(260).to_u128(),
+            DcChar::from_short(262).to_u128(),
+            DcChar::from_short(264).to_u128(),
+            DcChar::from_short(263).to_u128(),
+        ];
+        tokens.extend(text.chars().map(u128::from));
+        tokens.push(DcChar::from_short(261).to_u128());
+        tokens
+    }
+
+    #[crate::ctb_test]
+    fn constrained_strings_enforce_ascii_and_exact_length() -> Result<()> {
+        let rule = parse_dc_syntax("[string:[asciiprintable]{4}]")?;
+        for with_resolver in [false, true] {
+            for (text, valid) in [
+                ("TEXT", true), ("    ", true), ("~ !A", true),
+                ("", false), ("ABC", false), ("ABCDE", false),
+                ("abc\n", false), ("abc\u{7f}", false), ("abc\u{e9}", false),
+            ] {
+                let mut context = MatchContext::default().with_mode(MatchMode::Strict);
+                if with_resolver {
+                    context.resolver = Some(super::super::resolver::default_syntax_resolver().clone());
+                }
+                let tokens = literal(text);
+                let outcome = match_syntax_rule_with_context(&tokens, &rule, &mut context);
+                ensure!(outcome.is_matched() == valid, "Wrong string constraint result for {text:?}");
+                if valid {
+                    ensure!(outcome.consumed_tokens() == tokens.len(), "String not fully consumed");
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn malformed_or_depth_limited_constraints_fail_explicitly() -> Result<()> {
+        let tokens = literal("TEXT");
+        let invalid = SyntaxTerm::NamedConstruct {
+            name: "string".to_owned(),
+            subtype: Some("]".to_owned()),
+            capture_var: None,
+        };
+        let mut context = MatchContext::default().with_mode(MatchMode::Strict);
+        ensure!(!match_term_single(&tokens, &invalid, &mut context).is_matched(),
+            "Malformed string constraint was ignored");
+        ensure!(context.has_errors && !context.diagnostics.is_empty(), "Missing constraint error");
+
+        let rule = parse_dc_syntax("[string:[asciiprintable]{4}]")?;
+        let mut context = MatchContext::default().with_mode(MatchMode::Strict);
+        context.max_depth = 0;
+        ensure!(!match_syntax_rule_with_context(&tokens, &rule, &mut context).is_matched(),
+            "String constraint exceeded depth limit");
+        ensure!(context.has_errors, "Missing depth error");
+        let mut context = MatchContext::default().with_mode(MatchMode::Strict);
+        ensure!(!match_syntax_rule_with_context(&[u128::from('A')], &rule, &mut context).is_matched(),
+            "Unframed string bypassed constraint");
+        Ok(())
+    }
 }

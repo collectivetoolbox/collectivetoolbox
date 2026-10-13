@@ -79,6 +79,33 @@ magic-square
 
 ### Installer
 
+- `"-  - Reject invalid or noncanonical WTF-8.` and `reject odd-length historical payloads.` should preserve lossless until used and validate and reject on use of it
+-```
+
++1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file type code.,,,,,,,,,
++1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file creator code.,,,,,,,,,
+
+```
+    They should be constrained to 4 bytes.
+
+- ```
+
+-1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.,,,,,,,,,
++1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ ([filename] | [string] | [data]),Original real file name preserved in AppleSingle or AppleDouble archive.,,,,,,,,,
+```
+
+Edit is just wrong
+
+
+- ```
+
+-1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.,,,,,,,,,
++1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ (511 [f524:] 512 | [f524:]),Mac OS Finder folder window bounds rectangle coordinates.,,,,,,,,,
+```
+Again wrong, looks like changing the accepted syntax to make a broken implementation pass validation.
+
+-`+                    match legacy::decode_v4_entity(&mut reader, &shared_context) {` ??? v4 is the current format, not legacy. The test fixture may be a mangled document due to bugs, maybe this is trying to parse a document with invalid syntax? I'm not convinced it's worth implementing deserialization of a buggy format. One less weird way to do that might be to use the existing fuzzy 'tag-soup'-style parser and then map the larger already-parsed structures onto the Rust structs. Maintaining a dedicated parser layer for one-off serialization bugs during development doesn't smell right.
+
 
 "Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).
 

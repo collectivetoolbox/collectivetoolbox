@@ -36,6 +36,7 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use ctb_formats_dcstring::DcMixedEncode;
+use ctb_utilities::format_id::FormatId;
 
 /// Native stream name, independent of the journal reader's operating system.
 #[derive(
@@ -66,9 +67,11 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
                 }
             }
             Self::WindowsUtf16(units) => {
-                let bytes: Vec<u8> = units.iter().flat_map(|unit| unit.to_le_bytes()).collect();
+                let bytes = ctb_formats_wtf8::encode_wtf8_from_ucs2(units)?;
                 let mut metadata = ctb_formats_dcstring::DcString::new();
-                metadata.push(ctb_formats_dcstring::DcChar::from_format(2));
+                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
+                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+                ));
                 mst.push_binary_with_metadata(&bytes, &metadata)?;
                 Ok(())
             }
@@ -80,13 +83,15 @@ impl ctb_formats_dcstring::DcMixedDecode for StreamName {
     fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
         if reader.peek_short_dc()? == Some(203) {
             let (format, bytes) = reader.read_checksum_payload()?;
-            if format == Some(ctb_formats_dcstring::DcChar::from_format(2)) {
-                let units: Vec<u16> = bytes
-                    .chunks_exact(2)
-                    .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
-                    .collect();
+            if format == Some(ctb_formats_dcstring::DcChar::from_u128(
+                FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+            )) {
+                let units = ctb_formats_wtf8::decode_wtf8_to_ucs2(&bytes)?;
+                anyhow::ensure!(ctb_formats_wtf8::encode_wtf8_from_ucs2(&units)? == bytes.as_ref(),
+                    "Stream name is not canonical WTF-8");
                 return Ok(Self::WindowsUtf16(units));
             }
+            anyhow::ensure!(format.is_none(), "Unsupported stream name byte encoding");
             Ok(Self::Bytes(bytes.to_vec()))
         } else if reader.peek_short_dc()? == Some(310) {
             let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
@@ -674,6 +679,35 @@ mod tests {
             if matches!(name, StreamName::WindowsUtf16(_)) {
                 assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
             }
+
+            #[crate::ctb_test]
+            fn test_stream_name_rejects_malformed_encoding() -> Result<()> {
+                let mut encoded = ctb_formats_dcstring::DcMstring::new();
+                let mut metadata = ctb_formats_dcstring::DcString::new();
+                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
+                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+                ));
+                encoded.push_binary_with_metadata(&[0xed, 0xa0], &metadata)?;
+                assert!(encoded.decode::<StreamName>().is_err());
+                let encoded = StreamName::from_windows_utf16(&[0x61]).to_dc_mixed()?;
+                let (format, bytes) = ctb_formats_dcstring::DcMixedReader::new(&encoded)
+                    .read_checksum_payload()?;
+                assert_eq!(format, Some(ctb_formats_dcstring::DcChar::from_u128(
+                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+                )));
+                assert_eq!(bytes.as_ref(), b"a");
+                for name in [
+                    StreamName::from_windows_utf16(&[0x61, 0x62]),
+                    StreamName::from_windows_utf16(&[0xd800]),
+                ] {
+                    let stream = AttachedStream::from_data(
+                        Some(name.clone()), StreamKind::NtfsAlternateDataStream, Vec::new()
+                    )?;
+                    ctb_formats_dcstring::assert_dc_document_roundtrip(&stream)?;
+                    ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
+                }
+                Ok(())
+            }
             #[cfg(unix)]
             if matches!(name, StreamName::Bytes(_)) {
                 assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
@@ -838,4 +872,3 @@ mod tests {
         assert!(verify_materialized_entity(&source, &entity, false).is_err());
     }
 }
-

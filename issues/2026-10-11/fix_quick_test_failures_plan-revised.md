@@ -6,7 +6,72 @@ Resolve all 27 test failures identified during `./test --quick` across `ctb-form
 2. **Cross-Platform Lossless Link Path Representation**: Rather than forcing a host `PathBuf` (which can alter or reject non-host paths when moving between Linux and Windows), introduce a lossless `LinkPath` representation that stores raw path bytes/segments cross-platform, provides methods to adapt to `PathBuf` on materialization, and implements `DcMixed` serialization adhering strictly to Dc 339 `:~ [filepath]`.
 3. **Constrained String Syntax for Dc 403 and Dc 404**: Update `semantic.csv` for Dc 403 and Dc 404 to use constrained string syntax `:~ ([string:[asciiprintable]{4}] | [data])` (replacing redundant `[asciiprintable:4]` syntax), and extend the syntax matcher in `matcher.rs` to validate the inner decoded string payload against the subtype pattern.
 4. **Hardlink Relative Path Correction**: Fix `hardlink_map` in `copy_engine.rs` to store destination-relative paths (`rel`) instead of full host paths (`dest_dir.root_path().join(rel)`), preventing sandboxing rejections.
-5. **StreamName Dc 338 Syntax Compliance**: Encode `StreamName::WindowsUtf16` as `[string]` (or `[data]` for invalid UTF-16) to strictly satisfy `:~ ([string] | [data])`.
+5. **StreamName Dc 338 Syntax Compliance**: Encode Windows UTF-16 units as
+   WTF-8-typed `[data]`, satisfying `:~ ([string] | [data])` without losing the
+   source encoding. A bare string would decode as `StreamName::Bytes`.
+
+## Review Corrections and Validation — 2026-10-12
+
+The original fix commit `e52ce7867` passed the existing affected suites but did
+not fully satisfy the losslessness and legacy-isolation requirements.
+
+### Corrections
+
+- Preserve exact link bytes, including repeated/trailing separators, UNC
+  prefixes, drive-relative paths, unpaired Windows surrogates, and arbitrary
+  Unix bytes. A source convention plus an absolute flag is not enough if empty
+  segments or separator spelling are discarded.
+- Pair a typed filepath and exact bytes under Dc 561 (partially equivalent
+  representations). The raw representation supplements, not replaces, the
+  typed filepath. Decode and JSON roundtrips do not depend on the host OS;
+  incompatible materialization fails explicitly.
+- Share filepath segment codecs with `PathBuf`; reject malformed filenames,
+  missing delimiters, and conflicting alternative representations.
+- Keep CSC compatibility out of the generic derive macro. Adapt legacy JSON
+  flags and historical v4 flag maps in `journal/legacy.rs`; preserve original
+  source positions for checksum validation.
+- Preserve the generic binary-field trait contract: historical byte lists are
+  decoded into a byte buffer before field conversion, without requiring the
+  field type to implement `DcMixedDecode`. Regression coverage uses a binary
+  newtype with only `AsRef<[u8]>` and `TryFrom<&[u8]>`.
+- Correct Windows stream metadata: `f2` is Dc Integer List, not UTF-16. Reuse
+  the existing WTF-8 codec for lossless units. Historical incorrectly tagged
+  little-endian units are adapted only at the journal boundary; odd byte
+  lengths are rejected rather than truncated.
+- Keep hardlink targets destination-relative without rebasing them through a
+  canonical absolute root. Do not treat two canonicalization failures as the
+  same file.
+- Reject malformed string subtype syntax and depth-limit violations, propagate
+  diagnostics, and enforce exact ASCII/length constraints even without a
+  caller-provided resolver.
+- Replace the ambiguous text/Base64 JSON helper with text/byte-array encoding.
+  Previously non-UTF-8 bytes became Base64 text that deserialization treated as
+  literal filename bytes.
+- Remove leftover journal debug output.
+
+### Verification Status
+
+Verified on the Linux host:
+
+- 464 library tests across conversion, DcData, DcString, CSC, and file crates:
+  no failures or skipped tests.
+- Targeted Clippy for the affected Rust crates and derive macro: passed.
+- Authentic v1, v2, v3, and v4 journal fixtures remain readable.
+- Regression coverage includes exact cross-source path roundtrips, strict Dc
+  339/338 syntax, relative-destination hardlinks, malformed encodings,
+  conflicting historical flags, and constrained-string rejection cases.
+
+### Pending Work / Remaining Verification
+
+- The full `./test --quick` workspace/platform run has not been rerun. Available
+  disk space is approximately 18 GiB, with a required 15 GiB reserve; a separate
+  full target build would risk violating that reserve.
+- Native Windows materialization and the Windows-only test branches have not
+  been executed. Windows-source representations are tested on Linux.
+- Historical writers' already-discarded link bytes cannot be reconstructed.
+  Old bare JSON targets have no separator convention and retain the previous
+  host-native interpretation with an explicit warning. New JSON includes the
+  convention and preserves exact bytes.
 
 ---
 
@@ -15,7 +80,12 @@ Resolve all 27 test failures identified during `./test --quick` across `ctb-form
 > [!IMPORTANT]
 > **Key Architecture Decisions**:
 > 1. **Legacy Isolation**: `PlatformRawFlags` in `src/io/file/metadata.rs` will NOT be modified. In `src/io/csc/journal/legacy.rs:read_entity_payload`, we inspect `record.metadata` and normalize `platform_raw_flags` from an object `{"raw_value": n, ..}` to `n` before decoding.
-> 2. **Lossless `LinkPath`**: Defined in `src/io/file/entity.rs` (or `src/io/file/link_path.rs`). Stores raw segments `Vec<Vec<u8>>` and absolute/relative flag. Implements `DcMixedEncode` and `DcMixedDecode` as a typed `FilePath` (`511 [f229:] 512`), satisfying Dc 339 while guaranteeing that arbitrary Unix link targets deserialize losslessly on Windows and are only adapted when materializing on disk.
+> 2. **Lossless `LinkPath`**: Defined in `src/io/file/link_path.rs`. Stores exact
+> bytes and the source separator convention, computing segments on demand.
+> Dc 561 pairs a typed `FilePath` (`511 [f229:] 512`) with the raw bytes because
+> the typed representation alone omits slash/backslash spelling. Windows bytes
+> use WTF-8 metadata. Roots, prefixes, and encoding are not reinterpreted until
+> materialization, where incompatible paths produce errors.
 > 3. **Syntax Rule & Matcher Extension**: In `matcher.rs`, when matching `SyntaxTerm::NamedConstruct { name: "string", subtype: Some(sub), .. }`, parse and validate the literal's `decoded_payload` against the inner pattern (e.g. `[asciiprintable]{4}`). Update Dc 403 and 404 in `semantic.csv` to `:~ ([string:[asciiprintable]{4}] | [data])` and regenerate `DcList.generated.csv`.
 
 ---
@@ -29,20 +99,26 @@ Resolve all 27 test failures identified during `./test --quick` across `ctb-form
 ```rust
         if let Some(flags) = record.metadata.get_mut("platform_raw_flags") {
             if flags.is_object() {
-                if let Some(raw) = flags.get("raw_value").and_then(|v| v.as_u64()) {
-                    *flags = serde_json::Value::from(raw);
-                }
+                let raw = flags.get("raw_value").and_then(serde_json::Value::as_u64)
+                    .context("Legacy platform_raw_flags must contain an unsigned raw_value")?;
+                *flags = serde_json::Value::from(raw);
             }
         }
 ```
 This resolves the 3 failures in `ctb-formats-conversion` and 2 failures in `ctb-io-csc::journal::tests` without touching `metadata.rs`.
+- Historical v4 Dc maps and incorrectly tagged stream names are normalized in
+  `decode_v4_entity` only when direct current decoding fails. Normalization
+  must change a known historical representation, reject conflicting values,
+  and leave persisted source bytes and checksum offsets unchanged.
 
 #### [MODIFY] [`src/io/csc/copy_engine.rs`](file:///workspaces/ctoolbox/src/io/csc/copy_engine.rs)
 - Fix `hardlink_map` to store destination-relative paths:
   - Line 168: `hardlink_map.insert(key.clone(), rel.clone());`
   - Line 1360: `hardlink_map.insert(key.clone(), rel.clone());`
-  - Line 989: `let is_self = effective_dest_rel == *first_target_rel;`
-  - Line 996: `target_relative_path: LinkPath::from_relative_path(first_target_rel),`
+  - Compare paths in the same destination-relative/root coordinate system.
+    Canonical paths count as equal only when canonicalization succeeds.
+  - `target_relative_path: LinkPath::from_relative_path(first_target_rel)?,`
+- Do not rebase already-relative targets in `record_journal_entry`.
 
 ---
 
@@ -51,20 +127,28 @@ This resolves the 3 failures in `ctb-formats-conversion` and 2 failures in `ctb-
 #### [MODIFY] [`src/io/file/entity.rs`](file:///workspaces/ctoolbox/src/io/file/entity.rs)
 - Define `LinkPath`:
 ```rust
-/// Cross-platform representation of a symlink or hardlink target path,
-/// preserving raw segment bytes losslessly across differing host operating systems.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Exact source bytes of a link target, independent of the reader's host OS.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct LinkPath {
-    pub segments: Vec<Vec<u8>>,
-    pub is_absolute: bool,
+    #[serde(with = "crate::serde_helpers::text_or_bytes")]
+    bytes: Vec<u8>,
+    is_windows: bool,
 }
 ```
 - Implement `LinkPath`:
   - `from_bytes(bytes: &[u8], is_windows: bool) -> Self`
   - `to_bytes(&self) -> Vec<u8>`
-  - `to_path_buf_for_os(&self, is_windows: bool) -> Result<PathBuf>`
-  - `impl DcMixedEncode for LinkPath`: encodes as `[filepath]` (`511 [f229:] 512`), encoding each segment as `[filename]` (`511 [f228:] 512`) separated by `DC_FILE_PATH_DELIMITER` (`513`).
-  - `impl DcMixedDecode for LinkPath`: decodes segments from `[filepath]`.
+  - `segments(&self) -> Vec<Vec<u8>>`: retains empty segments.
+  - `to_path_buf(&self) -> Result<PathBuf>`: adapts only for the current host.
+  - `from_relative_path(&Path) -> Result<Self>`: rejects roots/prefixes rather
+    than silently stripping them.
+  - `impl DcMixedEncode for LinkPath`: pairs typed filepath and exact bytes
+    under Dc 561; filenames and delimiters use the existing filepath syntax.
+  - `impl DcMixedDecode for LinkPath`: validates both alternatives and their
+    agreement without constructing host paths.
+  - JSON stores bytes and the convention; UTF-8 bytes are readable strings and
+    other bytes are arrays. Historical strings/arrays remain readable with a
+    warning about absent source metadata.
 - Update `FileEntityKind::Symlink` and `FileEntityKind::Hardlink`:
 ```rust
     #[dc(short = 360)]
@@ -85,8 +169,11 @@ pub struct LinkPath {
 
 #### [MODIFY] [`src/io/file/streams.rs`](file:///workspaces/ctoolbox/src/io/file/streams.rs)
 - Update `StreamName::encode_dc_mixed` and `decode_dc_mixed`:
-  - When `WindowsUtf16(units)` is valid UTF-16, encode as `[string]`.
-  - When invalid UTF-16, encode as `[data]` (`mst.push_binary(&le_bytes)`).
+  - Encode valid and invalid UTF-16 as WTF-8-typed `[data]` using the existing
+    workspace codec, preserving every unit and the Windows variant.
+  - Reject invalid/noncanonical WTF-8.
+  - Never label UTF-16 bytes as `f2`; historical instances are adapted at the
+    journal boundary and odd byte lengths produce errors.
   - Both strictly satisfy rule 338 `:~ ([string] | [data])`.
 
 ---
@@ -94,37 +181,13 @@ pub struct LinkPath {
 ### Component 3: `ctb_formats_dcdata` (`src/formats/dcdata`)
 
 #### [MODIFY] [`src/formats/dcdata/syntax/matcher.rs`](file:///workspaces/ctoolbox/src/formats/dcdata/syntax/matcher.rs)
-- In `match_term_single` for `name == "string"`:
-```rust
-            if name == "string" {
-                if first == DC_LITERAL_BEGIN {
-                    if let Some((lit, consumed)) = scan_literal_frame(
-                        stream,
-                        context.mode,
-                        &mut context.diagnostics,
-                        0,
-                    ) {
-                        if let Some(sub) = subtype {
-                            if let Ok(rule) = super::parser::parse_dc_syntax(sub) {
-                                let inner_outcome = match_pattern(&lit.decoded_payload, &rule.pattern, context);
-                                if !inner_outcome.is_matched() || inner_outcome.consumed_tokens() != lit.decoded_payload.len() {
-                                    return MatchOutcome::Mismatch;
-                                }
-                            }
-                        }
-                        if let Some(var) = capture_var {
-                            context
-                                .captured_vars
-                                .entry(var.clone())
-                                .or_default()
-                                .extend_from_slice(&lit.raw_tokens);
-                        }
-                        return MatchOutcome::Matched { consumed };
-                    }
-                    return MatchOutcome::Mismatch;
-                }
-...
-```
+- Validate the entire decoded literal payload against the parsed subtype.
+- Invalid subtype syntax must produce diagnostics and mismatch, not silently
+  become an unconstrained string.
+- Enforce depth limits and propagate inner diagnostics. Use the dataset
+  resolver for constraints when the caller omitted a resolver.
+- Do not let unframed placeholder consumption bypass constraints.
+- Support Dc 561 wrappers alongside Dc 397 for partially equivalent values.
 
 #### [MODIFY] [`src/formats/dcdata/data/categories/semantic.csv`](file:///workspaces/ctoolbox/src/formats/dcdata/data/categories/semantic.csv)
 - Update lines 108 and 109 to replace `[asciiprintable:4]` with `[string:[asciiprintable]{4}]`:

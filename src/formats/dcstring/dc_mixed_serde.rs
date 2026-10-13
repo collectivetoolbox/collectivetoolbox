@@ -1251,42 +1251,56 @@ impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
 
 impl DcMixedEncode for PathBuf {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-        let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-        mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(path_format);
-        mst.push_char(DC_BEGIN_LIST);
-        mst.push_char(DC_TYPE_INTERSECTION);
-        mst.push_char(filename_format);
-        mst.push_char(DC_FILE_PATH_DELIMITER);
-        let mut segments = self.as_os_str().as_encoded_bytes().split(|byte| {
+        let segments: Vec<Vec<u8>> = self.as_os_str().as_encoded_bytes().split(|byte| {
             *byte == b'/' || (cfg!(windows) && *byte == b'\\')
-        }).peekable();
-        while let Some(segment) = segments.next() {
-            if !segment.is_empty() {
-                mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-                mst.push_char(filename_format);
-                if let Ok(text) = std::str::from_utf8(segment) {
-                    mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
-                    mst.push_char(DC_BEGIN_LIST);
-                    mst.push_char(DcChar::from_short(275));
-                    text.encode_dc_mixed(mst)?;
-                    mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
-                    mst.push_binary_with_sha256(segment)?;
-                    mst.push_char(DC_END_LIST);
-                } else {
-                    mst.push_binary_with_sha256(segment)?;
-                }
-                mst.push_char(DC_END_FORMAT_REPRESENTATION);
-            }
-            if segments.peek().is_some() {
-                mst.push_char(DC_FILE_PATH_DELIMITER);
-            }
-        }
-        mst.push_char(DC_END_LIST);
-        mst.push_char(DC_END_FORMAT_REPRESENTATION);
-        Ok(())
+        }).map(<[u8]>::to_vec).collect();
+        encode_filepath_segments(&segments, mst)
     }
+}
+
+/// Encodes raw filename segments as a typed filepath, retaining empty segments
+/// for leading, repeated, and trailing delimiters.
+///
+/// # Errors
+/// Returns an error if the segment list is empty, a segment contains `/`, or
+/// serialization fails. An empty path is represented by one empty segment.
+pub fn encode_filepath_segments(segments: &[Vec<u8>], mst: &mut DcMstring) -> Result<()> {
+    ensure!(!segments.is_empty(), "Filepath requires at least one segment");
+    ensure!(segments.iter().all(|segment| !segment.contains(&b'/')),
+        "Filename segment contains a path delimiter");
+    let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+    let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
+    mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
+    mst.push_char(path_format);
+    mst.push_char(DC_BEGIN_LIST);
+    mst.push_char(DC_TYPE_INTERSECTION);
+    mst.push_char(filename_format);
+    mst.push_char(DC_FILE_PATH_DELIMITER);
+    let mut segments = segments.iter().peekable();
+    while let Some(segment) = segments.next() {
+        if !segment.is_empty() {
+            mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
+            mst.push_char(filename_format);
+            if let Ok(text) = std::str::from_utf8(segment) {
+                mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+                mst.push_char(DC_BEGIN_LIST);
+                mst.push_char(DcChar::from_short(275));
+                text.encode_dc_mixed(mst)?;
+                mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+                mst.push_binary_with_sha256(segment)?;
+                mst.push_char(DC_END_LIST);
+            } else {
+                mst.push_binary_with_sha256(segment)?;
+            }
+            mst.push_char(DC_END_FORMAT_REPRESENTATION);
+        }
+        if segments.peek().is_some() {
+            mst.push_char(DC_FILE_PATH_DELIMITER);
+        }
+    }
+    mst.push_char(DC_END_LIST);
+    mst.push_char(DC_END_FORMAT_REPRESENTATION);
+    Ok(())
 }
 
 impl DcMixedEncode for std::path::Path {
@@ -1344,37 +1358,10 @@ fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
 impl DcMixedDecode for PathBuf {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
         if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-            let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-            reader.expect_char(path_format)?;
-            reader.expect_char(DC_BEGIN_LIST)?;
-            reader.expect_char(DC_TYPE_INTERSECTION)?;
-            reader.expect_char(filename_format)?;
-            reader.expect_char(DC_FILE_PATH_DELIMITER)?;
-            let mut bytes = Vec::new();
-            let mut previous_was_filename = false;
-            while reader.peek_char()? != Some(DC_END_LIST) {
-                if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
-                    reader.next_char()?;
-                    bytes.push(if cfg!(windows) { b'\\' } else { b'/' });
-                    previous_was_filename = false;
-                } else {
-                    ensure!(!previous_was_filename, "Missing delimiter between filename segments");
-                    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-                    reader.expect_char(filename_format)?;
-                    let segment = decode_filename_bytes(reader)?;
-                    ensure!(!segment.is_empty(), "Empty filename segment");
-                    ensure!(!segment.contains(&b'/') && !(cfg!(windows) && segment.contains(&b'\\')),
-                        "Filename segment contains a path delimiter");
-                    bytes.extend(segment);
-                    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-                    previous_was_filename = true;
-                }
-            }
-            reader.expect_char(DC_END_LIST)?;
-            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-            return path_from_native_bytes(&bytes);
+            let segments = decode_filepath_segments(reader)?;
+            ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
+                "Filename segment contains a path delimiter");
+            return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
         }
         if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
             reader.next_char()?;
@@ -1415,6 +1402,44 @@ impl DcMixedDecode for PathBuf {
             Ok(PathBuf::from(s))
         }
     }
+}
+
+/// Decodes a typed filepath without interpreting its bytes on the host OS.
+///
+/// # Errors
+/// Returns an error on malformed framing, conflicting filename representations,
+/// or filenames containing `/`.
+pub fn decode_filepath_segments(reader: &mut DcMixedReader<'_>) -> Result<Vec<Vec<u8>>> {
+    let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+    let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
+    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+    reader.expect_char(path_format)?;
+    reader.expect_char(DC_BEGIN_LIST)?;
+    reader.expect_char(DC_TYPE_INTERSECTION)?;
+    reader.expect_char(filename_format)?;
+    reader.expect_char(DC_FILE_PATH_DELIMITER)?;
+    let mut segments = vec![Vec::new()];
+    let mut previous_was_filename = false;
+    while reader.peek_char()? != Some(DC_END_LIST) {
+        if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
+            reader.next_char()?;
+            segments.push(Vec::new());
+            previous_was_filename = false;
+        } else {
+            ensure!(!previous_was_filename, "Missing delimiter between filename segments");
+            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+            reader.expect_char(filename_format)?;
+            let segment = decode_filename_bytes(reader)?;
+            ensure!(!segment.is_empty(), "Empty filename segment");
+            ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
+            *segments.last_mut().context("Missing filepath segment")? = segment;
+            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
+            previous_was_filename = true;
+        }
+    }
+    reader.expect_char(DC_END_LIST)?;
+    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
+    Ok(segments)
 }
 
 impl DcMixedEncode for SystemTime {
@@ -2408,6 +2433,51 @@ mod tests {
 
         let e2 = SampleBinaryEnum::Blob(vec![10, 20, 30]);
         assert_dc_roundtrip(&e2)?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_binary_fields_do_not_require_a_typed_decoder() -> Result<()> {
+        #[derive(Debug, PartialEq)]
+        struct RawBytes(Vec<u8>);
+
+        impl AsRef<[u8]> for RawBytes {
+            fn as_ref(&self) -> &[u8] { &self.0 }
+        }
+
+        impl TryFrom<&[u8]> for RawBytes {
+            type Error = anyhow::Error;
+
+            fn try_from(bytes: &[u8]) -> Result<Self> {
+                Ok(Self(bytes.to_vec()))
+            }
+        }
+
+        #[derive(Debug, PartialEq, DcMixed)]
+        #[dc(begin = 317, end = 318)]
+        struct BinaryFields {
+            #[dc(385, binary)]
+            payload: RawBytes,
+            #[dc(539, binary)]
+            flags: Option<RawBytes>,
+        }
+
+        let value = BinaryFields {
+            payload: RawBytes(vec![0, 128, 255]),
+            flags: Some(RawBytes(u64::MAX.to_le_bytes().to_vec())),
+        };
+        assert_dc_roundtrip(&value)?;
+
+        let mut historical = DcMstring::new();
+        historical.push_char(DcChar::from_short(317));
+        historical.push_char(DcChar::from_short(385));
+        value.payload.0.encode_dc_mixed(&mut historical)?;
+        historical.push_char(DcChar::from_short(539));
+        historical.push_char(DcChar::from_short(315));
+        u64::MAX.to_le_bytes().to_vec().encode_dc_mixed(&mut historical)?;
+        historical.push_char(DcChar::from_short(318));
+        ensure!(historical.decode::<BinaryFields>()? == value,
+            "Historical byte lists must use the binary conversion contract");
         Ok(())
     }
 

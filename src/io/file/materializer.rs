@@ -463,7 +463,7 @@ pub fn materialize_entity(
                 &parent_dir_fd.as_fd(),
                 &file_name,
                 &dest_path,
-                &target.to_bytes(),
+                target.to_path_buf()?.as_os_str().as_encoded_bytes(),
                 options.symlink_policy,
             )?;
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
@@ -487,9 +487,7 @@ pub fn materialize_entity(
         FileEntityKind::Hardlink {
             target_relative_path,
         } => {
-            let origin_is_windows = entity.metadata.native.as_ref()
-                .is_some_and(|native| native.source_os == crate::metadata::OsFamily::Windows);
-            let target_path = resolve_relative_path_for_os(&target_relative_path.to_bytes(), origin_is_windows)?;
+            let target_path = target_relative_path.to_path_buf()?;
             if options.path_policy == PathTraversalPolicy::StrictSandboxed {
                 for comp in target_path.components() {
                     match comp {
