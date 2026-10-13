@@ -317,13 +317,7 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
     }
 
     if is_in_test() && !ctb_utilities::https::crlite::has_test_download_override() {
-        let now = unix_system_time_now();
-        let ip = if url.contains("ipv6") {
-            IpAddr::V6(Ipv6Addr::LOCALHOST)
-        } else {
-            IpAddr::V4(Ipv4Addr::LOCALHOST)
-        };
-        return Ok((ip, now, now, now));
+        bail!("Remote IP discovery requires a download override in tests");
     }
 
     let url_string = url.to_string();
@@ -483,11 +477,7 @@ pub fn env_cache_reset() {
         *lock = None;
     }
 
-    let _ = cached_local_ipv4();
-    let _ = cached_local_ipv6();
-    let _ = cached_public_ipv4();
-    let _ = cached_public_ipv6();
-    let _ = cached_server_system_time_offset_nanos();
+    init_boot_env();
 }
 
 
@@ -966,7 +956,10 @@ impl EnvDescription {
             local_ips,
             public_ips,
             system_time_resolution_nanos: unix_system_time_resolution().ok(),
-            server_system_time_offset_nanos: None,
+            server_system_time_offset_nanos: CACHED_SERVER_TIME_OFFSET_NANOS
+                .read()
+                .ok()
+                .and_then(|lock| *lock),
             is_release_build: is_release_build(),
             is_debug_build: is_debug_build(),
             is_cargo_target_binary: is_cargo_target_binary(),
@@ -1242,24 +1235,33 @@ impl EnvDescription {
         let mut desc = Self::capture_quick();
         desc.is_official_signed_build = verify_official_signed_build();
         let mut local_ips = Vec::new();
-        if let Ok(v4) = cached_local_ipv4() {
-            local_ips.push(IpAddr::V4(v4));
+        match cached_local_ipv4() {
+            Ok(v4) => local_ips.push(IpAddr::V4(v4)),
+            Err(error) => warn_fmt!("Local IPv4 discovery failed: {error:#}"),
         }
-        if let Ok(v6) = cached_local_ipv6() {
-            local_ips.push(IpAddr::V6(v6));
+        match cached_local_ipv6() {
+            Ok(v6) => local_ips.push(IpAddr::V6(v6)),
+            Err(error) => warn_fmt!("Local IPv6 discovery failed: {error:#}"),
         }
         desc.local_ips = local_ips;
 
         let mut public_ips = Vec::new();
-        if let Ok(v4) = cached_public_ipv4() {
-            public_ips.push(IpAddr::V4(v4));
+        match cached_public_ipv4() {
+            Ok(v4) => public_ips.push(IpAddr::V4(v4)),
+            Err(error) => warn_fmt!("Public IPv4 discovery failed: {error:#}"),
         }
-        if let Ok(v6) = cached_public_ipv6() {
-            public_ips.push(IpAddr::V6(v6));
+        match cached_public_ipv6() {
+            Ok(v6) => public_ips.push(IpAddr::V6(v6)),
+            Err(error) => warn_fmt!("Public IPv6 discovery failed: {error:#}"),
         }
         desc.public_ips = public_ips;
-        desc.server_system_time_offset_nanos =
-            cached_server_system_time_offset_nanos().ok();
+        desc.server_system_time_offset_nanos = match cached_server_system_time_offset_nanos() {
+            Ok(offset) => Some(offset),
+            Err(error) => {
+                warn_fmt!("Server clock offset discovery failed: {error:#}");
+                None
+            }
+        };
         desc
     }
 
@@ -1302,27 +1304,31 @@ static BOOT_CACHED_ENV: RwLock<Option<Arc<EnvDescription>>> = RwLock::new(None);
 /// Initializes and caches the startup boot environment using a full (slow)
 /// environment capture.
 pub fn init_boot_env() -> Arc<EnvDescription> {
-    env_cache_reset();
     let env = Arc::new(EnvDescription::capture());
-    if let Ok(mut lock) = BOOT_CACHED_ENV.write() {
-        *lock = Some(Arc::clone(&env));
-    }
+    let mut lock = BOOT_CACHED_ENV.write().unwrap_or_else(|error| {
+        warn!("Recovering poisoned boot environment cache");
+        error.into_inner()
+    });
+    *lock = Some(Arc::clone(&env));
     env
 }
 
 /// Returns the boot-cached environment recorded during workspace startup, if present.
 pub fn get_boot_cached_env() -> Option<Arc<EnvDescription>> {
-    BOOT_CACHED_ENV
-        .read()
-        .ok()
-        .and_then(|lock| lock.as_ref().map(Arc::clone))
+    let lock = BOOT_CACHED_ENV.read().unwrap_or_else(|error| {
+        warn!("Recovering poisoned boot environment cache");
+        error.into_inner()
+    });
+    lock.as_ref().map(Arc::clone)
 }
 
 /// Reset the boot-cached environment (primarily used for test isolation).
 pub fn reset_boot_cached_env() {
-    if let Ok(mut lock) = BOOT_CACHED_ENV.write() {
-        *lock = None;
-    }
+    let mut lock = BOOT_CACHED_ENV.write().unwrap_or_else(|error| {
+        warn!("Recovering poisoned boot environment cache");
+        error.into_inner()
+    });
+    *lock = None;
 }
 
 /// Capture a quick snapshot of the current execution environment as an
@@ -1339,27 +1345,34 @@ pub fn capture_quick() -> EnvDescription {
 }
 
 #[derive(Clone, Debug)]
-enum ScopeSlot {
-    Concrete(Arc<EnvDescription>),
-    LazyQuick(Arc<OnceLock<Arc<EnvDescription>>>),
-    LazyFull(Arc<OnceLock<Arc<EnvDescription>>>),
+struct ScopeSlot {
+    env: Arc<OnceLock<Arc<EnvDescription>>>,
+    capture: fn() -> EnvDescription,
 }
 
 impl ScopeSlot {
-    fn resolve(&self) -> Arc<EnvDescription> {
-        match self {
-            Self::Concrete(env) => Arc::clone(env),
-            Self::LazyQuick(lock) => Arc::clone(lock.get_or_init(|| {
-                if let Some(cached) = get_boot_cached_env() {
-                    cached
-                } else {
-                    Arc::new(capture_quick())
-                }
-            })),
-            Self::LazyFull(lock) => Arc::clone(lock.get_or_init(|| {
-                Arc::new(capture())
-            })),
+    fn concrete(env: Arc<EnvDescription>) -> Self {
+        Self {
+            env: Arc::new(OnceLock::from(env)),
+            capture: capture_quick,
         }
+    }
+
+    fn lazy(capture: fn() -> EnvDescription) -> Self {
+        Self {
+            env: Arc::new(OnceLock::new()),
+            capture,
+        }
+    }
+
+    fn resolve(&self) -> Arc<EnvDescription> {
+        Arc::clone(self.env.get_or_init(|| {
+            if let Some(cached) = get_boot_cached_env() {
+                cached
+            } else {
+                Arc::new((self.capture)())
+            }
+        }))
     }
 }
 
@@ -1387,25 +1400,22 @@ pub struct EnvironmentScope {
 impl EnvironmentScope {
     /// Enters a new thread-local environment scope with the given environment.
     pub fn enter(env: Arc<EnvDescription>) -> Self {
-        let slot = ScopeSlot::Concrete(env);
-        let previous =
-            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
-        Self { previous }
+        Self::enter_slot(ScopeSlot::concrete(env))
     }
 
     /// Enters a thread-local scope that lazily captures a quick environment
     /// snapshot only upon first access.
     pub fn enter_fresh() -> Self {
-        let slot = ScopeSlot::LazyQuick(Arc::new(OnceLock::new()));
-        let previous =
-            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
-        Self { previous }
+        Self::enter_slot(ScopeSlot::lazy(capture_quick))
     }
 
     /// Enters a thread-local scope that lazily captures a full environment
     /// snapshot (including network queries) only upon first access.
     pub fn enter_full() -> Self {
-        let slot = ScopeSlot::LazyFull(Arc::new(OnceLock::new()));
+        Self::enter_slot(ScopeSlot::lazy(capture))
+    }
+
+    fn enter_slot(slot: ScopeSlot) -> Self {
         let previous =
             ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(slot));
         Self { previous }
@@ -1430,45 +1440,38 @@ pub struct GlobalEnvironmentScope {
 impl GlobalEnvironmentScope {
     /// Enters a process-wide environment scope with the given environment.
     pub fn enter(env: Arc<EnvDescription>) -> Self {
-        let slot = ScopeSlot::Concrete(env);
-        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
-            lock.replace(slot)
-        } else {
-            None
-        };
-        Self { previous }
+        Self::enter_slot(ScopeSlot::concrete(env))
     }
 
     /// Enters a process-wide scope that lazily captures a quick environment
     /// snapshot only upon first access.
     pub fn enter_fresh() -> Self {
-        let slot = ScopeSlot::LazyQuick(Arc::new(OnceLock::new()));
-        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
-            lock.replace(slot)
-        } else {
-            None
-        };
-        Self { previous }
+        Self::enter_slot(ScopeSlot::lazy(capture_quick))
     }
 
     /// Enters a process-wide scope that lazily captures a full environment
     /// snapshot (including network queries) only upon first access.
     pub fn enter_full() -> Self {
-        let slot = ScopeSlot::LazyFull(Arc::new(OnceLock::new()));
-        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
-            lock.replace(slot)
-        } else {
-            None
-        };
+        Self::enter_slot(ScopeSlot::lazy(capture))
+    }
+
+    fn enter_slot(slot: ScopeSlot) -> Self {
+        let mut lock = GLOBAL_OPERATION_ENV.write().unwrap_or_else(|error| {
+            warn!("Recovering poisoned operation environment scope");
+            error.into_inner()
+        });
+        let previous = lock.replace(slot);
         Self { previous }
     }
 }
 
 impl Drop for GlobalEnvironmentScope {
     fn drop(&mut self) {
-        if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
-            *lock = self.previous.take();
-        }
+        let mut lock = GLOBAL_OPERATION_ENV.write().unwrap_or_else(|error| {
+            warn!("Recovering poisoned operation environment scope");
+            error.into_inner()
+        });
+        *lock = self.previous.take();
     }
 }
 
@@ -1520,10 +1523,12 @@ pub fn capture_quick_arc() -> Arc<EnvDescription> {
         return slot.resolve();
     }
 
-    if let Ok(lock) = GLOBAL_OPERATION_ENV.read() {
-        if let Some(ref slot) = *lock {
-            return slot.resolve();
-        }
+    let slot = GLOBAL_OPERATION_ENV.read().unwrap_or_else(|error| {
+        warn!("Recovering poisoned operation environment scope");
+        error.into_inner()
+    }).clone();
+    if let Some(slot) = slot {
+        return slot.resolve();
     }
 
     if let Some(cached) = get_boot_cached_env() {
@@ -2112,6 +2117,5 @@ mod tests {
         assert_eq!(summary, "Unknown OS [Headless]");
     }
 }
-
 
 

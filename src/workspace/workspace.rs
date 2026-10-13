@@ -225,8 +225,9 @@ impl Workspace for CtbWorkspace {
             rt.socket_path()
         );
 
-        // Concurrently run full environment capture/cache refill during boot
-        tokio::task::spawn_blocking(ctb_io_environment::init_boot_env);
+        tokio::task::spawn_blocking(ctb_io_environment::init_boot_env)
+            .await
+            .context("Startup environment capture worker panicked")?;
 
         if self.args().no_update {
             log!("Skipping update checks due to --no-update");

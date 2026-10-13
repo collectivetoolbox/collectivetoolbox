@@ -62,6 +62,15 @@ environments remain inline, including those of attached streams, and an explicit
 unknown environment remains unknown. Recording or resuming a journal never
 replaces source provenance with the machine currently reading it.
 
+Lightweight commands capture the environment lazily when metadata first needs
+it. The default capture makes no network requests; it uses cached IP addresses,
+clock offset, and signature verification only when already available.
+`--full-provenance` opts into lazy full capture, including network discovery.
+Parallel workers share the same snapshot for the operation. A full workspace
+boot eagerly captures and caches its environment before startup completes;
+subsequent quick captures reuse that startup snapshot. An explicit environment
+cache refresh replaces the startup snapshot as well.
+
 Readers still accept `CTBMETA1` records. Those older records inherited omitted
 environments from the session header. A legacy journal with no environment
 definition remains without one when resumed. Older readers do not support the

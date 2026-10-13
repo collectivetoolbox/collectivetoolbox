@@ -36,22 +36,17 @@ echo "The quick brown fox jumps over the lazy dog! 1234567890" > "$TEST_FILE"
 
 # Determine binary to test:
 # 1. Explicit argument ($1) or CTOOLBOX_BIN environment variable
-# 2. Reusing an existing built binary in built/ or target/ (with warning for local runs)
-# 3. Fallback to cargo run --release
+# 2. Build/run current sources rather than silently testing a stale built binary.
+# Pass an explicit path to test an existing build.
 CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
 
 if [[ -n "$CTB_BIN" ]]; then
     CARGO_CMD="$CTB_BIN"
-elif [[ -x "built/linux-x64/ctoolbox" ]]; then
-    CARGO_CMD="built/linux-x64/ctoolbox"
-elif [[ -x "target/x86_64-unknown-linux-musl/release/ctoolbox" ]]; then
-    CARGO_CMD="target/x86_64-unknown-linux-musl/release/ctoolbox"
-elif [[ -x "target/release/ctoolbox" ]]; then
-    CARGO_CMD="target/release/ctoolbox"
 else
     export RUSTFLAGS="-Awarnings"
     CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
 fi
+echo "Testing with: $CARGO_CMD"
 
 # 1. Test gzip compression & decompression via stdout streams
 $CARGO_CMD compress gzip "$TEST_FILE" -o - | $CARGO_CMD decompress gzip - -o - > "$TMP_DIR/out_stream.txt"
@@ -240,4 +235,3 @@ $CARGO_CMD decompress "$FIXTURE_RAW.old.z" -o "$TMP_DIR/fixture_old_z.pan" --for
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_old_z.pan"
 
 echo "All compression CLI tests passed successfully!"
-
