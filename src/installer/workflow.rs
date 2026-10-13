@@ -436,7 +436,7 @@ mod tests {
         );
         let downloader = ChunkDownloader::with_http_client(
             "https://ctb.test",
-            Arc::new(http),
+            std::sync::Arc::new(http),
             no_progress_callback(),
         );
         let mut manifest = test_manifest();
