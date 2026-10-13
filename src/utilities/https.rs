@@ -220,6 +220,7 @@ impl AsyncClient {
 
     pub async fn get(&self, url: &str) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
+        ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let start = std::time::Instant::now();
@@ -275,6 +276,7 @@ impl AsyncClient {
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
+        ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let start = std::time::Instant::now();
@@ -333,6 +335,7 @@ impl AsyncClient {
         retry_count: usize,
     ) -> Result<AsyncResponse> {
         self.ensure_crlite_ready(url).await?;
+        ensure_network_allowed_in_tests(url)?;
         let host_retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
@@ -443,6 +446,7 @@ impl BlockingClient {
 
     pub fn get(&self, url: &str) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
+        ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let start = std::time::Instant::now();
@@ -476,6 +480,7 @@ impl BlockingClient {
         retry_count: usize,
     ) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
+        ensure_network_allowed_in_tests(url)?;
         let host_retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
@@ -524,6 +529,7 @@ impl BlockingClient {
         headers: Option<reqwest::header::HeaderMap>,
     ) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
+        ensure_network_allowed_in_tests(url)?;
         let retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let start = std::time::Instant::now();
@@ -562,6 +568,7 @@ impl BlockingClient {
         retry_count: usize,
     ) -> Result<BlockingResponse> {
         self.ensure_crlite_ready(url)?;
+        ensure_network_allowed_in_tests(url)?;
         let host_retry_limit =
             invocation_settings::get_settings().retry_on_host_error;
         let max_host_retries = std::cmp::max(retry_count, host_retry_limit);
@@ -657,6 +664,14 @@ impl std::io::Read for BlockingResponse {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.inner.read(buf)
     }
+}
+
+fn ensure_network_allowed_in_tests(url: &str) -> Result<()> {
+    anyhow::ensure!(
+        !crate::testing::is_in_test(),
+        "Real HTTP requests are forbidden in tests; inject a mock HTTP client for {url}"
+    );
+    Ok(())
 }
 
 fn build_async_client(options: ClientOptions) -> Result<reqwest::Client> {
@@ -914,6 +929,66 @@ fn sleep_delay_bounded(
 )]
 mod tests {
     use super::*;
+
+    #[crate::ctb_test("tokio")]
+    async fn test_async_requests_require_mocks() -> Result<()> {
+        let mut client = async_client(ClientOptions::default())?;
+        for skip_crlite in [false, true] {
+            client.skip_crlite_ready_check = skip_crlite;
+            for url in ["http://unmocked.invalid/test", "https://unmocked.invalid/test"] {
+                let results = [
+                    client.get(url).await,
+                    client.get_with_backoff(url, 10).await,
+                    client.post(url, Vec::new(), None).await,
+                ];
+                for result in results {
+                    let error = result.err().context("Unmocked HTTP request succeeded")?;
+                    anyhow::ensure!(
+                        format!("{error:#}").contains("Real HTTP requests are forbidden in tests"),
+                        "Unexpected error: {error:#}"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_blocking_requests_require_mocks() -> Result<()> {
+        let client = blocking_client_no_crlite()?;
+        for url in ["http://unmocked.invalid/test", "https://unmocked.invalid/test"] {
+            let results = [
+                client.get(url),
+                client.get_with_backoff(url, 10),
+                client.get_with_headers(url, None),
+                client.get_with_headers_and_backoff(url, None, 10),
+            ];
+            for result in results {
+                let error = result.err().context("Unmocked HTTP request succeeded")?;
+                anyhow::ensure!(
+                    error.to_string().contains("Real HTTP requests are forbidden in tests"),
+                    "Unexpected error: {error:#}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_network_guard_applies_to_unnamed_worker_threads() -> Result<()> {
+        let error = std::thread::spawn(|| {
+            assert!(crate::testing::try_get_current_test_name().is_none());
+            ensure_network_allowed_in_tests("http://unmocked.invalid/test")
+        })
+        .join()
+        .map_err(|_| anyhow::anyhow!("Network guard test worker panicked"))?
+        .expect_err("Unnamed test worker must not access the network");
+        anyhow::ensure!(
+            error.to_string().contains("Real HTTP requests are forbidden in tests"),
+            "Unexpected error: {error:#}"
+        );
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_sleep_delay_bounded_no_timeout() {

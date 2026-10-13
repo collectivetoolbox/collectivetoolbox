@@ -764,6 +764,26 @@ mod tests {
             file1_entry.add_chunk(c.to_chunk_info());
         }
         manifest.add_file(file1_entry);
+        let (private_key, public_key) = generate_keypair();
+        manifest.signature = Some(sign_manifest(&manifest, &private_key).unwrap());
+        let key_response = serde_json::json!({
+            "public_key": public_key_to_base64(&public_key),
+            "key_id": KeyId::from_public_key(&public_key).to_hex(),
+        });
+        let http = crate::download::tests::InMemoryHttpClient::new(
+            std::collections::HashMap::from([(
+                "/releases/public-key".to_string(),
+                crate::download::HttpResponse {
+                    status: 200,
+                    body: serde_json::to_vec(&key_response).unwrap(),
+                },
+            )]),
+        );
+        let downloader = crate::download::ChunkDownloader::with_http_client(
+            "https://ctb.test",
+            std::sync::Arc::new(http),
+            crate::download::no_progress_callback(),
+        );
 
         let manifest_json = serde_json::to_string_pretty(&manifest).unwrap();
         fs::write(bundle_dir.join("manifest.json"), manifest_json).unwrap();
@@ -771,7 +791,9 @@ mod tests {
         let orig_cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&bundle_dir).unwrap();
 
-        let load_res = crate::workflow::load_manifest_and_features("en");
+        let load_res = crate::workflow::load_manifest_and_features_with_downloader(
+            "en", &downloader,
+        );
         let (loaded_manifest, features) = match load_res {
             Ok(val) => val,
             Err(e) => {
@@ -787,11 +809,12 @@ mod tests {
         config.add_desktop_shortcut = false;
         config.add_to_start_menu = false;
         config.add_to_path = false;
-        let run_res = crate::workflow::run_installation(
+        let run_res = crate::workflow::run_installation_with_downloader(
             &config,
             &loaded_manifest,
             crate::download::no_progress_callback(),
             None,
+            &downloader,
         );
 
         let _ = std::env::set_current_dir(&orig_cwd);

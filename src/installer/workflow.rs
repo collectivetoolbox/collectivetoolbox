@@ -48,12 +48,20 @@ use ctb_utilities::pc_settings::{self, PcSettingStrKey};
 pub fn load_manifest_and_features(
     lang_code: &str,
 ) -> Result<(ReleaseManifest, Vec<Feature>)> {
+    let downloader =
+        ChunkDownloader::new(resolved_server_url(), no_progress_callback())?;
+    load_manifest_and_features_with_downloader(lang_code, &downloader)
+}
+
+/// Loads installer features using the supplied downloader.
+pub fn load_manifest_and_features_with_downloader(
+    lang_code: &str,
+    downloader: &ChunkDownloader,
+) -> Result<(ReleaseManifest, Vec<Feature>)> {
     let runtime = build_runtime()?;
     let server_url = resolved_server_url();
 
     let manifest = runtime.block_on(async {
-        let downloader =
-            ChunkDownloader::new(&server_url, no_progress_callback())?;
         let manifest = if let Some(offline_path) =
             crate::download::find_offline_manifest()
         {
@@ -82,7 +90,7 @@ pub fn load_manifest_and_features(
                 })?
         };
 
-        verify_downloaded_manifest(&downloader, &manifest).await?;
+        verify_downloaded_manifest(downloader, &manifest).await?;
         Ok::<ReleaseManifest, anyhow::Error>(manifest)
     })?;
 
@@ -101,6 +109,25 @@ pub fn run_installation(
     progress_callback: ProgressCallback,
     cancel_flag: Option<&CancellationFlag>,
 ) -> Result<InstallationRecord> {
+    let downloader =
+        ChunkDownloader::new(resolved_server_url(), progress_callback.clone())?;
+    run_installation_with_downloader(
+        config,
+        manifest,
+        progress_callback,
+        cancel_flag,
+        &downloader,
+    )
+}
+
+/// Runs installation using the supplied downloader.
+pub fn run_installation_with_downloader(
+    config: &InstallConfig,
+    manifest: &ReleaseManifest,
+    progress_callback: ProgressCallback,
+    cancel_flag: Option<&CancellationFlag>,
+    downloader: &ChunkDownloader,
+) -> Result<InstallationRecord> {
     let selected_features =
         resolve_selected_feature_ids(manifest, &config.selected_features);
     let files = selected_manifest_files(manifest, &selected_features);
@@ -113,7 +140,6 @@ pub fn run_installation(
     });
 
     let runtime = build_runtime()?;
-    let server_url = resolved_server_url();
     let cache_dir = temp_work_dir("cache")?;
     let stage_dir = temp_work_dir("stage")?;
 
@@ -129,11 +155,7 @@ pub fn run_installation(
     let result = runtime.block_on({
         let record = &mut record;
         async move {
-            let downloader = ChunkDownloader::new(
-                &server_url,
-                progress_callback_clone.clone(),
-            )?;
-            verify_downloaded_manifest(&downloader, manifest).await?;
+            verify_downloaded_manifest(downloader, manifest).await?;
 
             for entry in &files {
                 if is_cancellation_requested(cancel_flag) {
@@ -394,5 +416,40 @@ mod tests {
 
         assert!(selected.contains("core"));
         assert!(selected.contains("docs"));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn mocked_verification_key_checks_manifest_signature() -> Result<()> {
+        let (private_key, public_key) = crate::signing::generate_keypair();
+        let payload = serde_json::json!({
+            "public_key": crate::signing::public_key_to_base64(&public_key),
+            "key_id": crate::signing::KeyId::from_public_key(&public_key).to_hex(),
+        });
+        let http = crate::download::tests::InMemoryHttpClient::new(
+            std::collections::HashMap::from([(
+                "/releases/public-key".to_string(),
+                crate::download::HttpResponse {
+                    status: 200,
+                    body: serde_json::to_vec(&payload)?,
+                },
+            )]),
+        );
+        let downloader = ChunkDownloader::with_http_client(
+            "https://ctb.test",
+            Arc::new(http),
+            no_progress_callback(),
+        );
+        let mut manifest = test_manifest();
+        manifest.signature = Some(crate::signing::sign_manifest(
+            &manifest,
+            &private_key,
+        )?);
+        verify_downloaded_manifest(&downloader, &manifest).await?;
+
+        manifest.ctoolbox_version = semver::Version::new(2, 0, 0);
+        assert!(verify_downloaded_manifest(&downloader, &manifest).await.is_err());
+        manifest.signature = None;
+        assert!(verify_downloaded_manifest(&downloader, &manifest).await.is_err());
+        Ok(())
     }
 }

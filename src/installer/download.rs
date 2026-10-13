@@ -917,7 +917,7 @@ pub fn chunk_server_path(hash: &str) -> PathBuf {
     clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::chunking::chunk_data;
     use crate::manifest::{FileEntry, Platform, ReleaseManifest};
@@ -930,12 +930,12 @@ mod tests {
     use tokio::sync::RwLock;
 
     #[derive(Clone, Default)]
-    struct InMemoryHttpClient {
+    pub(crate) struct InMemoryHttpClient {
         routes: Arc<HashMap<String, HttpResponse>>,
     }
 
     impl InMemoryHttpClient {
-        fn new(routes: HashMap<String, HttpResponse>) -> Self {
+        pub(crate) fn new(routes: HashMap<String, HttpResponse>) -> Self {
             Self {
                 routes: Arc::new(routes),
             }

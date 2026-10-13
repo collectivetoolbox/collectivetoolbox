@@ -4,6 +4,21 @@ This document describes how to test the Collective Toolbox deployment process (`
 
 ---
 
+## Unit-Test HTTP Isolation
+
+The shared HTTP clients reject real requests inside the repository test
+harness, including unnamed worker threads, plain HTTP, and clients that bypass
+CRLite. Requests fail explicitly rather than contacting DNS or waiting through
+network retries. Inject an in-memory client at the caller's HTTP abstraction;
+CRLite tests use their scoped download overrides.
+
+Installer workflow tests use `ChunkDownloader::with_http_client` and the
+`load_manifest_and_features_with_downloader` and
+`run_installation_with_downloader` entry points. Mock the release public key as
+well as manifests and chunks: local bundle data does not eliminate the
+workflow's verification-key request. The offline bundle regression signs its
+manifest and verifies it against a mocked key while reading chunks locally.
+
 ## Running the Development CLI
 
 Use `scripts/run-dev-ctb -- <arguments>` instead of choosing a binary manually
