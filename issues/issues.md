@@ -108,6 +108,25 @@ Again wrong, looks like changing the accepted syntax to make a broken implementa
 
 - The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways?
 
+The new full-record validation checks exposed an unrelated, pre-existing Finder-label failure at Dc 405. I’ll leave that out of scope and keep strict regression checks focused on the changed filename, rectangle, and binary-length rules; the existing full-record roundtrip checks remain.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 "Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).
 

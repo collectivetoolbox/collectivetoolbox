@@ -82,6 +82,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   if not encountered in the serialized stream.
 //! - `#[dc(<id>, binary)]`: Binary byte payload. Enclosed within Dc binary
 //!   delimiter characters (Dc 203..204).
+//! - `#[dc(<id>, representation = f524)]`: Encloses a single field value in
+//!   Dc 511, the declared format identifier, and Dc 512. An absent optional
+//!   field is omitted; a present one wraps its inner value without Dc 315.
 //! - `#[dc(nested = <end_id>)]`: Multi-level nested child structure ending with
 //!   `<end_id>`.
 //! - `#[dc(begin = <b_id>, end = <e_id>)]`: Field bounded by explicit delimiters.
@@ -616,13 +619,14 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
             return Err(syn::Error::new(field.span(), "shared requires a nonempty name and a nested Arc<T> or Option<Arc<T>> field"));
         }
 
-        if representation.is_some() && (tag.is_none() || !nested.is_empty()
-            || begin.is_some() || end.is_some() || binary || checksum || flatten
-            || skip || equivalents.is_some() || shared.is_some() || raw.is_some())
-        {
-            return Err(syn::Error::new(field.span(),
-                "representation requires a tagged value field without another codec"));
-        }
+    }
+
+    if representation.is_some() && (tag.is_none() || !nested.is_empty()
+        || begin.is_some() || end.is_some() || binary || checksum || flatten
+        || skip || equivalents.is_some() || shared.is_some() || raw.is_some())
+    {
+        return Err(syn::Error::new(field.span(),
+            "representation requires a tagged value field without another codec"));
     }
 
     if let (Some(b), Some(e)) = (begin, end) {

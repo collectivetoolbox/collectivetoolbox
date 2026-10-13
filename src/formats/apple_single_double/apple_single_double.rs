@@ -2142,6 +2142,10 @@ mod tests {
         let mut reader = DcMixedReader::new(&mst);
         let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
         ensure!(decoded_finfo == finfo);
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderInfo {
+            window_bounds: finfo.window_bounds,
+            ..FinderInfo::default()
+        })?;
 
         // 5. Test decoding from Dc with semantic flags only
         let mut custom_mst = DcMstring::new();

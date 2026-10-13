@@ -294,6 +294,9 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
             !subtype_str.is_empty(),
             "Named construct in brackets cannot have an empty subtype: '[{trimmed}]'"
         );
+        if name == "data" {
+            super::parse_data_constraint(subtype_str)?;
+        }
 
         return Ok(SyntaxElement::with_quantifier(
             SyntaxTerm::NamedConstruct {
@@ -1009,7 +1012,8 @@ pub fn parse_document_tokens_with_resolver(
                     let mut ctx = MatchContext::new_with_token(Some(first)).with_mode(mode);
                     ctx.resolver = Some(default_syntax_resolver().clone());
                     let (payload_slice, fmt_lead_consumed) = match target {
-                        CharTarget::Format(_) if remaining.first() == Some(&target.to_u128()) => {
+                        CharTarget::Format(_) if remaining.first() == Some(&target.to_u128())
+                            && !super::matcher::pattern_starts_with_self(&rule.pattern) => {
                             // Reason for fallback: slice beyond format token defaults to empty slice
                             (remaining.get(1..).unwrap_or(&[]), 1usize)
                         }
@@ -1062,13 +1066,26 @@ pub fn parse_document_tokens_with_resolver(
                                 if let Some(fmt_rule) = res.resolve_rule(&fmt_target) {
                                     let mut fmt_ctx = MatchContext::new_with_token(Some(fmt_tok)).with_mode(mode);
                                     fmt_ctx.resolver = Some(default_syntax_resolver().clone());
-                                    let fmt_outcome = match_syntax_rule_with_context(payload_slice, fmt_rule, &mut fmt_ctx);
+                                    let rule_offset = if super::matcher::pattern_starts_with_self(&fmt_rule.pattern) {
+                                        1
+                                    } else {
+                                        2
+                                    };
+                                    let Some(rule_stream) = remaining.get(rule_offset..consumed.saturating_sub(1)) else {
+                                        diagnostics.push(SyntaxDiagnostic {
+                                            message: "Invalid format representation bounds".to_owned(),
+                                            token_offset: offset,
+                                            is_error: true,
+                                        });
+                                        return ParsedDocument { elements, diagnostics, has_errors: true };
+                                    };
+                                    let fmt_outcome = match_syntax_rule_with_context(rule_stream, fmt_rule, &mut fmt_ctx);
                                     for diag in &fmt_ctx.diagnostics {
                                         let mut diag = diag.clone();
                                         diag.token_offset = diag
                                             .token_offset
                                             .saturating_add(offset)
-                                            .saturating_add(2);
+                                            .saturating_add(rule_offset);
                                         diagnostics.push(diag);
                                     }
                                     if !fmt_outcome.is_matched() && mode == MatchMode::Strict {

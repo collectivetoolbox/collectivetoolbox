@@ -44,8 +44,6 @@ use ctb_utilities::format_id::FormatId;
     Clone,
     PartialEq,
     Eq,
-    PartialOrd,
-    Ord,
     Hash,
     serde::Serialize,
     serde::Deserialize,
@@ -55,6 +53,28 @@ pub enum StreamName {
     WindowsUtf16(Vec<u16>),
     /// Encoded source bytes that cannot yet be interpreted losslessly.
     Encoded { format: FormatId, bytes: Vec<u8> },
+}
+
+impl PartialOrd for StreamName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StreamName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Bytes(left), Self::Bytes(right)) => left.cmp(right),
+            (Self::WindowsUtf16(left), Self::WindowsUtf16(right)) => left.cmp(right),
+            (Self::Encoded { format: left_format, bytes: left },
+                Self::Encoded { format: right_format, bytes: right }) =>
+                left_format.shorthand().cmp(right_format.shorthand()).then_with(|| left.cmp(right)),
+            (Self::Bytes(_), _) | (Self::WindowsUtf16(_), Self::Encoded { .. }) =>
+                std::cmp::Ordering::Less,
+            (_, Self::Bytes(_)) | (Self::Encoded { .. }, Self::WindowsUtf16(_)) =>
+                std::cmp::Ordering::Greater,
+        }
+    }
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for StreamName {
@@ -127,7 +147,8 @@ impl StreamName {
         Self::Bytes(s.as_bytes().to_vec())
     }
 
-    /// Returns canonical raw bytes, using little-endian units for UTF-16.
+    /// Returns raw bytes, using little-endian units for decoded UTF-16.
+    /// Uninterpreted encoded names retain their exact source payload.
     #[must_use]
     pub fn as_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         match self {
@@ -716,39 +737,53 @@ mod tests {
                 assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
             }
 
-            #[crate::ctb_test]
-            fn test_stream_name_rejects_malformed_encoding() -> Result<()> {
-                let mut encoded = ctb_formats_dcstring::DcMstring::new();
-                let mut metadata = ctb_formats_dcstring::DcString::new();
-                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
-                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-                ));
-                encoded.push_binary_with_metadata(&[0xed, 0xa0], &metadata)?;
-                assert!(encoded.decode::<StreamName>().is_err());
-                let encoded = StreamName::from_windows_utf16(&[0x61]).to_dc_mixed()?;
-                let (format, bytes) = ctb_formats_dcstring::DcMixedReader::new(&encoded)
-                    .read_checksum_payload()?;
-                assert_eq!(format, Some(ctb_formats_dcstring::DcChar::from_u128(
-                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-                )));
-                assert_eq!(bytes.as_ref(), b"a");
-                for name in [
-                    StreamName::from_windows_utf16(&[0x61, 0x62]),
-                    StreamName::from_windows_utf16(&[0xd800]),
-                ] {
-                    let stream = AttachedStream::from_data(
-                        Some(name.clone()), StreamKind::NtfsAlternateDataStream, Vec::new()
-                    )?;
-                    ctb_formats_dcstring::assert_dc_document_roundtrip(&stream)?;
-                    ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
-                }
-                Ok(())
-            }
             #[cfg(unix)]
             if matches!(name, StreamName::Bytes(_)) {
                 assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
             }
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_stream_name_preserves_malformed_encoding_until_use() -> Result<()> {
+        let mut metadata = ctb_formats_dcstring::DcString::new();
+        metadata.push(ctb_formats_dcstring::DcChar::from_u128(
+            FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+        ));
+        for bytes in [&b"\xed\xa0"[..], &b"\xc0\xaf"[..],
+            &b"\xed\xa0\x80\xed\xb0\x80"[..]] {
+            let mut encoded = ctb_formats_dcstring::DcMstring::new();
+            encoded.push_binary_with_metadata(bytes, &metadata)?;
+            let name = encoded.decode::<StreamName>()?;
+            assert_eq!(name.as_bytes().as_ref(), bytes);
+            assert_eq!(name.to_dc_mixed()?, encoded);
+            assert!(name.to_os_string().is_err());
+            let restored: StreamName = serde_json::from_value(serde_json::to_value(&name)?)?;
+            assert_eq!(restored, name);
+            ctb_formats_dcstring::assert_dc_document_roundtrip(
+                &AttachedStream::from_data(
+                    Some(name), StreamKind::NtfsAlternateDataStream, Vec::new()
+                )?
+            )?;
+        }
+        let encoded = StreamName::from_windows_utf16(&[0x61]).to_dc_mixed()?;
+        let (format, bytes) = ctb_formats_dcstring::DcMixedReader::new(&encoded)
+            .read_checksum_payload()?;
+        assert_eq!(format, Some(ctb_formats_dcstring::DcChar::from_u128(
+            FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
+        )));
+        assert_eq!(bytes.as_ref(), b"a");
+        for name in [
+            StreamName::from_windows_utf16(&[0x61, 0x62]),
+            StreamName::from_windows_utf16(&[0xd800]),
+        ] {
+            let stream = AttachedStream::from_data(
+                Some(name.clone()), StreamKind::NtfsAlternateDataStream, Vec::new()
+            )?;
+            ctb_formats_dcstring::assert_dc_document_roundtrip(&stream)?;
+            ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
+        }
+        Ok(())
     }
 
     #[cfg(windows)]

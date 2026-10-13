@@ -1311,7 +1311,7 @@ impl DcMixedEncode for std::path::Path {
 
 /// Encodes a value within the declared format representation boundaries.
 pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
-    value: &T, format: DcChar, mst: &mut DcMstring, context: &SharedValueContext,
+    value: &T, format: DcChar, mst: &mut DcMstring, context: &crate::SharedValueContext,
 ) -> Result<()> {
     mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
     mst.push_char(format);
@@ -2417,6 +2417,76 @@ mod tests {
         opt_digest: Option<[u8; 32]>,
         #[dc(406, binary)]
         wrapped: BinaryPayload,
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SampleFormatFields {
+        #[dc(496, representation = f228)]
+        name: String,
+        #[dc(510, representation = f524, default, omit_default)]
+        bounds: Option<[i16; 4]>,
+    }
+
+    #[crate::ctb_test]
+    fn test_format_field_representation_boundaries() -> Result<()> {
+        for bounds in [None, Some([-10, 20, 30, 40])] {
+            let value = SampleFormatFields { name: "name".to_owned(), bounds };
+            crate::assert_dc_document_roundtrip(&value)?;
+            let encoded = value.to_dc_mixed()?;
+            let mut reader = DcMixedReader::new(&encoded);
+            reader.expect_short_dc(401)?;
+            reader.expect_short_dc(496)?;
+            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
+            reader.expect_char(DcChar::from_u128(FormatId::FileName.dc_id()
+                .context("Missing filename format identifier")?))?;
+            ensure!(String::decode_dc_mixed(&mut reader)? == "name");
+            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
+            if let Some(bounds) = bounds {
+                reader.expect_short_dc(510)?;
+                let decoded = decode_format_representation::<[i16; 4]>(
+                    &mut reader, DcChar::from_u128(FormatId::QuickDrawRect.dc_id()
+                        .context("Missing rectangle format identifier")?),
+                )?;
+                ensure!(decoded == bounds);
+            }
+            reader.expect_short_dc(402)?;
+        }
+        let format = DcChar::from_u128(FormatId::FileName.dc_id()
+            .context("Missing filename format identifier")?);
+        for closing in [None, Some(DC_END_LIST)] {
+            let mut malformed = DcMstring::new();
+            malformed.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
+            malformed.push_char(format);
+            "name".encode_dc_mixed(&mut malformed)?;
+            if let Some(closing) = closing { malformed.push_char(closing); }
+            ensure!(decode_format_representation::<String>(
+                &mut DcMixedReader::new(&malformed), format,
+            ).is_err(), "Malformed format boundary was accepted");
+        }
+        Ok(())
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SampleFinderCodes {
+        #[dc(403, binary)]
+        file_type: Vec<u8>,
+        #[dc(404, binary)]
+        creator: Vec<u8>,
+    }
+
+    #[crate::ctb_test]
+    fn test_finder_binary_codes_require_four_payload_bytes() -> Result<()> {
+        for length in [0, 3, 4, 5, 8] {
+            let codes = SampleFinderCodes {
+                file_type: vec![0xff; length], creator: vec![0; length],
+            };
+            let validation = crate::assert_dc_document_roundtrip(&codes);
+            ensure!(validation.is_ok() == (length == 4),
+                "Unexpected Finder code validation for byte length {length}: {validation:?}");
+        }
+        Ok(())
     }
 
     #[crate::ctb_test]

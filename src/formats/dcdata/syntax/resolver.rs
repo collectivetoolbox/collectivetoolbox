@@ -198,9 +198,6 @@ impl DatasetRuleResolver {
                 }
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Dc(sid_u32), rule.clone());
-                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
-                        resolver.register_closing_delimiter(closer_tok, CharTarget::Dc(sid_u32));
-                    }
                 }
                 if let Some(ref closes) = defn.closes {
                     let opener_target = match closes {
@@ -217,6 +214,20 @@ impl DatasetRuleResolver {
                     };
                     if let Some(target) = opener_target {
                         resolver.register_closing_delimiter(sid_u128, target);
+                    }
+                }
+            }
+        }
+
+        // Declared delimiters take precedence: a field ending in a nested
+        // representation's closer does not itself open that representation.
+        for defn in crate::lookup::get_all_dc_defns() {
+            if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
+                if let (Ok(id), Some(closer)) = (
+                    u32::try_from(short_id), detect_container_closer(&rule.pattern),
+                ) {
+                    if !resolver.closing_delimiters.contains_key(&closer) {
+                        resolver.register_closing_delimiter(closer, CharTarget::Dc(id));
                     }
                 }
             }
@@ -240,7 +251,9 @@ impl DatasetRuleResolver {
                 if let Some(ref rule) = defn.syntax {
                     resolver.add_rule(CharTarget::Format(short_id), rule.clone());
                     if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
-                        resolver.register_closing_delimiter(closer_tok, CharTarget::Format(short_id));
+                        if !resolver.closing_delimiters.contains_key(&closer_tok) {
+                            resolver.register_closing_delimiter(closer_tok, CharTarget::Format(short_id));
+                        }
                     }
                 }
             }

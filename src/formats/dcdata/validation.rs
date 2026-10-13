@@ -2695,6 +2695,111 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_data_byte_constraints() -> Result<()> {
+        use crate::syntax::{DatasetRuleResolver, MatchContext, MatchMode, match_pattern};
+        use std::sync::Arc;
+        let resolver = Arc::new(DatasetRuleResolver::load());
+        let sdc = |id| DcChar::from_short(id).to_u128();
+        for (digits, expected) in [
+            (vec![], false),
+            (vec![127, 127, 127, 195], false),
+            (vec![127, 127, 127, 127, 127, 127, 195, 195], true),
+            (vec![127, 127, 127, 127, 127, 127, 127, 195], false),
+            (vec![127; 8], false),
+            (vec![127, 127, 127, 127, 127, 128, 195, 195], false),
+        ] {
+            for typed in [false, true] {
+                let mut stream = vec![sdc(203)];
+                if typed {
+                    stream.push(ctb_utilities::format_id::FormatId::Wtf8.dc_id()
+                        .context("Missing WTF-8 format identifier")?);
+                }
+                stream.extend(digits.iter().map(|id| sdc(*id)));
+                stream.push(sdc(204));
+                for syntax in ["[data:bytes=4]", "[data:f84;bytes=4]"] {
+                    let rule = parse_dc_syntax(syntax)?;
+                    let mut context = MatchContext::default().with_resolver(resolver.clone())
+                        .with_mode(MatchMode::Strict);
+                    let outcome = match_pattern(&stream, &rule.pattern, &mut context);
+                    assert_eq!(outcome.is_matched() && !context.has_errors,
+                        expected && (typed || syntax == "[data:bytes=4]"), "{syntax}: {stream:?}");
+                    let mut wrapped = vec![sdc(397), sdc(310), sdc(275)];
+                    wrapped.extend_from_slice(&stream);
+                    wrapped.push(sdc(311));
+                    let mut context = MatchContext::default().with_resolver(resolver.clone())
+                        .with_mode(MatchMode::Strict);
+                    let outcome = match_pattern(&wrapped, &rule.pattern, &mut context);
+                    assert_eq!(outcome.is_matched() && !context.has_errors,
+                        expected && (typed || syntax == "[data:bytes=4]"), "wrapped {syntax}: {wrapped:?}");
+                    if syntax == "[data:bytes=4]" {
+                        let finder = parse_dc_syntax("~ ([string:[asciiprintable]{4}] | [data:bytes=4])")?;
+                        let mut tagged = vec![sdc(403)];
+                        tagged.extend_from_slice(&wrapped);
+                        let mut context = MatchContext::new(Some(403)).with_resolver(resolver.clone())
+                            .with_mode(MatchMode::Strict);
+                        let outcome = match_pattern(&tagged, &finder.pattern, &mut context);
+                        assert_eq!(outcome.is_matched() && !context.has_errors, expected,
+                            "constrained alternation: {tagged:?}");
+                    }
+                }
+            }
+        }
+        for syntax in ["[data:bytes=]", "[data:bytes=-1]", "[data:f84;bytes=4;bytes=5]",
+            "[data:f84;length=4]", "[data:bytes=999999999999999999999999999999]"] {
+            assert!(parse_dc_syntax(syntax).is_err(), "{syntax}");
+        }
+        let conflicting_lengths = vec![
+            sdc(397), sdc(310), sdc(275),
+            sdc(203), sdc(127), sdc(127), sdc(127), sdc(195), sdc(204),
+            sdc(312),
+            sdc(203), sdc(127), sdc(127), sdc(127), sdc(127),
+            sdc(127), sdc(127), sdc(195), sdc(195), sdc(204), sdc(311),
+        ];
+        let rule = parse_dc_syntax("[data:bytes=4]")?;
+        let mut context = MatchContext::default().with_resolver(resolver)
+            .with_mode(MatchMode::Strict);
+        assert!(!match_pattern(&conflicting_lengths, &rule.pattern, &mut context).is_matched(),
+            "A valid alternative hid an invalid payload byte length");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_mac_metadata_requires_typed_filename_and_rectangle() -> Result<()> {
+        use crate::syntax::{DatasetRuleResolver, MatchContext, MatchMode, SyntaxRuleResolver, match_syntax_rule_with_context};
+        use std::sync::Arc;
+        let resolver = Arc::new(DatasetRuleResolver::load());
+        let sdc = |id| DcChar::from_short(id).to_u128();
+        let filename = ctb_utilities::format_id::FormatId::FileName.dc_id()
+            .context("Missing filename format identifier")?;
+        let rectangle = ctb_utilities::format_id::FormatId::QuickDrawRect.dc_id()
+            .context("Missing rectangle format identifier")?;
+        let text = vec![sdc(260), sdc(262), sdc(264), sdc(263), 65, sdc(261)];
+        let number = crate::dc_number_minimal::u128_to_dc_number_chars(1)
+            .iter().map(|ch| ch.to_u128()).collect::<Vec<_>>();
+        for (tag, format, payload) in [(496, filename, text), (510, rectangle, number.repeat(4))] {
+            let rule = resolver.resolve_rule(&crate::syntax::CharTarget::Dc(tag))
+                .context("Missing Mac metadata syntax rule")?;
+            for framed in [false, true] {
+                let mut stream = vec![sdc(tag)];
+                if framed { stream.push(sdc(511)); }
+                stream.push(format);
+                stream.extend_from_slice(&payload);
+                if framed { stream.push(sdc(512)); }
+                let mut context = MatchContext::new(Some(tag)).with_resolver(resolver.clone())
+                    .with_mode(MatchMode::Strict);
+                let outcome = match_syntax_rule_with_context(&stream, rule, &mut context);
+                assert_eq!(outcome.is_matched() && !context.has_errors, framed, "{stream:?}");
+            }
+            let mut bare = vec![sdc(tag)];
+            bare.extend_from_slice(&payload);
+            let mut context = MatchContext::new(Some(tag)).with_resolver(resolver.clone())
+                .with_mode(MatchMode::Strict);
+            assert!(!match_syntax_rule_with_context(&bare, rule, &mut context).is_matched());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_dc_syntax_matcher_resilient_tag_soup() {
         let sdc = |id: u32| DcChar::from_short(id).to_u128();
 

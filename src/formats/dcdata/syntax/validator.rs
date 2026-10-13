@@ -412,7 +412,15 @@ fn validate_syntax_element(
                 );
             } else if name == "data" {
                 if let Some(sub) = subtype {
-                    let sub_trimmed = sub.trim();
+                    let (format, _) = match super::parse_data_constraint(sub) {
+                        Ok(constraint) => constraint,
+                        Err(error) => {
+                            report.add_error(source_file, Some(line_no), Some(col_name),
+                                format!("Invalid data constraint: {error}"), None);
+                            return;
+                        }
+                    };
+                    let Some(sub_trimmed) = format else { return; };
                     if sub_trimmed.is_empty() {
                         report.add_error(
                             source_file,
@@ -641,5 +649,4 @@ pub fn validate_dc_document_strict(stream: &[u128]) -> Result<()> {
     let resolver = super::resolver::default_syntax_resolver();
     validate_dc_stream_strict(stream, resolver.as_ref())
 }
-
 

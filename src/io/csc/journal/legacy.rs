@@ -73,7 +73,8 @@ pub(crate) fn decode_v4_entity(
 ) -> Result<FileEntity> {
     let mut current = reader.clone();
     match FileEntity::decode_dc_mixed(&mut current) {
-        Ok(entity) => {
+        Ok(mut entity) => {
+            adapt_v4_stream_names(&mut entity)?;
             *reader = current;
             Ok(entity)
         }
@@ -89,6 +90,24 @@ pub(crate) fn decode_v4_entity(
             Ok(entity)
         }
     }
+}
+
+fn adapt_v4_stream_names(entity: &mut FileEntity) -> Result<()> {
+    for stream in &mut entity.streams {
+        if let Some(StreamName::Encoded { format, bytes }) = &stream.name {
+            if *format == ctb_utilities::format_id::FormatId::DcIntegerList
+                && bytes.len().is_multiple_of(2)
+            {
+                let units = bytes.chunks_exact(2)
+                    .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
+                    .collect::<Result<Vec<_>>>()?;
+                stream.name = Some(StreamName::from_windows_utf16(&units));
+                warn!("Adapted historical v4 UTF-16 stream name encoding");
+            }
+        }
+        adapt_v4_stream_names(&mut stream.entity)?;
+    }
+    Ok(())
 }
 
 fn normalize_v4_entity(reader: &mut DcMixedReader<'_>) -> Result<(DcMstring, bool)> {
@@ -246,6 +265,31 @@ mod compatibility_tests {
                 }
                 decoded.expect_short_dc(318)?;
                 ensure!(reader.peek_char()?.is_none(), "Original cursor did not advance");
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn v4_entity_adapts_interpretable_stream_names_only() -> Result<()> {
+        for bytes in [&b"a\0\0\xd8"[..], &b"a"[..]] {
+            let mut entity = FileEntity::from_vec(Vec::new());
+            entity.streams.push(AttachedStream::from_data(
+                Some(StreamName::from_encoded(FormatId::DcIntegerList, bytes.to_vec())?),
+                StreamKind::NtfsAlternateDataStream, Vec::new(),
+            )?);
+            let encoded = entity.to_dc_mixed()?;
+            let restored = decode_v4_entity(
+                &mut DcMixedReader::new(&encoded), &SharedValueContext::default(),
+            )?;
+            let name = restored.streams.first().and_then(|stream| stream.name.as_ref())
+                .context("Missing restored stream name")?;
+            if bytes.len().is_multiple_of(2) {
+                ensure!(*name == StreamName::from_windows_utf16(&[0x61, 0xd800]),
+                    "Historical stream encoding was not adapted");
+            } else {
+                ensure!(name.as_bytes().as_ref() == bytes, "Odd stream payload changed");
+                ensure!(name.to_os_string().is_err(), "Odd stream payload was used");
+            }
         }
         Ok(())
     }

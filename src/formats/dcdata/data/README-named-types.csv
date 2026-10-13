@@ -2,7 +2,7 @@ Named type,Syntax,notes
 number,:6 [format:number] [^7]+ 7,
 string,:260:,A framed literal character sequence with a declared type. Its payload is quoted data; embedded expression markers are not evaluated.
 date,:[390:],
-data,:[203:],
+data,:[203:],One encapsulated payload. [data:bytes=N] constrains decoded byte length; [data:f84;bytes=N] additionally constrains the declared format. An external quantifier repeats complete payloads rather than bytes.
 checksum,:[typed_data:hash],
 unicode_any,:[u0..u10ffff],includes unpaired surrogates
 identifier,:270:,A nonempty framed name. Naming an object does not itself dereference or invoke it.

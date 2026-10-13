@@ -384,4 +384,20 @@ mod tests {
         }
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn malformed_windows_targets_are_preserved_until_use() -> Result<()> {
+        for bytes in [&b"\xed\xa0"[..], &b"\xc0\xaf"[..],
+            &b"\xed\xa0\x80\xed\xb0\x80"[..]] {
+            let target = LinkPath::from_bytes(bytes, true);
+            ctb_formats_dcstring::assert_dc_roundtrip(&target)?;
+            ctb_formats_dcstring::assert_dc_document_roundtrip(
+                &crate::entity::FileEntityKind::Symlink { target: target.clone() }
+            )?;
+            let restored: LinkPath = serde_json::from_value(serde_json::to_value(&target)?)?;
+            ensure!(restored == target, "Malformed link target changed");
+            ensure!(target.to_path_buf().is_err(), "Malformed Windows target was used");
+        }
+        Ok(())
+    }
 }

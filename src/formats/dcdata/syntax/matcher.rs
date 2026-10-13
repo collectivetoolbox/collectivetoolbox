@@ -47,6 +47,32 @@ use std::sync::Arc;
 /// Maximum recursion depth allowed during grammar rule expansion.
 pub const MAX_SYNTAX_EXPANSION_DEPTH: usize = 32;
 
+pub(super) fn pattern_starts_with_self(pattern: &SyntaxPattern) -> bool {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => elements.first().is_some_and(|element| {
+            match &element.term {
+                SyntaxTerm::SelfChar => true,
+                SyntaxTerm::Group(pattern) => pattern_starts_with_self(pattern),
+                _ => false,
+            }
+        }),
+        SyntaxPattern::Alternation(branches) =>
+            !branches.is_empty() && branches.iter().all(pattern_starts_with_self),
+    }
+}
+
+fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {
+    match pattern {
+        SyntaxPattern::Sequence(elements) => elements.iter().any(|element| match &element.term {
+            SyntaxTerm::NamedConstruct { name, subtype: Some(_), .. } =>
+                name == "data" || name == "string",
+            SyntaxTerm::Group(pattern) => pattern_has_payload_constraint(pattern),
+            _ => false,
+        }),
+        SyntaxPattern::Alternation(branches) => branches.iter().any(pattern_has_payload_constraint),
+    }
+}
+
 /// Result of evaluating a pattern match against a stream of character tokens.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MatchOutcome {
@@ -172,6 +198,36 @@ fn target_matches_token(target: &CharTarget, token: u128) -> bool {
     target.to_u128() == token
 }
 
+fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {
+    let payload_end = stream.len().checked_sub(1).context("Missing binary terminator")?;
+    let mut payload_start = payload_end;
+    while let Some(index) = payload_start.checked_sub(1) {
+        let token = *stream.get(index).context("Missing binary token")?;
+        if !crate::dc_number_minimal::is_dc_base64_encapsulation_char(DcChar::from_u128(token)) {
+            break;
+        }
+        payload_start = index;
+    }
+    let payload = stream.get(payload_start..payload_end).context("Invalid binary bounds")?;
+    ensure!(payload.len().is_multiple_of(4), "Invalid Base64 payload length");
+    let digits = payload.iter().map(|token|
+        crate::dc_number_minimal::dc_base64_char_to_digit(DcChar::from_u128(*token))
+    ).collect::<Result<Vec<_>>>()?;
+    let padding = digits.iter().rev().take_while(|digit| **digit == 64).count();
+    ensure!(padding <= 2, "Invalid Base64 padding");
+    let unpadded = digits.len().checked_sub(padding).context("Invalid Base64 padding")?;
+    ensure!(digits.get(..unpadded).context("Invalid Base64 bounds")?.iter().all(|digit| *digit < 64),
+        "Embedded Base64 padding");
+    if padding > 0 {
+        let last = digits.get(unpadded.checked_sub(1).context("Missing Base64 digit")?)
+            .context("Missing Base64 digit")?;
+        let mask = if padding == 2 { 15 } else { 3 };
+        ensure!(last & mask == 0, "Noncanonical Base64 trailing bits");
+    }
+    digits.len().checked_div(4).and_then(|groups| groups.checked_mul(3))
+        .and_then(|bytes| bytes.checked_sub(padding)).context("Binary byte count overflow")
+}
+
 /// Locates the end of a balanced container sequence taking escaping into account.
 pub(super) fn find_balanced_closing(stream: &[u128], opener: u128, closer: u128) -> Option<usize> {
     let dc_escape = DC_ESCAPE.to_u128();
@@ -234,6 +290,7 @@ fn match_term_single(
     let dc_equiv = DC_EQUIVALENT_REPRESENTATIONS.to_u128();
     let dc_partial_equiv = DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128();
     if (first == dc_equiv || first == dc_partial_equiv)
+        && !matches!(term, SyntaxTerm::Group(pattern) if pattern_has_payload_constraint(pattern))
         && !matches!(
             term,
             SyntaxTerm::SelfChar
@@ -251,6 +308,69 @@ fn match_term_single(
                 let alt_outcome = match_pattern(stream, &rule.pattern, context);
                 context.self_dc = old_self;
                 if alt_outcome.is_matched() {
+                    if matches!(term, SyntaxTerm::NamedConstruct { name, subtype: Some(_), .. }
+                        if name == "data" || name == "string")
+                    {
+                        if context.depth >= context.max_depth {
+                            context.has_errors = true;
+                            context.diagnostics.push(SyntaxDiagnostic {
+                                message: "Constrained representation expansion depth limit reached".to_owned(),
+                                token_offset: 0, is_error: true,
+                            });
+                            return MatchOutcome::Mismatch;
+                        }
+                        let Some(mut values) = stream.get(2..alt_outcome.consumed_tokens().saturating_sub(1)) else {
+                            return MatchOutcome::Mismatch;
+                        };
+                        let mut constrained_context = context.clone();
+                        constrained_context.depth = constrained_context.depth.saturating_add(1);
+                        for header in ["number", "type"] {
+                            let header_term = SyntaxTerm::NamedConstruct {
+                                name: header.to_owned(), subtype: None, capture_var: None,
+                            };
+                            let header_outcome = match_term_single(values, &header_term, &mut constrained_context);
+                            if header_outcome.is_matched() {
+                                let Some(rest) = values.get(header_outcome.consumed_tokens()..) else {
+                                    return MatchOutcome::Mismatch;
+                                };
+                                values = rest;
+                            } else if header == "type" {
+                                return MatchOutcome::Mismatch;
+                            }
+                        }
+                        let value_term = SyntaxTerm::NamedConstruct {
+                            name: "value".to_owned(), subtype: None, capture_var: None,
+                        };
+                        let mut matched = false;
+                        while !values.is_empty() {
+                            if values.first() == Some(&crate::dc::DC_LIST_ELEMENT_SEPARATOR.to_u128()) {
+                                let Some(rest) = values.get(1..) else { return MatchOutcome::Mismatch; };
+                                values = rest;
+                                continue;
+                            }
+                            let mut candidate_context = constrained_context.clone();
+                            let candidate = match_term_single(values, term, &mut candidate_context);
+                            let consumed = if candidate.is_matched() && !candidate_context.has_errors {
+                                matched = true;
+                                candidate.consumed_tokens()
+                            } else {
+                                if let SyntaxTerm::NamedConstruct { name, .. } = term {
+                                    let unconstrained = SyntaxTerm::NamedConstruct {
+                                        name: name.clone(), subtype: None, capture_var: None,
+                                    };
+                                    let mut trial = constrained_context.clone();
+                                    if match_term_single(values, &unconstrained, &mut trial).is_matched() {
+                                        return MatchOutcome::Mismatch;
+                                    }
+                                }
+                                match_term_single(values, &value_term, &mut constrained_context).consumed_tokens()
+                            };
+                            if consumed == 0 { return MatchOutcome::Mismatch; }
+                            let Some(rest) = values.get(consumed..) else { return MatchOutcome::Mismatch; };
+                            values = rest;
+                        }
+                        if !matched { return MatchOutcome::Mismatch; }
+                    }
                     return alt_outcome;
                 }
             }
@@ -350,6 +470,63 @@ fn match_term_single(
             subtype,
             capture_var,
         } => {
+            if name == "data" {
+                if let Some(subtype) = subtype {
+                    let (format, bytes) = match super::parse_data_constraint(subtype) {
+                        Ok(constraint) => constraint,
+                        Err(error) => {
+                            context.has_errors = true;
+                            context.diagnostics.push(SyntaxDiagnostic {
+                                message: format!("Invalid data constraint: {error}"),
+                                token_offset: 0, is_error: true,
+                            });
+                            return MatchOutcome::Mismatch;
+                        }
+                    };
+                    let bare_data = SyntaxTerm::NamedConstruct {
+                        name: name.clone(), subtype: None, capture_var: None,
+                    };
+                    let mut data_context = context.clone();
+                    if data_context.resolver.is_none() {
+                        data_context.resolver = Some(super::resolver::default_syntax_resolver().clone());
+                    }
+                    let outcome = match_term_single(stream, &bare_data, &mut data_context);
+                    context.has_errors |= data_context.has_errors;
+                    context.diagnostics = data_context.diagnostics;
+                    context.warnings = data_context.warnings;
+                    if !outcome.is_matched() { return MatchOutcome::Mismatch; }
+                    if let Some(format) = format {
+                        use ctb_utilities::format_id::FormatId;
+                        let id = FormatId::from_shorthand(format)
+                            .or_else(|| FormatId::from_ident(format)).and_then(|format| format.dc_id());
+                        if id.is_none() || stream.get(1).copied() != id {
+                            return MatchOutcome::Mismatch;
+                        }
+                    }
+                    let consumed = outcome.consumed_tokens();
+                    if let Some(bytes) = bytes {
+                        let Some(data) = stream.get(..consumed) else { return MatchOutcome::Mismatch; };
+                        match encapsulated_byte_length(data) {
+                            Ok(length) if length == bytes => {}
+                            Ok(_) => return MatchOutcome::Mismatch,
+                            Err(error) => {
+                                context.has_errors = true;
+                                context.diagnostics.push(SyntaxDiagnostic {
+                                    message: format!("Invalid constrained binary payload: {error}"),
+                                    token_offset: 0, is_error: true,
+                                });
+                                return MatchOutcome::Mismatch;
+                            }
+                        }
+                    }
+                    if let Some(var) = capture_var {
+                        if let Some(data) = stream.get(..consumed) {
+                            context.captured_vars.entry(var.clone()).or_default().extend_from_slice(data);
+                        }
+                    }
+                    return outcome;
+                }
+            }
             // Script classification check: [script:<name>]
             if name == "script" {
                 if let (Some(sub), Some(resolver)) = (subtype, &context.resolver) {
@@ -639,7 +816,7 @@ fn match_term_single(
 
                     let (offset_after_fmt, has_fmt_token) = match target {
                         CharTarget::Format(_) if stream.first() == Some(&target.to_u128()) => {
-                            (1usize, true)
+                            (usize::from(!pattern_starts_with_self(&rule.pattern)), true)
                         }
                         _ => (0usize, false),
                     };

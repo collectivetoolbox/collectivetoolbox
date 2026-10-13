@@ -1641,7 +1641,7 @@ mod tests {
                     put_away: 999,
                     scroll_position: None,
                 }),
-                window_bounds: None,
+                window_bounds: Some([50, 60, 400, 500]),
             }),
             real_name: Some("regular_file.txt".to_string()),
             comment: Some("Test comment".to_string()),
@@ -1661,6 +1661,14 @@ mod tests {
         });
 
         ctb_formats_dcstring::assert_dc_roundtrip(&entity).expect("FileEntity DcMixed roundtrip failed");
+        ctb_formats_dcstring::assert_dc_document_roundtrip(&crate::AppleMetadata {
+            real_name: Some("regular_file.txt".to_owned()),
+            finder_info: Some(crate::FinderInfo {
+                window_bounds: Some([50, 60, 400, 500]),
+                ..crate::FinderInfo::default()
+            }),
+            ..crate::AppleMetadata::default()
+        }).expect("Apple filename and rectangle syntax validation failed");
     }
 
     #[crate::ctb_test]

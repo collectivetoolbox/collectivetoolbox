@@ -4,7 +4,9 @@
 Resolve all 27 test failures identified during `./test --quick` across `ctb-formats-conversion` (3 tests) and `ctb-io-csc` (24 tests), incorporating operator feedback:
 1. **Isolate Legacy Deserialization in `legacy.rs`**: Clean legacy JSON representations (e.g. `{"source_os": "linux", "raw_value": 0, "has_unparsed_flags": false}`) entirely within `src/io/csc/journal/legacy.rs` before decoding into `FileMetadata`, avoiding any pollution or legacy handling in `src/io/file/metadata.rs`.
 2. **Cross-Platform Lossless Link Path Representation**: Rather than forcing a host `PathBuf` (which can alter or reject non-host paths when moving between Linux and Windows), introduce a lossless `LinkPath` representation that stores raw path bytes/segments cross-platform, provides methods to adapt to `PathBuf` on materialization, and implements `DcMixed` serialization adhering strictly to Dc 339 `:~ [filepath]`.
-3. **Constrained String Syntax for Dc 403 and Dc 404**: Update `semantic.csv` for Dc 403 and Dc 404 to use constrained string syntax `:~ ([string:[asciiprintable]{4}] | [data])` (replacing redundant `[asciiprintable:4]` syntax), and extend the syntax matcher in `matcher.rs` to validate the inner decoded string payload against the subtype pattern.
+3. **Constrained Finder Codes**: Dc 403 and Dc 404 accept exactly four printable
+   ASCII characters or exactly four decoded bytes:
+   `:~ ([string:[asciiprintable]{4}] | [data:bytes=4])`.
 4. **Hardlink Relative Path Correction**: Fix `hardlink_map` in `copy_engine.rs` to store destination-relative paths (`rel`) instead of full host paths (`dest_dir.root_path().join(rel)`), preventing sandboxing rejections.
 5. **StreamName Dc 338 Syntax Compliance**: Encode Windows UTF-16 units as
    WTF-8-typed `[data]`, satisfying `:~ ([string] | [data])` without losing the
@@ -37,7 +39,9 @@ not fully satisfy the losslessness and legacy-isolation requirements.
 - Correct Windows stream metadata: `f2` is Dc Integer List, not UTF-16. Reuse
   the existing WTF-8 codec for lossless units. Historical incorrectly tagged
   little-endian units are adapted only at the journal boundary; odd byte
-  lengths are rejected rather than truncated.
+  lengths remain opaque with their original declared format and bytes.
+  Malformed or noncanonical WTF-8 is likewise retained without normalization.
+  Interpretation and filesystem use fail explicitly, not archival reads.
 - Keep hardlink targets destination-relative without rebasing them through a
   canonical absolute root. Do not treat two canonicalization failures as the
   same file.
@@ -63,6 +67,10 @@ Verified on the Linux host:
 
 ### Pending Work / Remaining Verification
 
+- Full Finder-record strict validation still has a pre-existing Dc 405
+  label-representation failure. The filename and rectangle regression checks
+  validate those fields independently; ordinary full-record roundtrips remain
+  covered. The label issue is not fixed by broadening its accepted syntax.
 - The full `./test --quick` workspace/platform run has not been rerun. Available
   disk space is approximately 18 GiB, with a required 15 GiB reserve; a separate
   full target build would risk violating that reserve.
@@ -72,6 +80,29 @@ Verified on the Linux host:
   Old bare JSON targets have no separator convention and retain the previous
   host-native interpretation with an explicit warning. New JSON includes the
   convention and preserves exact bytes.
+
+### Operator Corrections — 2026-10-13
+
+- Malformed/noncanonical Windows WTF-8 and odd historical stream-name payloads
+  survive Dc and JSON storage without truncation or normalization. Filesystem
+  conversion rejects uninterpretable names. Interpretable historical UTF-16
+  remains adapted only at the journal boundary.
+- Dc 403/404 binary alternatives now require `[data:bytes=4]`; format and byte
+  constraints can be combined as `[data:f84;bytes=4]`. Length is measured from
+  the actual decoded payload, not its optional declared length or checksum.
+  Equivalent-representation wrappers cannot bypass the payload constraints.
+- Dc 496 requires `[filename]`; the writer emits its typed format boundaries.
+- Dc 510 requires `511 [f524:] 512`; the derive macro's general
+  `representation = f524` attribute emits those boundaries. The decoder also
+  recognizes window bounds when merging Apple metadata.
+- Format macro expansion preserves the identifier for rules beginning with
+  `~`. Declared closing delimiters take precedence over inferred closers, so
+  fields ending in a nested format's closer are not mistaken for containers.
+- Verification: 478 library tests across AppleSingle/Double, conversion,
+  DcData, DcString, file, and CSC passed with no failures or ignored tests.
+  Targeted Clippy passed for changed crates and the derive macro.
+- Remaining verification and the unrelated Finder-label gap are listed above;
+  no full-workspace or native Windows run is claimed.
 
 ---
 
@@ -171,9 +202,10 @@ pub struct LinkPath {
 - Update `StreamName::encode_dc_mixed` and `decode_dc_mixed`:
   - Encode valid and invalid UTF-16 as WTF-8-typed `[data]` using the existing
     workspace codec, preserving every unit and the Windows variant.
-  - Reject invalid/noncanonical WTF-8.
+  - Preserve invalid/noncanonical WTF-8 losslessly; reject it on filesystem use.
   - Never label UTF-16 bytes as `f2`; historical instances are adapted at the
-    journal boundary and odd byte lengths produce errors.
+    journal boundary; preserve odd byte lengths without truncation and reject
+    their use as native names.
   - Both strictly satisfy rule 338 `:~ ([string] | [data])`.
 
 ---
@@ -192,8 +224,8 @@ pub struct LinkPath {
 #### [MODIFY] [`src/formats/dcdata/data/categories/semantic.csv`](file:///workspaces/ctoolbox/src/formats/dcdata/data/categories/semantic.csv)
 - Update lines 108 and 109 to replace `[asciiprintable:4]` with `[string:[asciiprintable]{4}]`:
 ```csv
-1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file type code.
-1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder creator code.
+1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file type code.
+1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder creator code.
 ```
 - Regenerate `DcList.generated.csv`:
 ```bash
