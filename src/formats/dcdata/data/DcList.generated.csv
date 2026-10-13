@@ -411,7 +411,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114514,402,End Mac OS file metadata description,0,BN,,!Cx,.Semantic,,Terminates a preserved Mac OS Finder and archive metadata record.,,,,,,,,,
 1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file type code.,,,,,,,,,
 1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file creator code.,,,,,,,,,
-1114517,405,Mac OS Finder label color,0,BN,,!Cx,.Semantic,:~ [number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489),Mac OS Finder label color code.,,,,,,,,,
+1114517,405,Mac OS Finder label color,0,BN,,!Cx,.Semantic,:~ ([number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489)),Mac OS Finder label color code.,,,,,,,,,
 1114518,406,Mac OS Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]+ 389),Mac OS Finder flags.,,,,,,,,,
 1114519,407,Mac OS Finder icon location,0,BN,,!Cx,.Semantic,:~ (511 [f523:] 512 | [f523:]),Mac OS Finder icon coordinates in QuickDraw grid.,,,,,,,,,
 1114520,408,Mac OS Finder window folder identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Mac OS Finder window folder identifier.,,,,,,,,,

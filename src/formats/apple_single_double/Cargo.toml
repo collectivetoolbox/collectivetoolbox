@@ -14,5 +14,8 @@ serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
 clap = { version = "4.5.54", features = ["derive"] }
 ctb-formats-dcstring = { path = "../dcstring" }
 
+[dev-dependencies]
+ctb-formats-dcdata = { path = "../dcdata" }
+
 [lints]
 workspace = true

@@ -108,7 +108,15 @@ Again wrong, looks like changing the accepted syntax to make a broken implementa
 
 - The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways?
 
-The new full-record validation checks exposed an unrelated, pre-existing Finder-label failure at Dc 405. I’ll leave that out of scope and keep strict regression checks focused on the changed filename, rectangle, and binary-length rules; the existing full-record roundtrip checks remain.
+The pre-existing Finder-label failure at Dc 405 is fixed: `equivalents` derives
+now emit the required Object type header in the Dc 397 list, without relaxing
+database syntax. All eight label values and direct semantic/numeric forms have
+strict-validation regression coverage; Dc 405 alternatives are now grouped
+under their common tag, retaining the same bound and label Dcs. Remaining gaps:
+full Finder records still fail strict validation at Dc 388 because `flags`
+derives emit bare flags instead of a typed list, and at Dc 407 because location
+emits an untyped tuple instead of an f523 representation. Ordinary full-record
+roundtrips remain covered.
 
 
 
@@ -253,5 +261,3 @@ Could you investigate what the root cause of this broken behavior is, and correc
 
 
 Also also, I'm realizing that I don't think there's any way to have the local client authenticate to a corresponding registered remote account... remote account registration isn't turned on right now, anyway.
-
-

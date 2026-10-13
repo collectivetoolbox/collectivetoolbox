@@ -69,10 +69,26 @@ Verified on the Linux host:
 
 ### Pending Work / Remaining Verification
 
-- Full Finder-record strict validation still has a pre-existing Dc 405
-  label-representation failure. The filename and rectangle regression checks
-  validate those fields independently; ordinary full-record roundtrips remain
-  covered. The label issue is not fixed by broadening its accepted syntax.
+- Dc 405 label strict validation is fixed: the shared `equivalents` derive
+  encoder now emits the required Object type header in its Dc 397 list.
+  The Dc 405 alternatives are grouped under their common `~` tag so direct
+  semantic labels match, retaining the same numeric bound and label Dcs.
+  All eight label values and direct semantic/numeric forms are regression
+  tested without broadening database syntax. Older untyped lists remain
+  readable but still fail strict validation.
+- Full Finder-record strict validation additionally exposes a pre-existing
+  Dc 388 flags failure: `flags` derives emit bare flag Dcs rather than the
+  typed list required by the database. Dc 407 location also emits an untyped
+  tuple rather than its required f523 representation. These remain unresolved.
+  Strict record checks cover labels, codes, folder ID, and rectangle without
+  flags, location, or extended flags; ordinary full-record roundtrips remain
+  covered.
+- Finder-label follow-up verification: 198 library tests across
+  AppleSingle/Double, DcString, and DcData passed with no failures or ignored
+  tests. Data-table validation and regeneration passed. Targeted Clippy is
+  still blocked by existing errors in dependencies, the derive macro, and
+  DcString (including unused imports, long functions, and lint attributes);
+  no clean lint run is claimed for this follow-up.
 - The full `./test --quick` workspace/platform run has not been rerun. Available
   disk space is approximately 18 GiB, with a required 15 GiB reserve; a separate
   full target build would risk violating that reserve.

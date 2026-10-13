@@ -2089,6 +2089,66 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_finder_label_dc_document_roundtrip() -> Result<()> {
+        use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
+
+        for index in 0..=7 {
+            let label = FinderLabel::try_from(index)?;
+            let finfo = FinderInfo {
+                file_type: "TEXT".to_string(),
+                label,
+                ..FinderInfo::default()
+            };
+            ctb_formats_dcstring::assert_dc_document_roundtrip(&finfo)?;
+
+            for numeric in [false, true] {
+                let mut mst = DcMstring::new();
+                mst.push_char(DcChar::from_short(401));
+                mst.push_char(DcChar::from_short(403));
+                "TEXT".encode_dc_mixed(&mut mst)?;
+                mst.push_char(DcChar::from_short(405));
+                if numeric {
+                    index.encode_dc_mixed(&mut mst)?;
+                } else {
+                    label.encode_dc_mixed(&mut mst)?;
+                }
+                mst.push_char(DcChar::from_short(402));
+                ctb_formats_dcdata::syntax::validate_dc_document_strict(
+                    &mst.to_dc_tokens()?,
+                ).with_context(|| format!("Finder label {index}, numeric={numeric}"))?;
+                let mut reader = DcMixedReader::new(&mst);
+                ensure!(FinderInfo::decode_dc_mixed(&mut reader)? == finfo);
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_finder_label_equivalent_list_type_header() -> Result<()> {
+        use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader};
+
+        let finfo = FinderInfo {
+            label: FinderLabel::InProgress,
+            ..FinderInfo::default()
+        };
+        let encoded = finfo.to_dc_mixed()?;
+        let mut tokens = encoded.to_dc_tokens()?;
+        let prefix = [401, 405, 397, 310, 275, 487].map(|id| DcChar::from_short(id).to_u128());
+        ensure!(tokens.get(..prefix.len()) == Some(prefix.as_slice()));
+        tokens.remove(4);
+        ensure!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens).is_err(),
+            "Untyped equivalent list passed strict validation");
+
+        let mut old_encoded = ctb_formats_dcstring::DcMstring::new();
+        for token in tokens {
+            old_encoded.push_char(DcChar::from_u128(token));
+        }
+        let mut reader = DcMixedReader::new(&old_encoded);
+        ensure!(FinderInfo::decode_dc_mixed(&mut reader)? == finfo);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
         use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
 
@@ -2143,8 +2203,10 @@ mod tests {
         let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
         ensure!(decoded_finfo == finfo);
         ctb_formats_dcstring::assert_dc_document_roundtrip(&FinderInfo {
-            window_bounds: finfo.window_bounds,
-            ..FinderInfo::default()
+            flags: FinderFlags::default(),
+            location: (0, 0),
+            extended: None,
+            ..finfo.clone()
         })?;
 
         // 5. Test decoding from Dc with semantic flags only

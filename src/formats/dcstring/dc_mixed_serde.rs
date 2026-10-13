@@ -2371,6 +2371,9 @@ mod tests {
             name: "test_eq".to_string(),
         };
         assert_dc_roundtrip(&parent)?;
+        let tokens = parent.to_dc_mixed()?.to_dc_tokens()?;
+        let prefix = [401, 406, 397, 310, 275, 388].map(|id| DcChar::from_short(id).to_u128());
+        ensure!(tokens.get(..prefix.len()) == Some(prefix.as_slice()));
 
         // Also test decoding from semantic-only stream (no 397)
         let mut mst = DcMstring::new();

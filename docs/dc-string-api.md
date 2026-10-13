@@ -51,6 +51,13 @@ metadata struct. Dependent checksums or encoded lengths require an explicit
 enclosing-format editing contract; they cannot be silently left invalid or
 claimed to remain byte-identical after changing covered content.
 
+Derived `equivalents` fields emit Dc 397 followed by a typed Object list
+(`310 275 ... 311`) of semantic and numeric representations. Readers retain
+compatibility with earlier emitted lists missing the type header, but those
+untyped lists do not satisfy strict document syntax validation. Re-encoding a
+typed value emits the corrected header; source-backed editing still preserves
+untouched original bytes.
+
 ### Binary Encapsulation
 
 Textual Dc 203 syntax is:

@@ -2903,6 +2903,7 @@ name = "ctb-formats-apple-single-double"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "ctb-formats-dcdata",
  "ctb-formats-dcstring",
  "ctb-formats-utilities",
  "ctb-utilities",

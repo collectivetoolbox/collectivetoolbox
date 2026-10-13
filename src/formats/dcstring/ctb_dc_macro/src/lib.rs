@@ -80,6 +80,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!   - For `Vec<T>`: repeatedly emits `<id>` followed by each element's encoding.
 //! - `#[dc(<id>, default)]`: Tagged field that defaults to `Default::default()`
 //!   if not encountered in the serialized stream.
+//! - `#[dc(<id>, equivalents = (<semantic_id>, number))]`: Emits Dc 397 with a
+//!   typed Object list containing semantic and numeric representations.
+//!   Readers also accept the older emitted lists without the Object header.
 //! - `#[dc(<id>, binary)]`: Binary byte payload. Enclosed within Dc binary
 //!   delimiter characters (Dc 203..204).
 //! - `#[dc(<id>, representation = f524)]`: Encloses a single field value in
@@ -1532,6 +1535,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_char(#crate_root::DcChar::from_short(397));
                         mst.push_char(#crate_root::DcChar::from_short(310));
+                        mst.push_char(#crate_root::DcChar::from_short(275));
                         #(#eq_encoders_with_sep)*
                         mst.push_char(#crate_root::DcChar::from_short(311));
                     };
@@ -1564,6 +1568,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             reader.read_short_dc()?;
                             let in_list = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
                                 reader.read_short_dc()?;
+                                if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
+                                    reader.read_short_dc()?;
+                                }
                                 true
                             } else {
                                 false
