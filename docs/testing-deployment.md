@@ -4,6 +4,40 @@ This document describes how to test the Collective Toolbox deployment process (`
 
 ---
 
+## Running the Development CLI
+
+Use `scripts/run-dev-ctb -- <arguments>` instead of choosing a binary manually
+or invoking `cargo run`. For example:
+
+```bash
+scripts/run-dev-ctb -- csc source destination
+scripts/run-dev-ctb --offline -- compress gzip input.txt
+```
+
+For a clean working tree, the runner reads each executable's `--version-json`
+output and only reuses a build whose full commit SHA equals `git rev-parse HEAD`.
+Old, unrelated, malformed, and unreadable builds are rejected. Tracked changes
+or untracked files always force a build-system invocation; a matching commit
+alone cannot establish freshness for uncommitted sources.
+
+The fallback is `./build --quick --no-test --release` for the native platform,
+so Linux uses the supported static musl build rather than a GNU host build.
+`--offline` is forwarded to the build script. Without Git history, the runner
+builds rather than trusting an unverifiable existing binary. Build diagnostics
+go to stderr; command arguments, stdout, exit status, and the caller's working
+directory are preserved.
+The runner requires Bash, Git, jq, and coreutils, supplied by the development
+container/build-tool setup.
+
+Scripts making multiple calls can resolve once with
+`scripts/run-dev-ctb --resolve` and execute the returned absolute path. Deployment
+uses the same JSON reader, `ctb_binary_commit`, by sourcing the runner; its
+target-specific build and `--no-build` policies remain separate.
+
+Compression fixture scripts always use this runner. The compression smoke test
+retains its explicit binary argument and `CTOOLBOX_BIN` override for testing
+particular releases and cross-target binaries in CI.
+
 ## Architecture Overview
 
 The deployment test suite consists of three core components:

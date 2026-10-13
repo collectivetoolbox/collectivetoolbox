@@ -36,30 +36,35 @@ echo "The quick brown fox jumps over the lazy dog! 1234567890" > "$TEST_FILE"
 
 # Determine binary to test:
 # 1. Explicit argument ($1) or CTOOLBOX_BIN environment variable
-# 2. Build/run current sources rather than silently testing a stale built binary.
+# 2. Resolve a current build with the shared development runner.
 # Pass an explicit path to test an existing build.
 CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
 
 if [[ -n "$CTB_BIN" ]]; then
-    CARGO_CMD="$CTB_BIN"
+    if [[ -x "$CTB_BIN" ]]; then
+        CARGO_CMD=("$CTB_BIN")
+    else
+        # Cross-target tests also pass a runner command followed by the binary.
+        read -r -a CARGO_CMD <<< "$CTB_BIN"
+    fi
 else
-    CARGO_CMD="cargo run --offline --release -q -p ctoolbox --bin ctoolbox --"
+    CARGO_CMD=("$(scripts/run-dev-ctb --resolve --offline)")
 fi
-echo "Testing with: $CARGO_CMD"
+echo "Testing with: ${CARGO_CMD[*]}"
 
 # 1. Test gzip compression & decompression via stdout streams
-$CARGO_CMD compress gzip "$TEST_FILE" -o - | $CARGO_CMD decompress gzip - -o - > "$TMP_DIR/out_stream.txt"
+"${CARGO_CMD[@]}" compress gzip "$TEST_FILE" -o - | "${CARGO_CMD[@]}" decompress gzip - -o - > "$TMP_DIR/out_stream.txt"
 diff -u "$TEST_FILE" "$TMP_DIR/out_stream.txt"
 
 # 2. Test gzip compression with default extension
-$CARGO_CMD compress gzip "$TEST_FILE"
+"${CARGO_CMD[@]}" compress gzip "$TEST_FILE"
 if [[ ! -f "$TEST_FILE.gz" ]]; then
     echo "Error: Default output file $TEST_FILE.gz was not created." >&2
     exit 1
 fi
 
 # 3. Test decompress with inferred format from .gz extension
-$CARGO_CMD decompress "$TEST_FILE.gz" --force
+"${CARGO_CMD[@]}" decompress "$TEST_FILE.gz" --force
 if [[ ! -f "$TEST_FILE" ]]; then
     echo "Error: Decompressed file $TEST_FILE was not created." >&2
     exit 1
@@ -67,8 +72,8 @@ fi
 
 # 4. Test decompress with no extension -> {filename}.decompressed
 NO_EXT_FILE="$TMP_DIR/compressed_data"
-$CARGO_CMD compress brotli "$TEST_FILE" -o "$NO_EXT_FILE"
-$CARGO_CMD decompress brotli "$NO_EXT_FILE" --force
+"${CARGO_CMD[@]}" compress brotli "$TEST_FILE" -o "$NO_EXT_FILE"
+"${CARGO_CMD[@]}" decompress brotli "$NO_EXT_FILE" --force
 if [[ ! -f "$NO_EXT_FILE.decompressed" ]]; then
     echo "Error: Decompressed file $NO_EXT_FILE.decompressed was not created." >&2
     exit 1
@@ -78,49 +83,49 @@ diff -u "$TEST_FILE" "$NO_EXT_FILE.decompressed"
 # 5. Test compatibility with system CLI tools (gzip, bzip2, brotli) if available
 if command -v gzip >/dev/null 2>&1; then
     echo "Testing compatibility with system gzip..."
-    $CARGO_CMD compress gzip "$TEST_FILE" -o "$TMP_DIR/system_test.gz" --force
+    "${CARGO_CMD[@]}" compress gzip "$TEST_FILE" -o "$TMP_DIR/system_test.gz" --force
     gzip -d -c "$TMP_DIR/system_test.gz" > "$TMP_DIR/system_out.txt"
     diff -u "$TEST_FILE" "$TMP_DIR/system_out.txt"
 
     gzip -c "$TEST_FILE" > "$TMP_DIR/system_in.gz"
-    $CARGO_CMD decompress "$TMP_DIR/system_in.gz" -o "$TMP_DIR/ctb_out.txt" --force
+    "${CARGO_CMD[@]}" decompress "$TMP_DIR/system_in.gz" -o "$TMP_DIR/ctb_out.txt" --force
     diff -u "$TEST_FILE" "$TMP_DIR/ctb_out.txt"
 fi
 
 if command -v bzip2 >/dev/null 2>&1; then
     echo "Testing compatibility with system bzip2..."
-    $CARGO_CMD compress bzip2 "$TEST_FILE" -o "$TMP_DIR/system_test.bz2" --force
+    "${CARGO_CMD[@]}" compress bzip2 "$TEST_FILE" -o "$TMP_DIR/system_test.bz2" --force
     bzip2 -d -c "$TMP_DIR/system_test.bz2" > "$TMP_DIR/bz2_out.txt"
     diff -u "$TEST_FILE" "$TMP_DIR/bz2_out.txt"
 
     bzip2 -c "$TEST_FILE" > "$TMP_DIR/system_in.bz2"
-    $CARGO_CMD decompress "$TMP_DIR/system_in.bz2" -o "$TMP_DIR/ctb_bz2_out.txt" --force
+    "${CARGO_CMD[@]}" decompress "$TMP_DIR/system_in.bz2" -o "$TMP_DIR/ctb_bz2_out.txt" --force
     diff -u "$TEST_FILE" "$TMP_DIR/ctb_bz2_out.txt"
 fi
 
 if command -v brotli >/dev/null 2>&1; then
     echo "Testing compatibility with system brotli..."
-    $CARGO_CMD compress brotli "$TEST_FILE" -o "$TMP_DIR/system_test.br" --force
+    "${CARGO_CMD[@]}" compress brotli "$TEST_FILE" -o "$TMP_DIR/system_test.br" --force
     brotli -d -c "$TMP_DIR/system_test.br" > "$TMP_DIR/br_out.txt"
     diff -u "$TEST_FILE" "$TMP_DIR/br_out.txt"
 
     brotli -c "$TEST_FILE" > "$TMP_DIR/system_in.br"
-    $CARGO_CMD decompress "$TMP_DIR/system_in.br" -o "$TMP_DIR/ctb_br_out.txt" --force
+    "${CARGO_CMD[@]}" decompress "$TMP_DIR/system_in.br" -o "$TMP_DIR/ctb_br_out.txt" --force
     diff -u "$TEST_FILE" "$TMP_DIR/ctb_br_out.txt"
 fi
 
 # 6. Test round-trip for raw deflate, zlib, and SCO compress -H
-$CARGO_CMD compress deflate "$TEST_FILE" -o "$TMP_DIR/raw.deflate" --force
-$CARGO_CMD decompress deflate "$TMP_DIR/raw.deflate" -o "$TMP_DIR/raw_out.txt" --force
+"${CARGO_CMD[@]}" compress deflate "$TEST_FILE" -o "$TMP_DIR/raw.deflate" --force
+"${CARGO_CMD[@]}" decompress deflate "$TMP_DIR/raw.deflate" -o "$TMP_DIR/raw_out.txt" --force
 diff -u "$TEST_FILE" "$TMP_DIR/raw_out.txt"
 
-$CARGO_CMD compress zlib "$TEST_FILE" -o "$TMP_DIR/zlib.zz" --force
-$CARGO_CMD decompress zlib "$TMP_DIR/zlib.zz" -o "$TMP_DIR/zlib_out.txt" --force
+"${CARGO_CMD[@]}" compress zlib "$TEST_FILE" -o "$TMP_DIR/zlib.zz" --force
+"${CARGO_CMD[@]}" decompress zlib "$TMP_DIR/zlib.zz" -o "$TMP_DIR/zlib_out.txt" --force
 diff -u "$TEST_FILE" "$TMP_DIR/zlib_out.txt"
 
 # Test SCO compress (-H) format
 echo "Testing sco-compress format..."
-$CARGO_CMD compress sco-compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.sco" --force
+"${CARGO_CMD[@]}" compress sco-compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.sco" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.sco" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1fa0" ]; then
     echo "Error: Magic header expected 1fa0, got $MAGIC"
@@ -128,7 +133,7 @@ if [ "$MAGIC" != "1fa0" ]; then
 fi
 echo "Verifying magic header 1fa0... OK"
 
-$CARGO_CMD decompress sco-compress "$TMP_DIR/sample.txt.sco" -o "$TMP_DIR/decompressed.txt" --force
+"${CARGO_CMD[@]}" decompress sco-compress "$TMP_DIR/sample.txt.sco" -o "$TMP_DIR/decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/decompressed.txt" || exit 1
 
 if command -v gzip >/dev/null 2>&1; then
@@ -139,7 +144,7 @@ fi
 
 # Test pack (0x1F 0x1E) format
 echo "Testing pack format..."
-$CARGO_CMD compress pack "$TEST_FILE" -o "$TMP_DIR/sample_pack.txt.z" --force
+"${CARGO_CMD[@]}" compress pack "$TEST_FILE" -o "$TMP_DIR/sample_pack.txt.z" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample_pack.txt.z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f1e" ]; then
     echo "Error: Magic header expected 1f1e, got $MAGIC"
@@ -147,7 +152,7 @@ if [ "$MAGIC" != "1f1e" ]; then
 fi
 echo "Verifying pack magic header 1f1e... OK"
 
-$CARGO_CMD decompress pack "$TMP_DIR/sample_pack.txt.z" -o "$TMP_DIR/pack_decompressed.txt" --force
+"${CARGO_CMD[@]}" decompress pack "$TMP_DIR/sample_pack.txt.z" -o "$TMP_DIR/pack_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/pack_decompressed.txt" || exit 1
 
 if command -v gzip >/dev/null 2>&1; then
@@ -158,7 +163,7 @@ fi
 
 # Test old-pack (0x1F 0x1F) format
 echo "Testing old-pack format..."
-$CARGO_CMD compress old-pack "$TEST_FILE" -o "$TMP_DIR/sample.txt.old.z" --force
+"${CARGO_CMD[@]}" compress old-pack "$TEST_FILE" -o "$TMP_DIR/sample.txt.old.z" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.old.z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f1f" ]; then
     echo "Error: Magic header expected 1f1f, got $MAGIC"
@@ -166,12 +171,12 @@ if [ "$MAGIC" != "1f1f" ]; then
 fi
 echo "Verifying old-pack magic header 1f1f... OK"
 
-$CARGO_CMD decompress old-pack "$TMP_DIR/sample.txt.old.z" -o "$TMP_DIR/old_pack_decompressed.txt" --force
+"${CARGO_CMD[@]}" decompress old-pack "$TMP_DIR/sample.txt.old.z" -o "$TMP_DIR/old_pack_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/old_pack_decompressed.txt" || exit 1
 
 # Test CompressLzw (compress 3.0+ / 4.0 / ncompress) format
 echo "Testing compress (CompressLzw block mode) format..."
-$CARGO_CMD compress compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.Z" --force
+"${CARGO_CMD[@]}" compress compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.Z" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.Z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f9d" ]; then
     echo "Error: Magic header expected 1f9d, got $MAGIC"
@@ -179,7 +184,7 @@ if [ "$MAGIC" != "1f9d" ]; then
 fi
 echo "Verifying compress magic header 1f9d... OK"
 
-$CARGO_CMD decompress "$TMP_DIR/sample.txt.Z" -o "$TMP_DIR/lzw_decompressed.txt" --force
+"${CARGO_CMD[@]}" decompress "$TMP_DIR/sample.txt.Z" -o "$TMP_DIR/lzw_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/lzw_decompressed.txt" || exit 1
 
 if command -v gzip >/dev/null 2>&1; then
@@ -190,7 +195,7 @@ fi
 
 # Test CompressLzw2 (compress 2.0 non-block) format
 echo "Testing compress2 (CompressLzw2 non-block mode) format..."
-$CARGO_CMD compress compress2 "$TEST_FILE" -o "$TMP_DIR/sample2.txt.Z" --force
+"${CARGO_CMD[@]}" compress compress2 "$TEST_FILE" -o "$TMP_DIR/sample2.txt.Z" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample2.txt.Z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f9d" ]; then
     echo "Error: Magic header expected 1f9d, got $MAGIC"
@@ -198,7 +203,7 @@ if [ "$MAGIC" != "1f9d" ]; then
 fi
 echo "Verifying compress2 magic header 1f9d... OK"
 
-$CARGO_CMD decompress compress2 "$TMP_DIR/sample2.txt.Z" -o "$TMP_DIR/lzw2_decompressed.txt" --force
+"${CARGO_CMD[@]}" decompress compress2 "$TMP_DIR/sample2.txt.Z" -o "$TMP_DIR/lzw2_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/lzw2_decompressed.txt" || exit 1
 
 if command -v gzip >/dev/null 2>&1; then
@@ -209,28 +214,28 @@ fi
 
 # Test CompressLzw1 (compress 1.0 headerless) format
 echo "Testing compress1 (CompressLzw1 headerless mode) format..."
-$CARGO_CMD compress compress1 "$TEST_FILE" -o "$TMP_DIR/sample1.txt.1.0.Z" --force
-$CARGO_CMD decompress compress1 "$TMP_DIR/sample1.txt.1.0.Z" -o "$TMP_DIR/lzw1_decompressed.txt" --force
+"${CARGO_CMD[@]}" compress compress1 "$TEST_FILE" -o "$TMP_DIR/sample1.txt.1.0.Z" --force
+"${CARGO_CMD[@]}" decompress compress1 "$TMP_DIR/sample1.txt.1.0.Z" -o "$TMP_DIR/lzw1_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/lzw1_decompressed.txt" || exit 1
 
 # 7. Test decompressing embedded fixtures directly
 FIXTURE_RAW="src/formats/compression/fixtures/example2 with lemurs.pan"
-$CARGO_CMD decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.br" -o "$TMP_DIR/fixture_br.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_br.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.gz" -o "$TMP_DIR/fixture_gz.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.gz" -o "$TMP_DIR/fixture_gz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_gz.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.ctblib.deflate" -o "$TMP_DIR/fixture_deflate.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.ctblib.deflate" -o "$TMP_DIR/fixture_deflate.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_deflate.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.ctblib.zz" -o "$TMP_DIR/fixture_zz.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.ctblib.zz" -o "$TMP_DIR/fixture_zz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_zz.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.pack.z" -o "$TMP_DIR/fixture_z.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.pack.z" -o "$TMP_DIR/fixture_z.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_z.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.old.z" -o "$TMP_DIR/fixture_old_z.pan" --force
+"${CARGO_CMD[@]}" decompress "$FIXTURE_RAW.old.z" -o "$TMP_DIR/fixture_old_z.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_old_z.pan"
 
 echo "All compression CLI tests passed successfully!"

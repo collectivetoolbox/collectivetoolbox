@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+ctb_binary_commit() {
+    local binary="$1" metadata
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "Error: jq is required to validate ctoolbox build metadata." >&2
+        return 1
+    fi
+    if ! metadata="$(timeout 10 "$binary" --version-json)"; then
+        echo "Cannot read build metadata from $binary." >&2
+        return 1
+    fi
+    if ! jq -er '
+        select(.name == "ctoolbox")
+        | .commit
+        | select(type == "string")
+        | select(test("^[0-9a-f]{40}([0-9a-f]{24})?$"))
+    ' <<< "$metadata"; then
+        echo "Invalid ctoolbox build metadata from $binary." >&2
+        return 1
+    fi
+}
+
+ctb_run_dev() {
+    local root resolve=false offline=() head="" status="" platform target suffix=""
+    root="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --resolve) resolve=true; shift ;;
+            --offline) offline=(--offline); shift ;;
+            --) shift; break ;;
+            *) break ;;
+        esac
+    done
+    if $resolve && [[ $# -ne 0 ]]; then
+        echo "Usage: scripts/run-dev-ctb --resolve [--offline]" >&2
+        return 1
+    fi
+
+    case "$(uname -s):$(uname -m)" in
+        Linux:x86_64|Linux:amd64)
+            platform=linux-x64; target=x86_64-unknown-linux-musl ;;
+        Linux:i386|Linux:i486|Linux:i586|Linux:i686)
+            platform=linux-x86; target=i586-unknown-linux-musl ;;
+        FreeBSD:amd64|FreeBSD:x86_64)
+            platform=freebsd-x64; target=x86_64-unknown-freebsd ;;
+        MINGW*:x86_64|MSYS*:x86_64|CYGWIN*:x86_64|Windows_NT:AMD64)
+            platform=windows-x64; target=x86_64-win7-windows-gnu; suffix=.exe ;;
+        *)
+            echo "Error: Unsupported host for scripts/run-dev-ctb." >&2
+            return 1 ;;
+    esac
+
+    local binary="" candidate commit
+    local candidates=(
+        "$root/built/$platform/ctoolbox$suffix"
+        "$root/built/ctoolbox$suffix"
+        "$root/target/$target/release/ctoolbox$suffix"
+        "$root/target/$target/debug/ctoolbox$suffix"
+        "$root/target/release/ctoolbox$suffix"
+        "$root/target/debug/ctoolbox$suffix"
+    )
+    if candidate="$(command -v ctoolbox)"; then
+        candidates+=("$candidate")
+    fi
+    if head="$(git -C "$root" rev-parse --verify HEAD)" &&
+        status="$(git -C "$root" status --porcelain --untracked-files=normal)"; then
+        if [[ -z "$status" ]]; then
+            for candidate in "${candidates[@]}"; do
+                [[ -x "$candidate" ]] || continue
+                if commit="$(ctb_binary_commit "$candidate")" && [[ "$commit" == "$head" ]]; then
+                    binary="$candidate"
+                    break
+                fi
+                echo "Skipping stale or unverifiable build: $candidate" >&2
+            done
+        else
+            echo "Working tree is dirty; building current sources." >&2
+        fi
+    else
+        echo "Cannot verify source commit; building current sources." >&2
+    fi
+
+    if [[ -z "$binary" ]]; then
+        echo "Building ctoolbox for $platform..." >&2
+        (cd "$root" && ./build --quick --no-test --release "${offline[@]}" "$platform") >&2 || return
+        binary="$root/built/$platform/ctoolbox$suffix"
+        if [[ ! -x "$binary" ]]; then
+            echo "Error: Build did not produce an executable at $binary." >&2
+            return 1
+        fi
+        if [[ -n "$head" ]]; then
+            commit="$(ctb_binary_commit "$binary")" || return
+            if [[ "$commit" != "$head" ]]; then
+                echo "Error: Rebuilt binary commit $commit does not match source commit $head." >&2
+                return 1
+            fi
+        else
+            commit="unavailable; built from current sources"
+        fi
+    fi
+    echo "Using ctoolbox: $binary (commit $commit)" >&2
+    if $resolve; then
+        printf '%s\n' "$binary"
+    else
+        exec "$binary" "$@"
+    fi
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    set -euo pipefail
+    ctb_run_dev "$@"
+fi

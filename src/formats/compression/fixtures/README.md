@@ -65,13 +65,11 @@ Test-only prerequisites: Bash, GCC, Python 3, gzip, bzip2, Brotli, XZ, lzip,
 lz4, zstd, the bzip2 development library (for historical rzip), and liblzo2.
 These are external test tools, not application dependencies.
 
-Build a current CLI before testing. `CTB_BIN` is an executable path, not a
-shell command; without it the scripts may reuse an existing binary.
+The scripts always use `scripts/run-dev-ctb` to validate an existing build's
+JSON commit metadata or build current sources. A dirty working tree always
+invokes the build system; `CTB_BIN` does not override binary selection.
 
 ```bash
-cargo build --release -p ctoolbox --bin ctoolbox
-export CTB_BIN="$PWD/target/release/ctoolbox"
-
 # Read committed bytes without regenerating or changing them.
 src/formats/compression/data/fixtures/generate-compression-fixtures --verify-only
 

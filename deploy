@@ -23,6 +23,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 repository="$(pwd)"
+source "$repository/scripts/run-dev-ctb"
 
 usage() {
 	cat <<'USAGE'
@@ -64,23 +65,6 @@ read_secret() {
 	read -r -s -p "$prompt" secret
 	echo >&2
 	printf '%s' "$secret"
-}
-
-get_binary_commit() {
-	local bin="$1"
-	if [[ ! -x "$bin" ]]; then
-		return 0
-	fi
-	local json_out
-	json_out="$("$bin" --version-json 2>/dev/null || true)"
-	if [[ -z "$json_out" ]]; then
-		return 0
-	fi
-	if command -v jq >/dev/null 2>&1; then
-		echo "$json_out" | jq -r '.commit // empty' 2>/dev/null || true
-	else
-		echo "$json_out" | sed -n 's/.*"commit": *"\([^"]*\)".*/\1/p'
-	fi
 }
 
 mode_quick=0
@@ -356,8 +340,8 @@ targets_to_build=()
 for target in "${targets[@]}"; do
 	bin_path="$repository/built/$target/ctoolbox"
 	if [[ -x "$bin_path" ]]; then
-		bin_commit="$(get_binary_commit "$bin_path")"
-		if [[ "$bin_commit" == "$commit" ]]; then
+		bin_commit=""
+		if bin_commit="$(ctb_binary_commit "$bin_path")" && [[ "$bin_commit" == "$commit" ]]; then
 			echo "Target '$target' binary is current (matches HEAD commit $commit)."
 			if [[ "$reuse_built" -eq 1 || "$no_build" -eq 1 ]]; then
 				continue

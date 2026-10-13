@@ -73,18 +73,7 @@ else
 fi
 
 # 0. Locate ctoolbox binary
-if [ -n "${CTB_BIN:-}" ]; then
-    CTB_CMD=("$CTB_BIN")
-elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
-    CTB_CMD=("$REPO_ROOT/target/release/ctoolbox")
-elif [ -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
-    CTB_CMD=("$REPO_ROOT/target/debug/ctoolbox")
-elif [ -f "$REPO_ROOT/built/linux-x64/ctoolbox" ]; then
-    CTB_CMD=("$REPO_ROOT/built/linux-x64/ctoolbox")
-else
-    export RUSTFLAGS="-Awarnings"
-    CTB_CMD=(cargo run --release -q -p ctoolbox --bin ctoolbox --)
-fi
+CTB_CMD=("$("$REPO_ROOT/scripts/run-dev-ctb" --resolve)")
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"

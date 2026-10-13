@@ -72,6 +72,28 @@ mock_decompress() {
 
 
 class CompressorRunnerTests(unittest.TestCase):
+    def test_fixture_selection_ignores_ctb_bin_override(self):
+        for script in [RUNNER, RUNNER.with_name("generate-compression-fixtures")]:
+            with self.subTest(script=script.name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "scripts").mkdir()
+                resolver = root / "scripts/run-dev-ctb"
+                current = str(root / "current build")
+                resolver.write_text(
+                    '#!/bin/sh\n[ "$1" = "--resolve" ] || exit 1\n'
+                    f"printf '%s\\n' '{current}'\n"
+                )
+                resolver.chmod(0o755)
+                source = script.read_text()
+                selection = source[source.index("CTB_CMD="):].splitlines()[0]
+                result = subprocess.run(
+                    ["bash", "-c", selection + '\nprintf "%s\\n" "${CTB_CMD[@]}"'],
+                    env={**os.environ, "REPO_ROOT": directory, "CTB_BIN": "/stale/ctoolbox"},
+                    text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.strip(), current)
+
     def report_rows(self, output):
         report = output[output.index("Status,Direction,"):].split("\n\n===", 1)[0]
         rows = list(csv.reader(io.StringIO(report), strict=True))

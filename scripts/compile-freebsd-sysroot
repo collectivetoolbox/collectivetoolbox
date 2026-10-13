@@ -21,72 +21,15 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 workspace_root="$(pwd)"
 
-offline=""
+offline=()
 py_args=()
 for arg in "$@"; do
     if [[ "$arg" == "--offline" ]]; then
-        offline="--offline"
+        offline=(--offline)
     else
         py_args+=("$arg")
     fi
 done
 
-get_binary_commit() {
-    local bin="$1"
-    local json_out
-    json_out="$("$bin" --version-json 2>/dev/null || true)"
-    if [ -z "$json_out" ]; then
-        return 0
-    fi
-    if command -v jq >/dev/null 2>&1; then
-        echo "$json_out" | jq -r '.commit // empty' 2>/dev/null || true
-    else
-        echo "$json_out" | sed -n 's/.*"commit": *"\([^"]*\)".*/\1/p'
-    fi
-}
-
-is_binary_stale() {
-    local bin="$1"
-    if ! command -v git >/dev/null 2>&1 || [ ! -d "$workspace_root/.git" ]; then
-        # Without git history, trust an executable binary if present
-        return 1
-    fi
-    local bin_commit
-    bin_commit="$(get_binary_commit "$bin")"
-    if [ -z "$bin_commit" ]; then
-        return 0
-    fi
-    local behind_count
-    behind_count="$(git -C "$workspace_root" rev-list --count "${bin_commit}..HEAD" 2>/dev/null || echo 0)"
-    if [ "$behind_count" -gt 0 ]; then
-        return 0
-    fi
-    return 1
-}
-
-# Look for an existing, up-to-date ctoolbox host binary
-ctb_bin=""
-candidates=(
-    "$workspace_root/built/linux-x64/ctoolbox"
-    "$workspace_root/target/release/ctoolbox"
-    "$workspace_root/target/debug/ctoolbox"
-)
-
-if command -v ctoolbox >/dev/null 2>&1; then
-    candidates+=("$(command -v ctoolbox)")
-fi
-
-for cand in "${candidates[@]}"; do
-    if [[ -x "$cand" ]] && ! is_binary_stale "$cand"; then
-        ctb_bin="$cand"
-        break
-    fi
-done
-
-if [[ -n "$ctb_bin" ]]; then
-    echo "Running compile-freebsd-sysroot.py using $ctb_bin python..."
-    exec "$ctb_bin" python "$workspace_root/scripts/compile-freebsd-sysroot.py" "${py_args[@]}"
-else
-    echo "Compiling/running compile-freebsd-sysroot.py using cargo run ctb-python..."
-    exec cargo run $offline -p ctb-formats-python --bin ctb-python -- "$workspace_root/scripts/compile-freebsd-sysroot.py" "${py_args[@]}"
-fi
+exec "$workspace_root/scripts/run-dev-ctb" "${offline[@]}" -- \
+    python "$workspace_root/scripts/compile-freebsd-sysroot.py" "${py_args[@]}"

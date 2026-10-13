@@ -37,6 +37,7 @@ BUILD_DEPS=(
     gcc
     gcc-i686-linux-gnu
     git
+    jq
     lld
     make
     mingw-w64
