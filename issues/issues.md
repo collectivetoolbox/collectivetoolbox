@@ -1,12 +1,15 @@
 Execution priorities and MVP scope: [Dc-Native Personal MVP Roadmap](../docs/mvp-roadmap.md).
 This file remains the issue inbox; its ordering is not the implementation order.
 
+[Probably done but need manual testing]:
 - [x] Icons do not have consistent size (compare "Restart" and "Reload")
 - [x] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
-  - [ ] Make the debug logging less of a footgun somehow?
+------
+
+
+- [ ] Make the debug logging less of a footgun somehow?
 - [ ] Web UI: Errors should have a clear way of knowing whether they are serious errors that require a restart, or "normal" errors like password didn't match.
 - [ ] Support for request logging as a configurable option
-- [x] Record a build ID and expose it via --version
 - [ ] Make sure to have a build with no bundled browser for linux if it stays 700mb
 - [ ] Scrolling by tapping top bar doesn’t work on iOS
 - [ ] Minifying middleware?
@@ -16,12 +19,10 @@ This file remains the issue inbox; its ordering is not the implementation order.
 	- [ ] SVG:
 		- [ ] https://github.com/noahbald/oxvg
 		- [ ] https://github.com/bearcove/svag
-- [x] One crate (don't remember which, workspace maybe?) doesn't get a link in the rustdocs for some reason
 - [ ] Format build date nicely as a sortable numeric string and include in file names maybe instead of the commit
 - [ ] Implement HTTPS authenticated fetch for Cloudflare
 - [ ] Maybe: "tighten the logging so the next IPC failure reports which method failed to deserialize (service/method + arg sizes)"
 - [ ] Generate remaining IPC service boilerplate in build.rs and include date/timestamp in the generated files
-- [x] Have some sort of environment helper function to avoid having a "Restart PC" button on the web
 - [ ] 404 is not nice looking now it redirects to the SPA
 - [ ] SPA pages in subdirectories can't use directory-relative links (e.g. newsletters.rss (doesn't work) versus /newsletters/newsletters.rss (works))
   - [ ] This might actually work now. Need to check
@@ -62,12 +63,7 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
 
-- Fun with threads  ```/home/a/.local/bin/ctoolbox install
 
-thread 'main' (703045) panicked at src/installer/gui/theme.rs:49:56:
-Cannot block the current thread from within a runtime. This happens because a function attempted to block the current thread while the thread is being used to drive asynchronous tasks.
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-```
 
 - Regenerate Guix packaging in CI
 
@@ -77,79 +73,9 @@ File flags did not have complete implementation
 
 magic-square
 
-### Installer
-
-- `"-  - Reject invalid or noncanonical WTF-8.` and `reject odd-length historical payloads.` This sounds wrong; it should preserve lossless until used and validate and reject on use of it.
--```
-
-+1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file type code.,,,,,,,,,
-+1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data]),Four-character Mac OS Finder file creator code.,,,,,,,,,
-
-```
-    Even `[data]` should be constrained to 4 bytes. Maybe there should be some syntax that could indicate the allowed length of data? Or a new `[byte]` named type, so it could be `[byte]{4}` (though that would need special-case handling to make it a single encapsulated data region, probably...? not sure how to elegantly express the syntax for that.)
-
-- ```
-
--1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.,,,,,,,,,
-+1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ ([filename] | [string] | [data]),Original real file name preserved in AppleSingle or AppleDouble archive.,,,,,,,,,
-```
-
-This edit is just wrong.
-
-
-- ```
-
--1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.,,,,,,,,,
-+1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ (511 [f524:] 512 | [f524:]),Mac OS Finder folder window bounds rectangle coordinates.,,,,,,,,,
-```
-Again wrong, looks like changing the accepted syntax to make a broken implementation pass validation.
-
 -`+                    match legacy::decode_v4_entity(&mut reader, &shared_context) {` ??? v4 is the current format, not legacy. The test fixture may be a mangled document due to bugs, maybe this is trying to parse a document with invalid syntax? I'm not convinced it's worth implementing deserialization of a buggy format. One less weird way to do that might be to use the existing fuzzy 'tag-soup'-style parser and then map the larger already-parsed structures onto the Rust structs. Maintaining a dedicated parser layer for one-off serialization bugs during development doesn't smell right.
 
 - The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways?
-
-The pre-existing Finder-label failure at Dc 405 is fixed: `equivalents` derives
-now emit the required Object type header in the Dc 397 list, without relaxing
-database syntax. All eight label values and direct semantic/numeric forms have
-strict-validation regression coverage; Dc 405 alternatives are now grouped
-under their common tag, retaining the same bound and label Dcs.
-
-The Dc 388 and Dc 407 follow-up is fixed: `flags` derives emit a typed Object
-list with separators, and both Finder icon location and extended scroll position
-use the existing f523 representation attribute. Malformed flag-list framing and
-unknown flags fail explicitly. Extended Finder info always emits its icon ID so
-default records satisfy Dc 490's nonempty-content rule. Full-record strict
-roundtrips now cover all labels, all flags, coordinate extremes, absent/present
-scroll positions, rectangles, and default extended records. All 490 affected
-library tests passed without failures or ignored tests; targeted Clippy passed.
-
-The compatibility cleanup removes generic decoding of bare flag sequences and
-Dc 397 lists without their required typed-list framing. Regression tests now
-require both invalid forms to fail. All 490 affected library tests, including
-historical journal fixtures, still pass; no new journal compatibility adapter
-was needed.
-
-Remaining verification: the full workspace and native Windows suites have not
-been rerun for this follow-up. Historical untyped flag sequences, equivalent
-lists, and coordinate tuples are not accepted by the generic decoders.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 "Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).
 
@@ -181,11 +107,11 @@ Cancelling installation just makes it start the download over, rather than stopp
 
 Add JS/frontend tests.
 
-- [x] Please check the Handlebars templates for all elements with button styling classes, and without changing their appearance, change them to <button> elements so that they respond as expected for buttons.
+- [ ] Please check the Handlebars templates for all elements with button styling classes, and without changing their appearance, change them to <button> elements so that they respond as expected for buttons.
 
 Confirm Homebrew packaging works.
 
-- [x] Avoid need for duplicate exclude paths in deno.json.
+- [ ] Avoid need for duplicate exclude paths in deno.json.
 
 Cache busting parameters on URLs.
 
@@ -210,24 +136,15 @@ filename
 from_code_point: unknown code point [63489]
 ```
 
-- Detection:
-  - [x] Small formats should use a different DetectionEvidence, maybe DetectionEvidence::CtbRule.
-  - [x] Split DetectionEvidence Magic into DetectionEvidence FileMagic and DetectionEvidence CtbMagic (for ctoolbox additions).
-  - [x] Add small format detection support for URIs and URI schemes (e.g. "http" is a known URI scheme), with the rules themselves implemented in formats/uri.
-  - [x] Add small format detection support for UTIs, Creator Types, MIME types, leveraging formats database and MIME databases.
-  - [x] IP address should not use @implies(f14). Maybe an IpV4String and IpV6String formats could be added. It is common to represent IP addresses as integer types for compact storage.
-  - [x] Move logic for matching small formats that are currently implemented directly within small_formats into other crates (TBD sure where would be best)
-  - [x] Move hardcoded magic data from magic_data.rs into ctoolbox.magic and remove it from magic_data.rs; correct matches from ctoolbox.magic being assigned DetectionEvidence FileMagic when they should be CtbMagic.
-
 - Potentially merge MIME types databases in mime crate, and also load the MIME data from Magdir.
 
 Csc copy fifo
 
-- [x] Short_dc should take a shorthand also maybe and short_fmt removed
-
 Don’t save environment in archive by default? Or maybe just show warning. Otherwise galse sense of security. Though any low metadata mode would still overlook in file metadata
 
 Enviornment detection All network interfaces; MAC address; Add api in io/system for that?
+
+### Installer
 
 Hi! I'd like you to work on some issues in the installer:
 
