@@ -43,8 +43,7 @@ CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
 if [[ -n "$CTB_BIN" ]]; then
     CARGO_CMD="$CTB_BIN"
 else
-    export RUSTFLAGS="-Awarnings"
-    CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+    CARGO_CMD="cargo run --offline --release -q -p ctoolbox --bin ctoolbox --"
 fi
 echo "Testing with: $CARGO_CMD"
 

@@ -51,7 +51,7 @@ pub use ctb_formats_utilities::format_id::FormatId;
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
     is_debug_build, is_official_public_website, is_official_signed_build,
-    is_official_signed_build_cached, is_public_website, reset_process_role_for_testing,
+    is_public_website, reset_process_role_for_testing,
     set_process_role, verify_official_signed_build,
 };
 
@@ -965,7 +965,7 @@ impl EnvDescription {
             is_cargo_target_binary: is_cargo_target_binary(),
             is_in_test: is_in_test(),
             is_branded_build: is_branded_build(),
-            is_official_signed_build: is_official_signed_build_cached(),
+            is_official_signed_build: is_official_signed_build(),
             is_cli_lightweight: is_cli_lightweight(),
             is_workspace: is_workspace(),
             is_workspace_main_process: is_workspace_main_process(),
@@ -1410,7 +1410,8 @@ impl EnvironmentScope {
     }
 
     /// Enters a thread-local scope that lazily captures a full environment
-    /// snapshot (including network queries) only upon first access.
+    /// snapshot (including network queries) only upon first access, or reuses
+    /// the workspace startup snapshot if available.
     pub fn enter_full() -> Self {
         Self::enter_slot(ScopeSlot::lazy(capture))
     }
@@ -1450,7 +1451,8 @@ impl GlobalEnvironmentScope {
     }
 
     /// Enters a process-wide scope that lazily captures a full environment
-    /// snapshot (including network queries) only upon first access.
+    /// snapshot (including network queries) only upon first access, or reuses
+    /// the workspace startup snapshot if available.
     pub fn enter_full() -> Self {
         Self::enter_slot(ScopeSlot::lazy(capture))
     }
@@ -1612,6 +1614,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_env_description_capture_and_serialization() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let desc = EnvDescription::capture();
         assert_eq!(desc.os, os());
         assert_eq!(desc.usize_width, usize());
@@ -1621,7 +1624,10 @@ mod tests {
         let quick = EnvDescription::capture_quick();
         assert_eq!(quick.os, os());
         assert_eq!(quick.usize_width, usize());
-        assert!(quick.server_system_time_offset_nanos.is_none());
+        assert_eq!(
+            quick.server_system_time_offset_nanos,
+            desc.server_system_time_offset_nanos
+        );
         assert!(quick.system_time_resolution_nanos.is_some());
 
         // Test JSON serialization
@@ -1712,6 +1718,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_process_role_tracking() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         reset_process_role_for_testing();
         assert_eq!(get_process_role(), ProcessRole::Unknown);
         assert!(!is_cli_lightweight());
@@ -1826,7 +1833,21 @@ mod tests {
 
         // capture_quick returns a clone of the boot-cached env
         let quick = capture_quick();
-        assert_eq!(quick.os, boot_env.os);
+        assert_eq!(quick, *boot_env);
+
+        for full in [false, true] {
+            let _scope = if full {
+                GlobalEnvironmentScope::enter_full()
+            } else {
+                GlobalEnvironmentScope::enter_fresh()
+            };
+            assert!(Arc::ptr_eq(&capture_quick_arc(), &boot_env));
+        }
+
+        env_cache_reset();
+        let refreshed = get_boot_cached_env().unwrap();
+        assert!(!Arc::ptr_eq(&refreshed, &boot_env));
+        assert!(Arc::ptr_eq(&capture_quick_arc(), &refreshed));
 
         // Reset clears it
         reset_boot_cached_env();
@@ -1841,6 +1862,9 @@ mod tests {
         // 1. Thread-local lazy scope: enter_fresh lazily resolves on first capture_quick_arc
         {
             let _scope = EnvironmentScope::enter_fresh();
+            ACTIVE_SCOPE.with(|scope| {
+                assert!(scope.borrow().as_ref().unwrap().env.get().is_none());
+            });
             let arc1 = capture_quick_arc();
             let arc2 = capture_quick_arc();
             assert!(Arc::ptr_eq(&arc1, &arc2));
@@ -1860,9 +1884,66 @@ mod tests {
         // 3. enter_full lazily resolves full provenance
         {
             let _scope_full = GlobalEnvironmentScope::enter_full();
+            assert!(
+                GLOBAL_OPERATION_ENV.read().unwrap().as_ref().unwrap().env.get().is_none()
+            );
             let arc_full = capture_quick_arc();
             assert_eq!(arc_full.os, os());
+            assert!(Arc::ptr_eq(&capture_quick_arc(), &arc_full));
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_lazy_slot_captures_once_across_threads() {
+        static CAPTURES: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(0);
+
+        fn counted_capture() -> EnvDescription {
+            CAPTURES.fetch_add(1, Ordering::SeqCst);
+            EnvDescription::default()
+        }
+
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_boot_cached_env();
+        CAPTURES.store(0, Ordering::SeqCst);
+        let slot = ScopeSlot::lazy(counted_capture);
+        assert_eq!(CAPTURES.load(Ordering::SeqCst), 0);
+        let handles: Vec<_> = (0..8).map(|_| {
+            let slot = slot.clone();
+            std::thread::spawn(move || slot.resolve())
+        }).collect();
+        let env = slot.resolve();
+        for handle in handles {
+            assert!(Arc::ptr_eq(&env, &handle.join().unwrap()));
+        }
+        assert_eq!(CAPTURES.load(Ordering::SeqCst), 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_quick_capture_preserves_cached_network_metadata() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        reset_boot_cached_env();
+        let v4 = Ipv4Addr::new(192, 0, 2, 1);
+        let v6 = Ipv6Addr::LOCALHOST;
+        let previous_v4 = CACHED_PUBLIC_IPV4.write().unwrap().replace(v4);
+        let previous_v6 = CACHED_PUBLIC_IPV6.write().unwrap().replace(v6);
+        let previous_offset = CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap().replace(123);
+
+        let quick = capture_quick();
+        *CACHED_PUBLIC_IPV4.write().unwrap() = previous_v4;
+        *CACHED_PUBLIC_IPV6.write().unwrap() = previous_v6;
+        *CACHED_SERVER_TIME_OFFSET_NANOS.write().unwrap() = previous_offset;
+
+        assert_eq!(quick.public_ipv4(), Some(v4));
+        assert_eq!(quick.public_ipv6(), Some(v6));
+        assert_eq!(quick.server_system_time_offset_nanos, Some(123));
+    }
+
+    #[crate::ctb_test]
+    fn test_unmocked_remote_discovery_fails_in_tests() {
+        assert!(public_ipv4().is_err());
+        assert!(public_ipv6().is_err());
+        assert!(server_system_time_offset_nanos().is_err());
     }
 
     #[crate::ctb_test]
@@ -2117,5 +2198,3 @@ mod tests {
         assert_eq!(summary, "Unknown OS [Headless]");
     }
 }
-
-

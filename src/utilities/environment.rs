@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Minimal runtime and OS environment helpers needed by utilities foundation.
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
 
 use crate::bin2hex;
@@ -148,45 +148,23 @@ pub fn is_official_public_website() -> bool {
 
 static OFFICIAL_SIGNATURE_CACHE: OnceLock<bool> = OnceLock::new();
 
-/// Check if the binary is verified as an official signed build, returning the cached result
-/// if available. If verification has not yet run, returns false without performing network queries.
-pub fn is_official_signed_build_cached() -> bool {
+/// Return the cached official signature verification result without network
+/// queries. Until explicit verification runs, the build is not trusted.
+pub fn is_official_signed_build() -> bool {
     if is_in_test() || !crate::branding::is_branded_build() {
         return false;
     }
-    OFFICIAL_SIGNATURE_CACHE.get().copied().unwrap_or(false)
+    OFFICIAL_SIGNATURE_CACHE.get() == Some(&true)
 }
 
-/// Verify whether the running binary is an official signed build by querying the official server.
-/// This is a slow, network-dependent operation that is cached once run.
+/// Verify the running binary by querying the official server.
+/// This slow, network-dependent operation is cached once run.
 pub fn verify_official_signed_build() -> bool {
     if is_in_test() || !crate::branding::is_branded_build() {
         return false;
     }
 
-    static IN_VERIFICATION: AtomicBool = AtomicBool::new(false);
-    if IN_VERIFICATION.load(Ordering::Relaxed) {
-        return false;
-    }
-
-    *OFFICIAL_SIGNATURE_CACHE.get_or_init(|| {
-        IN_VERIFICATION.store(true, Ordering::Relaxed);
-        let result = verify_official_signature_impl();
-        IN_VERIFICATION.store(false, Ordering::Relaxed);
-        result
-    })
-}
-
-pub fn is_official_signed_build() -> bool {
-    if !crate::branding::is_branded_build() || is_in_test() {
-        return false;
-    }
-
-    if get_process_role() == ProcessRole::LightweightCli {
-        return is_official_signed_build_cached();
-    }
-
-    verify_official_signed_build()
+    *OFFICIAL_SIGNATURE_CACHE.get_or_init(verify_official_signature_impl)
 }
 
 fn verify_official_signature_impl() -> bool {
