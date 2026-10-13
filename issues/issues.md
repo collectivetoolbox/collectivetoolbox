@@ -33,6 +33,7 @@ This file remains the issue inbox; its ordering is not the implementation order.
 
 ### csc
 
+- Add a warning that it records additional metadata and to be careful when considering whether to share the journal/archives unless --no-metadata is passed
 
 - Dc-mixed-serde.rs:     // FIXME doesn't look right. 422 is File flag: read only; 423 is File flag: reparse. Name and format list should proabbly be alternate representations, and 342 the overarching type for this, maybe?
 
