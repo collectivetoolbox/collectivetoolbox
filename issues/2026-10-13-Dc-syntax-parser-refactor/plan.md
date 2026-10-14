@@ -6,7 +6,7 @@ The parsing and serialization/deserialization of Dc documents are currently impl
 
 ## Round 1
 
-> Should we keep container body syntax open in semantic.csv (so Stage 1 validates every inner tag agai...
+> Should we keep container body syntax open in semantic.csv (so Stage 1 validates every inner tag again...
 
 I would tend to keep it open, because making such strict seems like it could result in misparsing of newer documents. I'm thinking of the case where, say, we add a new "FileWidget" field with its own dedicated syntax within File. Or once the more RDF-ish graph statements are available, it would be reasonable to say "File" -> "Has author" -> [author entity reference from Wikidata or from your company's team, etc.], and that could reasonably be placed *inside* the File description. (Not sure if that's the ideal syntax, but it seems like a possibility.) The issue with using a constrained syntax for such structs (and maybe others? Design review appreciated!) would mean that when a parser predating the new field encountered a document using the new syntax, it might say "hm, doesn't look like a File description to me", discard the opening File tag as a bogey, read the *rest* of the File's attributes into the *enclosing* struct or context (whatever's holding the File), changing the meaning of the document. I guess that could be fixed by saying that opening tags may not be ignored...? I'm not sure how HTML handles this; it has to deal with similar issues. Would welcome your input on this topic.
 
