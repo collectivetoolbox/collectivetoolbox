@@ -30,41 +30,26 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 pub mod ast;
-pub mod framing;
-pub mod matcher;
 pub mod parser;
 pub mod resolver;
 pub mod validator;
 
 pub use ast::{
-    ActionArg, CharTarget, DcSyntaxRule, FramedIdentifier, FramedLiteral,
-    MatchMode, ParsedDocument, ParsedElement, Quantifier, SyntaxAction,
+    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
-pub use framing::{
-    DC_ESCAPE, DC_IDENTIFIER_BEGIN, DC_IDENTIFIER_END, DC_LITERAL_BEGIN,
-    DC_LITERAL_END, DC_TYPE_BEGIN, DC_TYPE_END, scan_identifier_frame,
-    scan_literal_frame,
-};
-pub use matcher::{
-    MAX_SYNTAX_EXPANSION_DEPTH, MatchContext, MatchOutcome, match_pattern,
-    match_syntax_rule, match_syntax_rule_with_context,
-};
-pub use parser::{
-    parse_dc_syntax, parse_document_tokens, parse_document_tokens_with_resolver,
-    parse_target_token,
-};
+pub use parser::{parse_dc_syntax, parse_target_token};
 pub use resolver::{
-    DatasetRuleResolver, SyntaxRuleResolver, default_syntax_resolver,
+    DatasetRuleResolver, StarterSet, SyntaxRuleResolver,
+    default_syntax_resolver,
 };
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
-    build_format_validation_registry, validate_dc_document_strict,
-    validate_dc_stream_strict, validate_dc_syntax,
+    build_format_validation_registry, validate_dc_syntax,
 };
 
 /// Parses an optional format and decoded byte count for a data construct.
-pub(crate) fn parse_data_constraint(subtype: &str) -> anyhow::Result<(Option<&str>, Option<usize>)> {
+pub fn parse_data_constraint(subtype: &str) -> anyhow::Result<(Option<&str>, Option<usize>)> {
     let (format, length) = if subtype.starts_with("bytes=") {
         (None, Some(subtype))
     } else if let Some((format, length)) = subtype.split_once(';') {

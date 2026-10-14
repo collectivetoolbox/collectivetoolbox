@@ -203,6 +203,25 @@ pub enum SyntaxPattern {
     Alternation(Vec<SyntaxPattern>),
 }
 
+impl SyntaxPattern {
+    /// Returns true if every leading branch of this pattern begins with `SyntaxTerm::SelfChar` (`~`).
+    #[must_use]
+    pub fn starts_with_self(&self) -> bool {
+        match self {
+            Self::Sequence(elements) => {
+                elements.first().is_some_and(|element| match &element.term {
+                    SyntaxTerm::SelfChar => true,
+                    SyntaxTerm::Group(pattern) => pattern.starts_with_self(),
+                    _ => false,
+                })
+            }
+            Self::Alternation(branches) => {
+                !branches.is_empty() && branches.iter().all(Self::starts_with_self)
+            }
+        }
+    }
+}
+
 /// Argument passed to an action invocation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionArg {
@@ -232,102 +251,13 @@ pub struct DcSyntaxRule {
     pub raw: String,
 }
 
-/// Mode governing syntax matching and framing validation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum MatchMode {
-    /// Resilient "tag-soup" matching with diagnostics (standard for document
-    /// display, indexing, and runtime execution).
-    #[default]
-    Permissive,
-    /// Strict structural validation; unclosed frames or dangling escapes fail
-    /// the match (used for explicit validation and linters).
-    Strict,
-}
-
 /// Diagnostic message emitted during parsing or matching.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SyntaxDiagnostic {
     /// Explanatory diagnostic message.
     pub message: String,
-    /// Token stream offset where the diagnostic occurred.
+    /// Token or byte offset where the diagnostic occurred.
     pub token_offset: usize,
     /// Whether this diagnostic represents a syntax/framing error.
     pub is_error: bool,
-}
-
-/// Framed literal preserving both verbatim source tokens and decoded payload.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FramedLiteral {
-    /// Raw character tokens in source stream including delimiters and escapes.
-    pub raw_tokens: Vec<u128>,
-    /// Type header character tokens (between Dc 262 and Dc 263).
-    pub type_header: Vec<u128>,
-    /// Decoded unescaped payload character tokens.
-    pub decoded_payload: Vec<u128>,
-}
-
-/// Framed identifier preserving both verbatim source tokens and decoded name tokens.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FramedIdentifier {
-    /// Raw character tokens in source stream including delimiters and escapes.
-    pub raw_tokens: Vec<u128>,
-    /// Decoded unescaped identifier character tokens.
-    pub name: Vec<u128>,
-}
-
-impl std::fmt::Display for FramedIdentifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let opts = crate::dcts::DctsOptions {
-            escape_control_chars: true,
-        };
-        let s = crate::dcts::dclist_to_dcts_string_with_options(&self.name, opts);
-        f.write_str(&s)
-    }
-}
-
-/// Parsed syntactic element in a Document Character document.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ParsedElement {
-    /// Framed literal value (Dc 260 ... Dc 261).
-    Literal(FramedLiteral),
-    /// Framed identifier (Dc 270 ... Dc 271).
-    Identifier(FramedIdentifier),
-    /// Parameter construct (Dc 258 ... Dc 259).
-    Parameter(Vec<ParsedElement>),
-    /// Assignment statement (Dc 269).
-    Assignment {
-        ident: FramedIdentifier,
-        value: Box<ParsedElement>,
-    },
-    /// Routine invocation (Dc 279 or routine marker).
-    Invocation {
-        target: Box<ParsedElement>,
-        args: Vec<ParsedElement>,
-    },
-    /// Named object reference (Dc 276).
-    Reference(FramedIdentifier),
-    /// Structured construct matched against a syntax rule or container.
-    Construct {
-        /// Defining character target of the construct.
-        target: CharTarget,
-        /// Number of tokens consumed by this construct.
-        consumed: usize,
-        /// Child syntactic elements parsed within this construct.
-        children: Vec<ParsedElement>,
-    },
-    /// Atomic Document Character or token.
-    Atomic(u128),
-    /// Unparsed raw tokens preserved when broken structures are encountered.
-    RawTokens(Vec<u128>),
-}
-
-/// Structured document representation produced by the non-evaluating parser.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ParsedDocument {
-    /// Parsed elements forming the document body.
-    pub elements: Vec<ParsedElement>,
-    /// Diagnostics collected during parsing.
-    pub diagnostics: Vec<SyntaxDiagnostic>,
-    /// True if any syntax or framing errors were encountered.
-    pub has_errors: bool,
 }

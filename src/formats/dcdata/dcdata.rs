@@ -119,10 +119,9 @@ pub use format_spec::{
     format_expr, parse_format_expr, validate_format_expr,
 };
 pub use syntax::{
-    ActionArg, CharTarget, DcSyntaxRule, MatchContext, MatchOutcome,
-    Quantifier, SyntaxAction, SyntaxElement, SyntaxPattern, SyntaxTerm,
-    match_pattern, match_syntax_rule, parse_dc_syntax, parse_target_token,
-    validate_dc_syntax,
+    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
+    SyntaxElement, SyntaxPattern, SyntaxTerm, parse_dc_syntax,
+    parse_target_token, validate_dc_syntax,
 };
 pub use updater::{
     MergedGenerationStats, TableUpdateStats, assign_and_update_dc_categories,

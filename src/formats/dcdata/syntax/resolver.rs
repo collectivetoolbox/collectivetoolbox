@@ -30,10 +30,30 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::ast::{CharTarget, DcSyntaxRule, SyntaxPattern};
+use super::ast::{
+    CharTarget, DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern,
+    SyntaxTerm,
+};
 use super::parser::parse_dc_syntax;
+use crate::dc::{
+    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_OPTIONAL_ABSENT,
+    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
+
+/// Precomputed starter token set for a named syntactic construct, derived
+/// recursively from the CSV syntax patterns in `README-named-types.csv` and
+/// `categories/*.csv`.
+#[derive(Debug, Clone, Default)]
+pub struct StarterSet {
+    /// Exact starter token values (global graph `u128` IDs).
+    pub exact_tokens: HashSet<u128>,
+    /// Contiguous inclusive token ranges `(start, end)`.
+    pub ranges: Vec<(u128, u128)>,
+    /// Script categories whose members can start this construct.
+    pub scripts: Vec<String>,
+}
 
 /// Trait providing resolution of syntax rules, named types, and script sets.
 pub trait SyntaxRuleResolver {
@@ -52,6 +72,10 @@ pub trait SyntaxRuleResolver {
     }
     /// Checks whether a character token belongs to a designated script.
     fn matches_script(&self, script_name: &str, token: u128) -> bool;
+    /// Returns true if `token` can appear as the leading token of the named construct `name`.
+    fn matches_named_type_starter(&self, _name: &str, _token: u128) -> bool {
+        false
+    }
     /// Returns the opener target if this character token is a closing delimiter.
     fn closing_opener_for(&self, _token: u128) -> Option<&CharTarget> {
         None
@@ -68,20 +92,30 @@ pub trait SyntaxRuleResolver {
     fn preferred_replacement(&self, _target: &CharTarget) -> Option<&CharTarget> {
         None
     }
+    /// Returns the leading header syntax elements between `~` and the container body/closer
+    /// (for example, `[number $length]? [type]` for `310`, or `[format]` for `511`).
+    fn container_header_elements(&self, _opener: &CharTarget) -> &[SyntaxElement] {
+        &[]
+    }
     /// Returns any syntax elements required immediately after a container's closing delimiter
     /// (for example, `[545:]` after `544` in `543`'s rule `:~ [^544]+ 544 [545:]`).
-    fn trailing_after_closer(&self, _opener: &CharTarget) -> &[super::ast::SyntaxElement] {
+    fn trailing_after_closer(&self, _opener: &CharTarget) -> &[SyntaxElement] {
         &[]
+    }
+    /// Resolves an infix operator rule `(lhs_elements, rhs_elements)` where `~` is preceded
+    /// by a left-hand operand (for example, `Dc 269`: `:[identifier $ident] ~ [value $val]`).
+    fn resolve_infix_rule(&self, _op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
+        None
     }
 }
 
 fn substitute_term_param(
-    term: &super::ast::SyntaxTerm,
+    term: &SyntaxTerm,
     param: &str,
     value: &str,
-) -> super::ast::SyntaxTerm {
+) -> SyntaxTerm {
     match term {
-        super::ast::SyntaxTerm::NamedConstruct {
+        SyntaxTerm::NamedConstruct {
             name,
             subtype,
             capture_var,
@@ -95,14 +129,14 @@ fn substitute_term_param(
                     s.clone()
                 }
             });
-            super::ast::SyntaxTerm::NamedConstruct {
+            SyntaxTerm::NamedConstruct {
                 name: name.clone(),
                 subtype: new_sub,
                 capture_var: capture_var.clone(),
             }
         }
-        super::ast::SyntaxTerm::Group(nested) => {
-            super::ast::SyntaxTerm::Group(substitute_pattern_param(
+        SyntaxTerm::Group(nested) => {
+            SyntaxTerm::Group(substitute_pattern_param(
                 nested, param, value,
             ))
         }
@@ -120,7 +154,7 @@ fn substitute_pattern_param(
             SyntaxPattern::Sequence(
                 elements
                     .iter()
-                    .map(|el| super::ast::SyntaxElement {
+                    .map(|el| SyntaxElement {
                         term: substitute_term_param(&el.term, param, value),
                         quantifier: el.quantifier,
                     })
@@ -139,40 +173,142 @@ fn substitute_pattern_param(
 }
 
 fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
-    let elements = match pattern {
-        SyntaxPattern::Sequence(elems) => elems,
-        _ => return None,
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        return None;
     };
     if elements.len() < 2 {
         return None;
     }
     let last = elements.last()?;
-    if last.quantifier != super::ast::Quantifier::ExactOne {
+    if last.quantifier != Quantifier::ExactOne {
         return None;
     }
     match &last.term {
-        super::ast::SyntaxTerm::CharRef(target) => Some(target.to_u128()),
+        SyntaxTerm::CharRef(target) => Some(target.to_u128()),
         _ => None,
     }
+}
+
+fn element_matches_closer(el: &SyntaxElement, closer_token: u128) -> bool {
+    match &el.term {
+        SyntaxTerm::CharRef(t) => {
+            el.quantifier == Quantifier::ExactOne && t.to_u128() == closer_token
+        }
+        SyntaxTerm::CharSet {
+            negated: false,
+            members,
+        } => {
+            members.len() == 1
+                && members
+                    .first()
+                    .is_some_and(|t| t.to_u128() == closer_token)
+        }
+        _ => false,
+    }
+}
+
+fn term_contains_negated_charset(term: &SyntaxTerm) -> bool {
+    match term {
+        SyntaxTerm::CharSet { negated: true, .. } => true,
+        SyntaxTerm::Group(SyntaxPattern::Sequence(elems)) => elems
+            .iter()
+            .any(|e| term_contains_negated_charset(&e.term)),
+        SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => branches.iter().any(|b| {
+            matches!(b, SyntaxPattern::Sequence(elems) if elems.iter().any(|e| term_contains_negated_charset(&e.term)))
+        }),
+        _ => false,
+    }
+}
+
+fn extract_container_header_elements(
+    pattern: &SyntaxPattern,
+    closer_token: u128,
+) -> Vec<SyntaxElement> {
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        return Vec::new();
+    };
+    if !elements
+        .first()
+        .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
+    {
+        return Vec::new();
+    }
+    let Some(closer_idx) = elements
+        .iter()
+        .rposition(|el| element_matches_closer(el, closer_token))
+    else {
+        return Vec::new();
+    };
+    let Some(middle) = elements.get(1..closer_idx) else {
+        return Vec::new();
+    };
+    if middle.len() <= 1 {
+        return Vec::new();
+    }
+    if middle
+        .first()
+        .is_some_and(|el| term_contains_negated_charset(&el.term))
+    {
+        return Vec::new();
+    }
+    let header_end = middle.len().saturating_sub(1);
+    middle
+        .get(..header_end)
+        .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
 }
 
 fn extract_trailing_after_closer(
     pattern: &SyntaxPattern,
     closer_token: u128,
-) -> Vec<super::ast::SyntaxElement> {
+) -> Vec<SyntaxElement> {
     let SyntaxPattern::Sequence(elements) = pattern else {
         return Vec::new();
     };
-    let Some(closer_idx) = elements.iter().rposition(|el| {
-        el.quantifier == super::ast::Quantifier::ExactOne
-            && matches!(&el.term, super::ast::SyntaxTerm::CharRef(t) if t.to_u128() == closer_token)
-    }) else {
+    let Some(closer_idx) = elements
+        .iter()
+        .rposition(|el| element_matches_closer(el, closer_token))
+    else {
         return Vec::new();
     };
     let next_idx = closer_idx.saturating_add(1);
     elements
         .get(next_idx..)
-        .map_or_else(Vec::new, <[super::ast::SyntaxElement]>::to_vec)
+        .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
+}
+
+fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        return false;
+    };
+    if elements.len() < 2
+        || !elements
+            .first()
+            .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
+    {
+        return false;
+    }
+    let Some(tail) = elements.get(1..) else {
+        return false;
+    };
+    tail.iter().all(|el| match &el.term {
+        SyntaxTerm::NamedConstruct { name, subtype, .. } => {
+            name == "type" || (name == "list" && subtype.as_deref() == Some("type"))
+        }
+        SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => branches.iter().all(|b| {
+            let SyntaxPattern::Sequence(sub_elems) = b else {
+                return false;
+            };
+            !sub_elems.is_empty()
+                && sub_elems.iter().all(|se| {
+                    matches!(
+                        &se.term,
+                        SyntaxTerm::NamedConstruct { name, subtype, .. }
+                            if name == "type" || (name == "list" && subtype.as_deref() == Some("type"))
+                    )
+                })
+        }),
+        _ => false,
+    })
 }
 
 fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
@@ -207,7 +343,10 @@ pub struct DatasetRuleResolver {
     closing_delimiters: HashMap<u128, CharTarget>,
     opener_to_closer: HashMap<CharTarget, u128>,
     deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
-    trailing_after_closer: HashMap<CharTarget, Vec<super::ast::SyntaxElement>>,
+    container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
+    trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
+    infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
+    named_type_starters: HashMap<String, StarterSet>,
 }
 
 impl DatasetRuleResolver {
@@ -241,6 +380,212 @@ impl DatasetRuleResolver {
     /// Registers a deprecated target and its optional preferred replacement.
     pub fn register_deprecated(&mut self, target: CharTarget, preferred: Option<CharTarget>) {
         self.deprecated_targets.insert(target, preferred);
+    }
+
+    fn collect_pattern_starters(
+        &self,
+        pattern: &SyntaxPattern,
+        self_dc: Option<u128>,
+        out: &mut StarterSet,
+        visited_rules: &mut HashSet<CharTarget>,
+        visited_named: &mut HashSet<String>,
+    ) {
+        match pattern {
+            SyntaxPattern::Alternation(branches) => {
+                for branch in branches {
+                    self.collect_pattern_starters(
+                        branch,
+                        self_dc,
+                        out,
+                        visited_rules,
+                        visited_named,
+                    );
+                }
+            }
+            SyntaxPattern::Sequence(elements) => {
+                for elem in elements {
+                    self.collect_term_starters(
+                        &elem.term,
+                        self_dc,
+                        out,
+                        visited_rules,
+                        visited_named,
+                    );
+                    if !elem.quantifier.allows_zero() {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_term_starters(
+        &self,
+        term: &SyntaxTerm,
+        self_dc: Option<u128>,
+        out: &mut StarterSet,
+        visited_rules: &mut HashSet<CharTarget>,
+        visited_named: &mut HashSet<String>,
+    ) {
+        match term {
+            SyntaxTerm::SelfChar => {
+                if let Some(tok) = self_dc {
+                    out.exact_tokens.insert(tok);
+                }
+            }
+            SyntaxTerm::CharRef(target) => {
+                out.exact_tokens.insert(target.to_u128());
+            }
+            SyntaxTerm::CharSet {
+                negated: false,
+                members,
+            } => {
+                for member in members {
+                    out.exact_tokens.insert(member.to_u128());
+                }
+            }
+            SyntaxTerm::CharSet { negated: true, .. } => {}
+            SyntaxTerm::CharRange { start, end } => {
+                out.ranges.push((start.to_u128(), end.to_u128()));
+            }
+            SyntaxTerm::Group(nested) => {
+                self.collect_pattern_starters(
+                    nested,
+                    self_dc,
+                    out,
+                    visited_rules,
+                    visited_named,
+                );
+            }
+            SyntaxTerm::RuleRef { target } => {
+                if matches!(target, CharTarget::Format(_)) {
+                    out.exact_tokens.insert(target.to_u128());
+                }
+                if visited_rules.insert(target.clone()) {
+                    if let Some(rule) = self.rules.get(target) {
+                        self.collect_pattern_starters(
+                            &rule.pattern,
+                            Some(target.to_u128()),
+                            out,
+                            visited_rules,
+                            visited_named,
+                        );
+                    }
+                    visited_rules.remove(target);
+                }
+            }
+            SyntaxTerm::NamedConstruct { name, subtype, .. } => {
+                if name == "script" {
+                    if let Some(sub) = subtype {
+                        out.scripts.push(sub.clone());
+                    }
+                    return;
+                }
+                if (name == "format" || name == "formats") && subtype.is_some() {
+                    if let Some(sub) = subtype {
+                        out.scripts.push(format!("Formats:{sub}"));
+                        out.scripts.push(sub.clone());
+                    }
+                }
+                if name == "type" && subtype.is_none() {
+                    out.scripts.push(".EL Types".to_string());
+                    out.exact_tokens.insert(DC_FILE_PATH_DELIMITER.to_u128());
+                    for (target, rule) in &self.rules {
+                        if pattern_is_pure_type_constructor(&rule.pattern) {
+                            out.exact_tokens.insert(target.to_u128());
+                        }
+                    }
+                }
+                if name == "value" {
+                    out.exact_tokens
+                        .insert(DC_EQUIVALENT_REPRESENTATIONS.to_u128());
+                    out.exact_tokens
+                        .insert(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128());
+                    out.exact_tokens.insert(DC_OPTIONAL_PRESENT.to_u128());
+                    out.exact_tokens.insert(DC_OPTIONAL_ABSENT.to_u128());
+                }
+                if visited_named.insert(name.clone()) {
+                    if let Some(pat) =
+                        self.resolve_named_type_with_arg(name, subtype.as_deref())
+                    {
+                        self.collect_pattern_starters(
+                            &pat,
+                            self_dc,
+                            out,
+                            visited_rules,
+                            visited_named,
+                        );
+                    }
+                    visited_named.remove(name);
+                }
+            }
+        }
+    }
+
+    fn precompute_derived_tables(&mut self) {
+        // 1. Container headers and trailing elements after container closers
+        let opener_closers: Vec<(CharTarget, u128)> = self
+            .opener_to_closer
+            .iter()
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
+        for (opener, closer_tok) in opener_closers {
+            if let Some(rule) = self.rules.get(&opener) {
+                let header = extract_container_header_elements(&rule.pattern, closer_tok);
+                if !header.is_empty() {
+                    self.container_headers.insert(opener.clone(), header);
+                }
+                let trailing = extract_trailing_after_closer(&rule.pattern, closer_tok);
+                if !trailing.is_empty() {
+                    self.trailing_after_closer.insert(opener, trailing);
+                }
+            }
+        }
+
+        // 2. Infix operator rules where `~` is preceded by a left-hand construct
+        for (target, rule) in &self.rules {
+            let tok = target.to_u128();
+            if self.closing_delimiters.contains_key(&tok) {
+                continue;
+            }
+            if let SyntaxPattern::Sequence(elements) = &rule.pattern {
+                if let Some(self_idx) = elements
+                    .iter()
+                    .position(|el| matches!(el.term, SyntaxTerm::SelfChar))
+                {
+                    if self_idx > 0 && self_idx.saturating_add(1) < elements.len() {
+                        if let (Some(lhs), Some(rhs)) = (
+                            elements.get(..self_idx),
+                            elements.get(self_idx.saturating_add(1)..),
+                        ) {
+                            self.infix_rules
+                                .insert(tok, (lhs.to_vec(), rhs.to_vec()));
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Starter sets for all named constructs in README-named-types.csv
+        let names: Vec<String> = self.named_types.keys().cloned().collect();
+        for name in names {
+            let mut starters = StarterSet::default();
+            let mut visited_rules = HashSet::new();
+            let mut visited_named = HashSet::new();
+            let term = SyntaxTerm::NamedConstruct {
+                name: name.clone(),
+                subtype: None,
+                capture_var: None,
+            };
+            self.collect_term_starters(
+                &term,
+                None,
+                &mut starters,
+                &mut visited_rules,
+                &mut visited_named,
+            );
+            self.named_type_starters.insert(name, starters);
+        }
     }
 
     /// Loads the authoritative dataset from embedded tables.
@@ -354,8 +699,8 @@ impl DatasetRuleResolver {
                     resolver.add_named_type(name.to_string(), rule.pattern.clone());
                     if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
                         if let Some(first_elem) = elems.first() {
-                            if first_elem.quantifier == super::ast::Quantifier::ExactOne {
-                                if let super::ast::SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
+                            if first_elem.quantifier == Quantifier::ExactOne {
+                                if let SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
                                     if !resolver.rules.contains_key(lead_target) {
                                         resolver.add_rule(lead_target.clone(), rule.clone());
                                     }
@@ -370,21 +715,7 @@ impl DatasetRuleResolver {
             }
         }
 
-        // 3. Populate trailing elements after container closers (e.g. [545:] after 544 for 543)
-        let opener_closers: Vec<(CharTarget, u128)> = resolver
-            .opener_to_closer
-            .iter()
-            .map(|(k, &v)| (k.clone(), v))
-            .collect();
-        for (opener, closer_tok) in opener_closers {
-            if let Some(rule) = resolver.rules.get(&opener) {
-                let trailing = extract_trailing_after_closer(&rule.pattern, closer_tok);
-                if !trailing.is_empty() {
-                    resolver.trailing_after_closer.insert(opener, trailing);
-                }
-            }
-        }
-
+        resolver.precompute_derived_tables();
         resolver
     }
 }
@@ -427,6 +758,26 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         false
     }
 
+    fn matches_named_type_starter(&self, name: &str, token: u128) -> bool {
+        let Some(starters) = self.named_type_starters.get(name) else {
+            return false;
+        };
+        if starters.exact_tokens.contains(&token) {
+            return true;
+        }
+        if starters
+            .ranges
+            .iter()
+            .any(|&(s, e)| (s..=e).contains(&token))
+        {
+            return true;
+        }
+        starters
+            .scripts
+            .iter()
+            .any(|script| self.matches_script(script, token))
+    }
+
     fn closing_opener_for(&self, token: u128) -> Option<&CharTarget> {
         self.closing_delimiters.get(&token)
     }
@@ -445,10 +796,22 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             .and_then(Option::as_ref)
     }
 
-    fn trailing_after_closer(&self, opener: &CharTarget) -> &[super::ast::SyntaxElement] {
+    fn container_header_elements(&self, opener: &CharTarget) -> &[SyntaxElement] {
+        self.container_headers
+            .get(opener)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    fn trailing_after_closer(&self, opener: &CharTarget) -> &[SyntaxElement] {
         self.trailing_after_closer
             .get(opener)
             .map_or(&[], Vec::as_slice)
+    }
+
+    fn resolve_infix_rule(&self, op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
+        self.infix_rules
+            .get(&op_token)
+            .map(|(lhs, rhs)| (lhs.as_slice(), rhs.as_slice()))
     }
 }
 
