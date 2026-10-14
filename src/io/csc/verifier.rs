@@ -249,7 +249,10 @@ impl VerificationReport {
 #[expect(clippy::too_many_lines, reason = "Manifest verification orchestrator covering files, dirs, symlinks, and hardlinks")]
 pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<VerificationReport> {
     let journal_path = resolve_journal_path(&args.manifest)?;
-    let snapshot = read_journal_snapshot(&journal_path)?;
+    let snapshot = crate::journal::read_journal_snapshot_with_policy(
+        &journal_path,
+        &args.journal_projection_policy(),
+    )?;
 
     if !snapshot.is_completed && !args.allow_incomplete {
         anyhow::bail!(

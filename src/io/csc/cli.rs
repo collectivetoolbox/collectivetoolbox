@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use crate::args::CscArgs;
 use crate::copy_engine::execute_copy_pipeline;
-use crate::journal::{JournalWriter, read_journal_snapshot};
+use crate::journal::{JournalWriter, read_journal_snapshot_with_policy};
 use crate::path_resolution::resolve_tasks;
 use crate::verifier::check_cache_flush_privileges;
 use ctb_utilities::cli::ToolResult;
@@ -74,7 +74,10 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
             journal_path.display()
         ));
 
-        let snap = read_journal_snapshot(&journal_path)?;
+        let snap = read_journal_snapshot_with_policy(
+            &journal_path,
+            &args.journal_projection_policy(),
+        )?;
         if snap.is_completed {
             progress.message("Session was completed; revalidating source and destination entries.");
         }

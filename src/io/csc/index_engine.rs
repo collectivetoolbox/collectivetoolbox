@@ -228,7 +228,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             None
         };
         let src_name = derive_source_name(j_path, explicit_name);
-        let snapshot = read_journal_snapshot(j_path)?;
+        let snapshot = crate::journal::read_journal_snapshot_with_policy(
+            j_path,
+            &args.journal_projection_policy(),
+        )?;
         let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
         let src_id = get_or_create_source(&conn, &src_name, j_path, env_json.as_deref()).await?;
 
@@ -281,7 +284,10 @@ fn index_directory_to_journal(
             resolve_journal_path(&target_dir)?
         };
         let desc_path = journal_path.with_extension("cscdesc");
-        let snap = read_journal_snapshot(&journal_path)?;
+        let snap = crate::journal::read_journal_snapshot_with_policy(
+            &journal_path,
+            &args.journal_projection_policy(),
+        )?;
         progress.message(&format!("Resuming indexing from journal: {}", journal_path.display()));
         let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
         (jw, Some(snap))

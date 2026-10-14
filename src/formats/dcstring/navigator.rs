@@ -564,6 +564,18 @@ pub struct DcFrameStub {
     pub header_info: DcFrameHeaderInfo,
 }
 
+impl DcFrameStub {
+    /// Returns true if this container frame reached the end of the active span
+    /// before its closing delimiter was encountered.
+    #[must_use]
+    pub const fn is_unclosed(&self) -> bool {
+        match (self.closer_dc, self.inner_span) {
+            (Some(_), Some(inner)) => inner.end >= self.outer_span.end,
+            _ => false,
+        }
+    }
+}
+
 enum NavBackend<'a> {
     MemoryMstr(&'a DcMstr),
     MemoryText(&'a DcStr),
@@ -754,6 +766,17 @@ impl<'a> DcDocumentNavigator<'a> {
                 Ok(Cow::Owned(buf))
             }
         }
+    }
+
+    /// Reads a raw byte range from the underlying source and wraps it in a
+    /// validated [`DcMstring`] so a [`DcMixedReader`] can decode its contents.
+    pub fn read_span_as_mstring(&mut self, span: DcByteSpan) -> Result<DcMstring> {
+        let raw_bytes = self.read_span_bytes(span)?;
+        let mut wrapped = Vec::with_capacity(DCMM_HEADER_LEN.saturating_add(raw_bytes.len()));
+        wrapped.extend_from_slice(&DCMM_MAGIC);
+        wrapped.extend_from_slice(&DCMM_UUID);
+        wrapped.extend_from_slice(&raw_bytes);
+        Ok(DcMstring::from_bytes(wrapped)?)
     }
 
     /// Computes the SHA-256 digest of a byte span, streaming in 64 KiB chunks
@@ -1294,7 +1317,11 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             NavBackend::MemoryText(_) => self.scan_textual_binary_at(start_offset),
-            NavBackend::SeekableFile { reader, .. } => {
+            NavBackend::SeekableFile {
+                reader,
+                base_offset,
+                ..
+            } => {
                 // On-disk .dcmm binary encapsulation layout (matches dc_mixed.rs):
                 // 6 bytes: DC_203_BYTES (Dc 203)
                 // 1 byte: type_byte (0 = TYPE_BINARY, 2 = TYPE_BINARY_METADATA, 3 = TYPE_BINARY_SHA256)
@@ -1311,6 +1338,14 @@ impl<'a> DcDocumentNavigator<'a> {
                     .read_exact(&mut type_byte)
                     .context("Truncated .dcmm binary encapsulation type")?;
                 let encap_type = type_byte[0];
+                let rel_offset = usize::try_from(after_dc203.saturating_sub(*base_offset))?;
+                if matches!(encap_type, 1 | 4) {
+                    return Err(crate::DcMixedError::UnsupportedLegacyType {
+                        offset: rel_offset,
+                        type_byte: encap_type,
+                    }
+                    .into());
+                }
                 let mut len_buf = [0_u8; 16];
                 reader
                     .read_exact(&mut len_buf)
@@ -1341,9 +1376,11 @@ impl<'a> DcDocumentNavigator<'a> {
                         reader.seek(SeekFrom::Current(32))?;
                     }
                     _ => {
-                        bail!(
-                            "Invalid .dcmm binary encapsulation type {encap_type} at offset {start_offset}"
-                        );
+                        return Err(crate::DcMixedError::InvalidEncapsulationType {
+                            offset: rel_offset,
+                            type_byte: encap_type,
+                        }
+                        .into());
                     }
                 }
                 let payload_start = reader.stream_position()?;

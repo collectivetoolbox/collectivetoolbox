@@ -565,11 +565,13 @@ impl<'a> DcMixedReader<'a> {
     /// # Errors
     /// Returns an error if the character does not match `expected_short`.
     pub fn expect_short_dc(&mut self, expected_short: u32) -> Result<()> {
-        let actual = self.read_short_dc()?;
+        let ch = self.peek_char()?.context("Unexpected end of DcMixed stream")?;
+        let actual = ch.to_short()?;
         ensure!(
             actual == expected_short,
             "Expected short Dc {expected_short}, found {actual}"
         );
+        self.next_char()?;
         Ok(())
     }
 
@@ -578,13 +580,14 @@ impl<'a> DcMixedReader<'a> {
     /// # Errors
     /// Returns an error if the character does not match `expected`.
     pub fn expect_char(&mut self, expected: DcChar) -> Result<()> {
-        let actual = self.next_char()?;
+        let actual = self.peek_char()?.context("Unexpected end of DcMixed stream")?;
         ensure!(
             actual == expected,
             "Expected DcChar {:?}, found {:?}",
             expected,
             actual
         );
+        self.next_char()?;
         Ok(())
     }
 
@@ -825,7 +828,9 @@ impl<'a> DcMixedReader<'a> {
         let Some(first) = self.peek_char()? else {
             return Ok(());
         };
-        if first.0 == container_end_dc || resolver.closing_opener_for(first.0).is_some() {
+        if first.0 == container_end_dc
+            || (container_end_dc == 0 && resolver.closing_opener_for(first.0).is_some())
+        {
             return Ok(());
         }
         // Consume the unknown tag itself (or balanced frame if the unknown tag is an opener).
@@ -851,13 +856,9 @@ impl<'a> DcMixedReader<'a> {
 
         let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         while let Some(peeked) = self.peek_char()? {
-            if peeked.0 == container_end_dc
-                || known_tags.contains(&peeked.0)
-                || resolver.closing_opener_for(peeked.0).is_some()
-            {
+            if peeked.0 == container_end_dc || known_tags.contains(&peeked.0) {
                 break;
             }
-            // If it's a value-level token or an inner frame, skip it as a balanced unit.
             let is_value_operand = peeked == DC_START_ENCAPSULATION_BINARY
                 || matches!(
                     peeked.to_short_dc(),
@@ -873,6 +874,9 @@ impl<'a> DcMixedReader<'a> {
                     .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character)
                 || ctb_formats_dcdata::is_type_token(peeked.0)
                 || peeked.to_unicode().is_ok();
+            if !is_value_operand && resolver.closing_opener_for(peeked.0).is_some() {
+                break;
+            }
             if is_value_operand {
                 self.skip_syntax_unit(0)?;
             } else {
@@ -1211,8 +1215,16 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
             }
             Some(DC_OPTIONAL_PRESENT) => {
                 reader.next_char()?;
-                let val = T::decode_dc_mixed(reader, policy)?;
-                Ok(Some(val))
+                let pos_after_present = reader.position();
+                match T::decode_dc_mixed(reader, policy) {
+                    Ok(val) => Ok(Some(val)),
+                    Err(err) => {
+                        if reader.position() == pos_after_present {
+                            let _ = reader.skip_syntax_unit(0);
+                        }
+                        Err(err)
+                    }
+                }
             }
             other => {
                 bail!("Expected Option marker (Dc {:?} or {:?}), found {other:?}", DC_OPTIONAL_PRESENT, DC_OPTIONAL_ABSENT)

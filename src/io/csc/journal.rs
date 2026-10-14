@@ -695,8 +695,20 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
     )
 }
 
-/// Reads a state journal, rolling back to the last valid batch or record.
+/// Reads a state journal in strict mode, rolling back to the last valid batch or record.
 pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
+    read_journal_snapshot_with_policy(
+        path,
+        &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+    )
+}
+
+/// Reads a state journal using the specified [`ctb_formats_dcstring::DcProjectionPolicy`],
+/// rolling back to the last valid batch or record on crash truncation.
+pub fn read_journal_snapshot_with_policy(
+    path: &Path,
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<JournalSnapshot> {
     let journal_path = resolve_journal_path(path)?;
     let mut file = File::open(&journal_path).with_context(|| {
         format!("Failed to open journal file: {}", journal_path.display())
@@ -718,7 +730,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
     match &magic {
         m if m == JOURNAL_MAGIC_V4 => {
-            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used)
+            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)
         }
         m if m == JOURNAL_MAGIC_V1 => {
             let mut reader = BufReader::new(file);
@@ -791,52 +803,19 @@ pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-/// Reads a v4 native DcMixed state journal.
+/// Reads a v4 native DcMixed state journal using [`ctb_formats_dcstring::DcDocumentNavigator`]
+/// so large journals stream directly from disk in $O(1)$ steady-state memory.
 pub fn read_v4_journal_snapshot(
     file: &mut File,
     journal_path: &Path,
     noatime_used: bool,
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<JournalSnapshot> {
-    file.seek(std::io::SeekFrom::Start(8))
-        .context("Failed to seek past journal magic")?;
-    let mut file_payload = Vec::new();
-    file.read_to_end(&mut file_payload)
-        .context("Failed to read journal payload")?;
-
-    let mut valid_slice_len = file_payload.len();
-    loop {
-        if valid_slice_len < ctb_formats_dcstring::DCMM_HEADER_LEN {
-            anyhow::bail!(
-                "Journal {} is too short to contain a valid DcMixed header",
-                journal_path.display()
-            );
-        }
-        let slice = file_payload
-            .get(..valid_slice_len)
-            .context("Slice bounds invalid for DcMixed journal")?;
-        match ctb_formats_dcstring::validate_dcmst(slice) {
-            Ok(()) => break,
-            Err(ctb_formats_dcstring::DcMixedError::TruncatedEncapsulation { offset, .. })
-            | Err(ctb_formats_dcstring::DcMixedError::InvalidUtf8e128 { offset, .. })
-            | Err(ctb_formats_dcstring::DcMixedError::InvalidEncapsulationType { offset, .. })
-            | Err(ctb_formats_dcstring::DcMixedError::SizeOverflow { offset, .. })
-            | Err(ctb_formats_dcstring::DcMixedError::InvalidMetadata { offset, .. })
-            | Err(ctb_formats_dcstring::DcMixedError::ChecksumMismatch { offset, .. }) => {
-                if offset >= valid_slice_len {
-                    valid_slice_len = valid_slice_len.saturating_sub(1);
-                } else {
-                    valid_slice_len = offset;
-                }
-            }
-            Err(err) => return Err(err).context("Invalid DcMixed journal structure"),
-        }
-    }
-
-    let slice = file_payload
-        .get(..valid_slice_len)
-        .context("Slice bounds invalid for DcMixed journal")?;
-    let mstr = ctb_formats_dcstring::DcMstr::from_bytes(slice)?;
-    let mut reader = ctb_formats_dcstring::DcMixedReader::new(mstr);
+    let nav_file = file
+        .try_clone()
+        .with_context(|| format!("Failed to clone file handle for {}", journal_path.display()))?;
+    let mut nav = ctb_formats_dcstring::DcDocumentNavigator::from_dcmm_file(nav_file, 8)
+        .with_context(|| format!("Invalid DcMixed journal header in {}", journal_path.display()))?;
 
     let mut sources = Vec::new();
     let mut destination = PathBuf::new();
@@ -851,100 +830,152 @@ pub fn read_v4_journal_snapshot(
     let mut warnings = Vec::new();
     let mut valid_length = 0_u64;
 
-    // Decode session header
-    if reader.peek_char()? == Some(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION) {
-        let _ = reader.next_char();
-        let mut header_ok = true;
-        while let Ok(Some(inner_ch)) = reader.peek_char() {
-            if inner_ch == ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION {
-                break;
+    let nav_scan_policy = ctb_formats_dcstring::DcProjectionPolicy::forgiving_quiet();
+
+    // 1. Decode session header (Dc 541..542)
+    let first_stub = match nav.next_sibling_stub(&nav_scan_policy) {
+        Ok(Some(stub)) => stub,
+        Ok(None) => anyhow::bail!("Journal session header is incomplete"),
+        Err(err) => {
+            if err
+                .downcast_ref::<ctb_formats_dcstring::DcMixedError>()
+                .is_some_and(|e| {
+                    matches!(
+                        e,
+                        ctb_formats_dcstring::DcMixedError::UnsupportedLegacyType { .. }
+                    )
+                })
+            {
+                return Err(err).context("Invalid DcMixed journal structure");
             }
-            if inner_ch == ctb_formats_dcdata::dc::DC_SOURCE_PATH {
-                let _ = reader.next_char();
-                match PathBuf::decode_dc_mixed(&mut reader) {
-                    Ok(src) => sources.push(src),
-                    Err(_) => {
-                        header_ok = false;
-                        break;
-                    }
-                }
-            } else if inner_ch == ctb_formats_dcdata::dc::DC_DESTINATION_PATH {
-                let _ = reader.next_char();
-                match PathBuf::decode_dc_mixed(&mut reader) {
-                    Ok(dest) => destination = dest,
-                    Err(_) => {
-                        header_ok = false;
-                        break;
-                    }
-                }
-            } else if inner_ch == ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE {
-                let _ = reader.next_char();
-                match u32::decode_dc_mixed(&mut reader) {
-                    Ok(code) => match u8::try_from(code) {
-                        Ok(p) => origin_platform = p,
-                        Err(_) => {
-                            header_ok = false;
-                            break;
-                        }
-                    },
-                    Err(_) => {
-                        header_ok = false;
-                        break;
-                    }
-                }
-            } else if inner_ch == ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION {
-                match EnvDescription::decode_dc_mixed(&mut reader) {
-                    Ok(env_desc) => {
-                        environment = Some(Arc::new(env_desc));
-                    }
-                    Err(_) => {
-                        header_ok = false;
-                        break;
-                    }
-                }
-            } else {
-                let _ = reader.next_char();
-            }
+            anyhow::bail!("Journal session header is incomplete: {err:#}");
         }
-        if header_ok
-            && reader
-                .expect_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION)
-                .is_ok()
-        {
-            if let Some(ref env_arc) = environment {
-                let _ = shared_context
-                    .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
-                let _ = shared_context.insert("environment", Arc::clone(env_arc));
+    };
+
+    if first_stub.head_dc == ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION
+        && !first_stub.is_unclosed()
+    {
+        if let Some(inner_span) = first_stub.inner_span {
+            if let Ok(header_mst) = nav.read_span_as_mstring(inner_span) {
+                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&header_mst);
+                let mut header_ok = true;
+                while let Ok(Some(inner_ch)) = reader.peek_char() {
+                    if inner_ch == ctb_formats_dcdata::dc::DC_SOURCE_PATH {
+                        let _ = reader.next_char();
+                        match PathBuf::decode_dc_mixed(&mut reader, policy) {
+                            Ok(src) => sources.push(src),
+                            Err(_) => {
+                                header_ok = false;
+                                break;
+                            }
+                        }
+                    } else if inner_ch == ctb_formats_dcdata::dc::DC_DESTINATION_PATH {
+                        let _ = reader.next_char();
+                        match PathBuf::decode_dc_mixed(&mut reader, policy) {
+                            Ok(dest) => destination = dest,
+                            Err(_) => {
+                                header_ok = false;
+                                break;
+                            }
+                        }
+                    } else if inner_ch == ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE {
+                        let _ = reader.next_char();
+                        match u32::decode_dc_mixed(&mut reader, policy) {
+                            Ok(code) => match u8::try_from(code) {
+                                Ok(p) => origin_platform = p,
+                                Err(_) => {
+                                    header_ok = false;
+                                    break;
+                                }
+                            },
+                            Err(_) => {
+                                header_ok = false;
+                                break;
+                            }
+                        }
+                    } else if inner_ch
+                        == ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION
+                    {
+                        match EnvDescription::decode_dc_mixed(&mut reader, policy) {
+                            Ok(env_desc) => {
+                                environment = Some(Arc::new(env_desc));
+                            }
+                            Err(_) => {
+                                header_ok = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        let _ = reader.next_char();
+                    }
+                }
+                if header_ok {
+                    if let Some(ref env_arc) = environment {
+                        let _ = shared_context
+                            .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
+                        let _ = shared_context.insert("environment", Arc::clone(env_arc));
+                    }
+                    valid_length = first_stub.outer_span.end;
+                }
             }
-            reader.set_context(&shared_context);
-            let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
-            valid_length = 8_u64.saturating_add(reader_pos);
         }
     }
 
     anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
 
-    while let Ok(Some(ch)) = reader.peek_char() {
-        match ch {
-            ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION => {
-                let _ = reader.next_char();
-                let section_start = reader.position();
-                if reader
-                    .expect_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER)
-                    .is_err()
+    // 2. Stream across top-level journal records at depth 0
+    loop {
+        let stub = match nav.next_sibling_stub(&nav_scan_policy) {
+            Ok(Some(stub)) => stub,
+            Ok(None) => break,
+            Err(err) => {
+                if err
+                    .downcast_ref::<ctb_formats_dcstring::DcMixedError>()
+                    .is_some_and(|e| {
+                        matches!(
+                            e,
+                            ctb_formats_dcstring::DcMixedError::UnsupportedLegacyType { .. }
+                        )
+                    })
                 {
+                    return Err(err).context("Invalid DcMixed journal structure");
+                }
+                break;
+            }
+        };
+
+        match stub.head_dc {
+            ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION => {
+                if stub.is_unclosed() {
                     break;
                 }
-                let Ok(batch_id) = u64::decode_dc_mixed(&mut reader) else {
+                let ctb_formats_dcstring::DcFrameHeaderInfo::ChecksummedSection {
+                    sequence_id: Some(batch_id),
+                    digest_valid: true,
+                    ..
+                } = stub.header_info
+                else {
+                    warn!("Incomplete or digest-mismatched checksummed section in journal; rolling back tail");
                     break;
                 };
-                let mut batch_ok = true;
-                while let Ok(Some(inner_ch)) = reader.peek_char() {
-                    if inner_ch == ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION {
-                        break;
-                    }
-                    match legacy::decode_v4_entity(&mut reader, &shared_context) {
-                        Ok(entity) => {
+
+                nav.enter_frame(&stub)?;
+                // Skip leading Dc 546 SequenceIdentifier stub
+                let Some(seq_stub) = nav.next_sibling_stub(&nav_scan_policy)? else {
+                    let _ = nav.exit_frame();
+                    break;
+                };
+                if seq_stub.head_dc != ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER {
+                    let _ = nav.exit_frame();
+                    break;
+                }
+
+                while let Some(entity_stub) = nav.next_sibling_stub(&nav_scan_policy)? {
+                    match nav.decode_frame::<FileEntity>(&entity_stub, Some(&shared_context), policy) {
+                        Ok(mut entity) => {
+                            if let Some(ref env) = environment {
+                                attach_legacy_session_environment(&mut entity, env);
+                            }
                             let path_key = match entity.identity.path_bytes() {
                                 Some(b) => b.to_vec(),
                                 None => Vec::new(),
@@ -952,70 +983,52 @@ pub fn read_v4_journal_snapshot(
                             pending_entities.insert(path_key, entity);
                         }
                         Err(err) => {
-                            warn_fmt!("Failed to decode FileEntity in snapshot at pos {}: {err:#}, peek={:?}", reader.position(), reader.peek_char());
-                            batch_ok = false;
-                            break;
+                            let _ = nav.exit_frame();
+                            return Err(err).with_context(|| {
+                                format!(
+                                    "Failed to decode FileEntity in checksum-verified journal batch {batch_id} of {} (pass --allow-journal-errors for forgiving recovery)",
+                                    journal_path.display()
+                                )
+                            });
                         }
                     }
                 }
-                if !batch_ok {
-                    break;
-                }
-                let section_end = reader.position();
-                if reader
-                    .expect_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION)
-                    .is_err()
-                {
-                    warn!("Failed to expect DC_END_CHECKSUMMED_SECTION");
-                    break;
-                }
-                if reader
-                    .expect_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST)
-                    .is_err()
-                {
-                    warn!("Failed to expect DC_SECTION_DIGEST");
-                    break;
-                }
-                let Ok(expected_digest) = reader.read_binary_payload() else {
-                    warn!("Failed to read expected digest");
-                    break;
-                };
-                let Some(section_bytes) = mstr.as_bytes().get(section_start..section_end) else {
-                    warn!("Failed to get section bytes");
-                    break;
-                };
-                let actual_digest = ctb_formats_checksum::sha256(section_bytes);
-                if actual_digest.as_slice() != expected_digest.as_ref() {
-                    warn!("Digest mismatch in read_journal_snapshot: actual={actual_digest:?}, expected={expected_digest:?}");
-                    break;
-                }
+                nav.exit_frame()?;
 
                 last_batch_id = batch_id;
                 committed_entities.extend(pending_entities.drain());
-                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
-                valid_length = 8_u64.saturating_add(reader_pos);
+                valid_length = stub.outer_span.end;
             }
             ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED => {
-                let _ = reader.next_char();
                 if !pending_entities.is_empty() {
                     break;
                 }
                 is_completed = true;
-                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
-                valid_length = 8_u64.saturating_add(reader_pos);
+                valid_length = stub.outer_span.end;
             }
             ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD => {
-                let _ = reader.next_char();
-                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH) else {
+                if stub.is_unclosed() {
+                    break;
+                }
+                let Some(inner_span) = stub.inner_span else {
                     break;
                 };
-                let Ok(path) = PathBuf::decode_dc_mixed(&mut reader) else {
+                let Ok(err_mst) = nav.read_span_as_mstring(inner_span) else {
                     break;
                 };
-                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE) else {
+                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&err_mst);
+                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH) else {
                     break;
                 };
-                let Ok(packed) = u64::decode_dc_mixed(&mut reader) else {
+                let Ok(path) = PathBuf::decode_dc_mixed(&mut reader, policy) else {
+                    break;
+                };
+                let Ok(()) =
+                    reader.expect_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE)
+                else {
+                    break;
+                };
+                let Ok(packed) = u64::decode_dc_mixed(&mut reader, policy) else {
                     break;
                 };
                 let Ok(stage_code) = u8::try_from(packed >> 32) else {
@@ -1024,21 +1037,15 @@ pub fn read_v4_journal_snapshot(
                 let Ok(os_code) = u32::try_from(packed & 0xFFFF_FFFF) else {
                     break;
                 };
-                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
+                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
                     break;
                 };
-                let Ok(error_message) = String::decode_dc_mixed(&mut reader) else {
+                let Ok(error_message) = String::decode_dc_mixed(&mut reader, policy) else {
                     break;
                 };
-                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader) else {
+                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader, policy) else {
                     break;
                 };
-                if reader
-                    .expect_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD)
-                    .is_err()
-                {
-                    break;
-                }
                 let raw_path = path.as_os_str().as_encoded_bytes().to_vec();
                 errors.push(JournalErrorRecord {
                     path,
@@ -1052,26 +1059,28 @@ pub fn read_v4_journal_snapshot(
                     },
                     timestamp_sec,
                 });
-                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
-                valid_length = 8_u64.saturating_add(reader_pos);
+                valid_length = stub.outer_span.end;
             }
             ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD => {
-                let _ = reader.next_char();
-                let Ok(_) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
-                    break;
-                };
-                let Ok(combined) = String::decode_dc_mixed(&mut reader) else {
-                    break;
-                };
-                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader) else {
-                    break;
-                };
-                if reader
-                    .expect_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD)
-                    .is_err()
-                {
+                if stub.is_unclosed() {
                     break;
                 }
+                let Some(inner_span) = stub.inner_span else {
+                    break;
+                };
+                let Ok(warn_mst) = nav.read_span_as_mstring(inner_span) else {
+                    break;
+                };
+                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&warn_mst);
+                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
+                    break;
+                };
+                let Ok(combined) = String::decode_dc_mixed(&mut reader, policy) else {
+                    break;
+                };
+                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader, policy) else {
+                    break;
+                };
                 let (code, message) = match combined.split_once(": ") {
                     Some((c, m)) => (c.to_string(), m.to_string()),
                     None => (String::new(), combined),
@@ -1081,8 +1090,7 @@ pub fn read_v4_journal_snapshot(
                     message,
                     timestamp_sec,
                 });
-                let reader_pos = u64::try_from(reader.position()).context("reader position exceeds u64")?;
-                valid_length = 8_u64.saturating_add(reader_pos);
+                valid_length = stub.outer_span.end;
             }
             _ => {
                 break;
@@ -2069,7 +2077,15 @@ mod tests {
         let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"))?;
         let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"))?;
         let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal"))?;
-        let s4 = read_journal_snapshot(&fixtures_dir.join("v4_dcmixed-20261011.cscjournal"))?;
+        let v4_fixture = fixtures_dir.join("v4_dcmixed-20261011.cscjournal");
+        assert!(
+            read_journal_snapshot(&v4_fixture).is_err(),
+            "v4_dcmixed-20261011 fixture contains development-era serializer bugs and must error in strict mode"
+        );
+        let s4 = read_journal_snapshot_with_policy(
+            &v4_fixture,
+            &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+        )?;
 
         // Verify snapshots across all four format revisions
         for (rev_name, snap) in [
