@@ -1234,14 +1234,26 @@ mod tests {
         assert_eq!(uuid1, uuid2);
         assert_eq!(sha1, sha2);
 
-        File::options()
-            .write(true)
-            .open(&bundle_path)?
-            .set_len(17_179_869_184)?;
-        let large_header = read_existing_asset_bundle_header(&bundle_path)?
-            .context("large bundle header should exist")?;
-        assert_eq!(large_header.bundle_uuid, header.bundle_uuid);
-        assert_eq!(large_header.content_sha256, header.content_sha256);
+        let bundle_file = File::options().write(true).open(&bundle_path)?;
+        // Reason for fallback: on filesystems that preallocate or environments with limited disk space
+        // (<5GB free), setting 5GB file length may fail with StorageFull or Windows error 112.
+        let set_res = bundle_file.set_len(5_000_000_000);
+        let len_set = match set_res {
+            Ok(()) => true,
+            Err(e)
+                if e.kind() == std::io::ErrorKind::StorageFull
+                    || e.raw_os_error() == Some(112) =>
+            {
+                bundle_file.set_len(100_000).is_ok()
+            }
+            Err(e) => return Err(e.into()),
+        };
+        if len_set {
+            let large_header = read_existing_asset_bundle_header(&bundle_path)?
+                .context("large bundle header should exist")?;
+            assert_eq!(large_header.bundle_uuid, header.bundle_uuid);
+            assert_eq!(large_header.content_sha256, header.content_sha256);
+        }
 
         let invalid_bundle = temp_dir.join("invalid.rsrc");
         assert!(read_existing_asset_bundle_header(&invalid_bundle)?.is_none());

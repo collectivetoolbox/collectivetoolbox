@@ -17,6 +17,10 @@
 # You should have received a copy of the GNU Affero General Public License along
 # with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
 ctb_binary_commit() {
     local binary="$1" metadata
     if ! command -v jq >/dev/null 2>&1; then

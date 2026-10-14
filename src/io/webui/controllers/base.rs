@@ -736,9 +736,30 @@ fn asset_or_404(state: &AppState, req: RequestState, path: &str) -> Response {
                             .join(tail),
                     );
                     for path in candidate_paths {
-                        if let Ok(bytes) = std::fs::read(&path) {
-                            asset = Some(bytes);
-                            break;
+                        if let Ok(file) = std::fs::File::open(&path) {
+                            let tokio_file = tokio::fs::File::from_std(file);
+                            let stream =
+                                tokio_util::io::ReaderStream::new(tokio_file);
+                            let mime_guess = mime_guess::from_path(tail).first();
+                            let mime_guess_str: Cow<'static, str> = match mime_guess {
+                                Some(mime) => {
+                                    Cow::Owned(mime.essence_str().to_string())
+                                }
+                                None => Cow::Borrowed("application/octet-stream"),
+                            };
+
+                            let mut resp = Response::new(Body::from_stream(stream));
+                            resp.headers_mut().insert(
+                                header::CONTENT_TYPE,
+                                // Reason for fallback: invalid MIME type header string defaults to application/octet-stream
+                                HeaderValue::from_str(mime_guess_str.as_ref())
+                                    .unwrap_or_else(|_| {
+                                        HeaderValue::from_static(
+                                            "application/octet-stream",
+                                        )
+                                    }),
+                            );
+                            return resp;
                         }
                     }
                 }

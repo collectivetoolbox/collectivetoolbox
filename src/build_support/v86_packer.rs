@@ -947,6 +947,22 @@ mod tests {
     fn test_build_custom_initrd() {
         let json_path = Path::new("vendor/v86_images/guix/guix-fs.json");
         if json_path.is_file() {
+            let rustc_has_target = Command::new("rustc")
+                .args([
+                    "--target",
+                    "i586-unknown-linux-gnu",
+                    "--print",
+                    "target-libdir",
+                ])
+                .output()
+                .is_ok_and(|out| out.status.success());
+            if !rustc_has_target {
+                println!(
+                    "Notice: rustc with i586-unknown-linux-gnu target not available; skipping custom initrd build test."
+                );
+                return;
+            }
+
             let out_dir = std::env::temp_dir().join("ctb_test_initrd");
             let _ = fs::create_dir_all(&out_dir);
             let initrd_out = out_dir.join("guix_posix_initrd.cpio.gz");

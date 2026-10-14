@@ -201,7 +201,8 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                         "Move refused: some source entries could not be copied; all sources retained");
                     anyhow::ensure!(copy_stats.files_failed == 0 && journal.errors().is_empty(),
                         "Move refused: copy recorded failures; all sources retained");
-                    remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only)?;
+                    let strict_lossless = !args.best_effort_metadata && !args.allow_unknown_fs;
+                    remove_copied_sources(&copy_stats.copied_entities, &task.source_root, task.copy_contents_only, strict_lossless)?;
                     Ok(copy_stats)
                 })();
                 let copy_stats = match copy_result {
@@ -277,11 +278,12 @@ pub(crate) fn remove_copied_sources(
     entries: &[(PathBuf, PathBuf, FileEntity)],
     source_root: &Path,
     contents_only: bool,
+    strict_lossless: bool,
 ) -> Result<()> {
     for (source, destination, entity) in entries {
         verify_source_identity(source, entity)?;
-        verify_materialized_entity(source, entity, true)?;
-        verify_materialized_entity(destination, entity, true)?;
+        verify_materialized_entity(source, entity, strict_lossless)?;
+        verify_materialized_entity(destination, entity, strict_lossless)?;
     }
     let mut ordered: Vec<_> = entries.iter().collect();
     ordered.sort_by_key(|(source, _, _)| std::cmp::Reverse(source.components().count()));
@@ -292,8 +294,8 @@ pub(crate) fn remove_copied_sources(
                 std::fs::remove_dir(source).with_context(|| format!("Source directory changed or could not be removed: {}", source.display()))?;
             }
         } else {
-            verify_materialized_entity(source, entity, true)?;
-            verify_materialized_entity(destination, entity, true)?;
+            verify_materialized_entity(source, entity, strict_lossless)?;
+            verify_materialized_entity(destination, entity, strict_lossless)?;
             std::fs::remove_file(source).with_context(|| format!("Failed to remove verified source: {}", source.display()))?;
         }
     }
@@ -421,7 +423,7 @@ mod tests {
         let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
         ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, false).unwrap();
         let entries = vec![(source.clone(), destination, entity)];
-        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false, true).is_err());
         assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");
     }
 
@@ -435,7 +437,7 @@ mod tests {
         fs::copy(&source, &destination).unwrap();
         fs::write(&source, b"new data").unwrap();
         let entries = vec![(source.clone(), destination, entity)];
-        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false, true).is_err());
         assert_eq!(fs::read(source).unwrap(), b"new data");
     }
 

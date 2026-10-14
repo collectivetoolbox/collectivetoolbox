@@ -86,11 +86,16 @@ pub trait StreamManager: Send + Sync {
 /// - Emits server Events via a bounded mpsc channel with backpressure.
 ///
 /// The client spawns a background task to dispatch incoming Messages.
+#[derive(Default)]
+struct RpcCorrelationState {
+    inflight: HashMap<RequestId, oneshot::Sender<Response>>,
+    pending: HashMap<RequestId, Response>,
+}
+
 pub struct DefaultRpcClient<S: Session> {
     session: Arc<S>,
     connection_id: Option<ConnectionId>,
-    inflight: tokio::sync::Mutex<HashMap<RequestId, oneshot::Sender<Response>>>,
-    pending: tokio::sync::Mutex<HashMap<RequestId, Response>>,
+    correlation: tokio::sync::Mutex<RpcCorrelationState>,
     events_tx: mpsc::Sender<Event>,
     events_rx: std::sync::Mutex<Option<mpsc::Receiver<Event>>>,
     streams: Arc<tokio::sync::Mutex<HashMap<StreamId, IncomingStreamState>>>,
@@ -116,8 +121,9 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
         let client = std::sync::Arc::new(Self {
             session: session.clone(),
             connection_id,
-            inflight: tokio::sync::Mutex::new(HashMap::new()),
-            pending: tokio::sync::Mutex::new(HashMap::new()),
+            correlation: tokio::sync::Mutex::new(
+                RpcCorrelationState::default(),
+            ),
             events_tx,
             events_rx: std::sync::Mutex::new(Some(events_rx)),
             streams: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
@@ -205,8 +211,8 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
                     Ok(Some(m)) => m,
                     Ok(None) => {
                         // EOF: fail all inflight waiters with an error.
-                        let mut inflight = client.inflight.lock().await;
-                        for (id, sender) in inflight.drain() {
+                        let mut corr = client.correlation.lock().await;
+                        for (id, sender) in corr.inflight.drain() {
                             let _ = sender.send(Response {
                                 id,
                                 ok: false,
@@ -223,8 +229,8 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
                     }
                     Err(e) => {
                         // On session error, fail all inflight waiters.
-                        let mut inflight = client.inflight.lock().await;
-                        for (id, sender) in inflight.drain() {
+                        let mut corr = client.correlation.lock().await;
+                        for (id, sender) in corr.inflight.drain() {
                             let _ = sender.send(Response {
                                 id,
                                 ok: false,
@@ -251,12 +257,11 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
                             )
                         };
                         async {
-                            if let Some(sender) =
-                                client.inflight.lock().await.remove(&id)
-                            {
+                            let mut corr = client.correlation.lock().await;
+                            if let Some(sender) = corr.inflight.remove(&id) {
                                 let _ = sender.send(resp);
                             } else {
-                                client.pending.lock().await.insert(id, resp);
+                                corr.pending.insert(id, resp);
                             }
                         }
                         .instrument(span)
@@ -286,18 +291,15 @@ impl<S: Session + 'static> DefaultRpcClient<S> {
         &self,
         id: RequestId,
     ) -> Result<Response, Error> {
-        if let Some(resp) = self.pending.lock().await.remove(&id) {
-            return Ok(resp);
-        }
-
-        let (tx, rx) = oneshot::channel();
-        {
-            let mut inflight = self.inflight.lock().await;
-            if let Some(resp) = self.pending.lock().await.remove(&id) {
+        let rx = {
+            let mut corr = self.correlation.lock().await;
+            if let Some(resp) = corr.pending.remove(&id) {
                 return Ok(resp);
             }
-            inflight.insert(id, tx);
-        }
+            let (tx, rx) = oneshot::channel();
+            corr.inflight.insert(id, tx);
+            rx
+        };
 
         match rx.await {
             Ok(resp) => Ok(resp),
@@ -346,18 +348,20 @@ impl<S: Session + 'static> RpcClient for DefaultRpcClient<S> {
         };
         async move {
             // Resolve any local waiter immediately.
-            if let Some(sender) = self.inflight.lock().await.remove(&cancel.id)
             {
-                let _ = sender.send(Response {
-                    id: cancel.id,
-                    ok: false,
-                    result: None,
-                    error: Some(RpcError::cancelled(
-                        "request cancelled by client",
-                    )),
-                });
+                let mut corr = self.correlation.lock().await;
+                if let Some(sender) = corr.inflight.remove(&cancel.id) {
+                    let _ = sender.send(Response {
+                        id: cancel.id,
+                        ok: false,
+                        result: None,
+                        error: Some(RpcError::cancelled(
+                            "request cancelled by client",
+                        )),
+                    });
+                }
+                let _ = corr.pending.remove(&cancel.id);
             }
-            let _ = self.pending.lock().await.remove(&cancel.id);
 
             self.session.send(&Message::Cancel(cancel)).await
         }

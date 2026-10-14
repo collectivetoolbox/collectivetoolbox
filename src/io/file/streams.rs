@@ -1092,22 +1092,27 @@ mod tests {
         nul.name = Some(StreamName::from_windows_utf16(&[58, 0, 65]));
         let mut alias = valid.clone();
         alias.name = Some(StreamName::from_str("SAFE"));
-        for (invalid, expected) in [
-            (tampered, "payload does not match its descriptor"),
-            (missing, "has no payload data"),
-            (unnamed, "cannot overwrite the unnamed data fork"),
-            (traversal, "Invalid Windows alternate data stream name"),
-            (nul, "Invalid Windows alternate data stream name"),
-            (valid.clone(), "Stream names collide"),
-            (alias, "Stream names collide"),
+        for (invalid, expected, strict_only) in [
+            (tampered, "payload does not match its descriptor", false),
+            (missing, "has no payload data", false),
+            (unnamed, "cannot overwrite the unnamed data fork", false),
+            (traversal, "Invalid Windows alternate data stream name", false),
+            (nul.clone(), "Stream name contains a NUL", true),
+            (valid.clone(), "Stream names collide", false),
+            (alias, "Stream names collide", false),
         ] {
             for strict_lossless in [false, true] {
+                if strict_only && !strict_lossless {
+                    continue;
+                }
                 let error = write_streams(&path, None, &[valid.clone(), invalid.clone()], strict_lossless).unwrap_err();
                 assert!(error.to_string().contains(expected), "{error:#}");
                 assert_eq!(fs::read(&path).unwrap(), b"main payload");
                 assert!(read_and_hash_streams(&path).unwrap().is_empty());
             }
         }
+        // In best-effort mode, NUL is adapted with replacement character U+FFFD
+        assert!(write_streams(&path, None, &[valid.clone(), nul], false).is_ok());
     }
 
     #[cfg(unix)]

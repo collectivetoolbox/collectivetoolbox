@@ -1330,7 +1330,7 @@ pub fn check_metadata_replication(
         }
     }
     let differences =
-        native_metadata_differences(destination, metadata, ignore_flags)?;
+        native_metadata_differences(destination, metadata, ignore_flags, strict)?;
     if !differences.is_empty() {
         if strict {
             anyhow::bail!(
@@ -1352,6 +1352,7 @@ pub fn native_metadata_differences(
     destination: &std::path::Path,
     metadata: &FileMetadata,
     ignore_flags: bool,
+    strict: bool,
 ) -> Result<Vec<String>> {
     let mut differences = Vec::new();
     if let Some(native) = &metadata.native {
@@ -1422,6 +1423,38 @@ pub fn native_metadata_differences(
             if !observational.contains(&name.as_str())
                 && actual.values.get(name) != Some(value)
             {
+                #[cfg(windows)]
+                if !strict && name.as_str() == "security.sddl" {
+                    if let (Some(NativeMetadataValue::Bytes(exp_b)), Some(NativeMetadataValue::Bytes(act_b))) =
+                        (Some(value), actual.values.get(name))
+                    {
+                        let exp_s = String::from_utf8_lossy(exp_b);
+                        let act_s = String::from_utf8_lossy(act_b);
+                        if act_s.starts_with(exp_s.as_ref())
+                            && act_s.get(exp_s.len()..).is_some_and(|rem| rem.trim() == "S:NO_ACCESS_CONTROL")
+                        {
+                            warn_fmt!(
+                                "Windows 11 default SACL inherited on {}: S:NO_ACCESS_CONTROL",
+                                destination.display()
+                            );
+                            continue;
+                        }
+                    }
+                }
+                #[cfg(windows)]
+                if !strict && matches!(name.as_str(), "security.descriptor" | "security.info_flags") {
+                    if let (Some(NativeMetadataValue::Bytes(exp_sddl)), Some(NativeMetadataValue::Bytes(act_sddl))) =
+                        (native.values.get("security.sddl"), actual.values.get("security.sddl"))
+                    {
+                        let exp_s = String::from_utf8_lossy(exp_sddl);
+                        let act_s = String::from_utf8_lossy(act_sddl);
+                        if act_s.starts_with(exp_s.as_ref())
+                            && act_s.get(exp_s.len()..).is_some_and(|rem| rem.trim() == "S:NO_ACCESS_CONTROL")
+                        {
+                            continue;
+                        }
+                    }
+                }
                 differences.push(format!(
                     "{name}: expected {value:?}, got {:?}",
                     actual.values.get(name)

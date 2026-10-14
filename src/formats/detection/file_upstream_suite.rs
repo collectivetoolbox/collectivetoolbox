@@ -515,17 +515,6 @@ pub struct UpstreamTestCase {
     pub custom_magic_paths: Vec<PathBuf>,
 }
 
-/// Results of a live differential comparison between ctoolbox and real `file`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RealFileDiff {
-    pub real_file_description: String,
-    pub real_file_mime: String,
-    pub ctoolbox_mime: Option<String>,
-    pub ctoolbox_description: String,
-    pub mime_compatible: bool,
-    pub description_compatible: bool,
-}
-
 /// Outcome of evaluating an upstream test case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpstreamTestResult {
@@ -536,7 +525,6 @@ pub struct UpstreamTestResult {
     pub top_mime: Option<String>,
     pub top_description: String,
     pub confidence: Option<ConfidenceTier>,
-    pub diff_with_real_file: Option<RealFileDiff>,
 }
 
 /// Summary metrics for an upstream test suite evaluation run.
@@ -549,8 +537,6 @@ pub struct UpstreamSuiteSummary {
     pub pending_5e_count: usize,
     pub pending_5f_count: usize,
     pub mismatch_count: usize,
-    pub differential_checked_count: usize,
-    pub differential_agreed_count: usize,
     pub results: Vec<UpstreamTestResult>,
 }
 
@@ -652,123 +638,7 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
     Ok(cases)
 }
 
-/// Checks if the real `file` command is installed and executable on the host.
-pub fn is_real_file_available() -> bool {
-    Command::new("file")
-        .arg("--version")
-        .output()
-        .is_ok_and(|out| out.status.success())
-}
 
-/// Invokes real `file` to obtain human-readable description and MIME type.
-pub fn query_real_file(
-    path: &Path,
-    magic_paths: &[PathBuf],
-    flags: Option<&str>,
-) -> Result<(String, String)> {
-    let mut cmd = Command::new("file");
-    cmd.arg("-b");
-    if let Some(f) = flags {
-        cmd.arg(format!("-{f}"));
-    }
-    if !magic_paths.is_empty() {
-        let joined = magic_paths
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect::<Vec<_>>()
-            .join(":");
-        cmd.arg("-m").arg(joined);
-    }
-    cmd.arg(path);
-    let desc_out = cmd
-        .output()
-        .with_context(|| format!("Failed to run file -b on {}", path.display()))?;
-
-    let mut mime_cmd = Command::new("file");
-    mime_cmd.arg("-b");
-    mime_cmd.arg("--mime-type");
-    if let Some(f) = flags {
-        mime_cmd.arg(format!("-{f}"));
-    }
-    if !magic_paths.is_empty() {
-        let joined = magic_paths
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect::<Vec<_>>()
-            .join(":");
-        mime_cmd.arg("-m").arg(joined);
-    }
-    mime_cmd.arg(path);
-    let mime_out = mime_cmd
-        .output()
-        .with_context(|| format!("Failed to run file --mime-type on {}", path.display()))?;
-
-    let desc = String::from_utf8_lossy(&desc_out.stdout).trim().to_string();
-    let mime = String::from_utf8_lossy(&mime_out.stdout).trim().to_string();
-
-    Ok((desc, mime))
-}
-
-/// Determines whether two MIME types are semantically compatible or equivalent.
-pub fn is_mime_compatible(detected: &str, real: &str) -> bool {
-    // Reason for fallback: if MIME string has no semicolon parameter separator, use the whole string
-    let d = detected.split(';').next().unwrap_or(detected).trim().to_ascii_lowercase();
-    // Reason for fallback: if MIME string has no semicolon parameter separator, use the whole string
-    let r = real.split(';').next().unwrap_or(real).trim().to_ascii_lowercase();
-
-    if d == r {
-        return true;
-    }
-
-    if crate::detection::mime_derivation::FORMAT_CATALOG.is_mime_subclass_of(&d, &r)
-        || crate::detection::mime_derivation::FORMAT_CATALOG.is_mime_subclass_of(&r, &d)
-    {
-        return true;
-    }
-
-    // Known equivalent MIME pairs and sub-type specializations
-    matches!(
-        (d.as_str(), r.as_str()),
-        ("text/plain", "text/x-shellscript")
-            | ("text/x-shellscript", "text/plain")
-            | ("text/plain", "text/x-c")
-            | ("text/plain", "text/x-c++")
-            | ("text/plain", "text/x-python")
-            | ("text/plain", "text/x-perl")
-            | ("text/plain", "text/x-ruby")
-            | ("text/plain", "text/x-asm")
-            | ("text/plain", "text/x-awk")
-            | ("text/plain", "text/x-sed")
-            | ("text/plain", "text/x-lua")
-            | ("text/plain", "text/x-tex")
-            | ("text/plain", "text/troff")
-            | ("text/plain", "message/rfc822")
-            | ("application/xml", "text/xml")
-            | ("text/xml", "application/xml")
-            | ("application/xml", "image/svg+xml")
-            | ("image/svg+xml", "application/xml")
-            | ("application/zstd", "application/x-zstd")
-            | ("application/x-zstd", "application/zstd")
-            | ("application/x-tar", "application/tar")
-            | ("application/x-gzip", "application/gzip")
-            | ("application/gzip", "application/x-gzip")
-            | ("application/x-bzip2", "application/x-bzip")
-            | ("image/x-portable-graymap", "image/x-portable-anymap")
-            | ("image/x-portable-pixmap", "image/x-portable-anymap")
-            | ("image/x-portable-bitmap", "image/x-portable-anymap")
-            | ("image/apng", "image/png")
-            | ("image/png", "image/apng")
-            | ("application/json", "text/json")
-            | ("application/json", "text/plain")
-            | ("text/plain", "application/json")
-            | ("application/xml", "text/plain")
-            | ("text/plain", "application/xml")
-            | ("text/xml", "text/plain")
-            | ("text/plain", "text/xml")
-            | ("image/svg+xml", "text/plain")
-            | ("text/plain", "image/svg+xml")
-    )
-}
 
 /// Classifies an upstream test result into a ParityCategory.
 pub fn classify_upstream_test(
@@ -884,10 +754,9 @@ pub fn classify_upstream_test(
     }
 }
 
-/// Evaluates a single upstream test case and optionally compares with real `file`.
+//// Evaluates a single upstream test case using the in-repo detection engine.
 pub fn evaluate_upstream_case(
     test_case: &UpstreamTestCase,
-    run_real_file_diff: bool,
 ) -> Result<UpstreamTestResult> {
     let data = fs::read(&test_case.testfile_path)
         .with_context(|| format!("Failed to read testfile: {}", test_case.testfile_path.display()))?;
@@ -988,51 +857,6 @@ pub fn evaluate_upstream_case(
     let top_description = top_cand.map(|c| c.description.clone()).unwrap_or_default();
     let confidence = top_cand.map(|c| c.confidence);
 
-    let diff_with_real_file = if run_real_file_diff && is_real_file_available() {
-        if let Ok((real_desc, real_mime)) = query_real_file(
-            &test_case.testfile_path,
-            &test_case.custom_magic_paths,
-            test_case.flags.as_deref(),
-        ) {
-            // Reason for fallback: if top candidate has no MIME, it cannot be compatible with real MIME
-            let mime_compatible = top_mime
-                .as_deref()
-                .map(|m| is_mime_compatible(m, &real_mime))
-                .unwrap_or(false);
-
-            let norm_top = top_description.replace(r"\012", "\n");
-            let norm_real = real_desc.replace(r"\012", "\n");
-            let lines_match = if norm_real.contains("\n- ") || norm_top.contains("\n- ") {
-                let real_parts: Vec<&str> = norm_real.split("\n- ").collect();
-                let top_parts: Vec<&str> = norm_top.split("\n- ").collect();
-                real_parts.iter().all(|rp| {
-                    // Reason for fallback: if part has no comma separator, match against the entire part
-                    let clean = rp.split(',').next().unwrap_or(rp).trim();
-                    top_parts.iter().any(|tp| tp.contains(clean))
-                })
-            } else {
-                false
-            };
-            let description_compatible = !top_description.is_empty()
-                && (norm_real.to_ascii_lowercase().contains(&norm_top.to_ascii_lowercase())
-                    || norm_top.to_ascii_lowercase().contains(&norm_real.to_ascii_lowercase())
-                    || lines_match);
-
-            Some(RealFileDiff {
-                real_file_description: real_desc,
-                real_file_mime: real_mime,
-                ctoolbox_mime: top_mime.clone(),
-                ctoolbox_description: top_description.clone(),
-                mime_compatible,
-                description_compatible,
-            })
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
     Ok(UpstreamTestResult {
         name: test_case.name.clone(),
         expected: test_case.expected_description.clone(),
@@ -1041,12 +865,11 @@ pub fn evaluate_upstream_case(
         top_mime,
         top_description,
         confidence,
-        diff_with_real_file,
     })
 }
 
 /// Runs the complete upstream test suite and aggregates parity statistics.
-pub fn run_upstream_suite(run_real_file_diff: bool) -> Result<UpstreamSuiteSummary> {
+pub fn run_upstream_suite() -> Result<UpstreamSuiteSummary> {
     let cases = load_upstream_test_suite()?;
     let mut results = Vec::with_capacity(cases.len());
     let mut passing_count = 0usize;
@@ -1055,11 +878,9 @@ pub fn run_upstream_suite(run_real_file_diff: bool) -> Result<UpstreamSuiteSumma
     let mut pending_5e_count = 0usize;
     let mut pending_5f_count = 0usize;
     let mut mismatch_count = 0usize;
-    let mut diff_checked = 0usize;
-    let mut diff_agreed = 0usize;
 
     for case in &cases {
-        let res = evaluate_upstream_case(case, run_real_file_diff)?;
+        let res = evaluate_upstream_case(case)?;
         match &res.status {
             ParityCategory::Passing => {
                 passing_count = passing_count.saturating_add(1);
@@ -1080,14 +901,6 @@ pub fn run_upstream_suite(run_real_file_diff: bool) -> Result<UpstreamSuiteSumma
                 mismatch_count = mismatch_count.saturating_add(1);
             }
         }
-
-        if let Some(diff) = &res.diff_with_real_file {
-            diff_checked = diff_checked.saturating_add(1);
-            if diff.mime_compatible || diff.description_compatible {
-                diff_agreed = diff_agreed.saturating_add(1);
-            }
-        }
-
         results.push(res);
     }
 
@@ -1099,8 +912,6 @@ pub fn run_upstream_suite(run_real_file_diff: bool) -> Result<UpstreamSuiteSumma
         pending_5e_count,
         pending_5f_count,
         mismatch_count,
-        differential_checked_count: diff_checked,
-        differential_agreed_count: diff_agreed,
         results,
     })
 }
@@ -1139,7 +950,7 @@ mod tests {
     #[ctb_test]
     fn test_upstream_suite_execution_safety() {
         // Runs all 88 test cases through format detection: none should panic, hang, or error
-        let summary = run_upstream_suite(false).unwrap();
+        let summary = run_upstream_suite().unwrap();
         println!(
             "UPSTREAM SUITE SUMMARY: total={}, passing={}, pending_5c={}, pending_5d={}, pending_5e={}, pending_5f={}, mismatches={}",
             summary.total_cases,
@@ -1186,7 +997,7 @@ mod tests {
         // It must evaluate without hanging or stack overflowing and correctly identify Apple Driver Map.
         let cases = load_upstream_test_suite().unwrap();
         let cve_case = cases.iter().find(|c| c.name == "CVE-2014-1943").unwrap();
-        let res = evaluate_upstream_case(cve_case, false).unwrap();
+        let res = evaluate_upstream_case(cve_case).unwrap();
         assert_eq!(res.status, ParityCategory::Passing);
     }
 
@@ -1198,7 +1009,7 @@ mod tests {
         let zstd_cases = ["zstd-v0.8-01", "zstd-v0.8-21", "zstd-v0.8-FF"];
         for name in zstd_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
-            let res = evaluate_upstream_case(case, false).unwrap();
+            let res = evaluate_upstream_case(case).unwrap();
             assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
             assert_eq!(res.top_format_id, Some(FormatId::Zstd));
         }
@@ -1207,7 +1018,7 @@ mod tests {
         let script_cases = ["cmd1", "cmd2"];
         for name in script_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
-            let res = evaluate_upstream_case(case, false).unwrap();
+            let res = evaluate_upstream_case(case).unwrap();
             assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
             assert!(res.top_description.contains("script"));
         }
@@ -1216,7 +1027,7 @@ mod tests {
         let text_cases = ["jpeg-text", "gedcom", "utf16xmlsvg"];
         for name in text_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
-            let res = evaluate_upstream_case(case, false).unwrap();
+            let res = evaluate_upstream_case(case).unwrap();
             assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
         }
 
@@ -1226,7 +1037,7 @@ mod tests {
         ];
         for name in json_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
-            let res = evaluate_upstream_case(case, false).unwrap();
+            let res = evaluate_upstream_case(case).unwrap();
             assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
         }
 
@@ -1234,7 +1045,7 @@ mod tests {
         let container_cases = ["HWP2016.hwp", "HWP2016.hwpx.zip", "issue311docx", "issue359xlsx"];
         for name in container_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
-            let res = evaluate_upstream_case(case, false).unwrap();
+            let res = evaluate_upstream_case(case).unwrap();
             assert_eq!(
                 res.status,
                 ParityCategory::Passing,
@@ -1243,42 +1054,6 @@ mod tests {
                 res.top_description,
                 res.expected
             );
-        }
-    }
-
-    #[ctb_test]
-    fn test_differential_comparison_with_real_file() {
-        if !is_real_file_available() {
-            println!("Notice: 'file' binary not found on host; skipping differential test.");
-            return;
-        }
-
-        let summary = run_upstream_suite(true).unwrap();
-        assert!(
-            summary.differential_checked_count >= 80,
-            "Differential check should have run on all testfiles"
-        );
-
-        // Filter results for passing cases and verify real file agreement
-        let passing_results: Vec<&UpstreamTestResult> = summary
-            .results
-            .iter()
-            .filter(|r| r.status == ParityCategory::Passing)
-            .collect();
-
-        assert!(!passing_results.is_empty());
-        for res in passing_results {
-            if let Some(diff) = &res.diff_with_real_file {
-                let host_unrecognized = diff.real_file_description.trim() == "data"
-                    || diff.real_file_mime.starts_with("application/octet-stream");
-                assert!(
-                    diff.mime_compatible || diff.description_compatible || host_unrecognized,
-                    "Expected agreement for passing case {}: ctoolbox MIME={:?}, real file MIME={}",
-                    res.name,
-                    res.top_mime,
-                    diff.real_file_mime
-                );
-            }
         }
     }
 }

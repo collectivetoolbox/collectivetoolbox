@@ -50,7 +50,7 @@ tokio = { version = "1.49.0", features = ["full", "tracing"] }
 tracing = "0.1.44"
 portpicker = "0.1.1"
 mime_guess = "2.0.5"
-tokio-util = { version = "0.7.18", features = ["codec"] }
+tokio-util = { version = "0.7.18", features = ["codec", "io"] }
 base64 = "0.22.1"
 futures = "0.3"
 futures-core = { version = "0.3", default-features = false }

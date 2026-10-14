@@ -159,7 +159,8 @@ fn render_v86_profile(
 )]
 mod tests {
     use crate::test_helpers::{
-        assert_eq_or_print_body, test_get_no_login, test_get_with_login,
+        assert_eq_or_print_body, test_get_no_login, test_get_status_no_login,
+        test_get_with_login,
     };
 
     #[crate::ctb_test("tokio")]
@@ -219,7 +220,7 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_initrd_asset_serves() {
-        let (status, _body) = test_get_no_login(
+        let status = test_get_status_no_login(
             "/vendor/v86_images/guix/guix_posix_initrd.cpio.gz",
         )
         .await;
@@ -231,8 +232,8 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_v86_fs_json_asset_serves() {
-        let (status, _body) =
-            test_get_no_login("/vendor/v86_images/guix/guix-fs.json").await;
+        let status =
+            test_get_status_no_login("/vendor/v86_images/guix/guix-fs.json").await;
         assert_ne!(
             status, 404,
             "Guix fs.json asset URL /vendor/v86_images/guix/guix-fs.json returned 404!"

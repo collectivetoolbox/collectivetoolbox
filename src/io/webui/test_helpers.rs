@@ -289,6 +289,22 @@ pub async fn test_get_no_login(uri: &str) -> (StatusCode, String) {
         .await
 }
 
+pub async fn test_get_status_no_login(uri: &str) -> StatusCode {
+    let (_state, app) = test_app();
+    let resp = test_request_get_response::<()>(
+        &app,
+        Method::GET,
+        uri,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+    resp.status()
+}
+
 pub async fn test_get_with_login(
     uri: &str,
     cookie: Option<String>,

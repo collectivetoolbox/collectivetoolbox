@@ -311,6 +311,7 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
     } else {
         bail!("Invalid endpoint URL scheme: {url}");
     };
+    // Reason for fallback: absent host component defaults to empty string and is rejected immediately by the host validation check below
     let host = rest.split(['/', ':', '?', '#']).next().unwrap_or("");
     if host.is_empty() {
         bail!("Invalid endpoint URL host: {url}");
@@ -1305,6 +1306,7 @@ static BOOT_CACHED_ENV: RwLock<Option<Arc<EnvDescription>>> = RwLock::new(None);
 /// environment capture.
 pub fn init_boot_env() -> Arc<EnvDescription> {
     let env = Arc::new(EnvDescription::capture());
+    // Reason for fallback: poisoned lock error retains inner cache data so startup boot environment remains accessible across threads
     let mut lock = BOOT_CACHED_ENV.write().unwrap_or_else(|error| {
         warn!("Recovering poisoned boot environment cache");
         error.into_inner()
@@ -1315,6 +1317,7 @@ pub fn init_boot_env() -> Arc<EnvDescription> {
 
 /// Returns the boot-cached environment recorded during workspace startup, if present.
 pub fn get_boot_cached_env() -> Option<Arc<EnvDescription>> {
+    // Reason for fallback: poisoned lock error retains inner cache data so startup boot environment remains readable
     let lock = BOOT_CACHED_ENV.read().unwrap_or_else(|error| {
         warn!("Recovering poisoned boot environment cache");
         error.into_inner()
@@ -1324,6 +1327,7 @@ pub fn get_boot_cached_env() -> Option<Arc<EnvDescription>> {
 
 /// Reset the boot-cached environment (primarily used for test isolation).
 pub fn reset_boot_cached_env() {
+    // Reason for fallback: poisoned lock error retains inner cache data to permit resetting the boot cache for test isolation
     let mut lock = BOOT_CACHED_ENV.write().unwrap_or_else(|error| {
         warn!("Recovering poisoned boot environment cache");
         error.into_inner()
@@ -1458,6 +1462,7 @@ impl GlobalEnvironmentScope {
     }
 
     fn enter_slot(slot: ScopeSlot) -> Self {
+        // Reason for fallback: poisoned lock error retains previous operation scope state so new scope entry can still be registered
         let mut lock = GLOBAL_OPERATION_ENV.write().unwrap_or_else(|error| {
             warn!("Recovering poisoned operation environment scope");
             error.into_inner()
@@ -1469,6 +1474,7 @@ impl GlobalEnvironmentScope {
 
 impl Drop for GlobalEnvironmentScope {
     fn drop(&mut self) {
+        // Reason for fallback: poisoned lock error retains scope state so drop can restore the previous operation environment
         let mut lock = GLOBAL_OPERATION_ENV.write().unwrap_or_else(|error| {
             warn!("Recovering poisoned operation environment scope");
             error.into_inner()
@@ -1525,6 +1531,7 @@ pub fn capture_quick_arc() -> Arc<EnvDescription> {
         return slot.resolve();
     }
 
+    // Reason for fallback: poisoned lock error retains active global scope slot so quick environment capture can resolve it
     let slot = GLOBAL_OPERATION_ENV.read().unwrap_or_else(|error| {
         warn!("Recovering poisoned operation environment scope");
         error.into_inner()

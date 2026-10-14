@@ -32,37 +32,94 @@ use nix::libc;
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
 
-#[expect(unsafe_code, reason = "uses libc memfd_create and ftruncate")]
-#[cfg(all(unix, target_os = "linux"))]
+#[expect(unsafe_code, reason = "uses libc memfd_create, shm_open, ftruncate")]
+#[cfg(unix)]
 pub fn create_memfd(size: u64) -> Result<i32> {
     use std::ffi::CString;
 
-    let name = CString::new("ctb-blob")
-        .context("memfd name contained an interior NUL")?;
-
-    // Safety: libc call; returns an owned fd on success.
-    let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
-    if fd < 0 {
-        bail!("memfd_create failed: {}", std::io::Error::last_os_error());
-    }
-
     let off_size: libc::off_t =
         i64::try_from(size).context("size too large for off_t")?;
-    // SAFETY: ftruncate sizes the anonymous file backing.
+
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "android"))]
+    {
+        let name = CString::new("ctb-blob")
+            .context("memfd name contained an interior NUL")?;
+
+        // Safety: libc call; returns an owned fd on success.
+        let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };
+        if fd >= 0 {
+            // SAFETY: ftruncate sizes the anonymous file backing.
+            let rc = unsafe { libc::ftruncate(fd, off_size) };
+            if rc == 0 {
+                return Ok(fd);
+            }
+            // SAFETY: fd is valid
+            unsafe { libc::close(fd) };
+        }
+    }
+
+    // Fallback: POSIX shm_open with immediate shm_unlink for anonymous shared memory
+    create_shm_anonymous(off_size)
+}
+
+#[cfg(unix)]
+#[expect(unsafe_code, reason = "uses libc shm_open, shm_unlink, ftruncate")]
+fn create_shm_anonymous(off_size: libc::off_t) -> Result<i32> {
+    use std::ffi::CString;
+
+    #[cfg(target_os = "freebsd")]
+    {
+        // SAFETY: FreeBSD supports SHM_ANON directly for anonymous shared memory
+        let fd = unsafe {
+            libc::shm_open(
+                libc::SHM_ANON,
+                libc::O_RDWR | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        if fd >= 0 {
+            // SAFETY: ftruncate sizes the shared memory backing
+            let rc = unsafe { libc::ftruncate(fd, off_size) };
+            if rc == 0 {
+                return Ok(fd);
+            }
+            // SAFETY: fd is a valid descriptor returned by shm_open
+            unsafe { libc::close(fd) };
+        }
+    }
+
+    // Generic POSIX shm_open with unique name + immediate shm_unlink
+    static SHM_ID: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
+    let id = SHM_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let shm_name = format!("/ctb-shm-{}-{id}", std::process::id());
+    let c_name = CString::new(shm_name).context("invalid shm name")?;
+
+    // SAFETY: open shared memory object with O_CREAT | O_EXCL
+    let fd = unsafe {
+        libc::shm_open(
+            c_name.as_ptr(),
+            libc::O_RDWR | libc::O_CREAT | libc::O_EXCL | libc::O_CLOEXEC,
+            0o600,
+        )
+    };
+    if fd < 0 {
+        bail!("shm_open failed: {}", std::io::Error::last_os_error());
+    }
+
+    // SAFETY: unlink immediately so it is deleted when closed
+    unsafe { libc::shm_unlink(c_name.as_ptr()) };
+
+    // SAFETY: ftruncate sizes the shared memory backing
     let rc = unsafe { libc::ftruncate(fd, off_size) };
     if rc != 0 {
         let err = std::io::Error::last_os_error();
-        // SAFETY: fd is a valid descriptor returned by memfd_create
-        let _ = unsafe { libc::close(fd) };
-        bail!("ftruncate failed: {err}");
+        // SAFETY: fd is a valid descriptor returned by shm_open
+        unsafe { libc::close(fd) };
+        bail!("ftruncate on shm failed: {err}");
     }
 
     Ok(fd)
-}
-
-#[cfg(all(unix, not(target_os = "linux")))]
-pub fn create_memfd(_size: u64) -> Result<i32> {
-    bail!("memfd_create not supported on this Unix platform")
 }
 
 #[expect(unsafe_code, reason = "uses libc dup")]

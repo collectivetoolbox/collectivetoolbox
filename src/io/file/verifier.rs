@@ -712,7 +712,7 @@ pub fn audit_entity_detailed(
     }
 
     if expected.metadata.native.is_some() {
-        let differences = crate::metadata::native_metadata_differences(path, &expected.metadata, options.ignore_flags)?;
+        let differences = crate::metadata::native_metadata_differences(path, &expected.metadata, options.ignore_flags, !options.best_effort)?;
         if !differences.is_empty() {
             if options.best_effort {
                 warn_fmt!("Native metadata differs on {}: {differences:?}", path.display());

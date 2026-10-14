@@ -248,9 +248,9 @@ pub enum BlobBackend {
     /// On Linux, this uses memfd with FD passing via `SCM_RIGHTS`.
     /// On Windows, this uses file mappings.
     PlatformDefault,
-    /// Use memfd on Linux with FD passing via `SCM_RIGHTS`.
+    /// Use memfd / anonymous shm on Unix with FD passing via `SCM_RIGHTS`.
     /// This requires the transport layer to support FD passing.
-    #[cfg(all(unix, target_os = "linux"))]
+    #[cfg(unix)]
     Memfd,
     /// Always use a temp-file + `memmap2` fallback (portable, testable).
     TempFileFallback,
@@ -352,20 +352,15 @@ impl BlobAllocator for SharedMemoryBlobs {
             BlobBackend::TempFileFallback => {
                 self.create_tempfile_blob(size, &token)?
             }
-            #[cfg(all(unix, target_os = "linux"))]
+            #[cfg(unix)]
             BlobBackend::Memfd => self.create_memfd_blob(size)?,
             BlobBackend::PlatformDefault => {
-                #[cfg(all(unix, target_os = "linux"))]
+                #[cfg(unix)]
                 {
-                    // Use memfd with FD passing via SCM_RIGHTS.
+                    // Use memfd (or anonymous shm) with FD passing via SCM_RIGHTS.
                     // The FD must be transferred to the receiving process
                     // using the transport layer's FD passing capability.
                     self.create_memfd_blob(size)?
-                }
-                #[cfg(all(unix, not(target_os = "linux")))]
-                {
-                    // Non-Linux Unix: fall back to temp file
-                    self.create_tempfile_blob(size, &token)?
                 }
                 #[cfg(windows)]
                 {
