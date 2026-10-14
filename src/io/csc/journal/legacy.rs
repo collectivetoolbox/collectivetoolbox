@@ -30,8 +30,8 @@ use crate::utilities::*;
 
 use ctb_formats_checksum::{Sha256Stream, xxhash};
 use ctb_formats_dcstring::{
-    DcChar, DcKvMapEncoding, DcMixedDecode, DcMixedEncode, DcMixedReader,
-    DcMstring, SharedJson, SharedValueContext,
+    DcMixedEncode, DcMstring, DcProjectionPolicy, SharedJson,
+    SharedValueContext,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{
@@ -43,11 +43,10 @@ use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{BufRead, BufReader, Cursor, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use super::{
     JournalErrorRecord, JournalSnapshot, JournalWarningRecord, JOURNAL_MAGIC_V4,
@@ -63,278 +62,6 @@ pub const TAG_JOB_COMPLETED: u8 = 4;
 pub const TAG_SESSION_ENV: u8 = 5;
 pub const TAG_ERROR_RECORD: u8 = 6;
 pub const TAG_WARNING_RECORD: u8 = 7;
-
-/// Decodes current entities directly, adapting historical v4 representations
-/// only at the journal boundary. The original cursor remains the source of
-/// checksum offsets; normalization never changes persisted bytes.
-pub(crate) fn decode_v4_entity(
-    reader: &mut DcMixedReader<'_>,
-    context: &SharedValueContext,
-) -> Result<FileEntity> {
-    let mut current = reader.clone();
-    match FileEntity::decode_dc_mixed(&mut current) {
-        Ok(mut entity) => {
-            adapt_v4_stream_names(&mut entity)?;
-            *reader = current;
-            Ok(entity)
-        }
-        Err(original_error) => {
-            let mut legacy = reader.clone();
-            let (normalized, changed) = normalize_v4_entity(&mut legacy)
-                .with_context(|| format!("Cannot adapt historical entity: {original_error:#}"))?;
-            ensure!(changed, "Cannot decode journal entity: {original_error:#}");
-            let entity = normalized.decode_with_context::<FileEntity>(context)
-                .with_context(|| format!("Cannot decode adapted entity: {original_error:#}"))?;
-            *reader = legacy;
-            warn_fmt!("{}: Adapted historical v4 journal representations", entity.identity.display_path());
-            Ok(entity)
-        }
-    }
-}
-
-fn adapt_v4_stream_names(entity: &mut FileEntity) -> Result<()> {
-    for stream in &mut entity.streams {
-        if let Some(StreamName::Encoded { format, bytes }) = &stream.name {
-            if *format == ctb_utilities::format_id::FormatId::DcIntegerList
-                && bytes.len().is_multiple_of(2)
-            {
-                let units = bytes.chunks_exact(2)
-                    .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
-                    .collect::<Result<Vec<_>>>()?;
-                stream.name = Some(StreamName::from_windows_utf16(&units));
-                warn!("Adapted historical v4 UTF-16 stream name encoding");
-            }
-        }
-        adapt_v4_stream_names(&mut stream.entity)?;
-    }
-    Ok(())
-}
-
-fn normalize_v4_entity(reader: &mut DcMixedReader<'_>) -> Result<(DcMstring, bool)> {
-    use ctb_formats_dcstring::dc::{DC_OPTIONAL_PRESENT, DC_RAW_FILE_FLAGS};
-    use ctb_utilities::format_id::FormatId;
-
-    reader.expect_short_dc(317)?;
-    let mut normalized = DcMstring::new();
-    normalized.push_char(DcChar::from_short(317));
-    let mut depth = 1_usize;
-    let mut in_literal = false;
-    let mut changed = false;
-    while depth > 0 {
-        if reader.peek_short_dc()? == Some(203) {
-            copy_binary(reader, &mut normalized)?;
-            continue;
-        }
-        let ch = reader.next_char()?;
-        normalized.push_char(ch);
-        match ch.to_short_dc() {
-            Some(255) => {
-                normalized.push_char(reader.next_char()?);
-                continue;
-            }
-            Some(260) => in_literal = true,
-            Some(261) => in_literal = false,
-            _ => {}
-        }
-        if in_literal {
-            continue;
-        }
-        match ch.to_short_dc() {
-            Some(317) => depth = depth.checked_add(1).context("Entity nesting overflow")?,
-            Some(318) => depth = depth.checked_sub(1).context("Unbalanced entity boundary")?,
-            Some(539 | 338) => {
-                if reader.peek_char()? == Some(DC_OPTIONAL_PRESENT) {
-                    normalized.push_char(reader.next_char()?);
-                }
-                if ch == DC_RAW_FILE_FLAGS && matches!(reader.peek_short_dc()?, Some(313 | 559)) {
-                    let flags = read_v4_raw_flags(reader)?;
-                    normalized.push_binary_with_sha256(flags.as_ref())?;
-                    changed = true;
-                } else if ch.to_short_dc() == Some(338) && reader.peek_short_dc()? == Some(203) {
-                    let mut trial = reader.clone();
-                    let (format, bytes) = trial.read_checksum_payload()?;
-                    let incorrect_format = DcChar::from_u128(
-                        FormatId::DcIntegerList.dc_id().context("Missing Dc Integer List format identifier")?
-                    );
-                    if format == Some(incorrect_format) {
-                        let name = if bytes.len().is_multiple_of(2) {
-                            let units = bytes.chunks_exact(2)
-                                .map(|chunk| Ok(u16::from_le_bytes(<[u8; 2]>::try_from(chunk)?)))
-                                .collect::<Result<Vec<_>>>()?;
-                            StreamName::from_windows_utf16(&units)
-                        } else {
-                            StreamName::from_encoded(FormatId::DcIntegerList, bytes.to_vec())?
-                        };
-                        name.encode_dc_mixed(&mut normalized)?;
-                        *reader = trial;
-                        changed = true;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    Ok((normalized, changed))
-}
-
-fn copy_binary(reader: &mut DcMixedReader<'_>, target: &mut DcMstring) -> Result<()> {
-    let (format, bytes) = reader.read_checksum_payload()?;
-    if let Some(format) = format {
-        let mut metadata = ctb_formats_dcstring::DcString::new();
-        metadata.push(format);
-        target.push_binary_with_metadata(&bytes, &metadata)?;
-    } else {
-        target.push_binary_with_sha256(&bytes)?;
-    }
-    Ok(())
-}
-
-fn read_v4_raw_flags(reader: &mut DcMixedReader<'_>) -> Result<ctb_io::file::PlatformRawFlags> {
-    let encoding = DcKvMapEncoding::decode_header(reader)?;
-    let mut raw_value = None;
-    let mut raw_bytes = None;
-    let mut keys = std::collections::HashSet::new();
-    let mut first = true;
-    while encoding.decode_entry_begin(reader, first)? {
-        first = false;
-        let key = String::decode_dc_mixed(reader)?;
-        ensure!(keys.insert(key.clone()), "Duplicate historical raw flag field {key:?}");
-        reader.expect_short_dc(312)?;
-        match key.as_str() {
-            "raw_value" => raw_value = Some(u64::decode_dc_mixed(reader)?),
-            "bytes" => {
-                raw_bytes = Some(if reader.peek_short_dc()? == Some(203) {
-                    reader.read_binary_payload()?.to_vec()
-                } else {
-                    Vec::<u8>::decode_dc_mixed(reader)?
-                });
-            }
-            "source_os" => { String::decode_dc_mixed(reader)?; }
-            "has_unparsed_flags" => { bool::decode_dc_mixed(reader)?; }
-            _ => bail!("Unknown historical raw flag field {key:?}"),
-        }
-        encoding.decode_entry_end(reader)?;
-    }
-    let flags = if let Some(bytes) = raw_bytes {
-        let flags = ctb_io::file::PlatformRawFlags::try_from(bytes.as_slice())?;
-        if let Some(value) = raw_value {
-            ensure!(flags.raw_value() == value, "Conflicting historical raw flag representations");
-        }
-        flags
-    } else {
-        ctb_io::file::PlatformRawFlags::from_raw(
-            raw_value.context("Historical raw flags have no bitmask")?
-        )
-    };
-    Ok(flags)
-}
-
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod compatibility_tests {
-    use super::*;
-    use ctb_utilities::format_id::FormatId;
-
-    #[crate::ctb_test]
-    fn historical_stream_encoding_is_adapted_without_truncation() -> Result<()> {
-        for bytes in [&b"a\0\0\xd8"[..], &b"a"[..]] {
-            let mut old = DcMstring::new();
-            old.push_char(DcChar::from_short(317));
-            old.push_char(DcChar::from_short(338));
-            old.push_char(DcChar::from_short(315));
-            let mut metadata = ctb_formats_dcstring::DcString::new();
-            metadata.push(DcChar::from_u128(
-                FormatId::DcIntegerList.dc_id().context("Missing Dc Integer List format identifier")?
-            ));
-            old.push_binary_with_metadata(bytes, &metadata)?;
-            old.push_char(DcChar::from_short(318));
-            let mut reader = DcMixedReader::new(&old);
-                let (normalized, changed) = normalize_v4_entity(&mut reader)?;
-                ensure!(changed, "Historical stream name was not adapted");
-                let mut decoded = DcMixedReader::new(&normalized);
-                decoded.expect_short_dc(317)?;
-                decoded.expect_short_dc(338)?;
-                decoded.expect_short_dc(315)?;
-                let name = StreamName::decode_dc_mixed(&mut decoded)?;
-                if bytes.len().is_multiple_of(2) {
-                    ensure!(name == StreamName::from_windows_utf16(&[0x61, 0xd800]),
-                        "Historical stream units changed");
-                } else {
-                    ensure!(name.as_bytes().as_ref() == bytes, "Odd historical payload changed");
-                    #[cfg(unix)]
-                    ensure!(name.to_os_string()?.as_encoded_bytes() == bytes,
-                        "Unix historical payload bytes changed");
-                    #[cfg(windows)]
-                    ensure!(name.to_os_string().is_err(), "Odd historical payload was materialized");
-                    ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
-                }
-                decoded.expect_short_dc(318)?;
-                ensure!(reader.peek_char()?.is_none(), "Original cursor did not advance");
-        }
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn v4_entity_adapts_interpretable_stream_names_only() -> Result<()> {
-        for bytes in [&b"a\0\0\xd8"[..], &b"a"[..]] {
-            let mut entity = FileEntity::from_vec(Vec::new());
-            entity.streams.push(AttachedStream::from_data(
-                Some(StreamName::from_encoded(FormatId::DcIntegerList, bytes.to_vec())?),
-                StreamKind::NtfsAlternateDataStream, Vec::new(),
-            )?);
-            let encoded = entity.to_dc_mixed()?;
-            let restored = decode_v4_entity(
-                &mut DcMixedReader::new(&encoded), &SharedValueContext::default(),
-            )?;
-            let name = restored.streams.first().and_then(|stream| stream.name.as_ref())
-                .context("Missing restored stream name")?;
-            if bytes.len().is_multiple_of(2) {
-                ensure!(*name == StreamName::from_windows_utf16(&[0x61, 0xd800]),
-                    "Historical stream encoding was not adapted");
-            } else {
-                ensure!(name.as_bytes().as_ref() == bytes, "Odd stream payload changed");
-                #[cfg(unix)]
-                ensure!(name.to_os_string()?.as_encoded_bytes() == bytes,
-                    "Unix historical stream bytes changed");
-                #[cfg(windows)]
-                ensure!(name.to_os_string().is_err(), "Odd stream payload was used");
-            }
-        }
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn historical_raw_flags_reject_conflicting_representations() -> Result<()> {
-        let mut map = DcMstring::new();
-        let encoding = DcKvMapEncoding::Pairs;
-        encoding.encode_header(&mut map);
-        encoding.encode_entry_begin(&mut map, true);
-        "raw_value".encode_dc_mixed(&mut map)?;
-        map.push_char(DcChar::from_short(312));
-        u64::MAX.encode_dc_mixed(&mut map)?;
-        encoding.encode_entry_end(&mut map);
-        encoding.encode_entry_begin(&mut map, false);
-        "bytes".encode_dc_mixed(&mut map)?;
-        map.push_char(DcChar::from_short(312));
-        map.push_binary_with_sha256(&0_u64.to_le_bytes())?;
-        encoding.encode_entry_end(&mut map);
-        encoding.encode_end(&mut map);
-        ensure!(read_v4_raw_flags(&mut DcMixedReader::new(&map)).is_err(),
-            "Conflicting raw flag values were accepted");
-        ensure!(map.decode::<ctb_io::file::PlatformRawFlags>().is_err(),
-            "Shared metadata codec must not accept historical journal maps");
-        Ok(())
-    }
-}
 
 /// Reads a legacy state journal (revision 1..=3) from disk into a `JournalSnapshot`.
 pub fn read_legacy_journal_snapshot<R: Read + Seek>(
@@ -1309,8 +1036,8 @@ pub fn read_entity_payload(
             "Semantic identity is missing from CTBMETA3 preservation record"
         );
         if let Some(identity_dc) = record.identity_dc {
-            let identity =
-                DcMstring::from_bytes(identity_dc)?.decode::<FileIdentity>()?;
+            let identity = DcMstring::from_bytes(identity_dc)?
+                .decode::<FileIdentity>(&DcProjectionPolicy::strict())?;
             let semantic_path = identity
                 .relative_path
                 .as_deref()

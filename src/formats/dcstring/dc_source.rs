@@ -251,9 +251,13 @@ pub struct DcInspection<'a, T, S: DcSource + ?Sized = DcMstr> {
 }
 
 impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
-    fn read(source: &'a S, mut reader: DcMixedReader<'a>) -> Self {
+    fn read(
+        source: &'a S,
+        mut reader: DcMixedReader<'a>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Self {
         reader.annotating = true;
-        let result = T::decode_dc_mixed(&mut reader);
+        let result = T::decode_dc_mixed(&mut reader, policy);
         let (value, error) = match result {
             Ok(value) => {
                 let error = match reader.peek_char() {
@@ -381,7 +385,20 @@ impl DcMstr {
     /// Annotates an interpretation, preserving source even when decoding fails.
     #[must_use]
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T> {
-        DcInspection::read(self, DcMixedReader::new(self))
+        DcInspection::read(
+            self,
+            DcMixedReader::new(self),
+            &crate::DcProjectionPolicy::strict(),
+        )
+    }
+
+    /// Annotates with an explicit projection policy.
+    #[must_use]
+    pub fn inspect_with_policy<'a, T: DcMixedDecode>(
+        &'a self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> DcInspection<'a, T> {
+        DcInspection::read(self, DcMixedReader::new(self), policy)
     }
 
     /// Annotates with explicitly supplied outer reference bindings.
@@ -390,7 +407,11 @@ impl DcMstr {
         &'a self,
         context: &'a crate::SharedValueContext,
     ) -> DcInspection<'a, T> {
-        DcInspection::read(self, DcMixedReader::with_context(self, context))
+        DcInspection::read(
+            self,
+            DcMixedReader::with_context(self, context),
+            &crate::DcProjectionPolicy::strict(),
+        )
     }
 }
 
@@ -399,13 +420,21 @@ impl DcStr {
     ///
     /// # Errors
     /// Returns an error on unsupported syntax or trailing content.
-    pub fn decode<T: DcMixedDecode>(&self) -> Result<T> {
+    pub fn decode<T: DcMixedDecode>(
+        &self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
         let mut reader = DcMixedReader::from_dc_str(self);
-        let value = T::decode_dc_mixed(&mut reader)?;
-        ensure!(
-            reader.peek_char()?.is_none(),
-            "Trailing content after typed Dc value"
-        );
+        let value = T::decode_dc_mixed(&mut reader, policy)?;
+        if reader.peek_char()?.is_some() {
+            policy.handle(
+                policy.syntax_error,
+                format!(
+                    "Trailing content after typed Dc value at byte {}",
+                    reader.position()
+                ),
+            )?;
+        }
         Ok(value)
     }
 
@@ -416,20 +445,39 @@ impl DcStr {
     pub fn decode_with_context<T: DcMixedDecode>(
         &self,
         context: &crate::SharedValueContext,
+        policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
         let mut reader = DcMixedReader::from_dc_str_with_context(self, context);
-        let value = T::decode_dc_mixed(&mut reader)?;
-        ensure!(
-            reader.peek_char()?.is_none(),
-            "Trailing content after typed Dc value"
-        );
+        let value = T::decode_dc_mixed(&mut reader, policy)?;
+        if reader.peek_char()?.is_some() {
+            policy.handle(
+                policy.syntax_error,
+                format!(
+                    "Trailing content after typed Dc value at byte {}",
+                    reader.position()
+                ),
+            )?;
+        }
         Ok(value)
     }
 
     /// Annotates an interpretation without copying or changing the source.
     #[must_use]
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T, DcStr> {
-        DcInspection::read(self, DcMixedReader::from_dc_str(self))
+        DcInspection::read(
+            self,
+            DcMixedReader::from_dc_str(self),
+            &crate::DcProjectionPolicy::strict(),
+        )
+    }
+
+    /// Annotates with an explicit projection policy.
+    #[must_use]
+    pub fn inspect_with_policy<'a, T: DcMixedDecode>(
+        &'a self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> DcInspection<'a, T, DcStr> {
+        DcInspection::read(self, DcMixedReader::from_dc_str(self), policy)
     }
 
     /// Annotates DcUtf with explicitly supplied outer reference bindings.
@@ -441,6 +489,7 @@ impl DcStr {
         DcInspection::read(
             self,
             DcMixedReader::from_dc_str_with_context(self, context),
+            &crate::DcProjectionPolicy::strict(),
         )
     }
 }

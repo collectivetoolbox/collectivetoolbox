@@ -604,8 +604,11 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderFlags {
         self.to_raw_u16().encode_dc_mixed(mst)
     }
 
-    fn decode_dc_number(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
-        let raw = u16::decode_dc_mixed(reader)?;
+    fn decode_dc_number(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let raw = u16::decode_dc_mixed(reader, policy)?;
         Ok(Self::from_raw_u16(raw))
     }
 }
@@ -670,8 +673,11 @@ impl ctb_formats_dcstring::DcMixedNumber for ExtendedFlags {
         self.to_raw_u8().encode_dc_mixed(mst)
     }
 
-    fn decode_dc_number(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
-        let raw = u8::decode_dc_mixed(reader)?;
+    fn decode_dc_number(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let raw = u8::decode_dc_mixed(reader, policy)?;
         Ok(Self::from_raw_u8(raw))
     }
 }
@@ -805,8 +811,11 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
         self.index().encode_dc_mixed(mst)
     }
 
-    fn decode_dc_number(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
-        let idx = u8::decode_dc_mixed(reader)?;
+    fn decode_dc_number(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let idx = u8::decode_dc_mixed(reader, policy)?;
         Self::try_from(idx)
     }
 }
@@ -2117,7 +2126,12 @@ mod tests {
                     &mst.to_dc_tokens()?,
                 ).with_context(|| format!("Finder label {index}, numeric={numeric}"))?;
                 let mut reader = DcMixedReader::new(&mst);
-                ensure!(FinderInfo::decode_dc_mixed(&mut reader)? == finfo);
+                ensure!(
+                    FinderInfo::decode_dc_mixed(
+                        &mut reader,
+                        &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+                    )? == finfo
+                );
             }
         }
         Ok(())
@@ -2125,7 +2139,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_finder_label_equivalent_list_type_header() -> Result<()> {
-        use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader};
+        use ctb_formats_dcstring::{
+            DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader,
+            DcProjectionPolicy,
+        };
 
         let finfo = FinderInfo {
             label: FinderLabel::InProgress,
@@ -2144,8 +2161,10 @@ mod tests {
             old_encoded.push_char(DcChar::from_u128(token));
         }
         let mut reader = DcMixedReader::new(&old_encoded);
-        ensure!(FinderInfo::decode_dc_mixed(&mut reader).is_err(),
-            "Untyped equivalent list was decoded");
+        ensure!(
+            FinderInfo::decode_dc_mixed(&mut reader, &DcProjectionPolicy::strict()).is_err(),
+            "Untyped equivalent list was decoded"
+        );
         for malformed in [
             vec![401, 405, 397, 487, 402],
             vec![401, 405, 397, 310, 275, 311, 402],
@@ -2158,8 +2177,14 @@ mod tests {
             for token in malformed {
                 mst.push_char(DcChar::from_short(token));
             }
-            ensure!(FinderInfo::decode_dc_mixed(&mut DcMixedReader::new(&mst)).is_err(),
-                "Malformed equivalent list was decoded");
+            ensure!(
+                FinderInfo::decode_dc_mixed(
+                    &mut DcMixedReader::new(&mst),
+                    &DcProjectionPolicy::strict(),
+                )
+                .is_err(),
+                "Malformed equivalent list was decoded"
+            );
         }
         Ok(())
     }
@@ -2204,14 +2229,18 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
-        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
+        use ctb_formats_dcstring::{
+            DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring,
+            DcProjectionPolicy,
+        };
 
         // 1. AppleFormat enum roundtrip with format Dcs (f315, f316)
         let fmt = AppleFormat::AppleDouble;
         let mut mst = DcMstring::new();
         fmt.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
-        let decoded_fmt = AppleFormat::decode_dc_mixed(&mut reader)?;
+        let decoded_fmt =
+            AppleFormat::decode_dc_mixed(&mut reader, &DcProjectionPolicy::strict())?;
         ensure!(decoded_fmt == fmt);
 
         // 2. ExtendedFinderInfo roundtrip (begin = 490, end = 491; xflags preserved)
@@ -2226,7 +2255,8 @@ mod tests {
         let mut mst = DcMstring::new();
         ext.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
-        let decoded_ext = ExtendedFinderInfo::decode_dc_mixed(&mut reader)?;
+        let decoded_ext =
+            ExtendedFinderInfo::decode_dc_mixed(&mut reader, &DcProjectionPolicy::strict())?;
         ensure!(decoded_ext == ext);
         ctb_formats_dcstring::assert_dc_document_roundtrip(&ext)?;
 
@@ -2255,7 +2285,8 @@ mod tests {
         let mut mst = DcMstring::new();
         finfo.encode_dc_mixed(&mut mst)?;
         let mut reader = DcMixedReader::new(&mst);
-        let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
+        let decoded_finfo =
+            FinderInfo::decode_dc_mixed(&mut reader, &DcProjectionPolicy::strict())?;
         ensure!(decoded_finfo == finfo);
         ctb_formats_dcstring::assert_dc_document_roundtrip(&finfo)?;
 
@@ -2276,7 +2307,10 @@ mod tests {
         custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
 
         let mut custom_reader = DcMixedReader::new(&custom_mst);
-        let decoded_custom = FinderInfo::decode_dc_mixed(&mut custom_reader)?;
+        let decoded_custom = FinderInfo::decode_dc_mixed(
+            &mut custom_reader,
+            &DcProjectionPolicy::strict(),
+        )?;
         ensure!(decoded_custom.flags.is_on_desk);
         ensure!(decoded_custom.flags.has_no_inits);
         ensure!(decoded_custom.flags.is_invisible);

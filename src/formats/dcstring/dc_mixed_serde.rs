@@ -80,12 +80,15 @@ pub trait DcMixedEncode {
 
 /// Trait for types that can be deserialized from a `DcMixedReader`.
 pub trait DcMixedDecode: Sized {
-    /// Deserializes an instance from the given `DcMixedReader`.
+    /// Deserializes an instance from the given `DcMixedReader` under `policy`.
     ///
     /// # Errors
     /// Returns an error if unexpected characters, malformed data, or missing
-    /// required fields are encountered.
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self>;
+    /// required fields are encountered and `policy` specifies an error action.
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self>;
 }
 
 /// Trait indicating whether an alternative representation is lossless given serialization context.
@@ -101,10 +104,21 @@ impl crate::DcMstr {
     ///
     /// # Errors
     /// Returns an error on unsupported syntax, missing fields, or trailing data.
-    pub fn decode<T: DcMixedDecode>(&self) -> Result<T> {
+    pub fn decode<T: DcMixedDecode>(
+        &self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
         let mut reader = DcMixedReader::new(self);
-        let value = T::decode_dc_mixed(&mut reader)?;
-        ensure!(reader.peek_char()?.is_none(), "Trailing content after typed Dc value");
+        let value = T::decode_dc_mixed(&mut reader, policy)?;
+        if reader.peek_char()?.is_some() {
+            policy.handle(
+                policy.syntax_error,
+                format!(
+                    "Trailing content after typed Dc value at byte {}",
+                    reader.position()
+                ),
+            )?;
+        }
         Ok(value)
     }
 
@@ -112,10 +126,22 @@ impl crate::DcMstr {
     ///
     /// # Errors
     /// Returns an error if interpretation fails or trailing content remains.
-    pub fn decode_with_context<T: DcMixedDecode>(&self, context: &crate::SharedValueContext) -> Result<T> {
+    pub fn decode_with_context<T: DcMixedDecode>(
+        &self,
+        context: &crate::SharedValueContext,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
         let mut reader = DcMixedReader::with_context(self, context);
-        let value = T::decode_dc_mixed(&mut reader)?;
-        ensure!(reader.peek_char()?.is_none(), "Trailing content after typed Dc value");
+        let value = T::decode_dc_mixed(&mut reader, policy)?;
+        if reader.peek_char()?.is_some() {
+            policy.handle(
+                policy.syntax_error,
+                format!(
+                    "Trailing content after typed Dc value at byte {}",
+                    reader.position()
+                ),
+            )?;
+        }
         Ok(value)
     }
 }
@@ -133,7 +159,10 @@ pub trait DcMixedNumber: Sized {
     ///
     /// # Errors
     /// Returns an error if decoding fails or the number cannot be converted.
-    fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self>;
+    fn decode_dc_number(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self>;
 }
 
 macro_rules! impl_dc_mixed_number_primitive {
@@ -143,8 +172,11 @@ macro_rules! impl_dc_mixed_number_primitive {
                 fn encode_dc_number(&self, mst: &mut DcMstring) -> Result<()> {
                     self.encode_dc_mixed(mst)
                 }
-                fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-                    Self::decode_dc_mixed(reader)
+                fn decode_dc_number(
+                    reader: &mut DcMixedReader<'_>,
+                    policy: &crate::DcProjectionPolicy,
+                ) -> Result<Self> {
+                    Self::decode_dc_mixed(reader, policy)
                 }
             }
         )*
@@ -203,7 +235,10 @@ impl DcMixedEncode for BinaryPayload {
 }
 
 impl DcMixedDecode for BinaryPayload {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let payload = reader.read_binary_payload()?;
         Ok(Self(payload.to_vec()))
     }
@@ -218,9 +253,11 @@ fn checksum_format(data_type: Option<&crate::DcStr>) -> Result<Option<DcChar>> {
     Ok(Some(format))
 }
 
-/// A streaming cursor over a borrowed `DcMstr` slice.
+/// A streaming cursor over a borrowed `DcMstr` or `DcStr` slice.
 #[derive(Clone, Debug)]
 pub struct DcMixedReader<'a> {
+    source_mstr: Option<&'a DcMstr>,
+    source_dc_str: Option<&'a crate::DcStr>,
     chunks: DcMixedChunks<'a>,
     source_len: usize,
     position: usize,
@@ -243,6 +280,8 @@ impl<'a> DcMixedReader<'a> {
     #[must_use]
     pub fn new(mstr: &'a DcMstr) -> Self {
         Self {
+            source_mstr: Some(mstr),
+            source_dc_str: None,
             chunks: mstr.chunks(),
             source_len: mstr.len(),
             position: crate::dc_mixed::DCMM_HEADER_LEN,
@@ -265,6 +304,8 @@ impl<'a> DcMixedReader<'a> {
     #[must_use]
     pub fn from_dc_str(source: &'a crate::DcStr) -> Self {
         Self {
+            source_mstr: None,
+            source_dc_str: Some(source),
             chunks: DcMixedChunks { slice: &[] },
             source_len: source.len(),
             position: 0,
@@ -280,6 +321,62 @@ impl<'a> DcMixedReader<'a> {
             peeked_metadata: None,
             shared_context: None,
             reference_scope: crate::SharedValueContext::default(),
+        }
+    }
+
+    /// Restricts this reader to the byte sub-range `start..end` of the
+    /// underlying source buffer.
+    ///
+    /// # Errors
+    /// Returns an error if `start..end` is out of bounds or not on a valid
+    /// character boundary.
+    pub fn set_position_range(&mut self, start: usize, end: usize) -> Result<()> {
+        ensure!(start <= end, "Invalid reader range {start}..{end}");
+        if let Some(mstr) = self.source_mstr {
+            ensure!(
+                start >= crate::dc_mixed::DCMM_HEADER_LEN && end <= mstr.len(),
+                "Reader range {start}..{end} out of bounds for DcMstr"
+            );
+            let slice = mstr
+                .as_bytes()
+                .get(start..end)
+                .context("Invalid DcMstr slice range")?;
+            self.chunks = DcMixedChunks { slice };
+            self.source_len = end;
+            self.position = start;
+            self.text_end = start;
+            self.peeked_start = start;
+            self.peeked_end = start;
+            self.current_text = None;
+            self.peeked_char = None;
+            self.peeked_binary = None;
+            self.peeked_metadata = None;
+            Ok(())
+        } else if let Some(dc_str) = self.source_dc_str {
+            ensure!(
+                end <= dc_str.len()
+                    && dc_str.is_char_boundary(start)
+                    && dc_str.is_char_boundary(end),
+                "Reader range {start}..{end} out of bounds or not on char boundary for DcStr"
+            );
+            let sub_bytes = dc_str
+                .as_bytes()
+                .get(start..end)
+                .context("Invalid DcStr slice range")?;
+            let sub_str = crate::DcStr::from_bytes(sub_bytes)?;
+            self.chunks = DcMixedChunks { slice: &[] };
+            self.source_len = end;
+            self.position = start;
+            self.text_end = end;
+            self.peeked_start = start;
+            self.peeked_end = start;
+            self.current_text = Some(sub_str.chars());
+            self.peeked_char = None;
+            self.peeked_binary = None;
+            self.peeked_metadata = None;
+            Ok(())
+        } else {
+            bail!("Reader does not have a sliceable backing buffer")
         }
     }
 
@@ -366,10 +463,13 @@ impl<'a> DcMixedReader<'a> {
     }
 
     /// Reads a typed Dc 269 declaration into this document's current scope.
-    pub fn decode_declaration<T: DcMixedDecode + std::any::Any + Send + Sync>(&mut self) -> Result<Arc<T>> {
+    pub fn decode_declaration<T: DcMixedDecode + std::any::Any + Send + Sync>(
+        &mut self,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Arc<T>> {
         let name = crate::shared::decode_identifier(self)?;
         self.expect_short_dc(269)?;
-        let value = Arc::new(T::decode_dc_mixed(self)?);
+        let value = Arc::new(T::decode_dc_mixed(self, policy)?);
         self.reference_scope.insert(name, Arc::clone(&value))?;
         Ok(value)
     }
@@ -400,10 +500,10 @@ impl<'a> DcMixedReader<'a> {
                 self.current_text = None;
             }
 
-                let start = self.source_len.saturating_sub(self.chunks.slice.len());
-                let chunk = self.chunks.next();
-                let end = self.source_len.saturating_sub(self.chunks.slice.len());
-                match chunk {
+            let start = self.source_len.saturating_sub(self.chunks.slice.len());
+            let chunk = self.chunks.next();
+            let end = self.source_len.saturating_sub(self.chunks.slice.len());
+            match chunk {
                 Some(DcMixed::Text(s)) => {
                     self.text_end = end;
                     self.current_text = Some(s.chars());
@@ -531,70 +631,7 @@ impl<'a> DcMixedReader<'a> {
     /// # Errors
     /// Returns an error if the next element is not an encapsulated binary payload.
     pub fn read_binary_payload(&mut self) -> Result<Cow<'a, [u8]>> {
-        self.peek_char()?;
-        if let Some(data) = self.peeked_binary.take() {
-            self.peeked_metadata = None;
-            self.position = self.peeked_end;
-            return Ok(Cow::Borrowed(data));
-        }
-        if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-            let (_, data) = self.read_textual_binary()?;
-            return Ok(Cow::Owned(data));
-        }
-        let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
-        if is_text_encapsulation {
-            self.next_char()?;
-        }
-        let mut shorts = Vec::new();
-        let mut first = true;
-        loop {
-            let Some(ch) = self.peek_char()? else {
-                break;
-            };
-            if is_text_encapsulation && ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
-                self.next_char()?;
-                break;
-            }
-            if !is_text_encapsulation {
-                if first {
-                    let is_fmt = ch.to_format().is_ok();
-                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                    if !is_fmt && !is_b64 {
-                        break;
-                    }
-                } else {
-                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                    if !is_b64 {
-                        break;
-                    }
-                }
-            }
-            let ch = self.next_char()?;
-            if first {
-                first = false;
-                if let Some(short) = ch.to_short_dc() {
-                    if ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short) {
-                        shorts.push(short);
-                        continue;
-                    }
-                }
-                // Optional format DcChar inside Dc 203 (e.g. DC_SHA256)
-                continue;
-            }
-            let short = ch.to_short()?;
-            ensure!(
-                ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short),
-                "Expected base64 Dc in binary encapsulation"
-            );
-            shorts.push(short);
-        }
-        ensure!(
-            !shorts.is_empty() || is_text_encapsulation,
-            "Expected binary encapsulation"
-        );
-        Ok(Cow::Owned(
-            ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?,
-        ))
+        Ok(self.read_encapsulated_payload(false)?.1)
     }
 
     /// Reads a typed checksum binary payload enclosed between `Dc 203` and `Dc 204`,
@@ -603,10 +640,22 @@ impl<'a> DcMixedReader<'a> {
     /// # Errors
     /// Returns an error if the payload is not encapsulated binary data.
     pub fn read_checksum_payload(&mut self) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
+        self.read_encapsulated_payload(true)
+    }
+
+    fn read_encapsulated_payload(
+        &mut self,
+        parse_checksum_fmt: bool,
+    ) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
         self.peek_char()?;
         if let Some(data) = self.peeked_binary.take() {
-            let format = if let Some(metadata) = self.peeked_metadata.take() {
-                checksum_format(crate::encapsulation::parse_metadata(metadata)?.data_type)?
+            let metadata = self.peeked_metadata.take();
+            let format = if parse_checksum_fmt {
+                if let Some(metadata) = metadata {
+                    checksum_format(crate::encapsulation::parse_metadata(metadata)?.data_type)?
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -615,12 +664,12 @@ impl<'a> DcMixedReader<'a> {
         }
         if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
             let (metadata, data) = self.read_textual_binary()?;
-            let format = checksum_format(crate::encapsulation::parse_metadata(&metadata)?.data_type)?;
+            let format = if parse_checksum_fmt {
+                checksum_format(crate::encapsulation::parse_metadata(&metadata)?.data_type)?
+            } else {
+                None
+            };
             return Ok((format, Cow::Owned(data)));
-        }
-        let is_text_encapsulation = self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY);
-        if is_text_encapsulation {
-            self.next_char()?;
         }
         let mut format_char = None;
         let mut shorts = Vec::new();
@@ -629,22 +678,20 @@ impl<'a> DcMixedReader<'a> {
             let Some(ch) = self.peek_char()? else {
                 break;
             };
-            if is_text_encapsulation && ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
-                self.next_char()?;
-                break;
-            }
-            if !is_text_encapsulation {
-                if first {
-                    let is_fmt = ch.to_format().is_ok();
-                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                    if !is_fmt && !is_b64 {
-                        break;
-                    }
-                } else {
-                    let is_b64 = ch.to_short_dc().is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                    if !is_b64 {
-                        break;
-                    }
+            if first {
+                let is_fmt = ch.to_format().is_ok();
+                let is_b64 = ch
+                    .to_short_dc()
+                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                if !is_fmt && !is_b64 {
+                    break;
+                }
+            } else {
+                let is_b64 = ch
+                    .to_short_dc()
+                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
+                if !is_b64 {
+                    break;
                 }
             }
             let ch = self.next_char()?;
@@ -666,10 +713,7 @@ impl<'a> DcMixedReader<'a> {
             );
             shorts.push(short);
         }
-        ensure!(
-            !shorts.is_empty() || is_text_encapsulation,
-            "Expected binary encapsulation"
-        );
+        ensure!(!shorts.is_empty(), "Expected binary encapsulation");
         Ok((
             format_char,
             Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?),
@@ -697,6 +741,149 @@ impl<'a> DcMixedReader<'a> {
         Ok((metadata, data))
     }
 
+    /// Skips a single balanced syntax unit (value, literal, binary payload, or
+    /// framed container `opener..closer`) using the database syntax resolver.
+    ///
+    /// # Errors
+    /// Returns an error if an underlying stream read fails.
+    pub fn skip_syntax_unit(&mut self, max_depth: usize) -> Result<()> {
+        use ctb_formats_dcdata::syntax::{CharTarget, SyntaxRuleResolver, default_syntax_resolver};
+
+        ensure!(max_depth <= 256, "Syntax unit nesting exceeds 256 levels");
+        let Some(peeked) = self.peek_char()? else {
+            return Ok(());
+        };
+        if peeked == DC_START_ENCAPSULATION_BINARY {
+            let _ = self.read_binary_payload()?;
+            return Ok(());
+        }
+        let ch = self.next_char()?;
+        let short = ch.to_short_dc();
+        if short == Some(255) {
+            if self.peek_char()?.is_some() {
+                let _ = self.next_char();
+            }
+            return Ok(());
+        }
+        if matches!(short, Some(260 | 270)) {
+            let end_short = if short == Some(260) { 261 } else { 271 };
+            while let Some(inner) = self.peek_char()? {
+                if inner == DC_START_ENCAPSULATION_BINARY {
+                    let _ = self.read_binary_payload()?;
+                    continue;
+                }
+                let tok = self.next_char()?;
+                if tok.to_short_dc() == Some(255) {
+                    if self.peek_char()?.is_some() {
+                        let _ = self.next_char();
+                    }
+                } else if tok.to_short_dc() == Some(end_short) {
+                    break;
+                }
+            }
+            return Ok(());
+        }
+        let resolver = default_syntax_resolver();
+        if let Some(closer) = CharTarget::from_u128(ch.0).and_then(|t| resolver.closer_for_opener(&t)) {
+            while let Some(inner) = self.peek_char()? {
+                if inner.0 == closer {
+                    self.next_char()?;
+                    break;
+                }
+                if resolver.closing_opener_for(inner.0).is_some() {
+                    // Sacred opener/closer: do not consume an outer container's closer.
+                    break;
+                }
+                self.skip_syntax_unit(max_depth.saturating_add(1))?;
+            }
+            // If this opener has trailing elements (e.g. Dc 543..544 followed by [545:]),
+            // consume trailing 545 + binary checksum if present.
+            if ch.to_short_dc() == Some(543) && self.peek_short_dc()? == Some(545) {
+                self.next_char()?;
+                if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+                    let _ = self.read_binary_payload()?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Skips an unknown field and its value operand(s) inside a container
+    /// closing with `container_end_dc`, stopping before `container_end_dc`,
+    /// any outer closer, or any tag in `known_tags`.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the underlying stream fails.
+    pub fn skip_unknown_field_in_container(
+        &mut self,
+        container_end_dc: u128,
+        known_tags: &[u128],
+    ) -> Result<()> {
+        use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
+
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let Some(first) = self.peek_char()? else {
+            return Ok(());
+        };
+        if first.0 == container_end_dc || resolver.closing_opener_for(first.0).is_some() {
+            return Ok(());
+        }
+        // Consume the unknown tag itself (or balanced frame if the unknown tag is an opener).
+        self.skip_syntax_unit(0)?;
+        // Consume any following value-level operands until we reach `container_end_dc`,
+        // a known field tag of this struct, or an outer closer.
+        self.recover_malformed_field_in_container(container_end_dc, known_tags)
+    }
+
+    /// Resynchronizes the cursor after a field decoding failure inside a
+    /// container closing with `container_end_dc`, advancing past remaining
+    /// tokens of the malformed field until `container_end_dc`, a tag in
+    /// `known_tags`, or an outer closer is reached.
+    ///
+    /// # Errors
+    /// Returns an error if reading from the underlying stream fails.
+    pub fn recover_malformed_field_in_container(
+        &mut self,
+        container_end_dc: u128,
+        known_tags: &[u128],
+    ) -> Result<()> {
+        use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
+
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        while let Some(peeked) = self.peek_char()? {
+            if peeked.0 == container_end_dc
+                || known_tags.contains(&peeked.0)
+                || resolver.closing_opener_for(peeked.0).is_some()
+            {
+                break;
+            }
+            // If it's a value-level token or an inner frame, skip it as a balanced unit.
+            let is_value_operand = peeked == DC_START_ENCAPSULATION_BINARY
+                || matches!(
+                    peeked.to_short_dc(),
+                    Some(
+                        6 | 7 | 10 | 11 | 203 | 204 | 255 | 260 | 261 | 262 | 263 | 269
+                            | 270 | 271 | 275 | 310 | 311 | 312 | 313 | 314 | 315 | 316
+                            | 390 | 391 | 393 | 394 | 397 | 511 | 512 | 514 | 515 | 517
+                            | 518 | 540 | 559 | 560 | 561
+                    )
+                )
+                || peeked
+                    .to_short_dc()
+                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character)
+                || ctb_formats_dcdata::is_type_token(peeked.0)
+                || peeked.to_unicode().is_ok();
+            if is_value_operand {
+                self.skip_syntax_unit(0)?;
+            } else {
+                // Another unknown tag at container level: stop so the container loop can
+                // handle it (and emit a diagnostic for it).
+                break;
+            }
+        }
+        Ok(())
+    }
+
     /// Reads a string literal enclosed between `Dc 260` and `Dc 261`.
     ///
     /// # Errors
@@ -716,12 +903,17 @@ impl<'a> DcMixedReader<'a> {
         }
         let mut s = String::new();
         loop {
-            let ch = self
+            let mut ch = self
                 .next_char()
                 .context("Unexpected EOF while reading string literal")?;
             if ch.to_short_dc() == Some(261) {
                 // End literal value
                 break;
+            }
+            if ch.to_short_dc() == Some(255) {
+                ch = self
+                    .next_char()
+                    .context("Unexpected EOF after escape Dc 255 in string literal")?;
             }
             if let Some(c) = ch.as_char() {
                 s.push(c);
@@ -830,7 +1022,10 @@ impl DcMixedEncode for String {
 }
 
 impl DcMixedDecode for String {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.read_string()
     }
 }
@@ -859,7 +1054,10 @@ impl DcMixedEncode for bool {
 }
 
 impl DcMixedDecode for bool {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.read_bool()
     }
 }
@@ -880,7 +1078,10 @@ macro_rules! impl_dc_mixed_integer_signed {
             }
 
             impl DcMixedDecode for $t {
-                fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+                fn decode_dc_mixed(
+                    reader: &mut DcMixedReader<'_>,
+                    _policy: &crate::DcProjectionPolicy,
+                ) -> Result<Self> {
                     let val = reader.read_i128()?;
                     <$t>::try_from(val).context(concat!("Value out of range for ", stringify!($t)))
                 }
@@ -905,7 +1106,10 @@ macro_rules! impl_dc_mixed_integer_unsigned {
             }
 
             impl DcMixedDecode for $t {
-                fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+                fn decode_dc_mixed(
+                    reader: &mut DcMixedReader<'_>,
+                    _policy: &crate::DcProjectionPolicy,
+                ) -> Result<Self> {
                     let val = reader.read_u128()?;
                     <$t>::try_from(val).context(concat!("Value out of range for ", stringify!($t)))
                 }
@@ -928,7 +1132,10 @@ impl DcMixedEncode for malachite::Natural {
 }
 
 impl DcMixedDecode for malachite::Natural {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.read_natural()
     }
 }
@@ -944,7 +1151,10 @@ impl DcMixedEncode for malachite::Integer {
 }
 
 impl DcMixedDecode for malachite::Integer {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.read_integer()
     }
 }
@@ -961,9 +1171,12 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
 }
 
 impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let a = A::decode_dc_mixed(reader)?;
-        let b = B::decode_dc_mixed(reader)?;
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let a = A::decode_dc_mixed(reader, policy)?;
+        let b = B::decode_dc_mixed(reader, policy)?;
         Ok((a, b))
     }
 }
@@ -987,7 +1200,10 @@ impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         match reader.peek_char()? {
             Some(DC_OPTIONAL_ABSENT) => {
                 reader.next_char()?;
@@ -995,7 +1211,7 @@ impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
             }
             Some(DC_OPTIONAL_PRESENT) => {
                 reader.next_char()?;
-                let val = T::decode_dc_mixed(reader)?;
+                let val = T::decode_dc_mixed(reader, policy)?;
                 Ok(Some(val))
             }
             other => {
@@ -1024,8 +1240,16 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.expect_char(DC_BEGIN_LIST)?;
+        let expected_len = if reader.peek_short_dc()? == Some(6) {
+            Some(usize::decode_dc_mixed(reader, policy)?)
+        } else {
+            None
+        };
         reader.skip_type_header()?;
         let mut list = Vec::new();
         let mut first = true;
@@ -1038,7 +1262,18 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
                 reader.next_char()?;
             }
             first = false;
-            list.push(T::decode_dc_mixed(reader)?);
+            list.push(T::decode_dc_mixed(reader, policy)?);
+        }
+        if let Some(expected) = expected_len {
+            if list.len() != expected {
+                policy.handle(
+                    policy.syntax_error,
+                    format!(
+                        "List length mismatch: header declared {expected} elements, found {}",
+                        list.len()
+                    ),
+                )?;
+            }
         }
         Ok(list)
     }
@@ -1056,14 +1291,17 @@ impl DcMixedEncode for Ipv4Addr {
 }
 
 impl DcMixedDecode for Ipv4Addr {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
         }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(490)) {
             reader.next_char()?;
-            let val = u32::decode_dc_mixed(reader)?;
+            let val = u32::decode_dc_mixed(reader, policy)?;
             if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                 reader.next_char()?;
             }
@@ -1087,14 +1325,17 @@ impl DcMixedEncode for Ipv6Addr {
 }
 
 impl DcMixedDecode for Ipv6Addr {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
         }
         if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(491)) {
             reader.next_char()?;
-            let val = u128::decode_dc_mixed(reader)?;
+            let val = u128::decode_dc_mixed(reader, policy)?;
             if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                 reader.next_char()?;
             }
@@ -1116,21 +1357,24 @@ impl DcMixedEncode for std::net::IpAddr {
 }
 
 impl DcMixedDecode for std::net::IpAddr {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
         if has_511 {
             reader.next_char()?;
             let fmt_char = reader.peek_char()?;
             if fmt_char == Some(DcChar::from_format(490)) {
                 reader.next_char()?;
-                let val = u32::decode_dc_mixed(reader)?;
+                let val = u32::decode_dc_mixed(reader, policy)?;
                 if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                     reader.next_char()?;
                 }
                 return Ok(Self::V4(Ipv4Addr::from(val)));
             } else if fmt_char == Some(DcChar::from_format(491)) {
                 reader.next_char()?;
-                let val = u128::decode_dc_mixed(reader)?;
+                let val = u128::decode_dc_mixed(reader, policy)?;
                 if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
                     reader.next_char()?;
                 }
@@ -1140,11 +1384,11 @@ impl DcMixedDecode for std::net::IpAddr {
         if let Some(c) = reader.peek_char()? {
             if c == DcChar::from_format(490) {
                 reader.next_char()?;
-                let val = u32::decode_dc_mixed(reader)?;
+                let val = u32::decode_dc_mixed(reader, policy)?;
                 return Ok(Self::V4(Ipv4Addr::from(val)));
             } else if c == DcChar::from_format(491) {
                 reader.next_char()?;
-                let val = u128::decode_dc_mixed(reader)?;
+                let val = u128::decode_dc_mixed(reader, policy)?;
                 return Ok(Self::V6(Ipv6Addr::from(val)));
             }
         }
@@ -1162,7 +1406,10 @@ impl DcMixedEncode for ctb_formats_utilities::FormatId {
 }
 
 impl DcMixedDecode for ctb_formats_utilities::FormatId {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        _policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let ch = reader.next_char()?;
         if let Some(fid) = Self::from_dc_id(ch.0) {
             return Ok(fid);
@@ -1201,15 +1448,27 @@ where
     K: DcMixedDecode + Ord,
     V: DcMixedDecode,
 {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let encoding = crate::DcKvMapEncoding::decode_header(reader)?;
+        if encoding == crate::DcKvMapEncoding::Legacy {
+            policy.handle(
+                policy.deprecated_syntax,
+                format!(
+                    "Deprecated Dc 313..314 key-value map syntax at byte {}; prefer Dc 559..560",
+                    reader.position()
+                ),
+            )?;
+        }
         let mut map = BTreeMap::new();
         let mut first = true;
         while encoding.decode_entry_begin(reader, first)? {
             first = false;
-            let key = K::decode_dc_mixed(reader)?;
+            let key = K::decode_dc_mixed(reader, policy)?;
             reader.expect_short_dc(312)?;
-            let value = V::decode_dc_mixed(reader)?;
+            let value = V::decode_dc_mixed(reader, policy)?;
             encoding.decode_entry_end(reader)?;
             ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
         }
@@ -1227,8 +1486,11 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Box<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Box<T> {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let val = T::decode_dc_mixed(reader)?;
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let val = T::decode_dc_mixed(reader, policy)?;
         Ok(Box::new(val))
     }
 }
@@ -1243,8 +1505,11 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Arc<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let val = T::decode_dc_mixed(reader)?;
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
+        let val = T::decode_dc_mixed(reader, policy)?;
         Ok(Arc::new(val))
     }
 }
@@ -1322,11 +1587,13 @@ pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
 
 /// Decodes a value within the declared format representation boundaries.
 pub fn decode_format_representation<T: DcMixedDecode>(
-    reader: &mut DcMixedReader<'_>, format: DcChar,
+    reader: &mut DcMixedReader<'_>,
+    format: DcChar,
+    policy: &crate::DcProjectionPolicy,
 ) -> Result<T> {
     reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
     reader.expect_char(format)?;
-    let value = T::decode_dc_mixed(reader)?;
+    let value = T::decode_dc_mixed(reader, policy)?;
     reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
     Ok(value)
 }
@@ -1357,12 +1624,15 @@ pub fn path_from_native_bytes(bytes: &[u8]) -> Result<PathBuf> {
     }
 }
 
-fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
+fn decode_filename_bytes(
+    reader: &mut DcMixedReader<'_>,
+    policy: &crate::DcProjectionPolicy,
+) -> Result<Vec<u8>> {
     if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
         reader.next_char()?;
         reader.expect_char(DC_BEGIN_LIST)?;
         reader.expect_short_dc(275)?;
-        let text = String::decode_dc_mixed(reader)?;
+        let text = String::decode_dc_mixed(reader, policy)?;
         if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
             reader.next_char()?;
         }
@@ -1373,14 +1643,17 @@ fn decode_filename_bytes(reader: &mut DcMixedReader<'_>) -> Result<Vec<u8>> {
     } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
         Ok(reader.read_binary_payload()?.to_vec())
     } else {
-        Ok(String::decode_dc_mixed(reader)?.into_bytes())
+        Ok(String::decode_dc_mixed(reader, policy)?.into_bytes())
     }
 }
 
 impl DcMixedDecode for PathBuf {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let segments = decode_filepath_segments(reader)?;
+            let segments = decode_filepath_segments(reader, policy)?;
             ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
                 "Filename segment contains a path delimiter");
             return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
@@ -1405,7 +1678,7 @@ impl DcMixedDecode for PathBuf {
                     }
                     resolved_path = Some(native_path);
                 } else {
-                    let s = String::decode_dc_mixed(reader)?;
+                    let s = String::decode_dc_mixed(reader, policy)?;
                     let text_path = PathBuf::from(s);
                     if let Some(path) = &resolved_path {
                         ensure!(*path == text_path, "Conflicting legacy path representations");
@@ -1420,7 +1693,7 @@ impl DcMixedDecode for PathBuf {
             let bytes = reader.read_binary_payload()?;
             path_from_native_bytes(bytes.as_ref())
         } else {
-            let s = String::decode_dc_mixed(reader)?;
+            let s = String::decode_dc_mixed(reader, policy)?;
             Ok(PathBuf::from(s))
         }
     }
@@ -1431,7 +1704,10 @@ impl DcMixedDecode for PathBuf {
 /// # Errors
 /// Returns an error on malformed framing, conflicting filename representations,
 /// or filenames containing `/`.
-pub fn decode_filepath_segments(reader: &mut DcMixedReader<'_>) -> Result<Vec<Vec<u8>>> {
+pub fn decode_filepath_segments(
+    reader: &mut DcMixedReader<'_>,
+    policy: &crate::DcProjectionPolicy,
+) -> Result<Vec<Vec<u8>>> {
     let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
     let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
     reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
@@ -1451,7 +1727,7 @@ pub fn decode_filepath_segments(reader: &mut DcMixedReader<'_>) -> Result<Vec<Ve
             ensure!(!previous_was_filename, "Missing delimiter between filename segments");
             reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
             reader.expect_char(filename_format)?;
-            let segment = decode_filename_bytes(reader)?;
+            let segment = decode_filename_bytes(reader, policy)?;
             ensure!(!segment.is_empty(), "Empty filename segment");
             ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
             *segments.last_mut().context("Missing filepath segment")? = segment;
@@ -1480,22 +1756,25 @@ impl DcMixedEncode for SystemTime {
 }
 
 impl DcMixedDecode for SystemTime {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let is_moment = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(390));
         if is_moment {
             reader.next_char()?;
             let fmt_char = reader.next_char()?;
             let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
             let (secs, sub_nanos) = if fmt_tok == 487 {
-                let nanos = u128::decode_dc_mixed(reader)?;
+                let nanos = u128::decode_dc_mixed(reader, policy)?;
                 let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
                 let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
                 (s, ns)
             } else if fmt_tok == 486 {
-                let s = u64::decode_dc_mixed(reader)?;
+                let s = u64::decode_dc_mixed(reader, policy)?;
                 (s, 0u32)
             } else {
-                let nanos = u128::decode_dc_mixed(reader)?;
+                let nanos = u128::decode_dc_mixed(reader, policy)?;
                 let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
                 let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
                 (s, ns)
@@ -1507,7 +1786,7 @@ impl DcMixedDecode for SystemTime {
                 .context("SystemTime overflow")
         } else {
             // Legacy / unwrapped number fallback
-            let nanos = u128::decode_dc_mixed(reader)?;
+            let nanos = u128::decode_dc_mixed(reader, policy)?;
             let secs = u64::try_from(
                 nanos
                     .checked_div(1_000_000_000)
@@ -1540,10 +1819,13 @@ impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
 }
 
 impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<Self> {
         let mut items: Vec<T> = Vec::with_capacity(N);
         for _ in 0..N {
-            items.push(T::decode_dc_mixed(reader)?);
+            items.push(T::decode_dc_mixed(reader, policy)?);
         }
         items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"))
     }
@@ -1568,8 +1850,9 @@ where
     let mut mst = DcMstring::new();
     original.encode_dc_mixed(&mut mst)?;
 
+    let policy = crate::DcProjectionPolicy::strict();
     let mut reader = DcMixedReader::new(&mst);
-    let decoded = T::decode_dc_mixed(&mut reader)
+    let decoded = T::decode_dc_mixed(&mut reader, &policy)
         .context("Failed to decode struct during DcMixed roundtrip verification")?;
 
     ensure!(
@@ -1605,8 +1888,9 @@ where
     ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
         .context("Strict Dc syntax validation failed during document roundtrip check")?;
 
+    let policy = crate::DcProjectionPolicy::strict();
     let mut reader = DcMixedReader::new(&mst);
-    let decoded = T::decode_dc_mixed(&mut reader)
+    let decoded = T::decode_dc_mixed(&mut reader, &policy)
         .context("Failed to decode struct during DcMixed roundtrip verification")?;
 
     ensure!(
@@ -1640,21 +1924,22 @@ where
 mod tests {
         #[crate::ctb_test]
         fn test_whole_string_decode_preserves_source() -> Result<()> {
+            let strict = crate::DcProjectionPolicy::strict();
             let mut source = 42_u64.to_dc_mixed()?;
             let original = source.clone();
-            assert_eq!(source.decode::<u64>()?, 42);
+            assert_eq!(source.decode::<u64>(&strict)?, 42);
             assert_eq!(source, original);
             source.push_str("unknown suffix");
             let original = source.clone();
-            assert!(source.decode::<u64>().is_err());
+            assert!(source.decode::<u64>(&strict).is_err());
             assert_eq!(source, original);
             source.push_binary(b"suffix");
-            assert!(source.decode::<u64>().is_err());
+            assert!(source.decode::<u64>(&strict).is_err());
             Ok(())
         }
     use super::*;
     use crate::DcMixed;
-    use crate::{DcMixedFields, DcSource};
+    use crate::{DcMixedFields, DcProjectionPolicy, DcSource};
 
     fn sample_source_record(inode: u64) -> SampleFileRecord {
         SampleFileRecord { inode, path: "path".to_owned(), is_directory: false, optional_size: Some(42) }
@@ -1697,6 +1982,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_source_inspection_complete_and_trailing() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let original = sample_source_record(42);
         let updated = sample_source_record(999);
         let mut source = original.to_dc_mixed()?;
@@ -1705,16 +1991,16 @@ mod tests {
         assert!(view.diagnostic().is_none());
         assert_eq!(view.fields().len(), 4);
         let revised = view.replace_field("inode", &updated)?;
-        assert_eq!(revised.decode::<SampleFileRecord>()?, updated);
+        assert_eq!(revised.decode::<SampleFileRecord>(&strict)?, updated);
         let text = original.to_dc_string()?;
-        assert_eq!(text.decode::<SampleFileRecord>()?, original);
+        assert_eq!(text.decode::<SampleFileRecord>(&strict)?, original);
         let revised: crate::DcString = text.inspect::<SampleFileRecord>().replace_field("inode", &updated)?;
-        assert_eq!(revised.decode::<SampleFileRecord>()?, updated);
+        assert_eq!(revised.decode::<SampleFileRecord>(&strict)?, updated);
         source.push_binary(b"unknown suffix");
         let view = source.inspect::<SampleFileRecord>();
         assert_eq!(view.value(), Some(&original));
         assert!(view.diagnostic().is_some());
-        assert!(source.decode::<SampleFileRecord>().is_err());
+        assert!(source.decode::<SampleFileRecord>(&strict).is_err());
         let revised = view.replace_field("inode", &updated)?;
         assert_eq!(revised.chunks().last(), source.chunks().last());
         Ok(())
@@ -1731,18 +2017,19 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_source_inspection_binary_and_encapsulation_boundaries() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let original = SourceBinaryRecord { title: "\u{e9}".to_owned(), bytes: vec![0, 255, 42] };
         let updated = SourceBinaryRecord { title: "updated".to_owned(), bytes: vec![43] };
         let source = original.to_dc_mixed()?;
         let view = source.inspect::<SourceBinaryRecord>();
         let revised = view.replace_field("bytes", &updated)?;
-        let decoded = revised.decode::<SourceBinaryRecord>()?;
+        let decoded = revised.decode::<SourceBinaryRecord>(&strict)?;
         assert_eq!(decoded.title, original.title);
         assert_eq!(decoded.bytes, updated.bytes);
         let text = original.to_dc_string()?;
-        assert_eq!(text.decode::<SourceBinaryRecord>()?, original);
+        assert_eq!(text.decode::<SourceBinaryRecord>(&strict)?, original);
         let revised_text = text.inspect::<SourceBinaryRecord>().replace_field("bytes", &updated)?;
-        assert_eq!(revised_text.decode::<SourceBinaryRecord>()?.bytes, updated.bytes);
+        assert_eq!(revised_text.decode::<SourceBinaryRecord>(&strict)?.bytes, updated.bytes);
         let field = view.fields().iter().find(|field| field.field() == "bytes").context("Missing binary field")?;
         let prefix_end = field.range().start;
         assert_eq!(revised.as_bytes().get(..prefix_end), source.as_bytes().get(..prefix_end));
@@ -1763,6 +2050,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_source_inspection_nested_and_repeated() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let original = SourceNestedRecord { inner: sample_source_record(42), numbers: vec![1, 2] };
         let updated = SourceNestedRecord { inner: sample_source_record(999), numbers: vec![3] };
         let source = original.to_dc_mixed()?;
@@ -1772,15 +2060,15 @@ mod tests {
         assert!(view.replace_field("numbers", &updated).is_err());
         let inode = view.fields().iter().find(|field| field.field() == "inode").context("Missing nested inode")?;
         let revised = view.replace_annotation(inode, &updated.inner)?;
-        assert_eq!(revised.decode::<SourceNestedRecord>()?.inner, updated.inner);
+        assert_eq!(revised.decode::<SourceNestedRecord>(&strict)?.inner, updated.inner);
         assert!(view.replace_annotation(inode, &updated).is_err());
         let other_view = source.inspect::<SourceNestedRecord>();
         assert!(other_view.replace_annotation(inode, &updated.inner).is_err());
         let number = view.fields().iter().find(|field| field.field() == "numbers").context("Missing repeated field")?;
         let revised = view.replace_annotation(number, &updated)?;
-        assert_eq!(revised.decode::<SourceNestedRecord>()?.numbers, vec![3, 2]);
+        assert_eq!(revised.decode::<SourceNestedRecord>(&strict)?.numbers, vec![3, 2]);
         let revised = view.replace_field("inner", &updated)?;
-        let decoded = revised.decode::<SourceNestedRecord>()?;
+        let decoded = revised.decode::<SourceNestedRecord>(&strict)?;
         assert_eq!(decoded.inner, updated.inner);
         assert_eq!(decoded.numbers, original.numbers);
         let mut duplicate = DcMstring::new();
@@ -1816,16 +2104,17 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_source_keyed_record_edits() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let original = SampleKeyedRecord { count: 42, label: Some("original".to_owned()) };
         let updated = SampleKeyedRecord { count: 999, label: None };
         let source = original.to_dc_mixed()?;
         let view = source.inspect::<SampleKeyedRecord>();
         assert_eq!(view.fields().len(), 2);
         let revised = view.replace_field("label", &updated)?;
-        assert_eq!(revised.decode::<SampleKeyedRecord>()?, SampleKeyedRecord { count: 42, label: None });
+        assert_eq!(revised.decode::<SampleKeyedRecord>(&strict)?, SampleKeyedRecord { count: 42, label: None });
         let text = original.to_dc_string()?;
         let revised = text.inspect::<SampleKeyedRecord>().replace_field("count", &updated)?;
-        assert_eq!(revised.decode::<SampleKeyedRecord>()?.count, 999);
+        assert_eq!(revised.decode::<SampleKeyedRecord>(&strict)?.count, 999);
         let mut incomplete = DcMstring::new();
         incomplete.push_char(DcChar::from_short(313));
         incomplete.push_char(DcChar::from_short(275));
@@ -1888,6 +2177,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_named_key_value_syntax() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let record = SampleKeyedRecord { count: u64::MAX, label: None };
         assert_dc_roundtrip(&record)?;
         assert_dc_roundtrip(&SampleKeyedRecord { count: 0, label: Some("value".to_string()) })?;
@@ -1898,14 +2188,14 @@ mod tests {
         reader.expect_short_dc(275)?;
         reader.expect_short_dc(275)?;
         reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader)?, "count");
+        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "count");
         reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader)?, u64::MAX);
+        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, u64::MAX);
         reader.expect_short_dc(515)?;
         reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader)?, "label");
+        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "label");
         reader.expect_short_dc(312)?;
-        assert_eq!(Option::<String>::decode_dc_mixed(&mut reader)?, None);
+        assert_eq!(Option::<String>::decode_dc_mixed(&mut reader, &strict)?, None);
         reader.expect_short_dc(515)?;
         reader.expect_short_dc(560)?;
         assert_eq!(reader.peek_char()?, None);
@@ -1922,9 +2212,9 @@ mod tests {
         let mut reader = DcMixedReader::new(&encoded);
         reader.expect_short_dc(310)?;
         reader.expect_short_dc(275)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader)?, "unsigned");
+        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "unsigned");
         reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader)?, 42);
+        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, 42);
         reader.expect_short_dc(311)?;
         assert_eq!(reader.peek_char()?, None);
         Ok(())
@@ -1932,6 +2222,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_named_key_value_rejects_malformed() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         for encoding in [crate::DcKvMapEncoding::Legacy, crate::DcKvMapEncoding::Pairs] {
             for keys in [vec!["count"], vec!["count", "count"], vec!["unknown"], vec!["label", "count"]] {
                 let mut encoded = DcMstring::new();
@@ -1944,7 +2235,7 @@ mod tests {
                     encoding.encode_entry_end(&mut encoded);
                 }
                 encoding.encode_end(&mut encoded);
-                assert!(encoded.decode::<SampleKeyedRecord>().is_err());
+                assert!(encoded.decode::<SampleKeyedRecord>(&strict).is_err());
             }
             let mut duplicate = DcMstring::new();
             encoding.encode_header(&mut duplicate);
@@ -1956,7 +2247,7 @@ mod tests {
                 encoding.encode_entry_end(&mut duplicate);
             }
             encoding.encode_end(&mut duplicate);
-            assert!(duplicate.decode::<BTreeMap<String, u64>>().is_err());
+            assert!(duplicate.decode::<BTreeMap<String, u64>>(&strict).is_err());
         }
         for separators in [false, true] {
             let mut encoded = DcMstring::new();
@@ -1966,20 +2257,21 @@ mod tests {
             "count".encode_dc_mixed(&mut encoded)?;
             if separators { encoded.push_char(DcChar::from_short(312)); }
             1u64.encode_dc_mixed(&mut encoded)?;
-            assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+            assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&encoded), &strict).is_err());
         }
         let mut legacy = DcMstring::new();
         legacy.push_char(DC_BEGIN_KV_MAP);
         "count".encode_dc_mixed(&mut legacy)?;
         1u64.encode_dc_mixed(&mut legacy)?;
         legacy.push_char(DC_END_KV_MAP);
-        assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
-        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy)).is_err());
+        assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy), &strict).is_err());
+        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy), &strict).is_err());
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_named_key_value_legacy_reads_and_edits() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let original = SampleKeyedRecord { count: 42, label: Some("old".to_owned()) };
         let updated = SampleKeyedRecord { count: 999, label: None };
         let encoding = crate::DcKvMapEncoding::Legacy;
@@ -1989,17 +2281,17 @@ mod tests {
         source.push_char(DcChar::from_short(312));
         original.encode_dc_map_field("label", &mut source, encoding)?;
         encoding.encode_end(&mut source);
-        assert_eq!(source.decode::<SampleKeyedRecord>()?, original);
+        assert_eq!(source.decode::<SampleKeyedRecord>(&strict)?, original);
         let view = source.inspect::<SampleKeyedRecord>();
         let range = view.fields()[0].range();
         let revised = view.replace_field("count", &updated)?;
-        assert_eq!(revised.decode::<SampleKeyedRecord>()?.count, 999);
+        assert_eq!(revised.decode::<SampleKeyedRecord>(&strict)?.count, 999);
         let revised_range = revised.inspect::<SampleKeyedRecord>().fields()[0].range();
         assert_eq!(source.as_bytes().get(..range.start), revised.as_bytes().get(..revised_range.start));
         assert_eq!(source.as_bytes().get(range.end..), revised.as_bytes().get(revised_range.end..));
         let text = source.to_dc_string()?;
         let revised = text.inspect::<SampleKeyedRecord>().replace_field("label", &updated)?;
-        assert_eq!(revised.decode::<SampleKeyedRecord>()?.label, None);
+        assert_eq!(revised.decode::<SampleKeyedRecord>(&strict)?.label, None);
 
         for entries in [vec![], vec![("a", 1u64), ("b", 2)]] {
             let mut legacy = DcMstring::new();
@@ -2011,7 +2303,7 @@ mod tests {
                 value.encode_dc_mixed(&mut legacy)?;
             }
             encoding.encode_end(&mut legacy);
-            let decoded = legacy.decode::<BTreeMap<String, u64>>()?;
+            let decoded = legacy.decode::<BTreeMap<String, u64>>(&strict)?;
             assert_eq!(decoded, entries.iter().map(|(key, value)| ((*key).to_owned(), *value)).collect());
             let canonical = decoded.to_dc_mixed()?;
             assert_eq!(DcMixedReader::new(&canonical).next_char()?, DC_BEGIN_KV_MAP);
@@ -2022,6 +2314,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_named_key_value_pair_boundaries() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let nested = BTreeMap::from([("inner".to_owned(), 42u64)]);
         let outer = BTreeMap::from([("outer".to_owned(), nested)]);
         assert_dc_document_roundtrip(&outer)?;
@@ -2042,9 +2335,9 @@ mod tests {
         let pair = DcMstring::from_bytes(pair_bytes)?;
         let mut reader = DcMixedReader::new(&pair);
         reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader)?, "count");
+        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "count");
         reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader)?, 42);
+        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, 42);
         reader.expect_short_dc(515)?;
         assert!(reader.peek_char()?.is_none());
         ctb_formats_dcdata::syntax::validate_dc_document_strict(&pair.to_dc_tokens()?)?;
@@ -2060,7 +2353,7 @@ mod tests {
                 invalid.push_char(DcChar::from_short(dc));
             }
             crate::DcKvMapEncoding::Pairs.encode_end(&mut invalid);
-            assert!(invalid.decode::<BTreeMap<bool, bool>>().is_err());
+            assert!(invalid.decode::<BTreeMap<bool, bool>>(&strict).is_err());
             assert!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&invalid.to_dc_tokens()?).is_err());
         }
         Ok(())
@@ -2068,6 +2361,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_native_path_roundtrips() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         for path in ["", "/", "a//b/", "./../a", "a/b", "a/Unicode-\u{1f600}"] {
             assert_dc_roundtrip(&PathBuf::from(path))?;
         }
@@ -2077,7 +2371,7 @@ mod tests {
             for bytes in [b"a/\xff\x80".as_slice(), b"a\\b/\xfe".as_slice()] {
                 let path = PathBuf::from(std::ffi::OsStr::from_bytes(bytes));
                 let encoded = path.to_dc_mixed()?;
-                let decoded = encoded.decode::<PathBuf>()?;
+                let decoded = encoded.decode::<PathBuf>(&strict)?;
                 assert_eq!(decoded.as_os_str().as_encoded_bytes(), bytes);
             }
         }
@@ -2086,7 +2380,7 @@ mod tests {
             use std::os::windows::ffi::OsStringExt;
             let path = PathBuf::from(std::ffi::OsString::from_wide(&[0x61, 0x5c, 0xd800, 0x62, 0xdc00]));
             let encoded = path.to_dc_mixed()?;
-            let decoded = encoded.decode::<PathBuf>()?;
+            let decoded = encoded.decode::<PathBuf>(&strict)?;
             assert_eq!(decoded.as_os_str().as_encoded_bytes(), path.as_os_str().as_encoded_bytes());
             for path in [r"\\?\C:\parent\name", r"\\?\UNC\server\share\name", r"C:\parent\name"] {
                 assert_dc_roundtrip(&PathBuf::from(path))?;
@@ -2104,7 +2398,7 @@ mod tests {
         reader.expect_char(DC_FILE_PATH_DELIMITER)?;
         reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
         reader.expect_char(filename_format)?;
-        assert_eq!(decode_filename_bytes(&mut reader)?, b"name");
+        assert_eq!(decode_filename_bytes(&mut reader, &strict)?, b"name");
         reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
         reader.expect_char(DC_END_LIST)?;
         reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
@@ -2114,6 +2408,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_conflicting_filename_representations_rejected() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let mut encoded = DcMstring::new();
         encoded.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         encoded.push_char(DC_BEGIN_LIST);
@@ -2121,7 +2416,7 @@ mod tests {
         "text".encode_dc_mixed(&mut encoded)?;
         encoded.push_binary_with_sha256(b"different").unwrap();
         encoded.push_char(DC_END_LIST);
-        assert!(decode_filename_bytes(&mut DcMixedReader::new(&encoded)).is_err());
+        assert!(decode_filename_bytes(&mut DcMixedReader::new(&encoded), &strict).is_err());
         Ok(())
     }
 
@@ -2169,6 +2464,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_tagged_optional_field_markers() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         for optional_size in [None, Some(1024)] {
             let mut record = sample_source_record(42);
             record.optional_size = optional_size;
@@ -2186,12 +2482,12 @@ mod tests {
             } else {
                 DC_OPTIONAL_ABSENT
             }));
-            assert_eq!(Option::<u64>::decode_dc_mixed(&mut reader)?, optional_size);
+            assert_eq!(Option::<u64>::decode_dc_mixed(&mut reader, &strict)?, optional_size);
             assert_eq!(reader.peek_char()?, None);
 
             let mut decoded = sample_source_record(42);
             let mut reader = DcMixedReader::new(&field);
-            assert!(decoded.decode_field(DcChar::from_short(336).0, &mut reader)?);
+            assert!(decoded.decode_field(DcChar::from_short(336).0, &mut reader, &strict)?);
             assert_eq!(decoded, record);
             assert_eq!(reader.peek_char()?, None);
             assert_dc_roundtrip(&record)?;
@@ -2199,7 +2495,7 @@ mod tests {
             let source = sample_source_record(42).to_dc_mixed()?;
             let revised = source.inspect::<SampleFileRecord>()
                 .replace_field("optional_size", &record)?;
-            assert_eq!(revised.decode::<SampleFileRecord>()?, record);
+            assert_eq!(revised.decode::<SampleFileRecord>(&strict)?, record);
         }
 
         #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
@@ -2217,7 +2513,7 @@ mod tests {
             value.encode_dc_mixed(&mut expected)?;
             expected.push_char(DcChar::from_short(318));
             assert_eq!(record.to_dc_mixed()?, expected);
-            assert_eq!(expected.decode::<NestedOptionalRecord>()?, record);
+            assert_eq!(expected.decode::<NestedOptionalRecord>(&strict)?, record);
         }
         Ok(())
     }
@@ -2274,6 +2570,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_ip_addr_roundtrip() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let v4: std::net::Ipv4Addr = "192.168.1.1".parse().unwrap();
         assert_dc_roundtrip(&v4)?;
 
@@ -2290,19 +2587,19 @@ mod tests {
         let mut v4_mst = DcMstring::new();
         v4.encode_dc_mixed(&mut v4_mst)?;
         let mut v4_reader = DcMixedReader::new(&v4_mst);
-        assert!(std::net::Ipv6Addr::decode_dc_mixed(&mut v4_reader).is_err());
+        assert!(std::net::Ipv6Addr::decode_dc_mixed(&mut v4_reader, &strict).is_err());
 
         let mut v6_mst = DcMstring::new();
         v6.encode_dc_mixed(&mut v6_mst)?;
         let mut v6_reader = DcMixedReader::new(&v6_mst);
-        assert!(std::net::Ipv4Addr::decode_dc_mixed(&mut v6_reader).is_err());
+        assert!(std::net::Ipv4Addr::decode_dc_mixed(&mut v6_reader, &strict).is_err());
 
         let mut v4_as_ip_reader = DcMixedReader::new(&v4_mst);
-        let decoded_v4_ip = std::net::IpAddr::decode_dc_mixed(&mut v4_as_ip_reader)?;
+        let decoded_v4_ip = std::net::IpAddr::decode_dc_mixed(&mut v4_as_ip_reader, &strict)?;
         assert_eq!(decoded_v4_ip, ip_v4);
 
         let mut v6_as_ip_reader = DcMixedReader::new(&v6_mst);
-        let decoded_v6_ip = std::net::IpAddr::decode_dc_mixed(&mut v6_as_ip_reader)?;
+        let decoded_v6_ip = std::net::IpAddr::decode_dc_mixed(&mut v6_as_ip_reader, &strict)?;
         assert_eq!(decoded_v6_ip, ip_v6);
         Ok(())
     }
@@ -2345,8 +2642,11 @@ mod tests {
         fn encode_dc_number(&self, mst: &mut DcMstring) -> Result<()> {
             self.to_u8().encode_dc_mixed(mst)
         }
-        fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-            let v = u8::decode_dc_mixed(reader)?;
+        fn decode_dc_number(
+            reader: &mut DcMixedReader<'_>,
+            policy: &DcProjectionPolicy,
+        ) -> Result<Self> {
+            let v = u8::decode_dc_mixed(reader, policy)?;
             Ok(Self::from_u8(v))
         }
     }
@@ -2379,6 +2679,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_flag_lists_reject_malformed_framing() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         for tokens in [
             vec![388, 389],
             vec![388, 499, 389],
@@ -2395,7 +2696,7 @@ mod tests {
             for token in tokens {
                 mst.push_char(DcChar::from_short(token));
             }
-            ensure!(SampleFlags::decode_dc_mixed(&mut DcMixedReader::new(&mst)).is_err());
+            ensure!(SampleFlags::decode_dc_mixed(&mut DcMixedReader::new(&mst), &strict).is_err());
         }
         Ok(())
     }
@@ -2411,6 +2712,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_equivalent_representations_roundtrip() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let parent = SampleEquivalentParent {
             flags: SampleFlags {
                 flag_a: true,
@@ -2437,7 +2739,7 @@ mod tests {
         mst.push_char(DcChar::from_short(402));
 
         let mut reader = DcMixedReader::new(&mst);
-        let decoded = SampleEquivalentParent::decode_dc_mixed(&mut reader)?;
+        let decoded = SampleEquivalentParent::decode_dc_mixed(&mut reader, &strict)?;
         ensure!(decoded.flags.flag_a);
         ensure!(!decoded.flags.flag_b);
         ensure!(!decoded.flags.flag_c);
@@ -2485,6 +2787,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_format_field_representation_boundaries() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         for bounds in [None, Some([-10, 20, 30, 40])] {
             let value = SampleFormatFields { name: "name".to_owned(), bounds };
             crate::assert_dc_document_roundtrip(&value)?;
@@ -2495,13 +2798,15 @@ mod tests {
             reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
             reader.expect_char(DcChar::from_u128(FormatId::FileName.dc_id()
                 .context("Missing filename format identifier")?))?;
-            ensure!(String::decode_dc_mixed(&mut reader)? == "name");
+            ensure!(String::decode_dc_mixed(&mut reader, &strict)? == "name");
             reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
             if let Some(bounds) = bounds {
                 reader.expect_short_dc(510)?;
                 let decoded = decode_format_representation::<[i16; 4]>(
-                    &mut reader, DcChar::from_u128(FormatId::QuickDrawRect.dc_id()
+                    &mut reader,
+                    DcChar::from_u128(FormatId::QuickDrawRect.dc_id()
                         .context("Missing rectangle format identifier")?),
+                    &strict,
                 )?;
                 ensure!(decoded == bounds);
             }
@@ -2516,7 +2821,9 @@ mod tests {
             "name".encode_dc_mixed(&mut malformed)?;
             if let Some(closing) = closing { malformed.push_char(closing); }
             ensure!(decode_format_representation::<String>(
-                &mut DcMixedReader::new(&malformed), format,
+                &mut DcMixedReader::new(&malformed),
+                format,
+                &strict,
             ).is_err(), "Malformed format boundary was accepted");
         }
         Ok(())
@@ -2585,8 +2892,15 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_binary_fields_do_not_require_a_typed_decoder() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         #[derive(Debug, PartialEq)]
         struct RawBytes(Vec<u8>);
+
+        impl crate::DcForgivingDefault for RawBytes {
+            fn dc_forgiving_default() -> Self {
+                Self(Vec::new())
+            }
+        }
 
         impl AsRef<[u8]> for RawBytes {
             fn as_ref(&self) -> &[u8] { &self.0 }
@@ -2623,7 +2937,7 @@ mod tests {
         historical.push_char(DcChar::from_short(315));
         u64::MAX.to_le_bytes().to_vec().encode_dc_mixed(&mut historical)?;
         historical.push_char(DcChar::from_short(318));
-        ensure!(historical.decode::<BinaryFields>()? == value,
+        ensure!(historical.decode::<BinaryFields>(&strict)? == value,
             "Historical byte lists must use the binary conversion contract");
         Ok(())
     }
@@ -2725,15 +3039,16 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_checksum_field_and_payload_roundtrip() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let digest = [7u8; 32];
         let record = ChecksumRecord { sha256: digest };
-        let mut mst = record.to_dc_mixed()?;
+        let mst = record.to_dc_mixed()?;
         let mut r = DcMixedReader::new(&mst);
-        let decoded_mst = ChecksumRecord::decode_dc_mixed(&mut r)?;
+        let decoded_mst = ChecksumRecord::decode_dc_mixed(&mut r, &strict)?;
         assert_eq!(decoded_mst, record);
 
         let dc_str = record.to_dc_string()?;
-        let decoded_str = dc_str.decode::<ChecksumRecord>()?;
+        let decoded_str = dc_str.decode::<ChecksumRecord>(&strict)?;
         assert_eq!(decoded_str, record);
 
         // Test push_checksum and read_checksum_payload directly
@@ -2759,6 +3074,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_vec_dc_mixed_roundtrip_with_separator() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let items = vec![10u32, 20u32, 30u32];
         let mut mst = DcMstring::new();
         items.encode_dc_mixed(&mut mst)?;
@@ -2768,8 +3084,88 @@ mod tests {
         ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
 
         let mut reader = DcMixedReader::new(&mst);
-        let decoded = Vec::<u32>::decode_dc_mixed(&mut reader)?;
+        let decoded = Vec::<u32>::decode_dc_mixed(&mut reader, &strict)?;
         assert_eq!(decoded, items);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_vec_optional_length_header() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let forgiving = DcProjectionPolicy::forgiving();
+        let mut mst = DcMstring::new();
+        mst.push_char(DC_BEGIN_LIST);
+        2usize.encode_dc_mixed(&mut mst)?;
+        mst.push_char(DcChar::from_short(275));
+        10u32.encode_dc_mixed(&mut mst)?;
+        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+        20u32.encode_dc_mixed(&mut mst)?;
+        mst.push_char(DC_END_LIST);
+
+        assert_eq!(mst.decode::<Vec<u32>>(&strict)?, vec![10, 20]);
+
+        // Mismatched length header errors in strict mode, succeeds in forgiving mode
+        let mut mismatch = DcMstring::new();
+        mismatch.push_char(DC_BEGIN_LIST);
+        5usize.encode_dc_mixed(&mut mismatch)?;
+        mismatch.push_char(DcChar::from_short(275));
+        10u32.encode_dc_mixed(&mut mismatch)?;
+        mismatch.push_char(DC_END_LIST);
+        assert!(mismatch.decode::<Vec<u32>>(&strict).is_err());
+        assert_eq!(mismatch.decode::<Vec<u32>>(&forgiving)?, vec![10]);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_literal_string_escape_255_roundtrip() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let mut mst = DcMstring::new();
+        mst.push_char(DcChar::from_short(260));
+        mst.push_char(DcChar::from_short(262));
+        mst.push_char(DcChar::from_short(264));
+        mst.push_char(DcChar::from_short(263));
+        mst.push_char(DcChar::from_char('A'));
+        mst.push_char(DcChar::from_short(255));
+        mst.push_char(DcChar::from_char('B'));
+        mst.push_char(DcChar::from_short(261));
+        assert_eq!(mst.decode::<String>(&strict)?, "AB");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_forgiving_struct_projection_policy() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let forgiving = DcProjectionPolicy::forgiving();
+
+        // 1. Unknown field tag (Dc 600 + binary payload) inside SampleFileRecord
+        let mut with_unknown = DcMstring::new();
+        let original = sample_source_record(42);
+        with_unknown.push_char(DcChar::from_short(317));
+        original.encode_dc_field("inode", &mut with_unknown)?;
+        with_unknown.push_char(DcChar::from_short(600));
+        with_unknown.push_binary_with_sha256(b"future field")?;
+        original.encode_dc_field("path", &mut with_unknown)?;
+        original.encode_dc_field("is_directory", &mut with_unknown)?;
+        original.encode_dc_field("optional_size", &mut with_unknown)?;
+        with_unknown.push_char(DcChar::from_short(318));
+
+        assert!(with_unknown.decode::<SampleFileRecord>(&strict).is_err());
+        assert_eq!(with_unknown.decode::<SampleFileRecord>(&forgiving)?, original);
+
+        // 2. Malformed field value for `inode` (string instead of number) + missing `is_directory`
+        let mut malformed = DcMstring::new();
+        malformed.push_char(DcChar::from_short(317));
+        malformed.push_char(DcChar::from_short(327));
+        "not_a_number".encode_dc_mixed(&mut malformed)?;
+        original.encode_dc_field("path", &mut malformed)?;
+        malformed.push_char(DcChar::from_short(318));
+
+        assert!(malformed.decode::<SampleFileRecord>(&strict).is_err());
+        let recovered = malformed.decode::<SampleFileRecord>(&forgiving)?;
+        assert_eq!(recovered.inode, 0);
+        assert_eq!(recovered.path, "path");
+        assert!(!recovered.is_directory);
+        assert_eq!(recovered.optional_size, None);
         Ok(())
     }
 

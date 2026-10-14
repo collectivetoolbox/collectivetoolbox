@@ -177,6 +177,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     write_apple_single_without_extension: false,
                     full_provenance: args.full_provenance,
                     continue_on_error: false,
+                    allow_journal_errors: false,
                 };
 
                 let mut temp_state_dir = tempfile::tempdir()

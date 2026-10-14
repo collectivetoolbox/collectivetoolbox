@@ -248,6 +248,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_shared_attribute_roundtrip() -> Result<()> {
+        let strict = crate::DcProjectionPolicy::strict();
         let definition = Arc::new(Definition { value: 42 });
         let record = SharedRecord { definition: Some(Arc::clone(&definition)) };
         crate::assert_dc_roundtrip(&record)?;
@@ -255,9 +256,9 @@ mod tests {
         context.insert("source", Arc::clone(&definition))?;
         let mut encoded = DcMstring::new();
         record.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        let decoded = SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context), &strict)?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
-        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&encoded)).is_err());
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&encoded), &strict).is_err());
         let json = record.encode_json_with_context(&context)?;
         let decoded = SharedRecord::decode_json_with_context(json.clone(), &context)?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
@@ -267,33 +268,34 @@ mod tests {
         let distinct = SharedRecord { definition: Some(Arc::new(Definition { value: 43 })) };
         let mut inline = DcMstring::new();
         distinct.encode_dc_mixed_with_context(&mut inline, &context)?;
-        assert_eq!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&inline))?, distinct);
+        assert_eq!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&inline), &strict)?, distinct);
         let nested = NestedRecord { record: Box::new(record) };
         let mut encoded = DcMstring::new();
         nested.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = NestedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        let decoded = NestedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context), &strict)?;
         assert!(decoded.record.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &definition)));
         let array = [nested.record];
         let mut encoded = DcMstring::new();
         array.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = <[Box<SharedRecord>; 1]>::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context))?;
+        let decoded = <[Box<SharedRecord>; 1]>::decode_dc_mixed(&mut DcMixedReader::with_context(&encoded, &context), &strict)?;
         assert!(decoded.first().and_then(|record| record.definition.as_ref()).is_some_and(|value| Arc::ptr_eq(value, &definition)));
         let mut duplicate = DcMstring::new();
         duplicate.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut duplicate, "definition", "source")?;
         encode_shared_reference(&mut duplicate, "definition", "source")?;
         duplicate.push_char(DcChar::from_short(402));
-        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&duplicate, &context)).is_err());
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&duplicate, &context), &strict).is_err());
         let mut unknown = DcMstring::new();
         unknown.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut unknown, "unknown", "source")?;
         unknown.push_char(DcChar::from_short(402));
-        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&unknown, &context)).is_err());
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::with_context(&unknown, &context), &strict).is_err());
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_source_shared_reference_edits() -> Result<()> {
+        let strict = crate::DcProjectionPolicy::strict();
         let definition = Arc::new(Definition { value: 42 });
         let record = SharedRecord { definition: Some(Arc::clone(&definition)) };
         let updated = SharedRecord { definition: Some(Arc::new(Definition { value: 999 })) };
@@ -306,17 +308,18 @@ mod tests {
         assert!(view.diagnostic().is_none());
         assert_eq!(view.fields().len(), 1);
         let revised = view.replace_field("definition", &updated)?;
-        assert_eq!(revised.decode::<SharedRecord>()?, updated);
+        assert_eq!(revised.decode::<SharedRecord>(&strict)?, updated);
         let text = source.to_dc_string()?;
-        assert_eq!(text.decode_with_context::<SharedRecord>(&context)?, record);
+        assert_eq!(text.decode_with_context::<SharedRecord>(&context, &strict)?, record);
         let revised = text.inspect_with_context::<SharedRecord>(&context).replace_field("definition", &updated)?;
-        assert_eq!(revised.decode::<SharedRecord>()?, updated);
+        assert_eq!(revised.decode::<SharedRecord>(&strict)?, updated);
         assert!(Arc::ptr_eq(&context.resolve::<Definition>("source")?, &definition));
         Ok(())
     }
 
     #[crate::ctb_test]
     fn test_lexical_reference_scopes() -> Result<()> {
+        let strict = crate::DcProjectionPolicy::strict();
         let outer = Arc::new(Definition { value: 42 });
         let inner = Arc::new(Definition { value: 43 });
         let mut scope = SharedValueContext::default();
@@ -341,7 +344,7 @@ mod tests {
         assert_eq!(decode_identifier(&mut syntax)?, "source");
         syntax.expect_short_dc(269)?;
         syntax.expect_short_dc(321)?;
-        let outer = reader.decode_declaration::<Definition>()?;
+        let outer = reader.decode_declaration::<Definition>(&strict)?;
         let mut syntax = reader.clone();
         syntax.expect_short_dc(401)?;
         assert_eq!(decode_identifier(&mut syntax)?, "definition");
@@ -349,14 +352,14 @@ mod tests {
         syntax.expect_short_dc(540)?;
         assert_eq!(decode_identifier(&mut syntax)?, "source");
         syntax.expect_short_dc(402)?;
-        let decoded = SharedRecord::decode_dc_mixed(&mut reader)?;
+        let decoded = SharedRecord::decode_dc_mixed(&mut reader, &strict)?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &outer)));
         reader.enter_reference_scope()?;
-        let inner = reader.decode_declaration::<Definition>()?;
-        let decoded = SharedRecord::decode_dc_mixed(&mut reader)?;
+        let inner = reader.decode_declaration::<Definition>(&strict)?;
+        let decoded = SharedRecord::decode_dc_mixed(&mut reader, &strict)?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &inner)));
         reader.exit_reference_scope()?;
-        let decoded = SharedRecord::decode_dc_mixed(&mut reader)?;
+        let decoded = SharedRecord::decode_dc_mixed(&mut reader, &strict)?;
         assert!(decoded.definition.as_ref().is_some_and(|value| Arc::ptr_eq(value, &outer)));
         reader.exit_reference_scope()?;
         assert!(reader.resolve_shared::<Definition>("source").is_err());
@@ -364,7 +367,7 @@ mod tests {
         next_document.push_char(DcChar::from_short(401));
         encode_shared_reference(&mut next_document, "definition", "source")?;
         next_document.push_char(DcChar::from_short(402));
-        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&next_document)).is_err());
+        assert!(SharedRecord::decode_dc_mixed(&mut DcMixedReader::new(&next_document), &strict).is_err());
         let mut identifier = DcMstring::new();
         encode_identifier(&mut identifier, "source.environment")?;
         let mut reader = DcMixedReader::new(&identifier);

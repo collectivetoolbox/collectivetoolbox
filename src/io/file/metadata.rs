@@ -755,30 +755,52 @@ impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
     }
 }
 
-fn decode_timestamp_nanos(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<i128> {
+fn decode_timestamp_nanos(
+    reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<i128> {
     if reader.peek_char()?.is_some_and(|c| c == ctb_formats_dcstring::DcChar::from_short(390)) {
         reader.next_char()?;
         let fmt_char = reader.next_char()?;
         let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
         let nanos = if fmt_tok == 487 {
-            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
         } else if fmt_tok == 486 {
-            let secs = <i64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            let secs = <i64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
             i128::from(secs).checked_mul(1_000_000_000).context("secs to nanos overflow")?
         } else {
-            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
         };
         let end_tok = reader.next_char()?;
         ensure!(end_tok == ctb_formats_dcstring::DcChar::from_short(391), "Expected Dc 391 closing time moment description");
         Ok(nanos)
     } else {
         // Fallback for legacy unformatted numbers
-        <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)
+        <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)
+    }
+}
+
+impl ctb_formats_dcstring::DcForgivingDefault for FileTimestamps {
+    fn dc_forgiving_default() -> Self {
+        Self {
+            atime_sec: 0,
+            atime_nsec: 0,
+            mtime_sec: 0,
+            mtime_nsec: 0,
+            ctime_sec: 0,
+            ctime_nsec: 0,
+            birthtime_sec: None,
+            birthtime_nsec: None,
+            resolution_nsec: None,
+        }
     }
 }
 
 impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
-    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
         let mut atime_sec = 0i64;
         let mut atime_nsec = 0u32;
         let mut mtime_sec = 0i64;
@@ -797,7 +819,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
             match tag {
                 330 => {
                     reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader)?;
+                    let nanos = decode_timestamp_nanos(reader, policy)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     atime_sec = sec;
@@ -805,7 +827,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 329 => {
                     reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader)?;
+                    let nanos = decode_timestamp_nanos(reader, policy)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     mtime_sec = sec;
@@ -813,7 +835,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 332 => {
                     reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader)?;
+                    let nanos = decode_timestamp_nanos(reader, policy)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     ctime_sec = sec;
@@ -821,7 +843,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                 }
                 331 => {
                     reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader)?;
+                    let nanos = decode_timestamp_nanos(reader, policy)?;
                     let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
                     let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
                     birthtime_sec = Some(sec);
@@ -833,9 +855,9 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                         reader.read_short_dc()?;
                         let fmt_char = reader.next_char()?;
                         let res = if fmt_char == ctb_utilities::format_id::DC_NANOSECOND {
-                            <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?
+                            <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
                         } else if fmt_char == ctb_utilities::format_id::DC_SECOND {
-                            let secs = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            let secs = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
                             secs.checked_mul(1_000_000_000).context("duration overflow")?
                         } else {
                             bail!("Unsupported duration format {fmt_char:?} for clock resolution");
@@ -844,7 +866,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
                         resolution_nsec = Some(res);
                     } else {
                         // Fallback for legacy bare u32 encoding
-                        let res = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                        let res = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
                         resolution_nsec = Some(res);
                     }
                 }
@@ -960,6 +982,12 @@ impl AppleMetadata {
     }
 }
 
+impl ctb_formats_dcstring::DcForgivingDefault for AppleMetadata {
+    fn dc_forgiving_default() -> Self {
+        Self::default()
+    }
+}
+
 impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
@@ -992,7 +1020,10 @@ impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
 }
 
 impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
-    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
         reader.expect_short_dc(401)?;
         let mut finder_info: Option<FinderInfo> = None;
         let mut real_name = None;
@@ -1003,7 +1034,13 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
         loop {
             let tag = match reader.peek_short_dc()? {
                 Some(t) => t,
-                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 402 in AppleMetadata"),
+                None => {
+                    policy.handle(
+                        policy.syntax_error,
+                        "Unexpected EOF waiting for closing Dc 402 in AppleMetadata",
+                    )?;
+                    break;
+                }
             };
             if tag == 402 {
                 reader.read_short_dc()?;
@@ -1018,23 +1055,28 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
                             ctb_utilities::format_id::FormatId::FileName.dc_id()
                                 .context("Missing filename format identifier")?
                         ),
+                        policy,
                     )?);
                 }
                 400 => {
                     reader.read_short_dc()?;
-                    comment = Some(String::decode_dc_mixed(reader)?);
+                    comment = Some(String::decode_dc_mixed(reader, policy)?);
                 }
                 399 => {
                     reader.read_short_dc()?;
-                    backup_timestamp_sec = Some(i64::decode_dc_mixed(reader)?);
+                    backup_timestamp_sec = Some(i64::decode_dc_mixed(reader, policy)?);
                 }
                 finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490 | 510) => {
                     let fi = finder_info.get_or_insert_with(FinderInfo::default);
-                    if !fi.decode_field(finder_tag, reader)? {
+                    if !fi.decode_field(finder_tag, reader, policy)? {
                         reader.next_char()?;
                     }
                 }
                 _ => {
+                    policy.handle(
+                        policy.unknown_field,
+                        format!("Unknown Dc tag {tag} inside AppleMetadata (401..402)"),
+                    )?;
                     reader.next_char()?;
                 }
             }
@@ -1526,7 +1568,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_file_environment_serialization_context() -> Result<()> {
-        use ctb_formats_dcstring::{SharedJson, SharedValueContext};
+        use ctb_formats_dcstring::{DcProjectionPolicy, SharedJson, SharedValueContext};
         let environment = Arc::new(EnvDescription {
             os: "original-observation".to_owned(),
             ..EnvDescription::default()
@@ -1541,9 +1583,9 @@ mod tests {
         context.insert("source.environment", Arc::clone(&environment))?;
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        let decoded = encoded.decode_with_context::<FileEntity>(&context)?;
+        let decoded = encoded.decode_with_context::<FileEntity>(&context, &DcProjectionPolicy::strict())?;
         assert!(decoded.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, &environment)));
-        assert!(encoded.decode::<FileEntity>().is_err());
+        assert!(encoded.decode::<FileEntity>(&DcProjectionPolicy::strict()).is_err());
         let mut source = crate::payload::MemoryPayloadSource::new(Vec::new())?;
         let mut streamed = DcMstring::new();
         entity.encode_with_payload_and_context(&mut streamed, &mut source, &context)?;
@@ -1564,7 +1606,7 @@ mod tests {
         entity.metadata.environment = Some(Arc::new(EnvDescription { os: "different-observation".to_owned(), ..EnvDescription::default() }));
         let mut encoded = DcMstring::new();
         entity.encode_dc_mixed_with_context(&mut encoded, &context)?;
-        assert_eq!(encoded.decode::<FileEntity>()?, entity);
+        assert_eq!(encoded.decode::<FileEntity>(&DcProjectionPolicy::strict())?, entity);
         let empty = FileMetadata::empty();
         assert_eq!(FileMetadata::decode_json_with_context(empty.encode_json_with_context(&context)?, &context)?, empty);
         Ok(())
@@ -1572,7 +1614,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_metadata_source_preserving_environment_edit() -> Result<()> {
-        use ctb_formats_dcstring::{DcMixedFields, SharedValueContext};
+        use ctb_formats_dcstring::{DcMixedFields, DcProjectionPolicy, SharedValueContext};
         let original_environment = Arc::new(EnvDescription { os: "original".to_owned(), ..EnvDescription::default() });
         let revised_environment = Arc::new(EnvDescription { os: "revised".to_owned(), ..EnvDescription::default() });
         let mut original = FileMetadata::empty();
@@ -1597,7 +1639,7 @@ mod tests {
         let mut source = DcMstring::new();
         original.encode_dc_mixed_with_context(&mut source, &context)?;
         let revised = source.inspect_with_context::<FileMetadata>(&context).replace_field("environment", &updated)?;
-        assert_eq!(revised.decode::<FileMetadata>()?, updated);
+        assert_eq!(revised.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, updated);
         assert!(Arc::ptr_eq(&context.resolve::<EnvDescription>("original.environment")?, &original_environment));
         Ok(())
     }
@@ -1629,12 +1671,20 @@ mod tests {
             let mut reader = DcMixedReader::new(&encoded);
             reader.expect_short_dc(321).unwrap();
             assert_eq!(reader.peek_short_dc().unwrap(), Some(559));
-            assert_eq!(NativeMetadata::decode_dc_mixed(&mut reader).unwrap(), metadata.native.unwrap());
+            assert_eq!(
+                NativeMetadata::decode_dc_mixed(
+                    &mut reader,
+                    &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+                )
+                .unwrap(),
+                metadata.native.unwrap()
+            );
         }
     }
 
     #[crate::ctb_test]
     fn test_native_metadata_legacy_key_value_array() -> Result<()> {
+        use ctb_formats_dcstring::DcProjectionPolicy;
         let mut source = DcMstring::new();
         source.push_char(DcChar::from_short(321));
         let encoding = ctb_formats_dcstring::DcKvMapEncoding::Legacy;
@@ -1654,11 +1704,11 @@ mod tests {
             source_os: OsFamily::Other,
             values: std::collections::BTreeMap::new(),
         });
-        assert_eq!(source.decode::<FileMetadata>()?, expected);
+        assert_eq!(source.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
         let inspection = source.inspect::<FileMetadata>();
         assert!(inspection.diagnostic().is_none());
         let updated = inspection.replace_field("native", &expected)?;
-        assert_eq!(updated.decode::<FileMetadata>()?, expected);
+        assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
         assert_eq!(updated.as_bytes(), source.as_bytes());
         let mut reader = DcMixedReader::new(&updated);
         reader.expect_short_dc(321)?;
@@ -1668,7 +1718,7 @@ mod tests {
             "added".to_owned(), NativeMetadataValue::Unsigned(42),
         );
         let updated = inspection.replace_field("native", &changed)?;
-        assert_eq!(updated.decode::<FileMetadata>()?, changed);
+        assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, changed);
         let mut reader = DcMixedReader::new(&updated);
         reader.expect_short_dc(321)?;
         reader.expect_short_dc(313)?;

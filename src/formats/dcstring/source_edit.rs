@@ -553,8 +553,9 @@ mod tests {
     #[crate::ctb_test]
     fn test_source_nested_map_replacement_preserves_representation()
     -> Result<()> {
+        let strict = crate::DcProjectionPolicy::strict();
         let source = source_record(42)?;
-        let mut updated = source.decode::<MapRecord>()?;
+        let mut updated = source.decode::<MapRecord>(&strict)?;
         let unchanged = source
             .inspect::<MapRecord>()
             .replace_field("maps", &updated)?;
@@ -568,7 +569,7 @@ mod tests {
             .inspect::<MapRecord>()
             .replace_field("maps", &updated)?;
         assert_eq!(revised.as_bytes(), source_record(999)?.as_bytes());
-        assert_eq!(revised.decode::<MapRecord>()?, updated);
+        assert_eq!(revised.decode::<MapRecord>(&strict)?, updated);
         let text = source.to_dc_string()?;
         let revised_text = text
             .inspect::<MapRecord>()
@@ -584,7 +585,7 @@ mod tests {
         let revised = source
             .inspect::<MapRecord>()
             .replace_field("maps", &updated)?;
-        assert_eq!(revised.decode::<MapRecord>()?, updated);
+        assert_eq!(revised.decode::<MapRecord>(&strict)?, updated);
         let tokens = revised.to_dc_tokens()?;
         assert_eq!(
             tokens
@@ -605,6 +606,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_source_map_replacement_retains_binary_spelling() -> Result<()> {
+        let strict = crate::DcProjectionPolicy::strict();
         let legacy = crate::DcKvMapEncoding::Legacy;
         let mut old = DcMstring::new();
         legacy.encode_header(&mut old);
@@ -616,14 +618,14 @@ mod tests {
         old.push_dc_str(&textual.to_dc_string()?);
         old.push(DcChar::from_short(314));
         let mut updated = old
-            .decode::<BTreeMap<String, crate::BinaryPayload>>()
+            .decode::<BTreeMap<String, crate::BinaryPayload>>(&strict)
             .context("Reading textual source map")?;
         updated.insert("new".to_owned(), crate::BinaryPayload::new(vec![1, 2]));
         let new = updated.to_dc_mixed()?;
         let revised = preserve_text(&old, &new.to_dc_string()?)
             .context("Reconciling textual source map")?;
         assert_eq!(
-            revised.decode::<BTreeMap<String, crate::BinaryPayload>>()?,
+            revised.decode::<BTreeMap<String, crate::BinaryPayload>>(&strict)?,
             updated
         );
         assert!(

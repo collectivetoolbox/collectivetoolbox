@@ -109,8 +109,17 @@ impl ctb_formats_dcstring::DcMixedEncode for StreamName {
     }
 }
 
+impl ctb_formats_dcstring::DcForgivingDefault for StreamName {
+    fn dc_forgiving_default() -> Self {
+        Self::Bytes(Vec::new())
+    }
+}
+
 impl ctb_formats_dcstring::DcMixedDecode for StreamName {
-    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
         if reader.peek_short_dc()? == Some(203) {
             let (format, bytes) = reader.read_checksum_payload()?;
             if format == Some(ctb_formats_dcstring::DcChar::from_u128(
@@ -125,10 +134,10 @@ impl ctb_formats_dcstring::DcMixedDecode for StreamName {
             }
             Ok(Self::Bytes(bytes.to_vec()))
         } else if reader.peek_short_dc()? == Some(310) {
-            let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
             Ok(Self::WindowsUtf16(units))
         } else {
-            let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
             Ok(Self::from_str(&s))
         }
     }
@@ -870,7 +879,9 @@ mod tests {
             &b"\xed\xa0\x80\xed\xb0\x80"[..]] {
             let mut encoded = ctb_formats_dcstring::DcMstring::new();
             encoded.push_binary_with_metadata(bytes, &metadata)?;
-            let name = encoded.decode::<StreamName>()?;
+            let name = encoded.decode::<StreamName>(
+                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            )?;
             assert_eq!(name.as_bytes().as_ref(), bytes);
             assert_eq!(name.to_dc_mixed()?, encoded);
             #[cfg(unix)]
@@ -1034,7 +1045,11 @@ mod tests {
             let mut encoded = ctb_formats_dcstring::DcMstring::new();
             stream.encode_dc_mixed(&mut encoded).unwrap();
             let mut reader = ctb_formats_dcstring::DcMixedReader::new(&encoded);
-            let restored = <AttachedStream as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(&mut reader).unwrap();
+            let restored = <AttachedStream as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(
+                &mut reader,
+                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            )
+            .unwrap();
             assert_eq!(restored.name, stream.name);
             assert_eq!(restored.kind, stream.kind);
             assert_eq!(restored.data, stream.data);

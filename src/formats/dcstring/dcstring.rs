@@ -39,6 +39,7 @@ pub mod dc_str;
 pub mod dcstring_impl;
 pub mod error;
 pub mod kv_map;
+pub mod navigator;
 pub mod shared;
 mod source_edit;
 mod encapsulation;
@@ -62,6 +63,12 @@ pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use kv_map::DcKvMapEncoding;
+pub use navigator::{
+    BinaryPayloadRef, DcByteSpan, DcDocumentNavigator, DcForgivingDefault,
+    DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy, DcSyntaxArena,
+    DcSyntaxKind, DcSyntaxNode, DiagnosticAction, INLINE_BINARY_THRESHOLD,
+    NodeId,
+};
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};
 pub use ctb_formats_utilities::FormatLog;

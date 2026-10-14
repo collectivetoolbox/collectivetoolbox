@@ -246,9 +246,25 @@ pub struct CscArgs {
     /// Errors are logged into the journal and descriptor instead of aborting the operation.
     #[arg(long, alias = "ignore-errors")]
     pub continue_on_error: bool,
+
+    /// Allow forgiving projection when reading state journals containing syntax or schema errors.
+    #[arg(long)]
+    pub allow_journal_errors: bool,
 }
 
 impl CscArgs {
+    /// Returns the projection policy to use when decoding state journals.
+    #[must_use]
+    pub const fn journal_projection_policy(
+        &self,
+    ) -> ctb_formats_dcstring::DcProjectionPolicy {
+        if self.allow_journal_errors {
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+        } else {
+            ctb_formats_dcstring::DcProjectionPolicy::strict()
+        }
+    }
+
     /// Resolves whether progress display is active.
     ///
     /// Respects `--no-progress` (disabled) and `--progress` (forced enabled),
@@ -477,9 +493,25 @@ pub struct CscVerifyArgs {
     /// Record full provenance environment information using slow environment detection.
     #[arg(long)]
     pub full_provenance: bool,
+
+    /// Allow forgiving projection when reading state journals containing syntax or schema errors.
+    #[arg(long)]
+    pub allow_journal_errors: bool,
 }
 
 impl CscVerifyArgs {
+    /// Returns the projection policy to use when decoding state journals.
+    #[must_use]
+    pub const fn journal_projection_policy(
+        &self,
+    ) -> ctb_formats_dcstring::DcProjectionPolicy {
+        if self.allow_journal_errors {
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+        } else {
+            ctb_formats_dcstring::DcProjectionPolicy::strict()
+        }
+    }
+
     #[must_use]
     pub fn should_ignore_atime(&self) -> bool {
         if self.strict || self.check_atime {
@@ -557,6 +589,7 @@ impl CscVerifyArgs {
             && !self.should_ignore_untracked()
             && !self.best_effort
             && !self.allow_incomplete
+            && !self.allow_journal_errors
             && self.should_drop_caches()
     }
 
@@ -657,6 +690,24 @@ pub struct FsindexArgs {
     /// (e.g. network discovery for public IP addresses and server time synchronization).
     #[arg(long)]
     pub full_provenance: bool,
+
+    /// Allow forgiving projection when reading state journals containing syntax or schema errors.
+    #[arg(long)]
+    pub allow_journal_errors: bool,
+}
+
+impl FsindexArgs {
+    /// Returns the projection policy to use when decoding state journals.
+    #[must_use]
+    pub const fn journal_projection_policy(
+        &self,
+    ) -> ctb_formats_dcstring::DcProjectionPolicy {
+        if self.allow_journal_errors {
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+        } else {
+            ctb_formats_dcstring::DcProjectionPolicy::strict()
+        }
+    }
 }
 
 /// Output format for search results.
@@ -947,6 +998,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         write_apple_single_without_extension: false,
         full_provenance: false,
         continue_on_error: false,
+        allow_journal_errors: false,
     }
 }
 
@@ -973,6 +1025,7 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
         strict: false,
         allow_incomplete: false,
         full_provenance: false,
+        allow_journal_errors: false,
     }
 }
 
@@ -997,6 +1050,7 @@ pub(crate) fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathB
         password_file: None,
         password_stdin: false,
         full_provenance: false,
+        allow_journal_errors: false,
     }
 }
 

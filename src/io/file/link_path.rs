@@ -292,13 +292,22 @@ impl DcMixedEncode for LinkPath {
     }
 }
 
+impl ctb_formats_dcstring::DcForgivingDefault for LinkPath {
+    fn dc_forgiving_default() -> Self {
+        Self::new()
+    }
+}
+
 impl DcMixedDecode for LinkPath {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+    fn decode_dc_mixed(
+        reader: &mut DcMixedReader<'_>,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<Self> {
         if reader.peek_char()? == Some(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS) {
             reader.next_char()?;
             reader.expect_char(DC_BEGIN_LIST)?;
             reader.expect_short_dc(275)?;
-            let segments = decode_filepath_segments(reader)?;
+            let segments = decode_filepath_segments(reader, policy)?;
             reader.expect_char(DC_LIST_ELEMENT_SEPARATOR)?;
             let (format, bytes) = reader.read_checksum_payload()?;
             let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
@@ -310,7 +319,7 @@ impl DcMixedDecode for LinkPath {
             return Ok(path);
         }
         if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let segments = decode_filepath_segments(reader)?;
+            let segments = decode_filepath_segments(reader, policy)?;
             return Ok(Self::from_bytes(&segments.join(&b'/'), false));
         }
 
@@ -319,7 +328,7 @@ impl DcMixedDecode for LinkPath {
             return Ok(Self::from_bytes(bytes.as_ref(), false));
         }
 
-        let s = String::decode_dc_mixed(reader)?;
+        let s = String::decode_dc_mixed(reader, policy)?;
         Ok(Self::from_bytes(s.as_bytes(), false))
     }
 }
@@ -337,6 +346,7 @@ impl DcMixedDecode for LinkPath {
 )]
 mod tests {
     use super::*;
+    use ctb_formats_dcstring::DcProjectionPolicy;
 
     #[crate::ctb_test]
     fn exact_targets_roundtrip_across_source_platforms() -> Result<()> {
@@ -359,7 +369,7 @@ mod tests {
             ensure!(restored == target && restored.to_bytes() == bytes,
                 "Link target changed during JSON roundtrip: {bytes:?}");
             let encoded = target.to_dc_mixed()?;
-            let restored = encoded.decode::<LinkPath>()?;
+            let restored = encoded.decode::<LinkPath>(&DcProjectionPolicy::strict())?;
             ensure!(restored.to_bytes() == bytes, "Link target bytes changed");
             ctb_formats_dcstring::assert_dc_document_roundtrip(
                 &crate::entity::FileEntityKind::Symlink { target: target.clone() }
@@ -374,8 +384,13 @@ mod tests {
             let path = LinkPath::from_bytes(bytes, false);
             let mut encoded = DcMstring::new();
             encode_filepath_segments(&path.segments(), &mut encoded)?;
-            ensure!(encoded.decode::<LinkPath>()?.to_bytes() == bytes,
-                "Typed filepath changed separators");
+            ensure!(
+                encoded
+                    .decode::<LinkPath>(&DcProjectionPolicy::strict())?
+                    .to_bytes()
+                    == bytes,
+                "Typed filepath changed separators"
+            );
         }
         let mut malformed = DcMstring::new();
         ensure!(encode_filepath_segments(&[b"a/b".to_vec()], &mut malformed).is_err(),
@@ -389,7 +404,12 @@ mod tests {
         conflicting.push_char(DC_LIST_ELEMENT_SEPARATOR);
         conflicting.push_binary_with_sha256(b"second")?;
         conflicting.push_char(DC_END_LIST);
-        ensure!(conflicting.decode::<LinkPath>().is_err(), "Conflicting paths must be rejected");
+        ensure!(
+            conflicting
+                .decode::<LinkPath>(&DcProjectionPolicy::strict())
+                .is_err(),
+            "Conflicting paths must be rejected"
+        );
         let historical: LinkPath = serde_json::from_value(serde_json::json!("parent/file"))?;
         ensure!(historical == LinkPath::from_bytes(b"parent/file", cfg!(windows)),
             "Historical JSON link target changed");

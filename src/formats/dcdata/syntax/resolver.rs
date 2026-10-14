@@ -60,6 +60,19 @@ pub trait SyntaxRuleResolver {
     fn closer_for_opener(&self, _opener: &CharTarget) -> Option<u128> {
         None
     }
+    /// Returns true if the given character or format target is marked deprecated in the dataset.
+    fn is_deprecated(&self, _target: &CharTarget) -> bool {
+        false
+    }
+    /// Returns the preferred replacement target (`<prefer>...`) for a deprecated target, if any.
+    fn preferred_replacement(&self, _target: &CharTarget) -> Option<&CharTarget> {
+        None
+    }
+    /// Returns any syntax elements required immediately after a container's closing delimiter
+    /// (for example, `[545:]` after `544` in `543`'s rule `:~ [^544]+ 544 [545:]`).
+    fn trailing_after_closer(&self, _opener: &CharTarget) -> &[super::ast::SyntaxElement] {
+        &[]
+    }
 }
 
 fn substitute_term_param(
@@ -143,6 +156,48 @@ fn detect_container_closer(pattern: &SyntaxPattern) -> Option<u128> {
     }
 }
 
+fn extract_trailing_after_closer(
+    pattern: &SyntaxPattern,
+    closer_token: u128,
+) -> Vec<super::ast::SyntaxElement> {
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        return Vec::new();
+    };
+    let Some(closer_idx) = elements.iter().rposition(|el| {
+        el.quantifier == super::ast::Quantifier::ExactOne
+            && matches!(&el.term, super::ast::SyntaxTerm::CharRef(t) if t.to_u128() == closer_token)
+    }) else {
+        return Vec::new();
+    };
+    let next_idx = closer_idx.saturating_add(1);
+    elements
+        .get(next_idx..)
+        .map_or_else(Vec::new, <[super::ast::SyntaxElement]>::to_vec)
+}
+
+fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
+    for item in decompositions {
+        if let Some(rest) = item.trim().strip_prefix("<prefer>") {
+            let trimmed = rest.trim();
+            if let Ok(shorthand) = ctb_storage_minimal::shorthand::DcShorthand::parse(trimmed) {
+                return match shorthand {
+                    ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
+                        u32::try_from(id).ok().map(CharTarget::Dc)
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
+                        Some(CharTarget::Format(id))
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
+                        Some(CharTarget::Unicode(cp))
+                    }
+                    _ => None,
+                };
+            }
+        }
+    }
+    None
+}
+
 /// In-memory resolver caching syntax rules, named types, and script mappings.
 #[derive(Debug, Clone, Default)]
 pub struct DatasetRuleResolver {
@@ -151,6 +206,8 @@ pub struct DatasetRuleResolver {
     script_chars: HashMap<String, HashSet<u128>>,
     closing_delimiters: HashMap<u128, CharTarget>,
     opener_to_closer: HashMap<CharTarget, u128>,
+    deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
+    trailing_after_closer: HashMap<CharTarget, Vec<super::ast::SyntaxElement>>,
 }
 
 impl DatasetRuleResolver {
@@ -181,6 +238,11 @@ impl DatasetRuleResolver {
         self.closing_delimiters.insert(closer_token, opener);
     }
 
+    /// Registers a deprecated target and its optional preferred replacement.
+    pub fn register_deprecated(&mut self, target: CharTarget, preferred: Option<CharTarget>) {
+        self.deprecated_targets.insert(target, preferred);
+    }
+
     /// Loads the authoritative dataset from embedded tables.
     #[must_use]
     pub fn load() -> Self {
@@ -192,12 +254,17 @@ impl DatasetRuleResolver {
                 let Ok(sid_u32) = u32::try_from(short_id) else {
                     continue;
                 };
+                let target = CharTarget::Dc(sid_u32);
                 let sid_u128 = DcChar::from_short(sid_u32).to_u128();
                 if !defn.script.is_empty() {
                     resolver.add_script_char(defn.script.clone(), sid_u128);
                 }
+                let preferred = parse_prefer_target(&defn.decompositions);
+                if defn.is_deprecated || preferred.is_some() {
+                    resolver.register_deprecated(target.clone(), preferred);
+                }
                 if let Some(ref rule) = defn.syntax {
-                    resolver.add_rule(CharTarget::Dc(sid_u32), rule.clone());
+                    resolver.add_rule(target, rule.clone());
                 }
                 if let Some(ref closes) = defn.closes {
                     let opener_target = match closes {
@@ -244,15 +311,20 @@ impl DatasetRuleResolver {
                 let Ok(sid_u32) = u32::try_from(short_id) else {
                     continue;
                 };
+                let target = CharTarget::Format(short_id);
                 let fid_u128 = DcChar::from_format(sid_u32).to_u128();
                 if !defn.script.is_empty() {
                     resolver.add_script_char(defn.script.clone(), fid_u128);
                 }
+                let preferred = parse_prefer_target(&defn.decompositions);
+                if defn.is_deprecated || preferred.is_some() {
+                    resolver.register_deprecated(target.clone(), preferred);
+                }
                 if let Some(ref rule) = defn.syntax {
-                    resolver.add_rule(CharTarget::Format(short_id), rule.clone());
+                    resolver.add_rule(target.clone(), rule.clone());
                     if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
                         if !resolver.closing_delimiters.contains_key(&closer_tok) {
-                            resolver.register_closing_delimiter(closer_tok, CharTarget::Format(short_id));
+                            resolver.register_closing_delimiter(closer_tok, target);
                         }
                     }
                 }
@@ -294,6 +366,21 @@ impl DatasetRuleResolver {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // 3. Populate trailing elements after container closers (e.g. [545:] after 544 for 543)
+        let opener_closers: Vec<(CharTarget, u128)> = resolver
+            .opener_to_closer
+            .iter()
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
+        for (opener, closer_tok) in opener_closers {
+            if let Some(rule) = resolver.rules.get(&opener) {
+                let trailing = extract_trailing_after_closer(&rule.pattern, closer_tok);
+                if !trailing.is_empty() {
+                    resolver.trailing_after_closer.insert(opener, trailing);
                 }
             }
         }
@@ -346,6 +433,22 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
 
     fn closer_for_opener(&self, opener: &CharTarget) -> Option<u128> {
         self.opener_to_closer.get(opener).copied()
+    }
+
+    fn is_deprecated(&self, target: &CharTarget) -> bool {
+        self.deprecated_targets.contains_key(target)
+    }
+
+    fn preferred_replacement(&self, target: &CharTarget) -> Option<&CharTarget> {
+        self.deprecated_targets
+            .get(target)
+            .and_then(Option::as_ref)
+    }
+
+    fn trailing_after_closer(&self, opener: &CharTarget) -> &[super::ast::SyntaxElement] {
+        self.trailing_after_closer
+            .get(opener)
+            .map_or(&[], Vec::as_slice)
     }
 }
 
