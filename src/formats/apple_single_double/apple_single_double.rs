@@ -2122,9 +2122,8 @@ mod tests {
                     label.encode_dc_mixed(&mut mst)?;
                 }
                 mst.push_char(DcChar::from_short(402));
-                ctb_formats_dcdata::syntax::validate_dc_document_strict(
-                    &mst.to_dc_tokens()?,
-                ).with_context(|| format!("Finder label {index}, numeric={numeric}"))?;
+                ctb_formats_dcstring::validate_dc_mixed_strict(&mst)
+                    .with_context(|| format!("Finder label {index}, numeric={numeric}"))?;
                 let mut reader = DcMixedReader::new(&mst);
                 ensure!(
                     FinderInfo::decode_dc_mixed(
@@ -2153,7 +2152,7 @@ mod tests {
         let prefix = [401, 405, 397, 310, 275, 487].map(|id| DcChar::from_short(id).to_u128());
         ensure!(tokens.get(..prefix.len()) == Some(prefix.as_slice()));
         tokens.remove(4);
-        ensure!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens).is_err(),
+        ensure!(ctb_formats_dcstring::validate_dc_tokens_strict(&tokens).is_err(),
             "Untyped equivalent list passed strict validation");
 
         let mut old_encoded = ctb_formats_dcstring::DcMstring::new();

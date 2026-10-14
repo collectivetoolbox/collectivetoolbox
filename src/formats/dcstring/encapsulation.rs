@@ -31,8 +31,7 @@ use ctb_formats_dcdata::dc::{
     DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
 };
 use ctb_formats_dcdata::syntax::{
-    MatchContext, MatchMode, Quantifier, SyntaxElement, SyntaxPattern,
-    SyntaxTerm, default_syntax_resolver, match_pattern,
+    Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 
 pub(crate) struct Metadata<'a> {
@@ -73,8 +72,11 @@ impl<'a> Cursor<'a> {
 
     fn read_type(&mut self) -> Result<Option<&'a DcStr>> {
         let start = self.position();
-        let tokens: Vec<u128> =
-            self.chars.clone().map(DcChar::to_u128).collect();
+        let Some(slice) = self.source.get(start..) else {
+            return Ok(None);
+        };
+        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
+        let mut nav = crate::DcDocumentNavigator::from_dc_str(slice);
         let pattern = SyntaxPattern::Sequence(vec![SyntaxElement {
             term: SyntaxTerm::NamedConstruct {
                 name: "type".to_owned(),
@@ -83,14 +85,16 @@ impl<'a> Cursor<'a> {
             },
             quantifier: Quantifier::ExactOne,
         }]);
-        let mut context = MatchContext::new(None)
-            .with_mode(MatchMode::Strict)
-            .with_resolver(default_syntax_resolver().clone());
-        let outcome = match_pattern(&tokens, &pattern, &mut context);
-        if !outcome.is_matched() {
+        let mut ctx = crate::SyntaxEvalContext::new(&**resolver, None);
+        if !nav.eval_pattern(&pattern, &mut ctx)?
+            || ctx.has_errors
+            || nav.position() == 0
+        {
             return Ok(None);
         }
-        for _ in 0..outcome.consumed_tokens() {
+        let consumed = usize::try_from(nav.position()).unwrap_or(0);
+        let end = start.saturating_add(consumed);
+        while self.position() < end {
             self.next()?;
         }
         Ok(Some(self.range(start)?))
@@ -332,9 +336,7 @@ mod tests {
             let mut mixed = DcMstring::new();
             mixed.push_binary_with_metadata(payload.as_bytes(), &metadata)?;
             let text = mixed.to_dc_string()?;
-            ctb_formats_dcdata::syntax::validate_dc_document_strict(
-                &text.chars().map(DcChar::to_u128).collect::<Vec<_>>(),
-            )?;
+            crate::validate_dc_str_strict(&text)?;
             let restored = DcMstring::from_dc_str(&text)?;
             assert_eq!(restored.as_bytes(), mixed.as_bytes());
             let mut reader = DcMixedReader::new(&restored);
@@ -366,9 +368,7 @@ mod tests {
         let mut mixed = DcMstring::new();
         mixed.push_binary_with_metadata(data, &metadata)?;
         let text = mixed.to_dc_string()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(
-            &text.chars().map(DcChar::to_u128).collect::<Vec<_>>(),
-        )?;
+        crate::validate_dc_str_strict(&text)?;
         let restored = DcMstring::from_dc_str(&text)?;
         let chunk = restored.chunks().next().context("Missing binary chunk")?;
         let DcMixed::BinaryWithMetadata {

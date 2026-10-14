@@ -856,27 +856,18 @@ impl<'a> DcMixedReader<'a> {
 
         let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
         while let Some(peeked) = self.peek_char()? {
-            if peeked.0 == container_end_dc || known_tags.contains(&peeked.0) {
+            if peeked.0 == container_end_dc
+                || known_tags.contains(&peeked.0)
+                || resolver.closing_opener_for(peeked.0).is_some()
+            {
                 break;
             }
-            let is_value_operand = peeked == DC_START_ENCAPSULATION_BINARY
-                || matches!(
-                    peeked.to_short_dc(),
-                    Some(
-                        6 | 7 | 10 | 11 | 203 | 204 | 255 | 260 | 261 | 262 | 263 | 269
-                            | 270 | 271 | 275 | 310 | 311 | 312 | 313 | 314 | 315 | 316
-                            | 390 | 391 | 393 | 394 | 397 | 511 | 512 | 514 | 515 | 517
-                            | 518 | 540 | 559 | 560 | 561
-                    )
-                )
-                || peeked
-                    .to_short_dc()
-                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character)
-                || ctb_formats_dcdata::is_type_token(peeked.0)
-                || peeked.to_unicode().is_ok();
-            if !is_value_operand && resolver.closing_opener_for(peeked.0).is_some() {
-                break;
-            }
+            let is_value_operand = resolver
+                .matches_named_type_starter("value", peeked.0)
+                || resolver.matches_named_type_starter("type", peeked.0)
+                || peeked.to_short_dc().is_some_and(
+                    ctb_formats_eite::dc::is_dc_base64_encapsulation_character,
+                );
             if is_value_operand {
                 self.skip_syntax_unit(0)?;
             } else {
@@ -1896,8 +1887,7 @@ where
     let mut mst = DcMstring::new();
     original.encode_dc_mixed(&mut mst)?;
 
-    let tokens = mst.to_dc_tokens()?;
-    ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
+    crate::validate_dc_mixed_strict(&mst)
         .context("Strict Dc syntax validation failed during document roundtrip check")?;
 
     let policy = crate::DcProjectionPolicy::strict();
@@ -2331,12 +2321,7 @@ mod tests {
         let outer = BTreeMap::from([("outer".to_owned(), nested)]);
         assert_dc_document_roundtrip(&outer)?;
         let source = outer.to_dc_mixed()?;
-        let tokens = source.to_dc_tokens()?;
-        let doc = ctb_formats_dcdata::syntax::parse_document_tokens(
-            &tokens,
-            ctb_formats_dcdata::syntax::MatchMode::Strict,
-        );
-        assert!(!doc.has_errors, "{:?}", doc.diagnostics);
+        crate::validate_dc_mixed_strict(&source)?;
         let original = SampleKeyedRecord { count: 42, label: None };
         let source = original.to_dc_mixed()?;
         let view = source.inspect::<SampleKeyedRecord>();
@@ -2352,7 +2337,7 @@ mod tests {
         assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, 42);
         reader.expect_short_dc(515)?;
         assert!(reader.peek_char()?.is_none());
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&pair.to_dc_tokens()?)?;
+        crate::validate_dc_mixed_strict(&pair)?;
 
         for body in [
             vec![514, 517, 312, 518],
@@ -2366,7 +2351,7 @@ mod tests {
             }
             crate::DcKvMapEncoding::Pairs.encode_end(&mut invalid);
             assert!(invalid.decode::<BTreeMap<bool, bool>>(&strict).is_err());
-            assert!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&invalid.to_dc_tokens()?).is_err());
+            assert!(crate::validate_dc_mixed_strict(&invalid).is_err());
         }
         Ok(())
     }
@@ -3079,8 +3064,7 @@ mod tests {
         let p = std::path::PathBuf::from("/tmp/src");
         let mut mst = DcMstring::new();
         p.encode_dc_mixed(&mut mst)?;
-        let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
+        crate::validate_dc_mixed_strict(&mst)?;
         Ok(())
     }
 
@@ -3092,8 +3076,7 @@ mod tests {
         items.encode_dc_mixed(&mut mst)?;
 
         // Verify tokens: DC_BEGIN_LIST, 275, 10, DC_LIST_ELEMENT_SEPARATOR, 20, DC_LIST_ELEMENT_SEPARATOR, 30, DC_END_LIST
-        let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
+        crate::validate_dc_mixed_strict(&mst)?;
 
         let mut reader = DcMixedReader::new(&mst);
         let decoded = Vec::<u32>::decode_dc_mixed(&mut reader, &strict)?;
