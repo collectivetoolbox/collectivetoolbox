@@ -1,3 +1,73 @@
+# Initial prompt:
+
+The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways? Can we refactor it to be more data-driven - so when deserialzing for instance, it parses the document from the journal using rules generated from the syntax in the database, and then projects that onto the structs that it's deserializing into, logging/warning/erroring (depending on what the caller, e.g. the csc journal module, specifies)? That feels like it would be a lot cleaner than having two or three separate parsers that work in different ways, and a deserializer that can't handle garbled or outdated formats robustly and elegantly. [/plan](slashCommand;plan)
+
+# Feedback on implementation plan
+
+## Round 1
+
+> Should we keep container body syntax open in semantic.csv (so Stage 1 validates every inner tag agai...
+
+I would tend to keep it open, because making such strict seems like it could result in misparsing of newer documents. I'm thinking of the case where, say, we add a new "FileWidget" field with its own dedicated syntax within File. Or once the more RDF-ish graph statements are available, it would be reasonable to say "File" -> "Has author" -> [author entity reference from Wikidata or from your company's team, etc.], and that could reasonably be placed *inside* the File description. (Not sure if that's the ideal syntax, but it seems like a possibility.) The issue with using a constrained syntax for such structs (and maybe others? Design review appreciated!) would mean that when a parser predating the new field encountered a document using the new syntax, it might say "hm, doesn't look like a File description to me", discard the opening File tag as a bogey, read the *rest* of the File's attributes into the *enclosing* struct or context (whatever's holding the File), changing the meaning of the document. I guess that could be fixed by saying that opening tags may not be ignored...? I'm not sure how HTML handles this; it has to deal with similar issues. Would welcome your input on this topic.
+
+> Should T::decode_dc_mixed default to strict mode (DiagnosticAction::Error on unknown tags and malfor...
+
+I would say, require an explicit policy for all callers, and drop decode_dc_mixed method with no policy argument. The csc journal would use strict parsing unless a --allow-journal-errors or similar CLI argument were passed; the (future) document runtime would use forgiving/best-effort parsing.
+
+> 5. Open Design Questions for Confirmation
+
+One topic that I don't see raised here but might have overlooked: I have some worries about memory usage. Binary regions in DcMM files (when they are on disk, as opposed to streaming) might be able to be represented as offsets somehow, for instance. Also not sure how memory usage will go with large csc journals - we wouldn't want to, say, read a 100GiB journal with 10s of millions records into memory in parsing; it would need to be seeking/streaming somehow. I think the architecture you have outlined sounds conceptually solid; I just don't have a clear sense of the space requirements it would have. Please take this factor under consideration too. Thank you!
+
+## Round 2
+
+> .dc
+
+Nitpicking here but just a heads up, noting that we don't use .dc as a file extension, FWIW, if that's what "text `.dc`" meant. There are a few possible representations and extensions; .dcmm is likely the most frequently useful one for files on disk.
+
+> For csc::journal, we also expose a streaming JournalRecordIter / visitor API (computing the 543..544...
+
+Is it possible to make this a general iterator or seeker API, not just for journal records? I'm thinking ahead to adding document rendering and viewing - the primary graphical interface for editing Dc documents will likely be similar to the KompoZer HTML editor's tags view, where each enclosing structure is shown as a labeled box. An editor will probably want a similar streaming API to allow it to only hold the region of the document actually being edited in memory, maybe a "seek back and forth" API. Dc documents can be thought of as a tree with levels, so an editor might say, "read top level, read next inner level, oh there are a lot of things in here, lay out the outer boxes, go in a level, stream through to estimate layout length, oh, the user has scrolled to 2/3 in, seek back to that point, read a screen's worth, present". Oversimplifying since there might be elements that need to be laid out in specific locations (e.g. anchored to other elements or absolutely/relatively/fixed position, or using a callback for positioning). (I'm using Web-ish terms here, though the concepts might end up being a bit different with Dc documents, I think the overall challenges of layout will end up being somewhat analogous.) Does that make sense and apply here? Basically what I'm getting at is that the journal is just one of many possible use cases for this, and so a dedicated iterator for it seems like something that should be reimagined as a generalized API.
+
+> DcProjectionPolicy::strict_with_legacy_v4():
+>
+>
+>  Same as strict(), except deprecated_syntax is W...
+
+These should both just be "forgiving". In particular, there should be no special handling for the buggy v4 test fixture - it doesn't parse easily because the serializer was buggy during development; those bugs don't need to be specially immortalized in code - it should run it through the normal forgiving path and project what it can, or else error on the broken syntax when in strict mode.
+
+# Review feedback during implementation
+
+## V4 fixture
+
+- Note that the v4 fixtures `v4_dcmixed-20261011.cscjournal` and `v4_dcmixed_only-20261010.dcmm` likely use invalid/mangled syntax, due to bugs in the serializer during development. In strict mode, they should return errors, if I'm correct about that. In forgiving-parsing mode, they should be able to be parsed, but may have some unparseable sections due to invalid syntax. That is OK; don't add special-case handling to address these syntax errors other than general forgiving/'tag-soup'-style parsing. It is OK to create new fixtures for testing, but don't overwrite these old ones; they're useful for confirming strict mode and forgiving parsing.
+
+## Data-driven
+
+The newly-introduced code included the following diff:
+
+```rust
++            let is_value_operand = peeked == DC_START_ENCAPSULATION_BINARY
++                || matches!(
++                    peeked.to_short_dc(),
++                    Some(
++                        6 | 7 | 10 | 11 | 203 | 204 | 255 | 260 | 261 | 262 | 263 | 269
++                            | 270 | 271 | 275 | 310 | 311 | 312 | 313 | 314 | 315 | 316
++                            | 390 | 391 | 393 | 394 | 397 | 511 | 512 | 514 | 515 | 517
++                            | 518 | 540 | 559 | 560 | 561
++                    )
++                )
+```
+
+This proposed code is fragile will break on any new Dcs; it is not data-driven. The syntax definitions from the Dc database CSVs should be the driver of the parser.
+
+## DRY; refactoring encouraged
+
+Some of the refactors so far appear to be hewing very closely to the existing API. This may be OK, but I note that in this effort to DRY out parsers, most code edits so far have been additions, not deletions. That may suggest an issue in the approach, perhaps a mistaken assessment that the existing API should be preserved. The most elegant and correct API should be used in all cases.
+
+## Context limit and compaction
+
+Following compactions, the LLM agent appeared to struggle to continue with the task. This may also be a mistaken assessment, but I would encourage selecting a portion of the refactor for each phase of the plan that you will be able to accomplish before hitting your compaction limit (a search online suggests 250k tokens, but I don't know if that's correct). Approaches could include either creating subagents to plan and implement each small phase of the refactor, or to implement a portion directly and then hand off to the operator to start a fresh plan with fresh context.
+
 # Data-Driven Dc Syntax Parsing & Projection Plan
 
 ## 1. Executive Summary & Architectural Diagnosis
