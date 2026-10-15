@@ -201,11 +201,14 @@ mod challenge1_recursion_depth_limits {
         Ok(())
     }
 
-    /// Verifies that transparent unwrapping loop in `unwrap_transparent` terminates
-    /// safely at 32 iterations without hanging or looping infinitely on adversarial trees.
+    /// Verifies that transparent unwrapping loop in `unwrap_transparent` respects
+    /// `policy.max_depth` and `policy.depth_limit_exceeded` without hanging or looping infinitely.
     #[crate::ctb_test]
     fn test_adversarial_transparent_unwrapping_depth_bound() -> Result<()> {
-        let strict = DcProjectionPolicy::strict();
+        let strict = DcProjectionPolicy::strict()
+            .with_max_depth(32, ctb_formats_dcstring::DiagnosticAction::Error);
+        let forgiving = DcProjectionPolicy::forgiving()
+            .with_max_depth(32, ctb_formats_dcstring::DiagnosticAction::Warn);
 
         // 40 levels of nested 315 optional present containers
         let mut doc = DcMstring::new();
@@ -216,17 +219,23 @@ mod challenge1_recursion_depth_limits {
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, &strict)?;
+        nav.parse_document_into_arena(&mut arena, &DcProjectionPolicy::forgiving())?;
 
         let roots = arena.roots();
         ensure!(!roots.is_empty(), "Arena must contain root node");
         let root = roots[0];
 
-        let ctx = DcProjectionContext::new(&arena, &strict);
-        // unwrap_transparent must terminate at 32 steps
-        let unwrapped = ctx.unwrap_transparent(root)?;
-        // After 32 unwraps, remaining node is still an optional container
-        let node = ctx.node(unwrapped)?;
+        // Under strict policy, exceeding max_depth (32) returns an error
+        let ctx_strict = DcProjectionContext::new(&arena, &strict);
+        ensure!(
+            ctx_strict.unwrap_transparent(root).is_err(),
+            "Strict policy must reject transparent wrapper chains exceeding max_depth"
+        );
+
+        // Under forgiving policy, unwrap_transparent terminates at 32 steps and returns the remaining node
+        let ctx_forgiving = DcProjectionContext::new(&arena, &forgiving);
+        let unwrapped = ctx_forgiving.unwrap_transparent(root)?;
+        let node = ctx_forgiving.node(unwrapped)?;
         ensure!(
             matches!(&node.kind, DcSyntaxKind::Tagged { tag, .. } if *tag == DC_OPTIONAL_PRESENT),
             "Unwrapped node should remain an optional container after 32 iterations"
@@ -541,9 +550,8 @@ mod challenge3_transparent_unwrapping {
         Ok(())
     }
 
-    /// Empirically demonstrates the verified implementation defect that `Vec<T>` and `(A, B)`
-    /// call `unwrap_equivalent_or_self` rather than `unwrap_transparent`, and therefore
-    /// fail when transparent optional (`315`) wrappers are present on non-Option types.
+    /// Verifies that `Vec<T>` and `(A, B)` call `unwrap_transparent` and properly
+    /// unwrap transparent optional (`315`) wrappers.
     #[crate::ctb_test]
     fn test_adversarial_bare_vec_and_tuple_do_not_unwrap_transparent_optionals() -> Result<()> {
         let policy = DcProjectionPolicy::strict();
@@ -559,10 +567,10 @@ mod challenge3_transparent_unwrapping {
         let root = arena.roots()[0];
 
         let mut ctx = DcProjectionContext::new(&arena, &policy);
-        let res_vec = Vec::<u32>::decode_dc_node(&mut ctx, root);
+        let res_vec = Vec::<u32>::decode_dc_node(&mut ctx, root)?;
         ensure!(
-            res_vec.is_err(),
-            "Vec<T>::decode_dc_node does not call unwrap_transparent and thus fails on 315"
+            res_vec == vec![1u32, 2u32],
+            "Vec<T>::decode_dc_node must unwrap transparent 315 wrapper"
         );
 
         // 315 wrapping a framed pair (u32, u32)
@@ -580,10 +588,10 @@ mod challenge3_transparent_unwrapping {
         let root_p = arena_p.roots()[0];
 
         let mut ctx_p = DcProjectionContext::new(&arena_p, &policy);
-        let res_pair = <(u32, u32)>::decode_dc_node(&mut ctx_p, root_p);
+        let res_pair = <(u32, u32)>::decode_dc_node(&mut ctx_p, root_p)?;
         ensure!(
-            res_pair.is_err(),
-            "(A, B)::decode_dc_node does not call unwrap_transparent and thus fails on 315"
+            res_pair == (10u32, 20u32),
+            "(A, B)::decode_dc_node must unwrap transparent 315 wrapper"
         );
 
         Ok(())

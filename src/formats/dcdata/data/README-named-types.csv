@@ -7,7 +7,7 @@ checksum,:[typed_data:hash],
 unicode_any,:[u0..u10ffff],includes unpaired surrogates
 identifier,:270:,A nonempty framed name. Naming an object does not itself dereference or invoke it.
 type,:([262:] | [format]),
-format,:[f0..f1114111],
+format,:[f0..f632],
 list,:[310:],
 key_value,:(559: | 313:),Ordered key-value array. Dc 559 is canonical; Dc 313 remains readable for existing documents.
 duration,:[395:],

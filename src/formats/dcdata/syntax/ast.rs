@@ -29,14 +29,26 @@ use crate::utilities::*;
 use serde::{Deserialize, Serialize};
 
 /// Target reference to a character or format entity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CharTarget {
     /// Short Document Character (Dc) ID (e.g. 246, 248, 0).
     Dc(u32),
-    /// Short Format ID prefixed with `f` (e.g. `f80`).
-    Format(usize),
+    /// Format identifier prefixed with `f` (e.g. `f80`).
+    Format(ctb_utilities::format_id::FormatId),
     /// Unicode codepoint prefixed with lowercase `u` (e.g. `u0020`, `u12ab`).
     Unicode(u32),
+}
+
+impl PartialOrd for CharTarget {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CharTarget {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_u128().cmp(&other.to_u128())
+    }
 }
 
 impl CharTarget {
@@ -45,11 +57,13 @@ impl CharTarget {
     pub fn to_u128(&self) -> u128 {
         match self {
             Self::Dc(id) => DcChar::from_short(*id).to_u128(),
-            Self::Format(id) => {
-                let Ok(fid) = u32::try_from(*id) else {
-                    return 0;
-                };
-                DcChar::from_format(fid).to_u128()
+            Self::Format(fid) => {
+                #[expect(
+                    clippy::expect_used,
+                    reason = "Every FormatId variant maps to a known Global Graph Dc ID"
+                )]
+                fid.dc_id()
+                    .expect("FormatId always maps to a valid Global Graph Dc ID")
             }
             Self::Unicode(cp) => u128::from(*cp),
         }
@@ -61,8 +75,8 @@ impl CharTarget {
         let dc = DcChar::from_u128(val);
         if let Ok(short) = dc.to_short() {
             Some(Self::Dc(short))
-        } else if let Ok(fmt) = dc.to_format() {
-            usize::try_from(fmt).ok().map(Self::Format)
+        } else if let Some(fid) = ctb_utilities::format_id::FormatId::from_dc_id(val) {
+            Some(Self::Format(fid))
         } else if let Ok(cp) = dc.to_unicode() {
             Some(Self::Unicode(cp))
         } else {
@@ -75,7 +89,7 @@ impl std::fmt::Display for CharTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Dc(id) => write!(f, "{id}"),
-            Self::Format(id) => write!(f, "f{id}"),
+            Self::Format(id) => write!(f, "{}", id.shorthand()),
             Self::Unicode(cp) => write!(f, "u{cp:04x}"),
         }
     }
@@ -257,7 +271,7 @@ pub struct SyntaxDiagnostic {
     /// Explanatory diagnostic message.
     pub message: String,
     /// Token or byte offset where the diagnostic occurred.
-    pub token_offset: usize,
+    pub token_offset: u64,
     /// Whether this diagnostic represents a syntax/framing error.
     pub is_error: bool,
 }

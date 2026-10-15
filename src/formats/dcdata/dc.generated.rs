@@ -60,10 +60,56 @@ pub const DC_END_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(204);
 pub const DC_REPLACEMENT_UNAVAIL_UNICODE: DcChar = DcChar::from_short(206);
 /// Used to replace an incoming character whose value is not mapped to a Dc (document component) (Dc 207).
 pub const DC_REPLACEMENT_UNAVAIL_DC: DcChar = DcChar::from_short(207);
+/// Begins a comment that, when represented in EM (Ember Language source) format, should be displayed as a “#”-style comment. All characters except 248 and 255 will be ignored. Use 255 248 to represent 248 within the comment, and 255 255 to represent 255 within the comment. (Dc 246).
+pub const DC_BEGIN_SINGLE_LINE_COMMENT: DcChar = DcChar::from_short(246);
+/// As with 247, but starting on a new line in the source form. (Dc 247).
+pub const DC_BEGIN_SINGLE_LINE_COMMENT_NEW_LINE: DcChar = DcChar::from_short(247);
+/// Terminates a comment region begun by 246 or 247. (Dc 248).
+pub const DC_END_SINGLE_LINE_COMMENT: DcChar = DcChar::from_short(248);
+/// As with 248, but creating a “/*  */”-style block comment. (Dc 249).
+pub const DC_BEGIN_BLOCK_COMMENT: DcChar = DcChar::from_short(249);
+/// As with 250, but starting on a new line in the source form. (Dc 250).
+pub const DC_BEGIN_BLOCK_COMMENT_NEW_LINE: DcChar = DcChar::from_short(250);
+/// Terminates a comment region begun by 249 or 250. (Dc 251).
+pub const DC_END_BLOCK_COMMENT: DcChar = DcChar::from_short(251);
 /// Indicates that the next character should be ignored. (Dc 255).
 pub const DC_ESCAPE: DcChar = DcChar::from_short(255);
+/// Send the specified string to the current output context, adding a final line feed if one is not present (Dc 256).
+pub const DC_LANG_SAY: DcChar = DcChar::from_short(256);
+/// Frames one value expression as a parameter. A literal parameter remains quoted data. (Dc 258).
+pub const DC_BEGIN_PARAMETER: DcChar = DcChar::from_short(258);
+/// Terminates the parameter begun by 258 after its complete value expression. (Dc 259).
+pub const DC_END_PARAMETER: DcChar = DcChar::from_short(259);
+/// Begins a typed quoted character sequence. The payload may be empty. Dc 255 protects exactly the next Dc from syntactic interpretation: 255 261 is payload Dc 261 and 255 255 is payload Dc 255. Only an unescaped 261 terminates the literal. Decode escapes once after locating the boundary; payload characters are not implicitly evaluated or reparsed. (Dc 260).
+pub const DC_BEGIN_LITERAL: DcChar = DcChar::from_short(260);
+/// Terminates a literal begun by 260 unless protected by Dc 255 within its payload. (Dc 261).
+pub const DC_END_LITERAL: DcChar = DcChar::from_short(261);
+/// Begin type definition (Dc 262).
+pub const DC_BEGIN_TYPE_DEF: DcChar = DcChar::from_short(262);
+/// End type definition (Dc 263).
+pub const DC_END_TYPE_DEF: DcChar = DcChar::from_short(263);
+/// A specific case of “String” as a format (short-style format ID 80) (Dc 264).
+pub const DC_TYPE_STRING: DcChar = DcChar::from_short(264);
+/// Assignment operator (Dc 269).
+pub const DC_ASSIGN: DcChar = DcChar::from_short(269);
+/// Begins a nonempty name. Dc 255 protects exactly the following Dc from syntactic interpretation. Only an unescaped 271 terminates the name. The name is data; reference or invocation syntax determines how it is used. (Dc 270).
+pub const DC_BEGIN_IDENTIFIER: DcChar = DcChar::from_short(270);
+/// Terminates an identifier begun by 270 unless protected by Dc 255 within its payload. (Dc 271).
+pub const DC_END_IDENTIFIER: DcChar = DcChar::from_short(271);
+/// Built-in type identifier: * (Object or any subtype) (Dc 275).
+pub const DC_TYPE_ANY: DcChar = DcChar::from_short(275);
+/// References the named object with an optional explicit type. Both forms begin with 276 and end with the complete framed identifier. Resolve the reference only in an evaluation context; quoting it does not perform a lookup. (Dc 276).
+pub const DC_REFERENCE_NAMED_OBJECT: DcChar = DcChar::from_short(276);
+/// Built-in type identifier: Number (Dc 278).
+pub const DC_TYPE_NUMBER: DcChar = DcChar::from_short(278);
+/// Invoke the specified routine (unlike lang.invoke, this form of invocation is not shown in the EM source form of the document FIXME: clarify this??) (Dc 279).
+pub const DC_ROUTINE_INVOCATION: DcChar = DcChar::from_short(279);
+/// Built-in type identifier: Routine (Dc 280).
+pub const DC_TYPE_ROUTINE: DcChar = DcChar::from_short(280);
 /// Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”. (Dc 300).
 pub const DC_TYPE_UNION: DcChar = DcChar::from_short(300);
+/// Subtype of string (Dc 306).
+pub const DC_TYPE_ROUTINE_NAME: DcChar = DcChar::from_short(306);
 /// Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back. (Dc 308).
 pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
 /// Begins an ordered, contiguous, typed homogenous or heterogenous list. (Dc 310).
@@ -88,6 +134,18 @@ pub const DC_END_ENVIRONMENT_DESCRIPTION: DcChar = DcChar::from_short(341);
 pub const DC_BEGIN_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(388);
 /// Terminates a collection of semantic file flags attached to a file. (Dc 389).
 pub const DC_END_FILE_FLAGS_DESCRIPTION: DcChar = DcChar::from_short(389);
+/// Begins a time moment description. (Dc 390).
+pub const DC_BEGIN_TIME_MOMENT: DcChar = DcChar::from_short(390);
+/// Terminates a time moment description. (Dc 391).
+pub const DC_END_TIME_MOMENT: DcChar = DcChar::from_short(391);
+/// A positive date duration (Dc 393).
+pub const DC_BEGIN_DATE_MAGNITUDE: DcChar = DcChar::from_short(393);
+/// End date magnitude description (Dc 394).
+pub const DC_END_DATE_MAGNITUDE: DcChar = DcChar::from_short(394);
+/// Begin date duration description (Dc 395).
+pub const DC_BEGIN_DATE_DURATION: DcChar = DcChar::from_short(395);
+/// End date duration description (Dc 396).
+pub const DC_END_DATE_DURATION: DcChar = DcChar::from_short(396);
 /// Indicates that all values within the list have the same underlying meaning. (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
 /// E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc” (Dc 511).
@@ -110,6 +168,12 @@ pub const DC_BOOLEAN_FALSE: DcChar = DcChar::from_short(518);
 pub const DC_FORMAT_PARAM_APPLICATION: DcChar = DcChar::from_short(535);
 /// Raw file flag bitmask with an unparsed-bits indicator. (Dc 539).
 pub const DC_RAW_FILE_FLAGS: DcChar = DcChar::from_short(539);
+/// References a value declared by Dc 269 in the current or nearest enclosing identifier scope. The identifier is name data; evaluating the reference resolves its value. Quoting the reference does not perform lookup. (Dc 540).
+pub const DC_REFERENCE_BOUND_VALUE: DcChar = DcChar::from_short(540);
+/// Enters a lexical identifier scope. Inner Dc 269 declarations shadow outer declarations of the same name and may produce warnings. Declarations last only until scope exit and never cross document boundaries by default. (Dc 541).
+pub const DC_ENTER_IDENTIFIER_SCOPE: DcChar = DcChar::from_short(541);
+/// Exits the innermost identifier scope and discards its declarations. Outer declarations become visible again. All document-local declarations expire at the end of the document. (Dc 542).
+pub const DC_EXIT_IDENTIFIER_SCOPE: DcChar = DcChar::from_short(542);
 /// Begins a delimited section of a document or stream verified by an end checksum. (Dc 543).
 pub const DC_BEGIN_CHECKSUMMED_SECTION: DcChar = DcChar::from_short(543);
 /// Terminates a checksummed section. (Dc 544).

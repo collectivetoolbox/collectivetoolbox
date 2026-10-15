@@ -57,19 +57,50 @@ pub trait DcMixedFields: DcMixedDecode {
         let _ = (field, target, encoding);
         bail!("Record does not support key-value field encoding")
     }
+
+    /// Returns whether `tag` is one of this record's direct or flattened field tags.
+    #[must_use]
+    fn accepts_dc_tag(_tag: u128) -> bool {
+        false
+    }
+
+    /// Encodes all fields of this record without wrapping in its outer container.
+    ///
+    /// # Errors
+    /// Returns an error if field encoding fails.
+    fn encode_fields_with_context(
+        &self,
+        _mst: &mut DcMstring,
+        _context: &crate::SharedValueContext,
+    ) -> Result<()> {
+        bail!("Record does not support flattened field encoding")
+    }
+
+    /// Decodes a single tagged field node into `self`, returning `true` if `tag` matched.
+    ///
+    /// # Errors
+    /// Returns an error if decoding the matched field fails.
+    fn decode_field(
+        &mut self,
+        _tag: u128,
+        _ctx: &mut DcProjectionContext<'_, '_>,
+        _node_id: crate::NodeId,
+    ) -> Result<bool> {
+        Ok(false)
+    }
 }
 
 /// An interpretation failure at a byte position in the original string.
 #[derive(Debug)]
 pub struct DcDiagnostic {
-    position: usize,
+    position: u64,
     error: anyhow::Error,
 }
 
 impl DcDiagnostic {
     /// Returns the source-byte position at which interpretation stopped.
     #[must_use]
-    pub const fn position(&self) -> usize {
+    pub const fn position(&self) -> u64 {
         self.position
     }
 
@@ -299,8 +330,7 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                 value: None,
                 fields: Vec::new(),
                 diagnostic: Some(DcDiagnostic {
-                    // Reason for fallback: Diagnostic byte position defaults to 0 on 32-bit platforms if navigator position exceeds usize::MAX.
-                    position: usize::try_from(nav.position()).unwrap_or(0),
+                    position: nav.position(),
                     error: err,
                 }),
             };
@@ -328,20 +358,28 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
             None
         };
 
-        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, context);
-        ctx.annotating = true;
-        let result = T::decode_dc_node(&mut ctx, root_id);
-        let fields = std::mem::take(&mut ctx.annotations);
+        let (result, fields, ctx_pos) = {
+            let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+                &arena,
+                policy,
+                context,
+                Some(&mut nav),
+            );
+            ctx.annotating = true;
+            let result = T::decode_dc_node(&mut ctx, root_id);
+            let fields = std::mem::take(&mut ctx.annotations);
+            (result, fields, ctx.current_position)
+        };
 
         let (value, diagnostic) = match result {
             Ok(v) => {
                 let diag = if let Some(err) = trailing_error {
-                    // Reason for fallback: Fall back to nav position if second root node has no span start, or to 0 if position exceeds usize.
+                    // Reason for fallback: Fall back to navigator end position if the second root node ID is not found in the arena.
                     let trailing_pos = roots
                         .get(1)
                         .and_then(|&id| arena.get(id))
-                        .and_then(|node| usize::try_from(node.span.start).ok())
-                        .unwrap_or_else(|| usize::try_from(nav.position()).unwrap_or(0));
+                        .map(|node| node.span.start)
+                        .unwrap_or_else(|| nav.position());
                     Some(DcDiagnostic {
                         position: trailing_pos,
                         error: err,
@@ -352,11 +390,10 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                 (Some(v), diag)
             }
             Err(e) => {
-                // Reason for fallback: Diagnostic byte position falls back to 0 if nav position exceeds usize::MAX on 32-bit platforms.
-                let pos = if ctx.current_position != 0 {
-                    ctx.current_position
+                let pos = if ctx_pos != 0 {
+                    ctx_pos
                 } else {
-                    usize::try_from(nav.position()).unwrap_or(0)
+                    nav.position()
                 };
                 (None, Some(DcDiagnostic {
                     position: pos,
@@ -537,7 +574,12 @@ impl DcStr {
             Some(&id) => id,
             None => bail!("Empty document cannot be decoded into typed value"),
         };
-        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, context);
+        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+            &arena,
+            policy,
+            context,
+            Some(&mut nav),
+        );
         let res = T::decode_dc_node(&mut ctx, root_id)?;
         if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(

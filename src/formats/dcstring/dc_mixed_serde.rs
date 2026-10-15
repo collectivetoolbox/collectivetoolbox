@@ -41,19 +41,25 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use ctb_formats_dcdata::dc::{
+    DC_BEGIN_DATE_DURATION, DC_BEGIN_DATE_MAGNITUDE,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
-    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
-    DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_LIST,
-    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
-    DC_LIST_ELEMENT_SEPARATOR, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_START_ENCAPSULATION_BINARY,
-    DC_TYPE_INTERSECTION,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_LITERAL,
+    DC_BEGIN_TIME_MOMENT, DC_BEGIN_TYPE_DEF, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
+    DC_END_DATE_DURATION, DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP,
+    DC_END_KV_PAIR, DC_END_LIST, DC_END_LITERAL, DC_END_TIME_MOMENT,
+    DC_END_TYPE_DEF, DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
+    DC_LIST_ELEMENT_SEPARATOR, DC_NEGATIVE, DC_OPTIONAL_ABSENT,
+    DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_POSITIVE,
+    DC_REFERENCE_BOUND_VALUE, DC_REFERENCE_NAMED_OBJECT,
+    DC_START_ENCAPSULATION_BINARY, DC_TYPE_ANY, DC_TYPE_INTERSECTION,
+    DC_TYPE_STRING, DC_TYPE_UNION,
 };
 
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstr, DcMstring};
 use crate::dc_source::DcFieldAnnotation;
 use crate::navigator::{
-    DcDocumentNavigator, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, NodeId,
+    DcBinaryResolver, DcDocumentNavigator, DcProjectionPolicy, DcSyntaxArena,
+    DcSyntaxKind, NodeId,
 };
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
@@ -122,7 +128,12 @@ impl crate::DcMstr {
             Some(&id) => id,
             None => bail!("Empty document cannot be decoded into typed value"),
         };
-        let mut ctx = DcProjectionContext::new(&arena, policy);
+        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+            &arena,
+            policy,
+            None,
+            Some(&mut nav),
+        );
         let res = T::decode_dc_node(&mut ctx, root_id)?;
         if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(
@@ -153,7 +164,12 @@ impl crate::DcMstr {
             Some(&id) => id,
             None => bail!("Empty document cannot be decoded into typed value"),
         };
-        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, Some(context));
+        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+            &arena,
+            policy,
+            Some(context),
+            Some(&mut nav),
+        );
         let res = T::decode_dc_node(&mut ctx, root_id)?;
         if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(
@@ -262,64 +278,15 @@ impl DcMixedDecode for BinaryPayload {
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        match &node.kind {
-            DcSyntaxKind::Binary { payload, .. } => {
-                let bytes = payload
-                    .materialize::<std::io::Cursor<&[u8]>>(None)
-                    .context("Failed to materialize binary payload in DcSyntaxNode")?;
-                Ok(Self(bytes.into_owned()))
-            }
+        let payload = match &ctx.node(node_id)?.kind {
+            DcSyntaxKind::Binary { payload, .. } => payload.clone(),
             other => bail!("Expected Binary node for BinaryPayload, found {other:?}"),
-        }
+        };
+        let bytes = ctx
+            .materialize_binary(&payload)
+            .context("Failed to materialize binary payload in DcSyntaxNode")?;
+        Ok(Self(bytes.into_owned()))
     }
-}
-
-fn b64_digit_to_char(digit: u8) -> Result<char> {
-    match digit {
-        0..=25 => {
-            let offset = u32::from(digit);
-            let code = u32::from('A').checked_add(offset).context("Overflow")?;
-            char::from_u32(code).context("Invalid char")
-        }
-        26..=51 => {
-            let offset = u32::from(digit.saturating_sub(26));
-            let code = u32::from('a').checked_add(offset).context("Overflow")?;
-            char::from_u32(code).context("Invalid char")
-        }
-        52..=61 => {
-            let offset = u32::from(digit.saturating_sub(52));
-            let code = u32::from('0').checked_add(offset).context("Overflow")?;
-            char::from_u32(code).context("Invalid char")
-        }
-        62 => Ok('+'),
-        63 => Ok('/'),
-        _ => bail!("Invalid base64 digit: {digit}"),
-    }
-}
-
-fn parse_dc_number_digits(digits: &[DcChar]) -> Result<malachite::Integer> {
-    ensure!(!digits.is_empty(), "Empty digits in Dc number");
-    let mut is_negative = false;
-    let mut iter = digits.iter().copied();
-    let mut first = iter.next().context("Empty digits")?;
-    if first == ctb_formats_dcdata::dc::DC_NEGATIVE {
-        is_negative = true;
-        first = iter.next().context("Missing digits after negative sign")?;
-    } else if first == ctb_formats_dcdata::dc::DC_POSITIVE {
-        first = iter.next().context("Missing digits after positive sign")?;
-    }
-    let mut b64_str = String::with_capacity(digits.len());
-    let digit0 = ctb_formats_dcdata::dc_number_minimal::dc_base64_char_to_digit(first)?;
-    b64_str.push(b64_digit_to_char(digit0)?);
-    for ch in iter {
-        let digit = ctb_formats_dcdata::dc_number_minimal::dc_base64_char_to_digit(ch)?;
-        b64_str.push(b64_digit_to_char(digit)?);
-    }
-    let b64_base = ctb_formats_math::base::Base::new(64)?;
-    let nat = ctb_formats_math::base::parse_natural(&b64_str, b64_base)
-        .with_context(|| format!("Failed to parse Base64 number string '{b64_str}'"))?;
-    Ok(malachite::Integer::from_sign_and_abs(!is_negative, nat))
 }
 
 fn decode_integer_node(
@@ -329,7 +296,9 @@ fn decode_integer_node(
     let node_id = ctx.unwrap_transparent(node_id)?;
     let node = ctx.node(node_id)?;
     match &node.kind {
-        DcSyntaxKind::Number { digits, .. } => parse_dc_number_digits(digits),
+        DcSyntaxKind::Number { digits, .. } => {
+            crate::dc_number::parse_dc_number_digits(digits)
+        }
         other => bail!("Expected Number node for integer, found {other:?}"),
     }
 }
@@ -344,7 +313,6 @@ fn decode_natural_node(
 }
 
 /// Execution context for projecting typed values from parsed syntax nodes in a [`DcSyntaxArena`].
-#[derive(Debug)]
 pub struct DcProjectionContext<'a, 'ctx> {
     /// Borrowed syntax arena containing all parsed CST nodes for the document or frame.
     pub arena: &'a DcSyntaxArena<'a>,
@@ -362,8 +330,27 @@ pub struct DcProjectionContext<'a, 'ctx> {
     pub record_depth: usize,
     /// Current stream or node byte offset for diagnostics.
     pub current_position: usize,
+    /// Optional stream-backed resolver for `DeferredStream` binary payloads.
+    pub binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
     /// Indicates whether a projection consumed all roots in a multi-root document (e.g. [T; N]).
     pub(crate) consumed_all_roots: bool,
+}
+
+impl fmt::Debug for DcProjectionContext<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DcProjectionContext")
+            .field("arena", &self.arena)
+            .field("policy", &self.policy)
+            .field("shared_context", &self.shared_context)
+            .field("reference_scope", &self.reference_scope)
+            .field("annotations", &self.annotations)
+            .field("annotating", &self.annotating)
+            .field("record_depth", &self.record_depth)
+            .field("current_position", &self.current_position)
+            .field("has_binary_resolver", &self.binary_resolver.is_some())
+            .field("consumed_all_roots", &self.consumed_all_roots)
+            .finish()
+    }
 }
 
 impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
@@ -379,6 +366,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotating: false,
             record_depth: 0,
             current_position: 0,
+            binary_resolver: None,
             consumed_all_roots: false,
         }
     }
@@ -390,6 +378,17 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         policy: &'ctx DcProjectionPolicy,
         shared_context: Option<&'ctx SharedValueContext>,
     ) -> Self {
+        Self::with_shared_context_and_resolver(arena, policy, shared_context, None)
+    }
+
+    /// Creates a new projection context with an optional shared context and binary resolver.
+    #[must_use]
+    pub fn with_shared_context_and_resolver(
+        arena: &'a DcSyntaxArena<'a>,
+        policy: &'ctx DcProjectionPolicy,
+        shared_context: Option<&'ctx SharedValueContext>,
+        binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
+    ) -> Self {
         Self {
             arena,
             policy,
@@ -399,7 +398,25 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotating: false,
             record_depth: 0,
             current_position: 0,
+            binary_resolver,
             consumed_all_roots: false,
+        }
+    }
+
+    /// Materializes a [`crate::navigator::BinaryPayloadRef`] using the attached
+    /// [`DcBinaryResolver`] if available, or from in-memory bytes otherwise.
+    ///
+    /// # Errors
+    /// Returns an error if the payload is `DeferredStream` without a resolver,
+    /// or if reading/checksum verification fails.
+    pub fn materialize_binary(
+        &mut self,
+        payload: &crate::navigator::BinaryPayloadRef<'a>,
+    ) -> Result<Cow<'a, [u8]>> {
+        if let Some(resolver) = self.binary_resolver.as_deref_mut() {
+            resolver.materialize_binary(payload)
+        } else {
+            payload.materialize_bytes()
         }
     }
 
@@ -523,13 +540,16 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
         let node = self.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if opener.to_short_dc() == Some(397) || opener.to_short_dc() == Some(561) {
+            if matches!(
+                *opener,
+                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) {
                 let mut primary = None;
                 let mut prev_was_sep = true;
                 for &child_id in children {
                     let child = self.node(child_id)?;
                     if let DcSyntaxKind::Atom(ch) = child.kind {
-                        if ch.to_short_dc() == Some(275) {
+                        if ch == DC_TYPE_ANY {
                             continue;
                         }
                         if ch == DC_LIST_ELEMENT_SEPARATOR {
@@ -551,7 +571,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 bail!("Empty equivalent representations list");
             }
         } else if let DcSyntaxKind::Tagged { tag, args } = &node.kind {
-            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) {
+            if matches!(
+                *tag,
+                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) {
                 if let Some(&arg_id) = args.first() {
                     let arg_node = self.node(arg_id)?;
                     if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
@@ -560,7 +583,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         for &child_id in children {
                             let child = self.node(child_id)?;
                             if let DcSyntaxKind::Atom(ch) = child.kind {
-                                if ch.to_short_dc() == Some(275) {
+                                if ch == DC_TYPE_ANY {
                                     continue;
                                 }
                                 if ch == DC_LIST_ELEMENT_SEPARATOR {
@@ -594,12 +617,12 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node_id = self.unwrap_equivalent_or_self(node_id)?;
         let node = self.node(node_id)?;
         match &node.kind {
-            DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(316) => Ok(None),
-            DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == Some(315) => {
+            DcSyntaxKind::Atom(ch) if *ch == DC_OPTIONAL_ABSENT => Ok(None),
+            DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
                 let inner = args.first().copied().context("Empty optional tagged construct (Dc 315)")?;
                 Ok(Some(inner))
             }
-            DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == Some(315) => {
+            DcSyntaxKind::Container { opener, children, .. } if *opener == DC_OPTIONAL_PRESENT => {
                 let inner = children.first().copied().context("Empty optional container (Dc 315)")?;
                 Ok(Some(inner))
             }
@@ -613,7 +636,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node_id = self.unwrap_equivalent_or_self(node_id)?;
         let node = self.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if opener.to_short_dc() == Some(511) {
+            if *opener == DC_BEGIN_FORMAT_REPRESENTATION {
                 if let [single_child] = children.as_slice() {
                     let child_node = self.node(*single_child)?;
                     if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
@@ -648,8 +671,11 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                     let payload_id = if children.len() > 2 {
                         let c1_node = self.node(c1)?;
                         if let DcSyntaxKind::Atom(ch) = c1_node.kind {
-                            if (ch.to_short_dc() == Some(397) || ch.to_short_dc() == Some(561))
-                                && children.get(2).is_some()
+                            if matches!(
+                                ch,
+                                DC_EQUIVALENT_REPRESENTATIONS
+                                    | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+                            ) && children.get(2).is_some()
                             {
                                 *children.get(2).context("Missing equivalent candidate payload")?
                             } else {
@@ -674,7 +700,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         let node = self.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Tagged { tag, args }
-                if tag.to_short_dc() == Some(540) || tag.to_short_dc() == Some(276) =>
+                if matches!(*tag, DC_REFERENCE_BOUND_VALUE | DC_REFERENCE_NAMED_OBJECT) =>
             {
                 if let Some(&arg_id) = args.first() {
                     let arg_node = self.node(arg_id)?;
@@ -685,7 +711,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 bail!("Malformed bound reference under tag {tag}")
             }
             DcSyntaxKind::Container { opener, children, .. }
-                if opener.to_short_dc() == Some(540) || opener.to_short_dc() == Some(276) =>
+                if matches!(*opener, DC_REFERENCE_BOUND_VALUE | DC_REFERENCE_NAMED_OBJECT) =>
             {
                 if let Some(&child_id) = children.first() {
                     let child_node = self.node(child_id)?;
@@ -700,49 +726,72 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     }
 
     /// Repeatedly unwraps transparent wrappers (`397`/`561` equivalent lists and `315` optionals)
-    /// up to a maximum depth of 32.
+    /// up to `self.policy.max_depth`.
     pub fn unwrap_transparent(&self, mut node_id: NodeId) -> Result<NodeId> {
-        for _ in 0..32 {
+        let mut visited = Vec::new();
+        let mut depth = 0usize;
+        loop {
+            if visited.contains(&node_id) {
+                bail!("Cycle detected while unwrapping transparent Dc wrappers at {node_id:?}");
+            }
+            visited.push(node_id);
             let node = self.node(node_id)?;
-            match &node.kind {
+            let next_id = match &node.kind {
                 DcSyntaxKind::Container { opener, .. }
-                    if opener.to_short_dc() == Some(397) || opener.to_short_dc() == Some(561) =>
+                    if matches!(
+                        *opener,
+                        DC_EQUIVALENT_REPRESENTATIONS
+                            | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+                    ) =>
                 {
                     let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
-                    if unwrapped != node_id {
-                        node_id = unwrapped;
-                        continue;
-                    }
-                    bail!("Empty equivalent representation container (Dc {opener})");
+                    ensure!(
+                        unwrapped != node_id,
+                        "Empty equivalent representation container (Dc {opener})"
+                    );
+                    unwrapped
                 }
                 DcSyntaxKind::Tagged { tag, .. }
-                    if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
+                    if matches!(
+                        *tag,
+                        DC_EQUIVALENT_REPRESENTATIONS
+                            | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+                    ) =>
                 {
                     let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
-                    if unwrapped != node_id {
-                        node_id = unwrapped;
-                        continue;
-                    }
-                    bail!("Empty equivalent representation tagged construct (Dc {tag})");
+                    ensure!(
+                        unwrapped != node_id,
+                        "Empty equivalent representation tagged construct (Dc {tag})"
+                    );
+                    unwrapped
                 }
-                DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == Some(315) => {
-                    if let Some(&first) = children.first() {
-                        node_id = first;
-                        continue;
-                    }
-                    bail!("Empty optional container (Dc 315)");
+                DcSyntaxKind::Container { opener, children, .. }
+                    if *opener == DC_OPTIONAL_PRESENT =>
+                {
+                    *children
+                        .first()
+                        .context("Empty optional container (Dc 315)")?
                 }
-                DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == Some(315) => {
-                    if let Some(&first) = args.first() {
-                        node_id = first;
-                        continue;
-                    }
-                    bail!("Empty optional tagged construct (Dc 315)");
+                DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
+                    *args
+                        .first()
+                        .context("Empty optional tagged construct (Dc 315)")?
                 }
                 _ => return Ok(node_id),
+            };
+            if depth >= self.policy.max_depth {
+                self.policy.handle(
+                    self.policy.depth_limit_exceeded,
+                    format!(
+                        "Maximum transparent wrapper depth ({}) exceeded",
+                        self.policy.max_depth
+                    ),
+                )?;
+                return Ok(node_id);
             }
+            depth = depth.saturating_add(1);
+            node_id = next_id;
         }
-        Ok(node_id)
     }
 }
 
@@ -774,12 +823,12 @@ impl DcMixedDecode for String {
 
 impl DcMixedEncode for str {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DcChar::from_short(260)); // Begin literal value
-        mst.push_char(DcChar::from_short(262)); // Begin type definition
-        mst.push_char(DcChar::from_short(264)); // Built-in type identifier: String
-        mst.push_char(DcChar::from_short(263)); // End type definition
+        mst.push_char(DC_BEGIN_LITERAL);
+        mst.push_char(DC_BEGIN_TYPE_DEF);
+        mst.push_char(DC_TYPE_STRING);
+        mst.push_char(DC_END_TYPE_DEF);
         mst.push_str(self);
-        mst.push_char(DcChar::from_short(261)); // End literal value
+        mst.push_char(DC_END_LITERAL);
         Ok(())
     }
 }
@@ -787,9 +836,9 @@ impl DcMixedEncode for str {
 impl DcMixedEncode for bool {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
         if *self {
-            mst.push_char(DC_BOOLEAN_TRUE); // Dc 517
+            mst.push_char(DC_BOOLEAN_TRUE);
         } else {
-            mst.push_char(DC_BOOLEAN_FALSE); // Dc 518
+            mst.push_char(DC_BOOLEAN_FALSE);
         }
         Ok(())
     }
@@ -803,9 +852,9 @@ impl DcMixedDecode for bool {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         match &node.kind {
-            DcSyntaxKind::Atom(ch) => match ch.to_short_dc() {
-                Some(10 | 517) => Ok(true),
-                Some(11 | 518) => Ok(false),
+            DcSyntaxKind::Atom(ch) => match *ch {
+                DC_POSITIVE | DC_BOOLEAN_TRUE => Ok(true),
+                DC_NEGATIVE | DC_BOOLEAN_FALSE => Ok(false),
                 other => bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {other:?}"),
             },
             other => bail!("Expected Atom node for bool, found {other:?}"),
@@ -915,8 +964,11 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
         self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
+        mst.push_char(DC_BEGIN_KV_PAIR);
         self.0.encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
         self.1.encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(DC_END_KV_PAIR);
         Ok(())
     }
 }
@@ -926,7 +978,16 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
+        let mut node_id = ctx.unwrap_transparent(node_id)?;
+        if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
+            let candidate = ctx.unwrap_transparent(payload_id)?;
+            if matches!(
+                ctx.node(candidate)?.kind,
+                DcSyntaxKind::Container { .. } | DcSyntaxKind::Tagged { .. }
+            ) {
+                node_id = candidate;
+            }
+        }
         let node = ctx.node(node_id)?;
         match &node.kind {
             DcSyntaxKind::Container { children, .. } => {
@@ -973,11 +1034,11 @@ impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
         match self {
             Some(val) => {
-                mst.push_char(DC_OPTIONAL_PRESENT); // Optional value present
+                mst.push_char(DC_OPTIONAL_PRESENT);
                 val.encode_dc_mixed_with_context(mst, context)
             }
             None => {
-                mst.push_char(DC_OPTIONAL_ABSENT); // Optional value absent
+                mst.push_char(DC_OPTIONAL_ABSENT);
                 Ok(())
             }
         }
@@ -1017,15 +1078,15 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
         self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        mst.push_char(DC_BEGIN_LIST); // Begin list of type
-        mst.push_char(DcChar::from_short(275)); // Built-in type identifier: * (Object or any subtype)
+        mst.push_char(DC_BEGIN_LIST);
+        mst.push_char(DC_TYPE_ANY);
         for (idx, item) in self.iter().enumerate() {
             if idx > 0 {
                 mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
             }
             item.encode_dc_mixed_with_context(mst, context)?;
         }
-        mst.push_char(DC_END_LIST); // End list of type
+        mst.push_char(DC_END_LIST);
         Ok(())
     }
 }
@@ -1035,7 +1096,10 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
     ) -> Result<Self> {
-        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
+        let mut node_id = ctx.unwrap_transparent(node_id)?;
+        if let Ok(Some((_fmt, payload_id))) = ctx.unwrap_format_representation(node_id) {
+            node_id = ctx.unwrap_transparent(payload_id)?;
+        }
         let node = ctx.node(node_id)?;
         let children = match &node.kind {
             DcSyntaxKind::Container { opener, children, .. } if *opener == DC_BEGIN_LIST => children,
@@ -1095,11 +1159,15 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
     }
 }
 
+fn format_dc_char(fid: FormatId) -> Result<DcChar> {
+    let dc_id = fid.dc_id().context("FormatId missing dc_id")?;
+    Ok(DcChar::from_u128(dc_id))
+}
 
 impl DcMixedEncode for Ipv4Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
         mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(DcChar::from_format(490));
+        mst.push_char(format_dc_char(FormatId::IpV4)?);
         let octets = u32::from_be_bytes(self.octets());
         octets.encode_dc_mixed(mst)?;
         mst.push_char(DC_END_FORMAT_REPRESENTATION);
@@ -1113,8 +1181,9 @@ impl DcMixedDecode for Ipv4Addr {
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
+        let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == DcChar::from_format(490) {
+            if fmt == ipv4_fmt {
                 let val = u32::decode_dc_node(ctx, payload_id)?;
                 return Ok(Ipv4Addr::from(val));
             }
@@ -1146,7 +1215,7 @@ impl DcMixedDecode for Ipv4Addr {
 impl DcMixedEncode for Ipv6Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
         mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-        mst.push_char(DcChar::from_format(491));
+        mst.push_char(format_dc_char(FormatId::IpV6)?);
         let octets = u128::from_be_bytes(self.octets());
         octets.encode_dc_mixed(mst)?;
         mst.push_char(DC_END_FORMAT_REPRESENTATION);
@@ -1160,8 +1229,9 @@ impl DcMixedDecode for Ipv6Addr {
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
+        let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == DcChar::from_format(491) {
+            if fmt == ipv6_fmt {
                 let val = u128::decode_dc_node(ctx, payload_id)?;
                 return Ok(Ipv6Addr::from(val));
             }
@@ -1205,11 +1275,13 @@ impl DcMixedDecode for std::net::IpAddr {
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
+        let ipv4_fmt = format_dc_char(FormatId::IpV4)?;
+        let ipv6_fmt = format_dc_char(FormatId::IpV6)?;
         if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
-            if fmt == DcChar::from_format(490) {
+            if fmt == ipv4_fmt {
                 let val = u32::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V4(Ipv4Addr::from(val)));
-            } else if fmt == DcChar::from_format(491) {
+            } else if fmt == ipv6_fmt {
                 let val = u128::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V6(Ipv6Addr::from(val)));
             }
@@ -1275,7 +1347,7 @@ where
             encoding.encode_entry_begin(mst, first);
             first = false;
             k.encode_dc_mixed_with_context(mst, context)?;
-            mst.push_char(DcChar::from_short(312));
+            mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
             v.encode_dc_mixed_with_context(mst, context)?;
             encoding.encode_entry_end(mst);
         }
@@ -1294,78 +1366,19 @@ where
         node_id: NodeId,
     ) -> Result<Self> {
         let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        let (opener, children) = match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
-            other => bail!("Expected key-value map container for BTreeMap, found {other:?}"),
-        };
-        let is_pairs = opener == DC_BEGIN_KV_MAP;
-        let is_legacy = opener == DC_BEGIN_LEGACY_KV_MAP;
-        ensure!(is_pairs || is_legacy, "Expected map container (Dc 559 or Dc 313), found opener {opener}");
-        if is_legacy {
+        let (opener, pairs) = ctx.arena.extract_kv_map_node_pairs(node_id)?;
+        if opener == DC_BEGIN_LEGACY_KV_MAP {
             ctx.policy.handle(
                 ctx.policy.deprecated_syntax,
                 "Deprecated Dc 313..314 key-value map syntax; prefer Dc 559..560",
             )?;
         }
 
-        let mut iter = children.iter().copied().peekable();
-        while let Some(&child_id) = iter.peek() {
-            let child = ctx.node(child_id)?;
-            if let DcSyntaxKind::Atom(ch) = child.kind {
-                if ch.to_short_dc() == Some(275) || ctb_formats_dcdata::is_type_token(ch.0) {
-                    let _ = iter.next();
-                    continue;
-                }
-            }
-            break;
-        }
-
         let mut map = BTreeMap::new();
-        if is_pairs {
-            for entry_id in iter {
-                let entry_node = ctx.node(entry_id)?;
-                let pair_children = match &entry_node.kind {
-                    DcSyntaxKind::Container { opener, children, .. } if *opener == DC_BEGIN_KV_PAIR => children,
-                    other => bail!("Expected Dc 514 pair container inside map, found {other:?}"),
-                };
-                let items: Vec<NodeId> = pair_children
-                    .iter()
-                    .copied()
-                    .filter(|&id| {
-                        if let Ok(n) = ctx.node(id) {
-                            !matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
-                let [k_node_id, v_node_id] = items.as_slice() else {
-                    bail!("Expected exactly key and value in pair container, found {} items", items.len());
-                };
-                let key = K::decode_dc_node(ctx, *k_node_id)?;
-                let value = V::decode_dc_node(ctx, *v_node_id)?;
-                ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
-            }
-        } else {
-            let items: Vec<NodeId> = iter
-                .filter(|&id| {
-                    if let Ok(n) = ctx.node(id) {
-                        !matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-            ensure!(items.len().checked_rem(2) == Some(0), "Uneven number of items in legacy map (Dc 313)");
-            for chunk in items.chunks_exact(2) {
-                let [k_id, v_id] = chunk else {
-                    bail!("Expected 2 items in chunk");
-                };
-                let key = K::decode_dc_node(ctx, *k_id)?;
-                let value = V::decode_dc_node(ctx, *v_id)?;
-                ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
-            }
+        for (k_node_id, v_node_id) in pairs {
+            let key = K::decode_dc_node(ctx, k_node_id)?;
+            let value = V::decode_dc_node(ctx, v_node_id)?;
+            ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
         }
         Ok(map)
     }
@@ -1444,7 +1457,7 @@ pub fn encode_filepath_segments(segments: &[Vec<u8>], mst: &mut DcMstring) -> Re
             if let Ok(text) = std::str::from_utf8(segment) {
                 mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
                 mst.push_char(DC_BEGIN_LIST);
-                mst.push_char(DcChar::from_short(275));
+                mst.push_char(DC_TYPE_ANY);
                 text.encode_dc_mixed(mst)?;
                 mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
                 mst.push_binary_with_sha256(segment)?;
@@ -1495,7 +1508,7 @@ pub fn decode_format_representation<T: DcMixedDecode>(
     }
     let node = ctx.node(node_id)?;
     if let DcSyntaxKind::Container { opener, closer: _, header: _, children, trailing: _, unclosed: _ } = &node.kind {
-        if opener.to_short_dc() == Some(511)
+        if *opener == DC_BEGIN_FORMAT_REPRESENTATION
             && let Some(&first_child) = children.first()
         {
             let fmt_node = ctx.node(first_child)?;
@@ -1544,64 +1557,79 @@ pub fn path_from_native_bytes(bytes: &[u8]) -> Result<PathBuf> {
 
 fn decode_filename_bytes(
     ctx: &mut DcProjectionContext<'_, '_>,
-    node_id: NodeId,
+    mut node_id: NodeId,
 ) -> Result<Vec<u8>> {
+    while let Ok(node) = ctx.node(node_id) {
+        match &node.kind {
+            DcSyntaxKind::Container { opener, children, .. }
+                if *opener == DC_OPTIONAL_PRESENT =>
+            {
+                node_id = *children
+                    .first()
+                    .context("Empty optional container (Dc 315)")?;
+            }
+            DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
+                node_id = *args
+                    .first()
+                    .context("Empty optional tagged construct (Dc 315)")?;
+            }
+            _ => break,
+        }
+    }
+
     let node = ctx.node(node_id)?;
     match &node.kind {
         DcSyntaxKind::Container { opener, children, .. }
-            if opener.to_short_dc() == Some(397)
-                || opener.to_short_dc() == Some(561)
-                || opener.to_short_dc() == Some(310) =>
+            if matches!(
+                *opener,
+                DC_EQUIVALENT_REPRESENTATIONS
+                    | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) =>
         {
+            if let [single] = children.as_slice() {
+                if let DcSyntaxKind::Container {
+                    opener: inner_opener,
+                    children: inner_children,
+                    ..
+                } = &ctx.node(*single)?.kind
+                {
+                    if *inner_opener == DC_BEGIN_LIST {
+                        return decode_equivalent_filename_candidates(ctx, inner_children);
+                    }
+                }
+            }
             return decode_equivalent_filename_candidates(ctx, children);
         }
         DcSyntaxKind::Tagged { tag, args }
-            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
+            if matches!(
+                *tag,
+                DC_EQUIVALENT_REPRESENTATIONS
+                    | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) =>
         {
-            if let Some(&first) = args.first() {
-                let arg_node = ctx.node(first)?;
-                if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
-                    return decode_equivalent_filename_candidates(ctx, children);
-                } else {
-                    return decode_equivalent_filename_candidates(ctx, args);
-                }
-            } else {
-                bail!("Empty equivalent representation tagged construct")
+            let first = *args
+                .first()
+                .context("Empty equivalent representation tagged construct")?;
+            let arg_node = ctx.node(first)?;
+            if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                return decode_equivalent_filename_candidates(ctx, children);
             }
+            return decode_equivalent_filename_candidates(ctx, args);
         }
         _ => {}
     }
+
     let node_id = ctx.unwrap_transparent(node_id)?;
     let node = ctx.node(node_id)?;
     match &node.kind {
         DcSyntaxKind::Binary { payload, .. } => {
-            Ok(payload.materialize_bytes()?.into_owned())
+            let payload = payload.clone();
+            Ok(ctx.materialize_binary(&payload)?.into_owned())
         }
-        DcSyntaxKind::Literal { decoded, .. } => {
-            Ok(decoded.as_bytes().to_vec())
-        }
-        DcSyntaxKind::Container { opener, children, .. }
-            if opener.to_short_dc() == Some(397)
-                || opener.to_short_dc() == Some(561)
-                || opener.to_short_dc() == Some(310) =>
-        {
-            decode_equivalent_filename_candidates(ctx, children)
-        }
-        DcSyntaxKind::Tagged { tag, args }
-            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
-        {
-            if let Some(&first) = args.first() {
-                let arg_node = ctx.node(first)?;
-                if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
-                    decode_equivalent_filename_candidates(ctx, children)
-                } else {
-                    decode_equivalent_filename_candidates(ctx, args)
-                }
-            } else {
-                bail!("Empty equivalent representation tagged construct")
-            }
-        }
-        other => bail!("Expected binary, string literal, or equivalent container for filename, found {other:?}"),
+        DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.as_bytes().to_vec()),
+        other => bail!(
+            "Expected binary, string literal, or equivalent container for filename, found {other:?}"
+        ),
     }
 }
 
@@ -1614,12 +1642,13 @@ fn decode_equivalent_filename_candidates(
     for &child_id in candidates {
         let child = ctx.node(child_id)?;
         if let DcSyntaxKind::Atom(ch) = child.kind {
-            if ch.to_short_dc() == Some(275) || ch == DC_LIST_ELEMENT_SEPARATOR {
+            if ch == DC_TYPE_ANY || ch == DC_LIST_ELEMENT_SEPARATOR {
                 continue;
             }
         }
         if let DcSyntaxKind::Binary { payload, .. } = &child.kind {
-            bytes = Some(payload.materialize_bytes()?.into_owned());
+            let payload = payload.clone();
+            bytes = Some(ctx.materialize_binary(&payload)?.into_owned());
         } else if let Ok(s) = String::decode_dc_node(ctx, child_id) {
             text = Some(s);
         }
@@ -1663,10 +1692,14 @@ pub fn decode_filepath_segments(
     if let Some(&first_id) = iter.peek() {
         let first_node = ctx.node(first_id)?;
         match &first_node.kind {
-            DcSyntaxKind::Tagged { tag, .. } if tag.to_short_dc() == Some(516) || tag.to_u128() == 516 => {
+            DcSyntaxKind::Tagged { tag, .. }
+                if matches!(*tag, DC_TYPE_UNION | DC_TYPE_INTERSECTION) =>
+            {
                 let _ = iter.next();
             }
-            DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(516) || ch.to_u128() == 516 || *ch == DC_TYPE_INTERSECTION => {
+            DcSyntaxKind::Atom(ch)
+                if matches!(*ch, DC_TYPE_UNION | DC_TYPE_INTERSECTION) =>
+            {
                 let _ = iter.next();
                 if let Some(&next_id) = iter.peek() {
                     if let DcSyntaxKind::Atom(ch2) = ctx.node(next_id)?.kind {
@@ -1738,7 +1771,8 @@ impl DcMixedDecode for PathBuf {
                     "Bare binary representation of PathBuf is not allowed under strict policy; expected Dc 511 + f494",
                 )?;
             }
-            let bytes = payload.materialize_bytes()?;
+            let payload = payload.clone();
+            let bytes = ctx.materialize_binary(&payload)?;
             return path_from_native_bytes(bytes.as_ref());
         }
         if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
@@ -1754,17 +1788,49 @@ impl DcMixedDecode for PathBuf {
     }
 }
 
+fn system_time_from_signed_nanos(nanos: i128) -> Result<SystemTime> {
+    if nanos >= 0 {
+        let abs = u128::try_from(nanos)?;
+        let secs = u64::try_from(
+            abs.checked_div(1_000_000_000).context("Division failed")?,
+        )
+        .context("secs")?;
+        let sub_nanos = u32::try_from(
+            abs.checked_rem(1_000_000_000).context("Modulo failed")?,
+        )
+        .context("sub_nanos")?;
+        std::time::UNIX_EPOCH
+            .checked_add(Duration::new(secs, sub_nanos))
+            .context("SystemTime overflow")
+    } else {
+        let abs = nanos.unsigned_abs();
+        let secs = u64::try_from(
+            abs.checked_div(1_000_000_000).context("Division failed")?,
+        )
+        .context("secs")?;
+        let sub_nanos = u32::try_from(
+            abs.checked_rem(1_000_000_000).context("Modulo failed")?,
+        )
+        .context("sub_nanos")?;
+        std::time::UNIX_EPOCH
+            .checked_sub(Duration::new(secs, sub_nanos))
+            .context("SystemTime underflow")
+    }
+}
+
 impl DcMixedEncode for SystemTime {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        // Reason for fallback: Times preceding UNIX_EPOCH fall back to 0 duration for standard timestamp encoding.
-        let dur = self
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default();
-        let nanos = dur.as_nanos();
-        mst.push_char(DcChar::from_short(390));
-        mst.push_char(DcChar::from_format(487));
+        let nanos: i128 = match self.duration_since(std::time::UNIX_EPOCH) {
+            Ok(dur) => i128::try_from(dur.as_nanos())?,
+            Err(err) => {
+                let before = i128::try_from(err.duration().as_nanos())?;
+                before.checked_neg().context("Timestamp underflow")?
+            }
+        };
+        mst.push_char(DC_BEGIN_TIME_MOMENT);
+        mst.push_char(format_dc_char(FormatId::NsSinceEpoch)?);
         nanos.encode_dc_mixed(mst)?;
-        mst.push_char(DcChar::from_short(391));
+        mst.push_char(DC_END_TIME_MOMENT);
         Ok(())
     }
 }
@@ -1777,45 +1843,37 @@ impl DcMixedDecode for SystemTime {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if opener.to_short_dc() == Some(390) {
+            if *opener == DC_BEGIN_TIME_MOMENT {
                 let Some(&first_child) = children.first() else {
                     bail!("Empty time moment container (Dc 390..391)");
                 };
                 let first = ctx.node(first_child)?;
-                let (fmt_tok, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let tok = ch.to_format().context("Expected date format token after 390")?;
+                let (fid, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                    let fid = FormatId::from_dc_id(ch.0)
+                        .context("Expected date format token after 390")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in Dc 390..391");
                     };
-                    (tok, second_child)
+                    (fid, second_child)
                 } else if let DcSyntaxKind::Identifier { name } = &first.kind {
                     let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
                         .context("Invalid shorthand")?;
-                    let tok = fid.dc_id().context("FormatId missing dc_id")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in Dc 390..391");
                     };
-                    (u32::try_from(tok)?, second_child)
+                    (fid, second_child)
                 } else {
-                    (487, first_child)
+                    (FormatId::NsSinceEpoch, first_child)
                 };
-                let (secs, sub_nanos) = if fmt_tok == 487 {
-                    let nanos = u128::decode_dc_node(ctx, num_id)?;
-                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                    (s, ns)
-                } else if fmt_tok == 486 {
-                    let s = u64::decode_dc_node(ctx, num_id)?;
-                    (s, 0u32)
-                } else {
-                    let nanos = u128::decode_dc_node(ctx, num_id)?;
-                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                    (s, ns)
-                };
-                return std::time::UNIX_EPOCH
-                    .checked_add(std::time::Duration::new(secs, sub_nanos))
-                    .context("SystemTime overflow");
+                if fid == FormatId::SecondsSinceEpoch {
+                    let secs = i64::decode_dc_node(ctx, num_id)?;
+                    let nanos = i128::from(secs)
+                        .checked_mul(1_000_000_000)
+                        .context("Seconds to nanoseconds overflow")?;
+                    return system_time_from_signed_nanos(nanos);
+                }
+                let nanos = i128::decode_dc_node(ctx, num_id)?;
+                return system_time_from_signed_nanos(nanos);
             }
         }
         if matches!(node.kind, DcSyntaxKind::Number { .. }) {
@@ -1825,12 +1883,8 @@ impl DcMixedDecode for SystemTime {
                     "Bare number representation of SystemTime is not allowed under strict policy; expected Dc 390..391",
                 )?;
             }
-            let nanos = u128::decode_dc_node(ctx, node_id)?;
-            let secs = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-            let sub_nanos = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-            return std::time::UNIX_EPOCH
-                .checked_add(std::time::Duration::new(secs, sub_nanos))
-                .context("SystemTime overflow");
+            let nanos = i128::decode_dc_node(ctx, node_id)?;
+            return system_time_from_signed_nanos(nanos);
         }
         bail!("Expected time moment container (Dc 390..391) for SystemTime, found {:?}", node.kind)
     }
@@ -1838,10 +1892,10 @@ impl DcMixedDecode for SystemTime {
 
 impl DcMixedEncode for Duration {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DcChar::from_short(395));
-        mst.push_char(DcChar::from_format(489));
+        mst.push_char(DC_BEGIN_DATE_DURATION);
+        mst.push_char(format_dc_char(FormatId::Nanosecond)?);
         self.as_nanos().encode_dc_mixed(mst)?;
-        mst.push_char(DcChar::from_short(396));
+        mst.push_char(DC_END_DATE_DURATION);
         Ok(())
     }
 }
@@ -1854,36 +1908,29 @@ impl DcMixedDecode for Duration {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            // Reason for fallback: Non-short opener targets fall back to 0 so they do not match duration openers 393/395.
-            let op = opener.to_short_dc().unwrap_or(0);
-            if op == 393 || op == 395 {
+            if matches!(*opener, DC_BEGIN_DATE_MAGNITUDE | DC_BEGIN_DATE_DURATION) {
                 let Some(&first_child) = children.first() else {
-                    bail!("Empty duration container (Dc {op})");
+                    bail!("Empty duration container ({opener})");
                 };
                 let first = ctx.node(first_child)?;
-                let (fmt_tok, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
-                    let tok = ch.to_format().context("Expected date/duration format token")?;
+                let (fid, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                    let fid = FormatId::from_dc_id(ch.0)
+                        .context("Expected date/duration format token")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in duration");
                     };
-                    (tok, second_child)
+                    (fid, second_child)
                 } else if let DcSyntaxKind::Identifier { name } = &first.kind {
                     let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
                         .context("Invalid shorthand")?;
-                    let tok = fid.dc_id().context("FormatId missing dc_id")?;
                     let Some(&second_child) = children.get(1) else {
                         bail!("Missing number after format token in duration");
                     };
-                    (u32::try_from(tok)?, second_child)
+                    (fid, second_child)
                 } else {
-                    (489, first_child)
+                    (FormatId::Nanosecond, first_child)
                 };
-                let dur = if fmt_tok == 489 || fmt_tok == 487 {
-                    let nanos = u128::decode_dc_node(ctx, num_id)?;
-                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                    Duration::new(s, ns)
-                } else if fmt_tok == 488 || fmt_tok == 486 {
+                let dur = if matches!(fid, FormatId::Second | FormatId::SecondsSinceEpoch) {
                     let s = u64::decode_dc_node(ctx, num_id)?;
                     Duration::from_secs(s)
                 } else {
@@ -1931,8 +1978,8 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
         let node_id = ctx.unwrap_transparent(node_id)?;
         let node = ctx.node(node_id)?;
         if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
-            if opener.to_short_dc() == Some(310) || opener.to_short_dc() == Some(511) {
-                let child_slice: &[NodeId] = if opener.to_short_dc() == Some(511)
+            if matches!(*opener, DC_BEGIN_LIST | DC_BEGIN_FORMAT_REPRESENTATION) {
+                let child_slice: &[NodeId] = if *opener == DC_BEGIN_FORMAT_REPRESENTATION
                     && children.len() == N.saturating_add(1)
                 {
                     match children.split_first() {
@@ -2112,7 +2159,10 @@ mod tests {
             let before = source.clone();
             let view = source.inspect::<SampleFileRecord>();
             assert!(view.value().is_none());
-            assert_eq!(view.diagnostic().context("Missing diagnostic")?.position(), stop);
+            assert_eq!(
+                view.diagnostic().context("Missing diagnostic")?.position(),
+                u64::try_from(stop)?
+            );
             assert_eq!(view.fields().len(), 1);
             assert_eq!(view.fields()[0].field(), "inode");
             assert_eq!(view.source_bytes(), source.as_bytes());
@@ -3073,6 +3123,7 @@ mod tests {
         Ok(())
     }
 
+    // FIXME doesn't look right. 422 is File flag: read only; 423 is File flag: reparse. Name and format list should proabbly be alternate representations, and 342 the overarching type for this, maybe?
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
     #[dc(begin = 317, end = 318)]
     struct SampleFlattenedFormatsStruct {
@@ -3159,7 +3210,7 @@ mod tests {
         match &node.kind {
             DcSyntaxKind::Binary { checksum_format, payload, .. } => {
                 assert_eq!(*checksum_format, Some(ctb_utilities::format_id::DC_SHA256));
-                assert_eq!(payload.as_slice(), &digest);
+                assert_eq!(payload.materialize_bytes()?.as_ref(), &digest);
             }
             other => bail!("Expected Binary checksum node, got {other:?}"),
         }
@@ -3268,6 +3319,127 @@ mod tests {
         assert_eq!(recovered.path, "path");
         assert!(!recovered.is_directory);
         assert_eq!(recovered.optional_size, None);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_seekable_file_large_binary_payload_decode() -> Result<()> {
+        use std::io::Write as _;
+        let strict = DcProjectionPolicy::strict();
+        let large_bytes: Vec<u8> = (0..(crate::INLINE_BINARY_THRESHOLD + 1024))
+            .map(|i| u8::try_from(i % 251).unwrap())
+            .collect();
+        let original = (
+            "streamed_large_blob".to_owned(),
+            BinaryPayload::new(large_bytes),
+        );
+        let mst = original.to_dc_mixed()?;
+        let mut file = tempfile::tempfile()?;
+        file.write_all(mst.as_bytes())?;
+        let mut nav = DcDocumentNavigator::from_dcmm_file(file, 0)?;
+        let mut arena = DcSyntaxArena::new();
+        let stub = nav
+            .next_sibling_stub(&strict)?
+            .context("Expected root frame stub")?;
+        let decoded: (String, BinaryPayload) =
+            nav.decode_frame_with_arena(&stub, &mut arena, None, &strict)?;
+        assert_eq!(decoded, original);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_pre_1970_system_time_roundtrip() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let pre_epoch = std::time::UNIX_EPOCH
+            .checked_sub(Duration::from_secs(86_400))
+            .context("Failed to construct pre-1970 SystemTime")?;
+        assert_dc_roundtrip(&pre_epoch)?;
+        assert_dc_document_roundtrip(&pre_epoch)?;
+
+        // Also test pre-1970 with sub-second nanoseconds
+        let pre_epoch_nanos = std::time::UNIX_EPOCH
+            .checked_sub(Duration::new(86_400, 123_456_789))
+            .context("Failed to construct pre-1970 SystemTime with nanos")?;
+        assert_dc_roundtrip(&pre_epoch_nanos)?;
+
+        // Also test SecondsSinceEpoch (f486) with negative seconds
+        let mut mst = DcMstring::new();
+        mst.push_char(DC_BEGIN_TIME_MOMENT);
+        mst.push_char(format_dc_char(FormatId::SecondsSinceEpoch)?);
+        (-86_400_i64).encode_dc_mixed(&mut mst)?;
+        mst.push_char(DC_END_TIME_MOMENT);
+        assert_eq!(mst.decode::<SystemTime>(&strict)?, pre_epoch);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_tuple_and_vec_transparent_and_format_unwrapping() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
+        let pair = ("left".to_owned(), 42u64);
+        assert_dc_roundtrip(&pair)?;
+        assert_dc_document_roundtrip(&pair)?;
+
+        // Wrap pair in DC_EQUIVALENT_REPRESENTATIONS (397) and DC_BEGIN_FORMAT_REPRESENTATION (511)
+        let fmt = format_dc_char(FormatId::Point2D)?;
+        let mut wrapped_pair = DcMstring::new();
+        wrapped_pair.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        wrapped_pair.push_char(DC_BEGIN_LIST);
+        wrapped_pair.push_char(DC_TYPE_ANY);
+        encode_format_representation(&pair, fmt, &mut wrapped_pair, &SharedValueContext::default())?;
+        wrapped_pair.push_char(DC_END_LIST);
+        assert_eq!(wrapped_pair.decode::<(String, u64)>(&strict)?, pair);
+
+        // Wrap Vec<u32> in DC_EQUIVALENT_REPRESENTATIONS (397) and DC_BEGIN_FORMAT_REPRESENTATION (511)
+        let list = vec![10u32, 20, 30];
+        let mut wrapped_vec = DcMstring::new();
+        wrapped_vec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+        wrapped_vec.push_char(DC_BEGIN_LIST);
+        wrapped_vec.push_char(DC_TYPE_ANY);
+        encode_format_representation(&list, fmt, &mut wrapped_vec, &SharedValueContext::default())?;
+        wrapped_vec.push_char(DC_END_LIST);
+        assert_eq!(wrapped_vec.decode::<Vec<u32>>(&strict)?, list);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_deeply_nested_containers_respect_max_depth() -> Result<()> {
+        let depth = 12usize;
+        let mut nested = DcMstring::new();
+        for _ in 0..depth {
+            nested.push_char(DC_BEGIN_LIST);
+            nested.push_char(DC_TYPE_ANY);
+        }
+        42u32.encode_dc_mixed(&mut nested)?;
+        for _ in 0..depth {
+            nested.push_char(DC_END_LIST);
+        }
+
+        let strict_low =
+            DcProjectionPolicy::strict().with_max_depth(4, crate::DiagnosticAction::Error);
+        let forgiving_low =
+            DcProjectionPolicy::forgiving().with_max_depth(4, crate::DiagnosticAction::Warn);
+
+        let mut arena_strict = DcSyntaxArena::new();
+        assert!(
+            DcDocumentNavigator::parse_document_arena(
+                nested.as_bytes(),
+                &mut arena_strict,
+                &strict_low,
+            )
+            .is_err(),
+            "Strict policy should reject nesting deeper than max_depth"
+        );
+
+        let mut arena_forgiving = DcSyntaxArena::new();
+        DcDocumentNavigator::parse_document_arena(
+            nested.as_bytes(),
+            &mut arena_forgiving,
+            &forgiving_low,
+        )?;
+        assert!(
+            !arena_forgiving.diagnostics().is_empty(),
+            "Forgiving policy should record a diagnostic when max_depth is exceeded"
+        );
         Ok(())
     }
 }

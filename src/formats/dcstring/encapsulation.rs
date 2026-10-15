@@ -92,8 +92,7 @@ impl<'a> Cursor<'a> {
         {
             return Ok(None);
         }
-        // Reason for fallback: Navigator evaluation byte position falls back to 0 on 32-bit platforms if offset exceeds usize.
-        let consumed = usize::try_from(nav.position()).unwrap_or(0);
+        let consumed = usize::try_from(nav.position())?;
         let end = start.saturating_add(consumed);
         while self.position() < end {
             self.next()?;
@@ -346,7 +345,7 @@ mod tests {
             let crate::navigator::DcSyntaxKind::Binary { payload: binary_payload, .. } = &node.kind else {
                 bail!("Expected Binary syntax node");
             };
-            assert_eq!(binary_payload.as_slice(), payload.as_bytes());
+            assert_eq!(binary_payload.materialize_bytes()?, payload.as_bytes());
         }
         Ok(())
     }
@@ -390,7 +389,7 @@ mod tests {
         let crate::navigator::DcSyntaxKind::Binary { payload: binary_payload, .. } = &node.kind else {
             bail!("Expected Binary syntax node");
         };
-        assert_eq!(binary_payload.as_slice(), data);
+        assert_eq!(binary_payload.materialize_bytes()?.as_ref(), data);
         let mut corrupted = data.to_vec();
         *corrupted.first_mut().context("Empty payload")? ^= 1;
         assert!(
@@ -435,11 +434,11 @@ mod tests {
         assert_eq!(roots.len(), 2);
         let node0 = arena.node(roots[0]).context("Missing node0")?;
         let crate::navigator::DcSyntaxKind::Binary { payload: p0, .. } = &node0.kind else { bail!("Expected Binary") };
-        assert!(p0.as_slice().is_empty());
+        assert!(p0.materialize_bytes()?.is_empty());
         let node1 = arena.node(roots[1]).context("Missing node1")?;
         let crate::navigator::DcSyntaxKind::Binary { checksum_format, payload: p1, .. } = &node1.kind else { bail!("Expected Binary") };
         assert_eq!(*checksum_format, Some(ctb_utilities::format_id::DC_SHA256));
-        assert_eq!(p1.as_slice(), &[0u8; 32]);
+        assert_eq!(p1.materialize_bytes()?.as_ref(), &[0u8; 32]);
         Ok(())
     }
 

@@ -49,8 +49,13 @@ pub fn dc_base64_digit_to_char(val: u8) -> DcChar {
         DC_BASE64_PADDING
     } else {
         let offset = u32::from(val.min(63));
-        // Reason for fallback: DC_BASE64_START is canonically Short Dc 127
-        let start = DC_BASE64_START.to_short().unwrap_or(127);
+        #[expect(
+            clippy::expect_used,
+            reason = "DC_BASE64_START is a compile-time short Dc constant (Short Dc 127)"
+        )]
+        let start = DC_BASE64_START
+            .to_short()
+            .expect("DC_BASE64_START is Short Dc 127");
         DcChar::from_short(start.saturating_add(offset))
     }
 }
@@ -65,8 +70,7 @@ pub fn dc_base64_char_to_digit(ch: DcChar) -> Result<u8> {
         return Ok(64);
     }
     let short_id = ch.to_short()?;
-    // Reason for fallback: DC_BASE64_START is canonically Short Dc 127
-    let start = DC_BASE64_START.to_short().unwrap_or(127);
+    let start = DC_BASE64_START.to_short()?;
     let end = start.saturating_add(63);
     if (start..=end).contains(&short_id) {
         let offset = short_id.saturating_sub(start);
@@ -86,8 +90,13 @@ pub fn is_dc_base64_encapsulation_char(ch: DcChar) -> bool {
     let Ok(short_id) = ch.to_short() else {
         return false;
     };
-    // Reason for fallback: DC_BASE64_START is canonically Short Dc 127
-    let start = DC_BASE64_START.to_short().unwrap_or(127);
+    #[expect(
+        clippy::expect_used,
+        reason = "DC_BASE64_START is a compile-time short Dc constant (Short Dc 127)"
+    )]
+    let start = DC_BASE64_START
+        .to_short()
+        .expect("DC_BASE64_START is Short Dc 127");
     let end = start.saturating_add(63);
     (start..=end).contains(&short_id)
 }
@@ -103,13 +112,22 @@ pub fn u128_to_dc_number_chars(mut val: u128) -> Vec<DcChar> {
         digits.push(DC_BASE64_START);
     } else {
         while val > 0 {
-            // Reason for fallback: checked arithmetic remainder with non-zero divisor 64
-            let rem = val.checked_rem(64).unwrap_or(0);
-            // Reason for fallback: remainder mod 64 fits into u8 (0..=63)
-            let rem_u8 = u8::try_from(rem).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "Divisor 64 is non-zero and remainder mod 64 is in 0..=63 which fits in u8"
+            )]
+            let rem_u8 = u8::try_from(
+                val.checked_rem(64).expect("divisor 64 is non-zero"),
+            )
+            .expect("remainder mod 64 fits in u8");
             digits.push(dc_base64_digit_to_char(rem_u8));
-            // Reason for fallback: checked division with non-zero divisor 64
-            val = val.checked_div(64).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "Divisor 64 is non-zero"
+            )]
+            {
+                val = val.checked_div(64).expect("divisor 64 is non-zero");
+            }
         }
         digits.reverse();
     }
@@ -132,11 +150,20 @@ pub fn u128_to_dc_number_short(val: u128) -> Vec<u32> {
     let mut out = Vec::with_capacity(chars.len());
     for ch in chars {
         if ch == DC_INTEGER {
-            // Reason for fallback: DC_INTEGER canonically maps to format 199
-            out.push(ch.to_format().unwrap_or(199));
+            #[expect(
+                clippy::expect_used,
+                reason = "DC_INTEGER is a compile-time format Dc constant (Format 199)"
+            )]
+            out.push(ch.to_format().expect("DC_INTEGER is Format 199"));
         } else {
-            // Reason for fallback: valid Base64 encapsulation chars and framing delimiters map to their short IDs
-            out.push(ch.to_short().unwrap_or(0));
+            #[expect(
+                clippy::expect_used,
+                reason = "u128_to_dc_number_chars only emits DC_BEGIN_NUMBER, DC_END_NUMBER, and Base64 short Dcs alongside DC_INTEGER"
+            )]
+            out.push(
+                ch.to_short()
+                    .expect("non-format numeral character is a short Dc"),
+            );
         }
     }
     out

@@ -107,6 +107,12 @@ pub trait SyntaxRuleResolver {
     fn resolve_infix_rule(&self, _op_token: u128) -> Option<(&[SyntaxElement], &[SyntaxElement])> {
         None
     }
+    /// Returns true if the container opened by `opener_token` is a lexical/opaque payload
+    /// container (such as numbers, binary encapsulation, comments, literals, type definitions,
+    /// or identifiers) whose interior tokens are not recursively parsed as child statements.
+    fn is_opaque_container(&self, _opener_token: u128) -> bool {
+        false
+    }
 }
 
 fn substitute_term_param(
@@ -220,6 +226,50 @@ fn term_contains_negated_charset(term: &SyntaxTerm) -> bool {
     }
 }
 
+fn term_is_lexical_payload(term: &SyntaxTerm) -> bool {
+    match term {
+        SyntaxTerm::CharRange { .. } => true,
+        SyntaxTerm::NamedConstruct { name, .. } if name == "script" => true,
+        SyntaxTerm::CharSet {
+            negated: true,
+            members,
+        } => members
+            .iter()
+            .any(|m| m.to_u128() == crate::dc::DC_ESCAPE.to_u128()),
+        SyntaxTerm::Group(SyntaxPattern::Sequence(elems)) => {
+            elems.iter().any(|e| term_is_lexical_payload(&e.term))
+        }
+        SyntaxTerm::Group(SyntaxPattern::Alternation(branches)) => branches.iter().any(|b| {
+            matches!(b, SyntaxPattern::Sequence(elems) if elems.iter().any(|e| term_is_lexical_payload(&e.term)))
+        }),
+        _ => false,
+    }
+}
+
+fn pattern_is_opaque_container(pattern: &SyntaxPattern, closer_token: u128) -> bool {
+    let SyntaxPattern::Sequence(elements) = pattern else {
+        return false;
+    };
+    if !elements
+        .first()
+        .is_some_and(|el| matches!(el.term, SyntaxTerm::SelfChar))
+    {
+        return true;
+    }
+    let Some(closer_idx) = elements
+        .iter()
+        .rposition(|el| element_matches_closer(el, closer_token))
+    else {
+        return false;
+    };
+    if closer_idx <= 1 {
+        return false;
+    }
+    elements
+        .get(closer_idx.saturating_sub(1))
+        .is_some_and(|body_el| term_is_lexical_payload(&body_el.term))
+}
+
 fn extract_container_header_elements(
     pattern: &SyntaxPattern,
     closer_token: u128,
@@ -252,10 +302,14 @@ fn extract_container_header_elements(
         return Vec::new();
     }
     let header_end = middle.len().saturating_sub(1);
-    // Reason for fallback: Slices exceeding element count yield an empty list of syntax elements.
+    #[expect(
+        clippy::expect_used,
+        reason = "header_end is middle.len() - 1 which is strictly less than middle.len()"
+    )]
     middle
         .get(..header_end)
-        .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
+        .expect("header_end is within middle bounds")
+        .to_vec()
 }
 
 fn extract_trailing_after_closer(
@@ -272,10 +326,14 @@ fn extract_trailing_after_closer(
         return Vec::new();
     };
     let next_idx = closer_idx.saturating_add(1);
-    // Reason for fallback: If closer token is at the end of elements, trailing slice yields an empty list.
+    #[expect(
+        clippy::expect_used,
+        reason = "closer_idx < elements.len() so closer_idx + 1 <= elements.len()"
+    )]
     elements
         .get(next_idx..)
-        .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
+        .expect("next_idx is at most elements.len()")
+        .to_vec()
 }
 
 fn pattern_is_pure_type_constructor(pattern: &SyntaxPattern) -> bool {
@@ -322,8 +380,9 @@ fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
                     ctb_storage_minimal::shorthand::DcShorthand::Short(id) => {
                         u32::try_from(id).ok().map(CharTarget::Dc)
                     }
-                    ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
-                        Some(CharTarget::Format(id))
+                    ctb_storage_minimal::shorthand::DcShorthand::Format(_) => {
+                        ctb_utilities::format_id::FormatId::from_shorthand(trimmed)
+                            .map(CharTarget::Format)
                     }
                     ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
                         Some(CharTarget::Unicode(cp))
@@ -349,6 +408,7 @@ pub struct DatasetRuleResolver {
     trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
     infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
     named_type_starters: HashMap<String, StarterSet>,
+    opaque_containers: HashSet<u128>,
 }
 
 impl DatasetRuleResolver {
@@ -488,6 +548,11 @@ impl DatasetRuleResolver {
                         out.scripts.push(format!("Formats:{sub}"));
                         out.scripts.push(sub.clone());
                     }
+                } else if (name == "format" || name == "formats") && subtype.is_none() {
+                    out.ranges.push((
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END,
+                    ));
                 }
                 if name == "type" && subtype.is_none() {
                     out.scripts.push(".EL Types".to_string());
@@ -525,7 +590,7 @@ impl DatasetRuleResolver {
     }
 
     fn precompute_derived_tables(&mut self) {
-        // 1. Container headers and trailing elements after container closers
+        // 1. Container headers, trailing elements after container closers, and opaque containers
         let opener_closers: Vec<(CharTarget, u128)> = self
             .opener_to_closer
             .iter()
@@ -539,8 +604,13 @@ impl DatasetRuleResolver {
                 }
                 let trailing = extract_trailing_after_closer(&rule.pattern, closer_tok);
                 if !trailing.is_empty() {
-                    self.trailing_after_closer.insert(opener, trailing);
+                    self.trailing_after_closer.insert(opener.clone(), trailing);
                 }
+                if pattern_is_opaque_container(&rule.pattern, closer_tok) {
+                    self.opaque_containers.insert(opener.to_u128());
+                }
+            } else {
+                self.opaque_containers.insert(opener.to_u128());
             }
         }
 
@@ -619,7 +689,8 @@ impl DatasetRuleResolver {
                             u32::try_from(*id).ok().map(CharTarget::Dc)
                         }
                         ctb_storage_minimal::shorthand::DcShorthand::Format(id) => {
-                            Some(CharTarget::Format(*id))
+                            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{id}"))
+                                .map(CharTarget::Format)
                         }
                         ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
                             Some(CharTarget::Unicode(*cp))
@@ -655,11 +726,11 @@ impl DatasetRuleResolver {
             &mut fmt_report,
         ) {
             if let Some(short_id) = defn.short_id {
-                let Ok(sid_u32) = u32::try_from(short_id) else {
+                let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{short_id}")) else {
                     continue;
                 };
-                let target = CharTarget::Format(short_id);
-                let fid_u128 = DcChar::from_format(sid_u32).to_u128();
+                let target = CharTarget::Format(fid);
+                let fid_u128 = target.to_u128();
                 if !defn.script.is_empty() {
                     resolver.add_script_char(defn.script.clone(), fid_u128);
                 }
@@ -816,6 +887,10 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
         self.infix_rules
             .get(&op_token)
             .map(|(lhs, rhs)| (lhs.as_slice(), rhs.as_slice()))
+    }
+
+    fn is_opaque_container(&self, opener_token: u128) -> bool {
+        self.opaque_containers.contains(&opener_token)
     }
 }
 

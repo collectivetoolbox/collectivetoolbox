@@ -33,7 +33,8 @@ use ctb_utilities::dc_char::{
 };
 
 use crate::dc::{
-    DC_FILE_PATH_DELIMITER, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
+    DC_FILE_PATH_DELIMITER, DC_TYPE_ANY, DC_TYPE_INTERSECTION, DC_TYPE_NUMBER,
+    DC_TYPE_ROUTINE, DC_TYPE_ROUTINE_NAME, DC_TYPE_STRING, DC_TYPE_UNION,
 };
 
 /// Returns whether the given token (u128 character code) represents a type
@@ -49,16 +50,14 @@ pub fn is_type_token(token: u128) -> bool {
     if (FORMAT_REGION_START..=FORMAT_REGION_END).contains(&token) {
         return true;
     }
-    if token == DC_FILE_PATH_DELIMITER.to_u128()
+    token == DC_FILE_PATH_DELIMITER.to_u128()
         || token == DC_TYPE_UNION.to_u128()
         || token == DC_TYPE_INTERSECTION.to_u128()
-    {
-        return true;
-    }
-    if let Some(short_id) = token.checked_sub(SHORT_DC_REGION_START) {
-        return matches!(short_id, 264 | 275 | 278 | 280 | 306);
-    }
-    false
+        || token == DC_TYPE_STRING.to_u128()
+        || token == DC_TYPE_ANY.to_u128()
+        || token == DC_TYPE_NUMBER.to_u128()
+        || token == DC_TYPE_ROUTINE.to_u128()
+        || token == DC_TYPE_ROUTINE_NAME.to_u128()
 }
 
 /// Extension methods for [`DcChar`] specific to document formats and serialization.
@@ -90,10 +89,18 @@ impl DcCharExt for DcChar {
         is_type_token(self.0)
     }
     fn to_short_vec(self) -> Vec<u32> {
-        // Reason for fallback: DC_ESCAPE is canonically Dc 255 which maps to short id 255
-        let escape = crate::dc::DC_ESCAPE.to_short().unwrap_or(255);
-        // Reason for fallback: DC_LONG_DC is canonically Dc 308 which maps to short id 308
-        let long_dc = crate::dc::DC_LONG_DC.to_short().unwrap_or(308);
+        #[expect(
+            clippy::expect_used,
+            reason = "DC_ESCAPE and DC_LONG_DC are compile-time short Dc constants (Short Dc 255 and Short Dc 308)"
+        )]
+        let (escape, long_dc) = (
+            crate::dc::DC_ESCAPE
+                .to_short()
+                .expect("DC_ESCAPE is Short Dc 255"),
+            crate::dc::DC_LONG_DC
+                .to_short()
+                .expect("DC_LONG_DC is Short Dc 308"),
+        );
 
         if self == crate::dc::DC_LONG_DC {
             vec![escape, long_dc]

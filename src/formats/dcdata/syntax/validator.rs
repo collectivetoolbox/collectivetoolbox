@@ -89,8 +89,18 @@ impl FormatValidationRegistry {
     pub fn find_format(&self, token: &str) -> Option<&FormatValidationInfo> {
         let trimmed = token.trim();
         if let Some(target) = super::parser::parse_target_token(trimmed) {
-            if let CharTarget::Format(id) = target {
-                return self.formats_by_id.get(&id);
+            if let CharTarget::Format(fid) = target {
+                if let Some(id) = fid
+                    .dc_id()
+                    .and_then(|dc| {
+                        dc.checked_sub(
+                            ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                        )
+                    })
+                    .and_then(|v| usize::try_from(v).ok())
+                {
+                    return self.formats_by_id.get(&id);
+                }
             }
         }
         if let Some(&id) = self.id_by_ident.get(trimmed) {
@@ -189,7 +199,16 @@ fn check_target_reference(
                 );
             }
         }
-        CharTarget::Format(id) => {
+        CharTarget::Format(fid) => {
+            let id = fid
+                .dc_id()
+                .and_then(|dc| {
+                    dc.checked_sub(
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                    )
+                })
+                .and_then(|v| usize::try_from(v).ok());
+            let shorthand = fid.shorthand();
             if is_range_endpoint {
                 let max_format_id = match usize::try_from(
                     ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END
@@ -198,21 +217,21 @@ fn check_target_reference(
                     Ok(m) => m,
                     Err(_) => usize::MAX,
                 };
-                if *id > max_format_id {
+                if id.is_none_or(|id| id > max_format_id) {
                     report.add_error(
                         source_file,
                         Some(line_no),
                         Some(col_name),
-                        format!("Format ID 'f{id}' in syntax rule range exceeds maximum format ID f{max_format_id}"),
+                        format!("Format ID '{shorthand}' in syntax rule range exceeds maximum format ID f{max_format_id}"),
                         Some("Ensure format range is within valid format space"),
                     );
                 }
-            } else if !known_format_ids.contains(id) {
+            } else if id.is_none_or(|id| !known_format_ids.contains(&id)) {
                 report.add_error(
                     source_file,
                     Some(line_no),
                     Some(col_name),
-                    format!("Format ID 'f{id}' in syntax rule does not exist in formats registry"),
+                    format!("Format ID '{shorthand}' in syntax rule does not exist in formats registry"),
                     Some("Ensure referenced format ID is defined in formats category files"),
                 );
             }

@@ -64,12 +64,12 @@ pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use kv_map::DcKvMapEncoding;
 pub use navigator::{
-    BinaryPayloadRef, DcByteSpan, DcDocumentNavigator, DcForgivingDefault,
-    DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy, DcSyntaxArena,
-    DcSyntaxKind, DcSyntaxNode, DiagnosticAction, INLINE_BINARY_THRESHOLD,
-    MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
-    validate_dc_mixed_strict, validate_dc_str_strict,
-    validate_dc_tokens_strict,
+    BinaryPayloadRef, DEFAULT_MAX_PROJECTION_DEPTH, DcBinaryResolver,
+    DcByteSpan, DcDocumentNavigator, DcForgivingDefault, DcFrameHeaderInfo,
+    DcFrameStub, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
+    DiagnosticAction, INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH,
+    NodeId, SyntaxEvalContext, validate_dc_mixed_strict,
+    validate_dc_str_strict, validate_dc_tokens_strict,
 };
 pub use shared::{SharedJson, SharedValueContext};
 pub use malachite::{Integer, Natural};

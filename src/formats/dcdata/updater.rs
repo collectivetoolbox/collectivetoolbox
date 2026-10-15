@@ -1065,5 +1065,10 @@ mod tests {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let updated = generate_format_id_file(manifest).unwrap();
         println!("format_id.generated.rs generated: {updated}");
+        let dc_updated = generate_dc_file(manifest).unwrap();
+        println!("dc.generated.rs generated: {dc_updated}");
+        let repo_root = find_repository_root_from(manifest).unwrap();
+        let merged = generate_merged_csvs(&repo_root).unwrap();
+        println!("merged csvs generated: {merged:?}");
     }
 }

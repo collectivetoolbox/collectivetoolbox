@@ -162,7 +162,11 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         .map(CharTarget::Dc)
         .collect();
     for &fid in &known_format_with_syntax {
-        known_syntax_targets.insert(CharTarget::Format(fid));
+        if let Some(format_id) =
+            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
+        {
+            known_syntax_targets.insert(CharTarget::Format(format_id));
+        }
     }
 
     if let Some(named_types_bytes) = named_types_bytes_opt {
@@ -322,7 +326,11 @@ pub fn validate_all_data_tables_from_repo(
         .map(CharTarget::Dc)
         .collect();
     for &fid in &known_format_with_syntax {
-        known_syntax_targets.insert(CharTarget::Format(fid));
+        if let Some(format_id) =
+            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
+        {
+            known_syntax_targets.insert(CharTarget::Format(format_id));
+        }
     }
 
     if let Some(bytes) = named_types_bytes_opt {
@@ -396,8 +404,11 @@ pub fn validate_scripts_table(
             continue;
         }
 
-        // Reason for fallback: absent or unpopulated script column defaults to empty string and triggers empty script validation error below
-        let script = row.get(0).map_or("", |s| s.trim());
+        #[expect(
+            clippy::expect_used,
+            reason = "Row is guaranteed non-empty by the is_empty() check above"
+        )]
+        let script = row.get(0).expect("row is non-empty").trim();
         if script.is_empty() {
             report.add_error(
                 file_path,
@@ -497,10 +508,14 @@ pub fn validate_decompositions_table(
             continue;
         }
 
-        // Reason for fallback: row bounds checked above (len >= 2), extract trimmed decomposition tag
-        let tag = row.get(0).map_or("", |s| s.trim());
-        // Reason for fallback: row bounds checked above (len >= 2), extract trimmed description string
-        let desc = row.get(1).map_or("", |s| s.trim());
+        #[expect(
+            clippy::expect_used,
+            reason = "Row length was verified >= 2 above, so indices 0 and 1 are in bounds"
+        )]
+        let (tag, desc) = (
+            row.get(0).expect("row has >= 2 columns").trim(),
+            row.get(1).expect("row has >= 2 columns").trim(),
+        );
 
         if tag.is_empty() {
             report.add_error(
@@ -627,10 +642,14 @@ pub fn validate_named_types_table(
             continue;
         }
 
-        // Reason for fallback: out-of-bounds column indices on malformed rows default to empty string so schema validation can report all diagnostics without indexing panics
-        let name = row.get(0).map_or("", |s| s.trim());
-        // Reason for fallback: out-of-bounds column indices on malformed rows default to empty string so schema validation can report all diagnostics without indexing panics
-        let syntax = row.get(1).map_or("", |s| s.trim());
+        #[expect(
+            clippy::expect_used,
+            reason = "Row length was verified >= 2 above, so indices 0 and 1 are in bounds"
+        )]
+        let (name, syntax) = (
+            row.get(0).expect("row has >= 2 columns").trim(),
+            row.get(1).expect("row has >= 2 columns").trim(),
+        );
 
         if name.is_empty() {
             report.add_error(
@@ -1319,12 +1338,21 @@ fn validate_target_token(
 
     match target {
         CharTarget::Format(fmt_id) => {
-            if !known_format_ids.contains(&fmt_id) {
+            let short_id = fmt_id
+                .dc_id()
+                .and_then(|dc| {
+                    dc.checked_sub(
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                    )
+                })
+                .and_then(|v| usize::try_from(v).ok());
+            if short_id.is_none_or(|id| !known_format_ids.contains(&id)) {
+                let shorthand = fmt_id.shorthand();
                 report.add_error(
                     source_file,
                     Some(line_no),
                     Some(col_name),
-                    format!("Referenced Format ID 'f{fmt_id}' does not exist in formats registry"),
+                    format!("Referenced Format ID '{shorthand}' does not exist in formats registry"),
                     Some("Ensure referenced format ID is defined in formats category files"),
                 );
             }
@@ -1489,7 +1517,11 @@ where
         .collect();
     if let Some(fmts_with_syntax) = known_format_with_syntax {
         for &fid in fmts_with_syntax {
-            known_syntax_targets.insert(CharTarget::Format(fid));
+            if let Some(format_id) =
+                ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{fid}"))
+            {
+                known_syntax_targets.insert(CharTarget::Format(format_id));
+            }
         }
     }
 
@@ -2209,8 +2241,18 @@ mod tests {
         assert_eq!(parse_target_token("0"), Some(CharTarget::Dc(0)));
 
         // Valid Format IDs
-        assert_eq!(parse_target_token("f80"), Some(CharTarget::Format(80)));
-        assert_eq!(parse_target_token("f0"), Some(CharTarget::Format(0)));
+        assert_eq!(
+            parse_target_token("f80"),
+            Some(CharTarget::Format(
+                ctb_utilities::format_id::FormatId::from_shorthand("f80").unwrap()
+            ))
+        );
+        assert_eq!(
+            parse_target_token("f0"),
+            Some(CharTarget::Format(
+                ctb_utilities::format_id::FormatId::from_shorthand("f0").unwrap()
+            ))
+        );
 
         // Valid Unicode codepoints (lowercase hex only)
         assert_eq!(parse_target_token("u0020"), Some(CharTarget::Unicode(0x20)));

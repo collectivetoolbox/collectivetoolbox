@@ -635,6 +635,9 @@ where
         .iter()
         .filter(|r| r.syntax.is_some())
         .filter_map(|r| r.short_id)
+        .filter_map(|sid| {
+            ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{sid}"))
+        })
         .map(crate::syntax::CharTarget::Format)
         .collect();
     let empty_dcs = HashSet::new();

@@ -29,7 +29,8 @@ use crate::utilities::*;
 use crate::{DcChar, DcMstring};
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR, DC_BEGIN_LEGACY_KV_MAP, DC_END_KV_MAP,
-    DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP,
+    DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_LIST_ELEMENT_SEPARATOR,
+    DC_TYPE_ANY,
 };
 
 /// Wire framing of a key-value array, determined by its opening Dc.
@@ -48,15 +49,15 @@ impl DcKvMapEncoding {
             Self::Legacy => DC_BEGIN_LEGACY_KV_MAP,
             Self::Pairs => DC_BEGIN_KV_MAP,
         });
-        target.push_char(DcChar::from_short(275));
-        target.push_char(DcChar::from_short(275));
+        target.push_char(DC_TYPE_ANY);
+        target.push_char(DC_TYPE_ANY);
     }
 
     /// Writes the boundary before an entry.
     pub fn encode_entry_begin(self, target: &mut DcMstring, first: bool) {
         match self {
             Self::Pairs => target.push_char(DC_BEGIN_KV_PAIR),
-            Self::Legacy if !first => target.push_char(DcChar::from_short(312)),
+            Self::Legacy if !first => target.push_char(DC_LIST_ELEMENT_SEPARATOR),
             Self::Legacy => {}
         }
     }

@@ -396,8 +396,8 @@ fn test_challenge_format_delimiters_followed_by_various_tokens() -> Result<()> {
 #[crate::ctb_test]
 fn test_challenge_format_rule_eval_does_not_consume_trailing_512() -> Result<()> {
     let resolver = default_syntax_resolver();
-    let target = CharTarget::Format(228);
-    let rule = resolver.resolve_rule(&target).context("Rule for f228 must exist")?;
+    let target = CharTarget::Format(FormatId::FileName);
+    let _rule = resolver.resolve_rule(&target).context("Rule for f228 must exist")?;
 
     // Create a stream with: format payload followed by 512 followed by 517 (true)
     let mut doc = DcMstring::new();

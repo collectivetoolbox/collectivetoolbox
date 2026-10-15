@@ -38,13 +38,18 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION,
-    DC_BEGIN_NUMBER, DC_END_ENCAPSULATION_BINARY, DC_END_FORMAT_REPRESENTATION,
-    DC_END_NUMBER, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
-    DC_LIST_ELEMENT_SEPARATOR, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_SECTION_DIGEST,
-    DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
-    DC_TYPE_INTERSECTION, DC_TYPE_UNION,
+    DC_ASSIGN, DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION,
+    DC_BEGIN_IDENTIFIER, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BEGIN_LITERAL, DC_BEGIN_NUMBER,
+    DC_BEGIN_PARAMETER, DC_BEGIN_TYPE_DEF, DC_END_ENCAPSULATION_BINARY,
+    DC_END_FORMAT_REPRESENTATION, DC_END_IDENTIFIER, DC_END_KV_MAP,
+    DC_END_KV_PAIR, DC_END_LEGACY_KV_MAP, DC_END_LIST, DC_END_LITERAL,
+    DC_END_NUMBER, DC_END_PARAMETER, DC_END_TYPE_DEF,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE, DC_LIST_ELEMENT_SEPARATOR,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_ROUTINE_INVOCATION,
+    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
+    DC_TYPE_ANY, DC_TYPE_INTERSECTION, DC_TYPE_UNION,
 };
 use ctb_formats_dcdata::syntax::{
     CharTarget, Quantifier, SyntaxDiagnostic, SyntaxElement, SyntaxPattern,
@@ -62,6 +67,9 @@ use crate::{
 
 /// Maximum recursion depth allowed during grammar rule expansion.
 pub const MAX_SYNTAX_EXPANSION_DEPTH: usize = 32;
+
+/// Default maximum container and wrapper nesting depth during arena building and projection.
+pub const DEFAULT_MAX_PROJECTION_DEPTH: usize = 64;
 
 /// Execution context for evaluating [`SyntaxPattern`] rules directly over a [`DcDocumentNavigator`].
 #[derive(Clone)]
@@ -134,11 +142,16 @@ pub struct DcProjectionPolicy {
     pub malformed_field: DiagnosticAction,
     /// Missing required field when projecting a struct (uses [`DcForgivingDefault`] if non-`Error`).
     pub missing_required_field: DiagnosticAction,
+    /// Maximum container or wrapper nesting depth allowed during arena construction and projection.
+    pub max_depth: usize,
+    /// Action taken when container or wrapper nesting exceeds [`Self::max_depth`].
+    pub depth_limit_exceeded: DiagnosticAction,
 }
 
 impl DcProjectionPolicy {
     /// Strict policy: errors on any syntax violation, unknown field tag,
-    /// malformed field, or missing required field; warns on deprecated syntax.
+    /// malformed field, missing required field, or exceeded nesting depth;
+    /// warns on deprecated syntax.
     #[must_use]
     pub const fn strict() -> Self {
         Self {
@@ -147,6 +160,8 @@ impl DcProjectionPolicy {
             deprecated_syntax: DiagnosticAction::Warn,
             malformed_field: DiagnosticAction::Error,
             missing_required_field: DiagnosticAction::Error,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Error,
         }
     }
 
@@ -161,6 +176,8 @@ impl DcProjectionPolicy {
             deprecated_syntax: DiagnosticAction::Warn,
             malformed_field: DiagnosticAction::Warn,
             missing_required_field: DiagnosticAction::Warn,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Warn,
         }
     }
 
@@ -174,7 +191,21 @@ impl DcProjectionPolicy {
             deprecated_syntax: DiagnosticAction::Ignore,
             malformed_field: DiagnosticAction::Ignore,
             missing_required_field: DiagnosticAction::Ignore,
+            max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
+            depth_limit_exceeded: DiagnosticAction::Ignore,
         }
+    }
+
+    /// Returns a copy of this policy with a custom maximum nesting depth and action.
+    #[must_use]
+    pub const fn with_max_depth(
+        mut self,
+        max_depth: usize,
+        action: DiagnosticAction,
+    ) -> Self {
+        self.max_depth = max_depth;
+        self.depth_limit_exceeded = action;
+        self
     }
 
     /// Returns true if all structural and projection anomalies are set to `Error`.
@@ -184,6 +215,7 @@ impl DcProjectionPolicy {
             && matches!(self.unknown_field, DiagnosticAction::Error)
             && matches!(self.malformed_field, DiagnosticAction::Error)
             && matches!(self.missing_required_field, DiagnosticAction::Error)
+            && matches!(self.depth_limit_exceeded, DiagnosticAction::Error)
     }
 
     /// Returns true if any structural or projection anomaly is configured to recover/warn/ignore.
@@ -423,21 +455,18 @@ pub enum BinaryPayloadRef<'a> {
 }
 
 impl<'a> BinaryPayloadRef<'a> {
-    /// Returns a slice of resident bytes, or an empty slice if lazy/unmaterialized.
-    #[must_use]
-    pub fn as_slice(&self) -> &[u8] {
-        // Reason for fallback: Unmaterialized FileSpan payloads return an empty byte slice.
-        self.as_resident_bytes().unwrap_or(&[])
-    }
-
     /// Returns the payload byte length.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "In-memory byte slice lengths fit within u64 on all supported platforms"
+    )]
     pub fn len(&self) -> u64 {
         match self {
-            // Reason for fallback: In the theoretical event slice length exceeds u64, return 0.
-            Self::Borrowed(slice) => u64::try_from(slice.len()).unwrap_or(0),
-            // Reason for fallback: In the theoretical event slice length exceeds u64, return 0.
-            Self::Inline(bytes) => u64::try_from(bytes.len()).unwrap_or(0),
+            Self::Borrowed(slice) => u64::try_from(slice.len())
+                .expect("Borrowed slice length fits in u64"),
+            Self::Inline(bytes) => u64::try_from(bytes.len())
+                .expect("Inline byte buffer length fits in u64"),
             Self::FileSpan { len, .. } => *len,
         }
     }
@@ -490,6 +519,16 @@ impl<'a> BinaryPayloadRef<'a> {
     pub fn materialize_bytes(&self) -> Result<Cow<'a, [u8]>> {
         self.materialize(None::<&mut std::io::Cursor<&[u8]>>)
     }
+}
+
+/// Resolver capable of materializing lazy [`BinaryPayloadRef::FileSpan`] payloads
+/// from an underlying seekable file during CST projection.
+pub trait DcBinaryResolver: std::fmt::Debug {
+    /// Materializes the raw bytes of `payload`, reading from the backing stream if lazy.
+    fn materialize_binary<'a>(
+        &mut self,
+        payload: &BinaryPayloadRef<'a>,
+    ) -> Result<Cow<'a, [u8]>>;
 }
 
 /// Index of a node inside a [`DcSyntaxArena`].
@@ -640,6 +679,145 @@ impl<'a> DcSyntaxArena<'a> {
     pub fn diagnostics(&self) -> &[SyntaxDiagnostic] {
         &self.diagnostics
     }
+
+    /// Splits a sequence of child [`NodeId`]s on [`DC_LIST_ELEMENT_SEPARATOR`] (`Dc 312`).
+    #[must_use]
+    pub fn split_operands(&self, nodes: &[NodeId]) -> Vec<Vec<NodeId>> {
+        let mut result = Vec::new();
+        let mut current = Vec::new();
+        for &id in nodes {
+            if self
+                .get(id)
+                .is_some_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch == DC_LIST_ELEMENT_SEPARATOR))
+            {
+                result.push(std::mem::take(&mut current));
+            } else {
+                current.push(id);
+            }
+        }
+        result.push(current);
+        result
+    }
+
+    /// Extracts the header and key-value operand slices from a map container
+    /// (`Dc 559..560` with `Dc 514..515` pairs or legacy `Dc 313..314`).
+    ///
+    /// When `require_object_headers` is true, requires both leading type tokens
+    /// to be [`DC_TYPE_OBJECT`] (`Dc 275`).
+    pub fn extract_kv_map_operand_entries(
+        &self,
+        id: NodeId,
+        require_object_headers: bool,
+    ) -> Result<(DcChar, Vec<NodeId>, Vec<(Vec<NodeId>, Vec<NodeId>)>)> {
+        let node = self.get(id).context("NodeId must exist in arena")?;
+        let DcSyntaxKind::Container {
+            opener,
+            children,
+            unclosed,
+            ..
+        } = &node.kind
+        else {
+            bail!("Expected key-value map container, found {:?}", node.kind);
+        };
+        ensure!(!*unclosed, "Unclosed key-value map container ({opener})");
+        let is_pairs = *opener == DC_BEGIN_KV_MAP;
+        let is_legacy = *opener == DC_BEGIN_LEGACY_KV_MAP;
+        ensure!(
+            is_pairs || is_legacy,
+            "Expected map container (Dc 559 or Dc 313), found opener {opener}"
+        );
+        let header = children.get(..2).context("Missing map type declarations")?;
+        if require_object_headers {
+            ensure!(
+                header.iter().all(|&child| {
+                    self.get(child).is_some_and(
+                        |cn| matches!(cn.kind, DcSyntaxKind::Atom(ch) if ch == DC_TYPE_ANY),
+                    )
+                }),
+                "Source-backed typed map editing requires uncounted Object/Object headers"
+            );
+        } else {
+            ensure!(
+                header.iter().all(|&child| {
+                    self.get(child).is_some_and(|cn| {
+                        matches!(
+                            cn.kind,
+                            DcSyntaxKind::Atom(ch)
+                                if ch == DC_TYPE_ANY || ctb_formats_dcdata::is_type_token(ch.0)
+                        )
+                    })
+                }),
+                "Missing or invalid map type header tokens"
+            );
+        }
+        let body = children.get(2..).context("Missing map body")?;
+        let mut entries = Vec::new();
+        if is_legacy {
+            if !body.is_empty() {
+                let operands = self.split_operands(body);
+                for pair in operands.chunks(2) {
+                    let [key, value] = pair else {
+                        bail!("Unpaired legacy map operand");
+                    };
+                    ensure!(
+                        !key.is_empty() && !value.is_empty(),
+                        "Empty legacy map operand"
+                    );
+                    entries.push((key.to_vec(), value.to_vec()));
+                }
+            }
+        } else {
+            for &pair_id in body {
+                let pair_node = self.get(pair_id).context("Pair NodeId must exist in arena")?;
+                let (pair_opener, pair_children, pair_unclosed) = match &pair_node.kind {
+                    DcSyntaxKind::Container {
+                        opener,
+                        children,
+                        unclosed,
+                        ..
+                    } => (*opener, children, *unclosed),
+                    other => bail!("Expected explicitly framed map entry (Dc 514), found {other:?}"),
+                };
+                ensure!(
+                    pair_opener == DC_BEGIN_KV_PAIR && !pair_unclosed,
+                    "Expected explicitly framed map entry (Dc 514..515)"
+                );
+                let operands = self.split_operands(pair_children);
+                let [key, value] = operands.as_slice() else {
+                    bail!("Expected two pair operands");
+                };
+                ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
+                entries.push((key.to_vec(), value.to_vec()));
+            }
+        }
+        Ok((*opener, header.to_vec(), entries))
+    }
+
+    /// Extracts single-node `(key_id, value_id)` pairs from a map container
+    /// (`Dc 559..560` or `Dc 313..314`).
+    pub fn extract_kv_map_node_pairs(
+        &self,
+        id: NodeId,
+    ) -> Result<(DcChar, Vec<(NodeId, NodeId)>)> {
+        let (opener, _, operand_entries) = self.extract_kv_map_operand_entries(id, false)?;
+        let mut pairs = Vec::with_capacity(operand_entries.len());
+        for (key_nodes, val_nodes) in operand_entries {
+            let [k_id] = key_nodes.as_slice() else {
+                bail!(
+                    "Expected single key node in map entry, found {}",
+                    key_nodes.len()
+                );
+            };
+            let [v_id] = val_nodes.as_slice() else {
+                bail!(
+                    "Expected single value node in map entry, found {}",
+                    val_nodes.len()
+                );
+            };
+            pairs.push((*k_id, *v_id));
+        }
+        Ok((opener, pairs))
+    }
 }
 
 /// Lightweight header summary attached to a [`DcFrameStub`] during shallow
@@ -698,6 +876,7 @@ impl DcFrameStub {
     }
 }
 
+#[derive(Debug)]
 enum NavBackend<'a> {
     MemoryMstr(&'a DcMstr),
     MemoryText(&'a DcStr),
@@ -717,6 +896,7 @@ enum NavBackend<'a> {
 /// - Random-access seeking to bookmarked stubs or offsets ([`Self::seek_to_stub`], [`Self::seek_to_offset`])
 /// - On-demand CST expansion into a reusable [`DcSyntaxArena`] ([`Self::expand_frame`])
 /// - Direct typed projection of a frame stub ([`Self::decode_frame`])
+#[derive(Debug)]
 pub struct DcDocumentNavigator<'a> {
     backend: NavBackend<'a>,
     cursor: u64,
@@ -724,14 +904,30 @@ pub struct DcDocumentNavigator<'a> {
     level_stack: Vec<(DcByteSpan, u64)>,
 }
 
+impl<'b> DcBinaryResolver for DcDocumentNavigator<'b> {
+    fn materialize_binary<'a>(
+        &mut self,
+        payload: &BinaryPayloadRef<'a>,
+    ) -> Result<Cow<'a, [u8]>> {
+        match &mut self.backend {
+            NavBackend::SeekableFile { reader, .. } => payload.materialize(Some(reader)),
+            NavBackend::MemoryMstr(_) | NavBackend::MemoryText(_) => payload.materialize_bytes(),
+        }
+    }
+}
+
 impl<'a> DcDocumentNavigator<'a> {
     /// Creates a navigator over an in-memory [`DcMstr`].
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "DCMM_HEADER_LEN and in-memory DcMstr byte lengths fit within u64 on all supported platforms"
+    )]
     pub fn from_mstr(mstr: &'a DcMstr) -> Self {
-        // Reason for fallback: DCMM header length is a constant; fall back to 10 if conversion fails.
-        let start = u64::try_from(DCMM_HEADER_LEN).unwrap_or(10);
-        // Reason for fallback: Fall back to start offset if mstr length exceeds u64.
-        let end = u64::try_from(mstr.len()).unwrap_or(start);
+        let start = u64::try_from(DCMM_HEADER_LEN)
+            .expect("DCMM_HEADER_LEN fits in u64");
+        let end = u64::try_from(mstr.len())
+            .expect("DcMstr byte length fits in u64");
         Self {
             backend: NavBackend::MemoryMstr(mstr),
             cursor: start,
@@ -742,9 +938,13 @@ impl<'a> DcDocumentNavigator<'a> {
 
     /// Creates a navigator over an in-memory [`DcStr`].
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "In-memory DcStr byte lengths fit within u64 on all supported platforms"
+    )]
     pub fn from_dc_str(text: &'a DcStr) -> Self {
-        // Reason for fallback: Fall back to 0 if text length exceeds u64.
-        let end = u64::try_from(text.len()).unwrap_or(0);
+        let end = u64::try_from(text.len())
+            .expect("DcStr byte length fits in u64");
         Self {
             backend: NavBackend::MemoryText(text),
             cursor: 0,
@@ -763,7 +963,7 @@ impl<'a> DcDocumentNavigator<'a> {
     /// starting at `base_offset` (e.g. `0` for a standalone `.dcmm` file, or `8`
     /// for a `.cscjournal` after its 8-byte journal magic).
     ///
-    /// Validates the 10-byte `.dcmm` magic/UUID header once at `base_offset`
+    /// Validates the 21-byte `.dcmm` magic/UUID header once at `base_offset`
     /// without reading the rest of the file into memory.
     pub fn from_dcmm_file(mut file: File, base_offset: u64) -> Result<Self> {
         let file_len = file
@@ -775,7 +975,7 @@ impl<'a> DcDocumentNavigator<'a> {
             .context("dcmm base_offset overflow")?;
         ensure!(
             file_len >= header_end,
-            "File is too short ({file_len} bytes) to contain a valid 10-byte DcMixed header at offset {base_offset}"
+            "File is too short ({file_len} bytes) to contain a valid 21-byte DcMixed header at offset {base_offset}"
         );
         file.seek(SeekFrom::Start(base_offset))
             .context("Failed to seek to DcMixed header")?;
@@ -1009,20 +1209,17 @@ impl<'a> DcDocumentNavigator<'a> {
         let resolver = default_syntax_resolver();
 
         // 2. Check if this is a literal (260..261) or identifier (270..271)
-        let dc_begin_literal = DcChar::from_short(260);
-        let dc_end_literal = DcChar::from_short(261);
-        let dc_begin_ident = DcChar::from_short(270);
-        let dc_end_ident = DcChar::from_short(271);
-
-        if first_dc == dc_begin_literal || first_dc == dc_begin_ident {
-            let closer = if first_dc == dc_begin_literal {
-                dc_end_literal
+        if first_dc == DC_BEGIN_LITERAL || first_dc == DC_BEGIN_IDENTIFIER {
+            let closer = if first_dc == DC_BEGIN_LITERAL {
+                DC_END_LITERAL
             } else {
-                dc_end_ident
+                DC_END_IDENTIFIER
             };
             let end_offset = self.scan_escaped_text_frame(after_first, closer, policy)?;
-            if first_dc == dc_begin_ident {
-                if end_offset == after_first.saturating_add(dc_char_utf8e128_len(dc_end_ident)) {
+            if first_dc == DC_BEGIN_IDENTIFIER {
+                if end_offset
+                    == after_first.saturating_add(dc_char_utf8e128_len(DC_END_IDENTIFIER))
+                {
                     policy.handle(
                         policy.syntax_error,
                         format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
@@ -1161,7 +1358,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     let matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
                     if matched && !ctx.has_errors {
                         let mut last_end = self.cursor;
-                        if first_dc == DcChar::from_short(279) {
+                        if first_dc == DC_ROUTINE_INVOCATION {
                             last_end = self.scan_trailing_parameter_frames(last_end, policy)?;
                         }
                         self.cursor = last_end;
@@ -1173,6 +1370,38 @@ impl<'a> DcDocumentNavigator<'a> {
                                 .then(|| DcByteSpan::new(after_first, last_end)),
                             header_info: DcFrameHeaderInfo::None,
                         }));
+                    }
+                    if first_dc == DC_OPTIONAL_PRESENT && after_first < self.active_span.end {
+                        let mut probe = after_first;
+                        let mut depth = 0usize;
+                        while probe < self.active_span.end && depth < policy.max_depth {
+                            let Some((tok, next_off)) = self.read_token_or_binary_at(probe)? else {
+                                break;
+                            };
+                            if tok == DC_OPTIONAL_PRESENT {
+                                probe = next_off;
+                                depth = depth.saturating_add(1);
+                            } else {
+                                break;
+                            }
+                        }
+                        if let Some((tok, _)) = self.read_token_or_binary_at(probe)? {
+                            if resolver.closing_opener_for(tok.to_u128()).is_none() {
+                                self.cursor = probe;
+                                if let Some(arg_stub) = self.next_sibling_stub(policy)? {
+                                    let last_end = arg_stub.outer_span.end;
+                                    self.cursor = last_end;
+                                    return Ok(Some(DcFrameStub {
+                                        head_dc: first_dc,
+                                        closer_dc: None,
+                                        outer_span: DcByteSpan::new(start_offset, last_end),
+                                        inner_span: (last_end > after_first)
+                                            .then(|| DcByteSpan::new(after_first, last_end)),
+                                        header_info: DcFrameHeaderInfo::None,
+                                    }));
+                                }
+                            }
+                        }
                     }
                     self.cursor = start_offset;
                 }
@@ -1209,14 +1438,16 @@ impl<'a> DcDocumentNavigator<'a> {
         mut offset: u64,
         policy: &DcProjectionPolicy,
     ) -> Result<u64> {
-        let dc_begin_param = DcChar::from_short(258);
-        let dc_end_param = DcChar::from_short(259);
         while let Some((next_dc, after_open)) = self.read_token_or_binary_at(offset)? {
-            if next_dc != dc_begin_param {
+            if next_dc != DC_BEGIN_PARAMETER {
                 break;
             }
-            let (_, after_close) =
-                self.scan_balanced_container(after_open, dc_begin_param, dc_end_param, policy)?;
+            let (_, after_close) = self.scan_balanced_container(
+                after_open,
+                DC_BEGIN_PARAMETER,
+                DC_END_PARAMETER,
+                policy,
+            )?;
             offset = after_close;
         }
         Ok(offset)
@@ -1233,7 +1464,12 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<T> {
         let root_id = self.expand_frame(stub, arena, policy)?;
-        let mut ctx = DcProjectionContext::with_shared_context(arena, policy, context);
+        let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
+            arena,
+            policy,
+            context,
+            Some(self),
+        );
         T::decode_dc_node(&mut ctx, root_id)
     }
 
@@ -1326,87 +1562,297 @@ impl<'a> DcDocumentNavigator<'a> {
 
     fn build_arena_node_from_stub(
         &mut self,
-        stub: &DcFrameStub,
+        root_stub: &DcFrameStub,
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<NodeId> {
-        let head = stub.head_dc;
-        if head == DC_START_ENCAPSULATION_BINARY {
-            let node = self.parse_binary_arena_node(stub.outer_span)?;
-            return Ok(arena.alloc(stub.outer_span, node));
+        enum ArenaBuildFrame {
+            Assignment {
+                outer_span: DcByteSpan,
+                ident: String,
+                value: Option<NodeId>,
+            },
+            Container {
+                outer_span: DcByteSpan,
+                opener: DcChar,
+                closer: DcChar,
+                unclosed: bool,
+                children: Vec<NodeId>,
+            },
+            Tagged {
+                outer_span: DcByteSpan,
+                tag: DcChar,
+                args: Vec<NodeId>,
+            },
         }
-        if head == DcChar::from_short(260) {
-            let (type_header, decoded) = self.decode_literal_span(stub.outer_span, policy)?;
-            return Ok(arena.alloc(
-                stub.outer_span,
-                DcSyntaxKind::Literal {
-                    type_header,
-                    decoded,
-                },
-            ));
+
+        enum StubStep {
+            Leaf(NodeId),
+            Push(ArenaBuildFrame),
         }
-        if head == DcChar::from_short(270) {
-            let name = self.decode_identifier_span(stub.outer_span, policy)?;
-            return Ok(arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name }));
-        }
-        if head == DC_BEGIN_NUMBER {
-            let (format, digits) = self.decode_number_span(stub.outer_span)?;
-            return Ok(arena.alloc(stub.outer_span, DcSyntaxKind::Number { format, digits }));
-        }
-        let dc_assign = DcChar::from_short(269);
-        if head == dc_assign {
-            if let Some(inner) = stub.inner_span {
-                let ident_span = DcByteSpan::new(
-                    stub.outer_span.start,
-                    inner.start.saturating_sub(dc_char_utf8e128_len(dc_assign)),
-                );
-                let ident = self.decode_identifier_span(ident_span, policy)?;
-                self.enter_frame(stub)?;
-                let val_id = self.parse_node_into_arena(arena, policy)?;
-                self.exit_frame()?;
-                return Ok(arena.alloc(
+
+        let resolver = default_syntax_resolver();
+        let base_level_depth = self.level_stack.len();
+
+        let classify_stub = |nav: &mut Self,
+                             stub: &DcFrameStub,
+                             current_depth: usize,
+                             arena: &mut DcSyntaxArena<'a>|
+         -> Result<StubStep> {
+            let head = stub.head_dc;
+            if head == DC_START_ENCAPSULATION_BINARY {
+                let node = nav.parse_binary_arena_node(stub.outer_span)?;
+                return Ok(StubStep::Leaf(arena.alloc(stub.outer_span, node)));
+            }
+            if head == DC_BEGIN_LITERAL {
+                let (type_header, decoded) = nav.decode_literal_span(stub.outer_span, policy)?;
+                return Ok(StubStep::Leaf(arena.alloc(
                     stub.outer_span,
-                    DcSyntaxKind::Assignment {
-                        ident,
-                        value: val_id,
+                    DcSyntaxKind::Literal {
+                        type_header,
+                        decoded,
                     },
+                )));
+            }
+            if head == DC_BEGIN_IDENTIFIER {
+                let name = nav.decode_identifier_span(stub.outer_span, policy)?;
+                return Ok(StubStep::Leaf(
+                    arena.alloc(stub.outer_span, DcSyntaxKind::Identifier { name }),
                 ));
             }
-        }
-        if let Some(closer) = stub.closer_dc {
-            let unclosed = stub.is_unclosed();
-            let mut children = Vec::new();
-            if stub.inner_span.is_some() && !is_opaque_text_container(head) {
-                self.enter_frame(stub)?;
-                while let Some(child_stub) = self.next_sibling_stub(policy)? {
-                    let child_id = self.build_arena_node_from_stub(&child_stub, arena, policy)?;
-                    children.push(child_id);
+            if head == DC_BEGIN_NUMBER {
+                let (format, digits) = nav.decode_number_span(stub.outer_span)?;
+                return Ok(StubStep::Leaf(
+                    arena.alloc(stub.outer_span, DcSyntaxKind::Number { format, digits }),
+                ));
+            }
+            if head == DC_ASSIGN {
+                if let Some(inner) = stub.inner_span {
+                    if current_depth >= policy.max_depth {
+                        let msg = format!(
+                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                            policy.max_depth, stub.outer_span.start
+                        );
+                        policy.handle(policy.depth_limit_exceeded, &msg)?;
+                        arena.push_diagnostic(SyntaxDiagnostic {
+                            message: msg.clone(),
+                            token_offset: stub.outer_span.start,
+                            is_error: true,
+                        });
+                        return Ok(StubStep::Leaf(arena.alloc(
+                            stub.outer_span,
+                            DcSyntaxKind::Malformed {
+                                raw_tokens: Vec::new(),
+                                message: msg,
+                            },
+                        )));
+                    }
+                    let ident_span = DcByteSpan::new(
+                        stub.outer_span.start,
+                        inner.start.saturating_sub(dc_char_utf8e128_len(DC_ASSIGN)),
+                    );
+                    let ident = nav.decode_identifier_span(ident_span, policy)?;
+                    nav.enter_frame(stub)?;
+                    return Ok(StubStep::Push(ArenaBuildFrame::Assignment {
+                        outer_span: stub.outer_span,
+                        ident,
+                        value: None,
+                    }));
                 }
-                self.exit_frame()?;
             }
-            return Ok(arena.alloc(
-                stub.outer_span,
-                DcSyntaxKind::Container {
-                    opener: head,
-                    closer,
-                    header: Vec::new(),
-                    children,
-                    trailing: Vec::new(),
-                    unclosed,
-                },
-            ));
-        }
-        if stub.inner_span.is_some() {
-            let mut args = Vec::new();
-            self.enter_frame(stub)?;
-            while let Some(arg_stub) = self.next_sibling_stub(policy)? {
-                let arg_id = self.build_arena_node_from_stub(&arg_stub, arena, policy)?;
-                args.push(arg_id);
+            if let Some(closer) = stub.closer_dc {
+                let unclosed = stub.is_unclosed();
+                if stub.inner_span.is_some() && !resolver.is_opaque_container(head.to_u128()) {
+                    if current_depth >= policy.max_depth {
+                        let msg = format!(
+                            "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                            policy.max_depth, stub.outer_span.start
+                        );
+                        policy.handle(policy.depth_limit_exceeded, &msg)?;
+                        arena.push_diagnostic(SyntaxDiagnostic {
+                            message: msg.clone(),
+                            token_offset: stub.outer_span.start,
+                            is_error: true,
+                        });
+                        return Ok(StubStep::Leaf(arena.alloc(
+                            stub.outer_span,
+                            DcSyntaxKind::Malformed {
+                                raw_tokens: Vec::new(),
+                                message: msg,
+                            },
+                        )));
+                    }
+                    nav.enter_frame(stub)?;
+                    return Ok(StubStep::Push(ArenaBuildFrame::Container {
+                        outer_span: stub.outer_span,
+                        opener: head,
+                        closer,
+                        unclosed,
+                        children: Vec::new(),
+                    }));
+                }
+                return Ok(StubStep::Leaf(arena.alloc(
+                    stub.outer_span,
+                    DcSyntaxKind::Container {
+                        opener: head,
+                        closer,
+                        header: Vec::new(),
+                        children: Vec::new(),
+                        trailing: Vec::new(),
+                        unclosed,
+                    },
+                )));
             }
-            self.exit_frame()?;
-            return Ok(arena.alloc(stub.outer_span, DcSyntaxKind::Tagged { tag: head, args }));
+            if stub.inner_span.is_some() {
+                if current_depth >= policy.max_depth {
+                    let msg = format!(
+                        "Document nesting depth exceeds maximum limit ({}) at offset {}",
+                        policy.max_depth, stub.outer_span.start
+                    );
+                    policy.handle(policy.depth_limit_exceeded, &msg)?;
+                    arena.push_diagnostic(SyntaxDiagnostic {
+                        message: msg.clone(),
+                        token_offset: stub.outer_span.start,
+                        is_error: true,
+                    });
+                    return Ok(StubStep::Leaf(arena.alloc(
+                        stub.outer_span,
+                        DcSyntaxKind::Malformed {
+                            raw_tokens: Vec::new(),
+                            message: msg,
+                        },
+                    )));
+                }
+                nav.enter_frame(stub)?;
+                return Ok(StubStep::Push(ArenaBuildFrame::Tagged {
+                    outer_span: stub.outer_span,
+                    tag: head,
+                    args: Vec::new(),
+                }));
+            }
+            Ok(StubStep::Leaf(
+                arena.alloc(stub.outer_span, DcSyntaxKind::Atom(head)),
+            ))
+        };
+
+        let mut work_stack: Vec<ArenaBuildFrame> = Vec::new();
+        match classify_stub(self, root_stub, 0, arena)? {
+            StubStep::Leaf(id) => return Ok(id),
+            StubStep::Push(frame) => work_stack.push(frame),
         }
-        Ok(arena.alloc(stub.outer_span, DcSyntaxKind::Atom(head)))
+
+        let res = (|| -> Result<NodeId> {
+            loop {
+                let current_depth = work_stack.len();
+                let need_assignment_rhs = matches!(
+                    work_stack.last(),
+                    Some(ArenaBuildFrame::Assignment { value: None, .. })
+                );
+                let finished_assignment = matches!(
+                    work_stack.last(),
+                    Some(ArenaBuildFrame::Assignment { value: Some(_), .. })
+                );
+
+                if finished_assignment {
+                    let Some(ArenaBuildFrame::Assignment {
+                        outer_span,
+                        ident,
+                        value: Some(val_id),
+                    }) = work_stack.pop()
+                    else {
+                        unreachable!()
+                    };
+                    self.exit_frame()?;
+                    let node_id = arena.alloc(
+                        outer_span,
+                        DcSyntaxKind::Assignment {
+                            ident,
+                            value: val_id,
+                        },
+                    );
+                    if let Some(parent) = work_stack.last_mut() {
+                        match parent {
+                            ArenaBuildFrame::Assignment { value, .. } => *value = Some(node_id),
+                            ArenaBuildFrame::Container { children, .. } => children.push(node_id),
+                            ArenaBuildFrame::Tagged { args, .. } => args.push(node_id),
+                        }
+                        continue;
+                    }
+                    return Ok(node_id);
+                }
+
+                let start = self.cursor;
+                if let Some(child_stub) = self.next_sibling_stub(policy)? {
+                    match classify_stub(self, &child_stub, current_depth, arena)? {
+                        StubStep::Leaf(child_id) => {
+                            if let Some(top) = work_stack.last_mut() {
+                                match top {
+                                    ArenaBuildFrame::Assignment { value, .. } => {
+                                        *value = Some(child_id);
+                                    }
+                                    ArenaBuildFrame::Container { children, .. } => {
+                                        children.push(child_id);
+                                    }
+                                    ArenaBuildFrame::Tagged { args, .. } => {
+                                        args.push(child_id);
+                                    }
+                                }
+                            }
+                        }
+                        StubStep::Push(child_frame) => {
+                            work_stack.push(child_frame);
+                        }
+                    }
+                } else {
+                    if need_assignment_rhs {
+                        bail!("Unexpected end of stream at offset {start}");
+                    }
+                    let Some(finished_frame) = work_stack.pop() else {
+                        bail!("Internal error: empty arena work stack");
+                    };
+                    self.exit_frame()?;
+                    let node_id = match finished_frame {
+                        ArenaBuildFrame::Container {
+                            outer_span,
+                            opener,
+                            closer,
+                            unclosed,
+                            children,
+                        } => arena.alloc(
+                            outer_span,
+                            DcSyntaxKind::Container {
+                                opener,
+                                closer,
+                                header: Vec::new(),
+                                children,
+                                trailing: Vec::new(),
+                                unclosed,
+                            },
+                        ),
+                        ArenaBuildFrame::Tagged {
+                            outer_span,
+                            tag,
+                            args,
+                        } => arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args }),
+                        ArenaBuildFrame::Assignment { .. } => unreachable!(),
+                    };
+                    if let Some(parent) = work_stack.last_mut() {
+                        match parent {
+                            ArenaBuildFrame::Assignment { value, .. } => *value = Some(node_id),
+                            ArenaBuildFrame::Container { children, .. } => children.push(node_id),
+                            ArenaBuildFrame::Tagged { args, .. } => args.push(node_id),
+                        }
+                    } else {
+                        return Ok(node_id);
+                    }
+                }
+            }
+        })();
+
+        while self.level_stack.len() > base_level_depth {
+            let _ = self.exit_frame();
+        }
+        res
     }
 
     fn read_token_or_binary_at(&mut self, offset: u64) -> Result<Option<(DcChar, u64)>> {
@@ -1687,10 +2133,10 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<u64> {
         let mut offset = after_opener;
-        if closer == DcChar::from_short(261) {
+        if closer == DC_END_LITERAL {
             if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-                if ch == DcChar::from_short(262) {
-                    offset = self.scan_until_token(next_off, DcChar::from_short(263), policy)?;
+                if ch == DC_BEGIN_TYPE_DEF {
+                    offset = self.scan_until_token(next_off, DC_END_TYPE_DEF, policy)?;
                 } else {
                     policy.handle(
                         policy.syntax_error,
@@ -1759,11 +2205,6 @@ impl<'a> DcDocumentNavigator<'a> {
         let mut closer_stack = vec![closer];
         let mut offset = after_opener;
 
-        let dc_begin_literal = DcChar::from_short(260);
-        let dc_end_literal = DcChar::from_short(261);
-        let dc_begin_ident = DcChar::from_short(270);
-        let dc_end_ident = DcChar::from_short(271);
-
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
             let token_start = offset;
             if ch == DC_ESCAPE {
@@ -1782,12 +2223,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 offset = after_bin;
                 continue;
             }
-            if ch == dc_begin_literal {
-                offset = self.scan_escaped_text_frame(next_offset, dc_end_literal, policy)?;
+            if ch == DC_BEGIN_LITERAL {
+                offset = self.scan_escaped_text_frame(next_offset, DC_END_LITERAL, policy)?;
                 continue;
             }
-            if ch == dc_begin_ident {
-                offset = self.scan_escaped_text_frame(next_offset, dc_end_ident, policy)?;
+            if ch == DC_BEGIN_IDENTIFIER {
+                offset = self.scan_escaped_text_frame(next_offset, DC_END_IDENTIFIER, policy)?;
                 continue;
             }
             if ch == DC_BEGIN_NUMBER {
@@ -1847,7 +2288,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     if num_open == DC_BEGIN_NUMBER {
                         if let Ok(num_end) = self.scan_until_token(after_num_open, DC_END_NUMBER, policy) {
                             if let Ok((_, digits)) = self.decode_number_span(DcByteSpan::new(after_tag, num_end)) {
-                                if let Ok(int_val) = decode_integer_from_digits(&digits) {
+                                if let Ok(int_val) = crate::dc_number::parse_dc_number_digits(&digits) {
                                     sequence_id = u64::try_from(&int_val).ok();
                                 }
                             }
@@ -2012,18 +2453,18 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty literal span");
         };
-        ensure!(first == DcChar::from_short(260), "Expected Dc 260");
+        ensure!(first == DC_BEGIN_LITERAL, "Expected Dc 260");
         offset = after_first;
         let mut type_header = Vec::new();
         if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
-            if ch == DcChar::from_short(262) {
+            if ch == DC_BEGIN_TYPE_DEF {
                 offset = next_off;
                 while offset < span.end {
                     let Some((tch, after_tch)) = self.read_token_or_binary_at(offset)? else {
                         break;
                     };
                     offset = after_tch;
-                    if tch == DcChar::from_short(263) {
+                    if tch == DC_END_TYPE_DEF {
                         break;
                     }
                     type_header.push(tch);
@@ -2036,7 +2477,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             };
             offset = next_off;
-            if ch == DcChar::from_short(261) {
+            if ch == DC_END_LITERAL {
                 break;
             }
             if ch == DC_ESCAPE {
@@ -2067,7 +2508,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first, after_first)) = self.read_token_or_binary_at(offset)? else {
             bail!("Empty identifier span");
         };
-        ensure!(first == DcChar::from_short(270), "Expected Dc 270");
+        ensure!(first == DC_BEGIN_IDENTIFIER, "Expected Dc 270");
         offset = after_first;
         let mut name = String::new();
         while offset < span.end {
@@ -2075,7 +2516,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 break;
             };
             offset = next_off;
-            if ch == DcChar::from_short(271) {
+            if ch == DC_END_IDENTIFIER {
                 break;
             }
             if ch == DC_ESCAPE {
@@ -2244,81 +2685,74 @@ impl<'a> DcDocumentNavigator<'a> {
         let first = first_dc.to_u128();
 
         // 1. Equivalent (Dc 397) and partially equivalent (Dc 561) representations wrapper
-        let dc_equiv = DC_EQUIVALENT_REPRESENTATIONS.to_u128();
-        let dc_partial_equiv = DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128();
-        if (first == dc_equiv || first == dc_partial_equiv)
+        let is_equiv_wrapper = first_dc == DC_EQUIVALENT_REPRESENTATIONS
+            || first_dc == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS;
+        let term_targets_equiv = match term {
+            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                t.to_u128() == DC_EQUIVALENT_REPRESENTATIONS.to_u128()
+                    || t.to_u128() == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS.to_u128()
+            }
+            _ => false,
+        };
+        if is_equiv_wrapper
             && !matches!(term, SyntaxTerm::Group(pattern) if pattern_has_payload_constraint(pattern))
-            && !matches!(
-                term,
-                SyntaxTerm::SelfChar
-                    | SyntaxTerm::CharRef(CharTarget::Dc(397 | 561))
-                    | SyntaxTerm::RuleRef {
-                        target: CharTarget::Dc(397 | 561),
-                    }
-                    | SyntaxTerm::CharSet { .. }
-            )
+            && !term_targets_equiv
         {
-            let wrapper_id = if first == dc_equiv { 397 } else { 561 };
-            if let Some(rule) = ctx.resolver.resolve_rule(&CharTarget::Dc(wrapper_id)) {
-                let old_self = ctx.self_dc;
-                ctx.self_dc = Some(first);
-                let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                ctx.self_dc = old_self;
-                if matched {
-                    let wrapper_end = self.cursor;
-                    if matches!(
-                        term,
-                        SyntaxTerm::NamedConstruct { name, subtype: Some(_), .. }
-                            if name == "data" || name == "string"
-                    ) {
-                        if !self.eval_constrained_equivalent_list(
-                            after_first,
-                            wrapper_end,
+            if let Some(wrapper_target) = CharTarget::from_u128(first) {
+                if let Some(rule) = ctx.resolver.resolve_rule(&wrapper_target) {
+                    let old_self = ctx.self_dc;
+                    ctx.self_dc = Some(first);
+                    let matched = self.eval_pattern(&rule.pattern, ctx)?;
+                    ctx.self_dc = old_self;
+                    if matched {
+                        let wrapper_end = self.cursor;
+                        if matches!(
                             term,
-                            ctx,
-                        )? {
-                            self.cursor = start_offset;
-                            return Ok(false);
+                            SyntaxTerm::NamedConstruct { name, subtype: Some(_), .. }
+                                if name == "data" || name == "string"
+                        ) {
+                            if !self.eval_constrained_equivalent_list(
+                                after_first,
+                                wrapper_end,
+                                term,
+                                ctx,
+                            )? {
+                                self.cursor = start_offset;
+                                return Ok(false);
+                            }
                         }
+                        self.cursor = wrapper_end;
+                        return Ok(true);
                     }
-                    self.cursor = wrapper_end;
-                    return Ok(true);
+                    self.cursor = start_offset;
                 }
-                self.cursor = start_offset;
             }
         }
 
         // 2. Optional value wrappers: Dc 315 (present) and Dc 316 (absent)
-        let dc_opt_present = DC_OPTIONAL_PRESENT.to_u128();
-        let dc_opt_absent = DC_OPTIONAL_ABSENT.to_u128();
-        if first == dc_opt_present
-            && !matches!(
-                term,
-                SyntaxTerm::SelfChar
-                    | SyntaxTerm::CharRef(CharTarget::Dc(315))
-                    | SyntaxTerm::RuleRef {
-                        target: CharTarget::Dc(315),
-                    }
-                    | SyntaxTerm::CharSet { .. }
-            )
-        {
+        let term_targets_opt_present = match term {
+            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                t.to_u128() == DC_OPTIONAL_PRESENT.to_u128()
+            }
+            _ => false,
+        };
+        if first_dc == DC_OPTIONAL_PRESENT && !term_targets_opt_present {
             self.cursor = after_first;
             if self.eval_term_single(term, ctx)? {
                 return Ok(true);
             }
             self.cursor = start_offset;
         }
-        if first == dc_opt_absent
-            && !matches!(
-                term,
-                SyntaxTerm::SelfChar
-                    | SyntaxTerm::CharRef(CharTarget::Dc(316))
-                    | SyntaxTerm::RuleRef {
-                        target: CharTarget::Dc(316),
-                    }
-                    | SyntaxTerm::CharSet { .. }
-            )
-        {
+        let term_targets_opt_absent = match term {
+            SyntaxTerm::SelfChar | SyntaxTerm::CharSet { .. } => true,
+            SyntaxTerm::CharRef(t) | SyntaxTerm::RuleRef { target: t } => {
+                t.to_u128() == DC_OPTIONAL_ABSENT.to_u128()
+            }
+            _ => false,
+        };
+        if first_dc == DC_OPTIONAL_ABSENT && !term_targets_opt_absent {
             self.cursor = after_first;
             return Ok(true);
         }
@@ -2371,8 +2805,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
                                 message: format!("Dangling escape Dc 255 at offset {start_offset}"),
-                                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                                token_offset: usize::try_from(start_offset).unwrap_or(0),
+                                token_offset: start_offset,
                                 is_error: true,
                             });
                             return Ok(false);
@@ -2382,7 +2815,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     }
                     let in_opaque = ctx
                         .self_dc
-                        .is_some_and(|s| is_opaque_text_container(DcChar::from_u128(s)));
+                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
                     if !in_opaque {
                         if first_dc == DC_START_ENCAPSULATION_BINARY {
                             if let Ok((after_bin, _)) = self.scan_binary_at(start_offset) {
@@ -2391,11 +2824,11 @@ impl<'a> DcDocumentNavigator<'a> {
                             }
                             return Ok(false);
                         }
-                        if first_dc == DcChar::from_short(260) {
+                        if first_dc == DC_BEGIN_LITERAL {
                             self.cursor = start_offset;
                             return self.eval_literal_frame(None, ctx);
                         }
-                        if first_dc == DcChar::from_short(270) {
+                        if first_dc == DC_BEGIN_IDENTIFIER {
                             self.cursor = start_offset;
                             return self.eval_identifier_frame(ctx);
                         }
@@ -2461,14 +2894,14 @@ impl<'a> DcDocumentNavigator<'a> {
                                 return Ok(true);
                             }
                         }
-                        if name == "type" && first_dc == DcChar::from_short(262) {
+                        if name == "type" && first_dc == DC_BEGIN_TYPE_DEF {
                             if let Some((inner_dc, after_inner)) =
                                 self.read_token_or_binary_at(after_first)?
                             {
                                 if let Some((close_dc, after_close)) =
                                     self.read_token_or_binary_at(after_inner)?
                                 {
-                                    if close_dc == DcChar::from_short(263) {
+                                    if close_dc == DC_END_TYPE_DEF {
                                         let inner_u128 = inner_dc.to_u128();
                                         let fmt_match = FormatId::from_shorthand(sub)
                                             .or_else(|| FormatId::from_ident(sub))
@@ -2489,35 +2922,32 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(false);
                 }
                 if name == "type" && subtype.is_none() {
-                    if first_dc == DcChar::from_short(262) {
-                        if let Some(rule) = ctx.resolver.resolve_rule(&CharTarget::Dc(262)) {
-                            let old_self = ctx.self_dc;
-                            ctx.self_dc = Some(first);
-                            let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                            ctx.self_dc = old_self;
-                            if matched {
-                                return Ok(true);
+                    if first_dc == DC_BEGIN_TYPE_DEF {
+                        if let Some(target) = CharTarget::from_u128(first) {
+                            if let Some(rule) = ctx.resolver.resolve_rule(&target) {
+                                let old_self = ctx.self_dc;
+                                ctx.self_dc = Some(first);
+                                let matched = self.eval_pattern(&rule.pattern, ctx)?;
+                                ctx.self_dc = old_self;
+                                if matched {
+                                    return Ok(true);
+                                }
+                                self.cursor = start_offset;
                             }
-                            self.cursor = start_offset;
                         }
                     }
-                    if first == DC_TYPE_INTERSECTION.to_u128()
-                        || first == DC_TYPE_UNION.to_u128()
-                    {
-                        let target = if first == DC_TYPE_INTERSECTION.to_u128() {
-                            CharTarget::Dc(516)
-                        } else {
-                            CharTarget::Dc(300)
-                        };
-                        if let Some(rule) = ctx.resolver.resolve_rule(&target) {
-                            let old_self = ctx.self_dc;
-                            ctx.self_dc = Some(first);
-                            let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                            ctx.self_dc = old_self;
-                            if matched {
-                                return Ok(true);
+                    if first_dc == DC_TYPE_INTERSECTION || first_dc == DC_TYPE_UNION {
+                        if let Some(target) = CharTarget::from_u128(first) {
+                            if let Some(rule) = ctx.resolver.resolve_rule(&target) {
+                                let old_self = ctx.self_dc;
+                                ctx.self_dc = Some(first);
+                                let matched = self.eval_pattern(&rule.pattern, ctx)?;
+                                ctx.self_dc = old_self;
+                                if matched {
+                                    return Ok(true);
+                                }
+                                self.cursor = start_offset;
                             }
-                            self.cursor = start_offset;
                         }
                     }
                     let is_format_token =
@@ -2558,8 +2988,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Syntax expansion depth limit reached ({}) for named construct [{name}]",
                             ctx.max_depth
                         ),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(start_offset).unwrap_or(0),
+                        token_offset: start_offset,
                         is_error: true,
                     });
                     return Ok(false);
@@ -2592,8 +3021,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Syntax expansion depth limit reached ({}) for rule {target}",
                             ctx.max_depth
                         ),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(start_offset).unwrap_or(0),
+                        token_offset: start_offset,
                         is_error: true,
                     });
                     return Ok(false);
@@ -2624,7 +3052,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         let matched_end = self.cursor;
                         if ctx.validate_interiors {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(target) {
-                                if !is_opaque_text_container(first_dc) {
+                                if !ctx.resolver.is_opaque_container(first) {
                                     if self
                                         .validate_container_interior_strict(
                                             target,
@@ -2670,8 +3098,7 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: "Constrained representation expansion depth limit reached".to_owned(),
-                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                token_offset: usize::try_from(after_wrapper_tag).unwrap_or(0),
+                token_offset: after_wrapper_tag,
                 is_error: true,
             });
             return Ok(false);
@@ -2680,10 +3107,10 @@ impl<'a> DcDocumentNavigator<'a> {
         else {
             return Ok(false);
         };
-        if list_open != DcChar::from_short(310) {
+        if list_open != DC_BEGIN_LIST {
             return Ok(false);
         }
-        let close_len = dc_char_utf8e128_len(DcChar::from_short(311));
+        let close_len = dc_char_utf8e128_len(DC_END_LIST);
         if wrapper_end < after_list_open.saturating_add(close_len) {
             return Ok(false);
         }
@@ -2778,8 +3205,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Invalid data constraint: {err}"),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(start_offset).unwrap_or(0),
+                        token_offset: start_offset,
                         is_error: true,
                     });
                     return Ok(false);
@@ -2800,7 +3226,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     let actual_id = data_type.as_ref().and_then(|dt| {
                         let mut chars = dt.chars();
                         let first_ch = chars.next()?;
-                        if first_ch == DcChar::from_short(262) {
+                        if first_ch == DC_BEGIN_TYPE_DEF {
                             chars.next().map(DcChar::to_u128)
                         } else {
                             Some(first_ch.to_u128())
@@ -2820,7 +3246,11 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(true);
         }
 
-        let Some(rule_203) = ctx.resolver.resolve_rule(&CharTarget::Dc(203)) else {
+        let Some(target_203) = CharTarget::from_u128(DC_START_ENCAPSULATION_BINARY.to_u128())
+        else {
+            return Ok(false);
+        };
+        let Some(rule_203) = ctx.resolver.resolve_rule(&target_203) else {
             return Ok(false);
         };
         let old_self = ctx.self_dc;
@@ -2839,12 +3269,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 let expected_id = FormatId::from_shorthand(fmt_str)
                     .or_else(|| FormatId::from_ident(fmt_str))
                     .and_then(|f| f.dc_id());
-                let actual_id = if tokens.get(1).copied() == Some(DcChar::from_short(262).to_u128())
-                {
-                    tokens.get(2).copied()
-                } else {
-                    tokens.get(1).copied()
-                };
+                let actual_id =
+                    if tokens.get(1).copied() == Some(DC_BEGIN_TYPE_DEF.to_u128()) {
+                        tokens.get(2).copied()
+                    } else {
+                        tokens.get(1).copied()
+                    };
                 if expected_id.is_none() || actual_id != expected_id {
                     self.cursor = start_offset;
                     return Ok(false);
@@ -2861,8 +3291,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         ctx.has_errors = true;
                         ctx.diagnostics.push(SyntaxDiagnostic {
                             message: format!("Invalid constrained binary payload: {err}"),
-                            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                            token_offset: usize::try_from(start_offset).unwrap_or(0),
+                            token_offset: start_offset,
                             is_error: true,
                         });
                         self.cursor = start_offset;
@@ -2922,25 +3351,23 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, after_260)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DcChar::from_short(260) {
+        if first_dc != DC_BEGIN_LITERAL {
             return Ok(false);
         }
         let Some((hdr_open, after_262)) = self.read_token_or_binary_at(after_260)? else {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: format!("Unclosed literal at offset {start_offset}: missing Dc 262..263"),
-                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                token_offset: usize::try_from(start_offset).unwrap_or(0),
+                token_offset: start_offset,
                 is_error: true,
             });
             return Ok(false);
         };
-        if hdr_open != DcChar::from_short(262) {
+        if hdr_open != DC_BEGIN_TYPE_DEF {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: format!("Literal at offset {start_offset} is missing Dc 262..263 type header"),
-                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                token_offset: usize::try_from(start_offset).unwrap_or(0),
+                token_offset: start_offset,
                 is_error: true,
             });
             return Ok(false);
@@ -2957,7 +3384,7 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             return Ok(false);
         };
-        if hdr_close != DcChar::from_short(263) {
+        if hdr_close != DC_END_TYPE_DEF {
             ctx.has_errors = true;
             return Ok(false);
         }
@@ -2969,8 +3396,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Dangling escape Dc 255 in literal at offset {offset}"),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(offset).unwrap_or(0),
+                        token_offset: offset,
                         is_error: true,
                     });
                     self.cursor = start_offset;
@@ -2980,14 +3406,13 @@ impl<'a> DcDocumentNavigator<'a> {
                     decoded_payload.push(escaped);
                 }
                 offset = after_esc;
-            } else if ch == DcChar::from_short(261) {
+            } else if ch == DC_END_LITERAL {
                 if let Some(sub_str) = subtype {
                     if ctx.depth >= ctx.max_depth {
                         ctx.has_errors = true;
                         ctx.diagnostics.push(SyntaxDiagnostic {
                             message: "String constraint expansion depth limit reached".to_owned(),
-                            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                            token_offset: usize::try_from(start_offset).unwrap_or(0),
+                            token_offset: start_offset,
                             is_error: true,
                         });
                         self.cursor = start_offset;
@@ -2999,8 +3424,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
                                 message: format!("Invalid string constraint: {err}"),
-                                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                                token_offset: usize::try_from(start_offset).unwrap_or(0),
+                                token_offset: start_offset,
                                 is_error: true,
                             });
                             self.cursor = start_offset;
@@ -3040,8 +3464,7 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx.has_errors = true;
         ctx.diagnostics.push(SyntaxDiagnostic {
             message: format!("Unclosed literal frame starting at offset {start_offset}"),
-            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-            token_offset: usize::try_from(start_offset).unwrap_or(0),
+            token_offset: start_offset,
             is_error: true,
         });
         self.cursor = start_offset;
@@ -3053,7 +3476,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let Some((first_dc, mut offset)) = self.read_token_or_binary_at(start_offset)? else {
             return Ok(false);
         };
-        if first_dc != DcChar::from_short(270) {
+        if first_dc != DC_BEGIN_IDENTIFIER {
             return Ok(false);
         }
         let mut char_count = 0usize;
@@ -3063,8 +3486,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Dangling escape Dc 255 in identifier at offset {offset}"),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(offset).unwrap_or(0),
+                        token_offset: offset,
                         is_error: true,
                     });
                     self.cursor = start_offset;
@@ -3072,13 +3494,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 };
                 char_count = char_count.saturating_add(1);
                 offset = after_esc;
-            } else if ch == DcChar::from_short(271) {
+            } else if ch == DC_END_IDENTIFIER {
                 if char_count == 0 {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
-                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-                        token_offset: usize::try_from(start_offset).unwrap_or(0),
+                        token_offset: start_offset,
                         is_error: true,
                     });
                     self.cursor = start_offset;
@@ -3094,8 +3515,7 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx.has_errors = true;
         ctx.diagnostics.push(SyntaxDiagnostic {
             message: format!("Unclosed identifier frame starting at offset {start_offset}"),
-            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
-            token_offset: usize::try_from(start_offset).unwrap_or(0),
+            token_offset: start_offset,
             is_error: true,
         });
         self.cursor = start_offset;
@@ -3142,30 +3562,49 @@ impl<'a> DcDocumentNavigator<'a> {
         self.validate_span_strict(span, 0)
     }
 
-    fn validate_span_strict(&mut self, span: DcByteSpan, depth: usize) -> Result<()> {
-        ensure!(
-            depth <= MAX_SYNTAX_EXPANSION_DEPTH,
-            "Document container nesting exceeds maximum depth ({MAX_SYNTAX_EXPANSION_DEPTH})"
-        );
+    fn validate_span_strict(&mut self, initial_span: DcByteSpan, initial_depth: usize) -> Result<()> {
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
-        self.active_span = span;
-        self.cursor = span.start;
+        let mut span_stack: Vec<(DcByteSpan, u64, usize)> =
+            vec![(initial_span, initial_span.start, initial_depth)];
+
         let res = (|| -> Result<()> {
-            while self.cursor < self.active_span.end {
-                self.validate_next_construct_strict(depth)?;
+            while let Some((span, cursor, depth)) = span_stack.pop() {
+                ensure!(
+                    depth <= MAX_SYNTAX_EXPANSION_DEPTH,
+                    "Document container nesting exceeds maximum depth ({MAX_SYNTAX_EXPANSION_DEPTH})"
+                );
+                if cursor >= span.end {
+                    continue;
+                }
+                self.active_span = span;
+                self.cursor = cursor;
+                let sub_spans = self.step_validate_construct_strict(depth)?;
+                let next_cursor = self.cursor;
+                if next_cursor < span.end {
+                    span_stack.push((span, next_cursor, depth));
+                }
+                for (sub_span, sub_depth) in sub_spans.into_iter().rev() {
+                    if !sub_span.is_empty() || sub_depth > MAX_SYNTAX_EXPANSION_DEPTH {
+                        span_stack.push((sub_span, sub_span.start, sub_depth));
+                    }
+                }
             }
             Ok(())
         })();
+
         self.active_span = saved_span;
         self.cursor = saved_cursor.min(saved_span.end);
         res
     }
 
-    fn validate_next_construct_strict(&mut self, depth: usize) -> Result<()> {
+    fn step_validate_construct_strict(
+        &mut self,
+        depth: usize,
+    ) -> Result<Vec<(DcByteSpan, usize)>> {
         let start_offset = self.cursor;
         let Some((first_dc, after_first)) = self.read_token_or_binary_at(start_offset)? else {
-            return Ok(());
+            return Ok(Vec::new());
         };
         let first_u128 = first_dc.to_u128();
         let resolver = default_syntax_resolver();
@@ -3183,7 +3622,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 bail!("Dangling escape Dc 255 at offset {start_offset}");
             };
             self.cursor = after_esc;
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // 3. Binary encapsulation (Dc 203)
@@ -3195,11 +3634,11 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.eval_data_construct(None, &mut ctx)? && !ctx.has_errors,
                 "Invalid binary encapsulation (Dc 203..204) at offset {start_offset}"
             );
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // 4. Literal frame (Dc 260..261)
-        if first_dc == DcChar::from_short(260) {
+        if first_dc == DC_BEGIN_LITERAL {
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.validate_interiors = true;
             ctx.depth = depth;
@@ -3207,11 +3646,11 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.eval_literal_frame(None, &mut ctx)? && !ctx.has_errors,
                 "Invalid literal frame (Dc 260..261) at offset {start_offset}"
             );
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // 5. Identifier frame (Dc 270..271) and optional infix operator (e.g. Dc 269 assignment)
-        if first_dc == DcChar::from_short(270) {
+        if first_dc == DC_BEGIN_IDENTIFIER {
             let mut ctx = SyntaxEvalContext::new(&**resolver, None);
             ctx.validate_interiors = true;
             ctx.depth = depth;
@@ -3235,17 +3674,15 @@ impl<'a> DcDocumentNavigator<'a> {
                                 "Syntax rule mismatch for infix construct {op_target} at offset {start_offset}"
                             );
                             let assign_end = self.cursor;
-                            self.validate_span_strict(
+                            return Ok(vec![(
                                 DcByteSpan::new(after_op, assign_end),
                                 depth.saturating_add(1),
-                            )?;
-                            self.cursor = assign_end;
-                            return Ok(());
+                            )]);
                         }
                     }
                 }
             }
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // 6. Number frame (Dc 6..7)
@@ -3257,7 +3694,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 self.eval_number_frame(&mut ctx)? && !ctx.has_errors,
                 "Invalid number frame (Dc 6..7) at offset {start_offset}"
             );
-            return Ok(());
+            return Ok(Vec::new());
         }
 
         // 7. Construct with a syntax rule in the database
@@ -3277,8 +3714,8 @@ impl<'a> DcDocumentNavigator<'a> {
                 let outer_end = self.cursor;
 
                 if let Some(closer_u128) = resolver.closer_for_opener(&target) {
-                    if !is_opaque_text_container(first_dc) {
-                        self.validate_container_interior_strict(
+                    if !resolver.is_opaque_container(first_u128) {
+                        let sub_spans = self.prepare_container_interior_spans(
                             &target,
                             first_dc,
                             after_first,
@@ -3287,18 +3724,19 @@ impl<'a> DcDocumentNavigator<'a> {
                             depth.saturating_add(1),
                         )?;
                         self.cursor = outer_end;
+                        return Ok(sub_spans);
                     }
                 }
-                return Ok(());
+                return Ok(Vec::new());
             }
         }
 
         // 8. Standalone atomic DcChar
         self.cursor = after_first;
-        Ok(())
+        Ok(Vec::new())
     }
 
-    fn validate_container_interior_strict(
+    fn prepare_container_interior_spans(
         &mut self,
         target: &CharTarget,
         opener_dc: DcChar,
@@ -3306,12 +3744,16 @@ impl<'a> DcDocumentNavigator<'a> {
         closer_dc: DcChar,
         outer_end: u64,
         depth: usize,
-    ) -> Result<()> {
+    ) -> Result<Vec<(DcByteSpan, usize)>> {
+        ensure!(
+            depth <= MAX_SYNTAX_EXPANSION_DEPTH,
+            "Document container nesting exceeds maximum depth ({MAX_SYNTAX_EXPANSION_DEPTH})"
+        );
         let resolver = default_syntax_resolver();
         let saved_span = self.active_span;
         let saved_cursor = self.cursor;
         self.active_span = DcByteSpan::new(after_opener, outer_end);
-        let res = (|| -> Result<()> {
+        let res = (|| -> Result<Vec<(DcByteSpan, usize)>> {
             let (closer_start, after_closer) = self.scan_balanced_container(
                 after_opener,
                 opener_dc,
@@ -3361,24 +3803,39 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
 
-            self.validate_span_strict(DcByteSpan::new(children_start, closer_start), depth)?;
-
+            let mut spans = vec![(DcByteSpan::new(children_start, closer_start), depth)];
             if outer_end > after_closer {
-                self.validate_span_strict(DcByteSpan::new(after_closer, outer_end), depth)?;
+                spans.push((DcByteSpan::new(after_closer, outer_end), depth));
             }
-            Ok(())
+            Ok(spans)
         })();
         self.active_span = saved_span;
         self.cursor = saved_cursor.min(saved_span.end);
         res
     }
-}
 
-fn is_opaque_text_container(opener: DcChar) -> bool {
-    matches!(
-        opener.to_short_dc(),
-        Some(6 | 203 | 246 | 247 | 249 | 250 | 260 | 262 | 270)
-    )
+    fn validate_container_interior_strict(
+        &mut self,
+        target: &CharTarget,
+        opener_dc: DcChar,
+        after_opener: u64,
+        closer_dc: DcChar,
+        outer_end: u64,
+        depth: usize,
+    ) -> Result<()> {
+        let sub_spans = self.prepare_container_interior_spans(
+            target,
+            opener_dc,
+            after_opener,
+            closer_dc,
+            outer_end,
+            depth,
+        )?;
+        for (span, sub_depth) in sub_spans {
+            self.validate_span_strict(span, sub_depth)?;
+        }
+        Ok(())
+    }
 }
 
 fn pattern_has_payload_constraint(pattern: &SyntaxPattern) -> bool {
@@ -3438,23 +3895,14 @@ fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {
         .context("Binary byte count overflow")
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "encode_utf_8e_128_buf returns 1..=26, which is provably within u64::MAX"
+)]
 fn dc_char_utf8e128_len(ch: DcChar) -> u64 {
     let mut buf = [0_u8; 32];
     let len = encode_utf_8e_128_buf(&mut buf, ch.to_u128());
-    // Reason for fallback: In the theoretical event usize to u64 conversion fails, default to standard utf8e128 maximum length.
-    u64::try_from(len).unwrap_or(6)
-}
-
-fn decode_integer_from_digits(digits: &[DcChar]) -> Result<Integer> {
-    let mut chars = Vec::with_capacity(digits.len().saturating_add(3));
-    chars.push(DC_BEGIN_NUMBER);
-    chars.push(crate::dc_number::DC_INTEGER);
-    chars.extend_from_slice(digits);
-    chars.push(DC_END_NUMBER);
-    let mut iter = chars.into_iter();
-    crate::dc_number::read_dc_number_from_reader(|| {
-        iter.next().context("Unexpected end of number digits")
-    })
+    u64::try_from(len).expect("UTF-8e128 encoded length fits in u64")
 }
 
 /// Strictly validates a [`DcMstr`] buffer against all Document Character syntax

@@ -334,6 +334,35 @@ where
     Ok(Integer::from_sign_and_abs(!is_negative, nat))
 }
 
+/// Parses a slice of `DcChar` digits (with optional leading `DC_NEGATIVE` or
+/// `DC_POSITIVE` sign indicator, excluding the outer `DC_BEGIN_NUMBER`, format
+/// indicator, and `DC_END_NUMBER` delimiters) into an [`Integer`].
+pub fn parse_dc_number_digits(digits: &[DcChar]) -> Result<Integer> {
+    let mut is_negative = false;
+    let mut b64_str = String::new();
+    for (idx, &ch) in digits.iter().enumerate() {
+        if idx == 0 && ch == DC_NEGATIVE {
+            is_negative = true;
+            continue;
+        }
+        if idx == 0 && ch == DC_POSITIVE {
+            continue;
+        }
+        let digit = dc_base64_char_to_digit(ch)?;
+        let c = digit_to_base64_char(digit)?;
+        b64_str.push(c);
+    }
+    ensure!(
+        !b64_str.is_empty(),
+        "Dc number contains no digit characters"
+    );
+    let b64_base = Base::new(64)?;
+    let nat = parse_natural(&b64_str, b64_base).with_context(|| {
+        format!("Failed to parse Base64 number string '{b64_str}'")
+    })?;
+    Ok(Integer::from_sign_and_abs(!is_negative, nat))
+}
+
 
 /// Reads a single Dc number from a slice of short Document Characters (Dcs),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.

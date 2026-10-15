@@ -92,13 +92,13 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
 1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,"@ident(""BeginFileFlagsDescription""), :~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:]) 389",Begins a collection of semantic file flags attached to a file.
 1114501,389,End file flags description,0,BN,,!Cx,.Semantic,"@ident(""EndFileFlagsDescription""), @closes(388)",Terminates a collection of semantic file flags attached to a file.
-1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,:~ [formats:date] [^391]+ 391,Begins a time moment description.
-1114503,391,End time moment description,0,BN,,!Cx,.Semantic,,Terminates a time moment description.
+1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,"@ident(""BeginTimeMoment""), :~ [formats:date] [^391]+ 391",Begins a time moment description.
+1114503,391,End time moment description,0,BN,,!Cx,.Semantic,"@ident(""EndTimeMoment"")",Terminates a time moment description.
 1114504,392,File data,0,BN,,!Cx,.Semantic,:~ [data],File contents
-1114505,393,Begin date magnitude description,0,BN,,!Cx,.Semantic,:~ [formats:duration] [^394]+ 394,A positive date duration
-1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,,
-1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,:~ [formats:duration] [^396]+ 396,
-1114508,396,End date duration description,0,BN,,!Cx,.Semantic,,
+1114505,393,Begin date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateMagnitude""), :~ [formats:duration] [^394]+ 394",A positive date duration
+1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,"@ident(""EndDateMagnitude"")",
+1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,"@ident(""BeginDateDuration""), :~ [formats:duration] [^396]+ 396",
+1114508,396,End date duration description,0,BN,,!Cx,.Semantic,"@ident(""EndDateDuration"")",
 1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), :~ [list]",Indicates that all values within the list have the same underlying meaning.
 1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
@@ -239,7 +239,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @closes(552)",Terminates a structured error record.
 1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), :~ [^555]+ 555",Begins a structured warning incident record.
 1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @closes(554)",Terminates a structured warning record.
-1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ (([string] [number:Integer]) | [string])",Human-readable explanatory or diagnostic log message.
+1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
 1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
 1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
 1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."

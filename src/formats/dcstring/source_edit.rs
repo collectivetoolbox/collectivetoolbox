@@ -30,11 +30,16 @@ use crate::navigator::{
     DcByteSpan, DcDocumentNavigator, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode, NodeId,
 };
 use crate::{DcChar, DcMstring};
+use ctb_formats_dcdata::dc::{
+    DC_ASSIGN, DC_BEGIN_IDENTIFIER, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LITERAL, DC_END_KV_MAP, DC_END_KV_PAIR,
+    DC_LIST_ELEMENT_SEPARATOR,
+};
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
-fn append_dc(target: &mut Vec<u8>, short: u32) {
+fn append_dc(target: &mut Vec<u8>, ch: DcChar) {
     let mut character = crate::DcString::new();
-    character.push(DcChar::from_short(short));
+    character.push(ch);
     target.extend_from_slice(character.as_bytes());
 }
 
@@ -84,7 +89,7 @@ impl<'a> SourceView<'a> {
     fn is_map(&self, id: NodeId) -> bool {
         self.node(id).is_ok_and(|n| match &n.kind {
             DcSyntaxKind::Container { opener, .. } => {
-                matches!(opener.to_short_dc(), Some(313 | 559))
+                matches!(*opener, DC_BEGIN_LEGACY_KV_MAP | DC_BEGIN_KV_MAP)
             }
             _ => false,
         })
@@ -92,24 +97,24 @@ impl<'a> SourceView<'a> {
 
     fn identity(&self, id: NodeId) -> DcChar {
         if self.is_map(id) {
-            DcChar::from_short(559)
+            DC_BEGIN_KV_MAP
         } else if let Ok(n) = self.node(id) {
             match &n.kind {
                 DcSyntaxKind::Container { opener, .. } => *opener,
                 DcSyntaxKind::Tagged { tag, .. } => *tag,
-                DcSyntaxKind::Assignment { .. } => DcChar::from_short(269),
-                DcSyntaxKind::Literal { .. } => DcChar::from_short(260),
-                DcSyntaxKind::Identifier { .. } => DcChar::from_short(270),
+                DcSyntaxKind::Assignment { .. } => DC_ASSIGN,
+                DcSyntaxKind::Literal { .. } => DC_BEGIN_LITERAL,
+                DcSyntaxKind::Identifier { .. } => DC_BEGIN_IDENTIFIER,
                 DcSyntaxKind::Number { .. } => crate::dc_number::DC_BEGIN_NUMBER,
                 DcSyntaxKind::Binary { .. } => ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY,
                 DcSyntaxKind::Atom(ch) => *ch,
                 DcSyntaxKind::Malformed { raw_tokens, .. } => {
-                    // Reason for fallback: Empty malformed tokens fall back to null Dc 0 for node identity comparison.
-                    raw_tokens.first().copied().unwrap_or(DcChar::from_short(0))
+                    // Reason for fallback: Empty malformed tokens fall back to NUL (U+0000) for node identity comparison.
+                    raw_tokens.first().copied().unwrap_or(DcChar::from_u128(0))
                 }
             }
         } else {
-            DcChar::from_short(0)
+            DcChar::from_u128(0)
         }
     }
 
@@ -131,90 +136,31 @@ impl<'a> SourceView<'a> {
     }
 
     fn extract_map_entries(&self, id: NodeId) -> Result<(Vec<NodeId>, Vec<NodeEntry>)> {
-        let node = self.node(id)?;
-        let DcSyntaxKind::Container { opener, children, .. } = &node.kind else {
-            bail!("Missing map frame");
-        };
-        let header = children.get(..2).context("Missing map type declarations")?;
-        ensure!(
-            header.iter().all(|&child| {
-                if let Ok(cn) = self.node(child) {
-                    matches!(cn.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(275))
-                } else {
-                    false
-                }
-            }),
-            "Source-backed typed map editing requires uncounted Object/Object headers"
-        );
-        let body = children.get(2..).context("Missing map body")?;
-        let mut entries = Vec::new();
-        if opener.to_short_dc() == Some(313) {
-            if !body.is_empty() {
-                let operands = self.split_operands(body);
-                for pair in operands.chunks(2) {
-                    let [key, value] = pair else {
-                        bail!("Unpaired legacy map operand");
-                    };
-                    ensure!(!key.is_empty() && !value.is_empty(), "Empty legacy map operand");
-                    entries.push((key.to_vec(), value.to_vec()));
-                }
-            }
-        } else {
-            for &pair_id in body {
-                let pair_node = self.node(pair_id)?;
-                let (pair_opener, pair_children) = match &pair_node.kind {
-                    DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
-                    other => bail!("Expected explicitly framed map entry, found {other:?}"),
-                };
-                ensure!(
-                    pair_opener.to_short_dc() == Some(514),
-                    "Expected explicitly framed map entry"
-                );
-                let operands = self.split_operands(pair_children);
-                let [key, value] = operands.as_slice() else {
-                    bail!("Expected two pair operands");
-                };
-                ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
-                entries.push((key.to_vec(), value.to_vec()));
-            }
-        }
-        Ok((header.to_vec(), entries))
-    }
-
-    fn split_operands(&self, nodes: &[NodeId]) -> Vec<Vec<NodeId>> {
-        let mut result = Vec::new();
-        let mut current = Vec::new();
-        for &id in nodes {
-            if self.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))) {
-                result.push(std::mem::take(&mut current));
-            } else {
-                current.push(id);
-            }
-        }
-        result.push(current);
-        result
+        let (_opener, header, entries) =
+            self.arena.extract_kv_map_operand_entries(id, true)?;
+        Ok((header, entries))
     }
 
     fn write_semantic(&self, id: NodeId, target: &mut Vec<u8>) -> Result<()> {
         let node = self.node(id)?;
         if self.is_map(id) {
-            append_dc(target, 559);
+            append_dc(target, DC_BEGIN_KV_MAP);
             let (header, entries) = self.extract_map_entries(id)?;
             for h in header {
                 self.write_semantic(h, target)?;
             }
             for (key, value) in entries {
-                append_dc(target, 514);
+                append_dc(target, DC_BEGIN_KV_PAIR);
                 for k in key {
                     self.write_semantic(k, target)?;
                 }
-                append_dc(target, 312);
+                append_dc(target, DC_LIST_ELEMENT_SEPARATOR);
                 for v in value {
                     self.write_semantic(v, target)?;
                 }
-                append_dc(target, 515);
+                append_dc(target, DC_END_KV_PAIR);
             }
-            append_dc(target, 560);
+            append_dc(target, DC_END_KV_MAP);
         } else if let DcSyntaxKind::Binary { payload, .. } = &node.kind {
             let mut canonical = DcMstring::new();
             let bytes = payload.materialize_bytes()?;
@@ -390,7 +336,7 @@ fn write_node(
             bail!("Expected container node for map");
         };
         let opener = *opener;
-        let encoding = if opener.to_short_dc() == Some(313) {
+        let encoding = if opener == DC_BEGIN_LEGACY_KV_MAP {
             crate::DcKvMapEncoding::Legacy
         } else {
             crate::DcKvMapEncoding::Pairs
@@ -410,7 +356,7 @@ fn write_node(
                 append_entry_begin(target, encoding, first);
                 first = false;
                 write_sequence(old_view, key, new_view, new_key, target)?;
-                append_dc(target, 312);
+                append_dc(target, DC_LIST_ELEMENT_SEPARATOR);
                 write_sequence(old_view, value, new_view, new_value, target)?;
                 append_entry_end(target, encoding);
                 *written
@@ -423,7 +369,7 @@ fn write_node(
                 append_entry_begin(target, encoding, first);
                 first = false;
                 write_sequence(old_view, &[], new_view, key, target)?;
-                append_dc(target, 312);
+                append_dc(target, DC_LIST_ELEMENT_SEPARATOR);
                 write_sequence(old_view, &[], new_view, value, target)?;
                 append_entry_end(target, encoding);
             }

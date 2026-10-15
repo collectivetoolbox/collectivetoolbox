@@ -29,6 +29,11 @@ use std::sync::Arc;
 pub use serde_json;
 
 use crate::{DcChar, DcMixedDecode, DcMixedEncode, DcProjectionContext, DcMstring, NodeId};
+use ctb_formats_dcdata::dc::{
+    DC_ASSIGN, DC_BEGIN_IDENTIFIER, DC_END_IDENTIFIER,
+    DC_ENTER_IDENTIFIER_SCOPE, DC_ESCAPE, DC_EXIT_IDENTIFIER_SCOPE,
+    DC_REFERENCE_BOUND_VALUE,
+};
 
 /// Typed shared values whose definitions are persisted by the caller.
 #[derive(Clone, Default)]
@@ -104,14 +109,14 @@ impl SharedValueContext {
 
 /// Emits a lexical scope boundary and opens its binding table.
 pub fn encode_scope_begin(mst: &mut DcMstring, scope: &mut SharedValueContext) {
-    mst.push_char(DcChar::from_short(541));
+    mst.push_char(DC_ENTER_IDENTIFIER_SCOPE);
     scope.enter_scope();
 }
 
 /// Emits the closing boundary and discards declarations in that scope.
 pub fn encode_scope_end(mst: &mut DcMstring, scope: &mut SharedValueContext) -> Result<()> {
     scope.exit_scope()?;
-    mst.push_char(DcChar::from_short(542));
+    mst.push_char(DC_EXIT_IDENTIFIER_SCOPE);
     Ok(())
 }
 
@@ -121,7 +126,7 @@ where
     T: Any + Send + Sync + DcMixedEncode,
 {
     encode_identifier(mst, name)?;
-    mst.push_char(DcChar::from_short(269));
+    mst.push_char(DC_ASSIGN);
     value.encode_dc_mixed_with_context(mst, scope)?;
     scope.insert(name, value)
 }
@@ -165,15 +170,15 @@ where
 /// Emits a nonempty Unicode identifier using Dc 270..271 framing.
 pub fn encode_identifier(mst: &mut DcMstring, name: &str) -> Result<()> {
     ensure!(!name.is_empty(), "Identifiers must not be empty");
-    mst.push_char(DcChar::from_short(270));
+    mst.push_char(DC_BEGIN_IDENTIFIER);
     for character in name.chars() {
         let character = DcChar::from_char(character);
-        if character == DcChar::from_short(255) || character == DcChar::from_short(271) {
-            mst.push_char(DcChar::from_short(255));
+        if character == DC_ESCAPE || character == DC_END_IDENTIFIER {
+            mst.push_char(DC_ESCAPE);
         }
         mst.push_char(character);
     }
-    mst.push_char(DcChar::from_short(271));
+    mst.push_char(DC_END_IDENTIFIER);
     Ok(())
 }
 
@@ -192,8 +197,8 @@ pub fn decode_identifier(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId)
 /// Assigns a field from a lexically bound value using identifiers, not strings.
 pub fn encode_shared_reference(mst: &mut DcMstring, field: &str, binding: &str) -> Result<()> {
     encode_identifier(mst, field)?;
-    mst.push_char(DcChar::from_short(269));
-    mst.push_char(DcChar::from_short(540));
+    mst.push_char(DC_ASSIGN);
+    mst.push_char(DC_REFERENCE_BOUND_VALUE);
     encode_identifier(mst, binding)
 }
 
@@ -205,7 +210,7 @@ pub fn decode_shared_reference(ctx: &mut DcProjectionContext<'_, '_>, node_id: N
             let val_node = ctx.node(*value)?;
             match &val_node.kind {
                 crate::navigator::DcSyntaxKind::Tagged { tag, args }
-                    if tag.to_short_dc() == Some(540) || tag.to_u128() == 540 =>
+                    if *tag == DC_REFERENCE_BOUND_VALUE =>
                 {
                     let target_id = args.first().copied().context("Missing reference target identifier")?;
                     let target_name = decode_identifier(ctx, target_id)?;
