@@ -136,6 +136,9 @@ struct StructDcAttr {
     flags: bool,
     binary: bool,
     flatten: bool,
+    ignore_unknown: bool,
+    filepath: bool,
+    text_or_binary: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -160,6 +163,8 @@ struct FieldDcAttr {
     shared: Option<syn::LitStr>,
     raw: Option<(syn::Ident, u128)>,
     representation: Option<u128>,
+    nanosecond_pair: Option<syn::Ident>,
+    duration_nanoseconds: bool,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -225,6 +230,9 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
     let mut flags = false;
     let mut binary = false;
     let mut flatten = false;
+    let mut ignore_unknown = false;
+    let mut filepath = false;
+    let mut text_or_binary = false;
     let mut has_dc_attr = false;
 
     for attr in &input.attrs {
@@ -278,10 +286,28 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                                     flatten = b.value;
                                 }
                             }
+                            "ignore_unknown" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    ignore_unknown = b.value;
+                                }
+                            }
+                            "filepath" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    filepath = b.value;
+                                }
+                            }
+                            "text_or_binary" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    text_or_binary = b.value;
+                                }
+                            }
                             other => {
                                 return Err(syn::Error::new(
                                     ident.span(),
-                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, `flags`, `binary`, or `flatten`"),
+                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, `flags`, `binary`, `flatten`, `ignore_unknown`, `filepath`, or `text_or_binary`"),
                                 ));
                             }
                         }
@@ -293,6 +319,12 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                             binary = true;
                         } else if ident_str == "flatten" {
                             flatten = true;
+                        } else if ident_str == "ignore_unknown" {
+                            ignore_unknown = true;
+                        } else if ident_str == "filepath" {
+                            filepath = true;
+                        } else if ident_str == "text_or_binary" {
+                            text_or_binary = true;
                         } else {
                             let gid = parse_shorthand_str(&ident_str, ident.span())?;
                             if begin.is_none() {
@@ -320,13 +352,16 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         return Ok(None);
     }
 
-    if binary || flatten {
+    if binary || flatten || filepath || text_or_binary {
         return Ok(Some(StructDcAttr {
             begin,
             end,
             flags,
             binary,
             flatten,
+            ignore_unknown,
+            filepath,
+            text_or_binary,
         }));
     }
 
@@ -368,6 +403,9 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         flags,
         binary,
         flatten,
+        ignore_unknown,
+        filepath,
+        text_or_binary,
     }))
 }
 
@@ -376,7 +414,7 @@ fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
     container.ok_or_else(|| {
         syn::Error::new(
             input.span(),
-            "Missing `#[dc(...)]` attribute on struct. Structs require `#[dc(begin = ..., end = ...)]`, `#[dc(binary)]`, or `#[dc(flatten)]`.",
+            "Missing `#[dc(...)]` attribute on struct. Structs require `#[dc(begin = ..., end = ...)]`, `#[dc(binary)]`, `#[dc(flatten)]`, or `#[dc(filepath)]`.",
         )
     })
 }
@@ -398,6 +436,8 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut shared = None;
     let mut raw = None;
     let mut representation = None;
+    let mut nanosecond_pair = None;
+    let mut duration_nanoseconds = false;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -549,6 +589,10 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                                     raw = Some((raw_ident, SHORT_DC_REGION_START.saturating_add(539)));
                                 }
                             }
+                            "nanosecond_pair" => {
+                                let nsec_ident: syn::Ident = stream.parse()?;
+                                nanosecond_pair = Some(nsec_ident);
+                            }
                             "reason" => {
                                 skip_has_reason = true;
                                 let _expr: Expr = stream.parse()?;
@@ -568,6 +612,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                             "skip" => skip = true,
                             "default" => default = true,
                             "flatten" => flatten = true,
+                            "duration_nanoseconds" => duration_nanoseconds = true,
                             "omit_default" => {
                                 omit_default = true;
                                 default = true;
@@ -678,6 +723,8 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         shared,
         raw,
         representation,
+        nanosecond_pair,
+        duration_nanoseconds,
     })
 }
 
