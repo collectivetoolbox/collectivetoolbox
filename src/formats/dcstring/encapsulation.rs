@@ -31,8 +31,6 @@ use ctb_formats_dcdata::dc::{
     DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
 };
 use ctb_formats_dcdata::syntax::{
-    MatchContext, MatchMode, Quantifier, SyntaxElement, SyntaxPattern,
-    SyntaxTerm, default_syntax_resolver, match_pattern,
     Quantifier, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
 
@@ -74,8 +72,6 @@ impl<'a> Cursor<'a> {
 
     fn read_type(&mut self) -> Result<Option<&'a DcStr>> {
         let start = self.position();
-        let tokens: Vec<u128> =
-            self.chars.clone().map(DcChar::to_u128).collect();
         let Some(slice) = self.source.get(start..) else {
             return Ok(None);
         };
@@ -89,11 +85,6 @@ impl<'a> Cursor<'a> {
             },
             quantifier: Quantifier::ExactOne,
         }]);
-        let mut context = MatchContext::new(None)
-            .with_mode(MatchMode::Strict)
-            .with_resolver(default_syntax_resolver().clone());
-        let outcome = match_pattern(&tokens, &pattern, &mut context);
-        if !outcome.is_matched() {
         let mut ctx = crate::SyntaxEvalContext::new(&**resolver, None);
         if !nav.eval_pattern(&pattern, &mut ctx)?
             || ctx.has_errors
@@ -101,7 +92,7 @@ impl<'a> Cursor<'a> {
         {
             return Ok(None);
         }
-        for _ in 0..outcome.consumed_tokens() {
+        // Reason for fallback: Navigator evaluation byte position falls back to 0 on 32-bit platforms if offset exceeds usize.
         let consumed = usize::try_from(nav.position()).unwrap_or(0);
         let end = start.saturating_add(consumed);
         while self.position() < end {
@@ -324,7 +315,7 @@ pub(crate) fn checksum_text(format: DcChar, digest: &[u8]) -> Result<DcString> {
 )]
 mod tests {
     use super::*;
-    use crate::{DcMixed, DcMixedReader, DcMstring};
+    use crate::{DcMixed, DcMstring};
 
     #[crate::ctb_test]
     fn typed_dcutf_payload_is_binary_not_inline_text() -> Result<()> {
@@ -346,16 +337,16 @@ mod tests {
             let mut mixed = DcMstring::new();
             mixed.push_binary_with_metadata(payload.as_bytes(), &metadata)?;
             let text = mixed.to_dc_string()?;
-            ctb_formats_dcdata::syntax::validate_dc_document_strict(
-                &text.chars().map(DcChar::to_u128).collect::<Vec<_>>(),
-            )?;
             crate::validate_dc_str_strict(&text)?;
             let restored = DcMstring::from_dc_str(&text)?;
             assert_eq!(restored.as_bytes(), mixed.as_bytes());
-            let mut reader = DcMixedReader::new(&restored);
-            assert_eq!(reader.peek_char()?, Some(DC_START_ENCAPSULATION_BINARY));
-            assert_eq!(&*reader.read_binary_payload()?, payload.as_bytes());
-            assert!(reader.peek_char()?.is_none());
+            let mut arena = crate::DcSyntaxArena::new();
+            let root = crate::DcDocumentNavigator::parse_arena(restored.as_bytes(), &mut arena, &crate::DcProjectionPolicy::strict())?;
+            let node = arena.node(root).context("Missing node")?;
+            let crate::navigator::DcSyntaxKind::Binary { payload: binary_payload, .. } = &node.kind else {
+                bail!("Expected Binary syntax node");
+            };
+            assert_eq!(binary_payload.as_slice(), payload.as_bytes());
         }
         Ok(())
     }
@@ -381,9 +372,6 @@ mod tests {
         let mut mixed = DcMstring::new();
         mixed.push_binary_with_metadata(data, &metadata)?;
         let text = mixed.to_dc_string()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(
-            &text.chars().map(DcChar::to_u128).collect::<Vec<_>>(),
-        )?;
         crate::validate_dc_str_strict(&text)?;
         let restored = DcMstring::from_dc_str(&text)?;
         let chunk = restored.chunks().next().context("Missing binary chunk")?;
@@ -396,9 +384,13 @@ mod tests {
         };
         assert_eq!(restored_data, data);
         assert_eq!(restored_metadata, &*metadata);
-        let mut reader = DcMixedReader::from_dc_str(&text);
-        assert_eq!(&*reader.read_binary_payload()?, data);
-        assert!(reader.peek_char()?.is_none());
+        let mut arena = crate::DcSyntaxArena::new();
+        let root = crate::DcDocumentNavigator::parse_arena(text.as_bytes(), &mut arena, &crate::DcProjectionPolicy::strict())?;
+        let node = arena.node(root).context("Missing node")?;
+        let crate::navigator::DcSyntaxKind::Binary { payload: binary_payload, .. } = &node.kind else {
+            bail!("Expected Binary syntax node");
+        };
+        assert_eq!(binary_payload.as_slice(), data);
         let mut corrupted = data.to_vec();
         *corrupted.first_mut().context("Empty payload")? ^= 1;
         assert!(
@@ -437,11 +429,17 @@ mod tests {
         );
         assert!(parse_text(&text)?.1.is_empty());
         mixed.push_checksum(ctb_utilities::format_id::DC_SHA256, &[0u8; 32])?;
-        let mut reader = DcMixedReader::new(&mixed);
-        assert!(reader.read_binary_payload()?.is_empty());
-        let (format, digest) = reader.read_checksum_payload()?;
-        assert_eq!(format, Some(ctb_utilities::format_id::DC_SHA256));
-        assert_eq!(&*digest, &[0u8; 32]);
+        let mut arena = crate::DcSyntaxArena::new();
+        crate::DcDocumentNavigator::parse_document_arena(mixed.as_bytes(), &mut arena, &crate::DcProjectionPolicy::strict())?;
+        let roots = arena.roots();
+        assert_eq!(roots.len(), 2);
+        let node0 = arena.node(roots[0]).context("Missing node0")?;
+        let crate::navigator::DcSyntaxKind::Binary { payload: p0, .. } = &node0.kind else { bail!("Expected Binary") };
+        assert!(p0.as_slice().is_empty());
+        let node1 = arena.node(roots[1]).context("Missing node1")?;
+        let crate::navigator::DcSyntaxKind::Binary { checksum_format, payload: p1, .. } = &node1.kind else { bail!("Expected Binary") };
+        assert_eq!(*checksum_format, Some(ctb_utilities::format_id::DC_SHA256));
+        assert_eq!(p1.as_slice(), &[0u8; 32]);
         Ok(())
     }
 
@@ -456,8 +454,8 @@ mod tests {
         }
         bad_length.push(DC_END_ENCAPSULATION_BINARY);
         assert!(parse_text(&bad_length).is_err());
-        let mut reader = DcMixedReader::from_dc_str(&bad_length);
-        assert!(reader.read_binary_payload().is_err());
+        let mut arena = crate::DcSyntaxArena::new();
+        assert!(crate::DcDocumentNavigator::parse_arena(bad_length.as_bytes(), &mut arena, &crate::DcProjectionPolicy::strict()).is_err());
         let unsupported = checksum_text(
             FormatId::Md5.dc_char().context("Missing MD5 type")?,
             &[0u8; 16],

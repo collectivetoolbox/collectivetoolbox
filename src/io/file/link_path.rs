@@ -34,8 +34,9 @@ use ctb_formats_dcstring::dc::{
 use ctb_formats_dcstring::dc_mixed_serde::{
     decode_filepath_segments, encode_filepath_segments, path_from_native_bytes,
 };
+use ctb_formats_dcstring::navigator::DcSyntaxKind;
 use ctb_formats_dcstring::{
-    DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring,
+    DcChar, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionContext, NodeId,
 };
 use ctb_utilities::format_id::FormatId;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -299,37 +300,123 @@ impl ctb_formats_dcstring::DcForgivingDefault for LinkPath {
 }
 
 impl DcMixedDecode for LinkPath {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        if reader.peek_char()? == Some(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS) {
-            reader.next_char()?;
-            reader.expect_char(DC_BEGIN_LIST)?;
-            reader.expect_short_dc(275)?;
-            let segments = decode_filepath_segments(reader, policy)?;
-            reader.expect_char(DC_LIST_ELEMENT_SEPARATOR)?;
-            let (format, bytes) = reader.read_checksum_payload()?;
+        let mut curr_id = node_id;
+        while let DcSyntaxKind::Container { opener, children, .. } = &ctx.node(curr_id)?.kind {
+            if opener.to_short_dc() == Some(315) {
+                if let Some(&first) = children.first() {
+                    curr_id = first;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let node = ctx.node(curr_id)?;
+        let equiv_children = match &node.kind {
+            DcSyntaxKind::Container { opener, children, .. }
+                if opener.to_short_dc() == Some(561) => Some(children.as_slice()),
+            DcSyntaxKind::Tagged { tag, args }
+                if tag.to_short_dc() == Some(561) => {
+                    if let Some(&first) = args.first() {
+                        let arg_node = ctx.node(first)?;
+                        if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                            Some(children.as_slice())
+                        } else {
+                            Some(args.as_slice())
+                        }
+                    } else {
+                        Some(&[][..])
+                    }
+                }
+            _ => None,
+        };
+
+        if let Some(children) = equiv_children {
+            let mut segments: Option<Vec<Vec<u8>>> = None;
+            let mut binary_path: Option<LinkPath> = None;
+
+            for &child_id in children {
+                let child = ctx.node(child_id)?;
+                if let DcSyntaxKind::Atom(ch) = &child.kind {
+                    if ch.to_short_dc() == Some(275) || *ch == DC_LIST_ELEMENT_SEPARATOR {
+                        continue;
+                    }
+                }
+                if let DcSyntaxKind::Binary { checksum_format, payload, .. } = &child.kind {
+                    let bytes = payload.materialize_bytes()?;
+                    let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
+                    let is_windows = *checksum_format == Some(windows_format);
+                    ensure!(checksum_format.is_none() || is_windows,
+                        "Unsupported link target byte encoding");
+                    binary_path = Some(Self::from_bytes(&bytes, is_windows));
+                } else if let Ok(segs) = decode_filepath_segments(ctx, child_id) {
+                    segments = Some(segs);
+                }
+            }
+
+            if let (Some(segs), Some(path)) = (&segments, &binary_path) {
+                ensure!(segs == &path.segments(), "Conflicting link path representations");
+                return Ok(path.clone());
+            }
+            if let Some(path) = binary_path {
+                return Ok(path);
+            }
+            if let Some(segs) = segments {
+                return Ok(Self::from_bytes(&segs.join(&b'/'), false));
+            }
+            bail!("Empty partially equivalent representations container for LinkPath");
+        }
+
+        let unwrap_id = ctx.unwrap_transparent(curr_id)?;
+        if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
+            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+            if fmt == path_format {
+                let segments = decode_filepath_segments(ctx, unwrap_id)?;
+                return Ok(Self::from_bytes(&segments.join(&b'/'), false));
+            }
+        }
+
+        let node = ctx.node(unwrap_id)?;
+        if let DcSyntaxKind::Binary { checksum_format, payload, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare binary representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
+                )?;
+            }
+            let bytes = payload.materialize_bytes()?;
             let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
-            ensure!(format.is_none() || format == Some(windows_format),
-                "Unsupported link target byte encoding");
-            let path = Self::from_bytes(&bytes, format == Some(windows_format));
-            ensure!(segments == path.segments(), "Conflicting link path representations");
-            reader.expect_char(DC_END_LIST)?;
-            return Ok(path);
-        }
-        if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let segments = decode_filepath_segments(reader, policy)?;
-            return Ok(Self::from_bytes(&segments.join(&b'/'), false));
+            let is_windows = *checksum_format == Some(windows_format);
+            return Ok(Self::from_bytes(bytes.as_ref(), is_windows));
         }
 
-        if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-            let bytes = reader.read_binary_payload()?;
-            return Ok(Self::from_bytes(bytes.as_ref(), false));
+        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
+                )?;
+            }
+            return Ok(Self::from_bytes(decoded.as_bytes(), false));
         }
 
-        let s = String::decode_dc_mixed(reader, policy)?;
-        Ok(Self::from_bytes(s.as_bytes(), false))
+        if let Ok(s) = String::decode_dc_node(ctx, unwrap_id) {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
+                )?;
+            }
+            return Ok(Self::from_bytes(s.as_bytes(), false));
+        }
+
+        bail!("Expected partially equivalent representation (Dc 561) or format representation (Dc 511) for LinkPath, found {:?}", node.kind)
     }
 }
 

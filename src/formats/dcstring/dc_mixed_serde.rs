@@ -19,8 +19,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Serialization and deserialization infrastructure for `DcMixed` documents.
 //!
-//! Provides the [`DcMixedEncode`] and [`DcMixedDecode`] traits, streaming
-//! [`DcMixedReader`], primitive codec implementations, and universal
+//! Provides the [`DcMixedEncode`] and [`DcMixedDecode`] traits,
+//! [`DcProjectionContext`], primitive codec implementations, and universal
 //! roundtrip verification.
 
 #[allow(
@@ -35,21 +35,27 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt::{self, Write as _};
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_LIST,
-    DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE, DC_END_FORMAT_REPRESENTATION,
-    DC_END_KV_MAP, DC_END_LIST, DC_EQUIVALENT_REPRESENTATIONS,
-    DC_FILE_PATH_DELIMITER, DC_LIST_ELEMENT_SEPARATOR,
-    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
-    DC_START_ENCAPSULATION_BINARY, DC_TYPE_INTERSECTION,
+    DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
+    DC_BEGIN_LEGACY_KV_MAP, DC_BEGIN_LIST, DC_BOOLEAN_FALSE, DC_BOOLEAN_TRUE,
+    DC_END_FORMAT_REPRESENTATION, DC_END_KV_MAP, DC_END_LIST,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER,
+    DC_LIST_ELEMENT_SEPARATOR, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
+    DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS, DC_START_ENCAPSULATION_BINARY,
+    DC_TYPE_INTERSECTION,
 };
 
-use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstring, DcMstr};
+use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstr, DcMstring};
+use crate::dc_source::DcFieldAnnotation;
+use crate::navigator::{
+    DcDocumentNavigator, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, NodeId,
+};
+use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
 
 /// Trait for types that can be serialized into a `DcMixed` buffer (`DcMstring`).
@@ -78,16 +84,16 @@ pub trait DcMixedEncode {
     }
 }
 
-/// Trait for types that can be deserialized from a `DcMixedReader`.
+/// Trait for types that can be projected from a parsed [`NodeId`] in a [`DcSyntaxArena`].
 pub trait DcMixedDecode: Sized {
-    /// Deserializes an instance from the given `DcMixedReader` under `policy`.
+    /// Projects an instance from the given syntax `node_id` under `ctx`.
     ///
     /// # Errors
     /// Returns an error if unexpected characters, malformed data, or missing
-    /// required fields are encountered and `policy` specifies an error action.
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    /// required fields are encountered and `ctx.policy` specifies an error action.
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self>;
 }
 
@@ -108,18 +114,26 @@ impl crate::DcMstr {
         &self,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut reader = DcMixedReader::new(self);
-        let value = T::decode_dc_mixed(&mut reader, policy)?;
-        if reader.peek_char()?.is_some() {
+        let mut nav = crate::DcDocumentNavigator::from_mstr(self);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, policy)?;
+        let roots = arena.roots();
+        let root_id = match roots.first() {
+            Some(&id) => id,
+            None => bail!("Empty document cannot be decoded into typed value"),
+        };
+        let mut ctx = DcProjectionContext::new(&arena, policy);
+        let res = T::decode_dc_node(&mut ctx, root_id)?;
+        if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(
                 policy.syntax_error,
                 format!(
-                    "Trailing content after typed Dc value at byte {}",
-                    reader.position()
+                    "Trailing content after typed Dc value (multiple root nodes: {})",
+                    roots.len()
                 ),
             )?;
         }
-        Ok(value)
+        Ok(res)
     }
 
     /// Interprets the whole string with explicitly supplied outer bindings.
@@ -131,18 +145,26 @@ impl crate::DcMstr {
         context: &crate::SharedValueContext,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut reader = DcMixedReader::with_context(self, context);
-        let value = T::decode_dc_mixed(&mut reader, policy)?;
-        if reader.peek_char()?.is_some() {
+        let mut nav = crate::DcDocumentNavigator::from_mstr(self);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, policy)?;
+        let roots = arena.roots();
+        let root_id = match roots.first() {
+            Some(&id) => id,
+            None => bail!("Empty document cannot be decoded into typed value"),
+        };
+        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, Some(context));
+        let res = T::decode_dc_node(&mut ctx, root_id)?;
+        if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(
                 policy.syntax_error,
                 format!(
-                    "Trailing content after typed Dc value at byte {}",
-                    reader.position()
+                    "Trailing content after typed Dc value (multiple root nodes: {})",
+                    roots.len()
                 ),
             )?;
         }
-        Ok(value)
+        Ok(res)
     }
 }
 
@@ -160,8 +182,8 @@ pub trait DcMixedNumber: Sized {
     /// # Errors
     /// Returns an error if decoding fails or the number cannot be converted.
     fn decode_dc_number(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self>;
 }
 
@@ -173,10 +195,10 @@ macro_rules! impl_dc_mixed_number_primitive {
                     self.encode_dc_mixed(mst)
                 }
                 fn decode_dc_number(
-                    reader: &mut DcMixedReader<'_>,
-                    policy: &crate::DcProjectionPolicy,
+                    ctx: &mut DcProjectionContext<'_, '_>,
+                    node_id: NodeId,
                 ) -> Result<Self> {
-                    Self::decode_dc_mixed(reader, policy)
+                    Self::decode_dc_node(ctx, node_id)
                 }
             }
         )*
@@ -235,165 +257,168 @@ impl DcMixedEncode for BinaryPayload {
 }
 
 impl DcMixedDecode for BinaryPayload {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let payload = reader.read_binary_payload()?;
-        Ok(Self(payload.to_vec()))
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Binary { payload, .. } => {
+                let bytes = payload
+                    .materialize::<std::io::Cursor<&[u8]>>(None)
+                    .context("Failed to materialize binary payload in DcSyntaxNode")?;
+                Ok(Self(bytes.into_owned()))
+            }
+            other => bail!("Expected Binary node for BinaryPayload, found {other:?}"),
+        }
     }
 }
 
-fn checksum_format(data_type: Option<&crate::DcStr>) -> Result<Option<DcChar>> {
-    let Some(data_type) = data_type else { return Ok(None) };
-    let mut chars = data_type.chars();
-    let format = chars.next().context("Missing checksum format")?;
-    ensure!(chars.next().is_none(), "Checksum requires a single hash format");
-    format.to_format()?;
-    Ok(Some(format))
+fn b64_digit_to_char(digit: u8) -> Result<char> {
+    match digit {
+        0..=25 => {
+            let offset = u32::from(digit);
+            let code = u32::from('A').checked_add(offset).context("Overflow")?;
+            char::from_u32(code).context("Invalid char")
+        }
+        26..=51 => {
+            let offset = u32::from(digit.saturating_sub(26));
+            let code = u32::from('a').checked_add(offset).context("Overflow")?;
+            char::from_u32(code).context("Invalid char")
+        }
+        52..=61 => {
+            let offset = u32::from(digit.saturating_sub(52));
+            let code = u32::from('0').checked_add(offset).context("Overflow")?;
+            char::from_u32(code).context("Invalid char")
+        }
+        62 => Ok('+'),
+        63 => Ok('/'),
+        _ => bail!("Invalid base64 digit: {digit}"),
+    }
 }
 
-/// A streaming cursor over a borrowed `DcMstr` or `DcStr` slice.
-#[derive(Clone, Debug)]
-pub struct DcMixedReader<'a> {
-    source_mstr: Option<&'a DcMstr>,
-    source_dc_str: Option<&'a crate::DcStr>,
-    chunks: DcMixedChunks<'a>,
-    source_len: usize,
-    position: usize,
-    text_end: usize,
-    peeked_start: usize,
-    peeked_end: usize,
-    pub(crate) annotations: Vec<crate::DcFieldAnnotation>,
-    pub(crate) annotating: bool,
-    record_depth: usize,
-    current_text: Option<DcChars<'a>>,
-    peeked_char: Option<DcChar>,
-    peeked_binary: Option<&'a [u8]>,
-    peeked_metadata: Option<&'a crate::DcStr>,
-    shared_context: Option<&'a crate::SharedValueContext>,
-    reference_scope: crate::SharedValueContext,
+fn parse_dc_number_digits(digits: &[DcChar]) -> Result<malachite::Integer> {
+    ensure!(!digits.is_empty(), "Empty digits in Dc number");
+    let mut is_negative = false;
+    let mut iter = digits.iter().copied();
+    let mut first = iter.next().context("Empty digits")?;
+    if first == ctb_formats_dcdata::dc::DC_NEGATIVE {
+        is_negative = true;
+        first = iter.next().context("Missing digits after negative sign")?;
+    } else if first == ctb_formats_dcdata::dc::DC_POSITIVE {
+        first = iter.next().context("Missing digits after positive sign")?;
+    }
+    let mut b64_str = String::with_capacity(digits.len());
+    let digit0 = ctb_formats_dcdata::dc_number_minimal::dc_base64_char_to_digit(first)?;
+    b64_str.push(b64_digit_to_char(digit0)?);
+    for ch in iter {
+        let digit = ctb_formats_dcdata::dc_number_minimal::dc_base64_char_to_digit(ch)?;
+        b64_str.push(b64_digit_to_char(digit)?);
+    }
+    let b64_base = ctb_formats_math::base::Base::new(64)?;
+    let nat = ctb_formats_math::base::parse_natural(&b64_str, b64_base)
+        .with_context(|| format!("Failed to parse Base64 number string '{b64_str}'"))?;
+    Ok(malachite::Integer::from_sign_and_abs(!is_negative, nat))
 }
 
-impl<'a> DcMixedReader<'a> {
-    /// Creates a new reader positioned at the start of the `DcMstr` document.
+fn decode_integer_node(
+    ctx: &DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+) -> Result<malachite::Integer> {
+    let node_id = ctx.unwrap_transparent(node_id)?;
+    let node = ctx.node(node_id)?;
+    match &node.kind {
+        DcSyntaxKind::Number { digits, .. } => parse_dc_number_digits(digits),
+        other => bail!("Expected Number node for integer, found {other:?}"),
+    }
+}
+
+fn decode_natural_node(
+    ctx: &DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+) -> Result<malachite::Natural> {
+    let int_val = decode_integer_node(ctx, node_id)?;
+    ensure!(int_val >= 0, "Expected non-negative integer for Natural, found negative");
+    Ok(int_val.unsigned_abs_ref().clone())
+}
+
+/// Execution context for projecting typed values from parsed syntax nodes in a [`DcSyntaxArena`].
+#[derive(Debug)]
+pub struct DcProjectionContext<'a, 'ctx> {
+    /// Borrowed syntax arena containing all parsed CST nodes for the document or frame.
+    pub arena: &'a DcSyntaxArena<'a>,
+    /// Active policy dictating diagnostics, strictness, and error recovery actions.
+    pub policy: &'ctx DcProjectionPolicy,
+    /// Optional enclosing document context for lexical identifier resolution.
+    pub shared_context: Option<&'ctx SharedValueContext>,
+    /// Document-local lexical scope tracking scoped definitions (`Dc 541..542`).
+    pub reference_scope: SharedValueContext,
+    /// Accumulated field annotations produced during projection.
+    pub annotations: Vec<DcFieldAnnotation>,
+    /// Flag indicating whether field annotations should be recorded.
+    pub annotating: bool,
+    /// Current record nesting depth.
+    pub record_depth: usize,
+    /// Current stream or node byte offset for diagnostics.
+    pub current_position: usize,
+    /// Indicates whether a projection consumed all roots in a multi-root document (e.g. [T; N]).
+    pub(crate) consumed_all_roots: bool,
+}
+
+impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
+    /// Creates a new projection context over the given arena and policy.
     #[must_use]
-    pub fn new(mstr: &'a DcMstr) -> Self {
+    pub fn new(arena: &'a DcSyntaxArena<'a>, policy: &'ctx DcProjectionPolicy) -> Self {
         Self {
-            source_mstr: Some(mstr),
-            source_dc_str: None,
-            chunks: mstr.chunks(),
-            source_len: mstr.len(),
-            position: crate::dc_mixed::DCMM_HEADER_LEN,
-            text_end: crate::dc_mixed::DCMM_HEADER_LEN,
-            peeked_start: crate::dc_mixed::DCMM_HEADER_LEN,
-            peeked_end: crate::dc_mixed::DCMM_HEADER_LEN,
+            arena,
+            policy,
+            shared_context: None,
+            reference_scope: SharedValueContext::default(),
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
-            current_text: None,
-            peeked_char: None,
-            peeked_binary: None,
-            peeked_metadata: None,
-            shared_context: None,
-            reference_scope: crate::SharedValueContext::default(),
+            current_position: 0,
+            consumed_all_roots: false,
         }
     }
 
-    /// Creates a reader over DcUtf without converting or copying the source.
+    /// Creates a new projection context with an optional enclosing shared context.
     #[must_use]
-    pub fn from_dc_str(source: &'a crate::DcStr) -> Self {
+    pub fn with_shared_context(
+        arena: &'a DcSyntaxArena<'a>,
+        policy: &'ctx DcProjectionPolicy,
+        shared_context: Option<&'ctx SharedValueContext>,
+    ) -> Self {
         Self {
-            source_mstr: None,
-            source_dc_str: Some(source),
-            chunks: DcMixedChunks { slice: &[] },
-            source_len: source.len(),
-            position: 0,
-            text_end: source.len(),
-            peeked_start: 0,
-            peeked_end: 0,
+            arena,
+            policy,
+            shared_context,
+            reference_scope: SharedValueContext::default(),
             annotations: Vec::new(),
             annotating: false,
             record_depth: 0,
-            current_text: Some(source.chars()),
-            peeked_char: None,
-            peeked_binary: None,
-            peeked_metadata: None,
-            shared_context: None,
-            reference_scope: crate::SharedValueContext::default(),
+            current_position: 0,
+            consumed_all_roots: false,
         }
     }
 
-    /// Restricts this reader to the byte sub-range `start..end` of the
-    /// underlying source buffer.
+    /// Returns a reference to the syntax node corresponding to `id`.
     ///
     /// # Errors
-    /// Returns an error if `start..end` is out of bounds or not on a valid
-    /// character boundary.
-    pub fn set_position_range(&mut self, start: usize, end: usize) -> Result<()> {
-        ensure!(start <= end, "Invalid reader range {start}..{end}");
-        if let Some(mstr) = self.source_mstr {
-            ensure!(
-                start >= crate::dc_mixed::DCMM_HEADER_LEN && end <= mstr.len(),
-                "Reader range {start}..{end} out of bounds for DcMstr"
-            );
-            let slice = mstr
-                .as_bytes()
-                .get(start..end)
-                .context("Invalid DcMstr slice range")?;
-            self.chunks = DcMixedChunks { slice };
-            self.source_len = end;
-            self.position = start;
-            self.text_end = start;
-            self.peeked_start = start;
-            self.peeked_end = start;
-            self.current_text = None;
-            self.peeked_char = None;
-            self.peeked_binary = None;
-            self.peeked_metadata = None;
-            Ok(())
-        } else if let Some(dc_str) = self.source_dc_str {
-            ensure!(
-                end <= dc_str.len()
-                    && dc_str.is_char_boundary(start)
-                    && dc_str.is_char_boundary(end),
-                "Reader range {start}..{end} out of bounds or not on char boundary for DcStr"
-            );
-            let sub_bytes = dc_str
-                .as_bytes()
-                .get(start..end)
-                .context("Invalid DcStr slice range")?;
-            let sub_str = crate::DcStr::from_bytes(sub_bytes)?;
-            self.chunks = DcMixedChunks { slice: &[] };
-            self.source_len = end;
-            self.position = start;
-            self.text_end = end;
-            self.peeked_start = start;
-            self.peeked_end = start;
-            self.current_text = Some(sub_str.chars());
-            self.peeked_char = None;
-            self.peeked_binary = None;
-            self.peeked_metadata = None;
-            Ok(())
-        } else {
-            bail!("Reader does not have a sliceable backing buffer")
-        }
+    /// Returns an error if `id` is not present in the arena.
+    pub fn node(&self, id: NodeId) -> Result<&'a crate::navigator::DcSyntaxNode<'a>> {
+        self.arena.get(id).context("NodeId not found in DcSyntaxArena")
     }
 
-    /// Returns the next source-byte position; peeking does not consume bytes.
-    #[must_use]
-    pub const fn position(&self) -> usize {
-        if self.peeked_char.is_some() || self.peeked_binary.is_some() {
-            self.peeked_start
-        } else {
-            self.position
-        }
+    /// Marks that all root nodes in the arena have been consumed by a multi-root decoder.
+    pub fn mark_all_roots_consumed(&mut self) {
+        self.consumed_all_roots = true;
     }
 
-    /// Creates a DcUtf reader with explicitly supplied outer bindings.
-    #[must_use]
-    pub fn from_dc_str_with_context(source: &'a crate::DcStr, context: &'a crate::SharedValueContext) -> Self {
-        Self { shared_context: Some(context), ..Self::from_dc_str(source) }
+    /// Sets whether all root nodes have been consumed.
+    pub fn set_consumed_all_roots(&mut self, consumed: bool) {
+        self.consumed_all_roots = consumed;
     }
 
     #[doc(hidden)]
@@ -407,10 +432,20 @@ impl<'a> DcMixedReader<'a> {
     }
 
     #[doc(hidden)]
-    pub fn annotate_field(&mut self, owner: &'static str, field: &'static str, start: usize) {
-        let end = self.position;
+    pub fn annotate_field(&mut self, owner: &'static str, field: &'static str, span: Range<usize>) {
         if self.annotating {
-            self.annotations.push(crate::DcFieldAnnotation::new(owner, field, start..end, self.record_depth));
+            self.annotations.push(DcFieldAnnotation::new(owner, field, span, self.record_depth));
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn annotate_node_field(&mut self, owner: &'static str, field: &'static str, node_id: NodeId) {
+        if self.annotating {
+            if let Ok(node) = self.node(node_id) {
+                if let Ok(range) = node.span.to_usize_range() {
+                    self.annotate_field(owner, field, range);
+                }
+            }
         }
     }
 
@@ -419,611 +454,298 @@ impl<'a> DcMixedReader<'a> {
         &mut self,
         owner: &'static str,
         field: &'static str,
-        start: usize,
+        span: Range<usize>,
         encoding: crate::DcKvMapEncoding,
     ) {
         if self.annotating {
             self.annotations.push(
-                crate::DcFieldAnnotation::new(owner, field, start..self.position, self.record_depth)
+                DcFieldAnnotation::new(owner, field, span, self.record_depth)
                     .with_map_encoding(encoding),
             );
         }
     }
 
-    /// Creates a reader with definitions loaded from an enclosing document.
-    #[must_use]
-    pub fn with_context(mstr: &'a DcMstr, context: &'a crate::SharedValueContext) -> Self {
-        Self { shared_context: Some(context), ..Self::new(mstr) }
+    #[doc(hidden)]
+    pub fn annotate_node_map_field(
+        &mut self,
+        owner: &'static str,
+        field: &'static str,
+        node_id: NodeId,
+        encoding: crate::DcKvMapEncoding,
+    ) {
+        if self.annotating {
+            if let Ok(node) = self.node(node_id) {
+                if let Ok(range) = node.span.to_usize_range() {
+                    self.annotate_map_field(owner, field, range, encoding);
+                }
+            }
+        }
     }
 
-    /// Attaches an enclosing document context to this reader.
-    pub fn set_context(&mut self, context: &'a crate::SharedValueContext) {
-        self.shared_context = Some(context);
-    }
-
-    /// Resolves a reference against the explicitly supplied document context.
+    /// Resolves a shared reference name against the local or outer shared context.
     pub fn resolve_shared<T: std::any::Any + Send + Sync>(&self, binding: &str) -> Result<Arc<T>> {
         if self.reference_scope.contains(binding) {
             return self.reference_scope.resolve(binding);
         }
-        self.shared_context.context("Shared reference requires a document context")?.resolve(binding)
+        self.shared_context
+            .context("Shared reference requires a document context")?
+            .resolve(binding)
     }
 
-    /// Enters a document-local lexical reference scope (Dc 541).
-    pub fn enter_reference_scope(&mut self) -> Result<()> {
-        self.expect_short_dc(541)?;
+    /// Enters a local lexical scope (`Dc 541`).
+    pub fn enter_reference_scope(&mut self) {
         self.reference_scope.enter_scope();
-        Ok(())
     }
 
-    /// Exits a lexical scope (Dc 542), discarding its declarations.
+    /// Exits a local lexical scope (`Dc 542`).
     pub fn exit_reference_scope(&mut self) -> Result<()> {
-        self.expect_short_dc(542)?;
         self.reference_scope.exit_scope()
     }
 
-    /// Reads a typed Dc 269 declaration into this document's current scope.
-    pub fn decode_declaration<T: DcMixedDecode + std::any::Any + Send + Sync>(
+    /// Decodes an assignment declaration (`Dc 269`) and registers it in the local reference scope.
+    pub fn decode_declaration<T: std::any::Any + Send + Sync + DcMixedDecode + 'static>(
         &mut self,
-        policy: &crate::DcProjectionPolicy,
+        node_id: NodeId,
     ) -> Result<Arc<T>> {
-        let name = crate::shared::decode_identifier(self)?;
-        self.expect_short_dc(269)?;
-        let value = Arc::new(T::decode_dc_mixed(self, policy)?);
-        self.reference_scope.insert(name, Arc::clone(&value))?;
-        Ok(value)
-    }
-
-    /// Peeks the next character without advancing the cursor.
-    ///
-    /// Returns `Ok(None)` if at end of input.
-    ///
-    /// # Errors
-    /// Returns an error if decoding fails.
-    pub fn peek_char(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.peeked_char {
-            return Ok(Some(ch));
-        }
-        if self.peeked_binary.is_some() {
-            return Ok(Some(DC_START_ENCAPSULATION_BINARY));
-        }
-
-        loop {
-            if let Some(text) = &mut self.current_text {
-                let start = self.text_end.saturating_sub(text.slice.len());
-                if let Some(ch) = text.next() {
-                    self.peeked_start = start;
-                    self.peeked_end = self.text_end.saturating_sub(text.slice.len());
-                    self.peeked_char = Some(ch);
-                    return Ok(Some(ch));
-                }
-                self.current_text = None;
+        let node = self.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Assignment { ident, value } => {
+                let decoded = T::decode_dc_node(self, *value)?;
+                let arc = Arc::new(decoded);
+                self.reference_scope.insert(ident, Arc::clone(&arc))?;
+                Ok(arc)
             }
+            other => bail!("Expected assignment declaration (Dc 269), found {other:?}"),
+        }
+    }
 
-            let start = self.source_len.saturating_sub(self.chunks.slice.len());
-            let chunk = self.chunks.next();
-            let end = self.source_len.saturating_sub(self.chunks.slice.len());
-            match chunk {
-                Some(DcMixed::Text(s)) => {
-                    self.text_end = end;
-                    self.current_text = Some(s.chars());
+    /// Unwraps equivalent representation containers (`Dc 397` or `Dc 561`) to their primary child.
+    pub fn unwrap_equivalent_or_self(&self, node_id: NodeId) -> Result<NodeId> {
+        let node = self.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+            if opener.to_short_dc() == Some(397) || opener.to_short_dc() == Some(561) {
+                let mut primary = None;
+                let mut prev_was_sep = true;
+                for &child_id in children {
+                    let child = self.node(child_id)?;
+                    if let DcSyntaxKind::Atom(ch) = child.kind {
+                        if ch.to_short_dc() == Some(275) {
+                            continue;
+                        }
+                        if ch == DC_LIST_ELEMENT_SEPARATOR {
+                            prev_was_sep = true;
+                            continue;
+                        }
+                    }
+                    if self.policy.is_strict() && !prev_was_sep && primary.is_some() {
+                        bail!("Malformed equivalent representations list: missing element separator (Dc 312)");
+                    }
+                    prev_was_sep = false;
+                    if primary.is_none() {
+                        primary = Some(child_id);
+                    }
                 }
-                Some(DcMixed::Binary { data, .. }) => {
-                    self.peeked_start = start;
-                    self.peeked_end = end;
-                    self.peeked_binary = Some(data);
-                    return Ok(Some(DC_START_ENCAPSULATION_BINARY));
+                if let Some(id) = primary {
+                    return Ok(id);
                 }
-                Some(DcMixed::BinaryWithMetadata { data, metadata }) => {
-                    self.peeked_start = start;
-                    self.peeked_end = end;
-                    self.peeked_binary = Some(data);
-                    self.peeked_metadata = Some(metadata);
-                    return Ok(Some(DC_START_ENCAPSULATION_BINARY));
+                bail!("Empty equivalent representations list");
+            }
+        } else if let DcSyntaxKind::Tagged { tag, args } = &node.kind {
+            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) {
+                if let Some(&arg_id) = args.first() {
+                    let arg_node = self.node(arg_id)?;
+                    if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                        let mut primary = None;
+                        let mut prev_was_sep = true;
+                        for &child_id in children {
+                            let child = self.node(child_id)?;
+                            if let DcSyntaxKind::Atom(ch) = child.kind {
+                                if ch.to_short_dc() == Some(275) {
+                                    continue;
+                                }
+                                if ch == DC_LIST_ELEMENT_SEPARATOR {
+                                    prev_was_sep = true;
+                                    continue;
+                                }
+                            }
+                            if self.policy.is_strict() && !prev_was_sep && primary.is_some() {
+                                bail!("Malformed equivalent representations list: missing element separator (Dc 312)");
+                            }
+                            prev_was_sep = false;
+                            if primary.is_none() {
+                                primary = Some(child_id);
+                            }
+                        }
+                        if let Some(id) = primary {
+                            return Ok(id);
+                        }
+                    }
+                    return Ok(arg_id);
                 }
-                None => return Ok(None),
+                bail!("Empty equivalent representations tagged construct");
             }
         }
+        Ok(node_id)
     }
 
-    /// Peeks the next short Document Character ID if present and in range.
-    ///
-    /// # Errors
-    /// Returns an error if decoding fails.
-    pub fn peek_short_dc(&mut self) -> Result<Option<u32>> {
-        let Some(ch) = self.peek_char()? else {
-            return Ok(None);
-        };
-        Ok(ch.to_short_dc())
-    }
-
-    /// Consumes and returns the next character.
-    ///
-    /// # Errors
-    /// Returns an error if at EOF or if next element is a binary chunk.
-    pub fn next_char(&mut self) -> Result<DcChar> {
-        let ch = self.peek_char()?.context("Unexpected end of DcMixed stream")?;
-        if self.peeked_binary.is_some() {
-            bail!("Encountered encapsulated binary chunk where text DcChar was expected");
+    /// Unwraps an optional marker (`Dc 315` or `Dc 316`).
+    /// Returns `Ok(None)` for absent, `Ok(Some(inner_id))` for present.
+    pub fn unwrap_optional_node(&self, node_id: NodeId) -> Result<Option<NodeId>> {
+        let node_id = self.unwrap_equivalent_or_self(node_id)?;
+        let node = self.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(316) => Ok(None),
+            DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == Some(315) => {
+                let inner = args.first().copied().context("Empty optional tagged construct (Dc 315)")?;
+                Ok(Some(inner))
+            }
+            DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == Some(315) => {
+                let inner = children.first().copied().context("Empty optional container (Dc 315)")?;
+                Ok(Some(inner))
+            }
+            _ => Ok(Some(node_id)),
         }
-        self.peeked_char = None;
-        self.position = self.peeked_end;
-        Ok(ch)
     }
 
-    /// Consumes and returns the next short Document Character ID.
-    ///
-    /// # Errors
-    /// Returns an error if at EOF or if character is not a short Dc.
-    pub fn read_short_dc(&mut self) -> Result<u32> {
-        let ch = self.next_char()?;
-        ch.to_short()
-    }
-
-    /// Asserts and consumes an exact expected short Document Character ID.
-    ///
-    /// # Errors
-    /// Returns an error if the character does not match `expected_short`.
-    pub fn expect_short_dc(&mut self, expected_short: u32) -> Result<()> {
-        let ch = self.peek_char()?.context("Unexpected end of DcMixed stream")?;
-        let actual = ch.to_short()?;
-        ensure!(
-            actual == expected_short,
-            "Expected short Dc {expected_short}, found {actual}"
-        );
-        self.next_char()?;
-        Ok(())
-    }
-
-    /// Asserts and consumes an exact expected `DcChar`.
-    ///
-    /// # Errors
-    /// Returns an error if the character does not match `expected`.
-    pub fn expect_char(&mut self, expected: DcChar) -> Result<()> {
-        let actual = self.peek_char()?.context("Unexpected end of DcMixed stream")?;
-        ensure!(
-            actual == expected,
-            "Expected DcChar {:?}, found {:?}",
-            expected,
-            actual
-        );
-        self.next_char()?;
-        Ok(())
-    }
-
-    /// Expects an opening boundary delimiter character.
-    pub fn expect_begin(&mut self, begin_dc: u32) -> Result<()> {
-        self.expect_short_dc(begin_dc)
-    }
-
-    /// Expects a closing boundary delimiter character.
-    pub fn expect_end(&mut self, end_dc: u32) -> Result<()> {
-        self.expect_short_dc(end_dc)
-    }
-
-    /// Expects an opening boundary delimiter character from any `DcChar`.
-    pub fn expect_begin_char(&mut self, begin: DcChar) -> Result<()> {
-        self.expect_char(begin)
-    }
-
-    /// Expects a closing boundary delimiter character from any `DcChar`.
-    pub fn expect_end_char(&mut self, end: DcChar) -> Result<()> {
-        self.expect_char(end)
-    }
-
-    /// Checks if the next character is a Document Character type token
-    /// (an EL type identifier, format token, type path delimiter, or type constructor),
-    /// and if so consumes and returns it.
-    ///
-    /// # Errors
-    /// Returns an error if advancing or peeking fails.
-    pub fn skip_type_header(&mut self) -> Result<Option<DcChar>> {
-        if let Some(ch) = self.peek_char()? {
-            if ctb_formats_dcdata::is_type_token(ch.0) {
-                self.next_char()?;
-                return Ok(Some(ch));
+    /// Unwraps a format representation container (`511 [format] [payload] 512`).
+    /// Returns `Ok(Some((format, payload_id)))` if this is a format representation.
+    pub fn unwrap_format_representation(&self, node_id: NodeId) -> Result<Option<(DcChar, NodeId)>> {
+        let node_id = self.unwrap_equivalent_or_self(node_id)?;
+        let node = self.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+            if opener.to_short_dc() == Some(511) {
+                if let [single_child] = children.as_slice() {
+                    let child_node = self.node(*single_child)?;
+                    if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
+                        let payload_id = if let [single_arg] = args.as_slice() {
+                            *single_arg
+                        } else {
+                            *single_child
+                        };
+                        return Ok(Some((*tag, payload_id)));
+                    }
+                }
+                if let (Some(&c0), Some(&c1)) = (children.first(), children.get(1)) {
+                    if self.policy.is_strict() {
+                        ensure!(
+                            children.len() == 2,
+                            "Format representation container (Dc 511) has extraneous trailing children: expected 2, found {}",
+                            children.len()
+                        );
+                    }
+                    let fmt_node = self.node(c0)?;
+                    let format = match &fmt_node.kind {
+                        DcSyntaxKind::Atom(ch) => *ch,
+                        DcSyntaxKind::Identifier { name } => {
+                            let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                                .context("Invalid format shorthand")?;
+                            let dc_id = fid.dc_id().context("FormatId missing dc_id")?;
+                            DcChar::from_u128(dc_id)
+                        }
+                        DcSyntaxKind::Tagged { tag, .. } => *tag,
+                        other => bail!("Expected Atom or Identifier for format token in Dc 511, found {other:?}"),
+                    };
+                    let payload_id = if children.len() > 2 {
+                        let c1_node = self.node(c1)?;
+                        if let DcSyntaxKind::Atom(ch) = c1_node.kind {
+                            if (ch.to_short_dc() == Some(397) || ch.to_short_dc() == Some(561))
+                                && children.get(2).is_some()
+                            {
+                                *children.get(2).context("Missing equivalent candidate payload")?
+                            } else {
+                                c1
+                            }
+                        } else {
+                            c1
+                        }
+                    } else {
+                        c1
+                    };
+                    return Ok(Some((format, payload_id)));
+                }
+                bail!("Format representation container (Dc 511) has fewer than 2 children");
             }
         }
         Ok(None)
     }
 
-    /// Reads direct or textual binary encapsulation in source coordinates.
-    /// Direct mixed-mode payloads are borrowed; DcUtf base64 is decoded once.
-    /// Transparently accepts an optional leading format identifier `DcChar` inside `Dc 203`.
-    ///
-    /// # Errors
-    /// Returns an error if the next element is not an encapsulated binary payload.
-    pub fn read_binary_payload(&mut self) -> Result<Cow<'a, [u8]>> {
-        Ok(self.read_encapsulated_payload(false)?.1)
-    }
-
-    /// Reads a typed checksum binary payload enclosed between `Dc 203` and `Dc 204`,
-    /// returning the optional format identifier and the decoded payload bytes.
-    ///
-    /// # Errors
-    /// Returns an error if the payload is not encapsulated binary data.
-    pub fn read_checksum_payload(&mut self) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
-        self.read_encapsulated_payload(true)
-    }
-
-    fn read_encapsulated_payload(
-        &mut self,
-        parse_checksum_fmt: bool,
-    ) -> Result<(Option<DcChar>, Cow<'a, [u8]>)> {
-        self.peek_char()?;
-        if let Some(data) = self.peeked_binary.take() {
-            let metadata = self.peeked_metadata.take();
-            let format = if parse_checksum_fmt {
-                if let Some(metadata) = metadata {
-                    checksum_format(crate::encapsulation::parse_metadata(metadata)?.data_type)?
-                } else {
-                    None
+    /// Unwraps a bound reference (`Dc 540` or `Dc 276` + identifier).
+    pub fn unwrap_bound_reference(&self, node_id: NodeId) -> Result<Option<String>> {
+        let node = self.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Tagged { tag, args }
+                if tag.to_short_dc() == Some(540) || tag.to_short_dc() == Some(276) =>
+            {
+                if let Some(&arg_id) = args.first() {
+                    let arg_node = self.node(arg_id)?;
+                    if let DcSyntaxKind::Identifier { name } = &arg_node.kind {
+                        return Ok(Some(name.clone()));
+                    }
                 }
-            } else {
-                None
-            };
-            self.position = self.peeked_end;
-            return Ok((format, Cow::Borrowed(data)));
-        }
-        if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-            let (metadata, data) = self.read_textual_binary()?;
-            let format = if parse_checksum_fmt {
-                checksum_format(crate::encapsulation::parse_metadata(&metadata)?.data_type)?
-            } else {
-                None
-            };
-            return Ok((format, Cow::Owned(data)));
-        }
-        let mut format_char = None;
-        let mut shorts = Vec::new();
-        let mut first = true;
-        loop {
-            let Some(ch) = self.peek_char()? else {
-                break;
-            };
-            if first {
-                let is_fmt = ch.to_format().is_ok();
-                let is_b64 = ch
-                    .to_short_dc()
-                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                if !is_fmt && !is_b64 {
-                    break;
-                }
-            } else {
-                let is_b64 = ch
-                    .to_short_dc()
-                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character);
-                if !is_b64 {
-                    break;
-                }
+                bail!("Malformed bound reference under tag {tag}")
             }
-            let ch = self.next_char()?;
-            if first {
-                first = false;
-                if let Some(short) = ch.to_short_dc() {
-                    if ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short) {
-                        shorts.push(short);
+            DcSyntaxKind::Container { opener, children, .. }
+                if opener.to_short_dc() == Some(540) || opener.to_short_dc() == Some(276) =>
+            {
+                if let Some(&child_id) = children.first() {
+                    let child_node = self.node(child_id)?;
+                    if let DcSyntaxKind::Identifier { name } = &child_node.kind {
+                        return Ok(Some(name.clone()));
+                    }
+                }
+                bail!("Malformed bound reference container under opener {opener}")
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Repeatedly unwraps transparent wrappers (`397`/`561` equivalent lists and `315` optionals)
+    /// up to a maximum depth of 32.
+    pub fn unwrap_transparent(&self, mut node_id: NodeId) -> Result<NodeId> {
+        for _ in 0..32 {
+            let node = self.node(node_id)?;
+            match &node.kind {
+                DcSyntaxKind::Container { opener, .. }
+                    if opener.to_short_dc() == Some(397) || opener.to_short_dc() == Some(561) =>
+                {
+                    let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
+                    if unwrapped != node_id {
+                        node_id = unwrapped;
                         continue;
                     }
+                    bail!("Empty equivalent representation container (Dc {opener})");
                 }
-                format_char = Some(ch);
-                continue;
-            }
-            let short = ch.to_short()?;
-            ensure!(
-                ctb_formats_eite::dc::is_dc_base64_encapsulation_character(short),
-                "Expected base64 Dc in binary encapsulation"
-            );
-            shorts.push(short);
-        }
-        ensure!(!shorts.is_empty(), "Expected binary encapsulation");
-        Ok((
-            format_char,
-            Cow::Owned(ctb_formats_eite::dc::dc_encapsulated_raw_to_bytes(&shorts)?),
-        ))
-    }
-
-    fn read_textual_binary(&mut self) -> Result<(crate::DcString, Vec<u8>)> {
-        let mut source = crate::DcString::new();
-        let mut depth = 0usize;
-        loop {
-            let ch = self.next_char()?;
-            source.push(ch);
-            if ch == DC_START_ENCAPSULATION_BINARY {
-                depth = depth.saturating_add(1);
-                ensure!(depth <= 32, "Encapsulation metadata nesting exceeds 32 levels");
-            } else if ch == crate::dc_mixed::DC_END_ENCAPSULATION_BINARY {
-                depth = depth.checked_sub(1).context("Unexpected Dc 204")?;
-                if depth == 0 {
-                    break;
-                }
-            }
-        }
-        let (metadata, data, consumed) = crate::encapsulation::parse_text(&source)?;
-        ensure!(consumed == source.len(), "Trailing binary encapsulation content");
-        Ok((metadata, data))
-    }
-
-    /// Skips a single balanced syntax unit (value, literal, binary payload, or
-    /// framed container `opener..closer`) using the database syntax resolver.
-    ///
-    /// # Errors
-    /// Returns an error if an underlying stream read fails.
-    pub fn skip_syntax_unit(&mut self, max_depth: usize) -> Result<()> {
-        use ctb_formats_dcdata::syntax::{CharTarget, SyntaxRuleResolver, default_syntax_resolver};
-
-        ensure!(max_depth <= 256, "Syntax unit nesting exceeds 256 levels");
-        let Some(peeked) = self.peek_char()? else {
-            return Ok(());
-        };
-        if peeked == DC_START_ENCAPSULATION_BINARY {
-            let _ = self.read_binary_payload()?;
-            return Ok(());
-        }
-        let ch = self.next_char()?;
-        let short = ch.to_short_dc();
-        if short == Some(255) {
-            if self.peek_char()?.is_some() {
-                let _ = self.next_char();
-            }
-            return Ok(());
-        }
-        if matches!(short, Some(260 | 270)) {
-            let end_short = if short == Some(260) { 261 } else { 271 };
-            while let Some(inner) = self.peek_char()? {
-                if inner == DC_START_ENCAPSULATION_BINARY {
-                    let _ = self.read_binary_payload()?;
-                    continue;
-                }
-                let tok = self.next_char()?;
-                if tok.to_short_dc() == Some(255) {
-                    if self.peek_char()?.is_some() {
-                        let _ = self.next_char();
+                DcSyntaxKind::Tagged { tag, .. }
+                    if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
+                {
+                    let unwrapped = self.unwrap_equivalent_or_self(node_id)?;
+                    if unwrapped != node_id {
+                        node_id = unwrapped;
+                        continue;
                     }
-                } else if tok.to_short_dc() == Some(end_short) {
-                    break;
+                    bail!("Empty equivalent representation tagged construct (Dc {tag})");
                 }
-            }
-            return Ok(());
-        }
-        let resolver = default_syntax_resolver();
-        if let Some(closer) = CharTarget::from_u128(ch.0).and_then(|t| resolver.closer_for_opener(&t)) {
-            while let Some(inner) = self.peek_char()? {
-                if inner.0 == closer {
-                    self.next_char()?;
-                    break;
+                DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == Some(315) => {
+                    if let Some(&first) = children.first() {
+                        node_id = first;
+                        continue;
+                    }
+                    bail!("Empty optional container (Dc 315)");
                 }
-                if resolver.closing_opener_for(inner.0).is_some() {
-                    // Sacred opener/closer: do not consume an outer container's closer.
-                    break;
+                DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == Some(315) => {
+                    if let Some(&first) = args.first() {
+                        node_id = first;
+                        continue;
+                    }
+                    bail!("Empty optional tagged construct (Dc 315)");
                 }
-                self.skip_syntax_unit(max_depth.saturating_add(1))?;
-            }
-            // If this opener has trailing elements (e.g. Dc 543..544 followed by [545:]),
-            // consume trailing 545 + binary checksum if present.
-            if ch.to_short_dc() == Some(543) && self.peek_short_dc()? == Some(545) {
-                self.next_char()?;
-                if self.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-                    let _ = self.read_binary_payload()?;
-                }
+                _ => return Ok(node_id),
             }
         }
-        Ok(())
-    }
-
-    /// Skips an unknown field and its value operand(s) inside a container
-    /// closing with `container_end_dc`, stopping before `container_end_dc`,
-    /// any outer closer, or any tag in `known_tags`.
-    ///
-    /// # Errors
-    /// Returns an error if reading from the underlying stream fails.
-    pub fn skip_unknown_field_in_container(
-        &mut self,
-        container_end_dc: u128,
-        known_tags: &[u128],
-    ) -> Result<()> {
-        use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
-
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        let Some(first) = self.peek_char()? else {
-            return Ok(());
-        };
-        if first.0 == container_end_dc
-            || (container_end_dc == 0 && resolver.closing_opener_for(first.0).is_some())
-        {
-            return Ok(());
-        }
-        // Consume the unknown tag itself (or balanced frame if the unknown tag is an opener).
-        self.skip_syntax_unit(0)?;
-        // Consume any following value-level operands until we reach `container_end_dc`,
-        // a known field tag of this struct, or an outer closer.
-        self.recover_malformed_field_in_container(container_end_dc, known_tags)
-    }
-
-    /// Resynchronizes the cursor after a field decoding failure inside a
-    /// container closing with `container_end_dc`, advancing past remaining
-    /// tokens of the malformed field until `container_end_dc`, a tag in
-    /// `known_tags`, or an outer closer is reached.
-    ///
-    /// # Errors
-    /// Returns an error if reading from the underlying stream fails.
-    pub fn recover_malformed_field_in_container(
-        &mut self,
-        container_end_dc: u128,
-        known_tags: &[u128],
-    ) -> Result<()> {
-        use ctb_formats_dcdata::syntax::SyntaxRuleResolver;
-
-        let resolver = ctb_formats_dcdata::syntax::default_syntax_resolver();
-        while let Some(peeked) = self.peek_char()? {
-            if peeked.0 == container_end_dc || known_tags.contains(&peeked.0) {
-            if peeked.0 == container_end_dc
-                || known_tags.contains(&peeked.0)
-                || resolver.closing_opener_for(peeked.0).is_some()
-            {
-                break;
-            }
-            let is_value_operand = peeked == DC_START_ENCAPSULATION_BINARY
-                || matches!(
-                    peeked.to_short_dc(),
-                    Some(
-                        6 | 7 | 10 | 11 | 203 | 204 | 255 | 260 | 261 | 262 | 263 | 269
-                            | 270 | 271 | 275 | 310 | 311 | 312 | 313 | 314 | 315 | 316
-                            | 390 | 391 | 393 | 394 | 397 | 511 | 512 | 514 | 515 | 517
-                            | 518 | 540 | 559 | 560 | 561
-                    )
-                )
-                || peeked
-                    .to_short_dc()
-                    .is_some_and(ctb_formats_eite::dc::is_dc_base64_encapsulation_character)
-                || ctb_formats_dcdata::is_type_token(peeked.0)
-                || peeked.to_unicode().is_ok();
-            if !is_value_operand && resolver.closing_opener_for(peeked.0).is_some() {
-                break;
-            }
-            let is_value_operand = resolver
-                .matches_named_type_starter("value", peeked.0)
-                || resolver.matches_named_type_starter("type", peeked.0)
-                || peeked.to_short_dc().is_some_and(
-                    ctb_formats_eite::dc::is_dc_base64_encapsulation_character,
-                );
-            if is_value_operand {
-                self.skip_syntax_unit(0)?;
-            } else {
-                // Another unknown tag at container level: stop so the container loop can
-                // handle it (and emit a diagnostic for it).
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    /// Reads a string literal enclosed between `Dc 260` and `Dc 261`.
-    ///
-    /// # Errors
-    /// Returns an error if delimiters are missing or if stream ends prematurely.
-    pub fn read_string(&mut self) -> Result<String> {
-        self.expect_short_dc(260)?; // Begin literal value
-        if self.peek_char()?.and_then(|c| c.to_short_dc()) == Some(262) {
-            self.next_char()?;
-            loop {
-                let ch = self
-                    .next_char()
-                    .context("Unexpected EOF while reading literal type header")?;
-                if ch.to_short_dc() == Some(263) {
-                    break;
-                }
-            }
-        }
-        let mut s = String::new();
-        loop {
-            let mut ch = self
-                .next_char()
-                .context("Unexpected EOF while reading string literal")?;
-            if ch.to_short_dc() == Some(261) {
-                // End literal value
-                break;
-            }
-            if ch.to_short_dc() == Some(255) {
-                ch = self
-                    .next_char()
-                    .context("Unexpected EOF after escape Dc 255 in string literal")?;
-            }
-            if let Some(c) = ch.as_char() {
-                s.push(c);
-            } else {
-                write!(s, "{ch}")?;
-            }
-        }
-        Ok(s)
-    }
-
-    /// Reads an integer formatted as a Dc number using base 64 encapsulation Dcs.
-    ///
-    /// # Errors
-    /// Returns an error if delimiters are missing, characters are invalid, or value overflows `i128`.
-    pub fn read_i128(&mut self) -> Result<i128> {
-        let int_val = crate::dc_number::read_dc_number_from_reader(|| self.next_char())?;
-        i128::try_from(&int_val).map_err(|e| anyhow!("Dc number exceeds i128 range: {e:?}"))
-    }
-
-    /// Reads an unsigned 128-bit integer formatted as a Dc number using base 64 encapsulation Dcs.
-    ///
-    /// # Errors
-    /// Returns an error if delimiters are missing, number is negative, or value overflows `u128`.
-    pub fn read_u128(&mut self) -> Result<u128> {
-        let int_val = crate::dc_number::read_dc_number_from_reader(|| self.next_char())?;
-        ensure!(
-            int_val >= 0,
-            "Expected non-negative integer for u128, found negative"
-        );
-        let nat = int_val.unsigned_abs_ref();
-        u128::try_from(nat).map_err(|e| anyhow!("Dc number exceeds u128 range: {e:?}"))
-    }
-
-    /// Reads an arbitrary-precision integer formatted as a Dc number.
-    ///
-    /// # Errors
-    /// Returns an error if delimiters are missing or characters are invalid.
-    pub fn read_integer(&mut self) -> Result<malachite::Integer> {
-        crate::dc_number::read_dc_number_from_reader(|| self.next_char())
-    }
-
-    /// Reads an arbitrary-precision non-negative natural number formatted as a Dc number.
-    ///
-    /// # Errors
-    /// Returns an error if delimiters are missing, number is negative, or characters are invalid.
-    pub fn read_natural(&mut self) -> Result<malachite::Natural> {
-        let int_val = self.read_integer()?;
-        ensure!(
-            int_val >= 0,
-            "Expected non-negative integer for Natural, found negative"
-        );
-        Ok(int_val.unsigned_abs_ref().clone())
-    }
-
-    /// Reads an unsigned 64-bit integer.
-    pub fn read_u64(&mut self) -> Result<u64> {
-        let val = self.read_u128()?;
-        u64::try_from(val).context("Value out of range for u64")
-    }
-
-    /// Reads an unsigned 32-bit integer.
-    pub fn read_u32(&mut self) -> Result<u32> {
-        let val = self.read_u128()?;
-        u32::try_from(val).context("Value out of range for u32")
-    }
-
-    /// Reads an unsigned 16-bit integer.
-    pub fn read_u16(&mut self) -> Result<u16> {
-        let val = self.read_u128()?;
-        u16::try_from(val).context("Value out of range for u16")
-    }
-
-    /// Reads an unsigned 8-bit integer.
-    pub fn read_u8(&mut self) -> Result<u8> {
-        let val = self.read_u128()?;
-        u8::try_from(val).context("Value out of range for u8")
-    }
-
-    /// Reads a signed 64-bit integer.
-    pub fn read_i64(&mut self) -> Result<i64> {
-        let val = self.read_i128()?;
-        i64::try_from(val).context("Value out of range for i64")
-    }
-
-    /// Reads a boolean flag indicator (`Dc 517` or `Dc 10` for true, `Dc 518` or `Dc 11` for false).
-    pub fn read_bool(&mut self) -> Result<bool> {
-        let ch = self.next_char()?;
-        match ch.to_short_dc() {
-            Some(10 | 517) => Ok(true),
-            Some(11 | 518) => Ok(false),
-            other => {
-                bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {other:?}")
-            }
-        }
+        Ok(node_id)
     }
 }
+
 
 // ----------------------------------------------------------------------------
 // Primitive Implementations
@@ -1036,11 +758,17 @@ impl DcMixedEncode for String {
 }
 
 impl DcMixedDecode for String {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.read_string()
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Literal { decoded, .. } => Ok(decoded.clone()),
+            DcSyntaxKind::Identifier { name } => Ok(name.clone()),
+            other => bail!("Expected Literal or Identifier node for String, found {other:?}"),
+        }
     }
 }
 
@@ -1068,11 +796,20 @@ impl DcMixedEncode for bool {
 }
 
 impl DcMixedDecode for bool {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.read_bool()
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Atom(ch) => match ch.to_short_dc() {
+                Some(10 | 517) => Ok(true),
+                Some(11 | 518) => Ok(false),
+                other => bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {other:?}"),
+            },
+            other => bail!("Expected Atom node for bool, found {other:?}"),
+        }
     }
 }
 
@@ -1092,12 +829,12 @@ macro_rules! impl_dc_mixed_integer_signed {
             }
 
             impl DcMixedDecode for $t {
-                fn decode_dc_mixed(
-                    reader: &mut DcMixedReader<'_>,
-                    _policy: &crate::DcProjectionPolicy,
+                fn decode_dc_node(
+                    ctx: &mut DcProjectionContext<'_, '_>,
+                    node_id: NodeId,
                 ) -> Result<Self> {
-                    let val = reader.read_i128()?;
-                    <$t>::try_from(val).context(concat!("Value out of range for ", stringify!($t)))
+                    let val = decode_integer_node(ctx, node_id)?;
+                    <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
                 }
             }
         )*
@@ -1120,12 +857,12 @@ macro_rules! impl_dc_mixed_integer_unsigned {
             }
 
             impl DcMixedDecode for $t {
-                fn decode_dc_mixed(
-                    reader: &mut DcMixedReader<'_>,
-                    _policy: &crate::DcProjectionPolicy,
+                fn decode_dc_node(
+                    ctx: &mut DcProjectionContext<'_, '_>,
+                    node_id: NodeId,
                 ) -> Result<Self> {
-                    let val = reader.read_u128()?;
-                    <$t>::try_from(val).context(concat!("Value out of range for ", stringify!($t)))
+                    let val = decode_natural_node(ctx, node_id)?;
+                    <$t>::try_from(&val).map_err(|e| anyhow!("Value out of range for {}: {e:?}", stringify!($t)))
                 }
             }
         )*
@@ -1146,11 +883,11 @@ impl DcMixedEncode for malachite::Natural {
 }
 
 impl DcMixedDecode for malachite::Natural {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.read_natural()
+        decode_natural_node(ctx, node_id)
     }
 }
 
@@ -1165,11 +902,11 @@ impl DcMixedEncode for malachite::Integer {
 }
 
 impl DcMixedDecode for malachite::Integer {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.read_integer()
+        decode_integer_node(ctx, node_id)
     }
 }
 
@@ -1185,13 +922,47 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
 }
 
 impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let a = A::decode_dc_mixed(reader, policy)?;
-        let b = B::decode_dc_mixed(reader, policy)?;
-        Ok((a, b))
+        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Container { children, .. } => {
+                let filtered: Vec<NodeId> = children
+                    .iter()
+                    .copied()
+                    .filter(|&id| {
+                        if let Ok(n) = ctx.node(id) {
+                            !matches!(n.kind, DcSyntaxKind::Atom(ch) if ch == DC_LIST_ELEMENT_SEPARATOR)
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+                if let (Some(&first), Some(&second)) = (filtered.first(), filtered.get(1)) {
+                    let a = A::decode_dc_node(ctx, first)?;
+                    let b = B::decode_dc_node(ctx, second)?;
+                    return Ok((a, b));
+                }
+            }
+            DcSyntaxKind::Tagged { args, .. } => {
+                if let (Some(&first), Some(&second)) = (args.first(), args.get(1)) {
+                    let a = A::decode_dc_node(ctx, first)?;
+                    let b = B::decode_dc_node(ctx, second)?;
+                    return Ok((a, b));
+                }
+            }
+            _ => {}
+        }
+        if let [r0, r1] = ctx.arena.roots() {
+            ctx.consumed_all_roots = true;
+            let a = A::decode_dc_node(ctx, *r0)?;
+            let b = B::decode_dc_node(ctx, *r1)?;
+            return Ok((a, b));
+        }
+        bail!("Expected Container or Tagged node with 2 elements for pair (A, B), found {:?}", node.kind)
     }
 }
 
@@ -1214,30 +985,28 @@ impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Option<T> {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        match reader.peek_char()? {
-            Some(DC_OPTIONAL_ABSENT) => {
-                reader.next_char()?;
-                Ok(None)
+        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Atom(ch) if *ch == DC_OPTIONAL_ABSENT => Ok(None),
+            DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
+                let inner = args.first().copied().context("Missing value after Dc 315")?;
+                T::decode_dc_node(ctx, inner).map(Some)
             }
-            Some(DC_OPTIONAL_PRESENT) => {
-                reader.next_char()?;
-                let pos_after_present = reader.position();
-                match T::decode_dc_mixed(reader, policy) {
-                    Ok(val) => Ok(Some(val)),
-                    Err(err) => {
-                        if reader.position() == pos_after_present {
-                            let _ = reader.skip_syntax_unit(0);
-                        }
-                        Err(err)
-                    }
+            DcSyntaxKind::Container { opener, children, .. } if *opener == DC_OPTIONAL_PRESENT => {
+                let inner = children.first().copied().context("Missing value in Dc 315 container")?;
+                T::decode_dc_node(ctx, inner).map(Some)
+            }
+            _ => {
+                if ctx.policy.missing_required_field != crate::navigator::DiagnosticAction::Error {
+                    T::decode_dc_node(ctx, node_id).map(Some)
+                } else {
+                    bail!("Expected Option marker (Dc 315 or 316), found {:?}", node.kind)
                 }
-            }
-            other => {
-                bail!("Expected Option marker (Dc {:?} or {:?}), found {other:?}", DC_OPTIONAL_PRESENT, DC_OPTIONAL_ABSENT)
             }
         }
     }
@@ -1262,44 +1031,70 @@ impl<T: DcMixedEncode> DcMixedEncode for Vec<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.expect_char(DC_BEGIN_LIST)?;
-        let expected_len = if reader.peek_short_dc()? == Some(6) {
-            Some(usize::decode_dc_mixed(reader, policy)?)
-        } else {
-            None
+        let node_id = ctx.unwrap_equivalent_or_self(node_id)?;
+        let node = ctx.node(node_id)?;
+        let children = match &node.kind {
+            DcSyntaxKind::Container { opener, children, .. } if *opener == DC_BEGIN_LIST => children,
+            other => bail!("Expected List container (Dc 310) for Vec, found {other:?}"),
         };
-        reader.skip_type_header()?;
-        let mut list = Vec::new();
-        let mut first = true;
-        loop {
-            if reader.peek_char()? == Some(DC_END_LIST) {
-                reader.next_char()?;
-                break;
+
+        let mut iter = children.iter().copied().peekable();
+        let mut expected_len: Option<usize> = None;
+
+        if let Some(&first_id) = iter.peek() {
+            let first_node = ctx.node(first_id)?;
+            if matches!(first_node.kind, DcSyntaxKind::Number { .. }) {
+                let second_id = children.get(1).copied();
+                let is_followed_by_type = if let Some(sec_id) = second_id {
+                    let sec_node = ctx.node(sec_id)?;
+                    matches!(sec_node.kind, DcSyntaxKind::Atom(ch) if ctb_formats_dcdata::is_type_token(ch.0))
+                } else {
+                    false
+                };
+                if is_followed_by_type {
+                    expected_len = Some(usize::decode_dc_node(ctx, first_id)?);
+                    let _ = iter.next();
+                }
             }
-            if !first && reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
-                reader.next_char()?;
-            }
-            first = false;
-            list.push(T::decode_dc_mixed(reader, policy)?);
         }
+
+        if let Some(&id) = iter.peek() {
+            let n = ctx.node(id)?;
+            if let DcSyntaxKind::Atom(ch) = &n.kind {
+                if ctb_formats_dcdata::is_type_token(ch.0) {
+                    let _ = iter.next();
+                }
+            }
+        }
+
+        let mut list = Vec::new();
+        for child_id in iter {
+            let child_node = ctx.node(child_id)?;
+            if let DcSyntaxKind::Atom(ch) = &child_node.kind {
+                if *ch == DC_LIST_ELEMENT_SEPARATOR {
+                    continue;
+                }
+            }
+            list.push(T::decode_dc_node(ctx, child_id)?);
+        }
+
         if let Some(expected) = expected_len {
             if list.len() != expected {
-                policy.handle(
-                    policy.syntax_error,
-                    format!(
-                        "List length mismatch: header declared {expected} elements, found {}",
-                        list.len()
-                    ),
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    format!("List length mismatch: header declared {expected} elements, found {}", list.len()),
                 )?;
             }
         }
+
         Ok(list)
     }
 }
+
 
 impl DcMixedEncode for Ipv4Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
@@ -1313,25 +1108,38 @@ impl DcMixedEncode for Ipv4Addr {
 }
 
 impl DcMixedDecode for Ipv4Addr {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
-        if has_511 {
-            reader.next_char()?;
-        }
-        if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(490)) {
-            reader.next_char()?;
-            let val = u32::decode_dc_mixed(reader, policy)?;
-            if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
-                reader.next_char()?;
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+            if fmt == DcChar::from_format(490) {
+                let val = u32::decode_dc_node(ctx, payload_id)?;
+                return Ok(Ipv4Addr::from(val));
             }
-            Ok(Ipv4Addr::from(val))
-        } else {
-            let s = reader.read_string()?;
-            s.parse::<Ipv4Addr>().context("Failed to parse IPv4 address")
         }
+        let node = ctx.node(node_id)?;
+        if matches!(node.kind, DcSyntaxKind::Number { .. }) {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare number representation of IPv4 address is not allowed under strict policy; expected Dc 511 + f490",
+                )?;
+            }
+            let val = u32::decode_dc_node(ctx, node_id)?;
+            return Ok(Ipv4Addr::from(val));
+        }
+        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of IPv4 address is not allowed under strict policy; expected Dc 511 + f490",
+                )?;
+            }
+            return decoded.parse::<Ipv4Addr>().context("Failed to parse IPv4 address");
+        }
+        bail!("Expected format representation (Dc 511 + f490) for IPv4 address, found {:?}", node.kind)
     }
 }
 
@@ -1347,25 +1155,38 @@ impl DcMixedEncode for Ipv6Addr {
 }
 
 impl DcMixedDecode for Ipv6Addr {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
-        if has_511 {
-            reader.next_char()?;
-        }
-        if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(491)) {
-            reader.next_char()?;
-            let val = u128::decode_dc_mixed(reader, policy)?;
-            if has_511 && reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
-                reader.next_char()?;
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+            if fmt == DcChar::from_format(491) {
+                let val = u128::decode_dc_node(ctx, payload_id)?;
+                return Ok(Ipv6Addr::from(val));
             }
-            Ok(Ipv6Addr::from(val))
-        } else {
-            let s = reader.read_string()?;
-            s.parse::<Ipv6Addr>().context("Failed to parse IPv6 address")
         }
+        let node = ctx.node(node_id)?;
+        if matches!(node.kind, DcSyntaxKind::Number { .. }) {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare number representation of IPv6 address is not allowed under strict policy; expected Dc 511 + f491",
+                )?;
+            }
+            let val = u128::decode_dc_node(ctx, node_id)?;
+            return Ok(Ipv6Addr::from(val));
+        }
+        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of IPv6 address is not allowed under strict policy; expected Dc 511 + f491",
+                )?;
+            }
+            return decoded.parse::<Ipv6Addr>().context("Failed to parse IPv6 address");
+        }
+        bail!("Expected format representation (Dc 511 + f491) for IPv6 address, found {:?}", node.kind)
     }
 }
 
@@ -1379,43 +1200,31 @@ impl DcMixedEncode for std::net::IpAddr {
 }
 
 impl DcMixedDecode for std::net::IpAddr {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let has_511 = reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION);
-        if has_511 {
-            reader.next_char()?;
-            let fmt_char = reader.peek_char()?;
-            if fmt_char == Some(DcChar::from_format(490)) {
-                reader.next_char()?;
-                let val = u32::decode_dc_mixed(reader, policy)?;
-                if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
-                    reader.next_char()?;
-                }
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+            if fmt == DcChar::from_format(490) {
+                let val = u32::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V4(Ipv4Addr::from(val)));
-            } else if fmt_char == Some(DcChar::from_format(491)) {
-                reader.next_char()?;
-                let val = u128::decode_dc_mixed(reader, policy)?;
-                if reader.peek_char()? == Some(DC_END_FORMAT_REPRESENTATION) {
-                    reader.next_char()?;
-                }
+            } else if fmt == DcChar::from_format(491) {
+                let val = u128::decode_dc_node(ctx, payload_id)?;
                 return Ok(Self::V6(Ipv6Addr::from(val)));
             }
         }
-        if let Some(c) = reader.peek_char()? {
-            if c == DcChar::from_format(490) {
-                reader.next_char()?;
-                let val = u32::decode_dc_mixed(reader, policy)?;
-                return Ok(Self::V4(Ipv4Addr::from(val)));
-            } else if c == DcChar::from_format(491) {
-                reader.next_char()?;
-                let val = u128::decode_dc_mixed(reader, policy)?;
-                return Ok(Self::V6(Ipv6Addr::from(val)));
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of IP address is not allowed under strict policy; expected Dc 511 + f490/f491",
+                )?;
             }
+            return decoded.parse::<std::net::IpAddr>().context("Failed to parse IP address");
         }
-        let s = reader.read_string()?;
-        s.parse::<std::net::IpAddr>().context("Failed to parse IP address")
+        bail!("Expected format representation (Dc 511 + f490/f491) for IP address, found {:?}", node.kind)
     }
 }
 
@@ -1428,15 +1237,25 @@ impl DcMixedEncode for ctb_formats_utilities::FormatId {
 }
 
 impl DcMixedDecode for ctb_formats_utilities::FormatId {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        _policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let ch = reader.next_char()?;
-        if let Some(fid) = Self::from_dc_id(ch.0) {
-            return Ok(fid);
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        match &node.kind {
+            DcSyntaxKind::Atom(ch) => {
+                if let Some(fid) = Self::from_dc_id(ch.0) {
+                    Ok(fid)
+                } else {
+                    bail!("Unknown format DC character {ch:?}")
+                }
+            }
+            DcSyntaxKind::Identifier { name } => {
+                Self::from_shorthand(name).with_context(|| format!("Unknown format identifier shorthand '{name}'"))
+            }
+            other => bail!("Expected Atom or Identifier for FormatId, found {other:?}"),
         }
-        bail!("Unknown format DC character {ch:?}")
     }
 }
 
@@ -1470,29 +1289,83 @@ where
     K: DcMixedDecode + Ord,
     V: DcMixedDecode,
 {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let encoding = crate::DcKvMapEncoding::decode_header(reader)?;
-        if encoding == crate::DcKvMapEncoding::Legacy {
-            policy.handle(
-                policy.deprecated_syntax,
-                format!(
-                    "Deprecated Dc 313..314 key-value map syntax at byte {}; prefer Dc 559..560",
-                    reader.position()
-                ),
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        let (opener, children) = match &node.kind {
+            DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
+            other => bail!("Expected key-value map container for BTreeMap, found {other:?}"),
+        };
+        let is_pairs = opener == DC_BEGIN_KV_MAP;
+        let is_legacy = opener == DC_BEGIN_LEGACY_KV_MAP;
+        ensure!(is_pairs || is_legacy, "Expected map container (Dc 559 or Dc 313), found opener {opener}");
+        if is_legacy {
+            ctx.policy.handle(
+                ctx.policy.deprecated_syntax,
+                "Deprecated Dc 313..314 key-value map syntax; prefer Dc 559..560",
             )?;
         }
+
+        let mut iter = children.iter().copied().peekable();
+        while let Some(&child_id) = iter.peek() {
+            let child = ctx.node(child_id)?;
+            if let DcSyntaxKind::Atom(ch) = child.kind {
+                if ch.to_short_dc() == Some(275) || ctb_formats_dcdata::is_type_token(ch.0) {
+                    let _ = iter.next();
+                    continue;
+                }
+            }
+            break;
+        }
+
         let mut map = BTreeMap::new();
-        let mut first = true;
-        while encoding.decode_entry_begin(reader, first)? {
-            first = false;
-            let key = K::decode_dc_mixed(reader, policy)?;
-            reader.expect_short_dc(312)?;
-            let value = V::decode_dc_mixed(reader, policy)?;
-            encoding.decode_entry_end(reader)?;
-            ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
+        if is_pairs {
+            for entry_id in iter {
+                let entry_node = ctx.node(entry_id)?;
+                let pair_children = match &entry_node.kind {
+                    DcSyntaxKind::Container { opener, children, .. } if *opener == DC_BEGIN_KV_PAIR => children,
+                    other => bail!("Expected Dc 514 pair container inside map, found {other:?}"),
+                };
+                let items: Vec<NodeId> = pair_children
+                    .iter()
+                    .copied()
+                    .filter(|&id| {
+                        if let Ok(n) = ctx.node(id) {
+                            !matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+                let [k_node_id, v_node_id] = items.as_slice() else {
+                    bail!("Expected exactly key and value in pair container, found {} items", items.len());
+                };
+                let key = K::decode_dc_node(ctx, *k_node_id)?;
+                let value = V::decode_dc_node(ctx, *v_node_id)?;
+                ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
+            }
+        } else {
+            let items: Vec<NodeId> = iter
+                .filter(|&id| {
+                    if let Ok(n) = ctx.node(id) {
+                        !matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+            ensure!(items.len().checked_rem(2) == Some(0), "Uneven number of items in legacy map (Dc 313)");
+            for chunk in items.chunks_exact(2) {
+                let [k_id, v_id] = chunk else {
+                    bail!("Expected 2 items in chunk");
+                };
+                let key = K::decode_dc_node(ctx, *k_id)?;
+                let value = V::decode_dc_node(ctx, *v_id)?;
+                ensure!(map.insert(key, value).is_none(), "Duplicate Dc map key");
+            }
         }
         Ok(map)
     }
@@ -1508,11 +1381,11 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Box<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Box<T> {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let val = T::decode_dc_mixed(reader, policy)?;
+        let val = T::decode_dc_node(ctx, node_id)?;
         Ok(Box::new(val))
     }
 }
@@ -1527,11 +1400,11 @@ impl<T: DcMixedEncode + ?Sized> DcMixedEncode for Arc<T> {
 }
 
 impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let val = T::decode_dc_mixed(reader, policy)?;
+        let val = T::decode_dc_node(ctx, node_id)?;
         Ok(Arc::new(val))
     }
 }
@@ -1609,15 +1482,38 @@ pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
 
 /// Decodes a value within the declared format representation boundaries.
 pub fn decode_format_representation<T: DcMixedDecode>(
-    reader: &mut DcMixedReader<'_>,
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
     format: DcChar,
-    policy: &crate::DcProjectionPolicy,
 ) -> Result<T> {
-    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-    reader.expect_char(format)?;
-    let value = T::decode_dc_mixed(reader, policy)?;
-    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-    Ok(value)
+    let node_id = ctx.unwrap_transparent(node_id)?;
+    if let Some((fmt, payload_id)) = ctx.unwrap_format_representation(node_id)? {
+        if fmt == format {
+            return T::decode_dc_node(ctx, payload_id);
+        }
+        bail!("Format representation mismatch: expected {format:?}, found {fmt:?}");
+    }
+    let node = ctx.node(node_id)?;
+    if let DcSyntaxKind::Container { opener, closer: _, header: _, children, trailing: _, unclosed: _ } = &node.kind {
+        if opener.to_short_dc() == Some(511)
+            && let Some(&first_child) = children.first()
+        {
+            let fmt_node = ctx.node(first_child)?;
+            let fmt_matches = match &fmt_node.kind {
+                DcSyntaxKind::Atom(ch) => *ch == format,
+                DcSyntaxKind::Identifier { name } => {
+                    ctb_formats_utilities::FormatId::from_shorthand(name)
+                        .and_then(|fid| fid.dc_id())
+                        .map(DcChar::from_u128) == Some(format)
+                }
+                _ => false,
+            };
+            if fmt_matches {
+                return T::decode_dc_node(ctx, node_id);
+            }
+        }
+    }
+    bail!("Expected format representation container (Dc 511 + {format:?}), found {:?}", node.kind)
 }
 
 /// Resolves native Unix bytes or canonical Windows WTF-8 without replacement.
@@ -1647,77 +1543,97 @@ pub fn path_from_native_bytes(bytes: &[u8]) -> Result<PathBuf> {
 }
 
 fn decode_filename_bytes(
-    reader: &mut DcMixedReader<'_>,
-    policy: &crate::DcProjectionPolicy,
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
 ) -> Result<Vec<u8>> {
-    if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
-        reader.next_char()?;
-        reader.expect_char(DC_BEGIN_LIST)?;
-        reader.expect_short_dc(275)?;
-        let text = String::decode_dc_mixed(reader, policy)?;
-        if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
-            reader.next_char()?;
+    let node = ctx.node(node_id)?;
+    match &node.kind {
+        DcSyntaxKind::Container { opener, children, .. }
+            if opener.to_short_dc() == Some(397)
+                || opener.to_short_dc() == Some(561)
+                || opener.to_short_dc() == Some(310) =>
+        {
+            return decode_equivalent_filename_candidates(ctx, children);
         }
-        let bytes = reader.read_binary_payload()?.to_vec();
-        ensure!(text.as_bytes() == bytes, "Conflicting filename representations");
-        reader.expect_char(DC_END_LIST)?;
-        Ok(bytes)
-    } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-        Ok(reader.read_binary_payload()?.to_vec())
-    } else {
-        Ok(String::decode_dc_mixed(reader, policy)?.into_bytes())
+        DcSyntaxKind::Tagged { tag, args }
+            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
+        {
+            if let Some(&first) = args.first() {
+                let arg_node = ctx.node(first)?;
+                if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                    return decode_equivalent_filename_candidates(ctx, children);
+                } else {
+                    return decode_equivalent_filename_candidates(ctx, args);
+                }
+            } else {
+                bail!("Empty equivalent representation tagged construct")
+            }
+        }
+        _ => {}
+    }
+    let node_id = ctx.unwrap_transparent(node_id)?;
+    let node = ctx.node(node_id)?;
+    match &node.kind {
+        DcSyntaxKind::Binary { payload, .. } => {
+            Ok(payload.materialize_bytes()?.into_owned())
+        }
+        DcSyntaxKind::Literal { decoded, .. } => {
+            Ok(decoded.as_bytes().to_vec())
+        }
+        DcSyntaxKind::Container { opener, children, .. }
+            if opener.to_short_dc() == Some(397)
+                || opener.to_short_dc() == Some(561)
+                || opener.to_short_dc() == Some(310) =>
+        {
+            decode_equivalent_filename_candidates(ctx, children)
+        }
+        DcSyntaxKind::Tagged { tag, args }
+            if tag.to_short_dc() == Some(397) || tag.to_short_dc() == Some(561) =>
+        {
+            if let Some(&first) = args.first() {
+                let arg_node = ctx.node(first)?;
+                if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
+                    decode_equivalent_filename_candidates(ctx, children)
+                } else {
+                    decode_equivalent_filename_candidates(ctx, args)
+                }
+            } else {
+                bail!("Empty equivalent representation tagged construct")
+            }
+        }
+        other => bail!("Expected binary, string literal, or equivalent container for filename, found {other:?}"),
     }
 }
 
-impl DcMixedDecode for PathBuf {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
-    ) -> Result<Self> {
-        if reader.peek_char()? == Some(DC_BEGIN_FORMAT_REPRESENTATION) {
-            let segments = decode_filepath_segments(reader, policy)?;
-            ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
-                "Filename segment contains a path delimiter");
-            return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
-        }
-        if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
-            reader.next_char()?;
-            reader.expect_char(DC_BEGIN_LIST)?;
-            let mut resolved_path = None;
-            while reader.peek_char()? != Some(DC_END_LIST) {
-                if reader.peek_char()?.is_none() {
-                    bail!("Unexpected EOF waiting for closing Dc in equivalent representations list");
-                }
-                if reader.peek_char()? == Some(DC_LIST_ELEMENT_SEPARATOR) {
-                    reader.next_char()?;
-                    continue;
-                }
-                if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-                    let bytes = reader.read_binary_payload()?;
-                    let native_path = path_from_native_bytes(bytes.as_ref())?;
-                    if let Some(path) = &resolved_path {
-                        ensure!(*path == native_path, "Conflicting legacy path representations");
-                    }
-                    resolved_path = Some(native_path);
-                } else {
-                    let s = String::decode_dc_mixed(reader, policy)?;
-                    let text_path = PathBuf::from(s);
-                    if let Some(path) = &resolved_path {
-                        ensure!(*path == text_path, "Conflicting legacy path representations");
-                    } else {
-                        resolved_path = Some(text_path);
-                    }
-                }
+fn decode_equivalent_filename_candidates(
+    ctx: &mut DcProjectionContext<'_, '_>,
+    candidates: &[NodeId],
+) -> Result<Vec<u8>> {
+    let mut text: Option<String> = None;
+    let mut bytes: Option<Vec<u8>> = None;
+    for &child_id in candidates {
+        let child = ctx.node(child_id)?;
+        if let DcSyntaxKind::Atom(ch) = child.kind {
+            if ch.to_short_dc() == Some(275) || ch == DC_LIST_ELEMENT_SEPARATOR {
+                continue;
             }
-            reader.expect_char(DC_END_LIST)?;
-            resolved_path.ok_or_else(|| anyhow::anyhow!("Empty equivalent representations list for PathBuf"))
-        } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
-            let bytes = reader.read_binary_payload()?;
-            path_from_native_bytes(bytes.as_ref())
-        } else {
-            let s = String::decode_dc_mixed(reader, policy)?;
-            Ok(PathBuf::from(s))
         }
+        if let DcSyntaxKind::Binary { payload, .. } = &child.kind {
+            bytes = Some(payload.materialize_bytes()?.into_owned());
+        } else if let Ok(s) = String::decode_dc_node(ctx, child_id) {
+            text = Some(s);
+        }
+    }
+    if let (Some(t), Some(b)) = (&text, &bytes) {
+        ensure!(t.as_bytes() == b.as_slice(), "Conflicting filename representations");
+        let Some(b) = bytes else { unreachable!() };
+        Ok(b)
+    } else if let Some(b) = bytes {
+        Ok(b)
+    } else if let Some(t) = text {
+        Ok(t.into_bytes())
+    } else {
+        bail!("Empty equivalent representation container for filename")
     }
 }
 
@@ -1727,44 +1643,120 @@ impl DcMixedDecode for PathBuf {
 /// Returns an error on malformed framing, conflicting filename representations,
 /// or filenames containing `/`.
 pub fn decode_filepath_segments(
-    reader: &mut DcMixedReader<'_>,
-    policy: &crate::DcProjectionPolicy,
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
 ) -> Result<Vec<Vec<u8>>> {
+    let node_id = ctx.unwrap_transparent(node_id)?;
+    let (fmt, inner_id) = ctx.unwrap_format_representation(node_id)?
+        .context("Expected format representation container for FilePath")?;
     let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
     let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-    reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-    reader.expect_char(path_format)?;
-    reader.expect_char(DC_BEGIN_LIST)?;
-    reader.expect_char(DC_TYPE_INTERSECTION)?;
-    reader.expect_char(filename_format)?;
-    reader.expect_char(DC_FILE_PATH_DELIMITER)?;
-    let mut segments = vec![Vec::new()];
-    let mut previous_was_filename = false;
-    while reader.peek_char()? != Some(DC_END_LIST) {
-        if reader.peek_char()? == Some(DC_FILE_PATH_DELIMITER) {
-            reader.next_char()?;
-            segments.push(Vec::new());
-            previous_was_filename = false;
-        } else {
-            ensure!(!previous_was_filename, "Missing delimiter between filename segments");
-            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-            reader.expect_char(filename_format)?;
-            let segment = decode_filename_bytes(reader, policy)?;
-            ensure!(!segment.is_empty(), "Empty filename segment");
-            ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
-            *segments.last_mut().context("Missing filepath segment")? = segment;
-            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-            previous_was_filename = true;
+    ensure!(fmt == path_format, "Expected FilePath format identifier in Dc 511");
+
+    let inner_node = ctx.node(inner_id)?;
+    let children = match &inner_node.kind {
+        DcSyntaxKind::Container { opener, children, .. } if *opener == DC_BEGIN_LIST => children,
+        other => bail!("Expected List container inside FilePath format representation, found {other:?}"),
+    };
+
+    let mut iter = children.iter().copied().peekable();
+    if let Some(&first_id) = iter.peek() {
+        let first_node = ctx.node(first_id)?;
+        match &first_node.kind {
+            DcSyntaxKind::Tagged { tag, .. } if tag.to_short_dc() == Some(516) || tag.to_u128() == 516 => {
+                let _ = iter.next();
+            }
+            DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(516) || ch.to_u128() == 516 || *ch == DC_TYPE_INTERSECTION => {
+                let _ = iter.next();
+                if let Some(&next_id) = iter.peek() {
+                    if let DcSyntaxKind::Atom(ch2) = ctx.node(next_id)?.kind {
+                        if ch2 == filename_format {
+                            let _ = iter.next();
+                            if let Some(&third_id) = iter.peek() {
+                                if let DcSyntaxKind::Atom(ch3) = ctx.node(third_id)?.kind {
+                                    if ch3 == DC_FILE_PATH_DELIMITER {
+                                        let _ = iter.next();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     }
-    reader.expect_char(DC_END_LIST)?;
-    reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
+
+    let mut segments = vec![Vec::new()];
+    let mut previous_was_filename = false;
+
+    for child_id in iter {
+        let child_node = ctx.node(child_id)?;
+        if let DcSyntaxKind::Atom(ch) = child_node.kind {
+            if ch == DC_FILE_PATH_DELIMITER {
+                segments.push(Vec::new());
+                previous_was_filename = false;
+                continue;
+            }
+        }
+        ensure!(!previous_was_filename, "Missing delimiter between filename segments");
+        let (child_fmt, payload_id) = match ctx.unwrap_format_representation(child_id)? {
+            Some(p) => p,
+            None => bail!("Expected format representation for filename segment, found {:?}", ctx.node(child_id)?.kind),
+        };
+        ensure!(child_fmt == filename_format, "Unexpected format for filename segment: {child_fmt:?}");
+        let segment = decode_filename_bytes(ctx, payload_id)?;
+        ensure!(!segment.is_empty(), "Empty filename segment");
+        ensure!(!segment.contains(&b'/'), "Filename segment contains a path delimiter");
+        *segments.last_mut().context("Missing filepath segment")? = segment;
+        previous_was_filename = true;
+    }
+
     Ok(segments)
+}
+
+impl DcMixedDecode for PathBuf {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        if let Some((fmt, _)) = ctx.unwrap_format_representation(node_id)? {
+            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
+            if fmt == path_format {
+                let segments = decode_filepath_segments(ctx, node_id)?;
+                ensure!(segments.iter().all(|segment| !(cfg!(windows) && segment.contains(&b'\\'))),
+                    "Filename segment contains a path delimiter");
+                return path_from_native_bytes(&segments.join(&if cfg!(windows) { b'\\' } else { b'/' }));
+            }
+        }
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Binary { payload, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare binary representation of PathBuf is not allowed under strict policy; expected Dc 511 + f494",
+                )?;
+            }
+            let bytes = payload.materialize_bytes()?;
+            return path_from_native_bytes(bytes.as_ref());
+        }
+        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare string representation of PathBuf is not allowed under strict policy; expected Dc 511 + f494",
+                )?;
+            }
+            return Ok(PathBuf::from(decoded));
+        }
+        bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind)
+    }
 }
 
 impl DcMixedEncode for SystemTime {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        // Reason for fallback: Clock readings prior to UNIX_EPOCH clamp to zero duration for non-negative timestamp serialization.
+        // Reason for fallback: Times preceding UNIX_EPOCH fall back to 0 duration for standard timestamp encoding.
         let dur = self
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
@@ -1778,53 +1770,144 @@ impl DcMixedEncode for SystemTime {
 }
 
 impl DcMixedDecode for SystemTime {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let is_moment = reader.peek_char()?.is_some_and(|c| c == DcChar::from_short(390));
-        if is_moment {
-            reader.next_char()?;
-            let fmt_char = reader.next_char()?;
-            let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
-            let (secs, sub_nanos) = if fmt_tok == 487 {
-                let nanos = u128::decode_dc_mixed(reader, policy)?;
-                let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                (s, ns)
-            } else if fmt_tok == 486 {
-                let s = u64::decode_dc_mixed(reader, policy)?;
-                (s, 0u32)
-            } else {
-                let nanos = u128::decode_dc_mixed(reader, policy)?;
-                let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                (s, ns)
-            };
-            let end_tok = reader.next_char()?;
-            ensure!(end_tok == DcChar::from_short(391), "Expected Dc 391 closing time moment description");
-            std::time::UNIX_EPOCH
-                .checked_add(std::time::Duration::new(secs, sub_nanos))
-                .context("SystemTime overflow")
-        } else {
-            // Legacy / unwrapped number fallback
-            let nanos = u128::decode_dc_mixed(reader, policy)?;
-            let secs = u64::try_from(
-                nanos
-                    .checked_div(1_000_000_000)
-                    .context("Division failed")?,
-            )
-            .context("SystemTime seconds out of range")?;
-            let sub_nanos = u32::try_from(
-                nanos
-                    .checked_rem(1_000_000_000)
-                    .context("Modulo failed")?,
-            )
-            .context("SystemTime sub-nanoseconds out of range")?;
-            std::time::UNIX_EPOCH
-                .checked_add(std::time::Duration::new(secs, sub_nanos))
-                .context("SystemTime overflow")
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+            if opener.to_short_dc() == Some(390) {
+                let Some(&first_child) = children.first() else {
+                    bail!("Empty time moment container (Dc 390..391)");
+                };
+                let first = ctx.node(first_child)?;
+                let (fmt_tok, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                    let tok = ch.to_format().context("Expected date format token after 390")?;
+                    let Some(&second_child) = children.get(1) else {
+                        bail!("Missing number after format token in Dc 390..391");
+                    };
+                    (tok, second_child)
+                } else if let DcSyntaxKind::Identifier { name } = &first.kind {
+                    let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                        .context("Invalid shorthand")?;
+                    let tok = fid.dc_id().context("FormatId missing dc_id")?;
+                    let Some(&second_child) = children.get(1) else {
+                        bail!("Missing number after format token in Dc 390..391");
+                    };
+                    (u32::try_from(tok)?, second_child)
+                } else {
+                    (487, first_child)
+                };
+                let (secs, sub_nanos) = if fmt_tok == 487 {
+                    let nanos = u128::decode_dc_node(ctx, num_id)?;
+                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                    (s, ns)
+                } else if fmt_tok == 486 {
+                    let s = u64::decode_dc_node(ctx, num_id)?;
+                    (s, 0u32)
+                } else {
+                    let nanos = u128::decode_dc_node(ctx, num_id)?;
+                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                    (s, ns)
+                };
+                return std::time::UNIX_EPOCH
+                    .checked_add(std::time::Duration::new(secs, sub_nanos))
+                    .context("SystemTime overflow");
+            }
         }
+        if matches!(node.kind, DcSyntaxKind::Number { .. }) {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare number representation of SystemTime is not allowed under strict policy; expected Dc 390..391",
+                )?;
+            }
+            let nanos = u128::decode_dc_node(ctx, node_id)?;
+            let secs = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+            let sub_nanos = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+            return std::time::UNIX_EPOCH
+                .checked_add(std::time::Duration::new(secs, sub_nanos))
+                .context("SystemTime overflow");
+        }
+        bail!("Expected time moment container (Dc 390..391) for SystemTime, found {:?}", node.kind)
+    }
+}
+
+impl DcMixedEncode for Duration {
+    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        mst.push_char(DcChar::from_short(395));
+        mst.push_char(DcChar::from_format(489));
+        self.as_nanos().encode_dc_mixed(mst)?;
+        mst.push_char(DcChar::from_short(396));
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for Duration {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+            // Reason for fallback: Non-short opener targets fall back to 0 so they do not match duration openers 393/395.
+            let op = opener.to_short_dc().unwrap_or(0);
+            if op == 393 || op == 395 {
+                let Some(&first_child) = children.first() else {
+                    bail!("Empty duration container (Dc {op})");
+                };
+                let first = ctx.node(first_child)?;
+                let (fmt_tok, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                    let tok = ch.to_format().context("Expected date/duration format token")?;
+                    let Some(&second_child) = children.get(1) else {
+                        bail!("Missing number after format token in duration");
+                    };
+                    (tok, second_child)
+                } else if let DcSyntaxKind::Identifier { name } = &first.kind {
+                    let fid = ctb_formats_utilities::FormatId::from_shorthand(name)
+                        .context("Invalid shorthand")?;
+                    let tok = fid.dc_id().context("FormatId missing dc_id")?;
+                    let Some(&second_child) = children.get(1) else {
+                        bail!("Missing number after format token in duration");
+                    };
+                    (u32::try_from(tok)?, second_child)
+                } else {
+                    (489, first_child)
+                };
+                let dur = if fmt_tok == 489 || fmt_tok == 487 {
+                    let nanos = u128::decode_dc_node(ctx, num_id)?;
+                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                    Duration::new(s, ns)
+                } else if fmt_tok == 488 || fmt_tok == 486 {
+                    let s = u64::decode_dc_node(ctx, num_id)?;
+                    Duration::from_secs(s)
+                } else {
+                    let nanos = u128::decode_dc_node(ctx, num_id)?;
+                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                    Duration::new(s, ns)
+                };
+                return Ok(dur);
+            }
+        }
+        if matches!(node.kind, DcSyntaxKind::Number { .. }) {
+            if !ctx.policy.is_forgiving() {
+                ctx.policy.handle(
+                    ctx.policy.syntax_error,
+                    "Bare number representation of Duration is not allowed under strict policy; expected Dc 393..394 or 395..396",
+                )?;
+            }
+            let nanos = u128::decode_dc_node(ctx, node_id)?;
+            let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+            let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+            return Ok(Duration::new(s, ns));
+        }
+        bail!("Expected duration container (Dc 393..394 or 395..396) for Duration, found {:?}", node.kind)
     }
 }
 
@@ -1841,15 +1924,60 @@ impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
 }
 
 impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
-    fn decode_dc_mixed(
-        reader: &mut DcMixedReader<'_>,
-        policy: &crate::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        let mut items: Vec<T> = Vec::with_capacity(N);
-        for _ in 0..N {
-            items.push(T::decode_dc_mixed(reader, policy)?);
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        if let DcSyntaxKind::Container { opener, children, .. } = &node.kind {
+            if opener.to_short_dc() == Some(310) || opener.to_short_dc() == Some(511) {
+                let child_slice: &[NodeId] = if opener.to_short_dc() == Some(511)
+                    && children.len() == N.saturating_add(1)
+                {
+                    match children.split_first() {
+                        Some((_, rest)) => rest,
+                        None => &[],
+                    }
+                } else {
+                    children.as_slice()
+                };
+                let mut items: Vec<T> = Vec::with_capacity(N);
+                for &child_id in child_slice {
+                    let child = ctx.node(child_id)?;
+                    if let DcSyntaxKind::Atom(ch) = child.kind {
+                        if ch == DC_LIST_ELEMENT_SEPARATOR || ctb_formats_dcdata::is_type_token(ch.0) {
+                            continue;
+                        }
+                    }
+                    items.push(T::decode_dc_node(ctx, child_id)?);
+                }
+                return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
+            }
         }
-        items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"))
+        if let DcSyntaxKind::Tagged { args, .. } = &node.kind {
+            if args.len() == N {
+                let mut items: Vec<T> = Vec::with_capacity(N);
+                for &arg_id in args {
+                    items.push(T::decode_dc_node(ctx, arg_id)?);
+                }
+                return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
+            }
+        }
+        if N == 1 {
+            let item = T::decode_dc_node(ctx, node_id)?;
+            return vec![item].try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"));
+        }
+        let roots = ctx.arena.roots();
+        if roots.len() == N {
+            ctx.consumed_all_roots = true;
+            let mut items: Vec<T> = Vec::with_capacity(N);
+            for &r in roots {
+                items.push(T::decode_dc_node(ctx, r)?);
+            }
+            return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
+        }
+        bail!("Expected container or {N} roots for [T; {N}], found {:?}", node.kind)
     }
 }
 
@@ -1873,8 +2001,8 @@ where
     original.encode_dc_mixed(&mut mst)?;
 
     let policy = crate::DcProjectionPolicy::strict();
-    let mut reader = DcMixedReader::new(&mst);
-    let decoded = T::decode_dc_mixed(&mut reader, &policy)
+    let decoded = mst
+        .decode::<T>(&policy)
         .context("Failed to decode struct during DcMixed roundtrip verification")?;
 
     ensure!(
@@ -1906,14 +2034,12 @@ where
     let mut mst = DcMstring::new();
     original.encode_dc_mixed(&mut mst)?;
 
-    let tokens = mst.to_dc_tokens()?;
-    ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
     crate::validate_dc_mixed_strict(&mst)
         .context("Strict Dc syntax validation failed during document roundtrip check")?;
 
     let policy = crate::DcProjectionPolicy::strict();
-    let mut reader = DcMixedReader::new(&mst);
-    let decoded = T::decode_dc_mixed(&mut reader, &policy)
+    let decoded = mst
+        .decode::<T>(&policy)
         .context("Failed to decode struct during DcMixed roundtrip verification")?;
 
     ensure!(
@@ -2063,7 +2189,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 405, end = 406)]
+    #[dc(begin = 401, end = 402)]
     struct SourceNestedRecord {
         #[dc(nested = 317)]
         inner: SampleFileRecord,
@@ -2103,25 +2229,20 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_source_reader_positions() -> Result<()> {
+    fn test_source_navigator_positions() -> Result<()> {
+        let strict = DcProjectionPolicy::strict();
         let mut source = DcMstring::new();
         source.push_str("\u{e9}");
         source.push_binary_with_sha256(b"payload").unwrap();
         source.push_str("end");
-        let mut reader = DcMixedReader::new(&source);
-        let start = reader.position();
-        assert_eq!(reader.peek_char()?, reader.peek_char()?);
-        assert_eq!(reader.position(), start);
-        reader.next_char()?;
-        assert_eq!(reader.position(), start.saturating_add(2));
-        assert!(reader.next_char().is_err());
-        let binary_start = reader.position();
-        assert_eq!(reader.peek_char()?, Some(DC_START_ENCAPSULATION_BINARY));
-        assert_eq!(reader.position(), binary_start);
-        assert_eq!(reader.read_binary_payload()?.as_ref(), b"payload");
-        assert_eq!(reader.position(), source.len().saturating_sub(3));
-        assert!(reader.read_binary_payload().is_err());
-        assert_eq!(reader.next_char()?.as_char(), Some('e'));
+        let mut nav = crate::DcDocumentNavigator::from_mstr(&source);
+        assert_eq!(nav.cursor(), u64::try_from(crate::DCMM_HEADER_LEN).unwrap());
+        let stub1 = nav.next_sibling_stub(&strict)?.unwrap();
+        assert_eq!(stub1.head_dc, DcChar::from_char('\u{e9}'));
+        let stub2 = nav.next_sibling_stub(&strict)?.unwrap();
+        assert_eq!(stub2.head_dc, DC_START_ENCAPSULATION_BINARY);
+        let stub3 = nav.next_sibling_stub(&strict)?.unwrap();
+        assert_eq!(stub3.head_dc, DcChar::from_char('e'));
         Ok(())
     }
 
@@ -2170,9 +2291,9 @@ mod tests {
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
     enum SampleKind {
-        #[dc(short = 325)]
+        #[dc(short = 358)]
         Regular,
-        #[dc(short = 326)]
+        #[dc(short = 359)]
         Directory,
     }
 
@@ -2206,22 +2327,8 @@ mod tests {
         assert_dc_roundtrip(&SampleKeyedRecord { count: 0, label: Some("value".to_string()) })?;
         let mut encoded = DcMstring::new();
         record.encode_dc_mixed(&mut encoded)?;
-        let mut reader = DcMixedReader::new(&encoded);
-        reader.expect_short_dc(559)?;
-        reader.expect_short_dc(275)?;
-        reader.expect_short_dc(275)?;
-        reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "count");
-        reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, u64::MAX);
-        reader.expect_short_dc(515)?;
-        reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "label");
-        reader.expect_short_dc(312)?;
-        assert_eq!(Option::<String>::decode_dc_mixed(&mut reader, &strict)?, None);
-        reader.expect_short_dc(515)?;
-        reader.expect_short_dc(560)?;
-        assert_eq!(reader.peek_char()?, None);
+        assert_eq!(encoded.decode::<SampleKeyedRecord>(&strict)?, record);
+
         let map = BTreeMap::from([
             ("count".to_string(), SampleNamedValue::Unsigned(u64::MAX)),
             ("minimum".to_string(), SampleNamedValue::Signed(i64::MIN)),
@@ -2232,14 +2339,7 @@ mod tests {
         assert_dc_roundtrip(&BTreeMap::<String, SampleNamedValue>::new())?;
         let mut encoded = DcMstring::new();
         SampleNamedValue::Unsigned(42).encode_dc_mixed(&mut encoded)?;
-        let mut reader = DcMixedReader::new(&encoded);
-        reader.expect_short_dc(310)?;
-        reader.expect_short_dc(275)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "unsigned");
-        reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, 42);
-        reader.expect_short_dc(311)?;
-        assert_eq!(reader.peek_char()?, None);
+        assert_eq!(encoded.decode::<SampleNamedValue>(&strict)?, SampleNamedValue::Unsigned(42));
         Ok(())
     }
 
@@ -2280,15 +2380,15 @@ mod tests {
             "count".encode_dc_mixed(&mut encoded)?;
             if separators { encoded.push_char(DcChar::from_short(312)); }
             1u64.encode_dc_mixed(&mut encoded)?;
-            assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&encoded), &strict).is_err());
+            assert!(encoded.decode::<BTreeMap<String, u64>>(&strict).is_err());
         }
         let mut legacy = DcMstring::new();
         legacy.push_char(DC_BEGIN_KV_MAP);
         "count".encode_dc_mixed(&mut legacy)?;
         1u64.encode_dc_mixed(&mut legacy)?;
         legacy.push_char(DC_END_KV_MAP);
-        assert!(SampleKeyedRecord::decode_dc_mixed(&mut DcMixedReader::new(&legacy), &strict).is_err());
-        assert!(BTreeMap::<String, u64>::decode_dc_mixed(&mut DcMixedReader::new(&legacy), &strict).is_err());
+        assert!(legacy.decode::<SampleKeyedRecord>(&strict).is_err());
+        assert!(legacy.decode::<BTreeMap<String, u64>>(&strict).is_err());
         Ok(())
     }
 
@@ -2329,7 +2429,8 @@ mod tests {
             let decoded = legacy.decode::<BTreeMap<String, u64>>(&strict)?;
             assert_eq!(decoded, entries.iter().map(|(key, value)| ((*key).to_owned(), *value)).collect());
             let canonical = decoded.to_dc_mixed()?;
-            assert_eq!(DcMixedReader::new(&canonical).next_char()?, DC_BEGIN_KV_MAP);
+            let mut nav = crate::DcDocumentNavigator::from_mstr(&canonical);
+            assert_eq!(nav.next_sibling_stub(&strict)?.unwrap().head_dc, DC_BEGIN_KV_MAP);
             assert_dc_document_roundtrip(&decoded)?;
         }
         Ok(())
@@ -2342,12 +2443,6 @@ mod tests {
         let outer = BTreeMap::from([("outer".to_owned(), nested)]);
         assert_dc_document_roundtrip(&outer)?;
         let source = outer.to_dc_mixed()?;
-        let tokens = source.to_dc_tokens()?;
-        let doc = ctb_formats_dcdata::syntax::parse_document_tokens(
-            &tokens,
-            ctb_formats_dcdata::syntax::MatchMode::Strict,
-        );
-        assert!(!doc.has_errors, "{:?}", doc.diagnostics);
         crate::validate_dc_mixed_strict(&source)?;
         let original = SampleKeyedRecord { count: 42, label: None };
         let source = original.to_dc_mixed()?;
@@ -2357,14 +2452,11 @@ mod tests {
         let mut pair_bytes = DcMstring::new().into_bytes();
         pair_bytes.extend_from_slice(payload);
         let pair = DcMstring::from_bytes(pair_bytes)?;
-        let mut reader = DcMixedReader::new(&pair);
-        reader.expect_short_dc(514)?;
-        assert_eq!(String::decode_dc_mixed(&mut reader, &strict)?, "count");
-        reader.expect_short_dc(312)?;
-        assert_eq!(u64::decode_dc_mixed(&mut reader, &strict)?, 42);
-        reader.expect_short_dc(515)?;
-        assert!(reader.peek_char()?.is_none());
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&pair.to_dc_tokens()?)?;
+        let mut nav = crate::DcDocumentNavigator::from_mstr(&pair);
+        let mut arena = crate::DcSyntaxArena::new();
+        let node_id = nav.parse_node_into_arena(&mut arena, &strict)?;
+        let pair_node = arena.node(node_id).context("Missing node in arena")?;
+        assert!(matches!(pair_node.kind, crate::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == Some(514)));
         crate::validate_dc_mixed_strict(&pair)?;
 
         for body in [
@@ -2379,7 +2471,6 @@ mod tests {
             }
             crate::DcKvMapEncoding::Pairs.encode_end(&mut invalid);
             assert!(invalid.decode::<BTreeMap<bool, bool>>(&strict).is_err());
-            assert!(ctb_formats_dcdata::syntax::validate_dc_document_strict(&invalid.to_dc_tokens()?).is_err());
             assert!(crate::validate_dc_mixed_strict(&invalid).is_err());
         }
         Ok(())
@@ -2413,22 +2504,11 @@ mod tests {
             }
         }
         let encoded = PathBuf::from("name").to_dc_mixed()?;
-        let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-        let filename_format = DcChar::from_u128(FormatId::FileName.dc_id().context("Missing FileName format identifier")?);
-        let mut reader = DcMixedReader::new(&encoded);
-        reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-        reader.expect_char(path_format)?;
-        reader.expect_char(DC_BEGIN_LIST)?;
-        reader.expect_char(DC_TYPE_INTERSECTION)?;
-        reader.expect_char(filename_format)?;
-        reader.expect_char(DC_FILE_PATH_DELIMITER)?;
-        reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-        reader.expect_char(filename_format)?;
-        assert_eq!(decode_filename_bytes(&mut reader, &strict)?, b"name");
-        reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-        reader.expect_char(DC_END_LIST)?;
-        reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-        assert_eq!(reader.peek_char()?, None);
+        let mut nav = crate::DcDocumentNavigator::from_mstr(&encoded);
+        let mut arena = crate::DcSyntaxArena::new();
+        let node_id = nav.parse_node_into_arena(&mut arena, &strict)?;
+        let mut ctx = crate::DcProjectionContext::new(&arena, &strict);
+        assert_eq!(PathBuf::decode_dc_node(&mut ctx, node_id)?, PathBuf::from("name"));
         Ok(())
     }
 
@@ -2442,7 +2522,11 @@ mod tests {
         "text".encode_dc_mixed(&mut encoded)?;
         encoded.push_binary_with_sha256(b"different").unwrap();
         encoded.push_char(DC_END_LIST);
-        assert!(decode_filename_bytes(&mut DcMixedReader::new(&encoded), &strict).is_err());
+        let mut nav = crate::DcDocumentNavigator::from_mstr(&encoded);
+        let mut arena = crate::DcSyntaxArena::new();
+        let node_id = nav.parse_node_into_arena(&mut arena, &strict)?;
+        let mut ctx = crate::DcProjectionContext::new(&arena, &strict);
+        assert!(decode_filename_bytes(&mut ctx, node_id).is_err());
         Ok(())
     }
 
@@ -2501,21 +2585,6 @@ mod tests {
             let mut field = DcMstring::new();
             record.encode_dc_field("optional_size", &mut field)?;
             assert_eq!(field, expected);
-            let mut reader = DcMixedReader::new(&field);
-            reader.expect_short_dc(336)?;
-            assert_eq!(reader.peek_char()?, Some(if optional_size.is_some() {
-                DC_OPTIONAL_PRESENT
-            } else {
-                DC_OPTIONAL_ABSENT
-            }));
-            assert_eq!(Option::<u64>::decode_dc_mixed(&mut reader, &strict)?, optional_size);
-            assert_eq!(reader.peek_char()?, None);
-
-            let mut decoded = sample_source_record(42);
-            let mut reader = DcMixedReader::new(&field);
-            assert!(decoded.decode_field(DcChar::from_short(336).0, &mut reader, &strict)?);
-            assert_eq!(decoded, record);
-            assert_eq!(reader.peek_char()?, None);
             assert_dc_roundtrip(&record)?;
 
             let source = sample_source_record(42).to_dc_mixed()?;
@@ -2562,12 +2631,12 @@ mod tests {
         unicode_val: i32,
         #[dc(l1000)]
         long_val: u64,
-        #[dc(begin = f316, end = f317)]
+        #[dc(begin = 310, end = 311)]
         nested_vals: Vec<String>,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = f100, end = f101)]
+    #[dc(begin = 317, end = 318)]
     enum SampleShorthandEnum {
         #[dc(f315)]
         AppleSingle,
@@ -2612,20 +2681,16 @@ mod tests {
         // Ensure IPv4 and IPv6 representations cannot be confused or cross-decoded:
         let mut v4_mst = DcMstring::new();
         v4.encode_dc_mixed(&mut v4_mst)?;
-        let mut v4_reader = DcMixedReader::new(&v4_mst);
-        assert!(std::net::Ipv6Addr::decode_dc_mixed(&mut v4_reader, &strict).is_err());
+        assert!(v4_mst.decode::<std::net::Ipv6Addr>(&strict).is_err());
 
         let mut v6_mst = DcMstring::new();
         v6.encode_dc_mixed(&mut v6_mst)?;
-        let mut v6_reader = DcMixedReader::new(&v6_mst);
-        assert!(std::net::Ipv4Addr::decode_dc_mixed(&mut v6_reader, &strict).is_err());
+        assert!(v6_mst.decode::<std::net::Ipv4Addr>(&strict).is_err());
 
-        let mut v4_as_ip_reader = DcMixedReader::new(&v4_mst);
-        let decoded_v4_ip = std::net::IpAddr::decode_dc_mixed(&mut v4_as_ip_reader, &strict)?;
+        let decoded_v4_ip = v4_mst.decode::<std::net::IpAddr>(&strict)?;
         assert_eq!(decoded_v4_ip, ip_v4);
 
-        let mut v6_as_ip_reader = DcMixedReader::new(&v6_mst);
-        let decoded_v6_ip = std::net::IpAddr::decode_dc_mixed(&mut v6_as_ip_reader, &strict)?;
+        let decoded_v6_ip = v6_mst.decode::<std::net::IpAddr>(&strict)?;
         assert_eq!(decoded_v6_ip, ip_v6);
         Ok(())
     }
@@ -2669,10 +2734,10 @@ mod tests {
             self.to_u8().encode_dc_mixed(mst)
         }
         fn decode_dc_number(
-            reader: &mut DcMixedReader<'_>,
-            policy: &DcProjectionPolicy,
+            ctx: &mut DcProjectionContext<'_, '_>,
+            node_id: NodeId,
         ) -> Result<Self> {
-            let v = u8::decode_dc_mixed(reader, policy)?;
+            let v = u8::decode_dc_node(ctx, node_id)?;
             Ok(Self::from_u8(v))
         }
     }
@@ -2722,7 +2787,7 @@ mod tests {
             for token in tokens {
                 mst.push_char(DcChar::from_short(token));
             }
-            ensure!(SampleFlags::decode_dc_mixed(&mut DcMixedReader::new(&mst), &strict).is_err());
+            ensure!(mst.decode::<SampleFlags>(&strict).is_err());
         }
         Ok(())
     }
@@ -2764,8 +2829,7 @@ mod tests {
         mst.push_char(DcChar::from_short(389));
         mst.push_char(DcChar::from_short(402));
 
-        let mut reader = DcMixedReader::new(&mst);
-        let decoded = SampleEquivalentParent::decode_dc_mixed(&mut reader, &strict)?;
+        let decoded = mst.decode::<SampleEquivalentParent>(&strict)?;
         ensure!(decoded.flags.flag_a);
         ensure!(!decoded.flags.flag_b);
         ensure!(!decoded.flags.flag_c);
@@ -2784,8 +2848,7 @@ mod tests {
         // Verify that arr_32 serializes as numbers, not as binary encapsulation
         let mut mst = DcMstring::new();
         arr_32.encode_dc_mixed(&mut mst)?;
-        let mut reader = DcMixedReader::new(&mst);
-        ensure!(reader.peek_char()? != Some(DC_START_ENCAPSULATION_BINARY));
+        ensure!(!mst.as_bytes().contains(&203));
         Ok(())
     }
 
@@ -2818,25 +2881,35 @@ mod tests {
             let value = SampleFormatFields { name: "name".to_owned(), bounds };
             crate::assert_dc_document_roundtrip(&value)?;
             let encoded = value.to_dc_mixed()?;
-            let mut reader = DcMixedReader::new(&encoded);
-            reader.expect_short_dc(401)?;
-            reader.expect_short_dc(496)?;
-            reader.expect_char(DC_BEGIN_FORMAT_REPRESENTATION)?;
-            reader.expect_char(DcChar::from_u128(FormatId::FileName.dc_id()
-                .context("Missing filename format identifier")?))?;
-            ensure!(String::decode_dc_mixed(&mut reader, &strict)? == "name");
-            reader.expect_char(DC_END_FORMAT_REPRESENTATION)?;
-            if let Some(bounds) = bounds {
-                reader.expect_short_dc(510)?;
-                let decoded = decode_format_representation::<[i16; 4]>(
-                    &mut reader,
-                    DcChar::from_u128(FormatId::QuickDrawRect.dc_id()
-                        .context("Missing rectangle format identifier")?),
-                    &strict,
-                )?;
-                ensure!(decoded == bounds);
+            let decoded = encoded.decode::<SampleFormatFields>(&strict)?;
+            ensure!(decoded == value);
+            if let Some(expected_bounds) = bounds {
+                let mut arena = DcSyntaxArena::new();
+                let root = DcDocumentNavigator::parse_arena(encoded.as_bytes(), &mut arena, &strict)?;
+                let mut ctx = DcProjectionContext::new(&arena, &strict);
+                let container = arena.node(root).context("Root node missing")?;
+                let mut found_bounds = false;
+                if let DcSyntaxKind::Container { children, .. } = &container.kind {
+                    for &child_id in children {
+                        let child_node = arena.node(child_id).context("Child node missing")?;
+                        if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
+                            if tag.to_short_dc() == Some(510) || tag.to_u128() == 510 {
+                                if let Some(&arg_id) = args.first() {
+                                    let dec_bounds = decode_format_representation::<[i16; 4]>(
+                                        &mut ctx,
+                                        arg_id,
+                                        DcChar::from_u128(FormatId::QuickDrawRect.dc_id()
+                                            .context("Missing rectangle format identifier")?),
+                                    )?;
+                                    ensure!(dec_bounds == expected_bounds);
+                                    found_bounds = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                ensure!(found_bounds);
             }
-            reader.expect_short_dc(402)?;
         }
         let format = DcChar::from_u128(FormatId::FileName.dc_id()
             .context("Missing filename format identifier")?);
@@ -2846,11 +2919,13 @@ mod tests {
             malformed.push_char(format);
             "name".encode_dc_mixed(&mut malformed)?;
             if let Some(closing) = closing { malformed.push_char(closing); }
-            ensure!(decode_format_representation::<String>(
-                &mut DcMixedReader::new(&malformed),
-                format,
-                &strict,
-            ).is_err(), "Malformed format boundary was accepted");
+            let mut arena = DcSyntaxArena::new();
+            let parsed = DcDocumentNavigator::parse_arena(malformed.as_bytes(), &mut arena, &strict);
+            let result = parsed.and_then(|root_id| {
+                let mut ctx = DcProjectionContext::new(&arena, &strict);
+                decode_format_representation::<String>(&mut ctx, root_id, format)
+            });
+            ensure!(result.is_err(), "Malformed format boundary was accepted");
         }
         Ok(())
     }
@@ -2898,7 +2973,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 410, end = 411)]
+    #[dc(begin = 317, end = 318)]
     enum SampleBinaryEnum {
         #[dc(412, binary)]
         Hash([u8; 32]),
@@ -2969,7 +3044,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 420, end = 421)]
+    #[dc(begin = 317, end = 318)]
     struct SampleRepeatedVecStruct {
         #[dc(346)]
         ips: Vec<std::net::IpAddr>,
@@ -2998,9 +3073,8 @@ mod tests {
         Ok(())
     }
 
-    // FIXME doesn't look right. 422 is File flag: read only; 423 is File flag: reparse. Name and format list should proabbly be alternate representations, and 342 the overarching type for this, maybe?
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 422, end = 423)]
+    #[dc(begin = 317, end = 318)]
     struct SampleFlattenedFormatsStruct {
         #[dc(342)]
         name: String,
@@ -3057,7 +3131,7 @@ mod tests {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 410, end = 411)]
+    #[dc(begin = 317, end = 318)]
     struct ChecksumRecord {
         #[dc(short = 368, checksum)]
         sha256: [u8; 32],
@@ -3069,21 +3143,26 @@ mod tests {
         let digest = [7u8; 32];
         let record = ChecksumRecord { sha256: digest };
         let mst = record.to_dc_mixed()?;
-        let mut r = DcMixedReader::new(&mst);
-        let decoded_mst = ChecksumRecord::decode_dc_mixed(&mut r, &strict)?;
+        let decoded_mst = mst.decode::<ChecksumRecord>(&strict)?;
         assert_eq!(decoded_mst, record);
 
         let dc_str = record.to_dc_string()?;
         let decoded_str = dc_str.decode::<ChecksumRecord>(&strict)?;
         assert_eq!(decoded_str, record);
 
-        // Test push_checksum and read_checksum_payload directly
+        // Test push_checksum and arena node inspection directly
         let mut manual_mst = DcMstring::new();
         manual_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
-        let mut reader = DcMixedReader::new(&manual_mst);
-        let (fmt, read_bytes) = reader.read_checksum_payload()?;
-        assert_eq!(fmt, Some(ctb_utilities::format_id::DC_SHA256));
-        assert_eq!(read_bytes.as_ref(), &digest);
+        let mut arena = DcSyntaxArena::new();
+        let root = DcDocumentNavigator::parse_arena(manual_mst.as_bytes(), &mut arena, &strict)?;
+        let node = arena.node(root).context("Root node missing")?;
+        match &node.kind {
+            DcSyntaxKind::Binary { checksum_format, payload, .. } => {
+                assert_eq!(*checksum_format, Some(ctb_utilities::format_id::DC_SHA256));
+                assert_eq!(payload.as_slice(), &digest);
+            }
+            other => bail!("Expected Binary checksum node, got {other:?}"),
+        }
 
         Ok(())
     }
@@ -3093,8 +3172,6 @@ mod tests {
         let p = std::path::PathBuf::from("/tmp/src");
         let mut mst = DcMstring::new();
         p.encode_dc_mixed(&mut mst)?;
-        let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
         crate::validate_dc_mixed_strict(&mst)?;
         Ok(())
     }
@@ -3107,12 +3184,9 @@ mod tests {
         items.encode_dc_mixed(&mut mst)?;
 
         // Verify tokens: DC_BEGIN_LIST, 275, 10, DC_LIST_ELEMENT_SEPARATOR, 20, DC_LIST_ELEMENT_SEPARATOR, 30, DC_END_LIST
-        let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)?;
         crate::validate_dc_mixed_strict(&mst)?;
 
-        let mut reader = DcMixedReader::new(&mst);
-        let decoded = Vec::<u32>::decode_dc_mixed(&mut reader, &strict)?;
+        let decoded = mst.decode::<Vec<u32>>(&strict)?;
         assert_eq!(decoded, items);
         Ok(())
     }
@@ -3194,21 +3268,6 @@ mod tests {
         assert_eq!(recovered.path, "path");
         assert!(!recovered.is_directory);
         assert_eq!(recovered.optional_size, None);
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_skip_type_header() -> Result<()> {
-        let mut mst = DcMstring::new();
-        mst.push_char(DcChar::from_short(275)); // EL Type *
-        mst.push_char(DcChar::from_format(490)); // Format 490
-        mst.push_char(DcChar::from_short(42)); // Non-type short Dc
-
-        let mut reader = DcMixedReader::new(&mst);
-        assert_eq!(reader.skip_type_header()?, Some(DcChar::from_short(275)));
-        assert_eq!(reader.skip_type_header()?, Some(DcChar::from_format(490)));
-        assert_eq!(reader.skip_type_header()?, None);
-        assert_eq!(reader.next_char()?, DcChar::from_short(42));
         Ok(())
     }
 }

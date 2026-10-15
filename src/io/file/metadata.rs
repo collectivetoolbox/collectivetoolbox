@@ -31,7 +31,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_io_environment::EnvDescription;
-use ctb_formats_dcstring::{DcChar, DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
+use ctb_formats_dcstring::{DcChar, DcForgivingDefault, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionContext, NodeId};
 
 /// Restores observed symlink atime without writing mtime or following the link.
 /// Detected replacement or modification is an error. The identity check and
@@ -557,12 +557,62 @@ impl FileFlag {
 }
 
 /// Raw platform bitmask as reported by the OS kernel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
-#[dc(binary)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlatformRawFlags {
     /// Raw integer bitmask as reported by the OS kernel.
     pub raw_value: u64,
     bytes: [u8; 8],
+}
+
+impl ctb_formats_dcstring::DcForgivingDefault for PlatformRawFlags {
+    fn dc_forgiving_default() -> Self {
+        Self::from_raw(0)
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for PlatformRawFlags {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        mst.push_binary_with_sha256(self.as_ref())
+    }
+
+    fn encode_dc_mixed_with_context(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMstring,
+        _context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        self.encode_dc_mixed(mst)
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for PlatformRawFlags {
+    fn decode_dc_node(
+        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
+        node_id: ctb_formats_dcstring::NodeId,
+    ) -> Result<Self> {
+        let mut target_id = ctx.unwrap_transparent(node_id)?;
+        let mut target_node = ctx.node(target_id)?;
+        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } = &target_node.kind {
+            if tag.to_short_dc() == Some(539) {
+                if let Some(&arg_id) = args.first() {
+                    target_id = ctx.unwrap_transparent(arg_id)?;
+                    target_node = ctx.node(target_id)?;
+                }
+            }
+        }
+        let raw_bytes: std::borrow::Cow<'_, [u8]> = match &target_node.kind {
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                payload.materialize_bytes().map_err(|e| anyhow::anyhow!("{e}"))?
+            }
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. }
+                if opener.to_short_dc() == Some(310) =>
+            {
+                let vec_bytes = <Vec<u8> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, target_id)?;
+                std::borrow::Cow::Owned(vec_bytes)
+            }
+            other => bail!("Expected Binary node or list for PlatformRawFlags, found {other:?}"),
+        };
+        Self::try_from(raw_bytes.as_ref())
+    }
 }
 
 impl Serialize for PlatformRawFlags {
@@ -756,28 +806,58 @@ impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
 }
 
 fn decode_timestamp_nanos(
-    reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
-    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ctx: &mut DcProjectionContext<'_, '_>,
+    node_id: NodeId,
 ) -> Result<i128> {
-    if reader.peek_char()?.is_some_and(|c| c == ctb_formats_dcstring::DcChar::from_short(390)) {
-        reader.next_char()?;
-        let fmt_char = reader.next_char()?;
-        let fmt_tok = fmt_char.to_format().context("Expected date format token after 390")?;
-        let nanos = if fmt_tok == 487 {
-            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-        } else if fmt_tok == 486 {
-            let secs = <i64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-            i128::from(secs).checked_mul(1_000_000_000).context("secs to nanos overflow")?
-        } else {
-            <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-        };
-        let end_tok = reader.next_char()?;
-        ensure!(end_tok == ctb_formats_dcstring::DcChar::from_short(391), "Expected Dc 391 closing time moment description");
-        Ok(nanos)
-    } else {
-        // Fallback for legacy unformatted numbers
-        <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)
+    let unwrap_id = ctx.unwrap_transparent(node_id)?;
+    let node = ctx.node(unwrap_id)?;
+    if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } = &node.kind {
+        if opener.to_short_dc() == Some(390) {
+            if ctx.policy.is_strict() {
+                ensure!(closer.to_short_dc() == Some(391), "Expected Dc 391 closing time moment description");
+            }
+            let Some(&first_child) = children.first() else {
+                bail!("Empty time moment container (Dc 390..391)");
+            };
+            let first = ctx.node(first_child)?;
+            let (fmt_tok, num_id) = if let ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) = &first.kind {
+                let tok = ch.to_format().context("Expected date format token after 390")?;
+                let Some(&second_child) = children.get(1) else {
+                    bail!("Missing number after format token in Dc 390..391");
+                };
+                (tok, second_child)
+            } else if let ctb_formats_dcstring::navigator::DcSyntaxKind::Identifier { name } = &first.kind {
+                let fid = ctb_utilities::format_id::FormatId::from_shorthand(name)
+                    .context("Invalid shorthand")?;
+                let tok = fid.dc_id().context("FormatId missing dc_id")?;
+                let Some(&second_child) = children.get(1) else {
+                    bail!("Missing number after format token in Dc 390..391");
+                };
+                (u32::try_from(tok)?, second_child)
+            } else {
+                (487, first_child)
+            };
+
+            let nanos = if fmt_tok == 487 {
+                i128::decode_dc_node(ctx, num_id)?
+            } else if fmt_tok == 486 {
+                let secs = i64::decode_dc_node(ctx, num_id)?;
+                i128::from(secs).checked_mul(1_000_000_000).context("secs to nanos overflow")?
+            } else {
+                i128::decode_dc_node(ctx, num_id)?
+            };
+            return Ok(nanos);
+        }
     }
+
+    // Fallback for legacy unformatted numbers
+    if !ctx.policy.is_forgiving() {
+        ctx.policy.handle(
+            ctx.policy.syntax_error,
+            "Bare timestamp number without 390..391 time moment description rejected in strict mode",
+        )?;
+    }
+    i128::decode_dc_node(ctx, unwrap_id)
 }
 
 impl ctb_formats_dcstring::DcForgivingDefault for FileTimestamps {
@@ -797,9 +877,9 @@ impl ctb_formats_dcstring::DcForgivingDefault for FileTimestamps {
 }
 
 impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
-    fn decode_dc_mixed(
-        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
-        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
         let mut atime_sec = 0i64;
         let mut atime_nsec = 0u32;
@@ -811,67 +891,152 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
         let mut birthtime_nsec = None;
         let mut resolution_nsec = None;
 
-        loop {
-            let tag = match reader.peek_short_dc()? {
-                Some(t) => t,
-                None => break,
+        let has_ts = |nodes: &[NodeId], ctx: &DcProjectionContext<'_, '_>| -> bool {
+            nodes.iter().any(|&cid| {
+                if let Ok(cn) = ctx.node(cid) {
+                    matches!(&cn.kind,
+                        ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, .. }
+                            if matches!(tag.to_short_dc(), Some(329 | 330 | 331 | 332 | 378))
+                    ) || matches!(&cn.kind,
+                        ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch)
+                            if matches!(ch.to_short_dc(), Some(329 | 330 | 331 | 332 | 378))
+                    )
+                } else {
+                    false
+                }
+            })
+        };
+
+        let mut candidate_nodes = Vec::new();
+        if has_ts(ctx.arena.roots(), ctx) {
+            ctx.mark_all_roots_consumed();
+            candidate_nodes = ctx.arena.roots().to_vec();
+        } else {
+            let mut curr = node_id;
+            loop {
+                let curr_node = ctx.node(curr)?;
+                if has_ts(curr_node.children(), ctx) {
+                    candidate_nodes = curr_node.children().to_vec();
+                    break;
+                }
+                if let Some((pid, _)) = ctx.arena.nodes().iter().enumerate().find(|(_, n)| n.children().contains(&curr)) {
+                    curr = ctb_formats_dcstring::NodeId(pid);
+                } else {
+                    break;
+                }
+            }
+        }
+        if candidate_nodes.is_empty() {
+            candidate_nodes = vec![node_id];
+        }
+
+        let mut idx = 0;
+        while idx < candidate_nodes.len() {
+            let Some(&cid) = candidate_nodes.get(idx) else {
+                break;
             };
-            match tag {
-                330 => {
-                    reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader, policy)?;
-                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                    atime_sec = sec;
-                    atime_nsec = nsec;
+            let cnode = ctx.node(cid)?;
+            let (tag_opt, payload_id) = match &cnode.kind {
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                    // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
+                    let arg_id = args.first().copied().unwrap_or(cid);
+                    (tag.to_short_dc(), arg_id)
                 }
-                329 => {
-                    reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader, policy)?;
-                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                    mtime_sec = sec;
-                    mtime_nsec = nsec;
-                }
-                332 => {
-                    reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader, policy)?;
-                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                    ctime_sec = sec;
-                    ctime_nsec = nsec;
-                }
-                331 => {
-                    reader.read_short_dc()?;
-                    let nanos = decode_timestamp_nanos(reader, policy)?;
-                    let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                    let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                    birthtime_sec = Some(sec);
-                    birthtime_nsec = Some(nsec);
-                }
-                378 => {
-                    reader.read_short_dc()?;
-                    if reader.peek_short_dc()? == Some(393) {
-                        reader.read_short_dc()?;
-                        let fmt_char = reader.next_char()?;
-                        let res = if fmt_char == ctb_utilities::format_id::DC_NANOSECOND {
-                            <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-                        } else if fmt_char == ctb_utilities::format_id::DC_SECOND {
-                            let secs = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            secs.checked_mul(1_000_000_000).context("duration overflow")?
-                        } else {
-                            bail!("Unsupported duration format {fmt_char:?} for clock resolution");
-                        };
-                        reader.expect_short_dc(394)?;
-                        resolution_nsec = Some(res);
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
+                    let short = ch.to_short_dc();
+                    if matches!(short, Some(329 | 330 | 331 | 332 | 378))
+                        && idx.saturating_add(1) < candidate_nodes.len()
+                    {
+                        idx = idx.saturating_add(1);
+                        // Reason for fallback: out of bounds candidate index falls back to current node ID
+                        let next_cid = candidate_nodes.get(idx).copied().unwrap_or(cid);
+                        (short, next_cid)
                     } else {
-                        // Fallback for legacy bare u32 encoding
-                        let res = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                        resolution_nsec = Some(res);
+                        (short, cid)
                     }
                 }
-                _ => break,
+                _ => (None, cid),
+            };
+
+            if let Some(tag) = tag_opt {
+                match tag {
+                    330 => {
+                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
+                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
+                        atime_sec = sec;
+                        atime_nsec = nsec;
+                    }
+                    329 => {
+                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
+                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
+                        mtime_sec = sec;
+                        mtime_nsec = nsec;
+                    }
+                    332 => {
+                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
+                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
+                        ctime_sec = sec;
+                        ctime_nsec = nsec;
+                    }
+                    331 => {
+                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
+                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
+                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
+                        birthtime_sec = Some(sec);
+                        birthtime_nsec = Some(nsec);
+                    }
+                    378 => {
+                        let unwrap_p = ctx.unwrap_transparent(payload_id)?;
+                        let pnode = ctx.node(unwrap_p)?;
+                        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } = &pnode.kind {
+                            if opener.to_short_dc() == Some(393) {
+                                if ctx.policy.is_strict() {
+                                    ensure!(closer.to_short_dc() == Some(394), "Expected Dc 394 closing duration description");
+                                }
+                                let (c0, c1) = match children.as_slice() {
+                                    [c0, c1] => (*c0, *c1),
+                                    _ => bail!("Expected 2 children in duration container (393..394), found {}", children.len()),
+                                };
+                                let fmt_node = ctx.node(c0)?;
+                                let res = match &fmt_node.kind {
+                                    ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if *ch == ctb_utilities::format_id::DC_NANOSECOND => {
+                                        u32::decode_dc_node(ctx, c1)?
+                                    }
+                                    ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if *ch == ctb_utilities::format_id::DC_SECOND => {
+                                        let secs = u32::decode_dc_node(ctx, c1)?;
+                                        secs.checked_mul(1_000_000_000).context("duration overflow")?
+                                    }
+                                    other => bail!("Unsupported duration format {other:?} for clock resolution"),
+                                };
+                                resolution_nsec = Some(res);
+                            } else {
+                                if !ctx.policy.is_forgiving() {
+                                    ctx.policy.handle(
+                                        ctx.policy.syntax_error,
+                                        "Bare duration number without 393..394 duration description rejected in strict mode",
+                                    )?;
+                                }
+                                let res = u32::decode_dc_node(ctx, unwrap_p)?;
+                                resolution_nsec = Some(res);
+                            }
+                        } else {
+                            if !ctx.policy.is_forgiving() {
+                                ctx.policy.handle(
+                                    ctx.policy.syntax_error,
+                                    "Bare duration number without 393..394 duration description rejected in strict mode",
+                                )?;
+                            }
+                            let res = u32::decode_dc_node(ctx, unwrap_p)?;
+                            resolution_nsec = Some(res);
+                        }
+                    }
+                    _ => {}
+                }
             }
+            idx = idx.saturating_add(1);
         }
 
         Ok(Self {
@@ -894,7 +1059,7 @@ impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
     #[serde(default)]
-    #[dc(nested = [559, 313])]
+    #[dc(nested = [559, 313], alias = 313)]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
     #[serde(default)]
@@ -910,7 +1075,7 @@ pub struct FileMetadata {
     pub gid: Option<u32>,
     /// Timestamps with nanosecond precision.
     #[serde(default)]
-    #[dc(nested = [329, 330, 331, 332, 378])]
+    #[dc(nested = [329, 330, 331, 332, 378], alias = 330, alias = 331, alias = 332, alias = 378)]
     pub timestamps: Option<FileTimestamps>,
     /// Semantic file flags.
     #[serde(default)]
@@ -1020,64 +1185,98 @@ impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
 }
 
 impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
-    fn decode_dc_mixed(
-        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
-        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        reader.expect_short_dc(401)?;
+        let unwrap_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(unwrap_id)?;
+        let children = match &node.kind {
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } => {
+                ensure!(opener.to_short_dc() == Some(401), "Expected Dc 401 opener for AppleMetadata, found {opener:?}");
+                if ctx.policy.is_strict() {
+                    ensure!(closer.to_short_dc() == Some(402), "Expected Dc 402 closer for AppleMetadata, found {closer:?}");
+                }
+                children
+            }
+            other => bail!("Expected Container (401..402) for AppleMetadata, found {other:?}"),
+        };
+
         let mut finder_info: Option<FinderInfo> = None;
         let mut real_name = None;
         let mut comment = None;
         let mut backup_timestamp_sec = None;
         let unrecognized_entries = Vec::new();
 
-        loop {
-            let tag = match reader.peek_short_dc()? {
-                Some(t) => t,
-                None => {
-                    policy.handle(
-                        policy.syntax_error,
-                        "Unexpected EOF waiting for closing Dc 402 in AppleMetadata",
-                    )?;
-                    break;
-                }
-            };
-            if tag == 402 {
-                reader.read_short_dc()?;
+        let mut idx = 0;
+        while idx < children.len() {
+            let Some(&child_id) = children.get(idx) else {
                 break;
-            }
-            match tag {
-                496 => {
-                    reader.read_short_dc()?;
-                    real_name = Some(ctb_formats_dcstring::dc_mixed_serde::decode_format_representation(
-                        reader,
-                        ctb_formats_dcstring::DcChar::from_u128(
-                            ctb_utilities::format_id::FormatId::FileName.dc_id()
-                                .context("Missing filename format identifier")?
-                        ),
-                        policy,
-                    )?);
+            };
+            let child_node = ctx.node(child_id)?;
+            let (tag_val, payload_id) = match &child_node.kind {
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                    // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
+                    let arg_id = args.first().copied().unwrap_or(child_id);
+                    (tag.to_short_dc(), arg_id)
                 }
-                400 => {
-                    reader.read_short_dc()?;
-                    comment = Some(String::decode_dc_mixed(reader, policy)?);
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } => {
+                    (opener.to_short_dc(), child_id)
                 }
-                399 => {
-                    reader.read_short_dc()?;
-                    backup_timestamp_sec = Some(i64::decode_dc_mixed(reader, policy)?);
-                }
-                finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490 | 510) => {
-                    let fi = finder_info.get_or_insert_with(FinderInfo::default);
-                    if !fi.decode_field(finder_tag, reader, policy)? {
-                        reader.next_char()?;
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
+                    let short = ch.to_short_dc();
+                    if idx.saturating_add(1) < children.len() {
+                        // Reason for fallback: out of bounds child index falls back to current child node ID
+                        let next_id = children.get(idx.saturating_add(1)).copied().unwrap_or(child_id);
+                        let next_node = ctx.node(next_id)?;
+                        let next_is_tag = matches!(&next_node.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(next_ch) if matches!(next_ch.to_short_dc(), Some(388 | 399 | 400 | 403..=408 | 490 | 496 | 510)));
+                        if !next_is_tag {
+                            idx = idx.saturating_add(1);
+                            (short, next_id)
+                        } else {
+                            (short, child_id)
+                        }
+                    } else {
+                        (short, child_id)
                     }
                 }
+                _ => (None, child_id),
+            };
+
+            idx = idx.saturating_add(1);
+
+            let Some(tag) = tag_val else {
+                continue;
+            };
+
+            match tag {
+                496 => {
+                    let fn_fmt = ctb_formats_dcstring::DcChar::from_u128(
+                        ctb_utilities::format_id::FormatId::FileName.dc_id()
+                            .context("Missing filename format identifier")?
+                    );
+                    let rn: String = ctb_formats_dcstring::dc_mixed_serde::decode_format_representation(
+                        ctx,
+                        payload_id,
+                        fn_fmt,
+                    )?;
+                    real_name = Some(rn);
+                }
+                400 => {
+                    comment = Some(String::decode_dc_node(ctx, payload_id)?);
+                }
+                399 => {
+                    backup_timestamp_sec = Some(i64::decode_dc_node(ctx, payload_id)?);
+                }
+                finder_tag @ (388 | 403 | 404 | 405 | 406 | 407 | 408 | 490 | 510) => {
+                    let fi = finder_info.get_or_insert_with(FinderInfo::default);
+                    let _ = fi.decode_field(u128::from(finder_tag), ctx, payload_id)?;
+                }
                 _ => {
-                    policy.handle(
-                        policy.unknown_field,
+                    ctx.policy.handle(
+                        ctx.policy.unknown_field,
                         format!("Unknown Dc tag {tag} inside AppleMetadata (401..402)"),
                     )?;
-                    reader.next_char()?;
                 }
             }
         }
@@ -1203,13 +1402,258 @@ impl Default for FileMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(key_value)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NativeMetadata {
-    #[dc(key = "source_os")]
     pub source_os: OsFamily,
-    #[dc(key = "values")]
     pub values: std::collections::BTreeMap<String, NativeMetadataValue>,
+}
+
+impl ctb_formats_dcstring::LosslessWithContext for NativeMetadata {
+    fn is_lossless(&self, _context: &ctb_formats_dcstring::SharedValueContext) -> bool {
+        true
+    }
+}
+
+impl ctb_formats_dcstring::DcForgivingDefault for NativeMetadata {
+    fn dc_forgiving_default() -> Self {
+        Self {
+            source_os: OsFamily::dc_forgiving_default(),
+            values: std::collections::BTreeMap::new(),
+        }
+    }
+}
+
+impl NativeMetadata {
+    pub fn encode_dc_field(&self, field: &str, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        self.encode_dc_map_field(field, mst, ctb_formats_dcstring::DcKvMapEncoding::Pairs)
+    }
+
+    pub fn encode_dc_map_field(
+        &self,
+        field: &str,
+        mst: &mut ctb_formats_dcstring::DcMstring,
+        encoding: ctb_formats_dcstring::DcKvMapEncoding,
+    ) -> Result<()> {
+        match field {
+            "source_os" => {
+                encoding.encode_entry_begin(mst, true);
+                "source_os".encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
+                self.source_os.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
+                encoding.encode_entry_end(mst);
+                Ok(())
+            }
+            "values" => {
+                encoding.encode_entry_begin(mst, true);
+                "values".encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
+                self.values.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
+                encoding.encode_entry_end(mst);
+                Ok(())
+            }
+            _ => bail!("Unknown map field {field} for NativeMetadata"),
+        }
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for NativeMetadata {
+    fn encode_dc_mixed_with_context(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMstring,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        let encoding = ctb_formats_dcstring::DcKvMapEncoding::Pairs;
+        encoding.encode_header(mst);
+        encoding.encode_entry_begin(mst, true);
+        "source_os".encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
+        self.source_os.encode_dc_mixed_with_context(mst, context)?;
+        encoding.encode_entry_end(mst);
+
+        encoding.encode_entry_begin(mst, true);
+        "values".encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
+        self.values.encode_dc_mixed_with_context(mst, context)?;
+        encoding.encode_entry_end(mst);
+        encoding.encode_end(mst);
+        Ok(())
+    }
+
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for NativeMetadata {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(node_id)?;
+        let (opener, children) = match &node.kind {
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
+            other => bail!("Expected key-value map container for NativeMetadata, found {other:?}"),
+        };
+        let is_pairs = opener == ctb_formats_dcstring::dc::DC_BEGIN_KV_MAP;
+        let is_legacy = opener == ctb_formats_dcstring::dc::DC_BEGIN_LEGACY_KV_MAP;
+        ensure!(is_pairs || is_legacy, "Expected map container (Dc 559 or Dc 313), found opener {opener}");
+        let encoding = if is_pairs {
+            ctb_formats_dcstring::DcKvMapEncoding::Pairs
+        } else {
+            ctx.policy.handle(
+                ctx.policy.deprecated_syntax,
+                "Deprecated Dc 313..314 key-value map syntax used for NativeMetadata",
+            )?;
+            ctb_formats_dcstring::DcKvMapEncoding::Legacy
+        };
+
+        let mut source_os: Option<OsFamily> = None;
+        let mut values: Option<std::collections::BTreeMap<String, NativeMetadataValue>> = None;
+
+        let mut iter = children.iter().copied().peekable();
+        while let Some(&child_id) = iter.peek() {
+            let child = ctx.node(child_id)?;
+            if let ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) = child.kind {
+                if ch.to_short_dc() == Some(275) || ch.to_short_dc() == Some(559) {
+                    let _ = iter.next();
+                    continue;
+                }
+            }
+            break;
+        }
+
+        if is_pairs {
+            for entry_id in iter {
+                let entry_node = ctx.node(entry_id)?;
+                let pair_children = match &entry_node.kind {
+                    ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. } if *opener == ctb_formats_dcstring::dc::DC_BEGIN_KV_PAIR => children,
+                    other => bail!("Expected Dc 514 pair container inside map, found {other:?}"),
+                };
+                let items: Vec<NodeId> = pair_children
+                    .iter()
+                    .copied()
+                    .filter(|&id| {
+                        if let Ok(n) = ctx.node(id) {
+                            !matches!(n.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+                ensure!(items.len() == 2, "Expected exactly key and value in pair container, found {} items", items.len());
+                let Some(&k_node_id) = items.first() else {
+                    bail!("Missing key in pair container");
+                };
+                let Some(&val_id) = items.get(1) else {
+                    bail!("Missing val in pair container");
+                };
+                let key = String::decode_dc_node(ctx, k_node_id)?;
+                let entry_span = entry_node.span.to_usize_range()?;
+                if let Ok(pos) = usize::try_from(entry_node.span.start) {
+                    ctx.current_position = pos;
+                }
+                match key.as_str() {
+                    "source_os" => {
+                        ensure!(source_os.is_none(), "Duplicate map key source_os");
+                        source_os = Some(OsFamily::decode_dc_node(ctx, val_id)?);
+                        ctx.annotate_map_field(std::any::type_name::<Self>(), "source_os", entry_span, encoding);
+                    }
+                    "values" => {
+                        ensure!(values.is_none(), "Duplicate map key values");
+                        values = Some(std::collections::BTreeMap::<String, NativeMetadataValue>::decode_dc_node(ctx, val_id)?);
+                        ctx.annotate_map_field(std::any::type_name::<Self>(), "values", entry_span, encoding);
+                    }
+                    _ => {
+                        if ctx.policy.unknown_field == ctb_formats_dcstring::DiagnosticAction::Error {
+                            bail!("Unknown map key {:?} for NativeMetadata", key);
+                        }
+                        ctx.policy.handle(
+                            ctx.policy.unknown_field,
+                            format!("Unknown map key {:?} for NativeMetadata", key),
+                        )?;
+                    }
+                }
+            }
+        } else {
+            let items: Vec<NodeId> = iter
+                .filter(|&id| {
+                    if let Ok(n) = ctx.node(id) {
+                        !matches!(n.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                    } else {
+                        true
+                    }
+                })
+                .collect();
+            ensure!(items.len().checked_rem(2) == Some(0), "Uneven number of items in legacy map (Dc 313)");
+            let mut i = 0usize;
+            while i < items.len() {
+                let Some(&k_id) = items.get(i) else {
+                    break;
+                };
+                let Some(&val_id) = items.get(i.saturating_add(1)) else {
+                    break;
+                };
+                let key = String::decode_dc_node(ctx, k_id)?;
+                let k_start = usize::try_from(ctx.node(k_id)?.span.start)?;
+                let v_end = usize::try_from(ctx.node(val_id)?.span.end)?;
+                ctx.current_position = k_start;
+                let entry_span = k_start..v_end;
+                match key.as_str() {
+                    "source_os" => {
+                        ensure!(source_os.is_none(), "Duplicate map key source_os");
+                        source_os = Some(OsFamily::decode_dc_node(ctx, val_id)?);
+                        ctx.annotate_map_field(std::any::type_name::<Self>(), "source_os", entry_span, encoding);
+                    }
+                    "values" => {
+                        ensure!(values.is_none(), "Duplicate map key values");
+                        values = Some(std::collections::BTreeMap::<String, NativeMetadataValue>::decode_dc_node(ctx, val_id)?);
+                        ctx.annotate_map_field(std::any::type_name::<Self>(), "values", entry_span, encoding);
+                    }
+                    _ => {
+                        if ctx.policy.unknown_field == ctb_formats_dcstring::DiagnosticAction::Error {
+                            bail!("Unknown map key {:?} for NativeMetadata", key);
+                        }
+                        ctx.policy.handle(
+                            ctx.policy.unknown_field,
+                            format!("Unknown map key {:?} for NativeMetadata", key),
+                        )?;
+                    }
+                }
+                i = i.saturating_add(2);
+            }
+        }
+
+        let source_os = match source_os {
+            Some(v) => v,
+            None => {
+                if ctx.policy.missing_required_field == ctb_formats_dcstring::DiagnosticAction::Error {
+                    bail!("Missing required field source_os");
+                }
+                ctx.policy.handle(
+                    ctx.policy.missing_required_field,
+                    "Missing required field source_os",
+                )?;
+                OsFamily::dc_forgiving_default()
+            }
+        };
+
+        let values = match values {
+            Some(v) => v,
+            None => {
+                if ctx.policy.missing_required_field == ctb_formats_dcstring::DiagnosticAction::Error {
+                    bail!("Missing required field values");
+                }
+                ctx.policy.handle(
+                    ctx.policy.missing_required_field,
+                    "Missing required field values",
+                )?;
+                std::collections::BTreeMap::new()
+            }
+        };
+
+        Ok(Self { source_os, values })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
@@ -1668,17 +2112,13 @@ mod tests {
             ctb_formats_dcstring::assert_dc_roundtrip(&metadata).unwrap();
             let mut encoded = DcMstring::new();
             metadata.encode_dc_mixed(&mut encoded).unwrap();
-            let mut reader = DcMixedReader::new(&encoded);
-            reader.expect_short_dc(321).unwrap();
-            assert_eq!(reader.peek_short_dc().unwrap(), Some(559));
-            assert_eq!(
-                NativeMetadata::decode_dc_mixed(
-                    &mut reader,
-                    &ctb_formats_dcstring::DcProjectionPolicy::strict(),
-                )
-                .unwrap(),
-                metadata.native.unwrap()
-            );
+            let tokens = encoded.to_dc_tokens().unwrap();
+            assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(559).to_u128()][..]));
+            let decoded = encoded.decode::<FileMetadata>(
+                &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            )
+            .unwrap();
+            assert_eq!(decoded.native.unwrap(), metadata.native.unwrap());
         }
     }
 
@@ -1710,19 +2150,16 @@ mod tests {
         let updated = inspection.replace_field("native", &expected)?;
         assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, expected);
         assert_eq!(updated.as_bytes(), source.as_bytes());
-        let mut reader = DcMixedReader::new(&updated);
-        reader.expect_short_dc(321)?;
-        reader.expect_short_dc(313)?;
+        let tokens = updated.to_dc_tokens()?;
+        assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(313).to_u128()][..]));
         let mut changed = expected;
         changed.native.as_mut().context("Missing native metadata")?.values.insert(
             "added".to_owned(), NativeMetadataValue::Unsigned(42),
         );
         let updated = inspection.replace_field("native", &changed)?;
         assert_eq!(updated.decode::<FileMetadata>(&DcProjectionPolicy::strict())?, changed);
-        let mut reader = DcMixedReader::new(&updated);
-        reader.expect_short_dc(321)?;
-        reader.expect_short_dc(313)?;
         let tokens = updated.to_dc_tokens()?;
+        assert_eq!(tokens.get(0..2), Some(&[DcChar::from_short(321).to_u128(), DcChar::from_short(313).to_u128()][..]));
         assert!(!tokens.contains(&DcChar::from_short(559).0));
         Ok(())
     }

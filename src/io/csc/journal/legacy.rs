@@ -49,8 +49,9 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use super::{
-    JournalErrorRecord, JournalSnapshot, JournalWarningRecord, JOURNAL_MAGIC_V4,
-    PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
+    JournalErrorRecord, JournalErrorRecordPayload, JournalSessionRecord,
+    JournalSnapshot, JournalWarningRecord, JournalWarningRecordPayload,
+    JOURNAL_MAGIC_V4, PLATFORM_WINDOWS, SESSION_ENVIRONMENT_BINDING,
 };
 
 pub const JOURNAL_MAGIC_V1: &[u8; 8] = b"CTBCSCJ\x01";
@@ -351,21 +352,14 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                     }
                 }
 
+                let record = JournalSessionRecord {
+                    sources: sources.clone(),
+                    destination: destination.clone(),
+                    origin_platform: u32::from(origin_platform),
+                    environment: environment.clone(),
+                };
                 let mut mst = DcMstring::new();
-                mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION);
-                for src in &sources {
-                    mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
-                    src.encode_dc_mixed(&mut mst)?;
-                }
-                mst.push_char(ctb_formats_dcdata::dc::DC_DESTINATION_PATH);
-                destination.encode_dc_mixed(&mut mst)?;
-                mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
-                u32::from(origin_platform).encode_dc_mixed(&mut mst)?;
-                if let Some(ref env) = environment {
-                    env.encode_dc_mixed_with_context(&mut mst, &shared_context)?;
-                }
-                mst.push_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION);
-
+                record.encode_dc_mixed(&mut mst)?;
                 writer.write_all(mst.payload_bytes())?;
                 header_written = true;
             }
@@ -484,11 +478,6 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                     if let Ok(error) =
                         serde_json::from_str::<JournalErrorRecord>(json_str)
                     {
-                        let mut mst = DcMstring::new();
-                        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD);
-                        mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
-                        error.path.encode_dc_mixed(&mut mst)?;
-                        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
                         let stage_code = u64::from(error.stage.to_code());
                         let os_code = match error.os_error {
                             Some(error_code) => {
@@ -501,11 +490,14 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                             None => 0_u64,
                         };
                         let packed = (stage_code << 32) | os_code;
-                        packed.encode_dc_mixed(&mut mst)?;
-                        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
-                        error.error_message.encode_dc_mixed(&mut mst)?;
-                        error.timestamp_sec.encode_dc_mixed(&mut mst)?;
-                        mst.push_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD);
+                        let payload = JournalErrorRecordPayload::new(
+                            error.path,
+                            packed,
+                            error.error_message,
+                            error.timestamp_sec,
+                        );
+                        let mut mst = DcMstring::new();
+                        payload.encode_dc_mixed(&mut mst)?;
                         writer.write_all(mst.payload_bytes())?;
                     }
                 }
@@ -518,13 +510,13 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                     if let Ok(record) =
                         serde_json::from_str::<JournalWarningRecord>(json_str)
                     {
+                        let payload = JournalWarningRecordPayload::new(
+                            &record.code,
+                            &record.message,
+                            record.timestamp_sec,
+                        );
                         let mut mst = DcMstring::new();
-                        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD);
-                        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
-                        format!("{}: {}", record.code, record.message)
-                            .encode_dc_mixed(&mut mst)?;
-                        record.timestamp_sec.encode_dc_mixed(&mut mst)?;
-                        mst.push_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD);
+                        payload.encode_dc_mixed(&mut mst)?;
                         writer.write_all(mst.payload_bytes())?;
                     }
                 }
@@ -1037,7 +1029,7 @@ pub fn read_entity_payload(
         );
         if let Some(identity_dc) = record.identity_dc {
             let identity = DcMstring::from_bytes(identity_dc)?
-                .decode::<FileIdentity>(&DcProjectionPolicy::strict())?;
+                .decode::<FileIdentity>(&DcProjectionPolicy::forgiving())?;
             let semantic_path = identity
                 .relative_path
                 .as_deref()

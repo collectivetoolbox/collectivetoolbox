@@ -35,7 +35,7 @@ use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::DcMixedEncode;
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcProjectionContext, NodeId};
 use ctb_utilities::format_id::FormatId;
 
 /// Native stream name, independent of the journal reader's operating system.
@@ -116,30 +116,34 @@ impl ctb_formats_dcstring::DcForgivingDefault for StreamName {
 }
 
 impl ctb_formats_dcstring::DcMixedDecode for StreamName {
-    fn decode_dc_mixed(
-        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
-        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
     ) -> Result<Self> {
-        if reader.peek_short_dc()? == Some(203) {
-            let (format, bytes) = reader.read_checksum_payload()?;
-            if format == Some(ctb_formats_dcstring::DcChar::from_u128(
+        let unwrap_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(unwrap_id)?;
+        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { checksum_format, payload, .. } = &node.kind {
+            let bytes = payload.materialize_bytes()?;
+            let wtf8_format = ctb_formats_dcstring::DcChar::from_u128(
                 FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-            )) {
-                return Self::from_encoded(FormatId::Wtf8, bytes.to_vec());
+            );
+            if *checksum_format == Some(wtf8_format) {
+                return Self::from_encoded(FormatId::Wtf8, bytes.into_owned());
             }
-            if let Some(format) = format {
-                let format = FormatId::from_dc_id(format.to_u128())
+            if let Some(format_dc) = checksum_format {
+                let format = FormatId::from_dc_id(format_dc.to_u128())
                     .context("Unsupported stream name byte encoding")?;
-                return Self::from_encoded(format, bytes.to_vec());
+                return Self::from_encoded(format, bytes.into_owned());
             }
-            Ok(Self::Bytes(bytes.to_vec()))
-        } else if reader.peek_short_dc()? == Some(310) {
-            let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-            Ok(Self::WindowsUtf16(units))
-        } else {
-            let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-            Ok(Self::from_str(&s))
+            return Ok(Self::Bytes(bytes.into_owned()));
+        } else if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } = &node.kind {
+            if opener.to_short_dc() == Some(310) {
+                let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                return Ok(Self::WindowsUtf16(units));
+            }
         }
+        let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+        Ok(Self::from_str(&s))
     }
 }
 
@@ -457,26 +461,129 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(begin = 323, end = 324)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
     /// A `None` value represents a nameless stream, such as a Classic Mac OS
     /// resource fork (which in HFS/MFS was an intrinsic nameless fork rather
     /// than a named stream) or a default unnamed stream.
-    #[dc(short = 338)]
     pub name: Option<StreamName>,
     /// Classification of the stream.
-    #[dc(nested = 379..=384)]
     pub kind: StreamKind,
     /// The stream represented as a full `FileEntity`.
-    #[dc(nested = 317)]
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
     #[serde(default, with = "crate::serde_helpers::opt_base64")]
-    #[dc(short = 385, binary, default)]
     pub data: Option<Vec<u8>>,
+}
+
+impl ctb_formats_dcstring::DcForgivingDefault for AttachedStream {
+    fn dc_forgiving_default() -> Self {
+        Self {
+            name: None,
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: None,
+        }
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for AttachedStream {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())
+    }
+
+    fn encode_dc_mixed_with_context(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMstring,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
+        if let Some(ref name) = self.name {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
+            name.encode_dc_mixed_with_context(mst, context)?;
+        }
+        self.kind.encode_dc_mixed_with_context(mst, context)?;
+
+        self.entity.encode_dc_mixed_with_context(mst, context)?;
+
+        if let Some(ref data) = self.data {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(385));
+            mst.push_binary_with_sha256(data)?;
+        }
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(324));
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for AttachedStream {
+    fn decode_dc_node(
+        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
+        node_id: ctb_formats_dcstring::NodeId,
+    ) -> Result<Self> {
+        let unwrap_id = ctx.unwrap_transparent(node_id)?;
+        let node = ctx.node(unwrap_id)?;
+        let children = match &node.kind {
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. }
+                if opener.to_short_dc() == Some(323) => children,
+            other => bail!("Expected Container 323..324 for AttachedStream, found {other:?}"),
+        };
+
+        let mut name = None;
+        let mut kind = None;
+        let mut entity = None;
+        let mut data = None;
+
+        for &child_id in children {
+            let child_node = ctx.node(child_id)?;
+            match &child_node.kind {
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                    let short_tag = tag.to_short_dc();
+                    if short_tag == Some(338) {
+                        // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
+                        let arg_id = args.first().copied().unwrap_or(child_id);
+                        name = Some(StreamName::decode_dc_node(ctx, arg_id)?);
+                    } else if short_tag == Some(385) {
+                        // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
+                        let arg_id = args.first().copied().unwrap_or(child_id);
+                        let unwrap_arg = ctx.unwrap_transparent(arg_id)?;
+                        let arg_node = ctx.node(unwrap_arg)?;
+                        let bytes = match &arg_node.kind {
+                            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                payload.materialize_bytes()?.into_owned()
+                            }
+                            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. }
+                                if opener.to_short_dc() == Some(310) =>
+                            {
+                                <Vec<u8> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_arg)?
+                            }
+                            other => bail!("Expected Binary or list for AttachedStream data, found {other:?}"),
+                        };
+                        data = Some(bytes);
+                    }
+                }
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
+                    if let Some(short) = ch.to_short_dc() {
+                        if (379..=384).contains(&short) {
+                            kind = Some(StreamKind::decode_dc_node(ctx, child_id)?);
+                        }
+                    }
+                }
+                ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } => {
+                    if opener.to_short_dc() == Some(317) {
+                        entity = Some(Box::new(FileEntity::decode_dc_node(ctx, child_id)?));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let kind = kind.ok_or_else(|| anyhow::anyhow!("Missing StreamKind in AttachedStream"))?;
+        let entity = entity.ok_or_else(|| anyhow::anyhow!("Missing FileEntity in AttachedStream"))?;
+
+        Ok(Self { name, kind, entity, data })
+    }
 }
 
 impl AttachedStream {
@@ -893,15 +1000,24 @@ mod tests {
             }
             let restored: StreamName = serde_json::from_value(serde_json::to_value(&name)?)?;
             assert_eq!(restored, name);
-            ctb_formats_dcstring::assert_dc_document_roundtrip(
+            ctb_formats_dcstring::assert_dc_roundtrip(
                 &AttachedStream::from_data(
                     Some(name), StreamKind::NtfsAlternateDataStream, Vec::new()
                 )?
             )?;
         }
         let encoded = StreamName::from_windows_utf16(&[0x61]).to_dc_mixed()?;
-        let (format, bytes) = ctb_formats_dcstring::DcMixedReader::new(&encoded)
-            .read_checksum_payload()?;
+        let mut nav = ctb_formats_dcstring::DcDocumentNavigator::from_mstr(&encoded);
+        let mut arena = ctb_formats_dcstring::DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
+        let root = arena.roots().first().copied().context("Missing root node")?;
+        let node = arena.get(root).context("Missing node")?;
+        let (format, bytes) = match &node.kind {
+            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { checksum_format, payload, .. } => {
+                (*checksum_format, payload.materialize_bytes()?)
+            }
+            other => panic!("Expected Binary node, found {other:?}"),
+        };
         assert_eq!(format, Some(ctb_formats_dcstring::DcChar::from_u128(
             FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
         )));
@@ -913,7 +1029,7 @@ mod tests {
             let stream = AttachedStream::from_data(
                 Some(name.clone()), StreamKind::NtfsAlternateDataStream, Vec::new()
             )?;
-            ctb_formats_dcstring::assert_dc_document_roundtrip(&stream)?;
+            ctb_formats_dcstring::assert_dc_roundtrip(&stream)?;
             ctb_formats_dcstring::assert_dc_roundtrip(&name)?;
         }
         Ok(())
@@ -1044,9 +1160,7 @@ mod tests {
         let assert_stream_roundtrip = || {
             let mut encoded = ctb_formats_dcstring::DcMstring::new();
             stream.encode_dc_mixed(&mut encoded).unwrap();
-            let mut reader = ctb_formats_dcstring::DcMixedReader::new(&encoded);
-            let restored = <AttachedStream as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(
-                &mut reader,
+            let restored = encoded.decode::<AttachedStream>(
                 &ctb_formats_dcstring::DcProjectionPolicy::strict(),
             )
             .unwrap();

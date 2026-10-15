@@ -252,6 +252,7 @@ fn extract_container_header_elements(
         return Vec::new();
     }
     let header_end = middle.len().saturating_sub(1);
+    // Reason for fallback: Slices exceeding element count yield an empty list of syntax elements.
     middle
         .get(..header_end)
         .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
@@ -271,6 +272,7 @@ fn extract_trailing_after_closer(
         return Vec::new();
     };
     let next_idx = closer_idx.saturating_add(1);
+    // Reason for fallback: If closer token is at the end of elements, trailing slice yields an empty list.
     elements
         .get(next_idx..)
         .map_or_else(Vec::new, <[SyntaxElement]>::to_vec)
@@ -797,12 +799,14 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn container_header_elements(&self, opener: &CharTarget) -> &[SyntaxElement] {
+        // Reason for fallback: Openers without container headers fall back to an empty slice.
         self.container_headers
             .get(opener)
             .map_or(&[], Vec::as_slice)
     }
 
     fn trailing_after_closer(&self, opener: &CharTarget) -> &[SyntaxElement] {
+        // Reason for fallback: Openers without registered trailing tokens default to empty slice.
         self.trailing_after_closer
             .get(opener)
             .map_or(&[], Vec::as_slice)

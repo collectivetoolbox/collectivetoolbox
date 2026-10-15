@@ -239,7 +239,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114665,553,End error record,0,BN,,!Cx,.Semantic,"@ident(""EndErrorRecord""), @closes(552)",Terminates a structured error record.
 1114666,554,Begin warning record,0,BN,,!Cx,.Semantic,"@ident(""BeginWarningRecord""), :~ [^555]+ 555",Begins a structured warning incident record.
 1114667,555,End warning record,0,BN,,!Cx,.Semantic,"@ident(""EndWarningRecord""), @closes(554)",Terminates a structured warning record.
-1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ [string]",Human-readable explanatory or diagnostic log message.
+1114668,556,Log message,0,BN,,!Cx,.Semantic,"@ident(""LogMessage""), :~ (([string] [number:Integer]) | [string])",Human-readable explanatory or diagnostic log message.
 1114669,557,Trace identifier,0,BN,,!Cx,.Semantic,"@ident(""TraceIdentifier""), :~ [identifier]",Identifier correlating related operations log entries or distributed traces.
 1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
 1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."

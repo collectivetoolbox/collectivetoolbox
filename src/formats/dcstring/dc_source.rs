@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::{DcMixedDecode, DcMixedReader, DcMstr, DcMstring, DcStr, DcString};
+use crate::{DcMixedDecode, DcProjectionContext, DcMstr, DcMstring, DcStr, DcString};
 use std::ops::Range;
 
 /// Field encoding supplied by tagged-record derives, using inline bindings.
@@ -253,33 +253,118 @@ pub struct DcInspection<'a, T, S: DcSource + ?Sized = DcMstr> {
 impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
     fn read(
         source: &'a S,
-        mut reader: DcMixedReader<'a>,
+        context: Option<&crate::SharedValueContext>,
         policy: &crate::DcProjectionPolicy,
     ) -> Self {
-        reader.annotating = true;
-        let result = T::decode_dc_mixed(&mut reader, policy);
-        let (value, error) = match result {
-            Ok(value) => {
-                let error = match reader.peek_char() {
-                    Ok(None) => None,
-                    Ok(Some(_)) => Some(anyhow::anyhow!(
-                        "Trailing content after typed Dc value"
-                    )),
-                    Err(error) => Some(error),
-                };
-                (Some(value), error)
+        let bytes = source.source_bytes();
+        let mut arena = crate::DcSyntaxArena::new();
+        let mut nav = if bytes.starts_with(&crate::DCMM_MAGIC) {
+            match DcMstr::from_bytes(bytes) {
+                Ok(mstr) => crate::DcDocumentNavigator::from_mstr(mstr),
+                Err(err) => {
+                    return Self {
+                        source,
+                        value: None,
+                        fields: Vec::new(),
+                        diagnostic: Some(DcDiagnostic {
+                            position: 0,
+                            error: err.into(),
+                        }),
+                    };
+                }
             }
-            Err(error) => (None, Some(error)),
+        } else {
+            match DcStr::from_bytes(bytes) {
+                Ok(text) => crate::DcDocumentNavigator::from_dc_str(text),
+                Err(err) => {
+                    return Self {
+                        source,
+                        value: None,
+                        fields: Vec::new(),
+                        diagnostic: Some(DcDiagnostic {
+                            position: 0,
+                            error: err.into(),
+                        }),
+                    };
+                }
+            }
         };
-        let diagnostic = if let Some(error) = error {
-            Some(DcDiagnostic {
-                position: reader.position(),
-                error,
-            })
+
+        if let Err(err) = nav.parse_document_into_arena(
+            &mut arena,
+            &crate::DcProjectionPolicy::forgiving(),
+        ) {
+            return Self {
+                source,
+                value: None,
+                fields: Vec::new(),
+                diagnostic: Some(DcDiagnostic {
+                    // Reason for fallback: Diagnostic byte position defaults to 0 on 32-bit platforms if navigator position exceeds usize::MAX.
+                    position: usize::try_from(nav.position()).unwrap_or(0),
+                    error: err,
+                }),
+            };
+        }
+
+        let roots = arena.roots();
+        let root_id = match roots.first() {
+            Some(&id) => id,
+            None => {
+                return Self {
+                    source,
+                    value: None,
+                    fields: Vec::new(),
+                    diagnostic: Some(DcDiagnostic {
+                        position: 0,
+                        error: anyhow::anyhow!("Empty document cannot be decoded into typed value"),
+                    }),
+                };
+            }
+        };
+
+        let trailing_error = if roots.len() > 1 {
+            Some(anyhow::anyhow!("Trailing content after typed Dc value"))
         } else {
             None
         };
-        let fields = std::mem::take(&mut reader.annotations);
+
+        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, context);
+        ctx.annotating = true;
+        let result = T::decode_dc_node(&mut ctx, root_id);
+        let fields = std::mem::take(&mut ctx.annotations);
+
+        let (value, diagnostic) = match result {
+            Ok(v) => {
+                let diag = if let Some(err) = trailing_error {
+                    // Reason for fallback: Fall back to nav position if second root node has no span start, or to 0 if position exceeds usize.
+                    let trailing_pos = roots
+                        .get(1)
+                        .and_then(|&id| arena.get(id))
+                        .and_then(|node| usize::try_from(node.span.start).ok())
+                        .unwrap_or_else(|| usize::try_from(nav.position()).unwrap_or(0));
+                    Some(DcDiagnostic {
+                        position: trailing_pos,
+                        error: err,
+                    })
+                } else {
+                    None
+                };
+                (Some(v), diag)
+            }
+            Err(e) => {
+                // Reason for fallback: Diagnostic byte position falls back to 0 if nav position exceeds usize::MAX on 32-bit platforms.
+                let pos = if ctx.current_position != 0 {
+                    ctx.current_position
+                } else {
+                    usize::try_from(nav.position()).unwrap_or(0)
+                };
+                (None, Some(DcDiagnostic {
+                    position: pos,
+                    error: e,
+                }))
+            }
+        };
+
         Self {
             source,
             value,
@@ -387,7 +472,7 @@ impl DcMstr {
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T> {
         DcInspection::read(
             self,
-            DcMixedReader::new(self),
+            None,
             &crate::DcProjectionPolicy::strict(),
         )
     }
@@ -398,7 +483,7 @@ impl DcMstr {
         &'a self,
         policy: &crate::DcProjectionPolicy,
     ) -> DcInspection<'a, T> {
-        DcInspection::read(self, DcMixedReader::new(self), policy)
+        DcInspection::read(self, None, policy)
     }
 
     /// Annotates with explicitly supplied outer reference bindings.
@@ -409,7 +494,7 @@ impl DcMstr {
     ) -> DcInspection<'a, T> {
         DcInspection::read(
             self,
-            DcMixedReader::with_context(self, context),
+            Some(context),
             &crate::DcProjectionPolicy::strict(),
         )
     }
@@ -424,18 +509,7 @@ impl DcStr {
         &self,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut reader = DcMixedReader::from_dc_str(self);
-        let value = T::decode_dc_mixed(&mut reader, policy)?;
-        if reader.peek_char()?.is_some() {
-            policy.handle(
-                policy.syntax_error,
-                format!(
-                    "Trailing content after typed Dc value at byte {}",
-                    reader.position()
-                ),
-            )?;
-        }
-        Ok(value)
+        self.decode_internal(None, policy)
     }
 
     /// Interprets the whole DcUtf string with explicitly supplied bindings.
@@ -447,18 +521,34 @@ impl DcStr {
         context: &crate::SharedValueContext,
         policy: &crate::DcProjectionPolicy,
     ) -> Result<T> {
-        let mut reader = DcMixedReader::from_dc_str_with_context(self, context);
-        let value = T::decode_dc_mixed(&mut reader, policy)?;
-        if reader.peek_char()?.is_some() {
+        self.decode_internal(Some(context), policy)
+    }
+
+    fn decode_internal<T: DcMixedDecode>(
+        &self,
+        context: Option<&crate::SharedValueContext>,
+        policy: &crate::DcProjectionPolicy,
+    ) -> Result<T> {
+        let mut nav = crate::DcDocumentNavigator::from_dc_str(self);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, policy)?;
+        let roots = arena.roots();
+        let root_id = match roots.first() {
+            Some(&id) => id,
+            None => bail!("Empty document cannot be decoded into typed value"),
+        };
+        let mut ctx = DcProjectionContext::with_shared_context(&arena, policy, context);
+        let res = T::decode_dc_node(&mut ctx, root_id)?;
+        if roots.len() > 1 && !ctx.consumed_all_roots {
             policy.handle(
                 policy.syntax_error,
                 format!(
-                    "Trailing content after typed Dc value at byte {}",
-                    reader.position()
+                    "Trailing content after typed Dc value (multiple root nodes: {})",
+                    roots.len()
                 ),
             )?;
         }
-        Ok(value)
+        Ok(res)
     }
 
     /// Annotates an interpretation without copying or changing the source.
@@ -466,7 +556,7 @@ impl DcStr {
     pub fn inspect<T: DcMixedDecode>(&self) -> DcInspection<'_, T, DcStr> {
         DcInspection::read(
             self,
-            DcMixedReader::from_dc_str(self),
+            None,
             &crate::DcProjectionPolicy::strict(),
         )
     }
@@ -477,7 +567,7 @@ impl DcStr {
         &'a self,
         policy: &crate::DcProjectionPolicy,
     ) -> DcInspection<'a, T, DcStr> {
-        DcInspection::read(self, DcMixedReader::from_dc_str(self), policy)
+        DcInspection::read(self, None, policy)
     }
 
     /// Annotates DcUtf with explicitly supplied outer reference bindings.
@@ -488,7 +578,7 @@ impl DcStr {
     ) -> DcInspection<'a, T, DcStr> {
         DcInspection::read(
             self,
-            DcMixedReader::from_dc_str_with_context(self, context),
+            Some(context),
             &crate::DcProjectionPolicy::strict(),
         )
     }

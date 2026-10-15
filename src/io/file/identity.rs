@@ -396,7 +396,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_legacy_identity_dc_decode() -> Result<()> {
-        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMstring};
+        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMstring};
 
         let mut encoded = DcMstring::new();
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(319));
@@ -411,14 +411,16 @@ mod tests {
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(355));
         1u64.encode_dc_mixed(&mut encoded)?;
         encoded.push_char(ctb_formats_dcstring::DcChar::from_short(320));
-        let mut reader = DcMixedReader::new(&encoded);
-        let decoded = FileIdentity::decode_dc_mixed(
-            &mut reader,
-            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        assert!(
+            encoded
+                .decode::<FileIdentity>(&ctb_formats_dcstring::DcProjectionPolicy::strict())
+                .is_err()
+        );
+        let decoded = encoded.decode::<FileIdentity>(
+            &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
         )?;
         assert_eq!(decoded.relative_path, Some(PathBuf::from("legacy.txt")));
         assert_eq!(decoded.filename_bytes(), Some(b"legacy.txt".as_slice()));
-        assert_eq!(reader.peek_char()?, None);
         Ok(())
     }
 

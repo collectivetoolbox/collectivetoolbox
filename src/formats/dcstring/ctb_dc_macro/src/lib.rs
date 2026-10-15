@@ -693,6 +693,7 @@ fn expand_dc_forgiving_default(
                 let inits = named.named.iter().map(|f| {
                     let ident = &f.ident;
                     let ty = &f.ty;
+                    // Reason for fallback: Unannotated fields or fields without parseable attrs are not skipped by default.
                     if parse_field_attrs(f).map(|a| a.skip).unwrap_or(false) {
                         quote! { #ident: ::std::default::Default::default() }
                     } else {
@@ -729,6 +730,7 @@ fn expand_dc_forgiving_default(
                     let inits = named.named.iter().map(|f| {
                         let ident = &f.ident;
                         let ty = &f.ty;
+                        // Reason for fallback: Unannotated fields or fields without parseable attrs are not skipped by default.
                         if parse_field_attrs(f).map(|a| a.skip).unwrap_or(false) {
                             quote! { #ident: ::std::default::Default::default() }
                         } else {
@@ -753,6 +755,251 @@ fn expand_dc_forgiving_default(
                 #body
             }
         }
+    })
+}
+
+fn generate_field_value_decoder(
+    crate_root: &proc_macro2::TokenStream,
+    anyhow_path: &proc_macro2::TokenStream,
+    field_ident: &syn::Ident,
+    field_ty: &syn::Type,
+    attr: &FieldDcAttr,
+    node_id_expr: &proc_macro2::TokenStream,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let type_str = quote!(#field_ty).to_string();
+    let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
+    let inner_opt = extract_type_from_option(field_ty);
+
+    if attr.skip {
+        return Ok(quote! { ::std::default::Default::default() });
+    }
+
+    if let Some(format) = attr.representation {
+        if is_vec {
+            return Err(syn::Error::new(field_ident.span(), "representation requires a single value, not a repeated Vec field"));
+        }
+        return Ok(if let Some(inner_ty) = inner_opt {
+            quote! {
+                #crate_root::dc_mixed_serde::decode_format_representation::<#inner_ty>(
+                    ctx, #node_id_expr, #crate_root::DcChar::from_u128(#format)
+                ).map(::std::option::Option::Some)?
+            }
+        } else {
+            quote! {
+                #crate_root::dc_mixed_serde::decode_format_representation::<#field_ty>(
+                    ctx, #node_id_expr, #crate_root::DcChar::from_u128(#format)
+                )?
+            }
+        });
+    }
+
+    if attr.checksum || attr.binary {
+        let raw_extract = quote! {
+            let unwrap_id = ctx.unwrap_transparent(#node_id_expr)?;
+            let unwrap_node = ctx.node(unwrap_id)?;
+            let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                    payload.materialize_bytes()
+                        .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                }
+                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                    let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                    ::std::borrow::Cow::Owned(vec_bytes)
+                }
+                other => #anyhow_path::bail!("Expected Binary node or list for binary/checksum payload for field `{}`, found {other:?}", stringify!(#field_ident)),
+            };
+        };
+        return Ok(if let Some(inner_ty) = inner_opt {
+            quote! {
+                {
+                    #raw_extract
+                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary/checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                    ::std::option::Option::Some(val)
+                }
+            }
+        } else {
+            quote! {
+                {
+                    #raw_extract
+                    <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary/checksum payload for field `{}`: {e}", stringify!(#field_ident)))?
+                }
+            }
+        });
+    }
+
+    if attr.equivalents.is_some() {
+        return Ok(quote! {
+            {
+                let eq_id = ctx.unwrap_equivalent_or_self(#node_id_expr)?;
+                let eq_node = ctx.node(eq_id)?;
+                if matches!(eq_node.kind, #crate_root::navigator::DcSyntaxKind::Number { .. }) {
+                    <#field_ty as #crate_root::dc_mixed_serde::DcMixedNumber>::decode_dc_number(ctx, eq_id)?
+                } else {
+                    <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, eq_id)?
+                }
+            }
+        });
+    }
+
+    if let (Some(_begin_id), Some(_end_id)) = (attr.begin, attr.end) {
+        if is_vec {
+            return Ok(quote! {
+                {
+                    let cnode = ctx.node(#node_id_expr)?;
+                    let children = match &cnode.kind {
+                        #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
+                        other => #anyhow_path::bail!("Expected Container for bounded field `{}`, found {other:?}", stringify!(#field_ident)),
+                    };
+                    if children.len() == 1 {
+                        if let Ok(first_node) = ctx.node(children[0]) {
+                            if matches!(&first_node.kind, #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310)) {
+                                <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, children[0])?
+                            } else {
+                                let mut list = ::std::vec::Vec::new();
+                                for &child_id in children {
+                                    list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
+                                }
+                                list
+                            }
+                        } else {
+                            let mut list = ::std::vec::Vec::new();
+                            for &child_id in children {
+                                list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
+                            }
+                            list
+                        }
+                    } else {
+                        let mut list = ::std::vec::Vec::new();
+                        for &child_id in children {
+                            list.push(<<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, child_id)?);
+                        }
+                        list
+                    }
+                }
+            });
+        }
+        if let Some(inner_ty) = inner_opt {
+            return Ok(quote! {
+                ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?)
+            });
+        }
+        return Ok(quote! {
+            <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?
+        });
+    }
+
+    if is_vec {
+        return Ok(quote! {
+            <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?
+        });
+    }
+
+    if !attr.nested.is_empty() {
+        if let Some(inner_ty) = inner_opt {
+            return Ok(quote! {
+                match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr) {
+                    ::std::result::Result::Ok(v) => ::std::option::Option::Some(v),
+                    ::std::result::Result::Err(_orig_err) => {
+                        match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id) {
+                            ::std::result::Result::Ok(v) => ::std::option::Option::Some(v),
+                            ::std::result::Result::Err(_) => return ::std::result::Result::Err(_orig_err),
+                        }
+                    }
+                }
+            });
+        } else {
+            return Ok(quote! {
+                match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr) {
+                    ::std::result::Result::Ok(v) => v,
+                    ::std::result::Result::Err(_orig_err) => {
+                        match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id) {
+                            ::std::result::Result::Ok(v) => v,
+                            ::std::result::Result::Err(_) => return ::std::result::Result::Err(_orig_err),
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    if let Some(inner_ty) = inner_opt {
+        let type_name = quote!(#inner_ty).to_string();
+        let is_pathbuf = type_name.contains("PathBuf");
+        let pathbuf_legacy_recovery = if is_pathbuf {
+            quote! {
+                if ctx.policy.is_forgiving() {
+                    if let #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } = &opt_node.kind {
+                        if opener.to_short_dc() == ::std::option::Option::Some(310) || opener.to_short_dc() == ::std::option::Option::Some(397) {
+                            let mut resolved: ::std::option::Option<::std::path::PathBuf> = ::std::option::Option::None;
+                            for &cid in children {
+                                if let ::std::result::Result::Ok(cnode) = ctx.node(cid) {
+                                    match &cnode.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            if let ::std::result::Result::Ok(bytes) = payload.materialize_bytes() {
+                                                #[cfg(unix)]
+                                                {
+                                                    use ::std::os::unix::ffi::OsStringExt;
+                                                    resolved = ::std::option::Option::Some(::std::path::PathBuf::from(::std::ffi::OsString::from_vec(bytes.into_owned())));
+                                                }
+                                                #[cfg(not(unix))]
+                                                {
+                                                    resolved = ::std::option::Option::Some(::std::path::PathBuf::from(::std::string::String::from_utf8_lossy(bytes.as_ref()).into_owned()));
+                                                }
+                                                break;
+                                            }
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Literal { decoded, .. } => {
+                                            resolved = ::std::option::Option::Some(::std::path::PathBuf::from(decoded));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            if let ::std::option::Option::Some(path) = resolved {
+                                legacy_resolved = ::std::option::Option::Some(path);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
+        return Ok(quote! {
+            {
+                let unwrap_opt = ctx.unwrap_equivalent_or_self(#node_id_expr)?;
+                let opt_node = ctx.node(unwrap_opt)?;
+                let mut legacy_resolved: ::std::option::Option<#inner_ty> = ::std::option::Option::None;
+                #pathbuf_legacy_recovery
+                if let ::std::option::Option::Some(res) = legacy_resolved {
+                    ::std::option::Option::Some(res)
+                } else {
+                    match &opt_node.kind {
+                        #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(316) => ::std::option::Option::None,
+                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } if tag.to_short_dc() == ::std::option::Option::Some(315) => {
+                            // Reason for fallback: tagged optional constructs without argument payload use enclosing node ID
+                            let inner_id = args.first().copied().unwrap_or(unwrap_opt);
+                            ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?)
+                        }
+                        #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } if opener.to_short_dc() == ::std::option::Option::Some(315) => {
+                            // Reason for fallback: container optional constructs without children use enclosing node ID
+                            let inner_id = children.first().copied().unwrap_or(unwrap_opt);
+                            ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, inner_id)?)
+                        }
+                        _ => {
+                            ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?)
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    Ok(quote! {
+        <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?
     })
 }
 
@@ -870,21 +1117,19 @@ fn expand_named_representation(
                 decode_parts.push(quote! {
                     #key => {
                         #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate map key {}", #key);
-                        reader.expect_short_dc(312)?;
-                        #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?);
-                        encoding.decode_entry_end(reader)?;
-                        reader.annotate_map_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start, encoding);
+                        #field_ident = Some(<#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?);
+                        ctx.annotate_map_field(::std::any::type_name::<Self>(), stringify!(#field_ident), entry_span.clone(), encoding);
                     }
                 });
                 construct_fields.push(quote! {
                     #field_ident: match #field_ident {
                         ::std::option::Option::Some(v) => v,
                         ::std::option::Option::None => {
-                            if policy.missing_required_field == #crate_root::DiagnosticAction::Error {
+                            if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
                                 #anyhow_path::bail!("Missing map key {}", #key);
                             }
-                            policy.handle(
-                                policy.missing_required_field,
+                            ctx.policy.handle(
+                                ctx.policy.missing_required_field,
                                 format!("Missing map key {} in {}; using default", #key, stringify!(#type_name)),
                             )?;
                             <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default()
@@ -898,39 +1143,111 @@ fn expand_named_representation(
                 #(#encode_parts)*
                 encoding.encode_end(mst);
             }, quote! {
-                let encoding = #crate_root::DcKvMapEncoding::decode_header(reader)?;
-                if encoding == #crate_root::DcKvMapEncoding::Legacy {
-                    policy.handle(
-                        policy.deprecated_syntax,
+                let node_id = ctx.unwrap_transparent(node_id)?;
+                let node = ctx.node(node_id)?;
+                let (opener, children) = match &node.kind {
+                    #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
+                    other => #anyhow_path::bail!("Expected key-value map container for {}, found {other:?}", stringify!(#type_name)),
+                };
+                let is_pairs = opener == #crate_root::dc::DC_BEGIN_KV_MAP;
+                // FIXME: This file should not know about legacy versus non-legacy syntax (or in some respects about Dc syntax in general); that should be handled at the parser layer. All the Dc derive macro will/should do is project the parsed document onto the structure being deserialized.
+                let is_legacy = opener == #crate_root::dc::DC_BEGIN_LEGACY_KV_MAP;
+                #anyhow_path::ensure!(is_pairs || is_legacy, "Expected map container (Dc 559 or Dc 313), found opener {opener}");
+                let encoding = if is_pairs {
+                    #crate_root::DcKvMapEncoding::Pairs
+                } else {
+                    ctx.policy.handle(
+                        ctx.policy.deprecated_syntax,
                         format!("Deprecated Dc 313..314 key-value map syntax used for {}", stringify!(#type_name)),
                     )?;
-                }
+                    #crate_root::DcKvMapEncoding::Legacy
+                };
+
                 #(#field_inits)*
-                let mut first = true;
-                loop {
-                    let field_start = reader.position();
-                    if !encoding.decode_entry_begin(reader, first)? { break; }
-                    let field_start = if encoding == #crate_root::DcKvMapEncoding::Legacy {
-                        reader.position()
-                    } else {
-                        field_start
-                    };
-                    first = false;
-                    let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                    match key.as_str() {
-                        #(#decode_parts)*
-                        _ => {
-                            if policy.unknown_field == #crate_root::DiagnosticAction::Error {
-                                #anyhow_path::bail!("Unknown map key {:?} for {}", key, stringify!(#type_name));
-                            }
-                            policy.handle(
-                                policy.unknown_field,
-                                format!("Unknown map key {:?} for {}", key, stringify!(#type_name)),
-                            )?;
-                            reader.expect_short_dc(312)?;
-                            reader.skip_syntax_unit(64)?;
-                            encoding.decode_entry_end(reader)?;
+
+                let mut iter = children.iter().copied().peekable();
+                while let Some(&child_id) = iter.peek() {
+                    let child = ctx.node(child_id)?;
+                    if let #crate_root::navigator::DcSyntaxKind::Atom(ch) = child.kind {
+                        if ch.to_short_dc() == Some(275) || ::ctb_formats_dcdata::is_type_token(ch.0) {
+                            let _ = iter.next();
+                            continue;
                         }
+                    }
+                    break;
+                }
+
+                if is_pairs {
+                    for entry_id in iter {
+                        let entry_node = ctx.node(entry_id)?;
+                        let pair_children = match &entry_node.kind {
+                            #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } if *opener == #crate_root::dc::DC_BEGIN_KV_PAIR => children,
+                            other => #anyhow_path::bail!("Expected Dc 514 pair container inside map, found {other:?}"),
+                        };
+                        let items: ::std::vec::Vec<#crate_root::NodeId> = pair_children
+                            .iter()
+                            .copied()
+                            .filter(|&id| {
+                                if let Ok(n) = ctx.node(id) {
+                                    !matches!(n.kind, #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                                } else {
+                                    true
+                                }
+                            })
+                            .collect();
+                        #anyhow_path::ensure!(items.len() == 2, "Expected exactly key and value in pair container, found {} items", items.len());
+                        let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, items[0])?;
+                        let val_id = items[1];
+                        let entry_span = entry_node.span.to_usize_range()?;
+                        if let Ok(pos) = usize::try_from(entry_node.span.start) {
+                            ctx.current_position = pos;
+                        }
+                        match key.as_str() {
+                            #(#decode_parts)*
+                            _ => {
+                                if ctx.policy.unknown_field == #crate_root::DiagnosticAction::Error {
+                                    #anyhow_path::bail!("Unknown map key {:?} for {}", key, stringify!(#type_name));
+                                }
+                                ctx.policy.handle(
+                                    ctx.policy.unknown_field,
+                                    format!("Unknown map key {:?} for {}", key, stringify!(#type_name)),
+                                )?;
+                            }
+                        }
+                    }
+                } else {
+                    let items: ::std::vec::Vec<#crate_root::NodeId> = iter
+                        .filter(|&id| {
+                            if let Ok(n) = ctx.node(id) {
+                                !matches!(n.kind, #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
+                            } else {
+                                true
+                            }
+                        })
+                        .collect();
+                    #anyhow_path::ensure!(items.len().checked_rem(2) == Some(0), "Uneven number of items in legacy map (Dc 313)");
+                    let mut i = 0usize;
+                    while i < items.len() {
+                        let k_id = items[i];
+                        let val_id = items[i.saturating_add(1)];
+                        let key = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, k_id)?;
+                        let k_start = usize::try_from(ctx.node(k_id)?.span.start)?;
+                        let v_end = usize::try_from(ctx.node(val_id)?.span.end)?;
+                        ctx.current_position = k_start;
+                        let entry_span = k_start..v_end;
+                        match key.as_str() {
+                            #(#decode_parts)*
+                            _ => {
+                                if ctx.policy.unknown_field == #crate_root::DiagnosticAction::Error {
+                                    #anyhow_path::bail!("Unknown map key {:?} for {}", key, stringify!(#type_name));
+                                }
+                                ctx.policy.handle(
+                                    ctx.policy.unknown_field,
+                                    format!("Unknown map key {:?} for {}", key, stringify!(#type_name)),
+                                )?;
+                            }
+                        }
+                        i = i.saturating_add(2);
                     }
                 }
                 Self { #(#construct_fields),* }
@@ -942,9 +1259,7 @@ fn expand_named_representation(
                 return Err(syn::Error::new(input.span(), "Dc 310 lists must end with Dc 311"));
             }
             let list_header = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(275)); });
-            let decode_list_header = is_list.then(|| quote! { reader.expect_short_dc(275)?; });
             let payload_separator = is_list.then(|| quote! { mst.push_char(#crate_root::DcChar::from_short(312)); });
-            let decode_payload_separator = is_list.then(|| quote! { reader.expect_short_dc(312)?; });
             for variant in &data.variants {
                 let variant_ident = &variant.ident;
                 let mut name = None;
@@ -977,11 +1292,28 @@ fn expand_named_representation(
                         let field_ty = &field.ty;
                         let (encode_value, decode_value) = if binary {
                             (quote! { mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(value))?; },
-                             quote! { <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(reader.read_binary_payload()?.as_ref())
-                                .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))? })
+                             quote! {
+                                {
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            payload.materialize_bytes()
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                                            let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                                            ::std::borrow::Cow::Owned(vec_bytes)
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node for variant payload, found {other:?}"),
+                                    };
+                                    <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                        .map_err(|error| #anyhow_path::anyhow!("Invalid binary variant payload: {error}"))?
+                                }
+                             })
                         } else {
                             (quote! { #crate_root::DcMixedEncode::encode_dc_mixed_with_context(value, mst, context)?; },
-                             quote! { <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)? })
+                             quote! { <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)? })
                         };
                         encode_parts.push(quote! {
                             Self::#variant_ident(value) => {
@@ -991,7 +1323,6 @@ fn expand_named_representation(
                             }
                         });
                         decode_parts.push(quote! { #name => {
-                            #decode_payload_separator
                             Self::#variant_ident(#decode_value)
                         }, });
                     }
@@ -1000,24 +1331,52 @@ fn expand_named_representation(
             }
             let encode_begin = begin.map(|id| quote! { mst.push_char(#crate_root::DcChar::from_u128(#id)); });
             let encode_end = end.map(|id| quote! { mst.push_char(#crate_root::DcChar::from_u128(#id)); });
-            let decode_begin = begin.map(|id| quote! { reader.expect_char(#crate_root::DcChar::from_u128(#id))?; });
-            let decode_end = end.map(|id| quote! { reader.expect_char(#crate_root::DcChar::from_u128(#id))?; });
+            let decode_body = if begin.is_some() {
+                quote! {
+                    let node_id = ctx.unwrap_transparent(node_id)?;
+                    let node = ctx.node(node_id)?;
+                    let children = match &node.kind {
+                        #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children,
+                        other => #anyhow_path::bail!("Expected Container for names enum, found {other:?}"),
+                    };
+                    let filtered_children: ::std::vec::Vec<#crate_root::NodeId> = children
+                        .iter()
+                        .copied()
+                        .filter(|&id| {
+                            if let Ok(n) = ctx.node(id) {
+                                !matches!(n.kind, #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(275) || ch.to_short_dc() == Some(312))
+                            } else {
+                                true
+                            }
+                        })
+                        .collect();
+                    let name_id = filtered_children.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Missing variant name"))?;
+                    let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, name_id)?;
+                    // Reason for fallback: Unit variants in named enums do not have a separate value node; fall back to name_id.
+                    let val_id = filtered_children.get(1).copied().unwrap_or(name_id);
+                    let value = match name.as_str() {
+                        #(#decode_parts)*
+                        _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
+                    };
+                    value
+                }
+            } else {
+                quote! {
+                    let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_node(ctx, node_id)?;
+                    let val_id = node_id;
+                    let value = match name.as_str() {
+                        #(#decode_parts)*
+                        _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
+                    };
+                    value
+                }
+            };
             (quote! {
                 #encode_begin
                 #list_header
                 match self { #(#encode_parts)* }
                 #encode_end
-            }, quote! {
-                #decode_begin
-                #decode_list_header
-                let name = <::std::string::String as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                let value = match name.as_str() {
-                    #(#decode_parts)*
-                    _ => #anyhow_path::bail!("Unknown variant {:?} for {}", name, stringify!(#type_name)),
-                };
-                #decode_end
-                value
-            })
+            }, decode_body)
         }
         _ => return Err(syn::Error::new(input.span(), "key_value requires a struct; names requires an enum")),
     };
@@ -1041,27 +1400,27 @@ fn expand_named_representation(
             }
         })
     } else { None };
-    let enter_record = key_value.then(|| quote! { reader.enter_record(); });
-    let leave_record = key_value.then(|| quote! { reader.leave_record(); });
+    let enter_record = key_value.then(|| quote! { ctx.enter_record(); });
+    let leave_record = key_value.then(|| quote! { ctx.leave_record(); });
     Ok(Some(quote! {
         #forgiving_default_impl
         #field_impl
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
             fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
-                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
-                    }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                        let _ = context;
+                self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+            }
+            fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                let _ = context;
                 #encode_body
                 Ok(())
             }
         }
         #[automatically_derived]
         impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-            fn decode_dc_mixed(
-                reader: &mut #crate_root::DcMixedReader<'_>,
-                policy: &#crate_root::DcProjectionPolicy,
+            fn decode_dc_node(
+                ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                node_id: #crate_root::NodeId,
             ) -> #anyhow_path::Result<Self> {
                 #enter_record
                 let result = (|| Ok({ #decode_body }))();
@@ -1107,12 +1466,24 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                        fn decode_dc_mixed(
-                            reader: &mut #crate_root::DcMixedReader<'_>,
-                            _policy: &#crate_root::DcProjectionPolicy,
+                        fn decode_dc_node(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let bytes = reader.read_binary_payload()?;
-                            <Self as ::std::convert::TryFrom<&[u8]>>::try_from(bytes.as_ref())
+                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                            let unwrap_node = ctx.node(unwrap_id)?;
+                            let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                    payload.materialize_bytes()
+                                        .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                                    let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                                    ::std::borrow::Cow::Owned(vec_bytes)
+                                }
+                                other => #anyhow_path::bail!("Expected Binary node for {}, found {other:?}", stringify!(#type_name)),
+                            };
+                            <Self as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                 .map_err(|error| #anyhow_path::anyhow!("Invalid binary payload for {}: {error}", stringify!(#type_name)))
                         }
                     }
@@ -1131,7 +1502,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             if struct_attrs.flatten {
                 let mut encode_stmts = Vec::new();
-                let mut decode_stmts = Vec::new();
+                let mut decode_arms = Vec::new();
+                let mut field_inits = Vec::new();
+                let mut field_validations = Vec::new();
                 let mut construct_fields = Vec::new();
 
                 for field in fields {
@@ -1156,31 +1529,69 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
-                        decode_stmts.push(quote! {
-                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                        decode_arms.push(quote! {
+                            _ => {
+                                if #field_ident.is_none() {
+                                    if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                        #field_ident = Some(v);
+                                    }
+                                }
+                            }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else if attr.binary {
-                        if let Some(id) = attr.tag {
+                        let id = attr.tag;
+                        if let Some(id) = id {
                             encode_stmts.push(quote! {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
-                            decode_stmts.push(quote! {
-                                reader.expect_char(#crate_root::DcChar::from_u128(#id))?;
-                                let raw_bytes = reader.read_binary_payload()?;
-                                let #field_ident = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                            decode_arms.push(quote! {
+                                #id => {
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            payload.materialize_bytes()
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                                            let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                                            ::std::borrow::Cow::Owned(vec_bytes)
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node for field `{}`, found {other:?}", stringify!(#field_ident)),
+                                    };
+                                    let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    #field_ident = Some(val);
+                                }
                             });
                         } else {
                             encode_stmts.push(quote! {
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
-                            decode_stmts.push(quote! {
-                                let raw_bytes = reader.read_binary_payload()?;
-                                let #field_ident = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                            decode_arms.push(quote! {
+                                203 => {
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            payload.materialize_bytes()
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node for field `{}`, found {other:?}", stringify!(#field_ident)),
+                                    };
+                                    let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    #field_ident = Some(val);
+                                }
                             });
                         }
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
+                        });
                     } else if let Some(inner_ty) = extract_type_from_option(field_ty) {
                         let id = attr.tag.ok_or_else(|| {
                             syn::Error::new(
@@ -1194,29 +1605,65 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(val, mst, context)?;
                             }
                         });
-                        decode_stmts.push(quote! {
-                            let #field_ident = if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#id) {
-                                reader.next_char()?;
-                                ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?)
-                            } else {
-                                ::std::option::Option::None
-                            };
+                        decode_arms.push(quote! {
+                            #id => {
+                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
+                                #field_ident = Some(Some(val));
+                            }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else if let Some(id) = attr.tag {
                         encode_stmts.push(quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
-                        decode_stmts.push(quote! {
-                            reader.expect_char(#crate_root::DcChar::from_u128(#id))?;
-                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                        decode_arms.push(quote! {
+                            #id => {
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
+                                #field_ident = Some(val);
+                            }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else {
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
-                        decode_stmts.push(quote! {
-                            let #field_ident = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                        decode_arms.push(quote! {
+                            _ => {
+                                if #field_ident.is_none() {
+                                    if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                        #field_ident = Some(v);
+                                    }
+                                }
+                            }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
+                        });
+                    }
+
+                    if extract_type_from_option(field_ty).is_some() {
+                        field_validations.push(quote! {
+                            let #field_ident = match #field_ident {
+                                ::std::option::Option::Some(v) => v,
+                                ::std::option::Option::None => ::std::option::Option::None,
+                            };
+                        });
+                    } else {
+                        field_validations.push(quote! {
+                            let #field_ident = match #field_ident {
+                                ::std::option::Option::Some(v) => v,
+                                ::std::option::Option::None => {
+                                    if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
+                                        #anyhow_path::bail!("Missing field `{}` in flattened struct {}", stringify!(#field_ident), stringify!(#type_name));
+                                    }
+                                    <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default()
+                                }
+                            };
                         });
                     }
                 }
@@ -1236,12 +1683,43 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                        fn decode_dc_mixed(
-                            reader: &mut #crate_root::DcMixedReader<'_>,
-                            policy: &#crate_root::DcProjectionPolicy,
+                        fn decode_dc_node(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let _ = policy;
-                            #(#decode_stmts)*
+                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                            let unwrap_node = ctx.node(unwrap_id)?;
+                            let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
+                                _ => ::std::vec![unwrap_id],
+                            };
+                            #(#field_inits)*
+                            for &cid in &child_ids {
+                                let cnode = ctx.node(cid)?;
+                                let (tag, val_id) = match &cnode.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                        // Reason for fallback: Tagged constructs without arguments or with multiple arguments pass cid as payload node.
+                                        let arg_id = if args.len() > 1 {
+                                            cid
+                                        } else {
+                                            args.first().copied().unwrap_or(cid)
+                                        };
+                                        (tag.to_u128(), arg_id)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                        (opener.to_u128(), cid)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                        (ch.to_u128(), cid)
+                                    }
+                                    _ => (0, cid),
+                                };
+                                match tag {
+                                    #(#decode_arms)*
+                                    _ => {}
+                                }
+                            }
+                            #(#field_validations)*
                             Ok(Self {
                                 #(#construct_fields),*
                             })
@@ -1299,7 +1777,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     decode_flag_arms.push(quote! {
                         #(#match_tags)|* => {
-                            reader.next_char()?;
                             #field_ident = true;
                         }
                     });
@@ -1332,61 +1809,92 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                        fn decode_dc_mixed(
-                            reader: &mut #crate_root::DcMixedReader<'_>,
-                            policy: &#crate_root::DcProjectionPolicy,
+                        fn decode_dc_node(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
-                            reader.expect_char(#crate_root::dc::DC_BEGIN_LIST)?;
-                            reader.expect_short_dc(275)?;
+                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                            let unwrap_node = ctx.node(unwrap_id)?;
+                            let (opener, closer, children) = match &unwrap_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, closer, children, .. } => (*opener, *closer, children),
+                                other => #anyhow_path::bail!("Expected Container for flag struct {}, found {other:?}", stringify!(#type_name)),
+                            };
+                            if opener.to_u128() != #begin_dc || closer.to_u128() != #end_dc {
+                                #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
+                            }
                             #(#init_flag_fields)*
-                            let mut first = true;
-                            loop {
-                                if reader.peek_char()? == Some(#crate_root::dc::DC_END_LIST) {
-                                    reader.next_char()?;
-                                    reader.expect_char(#crate_root::DcChar::from_u128(#end_dc))?;
-                                    break;
+                            let is_strict = ctx.policy.is_strict();
+                            if is_strict {
+                                if children.len() != 1 {
+                                    #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
                                 }
-                                if !first {
-                                    reader.expect_char(#crate_root::dc::DC_LIST_ELEMENT_SEPARATOR)?;
-                                }
-                                first = false;
-                                let tag = match reader.peek_char()? {
-                                    ::std::option::Option::Some(t) => t.0,
-                                    ::std::option::Option::None => {
-                                        if policy.syntax_error == #crate_root::DiagnosticAction::Error {
-                                            #anyhow_path::bail!(
-                                                "Unexpected EOF while reading flag fields for {}",
-                                                stringify!(#type_name)
-                                            );
-                                        }
-                                        policy.handle(
-                                            policy.syntax_error,
-                                            format!(
-                                                "Unexpected EOF while reading flag fields for {}",
-                                                stringify!(#type_name)
-                                            ),
-                                        )?;
-                                        break;
-                                    }
+                                let list_id = children[0];
+                                let list_node = ctx.node(list_id)?;
+                                let list_children = match &list_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => lc,
+                                    _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
                                 };
-                                match tag {
-                                    #(#decode_flag_arms)*
-                                    other => {
-                                        if policy.unknown_field == #crate_root::DiagnosticAction::Error {
-                                            #anyhow_path::bail!(
-                                                "Unknown flag Dc {other:#X} for {}",
-                                                stringify!(#type_name)
-                                            );
+                                let mut iter = list_children.iter().copied();
+                                let first_id = iter.next().ok_or_else(|| #anyhow_path::anyhow!("Empty list in flag struct {}", stringify!(#type_name)))?;
+                                let first_node = ctx.node(first_id)?;
+                                match &first_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(275) => {}
+                                    _ => #anyhow_path::bail!("Flag list container missing leading element separator (Dc 275)"),
+                                }
+                                let mut expect_separator = false;
+                                for fid in iter {
+                                    let fnode = ctx.node(fid)?;
+                                    if expect_separator {
+                                        match &fnode.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(312) => {
+                                                expect_separator = false;
+                                                continue;
+                                            }
+                                            _ => #anyhow_path::bail!("Missing separator (Dc 312) between flag items"),
                                         }
-                                        policy.handle(
-                                            policy.unknown_field,
-                                            format!(
-                                                "Unknown flag Dc {other:#X} for {}",
-                                                stringify!(#type_name)
-                                            ),
-                                        )?;
-                                        reader.next_char()?;
+                                    }
+                                    let tag = match &fnode.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
+                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
+                                        other => #anyhow_path::bail!("Unexpected node in flag list: {other:?}"),
+                                    };
+                                    match tag {
+                                        #(#decode_flag_arms)*
+                                        other => #anyhow_path::bail!("Unknown flag Dc {other:#X} for {}", stringify!(#type_name)),
+                                    }
+                                    expect_separator = true;
+                                }
+                                if !expect_separator && list_children.len() > 1 {
+                                    #anyhow_path::bail!("Trailing separator (Dc 312) in flag list");
+                                }
+                            } else {
+                                for &child_id in children {
+                                    let child_node = ctx.node(child_id)?;
+                                    let flag_ids: ::std::vec::Vec<#crate_root::NodeId> = match &child_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, children: list_children, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                                            list_children.clone()
+                                        }
+                                        _ => ::std::vec![child_id],
+                                    };
+                                    for fid in flag_ids {
+                                        let fnode = ctx.node(fid)?;
+                                        let tag = match &fnode.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
+                                            _ => continue,
+                                        };
+                                        if tag == 1114112 + 275 || tag == 1114112 + 312 {
+                                            continue;
+                                        }
+                                        match tag {
+                                            #(#decode_flag_arms)*
+                                            other => {
+                                                ctx.policy.handle(
+                                                    ctx.policy.unknown_field,
+                                                    format!("Unknown flag Dc {other:#X} for {}", stringify!(#type_name)),
+                                                )?;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1460,13 +1968,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             });
                             decode_arms.push(quote! {
                                 tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => {
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     #field_ident.push(elem);
                                 }
                             });
                             decode_field_arms.push(quote! {
                                 tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => {
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     self.#field_ident.push(elem);
                                     Ok(true)
                                 }
@@ -1476,13 +1984,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             field_name_arms.push(quote! { _ => Some(stringify!(#field_ident)), });
                             decode_arms.push(quote! {
                                 _ => {
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     #field_ident.push(elem);
                                 }
                             });
                             decode_field_arms.push(quote! {
                                 _ => {
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     self.#field_ident.push(elem);
                                     Ok(true)
                                 }
@@ -1502,13 +2010,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                         decode_arms.push(quote! {
                             tag => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
                         decode_field_arms.push(quote! {
                             tag => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                 self.#field_ident = val;
                                 Ok(true)
                             }
@@ -1517,15 +2025,15 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let #field_ident = match #field_ident {
                                 ::std::option::Option::Some(v) => v,
                                 ::std::option::Option::None => {
-                                    if policy.missing_required_field == #crate_root::DiagnosticAction::Error {
+                                    if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
                                         #anyhow_path::bail!(
                                             "Flattened field `{}` missing from DcMixed stream for {}",
                                             stringify!(#field_ident),
                                             stringify!(#type_name)
                                         );
                                     }
-                                    policy.handle(
-                                        policy.missing_required_field,
+                                    ctx.policy.handle(
+                                        ctx.policy.missing_required_field,
                                         format!(
                                             "Flattened field `{}` missing from DcMixed stream for {}; using default",
                                             stringify!(#field_ident),
@@ -1588,54 +2096,35 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     if is_vec {
                         return Err(syn::Error::new(field.span(), "representation requires a single value, not a repeated Vec field"));
                     }
-                    let (encode, decode) = if let Some(inner_ty) = extract_type_from_option(&field_ty) {
-                        (quote! {
+                    let encode = if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
+                        quote! {
                             if let Some(value) = &self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
                                 #crate_root::dc_mixed_serde::encode_format_representation(
                                     value, #crate_root::DcChar::from_u128(#format), mst, context)?;
                             }
-                        }, quote! {
-                            Some(#crate_root::dc_mixed_serde::decode_format_representation::<#inner_ty>(
-                                reader, #crate_root::DcChar::from_u128(#format), policy)?)
-                        })
+                        }
                     } else {
-                        let encode = quote! {
+                        let enc = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
                             #crate_root::dc_mixed_serde::encode_format_representation(
                                 &self.#field_ident, #crate_root::DcChar::from_u128(#format), mst, context)?;
                         };
-                        let encode = if attr.omit_default {
+                        if attr.omit_default {
                             quote! {
-                                if self.#field_ident != <#field_ty as Default>::default() { #encode }
+                                if self.#field_ident != <#field_ty as Default>::default() { #enc }
                             }
-                        } else { encode };
-                        (encode, quote! {
-                            #crate_root::dc_mixed_serde::decode_format_representation::<#field_ty>(
-                                reader, #crate_root::DcChar::from_u128(#format), policy)?
-                        })
+                        } else {
+                            enc
+                        }
                     };
                     encode_fields.push(encode);
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            #field_ident = Some(#decode);
-                        }
-                    });
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            self.#field_ident = #decode;
-                            Ok(true)
-                        }
-                    });
                 } else if let Some(ref shared_name) = attr.shared {
                     if !shared_names.insert(shared_name.value()) {
                         return Err(syn::Error::new(shared_name.span(), "Duplicate shared field name"));
                     }
                     let optional = extract_type_from_option(field_ty).is_some();
-                    // Reason for fallback: required shared fields already have
-                    // the Arc type; only optional fields need the wrapper peeled.
+                    // Reason for fallback: Non-Option shared fields use the bare field type directly.
                     let arc_ty = extract_type_from_option(field_ty).unwrap_or(field_ty);
                     let value_ty = extract_type_from_container(arc_ty, "Arc").ok_or_else(|| syn::Error::new(field.span(), "Expected Arc"))?;
                     let nested_ids = &attr.nested;
@@ -1646,8 +2135,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                         }
                     };
-                    let decoded_inline = quote! { <#arc_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)? };
-                    let decoded_reference = quote! { reader.resolve_shared::<#value_ty>(&binding)? };
+                    let decoded_inline = quote! { <#arc_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)? };
+                    let decoded_reference = quote! { ctx.resolve_shared::<#value_ty>(&binding)? };
                     let (encode, inline, reference, encode_json, decode_json, restore_json) = if optional {
                         (quote! { if let Some(item) = &self.#field_ident { #encode_value } },
                          quote! { Some(#decoded_inline) }, quote! { Some(#decoded_reference) },
@@ -1675,7 +2164,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         #shared_name => {
                             #anyhow_path::ensure!(#field_ident.is_none(), "Duplicate shared field {}", #shared_name);
                             #field_ident = Some(#reference);
-                            reader.annotate_field(::std::any::type_name::<Self>(), stringify!(#field_ident), field_start);
+                            if let Ok(range) = ctx.node(child_id)?.span.to_usize_range() {
+                                ctx.annotate_field(::std::any::type_name::<Self>(), stringify!(#field_ident), range);
+                            }
                         }
                     });
                     let json_key = field_ident.to_string();
@@ -1731,112 +2222,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else {
                         encode_fields.push(encode_stmt);
                     }
-
-                    let decode_body = quote! {
-                        reader.read_short_dc()?;
-                        if reader.peek_short_dc()? == ::std::option::Option::Some(397) {
-                            reader.read_short_dc()?;
-                            reader.expect_short_dc(310)?;
-                            reader.expect_short_dc(275)?;
-                            let mut first = true;
-                            loop {
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(311) {
-                                    reader.read_short_dc()?;
-                                    break;
-                                }
-                                if !first {
-                                    reader.expect_short_dc(312)?;
-                                }
-                                first = false;
-                                let peek_tag = reader.peek_short_dc()?
-                                    .ok_or_else(|| #anyhow_path::anyhow!(
-                                        "Unexpected EOF in equivalent representations for {}",
-                                        stringify!(#field_ident)
-                                    ))?;
-                                if peek_tag == 6 {
-                                    let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader, policy)?;
-                                    if #field_ident.is_none() {
-                                        #field_ident = ::std::option::Option::Some(n);
-                                    }
-                                } else {
-                                    let v = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    if #field_ident.is_none() {
-                                        #field_ident = ::std::option::Option::Some(v);
-                                    }
-                                }
-                            }
-                            #anyhow_path::ensure!(#field_ident.is_some(),
-                                "Empty equivalent representations for {}", stringify!(#field_ident));
-                        } else {
-                            let peek_tag = reader.peek_short_dc()?;
-                            if peek_tag == ::std::option::Option::Some(6) {
-                                let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader, policy)?;
-                                #field_ident = ::std::option::Option::Some(n);
-                            } else {
-                                let v = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                #field_ident = ::std::option::Option::Some(v);
-                            }
-                        }
-                    };
-
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            #decode_body
-                        }
-                    });
-
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            let mut #field_ident = ::std::option::Option::None;
-                            #decode_body
-                            if let ::std::option::Option::Some(v) = #field_ident {
-                                self.#field_ident = v;
-                            }
-                            Ok(true)
-                        }
-                    });
                 } else if attr.checksum {
-                    if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                    if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref val) = self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
                                 mst.push_char(#crate_root::DcChar::from_short(315));
                                 mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
-                            }
-                        });
-                        decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
-                                    reader.read_short_dc()?;
-                                    #field_ident = ::std::option::Option::Some(::std::option::Option::None);
-                                } else {
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
-                                        reader.read_short_dc()?;
-                                    }
-                                    let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                         .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                    #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
-                                }
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
-                                    reader.read_short_dc()?;
-                                    self.#field_ident = ::std::option::Option::None;
-                                } else {
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
-                                        reader.read_short_dc()?;
-                                    }
-                                    let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                         .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                    self.#field_ident = ::std::option::Option::Some(val);
-                                }
-                                Ok(true)
                             }
                         });
                     } else {
@@ -1853,28 +2245,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(encode_stmt);
                         }
-                        decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                #field_ident = ::std::option::Option::Some(val);
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                let raw_payload_bytes = reader.read_binary_payload()?;
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                     .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                self.#field_ident = val;
-                                Ok(true)
-                            }
-                        });
                     }
                 } else if attr.binary {
-                    if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                    if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
                         if !is_paired_raw {
                             encode_fields.push(quote! {
                                 if let ::std::option::Option::Some(ref val) = self.#field_ident {
@@ -1886,53 +2259,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(quote! {});
                         }
-                        decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
-                                    reader.read_short_dc()?;
-                                    #field_ident = ::std::option::Option::Some(::std::option::Option::None);
-                                } else {
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
-                                        reader.read_short_dc()?;
-                                    }
-                                    let raw_payload_bytes = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                        ::std::borrow::Cow::Owned(
-                                            <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-                                        )
-                                    } else {
-                                        reader.read_binary_payload()?
-                                    };
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                    #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
-                                }
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                if reader.peek_short_dc()? == ::std::option::Option::Some(316) {
-                                    reader.read_short_dc()?;
-                                    self.#field_ident = ::std::option::Option::None;
-                                } else {
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(315) {
-                                        reader.read_short_dc()?;
-                                    }
-                                    let raw_payload_bytes = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                        ::std::borrow::Cow::Owned(
-                                            <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-                                        )
-                                    } else {
-                                        reader.read_binary_payload()?
-                                    };
-                                    let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                    self.#field_ident = ::std::option::Option::Some(val);
-                                }
-                                Ok(true)
-                            }
-                        });
                     } else {
                         let encode_stmt = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
@@ -1951,37 +2277,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(quote! {});
                         }
-                        decode_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                let raw_payload_bytes = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                    ::std::borrow::Cow::Owned(
-                                        <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-                                    )
-                                } else {
-                                    reader.read_binary_payload()?
-                                };
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                #field_ident = ::std::option::Option::Some(val);
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#all_match_tags)|* => {
-                                reader.next_char()?;
-                                let raw_payload_bytes = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                    ::std::borrow::Cow::Owned(
-                                        <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?
-                                    )
-                                } else {
-                                    reader.read_binary_payload()?
-                                };
-                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
-                                self.#field_ident = val;
-                                Ok(true)
-                            }
-                        });
                     }
                 } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
                     if is_vec {
@@ -2001,52 +2296,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(encode_stmt);
                         }
-                        decode_arms.push(quote! {
-                            #begin_id => {
-                                reader.next_char()?;
-                                while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
-                                    if reader.peek_char()?.is_none() {
-                                        if policy.syntax_error == #crate_root::DiagnosticAction::Error {
-                                            #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
-                                        }
-                                        policy.handle(
-                                            policy.syntax_error,
-                                            format!("Unexpected EOF waiting for closing Dc {:#X}", #end_id),
-                                        )?;
-                                        break;
-                                    }
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    #field_ident.push(elem);
-                                }
-                                if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#end_id) {
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                }
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #begin_id => {
-                                reader.next_char()?;
-                                while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
-                                    if reader.peek_char()?.is_none() {
-                                        if policy.syntax_error == #crate_root::DiagnosticAction::Error {
-                                            #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
-                                        }
-                                        policy.handle(
-                                            policy.syntax_error,
-                                            format!("Unexpected EOF waiting for closing Dc {:#X}", #end_id),
-                                        )?;
-                                        break;
-                                    }
-                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    self.#field_ident.push(elem);
-                                }
-                                if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#end_id) {
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                }
-                                Ok(true)
-                            }
-                        });
-                    } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                    } else if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
                         if let Some((ref raw_ident, raw_tag)) = attr.raw {
                             let encode_stmt = quote! {
                                 match (&self.#field_ident, &self.#raw_ident) {
@@ -2082,112 +2332,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             };
                             encode_fields.push(encode_stmt);
-
-                            decode_arms.push(quote! {
-                                #begin_id => {
-                                    reader.next_char()?;
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(397)
-                                        || reader.peek_short_dc()? == ::std::option::Option::Some(561)
-                                    {
-                                        reader.read_short_dc()?;
-                                        reader.expect_short_dc(310)?;
-                                        if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
-                                            reader.read_short_dc()?;
-                                        }
-                                        while reader.peek_short_dc()? != ::std::option::Option::Some(311) {
-                                            if reader.peek_char()?.is_none() {
-                                                #anyhow_path::bail!("Unexpected EOF in representations list");
-                                            }
-                                            if reader.peek_short_dc()? == ::std::option::Option::Some(312) {
-                                                reader.read_short_dc()?;
-                                            } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
-                                                reader.next_char()?;
-                                                let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader, policy)?;
-                                                #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
-                                            } else if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                                let sem = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(sem));
-                                            } else {
-                                                reader.next_char()?;
-                                            }
-                                        }
-                                        reader.expect_short_dc(311)?;
-                                    } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
-                                        reader.next_char()?;
-                                        let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader, policy)?;
-                                        #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
-                                    } else {
-                                        let sem = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                        #field_ident = ::std::option::Option::Some(::std::option::Option::Some(sem));
-                                    }
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                }
-                            });
-
-                            decode_field_arms.push(quote! {
-                                #begin_id => {
-                                    reader.next_char()?;
-                                    if reader.peek_short_dc()? == ::std::option::Option::Some(397)
-                                        || reader.peek_short_dc()? == ::std::option::Option::Some(561)
-                                    {
-                                        reader.read_short_dc()?;
-                                        reader.expect_short_dc(310)?;
-                                        if reader.peek_short_dc()? == ::std::option::Option::Some(275) {
-                                            reader.read_short_dc()?;
-                                        }
-                                        while reader.peek_short_dc()? != ::std::option::Option::Some(311) {
-                                            if reader.peek_char()?.is_none() {
-                                                #anyhow_path::bail!("Unexpected EOF in representations list");
-                                            }
-                                            if reader.peek_short_dc()? == ::std::option::Option::Some(312) {
-                                                reader.read_short_dc()?;
-                                            } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
-                                                reader.next_char()?;
-                                                let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader, policy)?;
-                                                self.#raw_ident = ::std::option::Option::Some(r);
-                                            } else if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
-                                                let sem = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                                self.#field_ident = ::std::option::Option::Some(sem);
-                                            } else {
-                                                reader.next_char()?;
-                                            }
-                                        }
-                                        reader.expect_short_dc(311)?;
-                                    } else if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#raw_tag) {
-                                        reader.next_char()?;
-                                        let r = #crate_root::DcMixedDecode::decode_dc_mixed(reader, policy)?;
-                                        self.#raw_ident = ::std::option::Option::Some(r);
-                                    } else {
-                                        let sem = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                        self.#field_ident = ::std::option::Option::Some(sem);
-                                    }
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                    Ok(true)
-                                }
-                            });
                         } else {
                             encode_fields.push(quote! {
                                 if let ::std::option::Option::Some(ref item) = self.#field_ident {
                                     mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                     #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                     mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                                }
-                            });
-                            decode_arms.push(quote! {
-                                #begin_id => {
-                                    reader.next_char()?;
-                                    let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                    #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
-                                }
-                            });
-                            decode_field_arms.push(quote! {
-                                #begin_id => {
-                                    reader.next_char()?;
-                                    let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                    self.#field_ident = ::std::option::Option::Some(val);
-                                    Ok(true)
                                 }
                             });
                         }
@@ -2206,23 +2356,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(encode_stmt);
                         }
-                        decode_arms.push(quote! {
-                            #begin_id => {
-                                reader.next_char()?;
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                #field_ident = ::std::option::Option::Some(val);
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #begin_id => {
-                                reader.next_char()?;
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                self.#field_ident = val;
-                                Ok(true)
-                            }
-                        });
                     }
                 } else if !attr.nested.is_empty() {
                     let nested_ids = &attr.nested;
@@ -2232,54 +2365,15 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
-                        decode_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                #field_ident.push(elem);
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                self.#field_ident.push(elem);
-                                Ok(true)
-                            }
-                        });
-                    } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                    } else if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
-                        decode_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                self.#field_ident = ::std::option::Option::Some(val);
-                                Ok(true)
-                            }
-                        });
                     } else {
                         encode_fields.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
-                        });
-                        decode_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                #field_ident = ::std::option::Option::Some(val);
-                            }
-                        });
-                        decode_field_arms.push(quote! {
-                            #(#nested_ids)|* => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                self.#field_ident = val;
-                                Ok(true)
-                            }
                         });
                     }
                 } else if is_vec {
@@ -2298,38 +2392,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else {
                         encode_fields.push(encode_stmt);
                     }
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            #field_ident.push(elem);
-                        }
-                    });
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            self.#field_ident.push(elem);
-                            Ok(true)
-                        }
-                    });
                 } else if is_paired_raw {
                     encode_fields.push(quote! {});
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            #field_ident = ::std::option::Option::Some(val);
-                        }
-                    });
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            self.#field_ident = val;
-                            Ok(true)
-                        }
-                    });
                 } else {
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
@@ -2344,21 +2408,243 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     } else {
                         encode_fields.push(encode_stmt);
                     }
+                }
+
+                // Field decoding
+                if let Some((ref raw_ident, raw_tag)) = attr.raw {
+                    let Some(inner_ty) = extract_type_from_option(&field_ty) else {
+                        return Err(syn::Error::new(field_ident.span(), "Paired raw field requires Option<T> field type"));
+                    };
                     decode_arms.push(quote! {
                         #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            #field_ident = ::std::option::Option::Some(val);
+                            let cnode = ctx.node(val_id)?;
+                            let c_children = match &cnode.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                                other => #anyhow_path::bail!("Expected Container for paired field `{}`", stringify!(#field_ident)),
+                            };
+                            let rep_list_id = {
+                                let mut found = ::std::option::Option::None;
+                                for &cid in c_children {
+                                    if let ::std::result::Result::Ok(cn) = ctx.node(cid) {
+                                        match &cn.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, args }
+                                                if matches!(tag.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                            {
+                                                if let ::std::option::Option::Some(&first_arg) = args.first() {
+                                                    found = ::std::option::Option::Some(first_arg);
+                                                    break;
+                                                }
+                                            }
+                                            #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
+                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
+                                            {
+                                                found = ::std::option::Option::Some(cid);
+                                                break;
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                found
+                            };
+                            let target_children = if let ::std::option::Option::Some(lid) = rep_list_id {
+                                if let ::std::result::Result::Ok(ln) = ctx.node(lid) {
+                                    if let #crate_root::navigator::DcSyntaxKind::Container { children, .. } = &ln.kind {
+                                        if children.len() == 1 {
+                                            if let ::std::result::Result::Ok(c0) = ctx.node(children[0]) {
+                                                if let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind {
+                                                    inner_c.as_slice()
+                                                } else {
+                                                    children.as_slice()
+                                                }
+                                            } else {
+                                                children.as_slice()
+                                            }
+                                        } else {
+                                            children.as_slice()
+                                        }
+                                    } else {
+                                        ln.children()
+                                    }
+                                } else {
+                                    c_children
+                                }
+                            } else {
+                                c_children
+                            };
+
+                            let mut idx: usize = 0usize;
+                            while idx < target_children.len() {
+                                let ch_id = target_children[idx];
+                                let ch_node = ctx.node(ch_id)?;
+                                match &ch_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if matches!(ch.to_short_dc(), ::std::option::Option::Some(275 | 312 | 397 | 561)) => {
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } if tag.to_u128() == #raw_tag => {
+                                        let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, ch_id)?;
+                                        #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_u128() == #raw_tag => {
+                                        if idx.saturating_add(1usize) < target_children.len() {
+                                            idx = idx.saturating_add(1usize);
+                                            let payload_id = target_children[idx];
+                                            let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, payload_id)?;
+                                            #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
+                                        } else {
+                                            let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, ch_id)?;
+                                            #raw_ident = ::std::option::Option::Some(::std::option::Option::Some(r));
+                                        }
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    _ => {
+                                        let s = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, ch_id)?;
+                                        #field_ident = ::std::option::Option::Some(::std::option::Option::Some(s));
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                }
+                            }
                         }
                     });
                     decode_field_arms.push(quote! {
                         #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                            self.#field_ident = val;
+                            let cnode = ctx.node(val_id)?;
+                            let c_children = match &cnode.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                                other => #anyhow_path::bail!("Expected Container for paired field `{}`", stringify!(#field_ident)),
+                            };
+                            let rep_list_id = {
+                                let mut found = ::std::option::Option::None;
+                                for &cid in c_children {
+                                    if let ::std::result::Result::Ok(cn) = ctx.node(cid) {
+                                        match &cn.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, args }
+                                                if matches!(tag.to_short_dc(), ::std::option::Option::Some(397 | 561)) =>
+                                            {
+                                                if let ::std::option::Option::Some(&first_arg) = args.first() {
+                                                    found = ::std::option::Option::Some(first_arg);
+                                                    break;
+                                                }
+                                            }
+                                            #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
+                                                if matches!(opener.to_short_dc(), ::std::option::Option::Some(397 | 561 | 310)) =>
+                                            {
+                                                found = ::std::option::Option::Some(cid);
+                                                break;
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                                found
+                            };
+                            let target_children = if let ::std::option::Option::Some(lid) = rep_list_id {
+                                if let ::std::result::Result::Ok(ln) = ctx.node(lid) {
+                                    if let #crate_root::navigator::DcSyntaxKind::Container { children, .. } = &ln.kind {
+                                        if children.len() == 1 {
+                                            if let ::std::result::Result::Ok(c0) = ctx.node(children[0]) {
+                                                if let #crate_root::navigator::DcSyntaxKind::Container { children: inner_c, .. } = &c0.kind {
+                                                    inner_c.as_slice()
+                                                } else {
+                                                    children.as_slice()
+                                                }
+                                            } else {
+                                                children.as_slice()
+                                            }
+                                        } else {
+                                            children.as_slice()
+                                        }
+                                    } else {
+                                        ln.children()
+                                    }
+                                } else {
+                                    c_children
+                                }
+                            } else {
+                                c_children
+                            };
+
+                            let mut idx: usize = 0usize;
+                            while idx < target_children.len() {
+                                let ch_id = target_children[idx];
+                                let ch_node = ctx.node(ch_id)?;
+                                match &ch_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if matches!(ch.to_short_dc(), ::std::option::Option::Some(275 | 312 | 397 | 561)) => {
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } if tag.to_u128() == #raw_tag => {
+                                        let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, ch_id)?;
+                                        self.#raw_ident = ::std::option::Option::Some(r);
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_u128() == #raw_tag => {
+                                        if idx.saturating_add(1usize) < target_children.len() {
+                                            idx = idx.saturating_add(1usize);
+                                            let payload_id = target_children[idx];
+                                            let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, payload_id)?;
+                                            self.#raw_ident = ::std::option::Option::Some(r);
+                                        } else {
+                                            let r = #crate_root::DcMixedDecode::decode_dc_node(ctx, ch_id)?;
+                                            self.#raw_ident = ::std::option::Option::Some(r);
+                                        }
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                    _ => {
+                                        let s = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, ch_id)?;
+                                        self.#field_ident = ::std::option::Option::Some(s);
+                                        idx = idx.saturating_add(1usize);
+                                    }
+                                }
+                            }
                             Ok(true)
                         }
                     });
+                } else if attr.shared.is_none() {
+                    let val_decoder = generate_field_value_decoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr, &quote!(val_id))?;
+                    if is_vec && attr.begin.is_none() && !attr.binary && !attr.checksum {
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let elem = #val_decoder;
+                                #field_ident.push(elem);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let elem = #val_decoder;
+                                self.#field_ident.push(elem);
+                                Ok(true)
+                            }
+                        });
+                    } else if is_vec && attr.begin.is_some() && attr.end.is_some() {
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let list = #val_decoder;
+                                #field_ident = list;
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let list = #val_decoder;
+                                self.#field_ident = list;
+                                Ok(true)
+                            }
+                        });
+                    } else {
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let val = #val_decoder;
+                                #field_ident = ::std::option::Option::Some(val);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                let val = #val_decoder;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
+                    }
                 }
 
                 // Decode temporary storage
@@ -2396,15 +2682,15 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let #field_ident = match #field_ident {
                             ::std::option::Option::Some(v) => v,
                             ::std::option::Option::None => {
-                                if policy.missing_required_field == #crate_root::DiagnosticAction::Error {
+                                if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
                                     #anyhow_path::bail!(
                                         "Required field `{}` missing from DcMixed stream for {}",
                                         stringify!(#field_ident),
                                         stringify!(#type_name)
                                     );
                                 }
-                                policy.handle(
-                                    policy.missing_required_field,
+                                ctx.policy.handle(
+                                    ctx.policy.missing_required_field,
                                     format!(
                                         "Required field `{}` missing from DcMixed stream for {}; using default",
                                         stringify!(#field_ident),
@@ -2443,8 +2729,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             let shared_decode = if shared_decode_arms.is_empty() { None } else {
                 Some(quote! {
-                    1114382 => {
-                        let (field, binding) = #crate_root::shared::decode_shared_reference(reader)?;
+                    1114382 | 1114381 => {
+                        let (field, binding) = #crate_root::shared::decode_shared_reference(ctx, val_id)?;
                         match field.as_str() {
                             #(#shared_decode_arms)*
                             _ => #anyhow_path::bail!("Unknown shared field {:?}", field),
@@ -2506,12 +2792,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     pub fn decode_field(
                         &mut self,
                         tag: impl Into<u128>,
-                        reader: &mut #crate_root::DcMixedReader<'_>,
-                        policy: &#crate_root::DcProjectionPolicy,
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        node_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<bool> {
-                        let _ = policy;
+                        let _ = ctx;
                         let tag = tag.into();
                         let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
+                        let val_id = node_id;
+                        let unwrap_id = node_id;
                         match full_tag {
                             #(#decode_field_arms)*
                             _ => Ok(false),
@@ -2535,98 +2823,179 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                    fn decode_dc_mixed(
-                        reader: &mut #crate_root::DcMixedReader<'_>,
-                        policy: &#crate_root::DcProjectionPolicy,
+                    fn decode_dc_node(
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        node_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<Self> {
                         const __KNOWN_TAGS: &[u128] = &[#(#known_field_tags),*];
-                        reader.enter_record();
+                        let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                        let node = ctx.node(unwrap_id)?;
+                        let children = match &node.kind {
+                            #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
+                                if opener.to_u128() != #begin_dc {
+                                    #anyhow_path::bail!(
+                                        "Expected opener {:#X} for {}, found {:#X}",
+                                        #begin_dc,
+                                        stringify!(#type_name),
+                                        opener.to_u128()
+                                    );
+                                }
+                                children
+                            }
+                            other => #anyhow_path::bail!(
+                                "Expected Container for struct {}, found {other:?}",
+                                stringify!(#type_name)
+                            ),
+                        };
+                        ctx.enter_record();
                         let result = (|| {
-                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
-                        #(#field_inits)*
-                        loop {
-                            let tag = match reader.peek_char()? {
-                                ::std::option::Option::Some(t) => t.0,
-                                ::std::option::Option::None => {
-                                    if policy.syntax_error == #crate_root::DiagnosticAction::Error {
-                                        #anyhow_path::bail!(
-                                            "Unexpected EOF while reading fields for {}",
-                                            stringify!(#type_name)
-                                        );
+                            #(#field_inits)*
+                            let mut idx = 0;
+                            while idx < children.len() {
+                                let child_id = children[idx];
+                                if let Ok(child_node) = ctx.node(child_id) {
+                                    if let Ok(pos) = usize::try_from(child_node.span.start) {
+                                        ctx.current_position = pos;
                                     }
-                                    policy.handle(
-                                        policy.syntax_error,
-                                        format!(
-                                            "Unexpected EOF while reading fields for {}",
-                                            stringify!(#type_name)
-                                        ),
-                                    )?;
-                                    break;
                                 }
-                            };
-                            if tag == #end_dc {
-                                reader.next_char()?;
-                                break;
+                                let child_node = ctx.node(child_id)?;
+                                let (tag, val_id) = match &child_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                        // Reason for fallback: Tagged constructs without arguments or with multiple arguments pass child_id as payload.
+                                        let arg_id = if args.len() > 1 {
+                                            child_id
+                                        } else {
+                                            args.first().copied().unwrap_or(child_id)
+                                        };
+                                        (tag.to_u128(), arg_id)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                        (opener.to_u128(), child_id)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                        let tag_val = ch.to_u128();
+                                        if idx.saturating_add(1) < children.len() {
+                                            let next_id = children[idx.saturating_add(1)];
+                                            let next_node = ctx.node(next_id)?;
+                                            let next_is_tag = match &next_node.kind {
+                                                #crate_root::navigator::DcSyntaxKind::Atom(next_ch) => {
+                                                    __KNOWN_TAGS.contains(&next_ch.to_u128())
+                                                }
+                                                _ => false,
+                                            };
+                                            if !next_is_tag && __KNOWN_TAGS.contains(&tag_val) {
+                                                idx = idx.saturating_add(1);
+                                                let mut payload_id = next_id;
+                                                if let #crate_root::navigator::DcSyntaxKind::Atom(opt_ch) = &next_node.kind {
+                                                    if opt_ch.to_short_dc() == ::std::option::Option::Some(315) && idx.saturating_add(1) < children.len() {
+                                                        idx = idx.saturating_add(1);
+                                                        payload_id = children[idx];
+                                                    }
+                                                }
+                                                if let ::std::result::Result::Ok(pnode) = ctx.node(payload_id) {
+                                                    if let #crate_root::navigator::DcSyntaxKind::Atom(pch) = &pnode.kind {
+                                                        if pch.to_short_dc() == ::std::option::Option::Some(397) && idx.saturating_add(1) < children.len() {
+                                                            let cand_id = children[idx.saturating_add(1)];
+                                                            if let ::std::result::Result::Ok(cand_node) = ctx.node(cand_id) {
+                                                                if let #crate_root::navigator::DcSyntaxKind::Container { opener, .. } = &cand_node.kind {
+                                                                    if opener.to_short_dc() == ::std::option::Option::Some(310) {
+                                                                        idx = idx.saturating_add(1);
+                                                                        payload_id = cand_id;
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                (tag_val, payload_id)
+                                            } else {
+                                                (tag_val, child_id)
+                                            }
+                                        } else {
+                                            (tag_val, child_id)
+                                        }
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Assignment { .. } => {
+                                        (1114381, child_id)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Identifier { .. } => {
+                                        (1114382, child_id)
+                                    }
+                                    _ => (0, child_id),
+                                };
+                                idx = idx.saturating_add(1);
+                                let field_name = match tag {
+                                    #(#field_name_arms)*
+                                    _ => None,
+                                };
+                                let field_res: #anyhow_path::Result<bool> = (|| {
+                                    match tag {
+                                        #shared_decode
+                                        #(#decode_arms)*
+                                        #unmatched_decode_arm
+                                    }
+                                    Ok(true)
+                                })();
+                                match field_res {
+                                    ::std::result::Result::Ok(true) => {
+                                        if let Some(field_name) = field_name {
+                                            let start = ctx.node(child_id)?.span.start;
+                                            let end = ctx.node(val_id)?.span.end;
+                                            if let (Ok(s), Ok(e)) = (usize::try_from(start), usize::try_from(end)) {
+                                                ctx.annotate_field(::std::any::type_name::<Self>(), field_name, s..e);
+                                            }
+                                        }
+                                    }
+                                    ::std::result::Result::Ok(false) => {
+                                        if ctx.policy.unknown_field == #crate_root::DiagnosticAction::Error {
+                                            #anyhow_path::bail!(
+                                                "Unexpected Dc tag {:#X} while decoding struct {}",
+                                                tag,
+                                                stringify!(#type_name)
+                                            );
+                                        }
+                                        ctx.policy.handle(
+                                            ctx.policy.unknown_field,
+                                            format!(
+                                                "Unknown Dc tag {:#X} while decoding struct {}",
+                                                tag,
+                                                stringify!(#type_name)
+                                            ),
+                                        )?;
+                                    }
+                                    ::std::result::Result::Err(err) => {
+                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
+                                            return ::std::result::Result::Err(err);
+                                        }
+                                        // Reason for fallback: Malformed field diagnostic message displays <unknown> if field name could not be resolved from tag.
+                                        ctx.policy.handle(
+                                            ctx.policy.malformed_field,
+                                            format!(
+                                                "Malformed field `{}` while decoding struct {}: {err}",
+                                                field_name.unwrap_or("<unknown>"),
+                                                stringify!(#type_name)
+                                            ),
+                                        )?;
+                                    }
+                                }
                             }
-                            let field_start = reader.position();
-                            let field_name = match tag {
-                                #(#field_name_arms)*
-                                _ => None,
-                            };
-                            let field_res: #anyhow_path::Result<bool> = (|| {
-                                match tag {
-                                    #shared_decode
-                                    #(#decode_arms)*
-                                    #unmatched_decode_arm
-                                }
-                                Ok(true)
-                            })();
-                            match field_res {
-                                ::std::result::Result::Ok(true) => {
-                                    if let Some(field_name) = field_name {
-                                        reader.annotate_field(::std::any::type_name::<Self>(), field_name, field_start);
+                            if let Some(&last_id) = children.last() {
+                                if let Ok(last_node) = ctx.node(last_id) {
+                                    if let Ok(pos) = usize::try_from(last_node.span.end) {
+                                        ctx.current_position = pos;
                                     }
                                 }
-                                ::std::result::Result::Ok(false) => {
-                                    if policy.unknown_field == #crate_root::DiagnosticAction::Error {
-                                        #anyhow_path::bail!(
-                                            "Unexpected Dc tag {:#X} while decoding struct {}",
-                                            tag,
-                                            stringify!(#type_name)
-                                        );
-                                    }
-                                    policy.handle(
-                                        policy.unknown_field,
-                                        format!(
-                                            "Unknown Dc tag {:#X} while decoding struct {}",
-                                            tag,
-                                            stringify!(#type_name)
-                                        ),
-                                    )?;
-                                    reader.skip_unknown_field_in_container(#end_dc, __KNOWN_TAGS)?;
-                                }
-                                ::std::result::Result::Err(err) => {
-                                    if policy.malformed_field == #crate_root::DiagnosticAction::Error {
-                                        return ::std::result::Result::Err(err);
-                                    }
-                                    policy.handle(
-                                        policy.malformed_field,
-                                        format!(
-                                            "Malformed field `{}` while decoding struct {}: {err}",
-                                            field_name.unwrap_or("<unknown>"),
-                                            stringify!(#type_name)
-                                        ),
-                                    )?;
-                                    reader.recover_malformed_field_in_container(#end_dc, __KNOWN_TAGS)?;
+                            } else if let Ok(root_node) = ctx.node(node_id) {
+                                if let Ok(pos) = usize::try_from(root_node.span.end) {
+                                    ctx.current_position = pos;
                                 }
                             }
-                        }
-                        #(#field_validations)*
-                        Ok(Self {
-                            #(#construct_fields),*
-                        })
+                            #(#field_validations)*
+                            Ok(Self {
+                                #(#construct_fields),*
+                            })
                         })();
-                        reader.leave_record();
+                        ctx.leave_record();
                         result
                     }
                 }
@@ -2728,10 +3097,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_variants.push(quote! {
-                            #tag_id => {
-                                reader.next_char()?;
-                                Self::#variant_ident
-                            }
+                            #tag_id => Self::#variant_ident,
                         });
                     }
                     Fields::Unnamed(unnamed) => {
@@ -2757,10 +3123,37 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             });
                             decode_variants.push(quote! {
                                 #tag_id => {
-                                    reader.next_char()?;
-                                    let raw_payload_bytes = reader.read_binary_payload()?;
-                                    let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            payload.materialize_bytes()
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
+                                            let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
+                                            ::std::borrow::Cow::Owned(vec_bytes)
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node or list for binary payload in variant {}, found {other:?}", stringify!(#variant_ident)),
+                                    };
+                                    let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for variant `{}`: {e}", stringify!(#variant_ident)))?;
+                                    Self::#variant_ident(val)
+                                }
+                            });
+                        } else if unnamed.unnamed.len() == 1
+                            && let Some(first_field) = unnamed.unnamed.first()
+                        {
+                            let first_ty = &first_field.ty;
+                            encode_variants.push(quote! {
+                                Self::#variant_ident(f0) => {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(f0, mst, context)?;
+                                }
+                            });
+                            decode_variants.push(quote! {
+                                #tag_id => {
+                                    let val = <#first_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
                                     Self::#variant_ident(val)
                                 }
                             });
@@ -2776,15 +3169,23 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     )*
                                 }
                             });
-                            let field_decodes: Vec<_> = unnamed.unnamed.iter().map(|f| {
+                            let field_decodes: Vec<_> = unnamed.unnamed.iter().enumerate().map(|(i, f)| {
                                 let ty = &f.ty;
                                 quote! {
-                                    <#ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?
+                                    {
+                                        let field_node_id = field_ids.get(#i).copied().ok_or_else(|| #anyhow_path::anyhow!("Missing tuple field {} for variant {}", #i, stringify!(#variant_ident)))?;
+                                        <#ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, field_node_id)?
+                                    }
                                 }
                             }).collect();
                             decode_variants.push(quote! {
                                 #tag_id => {
-                                    reader.next_char()?;
+                                    let vnode = ctx.node(val_id)?;
+                                    let field_ids = match &vnode.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.clone(),
+                                        #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
+                                        _ => ::std::vec::Vec::new(),
+                                    };
                                     Self::#variant_ident(#(#field_decodes),*)
                                 }
                             });
@@ -2793,7 +3194,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     Fields::Named(named) => {
                         let mut field_names = Vec::new();
                         let mut encode_fields = Vec::new();
-                        let mut decode_fields = Vec::new();
+                        let mut v_field_inits = Vec::new();
+                        let mut v_field_arms = Vec::new();
+                        let mut v_field_build = Vec::new();
 
                         for f in &named.named {
                             let Some(f_ident) = f.ident.as_ref() else {
@@ -2804,9 +3207,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let attr = parse_field_attrs(f)?;
 
                             if attr.skip {
-                                decode_fields.push(quote! {
-                                    let #f_ident = ::std::default::Default::default();
+                                v_field_inits.push(quote! {
+                                    let #f_ident: #f_ty = ::std::default::Default::default();
                                 });
+                                v_field_build.push(quote! { #f_ident });
                                 continue;
                             }
 
@@ -2817,159 +3221,109 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 )
                             })?;
 
-                            if attr.checksum {
-                                if let Some(inner_ty) = extract_type_from_option(f_ty) {
-                                    encode_fields.push(quote! {
-                                        if let ::std::option::Option::Some(ref val) = #f_ident {
+                            let is_vec = quote!(#f_ty).to_string().starts_with("Vec");
+                            let val_expr = generate_field_value_decoder(&crate_root, &anyhow_path, f_ident, f_ty, &attr, &quote!(child_val_id))?;
+                            let mut all_field_tags = vec![f_tag];
+                            if !attr.nested.is_empty() {
+                                all_field_tags = attr.nested.clone();
+                            }
+                            if is_vec && attr.begin.is_none() && !attr.binary && !attr.checksum {
+                                v_field_inits.push(quote! {
+                                    let mut #f_ident: #f_ty = ::std::vec::Vec::new();
+                                });
+                                v_field_arms.push(quote! {
+                                    #(#all_field_tags)|* => {
+                                        let elem = #val_expr;
+                                        #f_ident.push(elem);
+                                    }
+                                });
+                                v_field_build.push(quote! { #f_ident });
+                            } else {
+                                v_field_inits.push(quote! {
+                                    let mut #f_ident: ::std::option::Option<#f_ty> = ::std::option::Option::None;
+                                });
+                                v_field_arms.push(quote! {
+                                    #(#all_field_tags)|* => {
+                                        if #f_ident.is_none() {
+                                            let val = #val_expr;
+                                            #f_ident = ::std::option::Option::Some(val);
+                                        }
+                                    }
+                                });
+                                if extract_type_from_option(f_ty).is_some() {
+                                    // Reason for fallback: Missing optional enum fields default to None.
+                                    v_field_build.push(quote! { #f_ident: #f_ident.unwrap_or(None) });
+                                } else if attr.default {
+                                    // Reason for fallback: Missing defaulted enum fields fall back to their Default::default() value.
+                                    v_field_build.push(quote! { #f_ident: #f_ident.unwrap_or_default() });
+                                } else {
+                                    v_field_build.push(quote! {
+                                        #f_ident: #f_ident.ok_or_else(|| #anyhow_path::anyhow!("Missing field `{}` in variant `{}`", stringify!(#f_ident), stringify!(#variant_ident)))?
+                                    });
+                                }
+                            }
+
+                            let encode_field = if let (Some(b_tag), Some(e_tag)) = (attr.begin, attr.end) {
+                                quote! {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#b_tag));
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
+                                    mst.push_char(#crate_root::DcChar::from_u128(#e_tag));
+                                }
+                            } else if attr.checksum {
+                                if let Some(_inner_ty) = extract_type_from_option(f_ty) {
+                                    quote! {
+                                        if let Some(ref val) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                            mst.push_char(#crate_root::DcChar::from_short(315));
                                             mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                         }
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                        let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                            .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#f_ident)))?;
-                                        let #f_ident = ::std::option::Option::Some(val);
-                                    });
+                                    }
                                 } else {
-                                    encode_fields.push(quote! {
+                                    quote! {
                                         mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
                                         mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(#f_ident))?;
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                        let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                            .map_err(|e| #anyhow_path::anyhow!("Invalid checksum payload for field `{}`: {e}", stringify!(#f_ident)))?;
-                                    });
+                                    }
                                 }
                             } else if attr.binary {
-                                if let Some(inner_ty) = extract_type_from_option(f_ty) {
-                                    encode_fields.push(quote! {
-                                        if let ::std::option::Option::Some(ref val) = #f_ident {
+                                if let Some(_inner_ty) = extract_type_from_option(f_ty) {
+                                    quote! {
+                                        if let Some(ref val) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                            mst.push_char(#crate_root::DcChar::from_short(315));
                                             mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                         }
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                        let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                            .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
-                                        let #f_ident = ::std::option::Option::Some(val);
-                                    });
+                                    }
                                 } else {
-                                    encode_fields.push(quote! {
+                                    quote! {
                                         mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
                                         mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident))?;
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                        let raw_payload_bytes = reader.read_binary_payload()?;
-                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes.as_ref())
-                                            .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
-                                    });
-                                }
-                            } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
-                                let type_str = quote!(#f_ty).to_string();
-                                let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
-                                if is_vec {
-                                    encode_fields.push(quote! {
-                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                        for item in #f_ident {
-                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
-                                        }
-                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_id))?;
-                                        let mut #f_ident = ::std::vec::Vec::new();
-                                        while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
-                                            if reader.peek_char()?.is_none() {
-                                                #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
-                                            }
-                                            #f_ident.push(<<#f_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?);
-                                        }
-                                        reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                    });
-                                } else if let Some(inner_ty) = extract_type_from_option(f_ty) {
-                                    encode_fields.push(quote! {
-                                        if let ::std::option::Option::Some(ref item) = #f_ident {
-                                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                            #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
-                                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                                        }
-                                    });
-                                    decode_fields.push(quote! {
-                                        let #f_ident = if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#begin_id) {
-                                            reader.next_char()?;
-                                            let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                            reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                            ::std::option::Option::Some(val)
-                                        } else {
-                                            ::std::option::Option::None
-                                        };
-                                    });
-                                } else {
-                                    encode_fields.push(quote! {
-                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
-                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                                    });
-                                    decode_fields.push(quote! {
-                                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_id))?;
-                                        let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                        reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
-                                    });
+                                    }
                                 }
                             } else if !attr.nested.is_empty() {
-                                let nested_ids = &attr.nested;
-                                let type_str = quote!(#f_ty).to_string();
-                                let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
                                 if is_vec {
-                                    encode_fields.push(quote! {
+                                    quote! {
                                         for item in #f_ident {
                                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                         }
-                                    });
-                                    decode_fields.push(quote! {
-                                        let mut #f_ident = ::std::vec::Vec::new();
-                                        while matches!(reader.peek_char()?.map(|c| c.0), ::std::option::Option::Some(#(#nested_ids)|*)) {
-                                            #f_ident.push(<<#f_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?);
-                                        }
-                                    });
-                                } else if let Some(inner_ty) = extract_type_from_option(f_ty) {
-                                    encode_fields.push(quote! {
+                                    }
+                                } else if let Some(_inner_ty) = extract_type_from_option(f_ty) {
+                                    quote! {
                                         if let ::std::option::Option::Some(ref item) = #f_ident {
                                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                                         }
-                                    });
-                                    decode_fields.push(quote! {
-                                        let #f_ident = if matches!(reader.peek_char()?.map(|c| c.0), ::std::option::Option::Some(#(#nested_ids)|*)) {
-                                            ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?)
-                                        } else {
-                                            ::std::option::Option::None
-                                        };
-                                    });
+                                    }
                                 } else {
-                                    encode_fields.push(quote! {
+                                    quote! {
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
-                                    });
-                                    decode_fields.push(quote! {
-                                        let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                    });
+                                    }
                                 }
                             } else {
-                                encode_fields.push(quote! {
+                                quote! {
                                     mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
                                     #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
-                                });
-                                decode_fields.push(quote! {
-                                    reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                    let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader, policy)?;
-                                });
-                            }
+                                }
+                            };
+                            encode_fields.push(encode_field);
                         }
 
                         encode_variants.push(quote! {
@@ -2981,10 +3335,54 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                         decode_variants.push(quote! {
                             #tag_id => {
-                                reader.next_char()?;
-                                #(#decode_fields)*
+                                #(#v_field_inits)*
+                                let field_ids: ::std::vec::Vec<#crate_root::NodeId> = match &variant_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.clone(),
+                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
+                                    #crate_root::navigator::DcSyntaxKind::Atom(_) => children.iter().skip(1).copied().collect(),
+                                    _ => ::std::vec::Vec::new(),
+                                };
+                                let mut idx: usize = 0usize;
+                                while idx < field_ids.len() {
+                                    let ch_id = field_ids[idx];
+                                    let ch_node = ctx.node(ch_id)?;
+                                    let (ch_tag, child_val_id) = match &ch_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                            // Reason for fallback: Tagged constructs without arguments fall back to ch_id as payload.
+                                            let arg_id = args.first().copied().unwrap_or(ch_id);
+                                            (tag.to_u128(), arg_id)
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                            (opener.to_u128(), ch_id)
+                                        }
+                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                            let tag_val = ch.to_u128();
+                                            if idx.saturating_add(1usize) < field_ids.len() {
+                                                idx = idx.saturating_add(1usize);
+                                                let mut payload_id = field_ids[idx];
+                                                if let Ok(next_node) = ctx.node(payload_id) {
+                                                    if let #crate_root::navigator::DcSyntaxKind::Atom(opt_ch) = &next_node.kind {
+                                                        if opt_ch.to_short_dc() == ::std::option::Option::Some(315) && idx.saturating_add(1usize) < field_ids.len() {
+                                                            idx = idx.saturating_add(1usize);
+                                                            payload_id = field_ids[idx];
+                                                        }
+                                                    }
+                                                }
+                                                (tag_val, payload_id)
+                                            } else {
+                                                (tag_val, ch_id)
+                                            }
+                                        }
+                                        _ => (0, ch_id),
+                                    };
+                                    idx = idx.saturating_add(1usize);
+                                    match ch_tag {
+                                        #(#v_field_arms)*
+                                        _ => {}
+                                    }
+                                }
                                 Self::#variant_ident {
-                                    #(#field_names),*
+                                    #(#v_field_build),*
                                 }
                             }
                         });
@@ -2999,10 +3397,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
-                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
-                    }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                        let _ = context;
+                            self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+                        fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            let _ = context;
                             mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             match self {
                                 #(#encode_variants)*
@@ -3014,20 +3412,50 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                        fn decode_dc_mixed(
-                            reader: &mut #crate_root::DcMixedReader<'_>,
-                            policy: &#crate_root::DcProjectionPolicy,
+                        fn decode_dc_node(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let _ = policy;
-                            reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
-                            let tag = match reader.peek_char()? {
-                                ::std::option::Option::Some(t) => t.0,
-                                ::std::option::Option::None => {
-                                    #anyhow_path::bail!(
-                                        "Unexpected EOF while reading variant for {}",
-                                        stringify!(#type_name)
-                                    );
+                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                            let node = ctx.node(unwrap_id)?;
+                            let children = match &node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, children, .. } => {
+                                    if opener.to_u128() != #begin_dc {
+                                        #anyhow_path::bail!(
+                                            "Expected opener {:#X} for enum {}, found {:#X}",
+                                            #begin_dc,
+                                            stringify!(#type_name),
+                                            opener.to_u128()
+                                        );
+                                    }
+                                    children
                                 }
+                                other => #anyhow_path::bail!(
+                                    "Expected Container for enum {}, found {other:?}",
+                                    stringify!(#type_name)
+                                ),
+                            };
+                            let variant_id = children.first().copied().ok_or_else(|| {
+                                #anyhow_path::anyhow!("Empty container for enum {}", stringify!(#type_name))
+                            })?;
+                            let variant_node = ctx.node(variant_id)?;
+                            let (tag, val_id) = match &variant_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                    // Reason for fallback: Tagged constructs without arguments fall back to variant_id as payload.
+                                    let arg_id = args.first().copied().unwrap_or(variant_id);
+                                    (tag.to_u128(), arg_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                    (opener.to_u128(), variant_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                    let ch_tag = ch.to_u128();
+                                    (ch_tag, children.get(1).copied().unwrap_or(variant_id))
+                                }
+                                other => #anyhow_path::bail!(
+                                    "Unexpected node {other:?} for variant in enum {}",
+                                    stringify!(#type_name)
+                                ),
                             };
                             let res = match tag {
                                 #(#decode_variants)*
@@ -3039,7 +3467,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     );
                                 }
                             };
-                            reader.expect_end_char(#crate_root::DcChar::from_u128(#end_dc))?;
                             Ok(res)
                         }
                     }
@@ -3052,10 +3479,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
-                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
-                    }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                        let _ = context;
+                            self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+                        fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            let _ = context;
                             match self {
                                 #(#encode_variants)*
                             }
@@ -3065,19 +3492,29 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
-                        fn decode_dc_mixed(
-                            reader: &mut #crate_root::DcMixedReader<'_>,
-                            policy: &#crate_root::DcProjectionPolicy,
+                        fn decode_dc_node(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<Self> {
-                            let _ = policy;
-                            let tag = match reader.peek_char()? {
-                                ::std::option::Option::Some(t) => t.0,
-                                ::std::option::Option::None => {
-                                    #anyhow_path::bail!(
-                                        "Unexpected EOF while reading variant for {}",
-                                        stringify!(#type_name)
-                                    );
+                            let unwrap_id = ctx.unwrap_transparent(node_id)?;
+                            let variant_node = ctx.node(unwrap_id)?;
+                            let children = variant_node.children();
+                            let (tag, val_id) = match &variant_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                    // Reason for fallback: Tagged constructs without arguments fall back to unwrap_id as payload.
+                                    let arg_id = args.first().copied().unwrap_or(unwrap_id);
+                                    (tag.to_u128(), arg_id)
                                 }
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                    (opener.to_u128(), unwrap_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                    (ch.to_u128(), unwrap_id)
+                                }
+                                other => #anyhow_path::bail!(
+                                    "Unexpected node {other:?} for enum {}",
+                                    stringify!(#type_name)
+                                ),
                             };
                             let res = match tag {
                                 #(#decode_variants)*

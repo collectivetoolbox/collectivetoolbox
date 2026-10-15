@@ -39,8 +39,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_CHECKSUMMED_SECTION, DC_BEGIN_FORMAT_REPRESENTATION,
-    DC_BEGIN_NUMBER, DC_END_ENCAPSULATION_BINARY, DC_END_NUMBER, DC_ESCAPE,
-    DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER, DC_START_ENCAPSULATION_BINARY,
     DC_BEGIN_NUMBER, DC_END_ENCAPSULATION_BINARY, DC_END_FORMAT_REPRESENTATION,
     DC_END_NUMBER, DC_EQUIVALENT_REPRESENTATIONS, DC_ESCAPE,
     DC_LIST_ELEMENT_SEPARATOR, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
@@ -58,7 +56,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     BinaryPayload, DCMM_HEADER_LEN, DCMM_MAGIC, DCMM_UUID, DcChar,
-    DcMixedDecode, DcMixedReader, DcMstr, DcMstring, DcStr, DcString, Integer,
+    DcMixedDecode, DcProjectionContext, DcMstr, DcMstring, DcStr, DcString, Integer,
     Natural, SharedValueContext,
 };
 
@@ -78,9 +76,6 @@ pub struct SyntaxEvalContext<'r> {
     pub max_depth: usize,
     /// Call stack for cycle detection.
     pub call_stack: Vec<String>,
-    /// When true, `RuleRef { target: CharTarget::Format(_) }` does not consume a trailing `Dc 512`
-    /// because the enclosing sequence explicitly expects `Dc 512`.
-    pub suppress_trailing_dc_512: bool,
     /// When true, matching a container via `RuleRef` recursively validates its interior children.
     pub validate_interiors: bool,
     /// Syntax diagnostics recorded during evaluation.
@@ -99,7 +94,6 @@ impl<'r> SyntaxEvalContext<'r> {
             depth: 0,
             max_depth: MAX_SYNTAX_EXPANSION_DEPTH,
             call_stack: Vec::new(),
-            suppress_trailing_dc_512: false,
             validate_interiors: false,
             diagnostics: Vec::new(),
             has_errors: false,
@@ -190,6 +184,12 @@ impl DcProjectionPolicy {
             && matches!(self.unknown_field, DiagnosticAction::Error)
             && matches!(self.malformed_field, DiagnosticAction::Error)
             && matches!(self.missing_required_field, DiagnosticAction::Error)
+    }
+
+    /// Returns true if any structural or projection anomaly is configured to recover/warn/ignore.
+    #[must_use]
+    pub const fn is_forgiving(&self) -> bool {
+        !self.is_strict()
     }
 
     /// Applies the configured [`DiagnosticAction`] for an anomaly message.
@@ -332,6 +332,41 @@ impl<T: DcForgivingDefault, const N: usize> DcForgivingDefault for [T; N] {
     }
 }
 
+impl<A: DcForgivingDefault, B: DcForgivingDefault> DcForgivingDefault for (A, B) {
+    fn dc_forgiving_default() -> Self {
+        (A::dc_forgiving_default(), B::dc_forgiving_default())
+    }
+}
+
+impl<A: DcForgivingDefault, B: DcForgivingDefault, C: DcForgivingDefault> DcForgivingDefault
+    for (A, B, C)
+{
+    fn dc_forgiving_default() -> Self {
+        (
+            A::dc_forgiving_default(),
+            B::dc_forgiving_default(),
+            C::dc_forgiving_default(),
+        )
+    }
+}
+
+impl<
+    A: DcForgivingDefault,
+    B: DcForgivingDefault,
+    C: DcForgivingDefault,
+    D: DcForgivingDefault,
+> DcForgivingDefault for (A, B, C, D) {
+    fn dc_forgiving_default() -> Self {
+        (
+            A::dc_forgiving_default(),
+            B::dc_forgiving_default(),
+            C::dc_forgiving_default(),
+            D::dc_forgiving_default(),
+        )
+    }
+}
+
+
 /// Byte span in a source buffer or on-disk file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DcByteSpan {
@@ -388,11 +423,20 @@ pub enum BinaryPayloadRef<'a> {
 }
 
 impl<'a> BinaryPayloadRef<'a> {
+    /// Returns a slice of resident bytes, or an empty slice if lazy/unmaterialized.
+    #[must_use]
+    pub fn as_slice(&self) -> &[u8] {
+        // Reason for fallback: Unmaterialized FileSpan payloads return an empty byte slice.
+        self.as_resident_bytes().unwrap_or(&[])
+    }
+
     /// Returns the payload byte length.
     #[must_use]
     pub fn len(&self) -> u64 {
         match self {
+            // Reason for fallback: In the theoretical event slice length exceeds u64, return 0.
             Self::Borrowed(slice) => u64::try_from(slice.len()).unwrap_or(0),
+            // Reason for fallback: In the theoretical event slice length exceeds u64, return 0.
             Self::Inline(bytes) => u64::try_from(bytes.len()).unwrap_or(0),
             Self::FileSpan { len, .. } => *len,
         }
@@ -437,6 +481,14 @@ impl<'a> BinaryPayloadRef<'a> {
                 Ok(Cow::Owned(buf))
             }
         }
+    }
+
+    /// Materializes in-memory bytes without requiring an on-disk reader.
+    ///
+    /// # Errors
+    /// Returns an error if the payload is an unmaterialized on-disk `FileSpan`.
+    pub fn materialize_bytes(&self) -> Result<Cow<'a, [u8]>> {
+        self.materialize(None::<&mut std::io::Cursor<&[u8]>>)
     }
 }
 
@@ -504,6 +556,18 @@ pub struct DcSyntaxNode<'a> {
     pub kind: DcSyntaxKind<'a>,
 }
 
+impl<'a> DcSyntaxNode<'a> {
+    /// Returns the child node IDs if this node is a container or tagged construct.
+    #[must_use]
+    pub fn children(&self) -> &[NodeId] {
+        match &self.kind {
+            DcSyntaxKind::Container { children, .. } => children,
+            DcSyntaxKind::Tagged { args, .. } => args,
+            _ => &[],
+        }
+    }
+}
+
 /// Flat, reusable arena holding parsed [`DcSyntaxNode`]s for a frame or document.
 ///
 /// Calling [`DcSyntaxArena::clear`] resets the arena between records while
@@ -552,6 +616,12 @@ impl<'a> DcSyntaxArena<'a> {
     #[must_use]
     pub fn get(&self, id: NodeId) -> Option<&DcSyntaxNode<'a>> {
         self.nodes.get(id.0)
+    }
+
+    /// Borrows a node by its [`NodeId`] (alias for [`Self::get`]).
+    #[must_use]
+    pub fn node(&self, id: NodeId) -> Option<&DcSyntaxNode<'a>> {
+        self.get(id)
     }
 
     /// Returns all nodes in the arena.
@@ -658,7 +728,9 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Creates a navigator over an in-memory [`DcMstr`].
     #[must_use]
     pub fn from_mstr(mstr: &'a DcMstr) -> Self {
+        // Reason for fallback: DCMM header length is a constant; fall back to 10 if conversion fails.
         let start = u64::try_from(DCMM_HEADER_LEN).unwrap_or(10);
+        // Reason for fallback: Fall back to start offset if mstr length exceeds u64.
         let end = u64::try_from(mstr.len()).unwrap_or(start);
         Self {
             backend: NavBackend::MemoryMstr(mstr),
@@ -671,6 +743,7 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Creates a navigator over an in-memory [`DcStr`].
     #[must_use]
     pub fn from_dc_str(text: &'a DcStr) -> Self {
+        // Reason for fallback: Fall back to 0 if text length exceeds u64.
         let end = u64::try_from(text.len()).unwrap_or(0);
         Self {
             backend: NavBackend::MemoryText(text),
@@ -678,6 +751,12 @@ impl<'a> DcDocumentNavigator<'a> {
             active_span: DcByteSpan::new(0, end),
             level_stack: Vec::new(),
         }
+    }
+
+    /// Returns the current stream byte offset.
+    #[must_use]
+    pub fn cursor(&self) -> u64 {
+        self.cursor
     }
 
     /// Creates a streaming and seeking navigator over an on-disk `.dcmm` file
@@ -765,7 +844,7 @@ impl<'a> DcDocumentNavigator<'a> {
         let inner = stub
             .inner_span
             .context("Cannot enter a non-container DcFrameStub")?;
-        self.level_stack.push((self.active_span, self.cursor));
+        self.level_stack.push((self.active_span, stub.outer_span.end));
         self.active_span = inner;
         self.cursor = inner.start;
         if let NavBackend::SeekableFile { reader, .. } = &mut self.backend {
@@ -777,13 +856,12 @@ impl<'a> DcDocumentNavigator<'a> {
     /// Exits the current container level and restores the enclosing level's bounds,
     /// positioning the cursor at the end of the exited container.
     pub fn exit_frame(&mut self) -> Result<()> {
-        let prev_end = self.active_span.end;
-        let (parent_span, _saved_cursor) = self
+        let (parent_span, saved_cursor) = self
             .level_stack
             .pop()
             .context("Already at root level of DcDocumentNavigator")?;
         self.active_span = parent_span;
-        let next_pos = prev_end.min(parent_span.end);
+        let next_pos = saved_cursor.min(parent_span.end);
         self.seek_to_offset(next_pos)
     }
 
@@ -821,7 +899,7 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     /// Reads a raw byte range from the underlying source and wraps it in a
-    /// validated [`DcMstring`] so a [`DcMixedReader`] can decode its contents.
+    /// validated [`DcMstring`].
     pub fn read_span_as_mstring(&mut self, span: DcByteSpan) -> Result<DcMstring> {
         let raw_bytes = self.read_span_bytes(span)?;
         let mut wrapped = Vec::with_capacity(DCMM_HEADER_LEN.saturating_add(raw_bytes.len()));
@@ -935,7 +1013,6 @@ impl<'a> DcDocumentNavigator<'a> {
         let dc_end_literal = DcChar::from_short(261);
         let dc_begin_ident = DcChar::from_short(270);
         let dc_end_ident = DcChar::from_short(271);
-        let dc_assign = DcChar::from_short(269);
 
         if first_dc == dc_begin_literal || first_dc == dc_begin_ident {
             let closer = if first_dc == dc_begin_literal {
@@ -944,23 +1021,6 @@ impl<'a> DcDocumentNavigator<'a> {
                 dc_end_ident
             };
             let end_offset = self.scan_escaped_text_frame(after_first, closer, policy)?;
-            // Check if this identifier is the LHS of an assignment (269)
-            if first_dc == dc_begin_ident && end_offset < self.active_span.end {
-                if let Ok(Some((next_dc, after_assign))) = self.read_token_or_binary_at(end_offset) {
-                    if next_dc == dc_assign {
-                        self.cursor = after_assign;
-                        let rhs_stub = self
-                            .next_sibling_stub(policy)?
-                            .context("Missing value on RHS of Dc 269 assignment")?;
-                        let assign_end = rhs_stub.outer_span.end;
-                        self.cursor = assign_end;
-                        return Ok(Some(DcFrameStub {
-                            head_dc: dc_assign,
-                            closer_dc: None,
-                            outer_span: DcByteSpan::new(start_offset, assign_end),
-                            inner_span: Some(DcByteSpan::new(after_assign, assign_end)),
-                            header_info: DcFrameHeaderInfo::None,
-                        }));
             if first_dc == dc_begin_ident {
                 if end_offset == after_first.saturating_add(dc_char_utf8e128_len(dc_end_ident)) {
                     policy.handle(
@@ -1023,7 +1083,6 @@ impl<'a> DcDocumentNavigator<'a> {
             }));
         }
 
-        let resolver = default_syntax_resolver();
         // Reject dangling closing delimiters
         if let Some(opener) = resolver.closing_opener_for(first_dc.to_u128()) {
             policy.handle(
@@ -1088,23 +1147,15 @@ impl<'a> DcDocumentNavigator<'a> {
                 }));
             }
 
-            // 5. Check if `first_dc` has a prefix syntax rule (`:~ <arg1> <arg2> ...`)
             // 5. Check if `first_dc` has a prefix syntax rule (`:~ ...`)
             if let Some(rule) = resolver.resolve_rule(&target) {
-                let arity = prefix_rule_fixed_arity(&rule.pattern);
-                if arity > 0 {
-                    self.cursor = after_first;
-                    let mut last_end = after_first;
-                    for _ in 0..arity {
-                        if let Some(arg_stub) = self.next_sibling_stub(policy)? {
-                            last_end = arg_stub.outer_span.end;
-                        } else {
-                            policy.handle(
-                                policy.syntax_error,
-                                format!("Truncated arguments after prefix tag {target}"),
-                            )?;
-                            break;
                 if rule.pattern.starts_with_self() {
+                    if after_first >= self.active_span.end {
+                        policy.handle(
+                            policy.syntax_error,
+                            format!("Prefix operator {first_dc:?} with missing arguments at offset {start_offset}"),
+                        )?;
+                    }
                     self.cursor = start_offset;
                     let mut ctx = SyntaxEvalContext::new(&**resolver, Some(first_dc.to_u128()));
                     let matched = self.eval_pattern(&rule.pattern, &mut ctx)?;
@@ -1123,23 +1174,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             header_info: DcFrameHeaderInfo::None,
                         }));
                     }
-                    self.cursor = last_end;
-                    policy.handle(
-                        policy.syntax_error,
-                        format!("Syntax rule mismatch for {target} at offset {start_offset}"),
-                    )?;
-                    let fallback_end = self.cursor.max(after_first);
-                    self.cursor = fallback_end;
-                    return Ok(Some(DcFrameStub {
-                        head_dc: first_dc,
-                        closer_dc: None,
-                        outer_span: DcByteSpan::new(start_offset, last_end),
-                        inner_span: Some(DcByteSpan::new(after_first, last_end)),
-                        outer_span: DcByteSpan::new(start_offset, fallback_end),
-                        inner_span: (fallback_end > after_first)
-                            .then(|| DcByteSpan::new(after_first, fallback_end)),
-                        header_info: DcFrameHeaderInfo::None,
-                    }));
+                    self.cursor = start_offset;
                 }
             }
 
@@ -1188,6 +1223,21 @@ impl<'a> DcDocumentNavigator<'a> {
     }
 
     /// Decodes a [`DcFrameStub`] into a typed Rust value `T` using the given
+    /// [`SharedValueContext`] and [`DcProjectionPolicy`], reusing the provided
+    /// [`DcSyntaxArena`].
+    pub fn decode_frame_with_arena<T: DcMixedDecode>(
+        &mut self,
+        stub: &DcFrameStub,
+        arena: &mut DcSyntaxArena<'a>,
+        context: Option<&SharedValueContext>,
+        policy: &DcProjectionPolicy,
+    ) -> Result<T> {
+        let root_id = self.expand_frame(stub, arena, policy)?;
+        let mut ctx = DcProjectionContext::with_shared_context(arena, policy, context);
+        T::decode_dc_node(&mut ctx, root_id)
+    }
+
+    /// Decodes a [`DcFrameStub`] into a typed Rust value `T` using the given
     /// [`SharedValueContext`] and [`DcProjectionPolicy`].
     pub fn decode_frame<T: DcMixedDecode>(
         &mut self,
@@ -1195,47 +1245,8 @@ impl<'a> DcDocumentNavigator<'a> {
         context: Option<&SharedValueContext>,
         policy: &DcProjectionPolicy,
     ) -> Result<T> {
-        let span = stub.outer_span;
-        match &mut self.backend {
-            NavBackend::MemoryMstr(mstr) => {
-                let mut reader = if let Some(ctx) = context {
-                    DcMixedReader::with_context(mstr, ctx)
-                } else {
-                    DcMixedReader::new(mstr)
-                };
-                reader.set_position_range(
-                    usize::try_from(span.start)?,
-                    usize::try_from(span.end)?,
-                )?;
-                T::decode_dc_mixed(&mut reader, policy)
-            }
-            NavBackend::MemoryText(text) => {
-                let range = span.to_usize_range()?;
-                let sub = text
-                    .get(range)
-                    .context("Frame stub range out of bounds in DcStr")?;
-                let mut reader = if let Some(ctx) = context {
-                    DcMixedReader::from_dc_str_with_context(sub, ctx)
-                } else {
-                    DcMixedReader::from_dc_str(sub)
-                };
-                T::decode_dc_mixed(&mut reader, policy)
-            }
-            NavBackend::SeekableFile { .. } => {
-                let raw_bytes = self.read_span_bytes(span)?;
-                let mut wrapped = Vec::with_capacity(DCMM_HEADER_LEN.saturating_add(raw_bytes.len()));
-                wrapped.extend_from_slice(&DCMM_MAGIC);
-                wrapped.extend_from_slice(&DCMM_UUID);
-                wrapped.extend_from_slice(&raw_bytes);
-                let mstr = DcMstr::from_bytes(&wrapped)?;
-                let mut reader = if let Some(ctx) = context {
-                    DcMixedReader::with_context(mstr, ctx)
-                } else {
-                    DcMixedReader::new(mstr)
-                };
-                T::decode_dc_mixed(&mut reader, policy)
-            }
-        }
+        let mut arena = DcSyntaxArena::new();
+        self.decode_frame_with_arena(stub, &mut arena, context, policy)
     }
 
     /// Expands a [`DcFrameStub`] into a full CST inside the reusable [`DcSyntaxArena`].
@@ -1279,6 +1290,38 @@ impl<'a> DcDocumentNavigator<'a> {
             bail!("Unexpected end of stream at offset {start}");
         };
         self.build_arena_node_from_stub(&stub, arena, policy)
+    }
+
+    /// Parses a single root node from `bytes` into `arena` using `policy`.
+    pub fn parse_arena(
+        bytes: &'a [u8],
+        arena: &mut DcSyntaxArena<'a>,
+        policy: &DcProjectionPolicy,
+    ) -> Result<NodeId> {
+        let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
+            let mstr = DcMstr::from_bytes(bytes)?;
+            Self::from_mstr(mstr)
+        } else {
+            let text = DcStr::from_bytes(bytes)?;
+            Self::from_dc_str(text)
+        };
+        nav.parse_node_into_arena(arena, policy)
+    }
+
+    /// Parses all document root nodes from `bytes` into `arena` using `policy`.
+    pub fn parse_document_arena(
+        bytes: &'a [u8],
+        arena: &mut DcSyntaxArena<'a>,
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        let mut nav = if bytes.starts_with(&DCMM_MAGIC) {
+            let mstr = DcMstr::from_bytes(bytes)?;
+            Self::from_mstr(mstr)
+        } else {
+            let text = DcStr::from_bytes(bytes)?;
+            Self::from_dc_str(text)
+        };
+        nav.parse_document_into_arena(arena, policy)
     }
 
     fn build_arena_node_from_stub(
@@ -1333,7 +1376,6 @@ impl<'a> DcDocumentNavigator<'a> {
         if let Some(closer) = stub.closer_dc {
             let unclosed = stub.is_unclosed();
             let mut children = Vec::new();
-            if stub.inner_span.is_some() {
             if stub.inner_span.is_some() && !is_opaque_text_container(head) {
                 self.enter_frame(stub)?;
                 while let Some(child_stub) = self.next_sibling_stub(policy)? {
@@ -1350,7 +1392,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     header: Vec::new(),
                     children,
                     trailing: Vec::new(),
-                    unclosed: false,
                     unclosed,
                 },
             ));
@@ -1474,7 +1515,6 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    fn scan_binary_at(&mut self, start_offset: u64) -> Result<(u64, DcFrameHeaderInfo)> {
     fn try_scan_raw_binary_at(
         &mut self,
         start_offset: u64,
@@ -1487,9 +1527,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     .get(start_usize..)
                     .context("Binary encapsulation start out of bounds")?;
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice: rem };
-                let chunk = chunks
-                    .next()
-                    .context("Empty binary encapsulation chunk")?;
                 let Some(chunk) = chunks.next() else {
                     return Ok(None);
                 };
@@ -1503,7 +1540,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     crate::DcMixedChunk::Binary { data, .. } => {
                         let data_len = u64::try_from(data.len())?;
                         let abs_data_start = end_offset.saturating_sub(data_len);
-                        Ok((
                         Ok(Some((
                             end_offset,
                             DcFrameHeaderInfo::Binary {
@@ -1511,7 +1547,6 @@ impl<'a> DcDocumentNavigator<'a> {
                                 payload_span: Some(DcByteSpan::new(abs_data_start, end_offset)),
                                 payload_len: data_len,
                             },
-                        ))
                         )))
                     }
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
@@ -1520,7 +1555,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         let data_type = crate::encapsulation::parse_metadata(metadata)?
                             .data_type
                             .map(DcStr::to_owned);
-                        Ok((
                         Ok(Some((
                             end_offset,
                             DcFrameHeaderInfo::Binary {
@@ -1528,29 +1562,17 @@ impl<'a> DcDocumentNavigator<'a> {
                                 payload_span: Some(DcByteSpan::new(abs_data_start, end_offset)),
                                 payload_len: data_len,
                             },
-                        ))
                         )))
-                    }
-                    crate::DcMixedChunk::Text(_) => {
-                        self.scan_textual_binary_at(start_offset)
                     }
                     crate::DcMixedChunk::Text(_) => Ok(None),
                 }
             }
-            NavBackend::MemoryText(_) => self.scan_textual_binary_at(start_offset),
             NavBackend::MemoryText(_) => Ok(None),
             NavBackend::SeekableFile {
                 reader,
                 base_offset,
                 ..
             } => {
-                // On-disk .dcmm binary encapsulation layout (matches dc_mixed.rs):
-                // 6 bytes: DC_203_BYTES (Dc 203)
-                // 1 byte: type_byte (0 = TYPE_BINARY, 2 = TYPE_BINARY_METADATA, 3 = TYPE_BINARY_SHA256)
-                // 16 bytes: u128 BE data_len
-                // If 2 (TYPE_BINARY_METADATA): u128 BE meta_len + meta_len bytes of DcUtf metadata
-                // If 3 (TYPE_BINARY_SHA256): 32 bytes SHA-256
-                // data_len bytes of raw payload (skipped via SeekFrom::Start!)
                 let after_dc203 = start_offset
                     .checked_add(u64::try_from(crate::dc_mixed::DC_203_BYTES.len())?)
                     .context("Binary encapsulation offset overflow")?;
@@ -1614,9 +1636,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     "Truncated .dcmm binary encapsulation at offset {start_offset} (needs {payload_end}, end is {})",
                     self.active_span.end
                 );
-                // Seek directly past the binary payload in O(1) without reading it into RAM!
                 reader.seek(SeekFrom::Start(payload_end))?;
-                Ok((
                 Ok(Some((
                     payload_end,
                     DcFrameHeaderInfo::Binary {
@@ -1624,7 +1644,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         payload_span: Some(DcByteSpan::new(payload_start, payload_end)),
                         payload_len: data_len,
                     },
-                ))
                 )))
             }
         }
@@ -1669,7 +1688,6 @@ impl<'a> DcDocumentNavigator<'a> {
     ) -> Result<u64> {
         let mut offset = after_opener;
         if closer == DcChar::from_short(261) {
-            // Scan required [262:]{1} type header first if present
             if let Some((ch, next_off)) = self.read_token_or_binary_at(offset)? {
                 if ch == DcChar::from_short(262) {
                     offset = self.scan_until_token(next_off, DcChar::from_short(263), policy)?;
@@ -1828,9 +1846,6 @@ impl<'a> DcDocumentNavigator<'a> {
                 if let Ok(Some((num_open, after_num_open))) = self.read_token_or_binary_at(after_tag) {
                     if num_open == DC_BEGIN_NUMBER {
                         if let Ok(num_end) = self.scan_until_token(after_num_open, DC_END_NUMBER, policy) {
-                            let (_, digits) = self.decode_number_span(DcByteSpan::new(after_tag, num_end))?;
-                            if let Ok(int_val) = decode_integer_from_digits(&digits) {
-                                sequence_id = u64::try_from(&int_val).ok();
                             if let Ok((_, digits)) = self.decode_number_span(DcByteSpan::new(after_tag, num_end)) {
                                 if let Ok(int_val) = decode_integer_from_digits(&digits) {
                                     sequence_id = u64::try_from(&int_val).ok();
@@ -1865,33 +1880,22 @@ impl<'a> DcDocumentNavigator<'a> {
             subtype: None,
             capture_var: None,
         };
-        if !self.eval_term_single(&checksum_term, &mut ctx)? {
+        let checksum_ok = self.eval_term_single(&checksum_term, &mut ctx)?;
+        if !checksum_ok {
             policy.handle(
                 policy.syntax_error,
                 format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
             )?;
-            return Ok((after_digest_tag, sequence_id, false));
         }
-        let (final_end, bin_header) = self.scan_binary_at(after_digest_tag)?;
+        let (final_end, bin_header) = match self.scan_binary_at(after_digest_tag) {
+            Ok(res) => res,
+            Err(_) => return Ok((after_digest_tag, sequence_id, false)),
+        };
         let expected_digest = match bin_header {
             DcFrameHeaderInfo::Binary {
                 payload_span: Some(pspan),
                 ..
             } => self.read_span_bytes(pspan)?.into_owned(),
-            _ => {
-                let node = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end))?;
-                match node {
-                    DcSyntaxKind::Binary {
-                        payload: BinaryPayloadRef::Borrowed(b),
-                        ..
-                    } => b.to_vec(),
-                    DcSyntaxKind::Binary {
-                        payload: BinaryPayloadRef::Inline(b),
-                        ..
-                    } => b,
-                    _ => Vec::new(),
-                }
-            }
             _ => match self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end)) {
                 Ok(DcSyntaxKind::Binary {
                     payload: BinaryPayloadRef::Borrowed(b),
@@ -1905,16 +1909,7 @@ impl<'a> DcDocumentNavigator<'a> {
             },
         };
         let actual_digest = self.sha256_of_span(body_span)?;
-        let valid = actual_digest.as_slice() == expected_digest.as_slice();
-        if !valid {
-            policy.handle(
-                policy.syntax_error,
-                format!(
-                    "Checksummed section (Dc 543..544) SHA-256 mismatch at span {:?}",
-                    body_span
-                ),
-            )?;
-        }
+        let valid = checksum_ok && actual_digest.as_slice() == expected_digest.as_slice();
         Ok((final_end, sequence_id, valid))
     }
 
@@ -1927,7 +1922,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     .get(range)
                     .context("Binary node span out of bounds")?;
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice };
-                match chunks.next().context("Empty binary span")? {
                 let Some(chunk) = chunks.next() else {
                     let sub = DcStr::from_bytes(slice)?;
                     let (header, data, _) = crate::encapsulation::parse_text(sub)?;
@@ -2179,7 +2173,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 Ok(false)
             }
             SyntaxPattern::Sequence(elements) => {
-                for (idx, elem) in elements.iter().enumerate() {
+                for elem in elements {
                     if self.cursor >= self.active_span.end {
                         if elem.quantifier.allows_zero() {
                             continue;
@@ -2187,15 +2181,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.cursor = start_pos;
                         return Ok(false);
                     }
-                    let next_is_512 = elements
-                        .get(idx.saturating_add(1))
-                        .is_some_and(|e| e.term == SyntaxTerm::CharRef(CharTarget::Dc(512)));
-                    let old_suppress = ctx.suppress_trailing_dc_512;
-                    if next_is_512 {
-                        ctx.suppress_trailing_dc_512 = true;
-                    }
                     let matched = self.eval_element(elem, ctx)?;
-                    ctx.suppress_trailing_dc_512 = old_suppress;
                     if !matched {
                         self.cursor = start_pos;
                         return Ok(false);
@@ -2385,6 +2371,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
                                 message: format!("Dangling escape Dc 255 at offset {start_offset}"),
+                                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                                 token_offset: usize::try_from(start_offset).unwrap_or(0),
                                 is_error: true,
                             });
@@ -2571,6 +2558,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Syntax expansion depth limit reached ({}) for named construct [{name}]",
                             ctx.max_depth
                         ),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(start_offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -2604,6 +2592,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             "Syntax expansion depth limit reached ({}) for rule {target}",
                             ctx.max_depth
                         ),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(start_offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -2632,15 +2621,6 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.self_dc = old_self;
 
                     if matched {
-                        if has_fmt_token && !ctx.suppress_trailing_dc_512 {
-                            if let Some((next_ch, after_512)) =
-                                self.read_token_or_binary_at(self.cursor)?
-                            {
-                                if next_ch == DC_END_FORMAT_REPRESENTATION {
-                                    self.cursor = after_512;
-                                }
-                            }
-                        }
                         let matched_end = self.cursor;
                         if ctx.validate_interiors {
                             if let Some(closer_u128) = ctx.resolver.closer_for_opener(target) {
@@ -2690,6 +2670,7 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: "Constrained representation expansion depth limit reached".to_owned(),
+                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                 token_offset: usize::try_from(after_wrapper_tag).unwrap_or(0),
                 is_error: true,
             });
@@ -2797,6 +2778,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Invalid data constraint: {err}"),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(start_offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -2879,6 +2861,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         ctx.has_errors = true;
                         ctx.diagnostics.push(SyntaxDiagnostic {
                             message: format!("Invalid constrained binary payload: {err}"),
+                            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                             token_offset: usize::try_from(start_offset).unwrap_or(0),
                             is_error: true,
                         });
@@ -2946,6 +2929,7 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: format!("Unclosed literal at offset {start_offset}: missing Dc 262..263"),
+                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                 token_offset: usize::try_from(start_offset).unwrap_or(0),
                 is_error: true,
             });
@@ -2955,6 +2939,7 @@ impl<'a> DcDocumentNavigator<'a> {
             ctx.has_errors = true;
             ctx.diagnostics.push(SyntaxDiagnostic {
                 message: format!("Literal at offset {start_offset} is missing Dc 262..263 type header"),
+                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                 token_offset: usize::try_from(start_offset).unwrap_or(0),
                 is_error: true,
             });
@@ -2984,6 +2969,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Dangling escape Dc 255 in literal at offset {offset}"),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -3000,6 +2986,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         ctx.has_errors = true;
                         ctx.diagnostics.push(SyntaxDiagnostic {
                             message: "String constraint expansion depth limit reached".to_owned(),
+                            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                             token_offset: usize::try_from(start_offset).unwrap_or(0),
                             is_error: true,
                         });
@@ -3012,6 +2999,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             ctx.has_errors = true;
                             ctx.diagnostics.push(SyntaxDiagnostic {
                                 message: format!("Invalid string constraint: {err}"),
+                                // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                                 token_offset: usize::try_from(start_offset).unwrap_or(0),
                                 is_error: true,
                             });
@@ -3052,6 +3040,7 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx.has_errors = true;
         ctx.diagnostics.push(SyntaxDiagnostic {
             message: format!("Unclosed literal frame starting at offset {start_offset}"),
+            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
             token_offset: usize::try_from(start_offset).unwrap_or(0),
             is_error: true,
         });
@@ -3074,6 +3063,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Dangling escape Dc 255 in identifier at offset {offset}"),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -3087,6 +3077,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     ctx.has_errors = true;
                     ctx.diagnostics.push(SyntaxDiagnostic {
                         message: format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
+                        // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
                         token_offset: usize::try_from(start_offset).unwrap_or(0),
                         is_error: true,
                     });
@@ -3103,6 +3094,7 @@ impl<'a> DcDocumentNavigator<'a> {
         ctx.has_errors = true;
         ctx.diagnostics.push(SyntaxDiagnostic {
             message: format!("Unclosed identifier frame starting at offset {start_offset}"),
+            // Reason for fallback: Offset defaults to 0 on 32-bit platforms if byte position exceeds usize::MAX.
             token_offset: usize::try_from(start_offset).unwrap_or(0),
             is_error: true,
         });
@@ -3352,7 +3344,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         if resolver.resolve_rule(&fmt_target).is_some() {
                             self.cursor = after_opener;
                             let mut fmt_ctx = SyntaxEvalContext::new(&**resolver, None);
-                            fmt_ctx.suppress_trailing_dc_512 = true;
                             fmt_ctx.validate_interiors = true;
                             fmt_ctx.depth = depth;
                             ensure!(
@@ -3450,6 +3441,7 @@ fn encapsulated_byte_length(stream: &[u128]) -> Result<usize> {
 fn dc_char_utf8e128_len(ch: DcChar) -> u64 {
     let mut buf = [0_u8; 32];
     let len = encode_utf_8e_128_buf(&mut buf, ch.to_u128());
+    // Reason for fallback: In the theoretical event usize to u64 conversion fails, default to standard utf8e128 maximum length.
     u64::try_from(len).unwrap_or(6)
 }
 
@@ -3465,26 +3457,6 @@ fn decode_integer_from_digits(digits: &[DcChar]) -> Result<Integer> {
     })
 }
 
-/// Computes the fixed argument count following `~` for a prefix syntax rule
-/// (e.g. `:~ [filepath]` -> 1, `:~ 376 [number] 377 [number]` -> 2 tagged args
-/// or 4 tokens if flat).
-pub(crate) fn prefix_rule_fixed_arity(pattern: &SyntaxPattern) -> usize {
-    match pattern {
-        SyntaxPattern::Sequence(elems) => {
-            let Some(first) = elems.first() else {
-                return 0;
-            };
-            if !matches!(first.term, SyntaxTerm::SelfChar) {
-                return 0;
-            }
-            // If all remaining elements are ExactOne and none are negated charsets (`[^...]`)
-            let tail = elems.get(1..).unwrap_or(&[]);
-            if tail.is_empty() {
-                return 0;
-            }
-            for el in tail {
-                if el.quantifier != Quantifier::ExactOne {
-                    return 0;
 /// Strictly validates a [`DcMstr`] buffer against all Document Character syntax
 /// rules, paired container delimiters, and constraints.
 pub fn validate_dc_mixed_strict(mstr: &DcMstr) -> Result<()> {
@@ -3540,7 +3512,7 @@ mod tests {
         let resolver = default_syntax_resolver();
         let s = dc_string_from_tokens(tokens);
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
-        let mut ctx = SyntaxEvalContext::new(resolver, self_dc);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, self_dc);
         let matched = nav.eval_pattern(pattern, &mut ctx)?;
         let complete =
             matched && !ctx.has_errors && nav.position() == nav.active_span().end;
@@ -3594,7 +3566,7 @@ mod tests {
             capture_var: None,
         };
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
-        let mut ctx = SyntaxEvalContext::new(resolver, None);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
         ensure!(
             !nav.eval_term_single(&invalid, &mut ctx)?,
             "Malformed string constraint was ignored"
@@ -3606,7 +3578,7 @@ mod tests {
 
         let rule = parse_dc_syntax("[string:[asciiprintable]{4}]")?;
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
-        let mut ctx = SyntaxEvalContext::new(resolver, None);
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
         ctx.max_depth = 0;
         ensure!(
             !nav.eval_pattern(&rule.pattern, &mut ctx)?,
@@ -3819,7 +3791,7 @@ mod tests {
         let s = dc_string_from_tokens(&stream);
         let prefix_s = dc_string_from_tokens(&prefix);
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
-        let mut ctx = SyntaxEvalContext::new(default_syntax_resolver(), None);
+        let mut ctx = SyntaxEvalContext::new(&**default_syntax_resolver(), None);
         assert!(nav.eval_pattern(&rule.pattern, &mut ctx)?);
         assert!(!ctx.has_errors);
         assert_eq!(nav.position(), u64::try_from(prefix_s.len())?);
@@ -3846,8 +3818,6 @@ mod tests {
                             .context("Missing WTF-8 format identifier")?,
                     );
                 }
-                if matches!(el.term, SyntaxTerm::CharSet { negated: true, .. }) {
-                    return 0;
                 stream.extend(digits.iter().map(|id| sdc(*id)));
                 stream.push(sdc(204));
                 for syntax in ["[data:bytes=4]", "[data:f84;bytes=4]"] {
@@ -3887,21 +3857,6 @@ mod tests {
                     }
                 }
             }
-            // Check for extent-style rules `:~ 376 [number] 377 [number]` where 376 and 377
-            // are themselves prefix tags of arity 1!
-            let resolver = default_syntax_resolver();
-            let mut step_count = 0usize;
-            let mut idx = 0usize;
-            while let Some(el) = tail.get(idx) {
-                step_count = step_count.saturating_add(1);
-                if let SyntaxTerm::CharRef(ref target) = el.term {
-                    if let Some(sub_rule) = resolver.resolve_rule(target) {
-                        let sub_arity = prefix_rule_fixed_arity(&sub_rule.pattern);
-                        if sub_arity > 0 {
-                            idx = idx.saturating_add(1).saturating_add(sub_arity);
-                            continue;
-                        }
-                    }
         }
         for syntax in [
             "[data:bytes=]",
@@ -3954,7 +3909,7 @@ mod tests {
             .context("Missing rectangle format identifier")?;
         let text = vec![sdc(260), sdc(262), sdc(264), sdc(263), 65, sdc(261)];
         let number = ctb_formats_dcdata::u128_to_dc_number_chars(1)
-            .iter()
+            .into_iter()
             .map(DcChar::to_u128)
             .collect::<Vec<_>>();
         for (tag, format, payload) in
@@ -3968,7 +3923,6 @@ mod tests {
                 if framed {
                     stream.push(sdc(511));
                 }
-                idx = idx.saturating_add(1);
                 stream.push(format);
                 stream.extend_from_slice(&payload);
                 if framed {
@@ -3981,21 +3935,12 @@ mod tests {
                 )?;
                 assert_eq!(ok, framed, "{stream:?}");
             }
-            step_count
             let mut bare = vec![sdc(tag)];
             bare.extend_from_slice(&payload);
             let (bare_ok, _) =
                 eval_tokens_complete(&bare, &rule.pattern, Some(sdc(tag)))?;
             assert!(!bare_ok);
         }
-        SyntaxPattern::Alternation(branches) => {
-            let first_arity = branches.first().map_or(0, prefix_rule_fixed_arity);
-            if first_arity > 0
-                && branches
-                    .iter()
-                    .all(|b| prefix_rule_fixed_arity(b) == first_arity)
-            {
-                first_arity
         Ok(())
     }
 
@@ -4051,10 +3996,11 @@ mod tests {
         let s = dc_string_from_tokens(&stream);
         let mut nav = DcDocumentNavigator::from_dc_str(&s);
         let mut arena = DcSyntaxArena::new();
-        let root_id =
-            nav.parse_document_into_arena(&mut arena, &DcProjectionPolicy::strict())?;
-        let root = arena.node(root_id).context("Missing root")?;
-        assert!(!root.children.is_empty());
+        nav.parse_document_into_arena(&mut arena, &DcProjectionPolicy::strict())?;
+        assert!(!arena.roots().is_empty());
+        let root_id = *arena.roots().first().context("Missing root")?;
+        let root = arena.node(root_id).context("Missing root node")?;
+        assert!(!root.children().is_empty());
 
         // 2. Mangled / broken document: unclosed literal followed by unparsed tokens
         let mangled = vec![sdc(260), sdc(262), sdc(264), sdc(263), 10, 20, 99, 100];
@@ -4062,12 +4008,11 @@ mod tests {
         let mangled_s = dc_string_from_tokens(&mangled);
         let mut mangled_nav = DcDocumentNavigator::from_dc_str(&mangled_s);
         let mut mangled_arena = DcSyntaxArena::new();
-        let mangled_root_id = mangled_nav.parse_document_into_arena(
+        mangled_nav.parse_document_into_arena(
             &mut mangled_arena,
             &DcProjectionPolicy::forgiving(),
         )?;
-        let mangled_root = mangled_arena.node(mangled_root_id).context("Missing root")?;
-        assert!(!mangled_root.children.is_empty());
+        assert!(!mangled_arena.nodes().is_empty());
         Ok(())
     }
 
@@ -4215,7 +4160,6 @@ mod tests {
                 map.extend_from_slice(&pair);
                 map.extend_from_slice(&pair);
             } else {
-                0
                 map.extend([107, sdc(312), 118, sdc(312), 107, sdc(312), 118]);
             }
             map.push(sdc(end));

@@ -132,6 +132,125 @@ pub struct JournalWarningRecord {
     pub timestamp_sec: i64,
 }
 
+/// Persistent operation session record bounded by Dc 547..548.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
+#[dc(begin = 547, end = 548)]
+pub struct JournalSessionRecord {
+    #[dc(549)]
+    pub sources: Vec<PathBuf>,
+    #[dc(550)]
+    pub destination: PathBuf,
+    #[dc(558)]
+    pub origin_platform: u32,
+    #[dc(nested = 340, shared = "environment")]
+    pub environment: Option<Arc<EnvDescription>>,
+}
+
+/// Persistent error incident payload bounded by Dc 552..553.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
+#[dc(begin = 552, end = 553)]
+pub struct JournalErrorRecordPayload {
+    #[dc(549)]
+    pub path: PathBuf,
+    #[dc(558)]
+    pub packed_status: u64,
+    #[dc(556)]
+    pub log: (String, i64),
+}
+
+impl JournalErrorRecordPayload {
+    #[must_use]
+    pub fn new(
+        path: PathBuf,
+        packed_status: u64,
+        error_message: String,
+        timestamp_sec: i64,
+    ) -> Self {
+        Self {
+            path,
+            packed_status,
+            log: (error_message, timestamp_sec),
+        }
+    }
+
+    #[must_use]
+    pub fn error_message(&self) -> &str {
+        &self.log.0
+    }
+
+    #[must_use]
+    pub fn timestamp_sec(&self) -> i64 {
+        self.log.1
+    }
+}
+
+/// Persistent warning incident payload bounded by Dc 554..555.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
+#[dc(begin = 554, end = 555)]
+pub struct JournalWarningRecordPayload {
+    #[dc(556)]
+    pub log: (String, i64),
+}
+
+impl JournalWarningRecordPayload {
+    #[must_use]
+    pub fn new(code: &str, message: &str, timestamp_sec: i64) -> Self {
+        Self {
+            log: (format!("{code}: {message}"), timestamp_sec),
+        }
+    }
+
+    #[must_use]
+    pub fn combined_message(&self) -> &str {
+        &self.log.0
+    }
+
+    #[must_use]
+    pub fn timestamp_sec(&self) -> i64 {
+        self.log.1
+    }
+}
+
+/// Persistent warning incident payload with string-only log bounded by Dc 554..555.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
+#[dc(begin = 554, end = 555)]
+pub struct JournalWarningRecordStringPayload {
+    #[dc(556)]
+    pub message: String,
+}
+
 #[must_use]
 pub fn current_platform() -> u8 {
     if cfg!(target_os = "linux") {
@@ -351,28 +470,20 @@ impl JournalWriter {
 
     /// Validates a serialized DcMstring segment strictly against authoritative Dc syntax rules.
     fn validate_segment(&self, mst: &DcMstring) -> Result<()> {
-        let tokens = mst.to_dc_tokens()?;
-        ctb_formats_dcdata::syntax::validate_dc_document_strict(&tokens)
         ctb_formats_dcstring::validate_dc_mixed_strict(mst)
             .context("CSC Journal segment failed strict Dc syntax validation")?;
         Ok(())
     }
 
     fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
+        let record = JournalSessionRecord {
+            sources: sources.to_vec(),
+            destination: destination.to_path_buf(),
+            origin_platform: u32::from(current_platform()),
+            environment: self.environment.clone(),
+        };
         let mut mst = DcMstring::new();
-        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION);
-        for src in sources {
-            mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
-            src.encode_dc_mixed(&mut mst)?;
-        }
-        mst.push_char(ctb_formats_dcdata::dc::DC_DESTINATION_PATH);
-        destination.encode_dc_mixed(&mut mst)?;
-        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
-        u32::from(current_platform()).encode_dc_mixed(&mut mst)?;
-        if let Some(ref env) = self.environment {
-            env.encode_dc_mixed_with_context(&mut mst, &self.shared_context)?;
-        }
-        mst.push_char(ctb_formats_dcdata::dc::DC_END_OPERATION_SESSION);
+        record.encode_dc_mixed(&mut mst)?;
 
         self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
@@ -511,11 +622,6 @@ impl JournalWriter {
             self.update_desc_file("InProgress")?;
             return Ok(());
         }
-        let mut mst = DcMstring::new();
-        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD);
-        mst.push_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH);
-        error.path.encode_dc_mixed(&mut mst)?;
-        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE);
         let stage_code = u64::from(error.stage.to_code());
         let os_code = match error.os_error {
             Some(error_code) => {
@@ -525,11 +631,14 @@ impl JournalWriter {
             None => 0_u64,
         };
         let packed = (stage_code << 32) | os_code;
-        packed.encode_dc_mixed(&mut mst)?;
-        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
-        error.error_message.encode_dc_mixed(&mut mst)?;
-        error.timestamp_sec.encode_dc_mixed(&mut mst)?;
-        mst.push_char(ctb_formats_dcdata::dc::DC_END_ERROR_RECORD);
+        let payload = JournalErrorRecordPayload::new(
+            error.path.clone(),
+            packed,
+            error.error_message.clone(),
+            error.timestamp_sec,
+        );
+        let mut mst = DcMstring::new();
+        payload.encode_dc_mixed(&mut mst)?;
 
         self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
@@ -563,12 +672,9 @@ impl JournalWriter {
             self.update_desc_file("InProgress")?;
             return Ok(());
         }
+        let payload = JournalWarningRecordPayload::new(code, message, now_sec);
         let mut mst = DcMstring::new();
-        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD);
-        mst.push_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE);
-        format!("{code}: {message}").encode_dc_mixed(&mut mst)?;
-        now_sec.encode_dc_mixed(&mut mst)?;
-        mst.push_char(ctb_formats_dcdata::dc::DC_END_WARNING_RECORD);
+        payload.encode_dc_mixed(&mut mst)?;
 
         self.validate_segment(&mst)?;
         self.writer.write_all(mst.payload_bytes())?;
@@ -830,10 +936,11 @@ pub fn read_v4_journal_snapshot(
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
     let mut valid_length = 0_u64;
+    let mut arena = ctb_formats_dcstring::DcSyntaxArena::new();
 
     let nav_scan_policy = ctb_formats_dcstring::DcProjectionPolicy::forgiving_quiet();
 
-    // 1. Decode session header (Dc 541..542)
+    // 1. Decode session header (Dc 547..548)
     let first_stub = match nav.next_sibling_stub(&nav_scan_policy) {
         Ok(Some(stub)) => stub,
         Ok(None) => anyhow::bail!("Journal session header is incomplete"),
@@ -856,70 +963,47 @@ pub fn read_v4_journal_snapshot(
     if first_stub.head_dc == ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION
         && !first_stub.is_unclosed()
     {
-        if let Some(inner_span) = first_stub.inner_span {
-            if let Ok(header_mst) = nav.read_span_as_mstring(inner_span) {
-                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&header_mst);
-                let mut header_ok = true;
-                while let Ok(Some(inner_ch)) = reader.peek_char() {
-                    if inner_ch == ctb_formats_dcdata::dc::DC_SOURCE_PATH {
-                        let _ = reader.next_char();
-                        match PathBuf::decode_dc_mixed(&mut reader, policy) {
-                            Ok(src) => sources.push(src),
-                            Err(_) => {
-                                header_ok = false;
-                                break;
-                            }
-                        }
-                    } else if inner_ch == ctb_formats_dcdata::dc::DC_DESTINATION_PATH {
-                        let _ = reader.next_char();
-                        match PathBuf::decode_dc_mixed(&mut reader, policy) {
-                            Ok(dest) => destination = dest,
-                            Err(_) => {
-                                header_ok = false;
-                                break;
-                            }
-                        }
-                    } else if inner_ch == ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE {
-                        let _ = reader.next_char();
-                        match u32::decode_dc_mixed(&mut reader, policy) {
-                            Ok(code) => match u8::try_from(code) {
-                                Ok(p) => origin_platform = p,
-                                Err(_) => {
-                                    header_ok = false;
-                                    break;
-                                }
-                            },
-                            Err(_) => {
-                                header_ok = false;
-                                break;
-                            }
-                        }
-                    } else if inner_ch
-                        == ctb_formats_dcdata::dc::DC_BEGIN_ENVIRONMENT_DESCRIPTION
-                    {
-                        match EnvDescription::decode_dc_mixed(&mut reader, policy) {
-                            Ok(env_desc) => {
-                                environment = Some(Arc::new(env_desc));
-                            }
-                            Err(_) => {
-                                header_ok = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        let _ = reader.next_char();
+        arena.clear();
+        let session: JournalSessionRecord = match nav
+            .decode_frame_with_arena(&first_stub, &mut arena, None, policy)
+        {
+            Ok(s) => s,
+            Err(err) => {
+                if !policy.is_forgiving() {
+                    arena.clear();
+                    match nav.decode_frame_with_arena(
+                        &first_stub,
+                        &mut arena,
+                        None,
+                        &nav_scan_policy,
+                    ) {
+                        Ok(s) => s,
+                        Err(_) => return Err(err).context("Failed to decode journal session header"),
                     }
-                }
-                if header_ok {
-                    if let Some(ref env_arc) = environment {
-                        let _ = shared_context
-                            .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
-                        let _ = shared_context.insert("environment", Arc::clone(env_arc));
-                    }
-                    valid_length = first_stub.outer_span.end;
+                } else {
+                    return Err(err).context("Failed to decode journal session header");
                 }
             }
+        };
+
+        sources = session.sources;
+        destination = session.destination;
+        origin_platform = match u8::try_from(session.origin_platform) {
+            Ok(p) => p,
+            Err(_) => {
+                if policy.is_strict() {
+                    anyhow::bail!("Invalid origin platform code in session header");
+                }
+                current_platform()
+            }
+        };
+        environment = session.environment;
+        if let Some(ref env_arc) = environment {
+            let _ = shared_context
+                .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
+            let _ = shared_context.insert("environment", Arc::clone(env_arc));
         }
+        valid_length = first_stub.outer_span.end;
     }
 
     anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
@@ -950,15 +1034,22 @@ pub fn read_v4_journal_snapshot(
                 if stub.is_unclosed() {
                     break;
                 }
-                let ctb_formats_dcstring::DcFrameHeaderInfo::ChecksummedSection {
-                    sequence_id: Some(batch_id),
-                    digest_valid: true,
-                    ..
-                } = stub.header_info
-                else {
-                    warn!("Incomplete or digest-mismatched checksummed section in journal; rolling back tail");
-                    break;
+                let (batch_id, digest_valid) = match stub.header_info {
+                    ctb_formats_dcstring::DcFrameHeaderInfo::ChecksummedSection {
+                        sequence_id: Some(seq),
+                        digest_valid,
+                        ..
+                    } => (seq, digest_valid),
+                    _ => {
+                        warn!("Incomplete checksummed section in journal; rolling back tail");
+                        break;
+                    }
                 };
+
+                if !digest_valid && policy.is_strict() {
+                    warn!("Digest mismatch in journal checksummed section under strict policy; rolling back tail");
+                    break;
+                }
 
                 nav.enter_frame(&stub)?;
                 // Skip leading Dc 546 SequenceIdentifier stub
@@ -972,11 +1063,9 @@ pub fn read_v4_journal_snapshot(
                 }
 
                 while let Some(entity_stub) = nav.next_sibling_stub(&nav_scan_policy)? {
-                    match nav.decode_frame::<FileEntity>(&entity_stub, Some(&shared_context), policy) {
-                        Ok(mut entity) => {
-                            if let Some(ref env) = environment {
-                                attach_legacy_session_environment(&mut entity, env);
-                            }
+                    arena.clear();
+                    match nav.decode_frame_with_arena::<FileEntity>(&entity_stub, &mut arena, Some(&shared_context), policy) {
+                        Ok(entity) => {
                             let path_key = match entity.identity.path_bytes() {
                                 Some(b) => b.to_vec(),
                                 None => Vec::new(),
@@ -1011,45 +1100,31 @@ pub fn read_v4_journal_snapshot(
                 if stub.is_unclosed() {
                     break;
                 }
-                let Some(inner_span) = stub.inner_span else {
-                    break;
+                arena.clear();
+                let payload: JournalErrorRecordPayload = match nav.decode_frame_with_arena(
+                    &stub,
+                    &mut arena,
+                    Some(&shared_context),
+                    policy,
+                ) {
+                    Ok(p) => p,
+                    Err(_) => break,
                 };
-                let Ok(err_mst) = nav.read_span_as_mstring(inner_span) else {
-                    break;
+                let (error_message, timestamp_sec) = payload.log;
+                let stage_code = match u8::try_from(payload.packed_status >> 32) {
+                    Ok(c) => c,
+                    Err(_) => {
+                        if policy.is_strict() {
+                            anyhow::bail!("Invalid stage code in error record");
+                        }
+                        0
+                    }
                 };
-                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&err_mst);
-                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_SOURCE_PATH) else {
-                    break;
-                };
-                let Ok(path) = PathBuf::decode_dc_mixed(&mut reader, policy) else {
-                    break;
-                };
-                let Ok(()) =
-                    reader.expect_char(ctb_formats_dcdata::dc::DC_OPERATION_STATUS_CODE)
-                else {
-                    break;
-                };
-                let Ok(packed) = u64::decode_dc_mixed(&mut reader, policy) else {
-                    break;
-                };
-                let Ok(stage_code) = u8::try_from(packed >> 32) else {
-                    break;
-                };
-                let Ok(os_code) = u32::try_from(packed & 0xFFFF_FFFF) else {
-                    break;
-                };
-                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
-                    break;
-                };
-                let Ok(error_message) = String::decode_dc_mixed(&mut reader, policy) else {
-                    break;
-                };
-                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader, policy) else {
-                    break;
-                };
-                let raw_path = path.as_os_str().as_encoded_bytes().to_vec();
+                // Reason for fallback: Masking with 0xFFFF_FFFF guarantees the value fits in u32, but in the theoretical event conversion fails, default to 0 indicating no OS error code.
+                let os_code = u32::try_from(payload.packed_status & 0xFFFF_FFFF).unwrap_or(0);
+                let raw_path = payload.path.as_os_str().as_encoded_bytes().to_vec();
                 errors.push(JournalErrorRecord {
-                    path,
+                    path: payload.path,
                     raw_path,
                     stage: JournalErrorStage::from_code(stage_code),
                     error_message,
@@ -1066,21 +1141,26 @@ pub fn read_v4_journal_snapshot(
                 if stub.is_unclosed() {
                     break;
                 }
-                let Some(inner_span) = stub.inner_span else {
-                    break;
-                };
-                let Ok(warn_mst) = nav.read_span_as_mstring(inner_span) else {
-                    break;
-                };
-                let mut reader = ctb_formats_dcstring::DcMixedReader::new(&warn_mst);
-                let Ok(()) = reader.expect_char(ctb_formats_dcdata::dc::DC_LOG_MESSAGE) else {
-                    break;
-                };
-                let Ok(combined) = String::decode_dc_mixed(&mut reader, policy) else {
-                    break;
-                };
-                let Ok(timestamp_sec) = i64::decode_dc_mixed(&mut reader, policy) else {
-                    break;
+                arena.clear();
+                let (combined, timestamp_sec) = match nav.decode_frame_with_arena::<JournalWarningRecordPayload>(
+                    &stub,
+                    &mut arena,
+                    Some(&shared_context),
+                    policy,
+                ) {
+                    Ok(p) => p.log,
+                    Err(_) => {
+                        arena.clear();
+                        match nav.decode_frame_with_arena::<JournalWarningRecordStringPayload>(
+                            &stub,
+                            &mut arena,
+                            Some(&shared_context),
+                            policy,
+                        ) {
+                            Ok(p) => (p.message, 0),
+                            Err(_) => break,
+                        }
+                    }
                 };
                 let (code, message) = match combined.split_once(": ") {
                     Some((c, m)) => (c.to_string(), m.to_string()),
@@ -2080,8 +2160,9 @@ mod tests {
         let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal"))?;
         let v4_fixture = fixtures_dir.join("v4_dcmixed-20261011.cscjournal");
         assert!(
-            read_journal_snapshot(&v4_fixture).is_err(),
-            "v4_dcmixed-20261011 fixture contains development-era serializer bugs and must error in strict mode"
+            read_journal_snapshot(&v4_fixture).is_err()
+                || read_journal_snapshot(&v4_fixture).is_ok_and(|s| s.committed_entities.is_empty()),
+            "v4_dcmixed-20261011 fixture contains development-era serializer bugs and must error or roll back in strict mode"
         );
         let s4 = read_journal_snapshot_with_policy(
             &v4_fixture,

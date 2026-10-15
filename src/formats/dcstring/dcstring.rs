@@ -55,7 +55,7 @@ pub use dc_mixed::{
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{
-    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedNumber, DcMixedReader,
+    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedNumber, DcProjectionContext,
     LosslessWithContext, assert_dc_document_roundtrip, assert_dc_roundtrip,
 };
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
@@ -67,7 +67,6 @@ pub use navigator::{
     BinaryPayloadRef, DcByteSpan, DcDocumentNavigator, DcForgivingDefault,
     DcFrameHeaderInfo, DcFrameStub, DcProjectionPolicy, DcSyntaxArena,
     DcSyntaxKind, DcSyntaxNode, DiagnosticAction, INLINE_BINARY_THRESHOLD,
-    NodeId,
     MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
     validate_dc_mixed_strict, validate_dc_str_strict,
     validate_dc_tokens_strict,

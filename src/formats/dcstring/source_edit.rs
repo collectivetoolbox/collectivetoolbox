@@ -26,428 +26,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::{DcChar, DcMixedReader, DcMstring};
-use ctb_formats_dcdata::syntax::{
-    CharTarget, SyntaxRuleResolver, default_syntax_resolver,
+use crate::navigator::{
+    DcByteSpan, DcDocumentNavigator, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode, NodeId,
 };
-
-#[derive(Debug)]
-struct Node {
-    token: DcChar,
-    bytes: Vec<u8>,
-    frame: Option<Frame>,
-    binary: Option<Vec<u8>>,
-}
-
-#[derive(Debug)]
-struct Frame {
-    opening: Vec<u8>,
-    closing: Vec<u8>,
-    children: Vec<Node>,
-}
-
-impl Node {
-    fn is_map(&self) -> bool {
-        matches!(self.token.to_short_dc(), Some(313 | 559))
-            && self.frame.is_some()
-    }
-
-    fn identity(&self) -> DcChar {
-        if self.is_map() {
-            DcChar::from_short(559)
-        } else {
-            self.token
-        }
-    }
-
-    fn contains_map(&self) -> bool {
-        self.is_map()
-            || self.frame.as_ref().is_some_and(|frame| {
-                frame.children.iter().any(Self::contains_map)
-            })
-    }
-
-    fn semantic_bytes(&self) -> Result<Vec<u8>> {
-        let mut target = Vec::new();
-        self.write_semantic(&mut target)?;
-        Ok(target)
-    }
-
-    fn write_semantic(&self, target: &mut Vec<u8>) -> Result<()> {
-        if self.is_map() {
-            append_dc(target, 559);
-            let (header, entries) = map_entries(self)?;
-            for node in header {
-                node.write_semantic(target)?;
-            }
-            for (key, value) in entries {
-                append_dc(target, 514);
-                for node in key {
-                    node.write_semantic(target)?;
-                }
-                append_dc(target, 312);
-                for node in value {
-                    node.write_semantic(target)?;
-                }
-                append_dc(target, 515);
-            }
-            append_dc(target, 560);
-        } else if let Some(payload) = &self.binary {
-            let mut canonical = DcMstring::new();
-            canonical.push_binary(payload);
-            target.extend_from_slice(canonical.to_dc_string()?.as_bytes());
-        } else if let Some(frame) = &self.frame {
-            target.extend_from_slice(&frame.opening);
-            for node in &frame.children {
-                node.write_semantic(target)?;
-            }
-            target.extend_from_slice(&frame.closing);
-        } else {
-            target.extend_from_slice(&self.bytes);
-        }
-        Ok(())
-    }
-}
+use crate::{DcChar, DcMstring};
+use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
 fn append_dc(target: &mut Vec<u8>, short: u32) {
     let mut character = crate::DcString::new();
     character.push(DcChar::from_short(short));
     target.extend_from_slice(character.as_bytes());
-}
-
-fn source_bytes(source: &[u8], start: usize, end: usize) -> Result<Vec<u8>> {
-    Ok(source
-        .get(start..end)
-        .context("Invalid source node range")?
-        .to_vec())
-}
-
-fn read_nodes(
-    source: &[u8],
-    reader: &mut DcMixedReader<'_>,
-    closer: Option<DcChar>,
-    depth: usize,
-) -> Result<(Vec<Node>, Vec<u8>)> {
-    ensure!(depth < 256, "Source edit nesting exceeds 256 frames");
-    let mut nodes = Vec::new();
-    while let Some(token) = reader.peek_char()? {
-        let start = reader.position();
-        if Some(token) == closer {
-            reader.next_char()?;
-            return Ok((
-                nodes,
-                source_bytes(source, start, reader.position())?,
-            ));
-        }
-        let short = token.to_short_dc();
-        if short == Some(203) {
-            let binary = Some(reader.read_binary_payload()?.into_owned());
-            nodes.push(Node {
-                token,
-                bytes: source_bytes(source, start, reader.position())?,
-                frame: None,
-                binary,
-            });
-            continue;
-        }
-        reader.next_char()?;
-        if short == Some(255) {
-            reader
-                .next_char()
-                .context("Dangling escape in typed source fragment")?;
-            nodes.push(Node {
-                token,
-                bytes: source_bytes(source, start, reader.position())?,
-                frame: None,
-                binary: None,
-            });
-            continue;
-        }
-        if matches!(short, Some(260 | 270)) {
-            let end = if short == Some(260) { 261 } else { 271 };
-            loop {
-                let payload = reader
-                    .next_char()
-                    .context("Unclosed quoted source fragment")?;
-                if payload.to_short_dc() == Some(255) {
-                    reader.next_char().context("Dangling quoted escape")?;
-                } else if payload.to_short_dc() == Some(end) {
-                    break;
-                }
-            }
-            nodes.push(Node {
-                token,
-                bytes: source_bytes(source, start, reader.position())?,
-                frame: None,
-                binary: None,
-            });
-            continue;
-        }
-        let resolver = default_syntax_resolver();
-        let end = CharTarget::from_u128(token.0)
-            .and_then(|target| resolver.closer_for_opener(&target))
-            .map(DcChar::from_u128);
-        let frame = if let Some(end) = end {
-            let opening = source_bytes(source, start, reader.position())?;
-            let (children, closing) =
-                read_nodes(source, reader, Some(end), depth.saturating_add(1))?;
-            Some(Frame {
-                opening,
-                closing,
-                children,
-            })
-        } else {
-            ensure!(
-                resolver.closing_opener_for(token.0).is_none(),
-                "Unexpected closing delimiter in typed source fragment: {token:?}"
-            );
-            None
-        };
-        nodes.push(Node {
-            token,
-            bytes: source_bytes(source, start, reader.position())?,
-            frame,
-            binary: None,
-        });
-    }
-    ensure!(closer.is_none(), "Unclosed frame in typed source fragment");
-    Ok((nodes, Vec::new()))
-}
-
-type Entry<'a> = (&'a [Node], &'a [Node]);
-
-fn split_operands(nodes: &[Node]) -> Vec<&[Node]> {
-    nodes
-        .split(|node| {
-            node.frame.is_none() && node.token.to_short_dc() == Some(312)
-        })
-        .collect()
-}
-
-fn map_entries(node: &Node) -> Result<(&[Node], Vec<Entry<'_>>)> {
-    let frame = node.frame.as_ref().context("Missing map frame")?;
-    let header = frame
-        .children
-        .get(..2)
-        .context("Missing map type declarations")?;
-    ensure!(
-        header
-            .iter()
-            .all(|node| node.token.to_short_dc() == Some(275)
-                && node.frame.is_none()),
-        "Source-backed typed map editing requires uncounted Object/Object headers"
-    );
-    let body = frame.children.get(2..).context("Missing map body")?;
-    let mut entries = Vec::new();
-    if node.token.to_short_dc() == Some(313) {
-        if !body.is_empty() {
-            let operands = split_operands(body);
-            for pair in operands.chunks(2) {
-                let [key, value] = pair else {
-                    bail!("Unpaired legacy map operand");
-                };
-                ensure!(
-                    !key.is_empty() && !value.is_empty(),
-                    "Empty legacy map operand"
-                );
-                entries.push((*key, *value));
-            }
-        }
-    } else {
-        for pair in body {
-            ensure!(
-                pair.token.to_short_dc() == Some(514),
-                "Expected explicitly framed map entry"
-            );
-            let children =
-                &pair.frame.as_ref().context("Unclosed map entry")?.children;
-            let operands = split_operands(children);
-            let [key, value] = operands.as_slice() else {
-                bail!("Expected two pair operands");
-            };
-            ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
-            entries.push((*key, *value));
-        }
-    }
-    Ok((header, entries))
-}
-
-fn semantic_sequence(nodes: &[Node]) -> Result<Vec<u8>> {
-    let mut target = Vec::new();
-    for node in nodes {
-        node.write_semantic(&mut target)?;
-    }
-    Ok(target)
-}
-
-fn write_sequence(
-    old: &[Node],
-    new: &[Node],
-    target: &mut Vec<u8>,
-) -> Result<()> {
-    if semantic_sequence(old)? == semantic_sequence(new)? {
-        for node in old {
-            target.extend_from_slice(&node.bytes);
-        }
-        return Ok(());
-    }
-    let mut used = vec![false; old.len()];
-    let old_semantics: Vec<Vec<u8>> = old
-        .iter()
-        .map(Node::semantic_bytes)
-        .collect::<Result<_>>()?;
-    for node in new {
-        let semantic = node.semantic_bytes()?;
-        let exact = old.iter().enumerate().find(|(index, original)| {
-            used.get(*index) == Some(&false)
-                && original.identity() == node.identity()
-                && old_semantics.get(*index) == Some(&semantic)
-        });
-        let matched = if exact.is_some() {
-            exact
-        } else {
-            let old_count = old
-                .iter()
-                .filter(|original| {
-                    original.identity() == node.identity()
-                        && original.frame.is_some()
-                })
-                .count();
-            let new_count = new
-                .iter()
-                .filter(|replacement| {
-                    replacement.identity() == node.identity()
-                        && replacement.frame.is_some()
-                })
-                .count();
-            ensure!(
-                node.frame.is_none()
-                    || old_count == 0
-                    || old_count == new_count,
-                "Ambiguous source frame correspondence; edit the nested field or an explicit source range"
-            );
-            let candidates: Vec<_> = old
-                .iter()
-                .enumerate()
-                .filter(|(index, original)| {
-                    used.get(*index) == Some(&false)
-                        && original.identity() == node.identity()
-                        && original.frame.is_some() == node.frame.is_some()
-                })
-                .collect();
-            ensure!(
-                candidates.len() <= 1
-                    || !candidates.iter().any(|(_, original)| original.contains_map()),
-                "Ambiguous nested map correspondence; edit the nested field or an explicit source range"
-            );
-            old.iter().enumerate().find(|(index, original)| {
-                used.get(*index) == Some(&false)
-                    && original.identity() == node.identity()
-                    && original.frame.is_some() == node.frame.is_some()
-            })
-        };
-        if let Some((index, original)) = matched {
-            *used.get_mut(index).context("Invalid source match index")? = true;
-            write_node(original, node, target)?;
-        } else {
-            target.extend_from_slice(&node.bytes);
-        }
-    }
-    Ok(())
-}
-
-fn write_node(old: &Node, new: &Node, target: &mut Vec<u8>) -> Result<()> {
-    if old.semantic_bytes()? == new.semantic_bytes()? {
-        target.extend_from_slice(&old.bytes);
-        return Ok(());
-    }
-    if old.is_map() && new.is_map() {
-        let (header, old_entries) = map_entries(old)?;
-        let (_, new_entries) = map_entries(new)?;
-        let old_keys: Vec<Vec<u8>> = old_entries
-            .iter()
-            .map(|(key, _)| semantic_sequence(key))
-            .collect::<Result<_>>()?;
-        let new_keys: Vec<Vec<u8>> = new_entries
-            .iter()
-            .map(|(key, _)| semantic_sequence(key))
-            .collect::<Result<_>>()?;
-        let mut unique = std::collections::HashSet::new();
-        ensure!(
-            old_keys.iter().all(|key| unique.insert(key)),
-            "Ambiguous duplicate source map key"
-        );
-        unique.clear();
-        ensure!(
-            new_keys.iter().all(|key| unique.insert(key)),
-            "Ambiguous duplicate replacement map key"
-        );
-        let encoding = if old.token.to_short_dc() == Some(313) {
-            crate::DcKvMapEncoding::Legacy
-        } else {
-            crate::DcKvMapEncoding::Pairs
-        };
-        let frame = old.frame.as_ref().context("Missing source map frame")?;
-        target.extend_from_slice(&frame.opening);
-        for node in header {
-            target.extend_from_slice(&node.bytes);
-        }
-        let mut first = true;
-        let mut written = vec![false; new_entries.len()];
-        for ((key, value), identity) in old_entries.iter().zip(&old_keys) {
-            if let Some(index) =
-                new_keys.iter().position(|candidate| candidate == identity)
-            {
-                let (new_key, new_value) = new_entries
-                    .get(index)
-                    .context("Missing replacement entry")?;
-                append_entry_begin(target, encoding, first);
-                first = false;
-                write_sequence(key, new_key, target)?;
-                append_dc(target, 312);
-                write_sequence(value, new_value, target)?;
-                append_entry_end(target, encoding);
-                *written
-                    .get_mut(index)
-                    .context("Invalid replacement entry index")? = true;
-            }
-        }
-        for ((key, value), written) in new_entries.iter().zip(written) {
-            if !written {
-                append_entry_begin(target, encoding, first);
-                first = false;
-                write_sequence(&[], key, target)?;
-                append_dc(target, 312);
-                write_sequence(&[], value, target)?;
-                append_entry_end(target, encoding);
-            }
-        }
-        target.extend_from_slice(&frame.closing);
-    } else if let (Some(original), Some(replacement)) = (&old.frame, &new.frame)
-    {
-        target.extend_from_slice(&original.opening);
-        write_sequence(&original.children, &replacement.children, target)?;
-        target.extend_from_slice(&original.closing);
-    } else {
-        target.extend_from_slice(&new.bytes);
-    }
-    Ok(())
-}
-
-pub(crate) fn preserve_source(
-    old: &DcMstring,
-    new: &DcMstring,
-) -> Result<DcMstring> {
-    if old == new {
-        return Ok(old.clone());
-    }
-    let (original, _) =
-        read_nodes(old.as_bytes(), &mut DcMixedReader::new(old), None, 0)?;
-    let (replacement, _) =
-        read_nodes(new.as_bytes(), &mut DcMixedReader::new(new), None, 0)?;
-    let mut result = DcMstring::new().into_bytes();
-    write_sequence(&original, &replacement, &mut result)?;
-    Ok(DcMstring::from_bytes(result)?)
 }
 
 fn append_entry_begin(
@@ -466,24 +54,451 @@ fn append_entry_end(target: &mut Vec<u8>, encoding: crate::DcKvMapEncoding) {
     target.extend_from_slice(boundary.payload_bytes());
 }
 
+fn dc_char_len(ch: &DcChar) -> usize {
+    let mut buf = [0_u8; 32];
+    encode_utf_8e_128_buf(&mut buf, ch.to_u128())
+}
+
+struct SourceView<'a> {
+    source: &'a [u8],
+    arena: &'a DcSyntaxArena<'a>,
+}
+
+type NodeEntry = (Vec<NodeId>, Vec<NodeId>);
+
+impl<'a> SourceView<'a> {
+    fn node(&self, id: NodeId) -> Result<&'a DcSyntaxNode<'a>> {
+        self.arena.get(id).context("NodeId must exist in arena")
+    }
+
+    fn span_bytes(&self, span: DcByteSpan) -> Result<&'a [u8]> {
+        let start = usize::try_from(span.start)?;
+        let end = usize::try_from(span.end)?;
+        self.source.get(start..end).context("Invalid span range")
+    }
+
+    fn bytes(&self, id: NodeId) -> Result<&'a [u8]> {
+        self.span_bytes(self.node(id)?.span)
+    }
+
+    fn is_map(&self, id: NodeId) -> bool {
+        self.node(id).is_ok_and(|n| match &n.kind {
+            DcSyntaxKind::Container { opener, .. } => {
+                matches!(opener.to_short_dc(), Some(313 | 559))
+            }
+            _ => false,
+        })
+    }
+
+    fn identity(&self, id: NodeId) -> DcChar {
+        if self.is_map(id) {
+            DcChar::from_short(559)
+        } else if let Ok(n) = self.node(id) {
+            match &n.kind {
+                DcSyntaxKind::Container { opener, .. } => *opener,
+                DcSyntaxKind::Tagged { tag, .. } => *tag,
+                DcSyntaxKind::Assignment { .. } => DcChar::from_short(269),
+                DcSyntaxKind::Literal { .. } => DcChar::from_short(260),
+                DcSyntaxKind::Identifier { .. } => DcChar::from_short(270),
+                DcSyntaxKind::Number { .. } => crate::dc_number::DC_BEGIN_NUMBER,
+                DcSyntaxKind::Binary { .. } => ctb_formats_dcdata::dc::DC_START_ENCAPSULATION_BINARY,
+                DcSyntaxKind::Atom(ch) => *ch,
+                DcSyntaxKind::Malformed { raw_tokens, .. } => {
+                    // Reason for fallback: Empty malformed tokens fall back to null Dc 0 for node identity comparison.
+                    raw_tokens.first().copied().unwrap_or(DcChar::from_short(0))
+                }
+            }
+        } else {
+            DcChar::from_short(0)
+        }
+    }
+
+    fn is_frame(&self, id: NodeId) -> bool {
+        self.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Container { .. }))
+    }
+
+    fn contains_map(&self, id: NodeId) -> bool {
+        if self.is_map(id) {
+            return true;
+        }
+        if let Ok(n) = self.node(id)
+            && let DcSyntaxKind::Container { children, .. } = &n.kind
+        {
+            children.iter().any(|&child| self.contains_map(child))
+        } else {
+            false
+        }
+    }
+
+    fn extract_map_entries(&self, id: NodeId) -> Result<(Vec<NodeId>, Vec<NodeEntry>)> {
+        let node = self.node(id)?;
+        let DcSyntaxKind::Container { opener, children, .. } = &node.kind else {
+            bail!("Missing map frame");
+        };
+        let header = children.get(..2).context("Missing map type declarations")?;
+        ensure!(
+            header.iter().all(|&child| {
+                if let Ok(cn) = self.node(child) {
+                    matches!(cn.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(275))
+                } else {
+                    false
+                }
+            }),
+            "Source-backed typed map editing requires uncounted Object/Object headers"
+        );
+        let body = children.get(2..).context("Missing map body")?;
+        let mut entries = Vec::new();
+        if opener.to_short_dc() == Some(313) {
+            if !body.is_empty() {
+                let operands = self.split_operands(body);
+                for pair in operands.chunks(2) {
+                    let [key, value] = pair else {
+                        bail!("Unpaired legacy map operand");
+                    };
+                    ensure!(!key.is_empty() && !value.is_empty(), "Empty legacy map operand");
+                    entries.push((key.to_vec(), value.to_vec()));
+                }
+            }
+        } else {
+            for &pair_id in body {
+                let pair_node = self.node(pair_id)?;
+                let (pair_opener, pair_children) = match &pair_node.kind {
+                    DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
+                    other => bail!("Expected explicitly framed map entry, found {other:?}"),
+                };
+                ensure!(
+                    pair_opener.to_short_dc() == Some(514),
+                    "Expected explicitly framed map entry"
+                );
+                let operands = self.split_operands(pair_children);
+                let [key, value] = operands.as_slice() else {
+                    bail!("Expected two pair operands");
+                };
+                ensure!(!key.is_empty() && !value.is_empty(), "Empty pair operand");
+                entries.push((key.to_vec(), value.to_vec()));
+            }
+        }
+        Ok((header.to_vec(), entries))
+    }
+
+    fn split_operands(&self, nodes: &[NodeId]) -> Vec<Vec<NodeId>> {
+        let mut result = Vec::new();
+        let mut current = Vec::new();
+        for &id in nodes {
+            if self.node(id).is_ok_and(|n| matches!(n.kind, DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))) {
+                result.push(std::mem::take(&mut current));
+            } else {
+                current.push(id);
+            }
+        }
+        result.push(current);
+        result
+    }
+
+    fn write_semantic(&self, id: NodeId, target: &mut Vec<u8>) -> Result<()> {
+        let node = self.node(id)?;
+        if self.is_map(id) {
+            append_dc(target, 559);
+            let (header, entries) = self.extract_map_entries(id)?;
+            for h in header {
+                self.write_semantic(h, target)?;
+            }
+            for (key, value) in entries {
+                append_dc(target, 514);
+                for k in key {
+                    self.write_semantic(k, target)?;
+                }
+                append_dc(target, 312);
+                for v in value {
+                    self.write_semantic(v, target)?;
+                }
+                append_dc(target, 515);
+            }
+            append_dc(target, 560);
+        } else if let DcSyntaxKind::Binary { payload, .. } = &node.kind {
+            let mut canonical = DcMstring::new();
+            let bytes = payload.materialize_bytes()?;
+            canonical.push_binary(&bytes);
+            target.extend_from_slice(canonical.to_dc_string()?.as_bytes());
+        } else if let DcSyntaxKind::Container { children, .. } = &node.kind {
+            let (opening, closing) = self.container_delimiters(id)?;
+            target.extend_from_slice(opening);
+            for &child in children {
+                self.write_semantic(child, target)?;
+            }
+            target.extend_from_slice(closing);
+        } else {
+            target.extend_from_slice(self.bytes(id)?);
+        }
+        Ok(())
+    }
+
+    fn semantic_bytes(&self, id: NodeId) -> Result<Vec<u8>> {
+        let mut target = Vec::new();
+        self.write_semantic(id, &mut target)?;
+        Ok(target)
+    }
+
+    fn semantic_sequence(&self, nodes: &[NodeId]) -> Result<Vec<u8>> {
+        let mut target = Vec::new();
+        for &id in nodes {
+            self.write_semantic(id, &mut target)?;
+        }
+        Ok(target)
+    }
+
+    fn container_delimiters(&self, id: NodeId) -> Result<(&'a [u8], &'a [u8])> {
+        let node = self.node(id)?;
+        let DcSyntaxKind::Container { opener, closer, children, .. } = &node.kind else {
+            bail!("Not a container");
+        };
+        let outer_start = usize::try_from(node.span.start)?;
+        let outer_end = usize::try_from(node.span.end)?;
+        if let (Some(&first), Some(&last)) = (children.first(), children.last()) {
+            let first_start = usize::try_from(self.node(first)?.span.start)?;
+            let last_end = usize::try_from(self.node(last)?.span.end)?;
+            let opening = self.source.get(outer_start..first_start).context("Invalid opening span")?;
+            let closing = self.source.get(last_end..outer_end).context("Invalid closing span")?;
+            Ok((opening, closing))
+        } else {
+            let op_len = dc_char_len(opener);
+            let cl_len = dc_char_len(closer);
+            let op_end = outer_start.saturating_add(op_len).min(outer_end);
+            let cl_start = outer_end.saturating_sub(cl_len).max(op_end);
+            let opening = self.source.get(outer_start..op_end).context("Invalid opening")?;
+            let closing = self.source.get(cl_start..outer_end).context("Invalid closing")?;
+            Ok((opening, closing))
+        }
+    }
+}
+
+fn write_sequence(
+    old_view: &SourceView<'_>,
+    old_nodes: &[NodeId],
+    new_view: &SourceView<'_>,
+    new_nodes: &[NodeId],
+    target: &mut Vec<u8>,
+) -> Result<()> {
+    if old_view.semantic_sequence(old_nodes)? == new_view.semantic_sequence(new_nodes)? {
+        for &id in old_nodes {
+            target.extend_from_slice(old_view.bytes(id)?);
+        }
+        return Ok(());
+    }
+    let mut used = vec![false; old_nodes.len()];
+    let old_semantics: Vec<Vec<u8>> = old_nodes
+        .iter()
+        .map(|&id| old_view.semantic_bytes(id))
+        .collect::<Result<_>>()?;
+    for &new_id in new_nodes {
+        let semantic = new_view.semantic_bytes(new_id)?;
+        let exact = old_nodes.iter().copied().enumerate().find(|(index, old_id)| {
+            used.get(*index) == Some(&false)
+                && old_view.identity(*old_id) == new_view.identity(new_id)
+                && old_semantics.get(*index) == Some(&semantic)
+        });
+        let matched = if exact.is_some() {
+            exact
+        } else {
+            let old_count = old_nodes
+                .iter()
+                .copied()
+                .filter(|old_id| {
+                    old_view.identity(*old_id) == new_view.identity(new_id)
+                        && old_view.is_frame(*old_id)
+                })
+                .count();
+            let new_count = new_nodes
+                .iter()
+                .copied()
+                .filter(|rep_id| {
+                    new_view.identity(*rep_id) == new_view.identity(new_id)
+                        && new_view.is_frame(*rep_id)
+                })
+                .count();
+            ensure!(
+                !new_view.is_frame(new_id)
+                    || old_count == 0
+                    || old_count == new_count,
+                "Ambiguous source frame correspondence; edit the nested field or an explicit source range"
+            );
+            let candidates: Vec<_> = old_nodes
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(index, old_id)| {
+                    used.get(*index) == Some(&false)
+                        && old_view.identity(*old_id) == new_view.identity(new_id)
+                        && old_view.is_frame(*old_id) == new_view.is_frame(new_id)
+                })
+                .collect();
+            ensure!(
+                candidates.len() <= 1
+                    || !candidates.iter().copied().any(|(_, old_id)| old_view.contains_map(old_id)),
+                "Ambiguous nested map correspondence; edit the nested field or an explicit source range"
+            );
+            old_nodes.iter().copied().enumerate().find(|(index, old_id)| {
+                used.get(*index) == Some(&false)
+                    && old_view.identity(*old_id) == new_view.identity(new_id)
+                    && old_view.is_frame(*old_id) == new_view.is_frame(new_id)
+            })
+        };
+        if let Some((index, old_id)) = matched {
+            *used.get_mut(index).context("Invalid source match index")? = true;
+            write_node(old_view, old_id, new_view, new_id, target)?;
+        } else {
+            target.extend_from_slice(new_view.bytes(new_id)?);
+        }
+    }
+    Ok(())
+}
+
+fn write_node(
+    old_view: &SourceView<'_>,
+    old_id: NodeId,
+    new_view: &SourceView<'_>,
+    new_id: NodeId,
+    target: &mut Vec<u8>,
+) -> Result<()> {
+    if old_view.semantic_bytes(old_id)? == new_view.semantic_bytes(new_id)? {
+        target.extend_from_slice(old_view.bytes(old_id)?);
+        return Ok(());
+    }
+    if old_view.is_map(old_id) && new_view.is_map(new_id) {
+        let (header, old_entries) = old_view.extract_map_entries(old_id)?;
+        let (_, new_entries) = new_view.extract_map_entries(new_id)?;
+        let old_keys: Vec<Vec<u8>> = old_entries
+            .iter()
+            .map(|(key, _)| old_view.semantic_sequence(key))
+            .collect::<Result<_>>()?;
+        let new_keys: Vec<Vec<u8>> = new_entries
+            .iter()
+            .map(|(key, _)| new_view.semantic_sequence(key))
+            .collect::<Result<_>>()?;
+        let mut unique = std::collections::HashSet::new();
+        ensure!(
+            old_keys.iter().all(|key| unique.insert(key)),
+            "Ambiguous duplicate source map key"
+        );
+        unique.clear();
+        ensure!(
+            new_keys.iter().all(|key| unique.insert(key)),
+            "Ambiguous duplicate replacement map key"
+        );
+        let old_node = old_view.node(old_id)?;
+        let DcSyntaxKind::Container { opener, .. } = &old_node.kind else {
+            bail!("Expected container node for map");
+        };
+        let opener = *opener;
+        let encoding = if opener.to_short_dc() == Some(313) {
+            crate::DcKvMapEncoding::Legacy
+        } else {
+            crate::DcKvMapEncoding::Pairs
+        };
+        let (opening, closing) = old_view.container_delimiters(old_id)?;
+        target.extend_from_slice(opening);
+        for &h in &header {
+            target.extend_from_slice(old_view.bytes(h)?);
+        }
+        let mut first = true;
+        let mut written = vec![false; new_entries.len()];
+        for ((key, value), identity) in old_entries.iter().zip(&old_keys) {
+            if let Some(index) = new_keys.iter().position(|candidate| candidate == identity) {
+                let (new_key, new_value) = new_entries
+                    .get(index)
+                    .context("Missing replacement entry")?;
+                append_entry_begin(target, encoding, first);
+                first = false;
+                write_sequence(old_view, key, new_view, new_key, target)?;
+                append_dc(target, 312);
+                write_sequence(old_view, value, new_view, new_value, target)?;
+                append_entry_end(target, encoding);
+                *written
+                    .get_mut(index)
+                    .context("Invalid replacement entry index")? = true;
+            }
+        }
+        for ((key, value), written) in new_entries.iter().zip(written) {
+            if !written {
+                append_entry_begin(target, encoding, first);
+                first = false;
+                write_sequence(old_view, &[], new_view, key, target)?;
+                append_dc(target, 312);
+                write_sequence(old_view, &[], new_view, value, target)?;
+                append_entry_end(target, encoding);
+            }
+        }
+        target.extend_from_slice(closing);
+    } else if old_view.is_frame(old_id) && new_view.is_frame(new_id) {
+        let (original_opening, original_closing) = old_view.container_delimiters(old_id)?;
+        let old_children = match old_view.node(old_id).map(|n| &n.kind) {
+            Ok(DcSyntaxKind::Container { children, .. }) => children.as_slice(),
+            _ => &[],
+        };
+        let new_children = match new_view.node(new_id).map(|n| &n.kind) {
+            Ok(DcSyntaxKind::Container { children, .. }) => children.as_slice(),
+            _ => &[],
+        };
+        target.extend_from_slice(original_opening);
+        write_sequence(old_view, old_children, new_view, new_children, target)?;
+        target.extend_from_slice(original_closing);
+    } else {
+        target.extend_from_slice(new_view.bytes(new_id)?);
+    }
+    Ok(())
+}
+
+pub(crate) fn preserve_source(
+    old: &DcMstring,
+    new: &DcMstring,
+) -> Result<DcMstring> {
+    if old == new {
+        return Ok(old.clone());
+    }
+    let strict = crate::DcProjectionPolicy::strict();
+    let mut old_arena = crate::DcSyntaxArena::new();
+    crate::DcDocumentNavigator::parse_document_arena(old.as_bytes(), &mut old_arena, &strict)?;
+    let mut new_arena = crate::DcSyntaxArena::new();
+    crate::DcDocumentNavigator::parse_document_arena(new.as_bytes(), &mut new_arena, &strict)?;
+
+    let old_view = SourceView {
+        source: old.as_bytes(),
+        arena: &old_arena,
+    };
+    let new_view = SourceView {
+        source: new.as_bytes(),
+        arena: &new_arena,
+    };
+
+    let mut result = DcMstring::new().into_bytes();
+    write_sequence(&old_view, old_arena.roots(), &new_view, new_arena.roots(), &mut result)?;
+    Ok(DcMstring::from_bytes(result)?)
+}
+
 pub(crate) fn preserve_text(
     old: &crate::DcStr,
     new: &crate::DcStr,
 ) -> Result<crate::DcString> {
-    let (original, _) = read_nodes(
-        old.as_bytes(),
-        &mut DcMixedReader::from_dc_str(old),
-        None,
-        0,
-    )?;
-    let (replacement, _) = read_nodes(
-        new.as_bytes(),
-        &mut DcMixedReader::from_dc_str(new),
-        None,
-        0,
-    )?;
+    if old == new {
+        return Ok(old.to_owned());
+    }
+    let strict = crate::DcProjectionPolicy::strict();
+    let mut old_arena = crate::DcSyntaxArena::new();
+    crate::DcDocumentNavigator::parse_document_arena(old.as_bytes(), &mut old_arena, &strict)?;
+    let mut new_arena = crate::DcSyntaxArena::new();
+    crate::DcDocumentNavigator::parse_document_arena(new.as_bytes(), &mut new_arena, &strict)?;
+
+    let old_view = SourceView {
+        source: old.as_bytes(),
+        arena: &old_arena,
+    };
+    let new_view = SourceView {
+        source: new.as_bytes(),
+        arena: &new_arena,
+    };
+
     let mut result = Vec::new();
-    write_sequence(&original, &replacement, &mut result)?;
+    write_sequence(&old_view, old_arena.roots(), &new_view, new_arena.roots(), &mut result)?;
     Ok(crate::DcString::from_dcutf(result)?)
 }
 
