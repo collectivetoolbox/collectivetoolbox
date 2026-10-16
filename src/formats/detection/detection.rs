@@ -2171,6 +2171,80 @@ mod tests {
         assert!(!report.candidates.is_empty());
         assert_eq!(report.candidates[0].format_id, Some(FormatId::MacAlias));
     }
+
+    fn csc_journal_v4_bytes() -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"CTBCSCJ\x04");
+        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        data
+    }
+
+    #[ctb_test]
+    fn test_csc_journal_v4_magic_resolves_version() {
+        let data = csc_journal_v4_bytes();
+        let mut slice: &[u8] = &data;
+        let hint = DetectionHint {
+            filename: Some("journal.cscjournal".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::CscJournal4));
+        assert_eq!(
+            report.candidates[0].description,
+            "Collective Toolbox csc journal, version 4"
+        );
+    }
+
+    #[ctb_test]
+    fn test_csc_journal_v1_magic_resolves_generic() {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"CTBCSCJ\x01");
+        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        let mut slice: &[u8] = &data;
+        let hint = DetectionHint {
+            filename: Some("journal.cscjournal".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::CscJournal));
+    }
+
+    #[ctb_test]
+    fn test_gzipped_csc_journal_v4_chain_identifies_version() {
+        let compressed =
+            ctb_formats_compression::compress(&csc_journal_v4_bytes(), crate::SupportedCompressionFormat::Gzip).unwrap();
+        let mut slice: &[u8] = &compressed;
+        let hint = DetectionHint {
+            filename: Some("journal.cscjournal.gz".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top = &report.candidates[0];
+        assert!(
+            top.description.starts_with("@chain(f632 > f35)"),
+            "Expected chain with CscJournal4 inner format, got: {}",
+            top.description
+        );
+        assert!(top.description.contains("version 4"));
+    }
+
+    #[ctb_test]
+    fn test_compat_uncompress_identifies_csc_journal_v4() {
+        let compressed =
+            ctb_formats_compression::compress(&csc_journal_v4_bytes(), crate::SupportedCompressionFormat::Gzip).unwrap();
+        let mut slice: &[u8] = &compressed;
+        let hint = DetectionHint {
+            filename: Some("journal.cscjournal.gz".to_string()),
+            compat: true,
+            uncompress: true,
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::CscJournal4));
+        assert!(top.description.contains("version 4"));
+        assert!(top.description.contains("gzip"));
+    }
 }
 /*
 /*
