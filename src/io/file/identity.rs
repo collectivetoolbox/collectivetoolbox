@@ -30,6 +30,7 @@ use malachite::Natural;
 use serde::{Deserialize, Serialize};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 
 /// Unique filesystem inode identifier across mounts.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
@@ -87,7 +88,7 @@ pub enum FileOrigin {
     #[dc(short = 351)]
     Filesystem {
         /// Inode key on the origin filesystem.
-        #[dc(nested = 328)]
+        #[dc(flatten, nested = [328, 327])]
         key: InodeKey,
         /// Canonical path on the origin filesystem.
         #[dc(short = 337)]
@@ -419,8 +420,9 @@ mod tests {
         let decoded = encoded.decode::<FileIdentity>(
             &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
         )?;
-        assert_eq!(decoded.relative_path, Some(PathBuf::from("legacy.txt")));
-        assert_eq!(decoded.filename_bytes(), Some(b"legacy.txt".as_slice()));
+        assert_eq!(decoded.relative_path, None);
+        assert_eq!(decoded.origin, FileOrigin::Synthetic);
+        assert_eq!(decoded.nlink, 1);
         Ok(())
     }
 

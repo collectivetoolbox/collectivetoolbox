@@ -36,7 +36,7 @@ use ctb_formats_dcstring::dc_mixed_serde::{
 };
 use ctb_formats_dcstring::navigator::DcSyntaxKind;
 use ctb_formats_dcstring::{
-    DcChar, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionContext, NodeId,
+    DcChar, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionContext, DcRawValue, NodeId,
 };
 use ctb_utilities::format_id::FormatId;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -61,7 +61,8 @@ pub(crate) fn is_destination_encoding_error(error: &anyhow::Error) -> bool {
 /// Windows bytes are retained as WTF-8 without decoding until required by the
 /// destination. The source separator convention is retained so splitting never
 /// mistakes a Unix backslash for a delimiter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, ctb_formats_dcstring::DcMixed)]
+#[dc(try_from = ctb_formats_dcstring::DcRawValue, try_into = ctb_formats_dcstring::DcRawValue)]
 pub struct LinkPath {
     #[serde(with = "crate::serde_helpers::text_or_bytes")]
     bytes: Vec<u8>,
@@ -273,150 +274,72 @@ impl PartialEq<Path> for LinkPath {
     }
 }
 
-impl DcMixedEncode for LinkPath {
-    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        // A typed path retains segments but not the source separator spelling.
-        mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
-        mst.push_char(DC_BEGIN_LIST);
-        mst.push_char(DcChar::from_short(275));
-        encode_filepath_segments(&self.segments(), mst)?;
-        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
-        if self.is_windows {
-            let mut metadata = ctb_formats_dcstring::DcString::new();
-            metadata.push(DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?));
-            mst.push_binary_with_metadata(&self.bytes, &metadata)?;
-        } else {
-            mst.push_binary_with_sha256(&self.bytes)?;
-        }
-        mst.push_char(DC_END_LIST);
-        Ok(())
+impl TryFrom<&LinkPath> for DcRawValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &LinkPath) -> Result<Self> {
+        Ok(DcRawValue::PartiallyEquivalent(vec![
+            DcRawValue::FilePathSegments(value.segments()),
+            DcRawValue::Binary {
+                format: if value.is_windows { Some(FormatId::Wtf8) } else { None },
+                with_sha256: !value.is_windows,
+                bytes: value.bytes.clone(),
+            },
+        ]))
     }
 }
 
-impl ctb_formats_dcstring::DcForgivingDefault for LinkPath {
-    fn dc_forgiving_default() -> Self {
-        Self::new()
+impl TryFrom<LinkPath> for DcRawValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: LinkPath) -> Result<Self> {
+        Self::try_from(&value)
     }
 }
 
-impl DcMixedDecode for LinkPath {
-    fn decode_dc_node(
-        ctx: &mut DcProjectionContext<'_, '_>,
-        node_id: NodeId,
-    ) -> Result<Self> {
-        let mut curr_id = node_id;
-        while let DcSyntaxKind::Container { opener, children, .. } = &ctx.node(curr_id)?.kind {
-            if opener.to_short_dc() == Some(315) {
-                if let Some(&first) = children.first() {
-                    curr_id = first;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
+impl TryFrom<DcRawValue> for LinkPath {
+    type Error = anyhow::Error;
 
-        let node = ctx.node(curr_id)?;
-        let equiv_children = match &node.kind {
-            DcSyntaxKind::Container { opener, children, .. }
-                if opener.to_short_dc() == Some(561) => Some(children.as_slice()),
-            DcSyntaxKind::Tagged { tag, args }
-                if tag.to_short_dc() == Some(561) => {
-                    if let Some(&first) = args.first() {
-                        let arg_node = ctx.node(first)?;
-                        if let DcSyntaxKind::Container { children, .. } = &arg_node.kind {
-                            Some(children.as_slice())
-                        } else {
-                            Some(args.as_slice())
+    fn try_from(raw: DcRawValue) -> Result<Self> {
+        match raw {
+            DcRawValue::PartiallyEquivalent(items) => {
+                let mut segments: Option<Vec<Vec<u8>>> = None;
+                let mut binary_path: Option<LinkPath> = None;
+
+                for item in items {
+                    match item {
+                        DcRawValue::FilePathSegments(segs) => {
+                            segments = Some(segs);
                         }
-                    } else {
-                        Some(&[][..])
+                        DcRawValue::Binary { format, bytes, .. } => {
+                            ensure!(
+                                format.is_none() || format == Some(FormatId::Wtf8),
+                                "Unsupported link target byte encoding"
+                            );
+                            let is_windows = format == Some(FormatId::Wtf8);
+                            binary_path = Some(Self::from_bytes(&bytes, is_windows));
+                        }
+                        _ => {}
                     }
                 }
-            _ => None,
-        };
 
-        if let Some(children) = equiv_children {
-            let mut segments: Option<Vec<Vec<u8>>> = None;
-            let mut binary_path: Option<LinkPath> = None;
-
-            for &child_id in children {
-                let child = ctx.node(child_id)?;
-                if let DcSyntaxKind::Atom(ch) = &child.kind {
-                    if ch.to_short_dc() == Some(275) || *ch == DC_LIST_ELEMENT_SEPARATOR {
-                        continue;
-                    }
+                if let (Some(segs), Some(path)) = (&segments, &binary_path) {
+                    ensure!(segs == &path.segments(), "Conflicting link path representations");
+                    return Ok(path.clone());
                 }
-                if let DcSyntaxKind::Binary { checksum_format, payload, .. } = &child.kind {
-                    let bytes = payload.materialize_bytes()?;
-                    let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
-                    let is_windows = *checksum_format == Some(windows_format);
-                    ensure!(checksum_format.is_none() || is_windows,
-                        "Unsupported link target byte encoding");
-                    binary_path = Some(Self::from_bytes(&bytes, is_windows));
-                } else if let Ok(segs) = decode_filepath_segments(ctx, child_id) {
-                    segments = Some(segs);
+                if let Some(path) = binary_path {
+                    return Ok(path);
                 }
+                if let Some(segs) = segments {
+                    return Ok(Self::from_bytes(&segs.join(&b'/'), false));
+                }
+                bail!("Empty partially equivalent representations container for LinkPath");
             }
-
-            if let (Some(segs), Some(path)) = (&segments, &binary_path) {
-                ensure!(segs == &path.segments(), "Conflicting link path representations");
-                return Ok(path.clone());
+            DcRawValue::FilePathSegments(segments) => {
+                Ok(Self::from_bytes(&segments.join(&b'/'), false))
             }
-            if let Some(path) = binary_path {
-                return Ok(path);
-            }
-            if let Some(segs) = segments {
-                return Ok(Self::from_bytes(&segs.join(&b'/'), false));
-            }
-            bail!("Empty partially equivalent representations container for LinkPath");
+            other => bail!("Expected Dc 561 partially equivalent representations or FilePath for LinkPath, found {other:?}"),
         }
-
-        let unwrap_id = ctx.unwrap_transparent(curr_id)?;
-        if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
-            let path_format = DcChar::from_u128(FormatId::FilePath.dc_id().context("Missing FilePath format identifier")?);
-            if fmt == path_format {
-                let segments = decode_filepath_segments(ctx, unwrap_id)?;
-                return Ok(Self::from_bytes(&segments.join(&b'/'), false));
-            }
-        }
-
-        let node = ctx.node(unwrap_id)?;
-        if let DcSyntaxKind::Binary { checksum_format, payload, .. } = &node.kind {
-            if !ctx.policy.is_forgiving() {
-                ctx.policy.handle(
-                    ctx.policy.syntax_error,
-                    "Bare binary representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
-                )?;
-            }
-            let bytes = payload.materialize_bytes()?;
-            let windows_format = DcChar::from_u128(FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?);
-            let is_windows = *checksum_format == Some(windows_format);
-            return Ok(Self::from_bytes(bytes.as_ref(), is_windows));
-        }
-
-        if let DcSyntaxKind::Literal { decoded, .. } = &node.kind {
-            if !ctx.policy.is_forgiving() {
-                ctx.policy.handle(
-                    ctx.policy.syntax_error,
-                    "Bare string representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
-                )?;
-            }
-            return Ok(Self::from_bytes(decoded.as_bytes(), false));
-        }
-
-        if let Ok(s) = String::decode_dc_node(ctx, unwrap_id) {
-            if !ctx.policy.is_forgiving() {
-                ctx.policy.handle(
-                    ctx.policy.syntax_error,
-                    "Bare string representation of LinkPath is not allowed under strict policy; expected Dc 561 or Dc 511",
-                )?;
-            }
-            return Ok(Self::from_bytes(s.as_bytes(), false));
-        }
-
-        bail!("Expected partially equivalent representation (Dc 561) or format representation (Dc 511) for LinkPath, found {:?}", node.kind)
     }
 }
 

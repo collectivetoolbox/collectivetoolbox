@@ -35,7 +35,7 @@ use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcProjectionContext, NodeId};
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcProjectionContext, DcRawValue, NodeId};
 use ctb_utilities::format_id::FormatId;
 
 /// Native stream name, independent of the journal reader's operating system.
@@ -47,12 +47,84 @@ use ctb_utilities::format_id::FormatId;
     Hash,
     serde::Serialize,
     serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
 )]
+#[dc(try_from = ctb_formats_dcstring::DcRawValue, try_into = ctb_formats_dcstring::DcRawValue)]
 pub enum StreamName {
     Bytes(Vec<u8>),
     WindowsUtf16(Vec<u16>),
     /// Encoded source bytes that cannot yet be interpreted losslessly.
     Encoded { format: FormatId, bytes: Vec<u8> },
+}
+
+impl Default for StreamName {
+    fn default() -> Self {
+        Self::Bytes(Vec::new())
+    }
+}
+
+impl TryFrom<&StreamName> for DcRawValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &StreamName) -> Result<Self> {
+        match value {
+            StreamName::Bytes(bytes) => {
+                if let Ok(s) = std::str::from_utf8(bytes) {
+                    Ok(DcRawValue::String(s.to_owned()))
+                } else {
+                    Ok(DcRawValue::Binary {
+                        format: None,
+                        with_sha256: false,
+                        bytes: bytes.clone(),
+                    })
+                }
+            }
+            StreamName::WindowsUtf16(units) => {
+                Ok(DcRawValue::Binary {
+                    format: Some(FormatId::Wtf8),
+                    with_sha256: false,
+                    bytes: ctb_formats_wtf8::encode_wtf8_from_ucs2(units)?,
+                })
+            }
+            StreamName::Encoded { format, bytes } => {
+                Ok(DcRawValue::Binary {
+                    format: Some(*format),
+                    with_sha256: false,
+                    bytes: bytes.clone(),
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<StreamName> for DcRawValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: StreamName) -> Result<Self> {
+        Self::try_from(&value)
+    }
+}
+
+impl TryFrom<DcRawValue> for StreamName {
+    type Error = anyhow::Error;
+
+    fn try_from(raw: DcRawValue) -> Result<Self> {
+        match raw {
+            DcRawValue::String(s) => Ok(Self::from_str(&s)),
+            DcRawValue::Binary {
+                format: Some(fmt),
+                bytes,
+                ..
+            } => Self::from_encoded(fmt, bytes),
+            DcRawValue::Binary {
+                format: None,
+                bytes,
+                ..
+            } => Ok(Self::Bytes(bytes)),
+            DcRawValue::U16List(units) => Ok(Self::WindowsUtf16(units)),
+            other => bail!("Unsupported DcRawValue for StreamName: {other:?}"),
+        }
+    }
 }
 
 impl PartialOrd for StreamName {
@@ -74,76 +146,6 @@ impl Ord for StreamName {
             (_, Self::Bytes(_)) | (Self::Encoded { .. }, Self::WindowsUtf16(_)) =>
                 std::cmp::Ordering::Greater,
         }
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for StreamName {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        match self {
-            Self::Bytes(bytes) => {
-                if let Ok(s) = std::str::from_utf8(bytes) {
-                    ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&s.to_string(), mst)
-                } else {
-                    mst.push_binary(bytes);
-                    Ok(())
-                }
-            }
-            Self::WindowsUtf16(units) => {
-                let bytes = ctb_formats_wtf8::encode_wtf8_from_ucs2(units)?;
-                let mut metadata = ctb_formats_dcstring::DcString::new();
-                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
-                    FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-                ));
-                mst.push_binary_with_metadata(&bytes, &metadata)?;
-                Ok(())
-            }
-            Self::Encoded { format, bytes } => {
-                let mut metadata = ctb_formats_dcstring::DcString::new();
-                metadata.push(ctb_formats_dcstring::DcChar::from_u128(
-                    format.dc_id().context("Missing stream name format identifier")?
-                ));
-                mst.push_binary_with_metadata(bytes, &metadata)?;
-                Ok(())
-            }
-        }
-    }
-}
-
-impl ctb_formats_dcstring::DcForgivingDefault for StreamName {
-    fn dc_forgiving_default() -> Self {
-        Self::Bytes(Vec::new())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for StreamName {
-    fn decode_dc_node(
-        ctx: &mut DcProjectionContext<'_, '_>,
-        node_id: NodeId,
-    ) -> Result<Self> {
-        let unwrap_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(unwrap_id)?;
-        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { checksum_format, payload, .. } = &node.kind {
-            let bytes = payload.materialize_bytes()?;
-            let wtf8_format = ctb_formats_dcstring::DcChar::from_u128(
-                FormatId::Wtf8.dc_id().context("Missing WTF-8 format identifier")?
-            );
-            if *checksum_format == Some(wtf8_format) {
-                return Self::from_encoded(FormatId::Wtf8, bytes.into_owned());
-            }
-            if let Some(format_dc) = checksum_format {
-                let format = FormatId::from_dc_id(format_dc.to_u128())
-                    .context("Unsupported stream name byte encoding")?;
-                return Self::from_encoded(format, bytes.into_owned());
-            }
-            return Ok(Self::Bytes(bytes.into_owned()));
-        } else if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } = &node.kind {
-            if opener.to_short_dc() == Some(310) {
-                let units = <Vec<u16> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
-                return Ok(Self::WindowsUtf16(units));
-            }
-        }
-        let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
-        Ok(Self::from_str(&s))
     }
 }
 

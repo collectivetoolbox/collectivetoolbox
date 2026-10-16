@@ -55,8 +55,9 @@ pub use dc_mixed::{
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{
-    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedNumber, DcProjectionContext,
-    LosslessWithContext, assert_dc_document_roundtrip, assert_dc_roundtrip,
+    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened, DcMixedNumber,
+    DcProjectionContext, DcRawValue, LosslessWithContext,
+    assert_dc_document_roundtrip, assert_dc_roundtrip,
 };
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dc_source::{DcDiagnostic, DcFieldAnnotation, DcInspection, DcMixedFields, DcSource};

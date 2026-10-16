@@ -656,7 +656,17 @@ impl ctb_formats_dcstring::LosslessWithContext for PlatformRawFlags {
 }
 
 /// Complete nanosecond timestamp records for a file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
+#[dc(flatten, try_from = FileTimestampsDc, try_into = FileTimestampsDc)]
 pub struct FileTimestamps {
     /// Access time in seconds since Unix epoch.
     pub atime_sec: i64,
@@ -677,6 +687,157 @@ pub struct FileTimestamps {
     /// Timestamp resolution in nanoseconds, if known (e.g. 100 for Windows FILETIME).
     #[serde(default)]
     pub resolution_nsec: Option<u32>,
+}
+
+impl Default for FileTimestamps {
+    fn default() -> Self {
+        Self {
+            atime_sec: 0,
+            atime_nsec: 0,
+            mtime_sec: 0,
+            mtime_nsec: 0,
+            ctime_sec: 0,
+            ctime_nsec: 0,
+            birthtime_sec: None,
+            birthtime_nsec: None,
+            resolution_nsec: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(flatten)]
+pub struct FileTimestampsDc {
+    #[dc(short = 330)]
+    pub atime: SystemTime,
+    #[dc(short = 329)]
+    pub mtime: SystemTime,
+    #[dc(short = 332)]
+    pub ctime: SystemTime,
+    #[dc(short = 331, omit_default)]
+    pub birthtime: Option<SystemTime>,
+    #[dc(short = 378, omit_default)]
+    pub resolution: Option<std::time::Duration>,
+}
+
+impl Default for FileTimestampsDc {
+    fn default() -> Self {
+        Self {
+            atime: SystemTime::UNIX_EPOCH,
+            mtime: SystemTime::UNIX_EPOCH,
+            ctime: SystemTime::UNIX_EPOCH,
+            birthtime: None,
+            resolution: None,
+        }
+    }
+}
+
+fn system_time_from_sec_nsec(sec: i64, nsec: u32) -> Result<SystemTime> {
+    ensure!(nsec < 1_000_000_000, "Invalid timestamp nanoseconds");
+    let dur_secs = std::time::Duration::from_secs(sec.unsigned_abs());
+    let base = if sec < 0 {
+        SystemTime::UNIX_EPOCH
+            .checked_sub(dur_secs)
+            .context("Timestamp is outside system time range")?
+    } else {
+        SystemTime::UNIX_EPOCH
+            .checked_add(dur_secs)
+            .context("Timestamp is outside system time range")?
+    };
+    base.checked_add(std::time::Duration::from_nanos(u64::from(nsec)))
+        .context("Timestamp nanoseconds exceed system time range")
+}
+
+fn sec_nsec_from_system_time(time: SystemTime) -> Result<(i64, u32)> {
+    match time.duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(dur) => {
+            let sec = i64::try_from(dur.as_secs()).context("Timestamp seconds overflow i64")?;
+            let nsec = dur.subsec_nanos();
+            Ok((sec, nsec))
+        }
+        Err(err) => {
+            let dur = err.duration();
+            let subsec = dur.subsec_nanos();
+            let s = i64::try_from(dur.as_secs()).context("Timestamp seconds overflow i64")?;
+            let neg_s = s.checked_neg().context("Timestamp seconds negation overflow")?;
+            if subsec == 0 {
+                Ok((neg_s, 0))
+            } else {
+                let sec = neg_s.checked_sub(1).context("Timestamp seconds underflow")?;
+                let nsec = 1_000_000_000u32
+                    .checked_sub(subsec)
+                    .context("Nanoseconds underflow")?;
+                Ok((sec, nsec))
+            }
+        }
+    }
+}
+
+impl TryFrom<&FileTimestamps> for FileTimestampsDc {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &FileTimestamps) -> Result<Self> {
+        value.validate()?;
+        let atime = system_time_from_sec_nsec(value.atime_sec, value.atime_nsec)?;
+        let mtime = system_time_from_sec_nsec(value.mtime_sec, value.mtime_nsec)?;
+        let ctime = system_time_from_sec_nsec(value.ctime_sec, value.ctime_nsec)?;
+        let birthtime = match (value.birthtime_sec, value.birthtime_nsec) {
+            (Some(sec), Some(nsec)) => Some(system_time_from_sec_nsec(sec, nsec)?),
+            _ => None,
+        };
+        let resolution = value
+            .resolution_nsec
+            .map(|res| std::time::Duration::from_nanos(u64::from(res)));
+        Ok(Self {
+            atime,
+            mtime,
+            ctime,
+            birthtime,
+            resolution,
+        })
+    }
+}
+
+impl TryFrom<FileTimestamps> for FileTimestampsDc {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FileTimestamps) -> Result<Self> {
+        Self::try_from(&value)
+    }
+}
+
+impl TryFrom<FileTimestampsDc> for FileTimestamps {
+    type Error = anyhow::Error;
+
+    fn try_from(dc: FileTimestampsDc) -> Result<Self> {
+        let (atime_sec, atime_nsec) = sec_nsec_from_system_time(dc.atime)?;
+        let (mtime_sec, mtime_nsec) = sec_nsec_from_system_time(dc.mtime)?;
+        let (ctime_sec, ctime_nsec) = sec_nsec_from_system_time(dc.ctime)?;
+        let (birthtime_sec, birthtime_nsec) = match dc.birthtime {
+            Some(bt) => {
+                let (sec, nsec) = sec_nsec_from_system_time(bt)?;
+                (Some(sec), Some(nsec))
+            }
+            None => (None, None),
+        };
+        let resolution_nsec = match dc.resolution {
+            Some(d) => Some(u32::try_from(d.as_nanos()).context("Resolution nanos overflow u32")?),
+            None => None,
+        };
+        let ts = Self {
+            atime_sec,
+            atime_nsec,
+            mtime_sec,
+            mtime_nsec,
+            ctime_sec,
+            ctime_nsec,
+            birthtime_sec,
+            birthtime_nsec,
+            resolution_nsec,
+        };
+        ts.validate()?;
+        Ok(ts)
+    }
 }
 
 impl FileTimestamps {
@@ -700,6 +861,26 @@ impl FileTimestamps {
         }
         Ok(())
     }
+
+    /// Decodes a flattened timestamp field directly into `self`.
+    pub fn decode_field(
+        &mut self,
+        full_tag: u128,
+        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
+        val_id: ctb_formats_dcstring::NodeId,
+    ) -> Result<bool> {
+        let mut dc = match FileTimestampsDc::try_from(&*self) {
+            Ok(dc) => dc,
+            Err(_) => FileTimestampsDc::default(),
+        };
+        let res = dc.decode_field(full_tag, ctx, val_id)?;
+        if res {
+            if let Ok(updated) = Self::try_from(dc) {
+                *self = updated;
+            }
+        }
+        Ok(res)
+    }
 }
 
 pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::FileTime> {
@@ -717,291 +898,6 @@ pub(crate) fn checked_file_time(seconds: i64, nanos: u32) -> Result<filetime::Fi
     base.checked_add(Duration::from_nanos(u64::from(nanos)))
         .context("Timestamp nanoseconds exceed native system time range")?;
     Ok(filetime::FileTime::from_unix_time(seconds, nanos))
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.validate()?;
-        let encode_ts = |tag: u32, sec: i64, nsec: u32, mst: &mut ctb_formats_dcstring::DcMstring| -> Result<()> {
-            let nanos = (i128::from(sec))
-                .checked_mul(1_000_000_000)
-                .context("sec overflow")?
-                .checked_add(i128::from(nsec))
-                .context("nsec overflow")?;
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(tag));
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(390));
-            mst.push_char(ctb_formats_dcstring::DcChar::from_format(487));
-            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&nanos, mst)?;
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(391));
-            Ok(())
-        };
-
-        encode_ts(330, self.atime_sec, self.atime_nsec, mst)?;
-        encode_ts(329, self.mtime_sec, self.mtime_nsec, mst)?;
-        encode_ts(332, self.ctime_sec, self.ctime_nsec, mst)?;
-
-        if let (Some(b_sec), Some(b_nsec)) = (self.birthtime_sec, self.birthtime_nsec) {
-            encode_ts(331, b_sec, b_nsec, mst)?;
-        }
-
-        if let Some(res) = self.resolution_nsec {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(378));
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(393));
-            mst.push_char(ctb_utilities::format_id::DC_NANOSECOND);
-            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&res, mst)?;
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(394));
-        }
-
-        Ok(())
-    }
-}
-
-fn decode_timestamp_nanos(
-    ctx: &mut DcProjectionContext<'_, '_>,
-    node_id: NodeId,
-) -> Result<i128> {
-    let unwrap_id = ctx.unwrap_transparent(node_id)?;
-    let node = ctx.node(unwrap_id)?;
-    if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } = &node.kind {
-        if opener.to_short_dc() == Some(390) {
-            if ctx.policy.is_strict() {
-                ensure!(closer.to_short_dc() == Some(391), "Expected Dc 391 closing time moment description");
-            }
-            let Some(&first_child) = children.first() else {
-                bail!("Empty time moment container (Dc 390..391)");
-            };
-            let first = ctx.node(first_child)?;
-            let (fmt_tok, num_id) = if let ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) = &first.kind {
-                let tok = ch.to_format().context("Expected date format token after 390")?;
-                let Some(&second_child) = children.get(1) else {
-                    bail!("Missing number after format token in Dc 390..391");
-                };
-                (tok, second_child)
-            } else if let ctb_formats_dcstring::navigator::DcSyntaxKind::Identifier { name } = &first.kind {
-                let fid = ctb_utilities::format_id::FormatId::from_shorthand(name)
-                    .context("Invalid shorthand")?;
-                let tok = fid.dc_id().context("FormatId missing dc_id")?;
-                let Some(&second_child) = children.get(1) else {
-                    bail!("Missing number after format token in Dc 390..391");
-                };
-                (u32::try_from(tok)?, second_child)
-            } else {
-                (487, first_child)
-            };
-
-            let nanos = if fmt_tok == 487 {
-                i128::decode_dc_node(ctx, num_id)?
-            } else if fmt_tok == 486 {
-                let secs = i64::decode_dc_node(ctx, num_id)?;
-                i128::from(secs).checked_mul(1_000_000_000).context("secs to nanos overflow")?
-            } else {
-                i128::decode_dc_node(ctx, num_id)?
-            };
-            return Ok(nanos);
-        }
-    }
-
-    // Fallback for legacy unformatted numbers
-    if !ctx.policy.is_forgiving() {
-        ctx.policy.handle(
-            ctx.policy.syntax_error,
-            "Bare timestamp number without 390..391 time moment description rejected in strict mode",
-        )?;
-    }
-    i128::decode_dc_node(ctx, unwrap_id)
-}
-
-impl ctb_formats_dcstring::DcForgivingDefault for FileTimestamps {
-    fn dc_forgiving_default() -> Self {
-        Self {
-            atime_sec: 0,
-            atime_nsec: 0,
-            mtime_sec: 0,
-            mtime_nsec: 0,
-            ctime_sec: 0,
-            ctime_nsec: 0,
-            birthtime_sec: None,
-            birthtime_nsec: None,
-            resolution_nsec: None,
-        }
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
-    fn decode_dc_node(
-        ctx: &mut DcProjectionContext<'_, '_>,
-        node_id: NodeId,
-    ) -> Result<Self> {
-        let mut atime_sec = 0i64;
-        let mut atime_nsec = 0u32;
-        let mut mtime_sec = 0i64;
-        let mut mtime_nsec = 0u32;
-        let mut ctime_sec = 0i64;
-        let mut ctime_nsec = 0u32;
-        let mut birthtime_sec = None;
-        let mut birthtime_nsec = None;
-        let mut resolution_nsec = None;
-
-        let has_ts = |nodes: &[NodeId], ctx: &DcProjectionContext<'_, '_>| -> bool {
-            nodes.iter().any(|&cid| {
-                if let Ok(cn) = ctx.node(cid) {
-                    matches!(&cn.kind,
-                        ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, .. }
-                            if matches!(tag.to_short_dc(), Some(329 | 330 | 331 | 332 | 378))
-                    ) || matches!(&cn.kind,
-                        ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch)
-                            if matches!(ch.to_short_dc(), Some(329 | 330 | 331 | 332 | 378))
-                    )
-                } else {
-                    false
-                }
-            })
-        };
-
-        let mut candidate_nodes = Vec::new();
-        if has_ts(ctx.arena.roots(), ctx) {
-            ctx.mark_all_roots_consumed();
-            candidate_nodes = ctx.arena.roots().to_vec();
-        } else {
-            let mut curr = node_id;
-            loop {
-                let curr_node = ctx.node(curr)?;
-                if has_ts(curr_node.children(), ctx) {
-                    candidate_nodes = curr_node.children().to_vec();
-                    break;
-                }
-                if let Some((pid, _)) = ctx.arena.nodes().iter().enumerate().find(|(_, n)| n.children().contains(&curr)) {
-                    curr = ctb_formats_dcstring::NodeId(pid);
-                } else {
-                    break;
-                }
-            }
-        }
-        if candidate_nodes.is_empty() {
-            candidate_nodes = vec![node_id];
-        }
-
-        let mut idx = 0;
-        while idx < candidate_nodes.len() {
-            let Some(&cid) = candidate_nodes.get(idx) else {
-                break;
-            };
-            let cnode = ctx.node(cid)?;
-            let (tag_opt, payload_id) = match &cnode.kind {
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                    // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
-                    let arg_id = args.first().copied().unwrap_or(cid);
-                    (tag.to_short_dc(), arg_id)
-                }
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
-                    let short = ch.to_short_dc();
-                    if matches!(short, Some(329 | 330 | 331 | 332 | 378))
-                        && idx.saturating_add(1) < candidate_nodes.len()
-                    {
-                        idx = idx.saturating_add(1);
-                        // Reason for fallback: out of bounds candidate index falls back to current node ID
-                        let next_cid = candidate_nodes.get(idx).copied().unwrap_or(cid);
-                        (short, next_cid)
-                    } else {
-                        (short, cid)
-                    }
-                }
-                _ => (None, cid),
-            };
-
-            if let Some(tag) = tag_opt {
-                match tag {
-                    330 => {
-                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
-                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                        atime_sec = sec;
-                        atime_nsec = nsec;
-                    }
-                    329 => {
-                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
-                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                        mtime_sec = sec;
-                        mtime_nsec = nsec;
-                    }
-                    332 => {
-                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
-                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                        ctime_sec = sec;
-                        ctime_nsec = nsec;
-                    }
-                    331 => {
-                        let nanos = decode_timestamp_nanos(ctx, payload_id)?;
-                        let sec = i64::try_from(nanos.checked_div_euclid(1_000_000_000).context("div")?).context("sec")?;
-                        let nsec = u32::try_from(nanos.checked_rem_euclid(1_000_000_000).context("rem")?).context("nsec")?;
-                        birthtime_sec = Some(sec);
-                        birthtime_nsec = Some(nsec);
-                    }
-                    378 => {
-                        let unwrap_p = ctx.unwrap_transparent(payload_id)?;
-                        let pnode = ctx.node(unwrap_p)?;
-                        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } = &pnode.kind {
-                            if opener.to_short_dc() == Some(393) {
-                                if ctx.policy.is_strict() {
-                                    ensure!(closer.to_short_dc() == Some(394), "Expected Dc 394 closing duration description");
-                                }
-                                let (c0, c1) = match children.as_slice() {
-                                    [c0, c1] => (*c0, *c1),
-                                    _ => bail!("Expected 2 children in duration container (393..394), found {}", children.len()),
-                                };
-                                let fmt_node = ctx.node(c0)?;
-                                let res = match &fmt_node.kind {
-                                    ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if *ch == ctb_utilities::format_id::DC_NANOSECOND => {
-                                        u32::decode_dc_node(ctx, c1)?
-                                    }
-                                    ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if *ch == ctb_utilities::format_id::DC_SECOND => {
-                                        let secs = u32::decode_dc_node(ctx, c1)?;
-                                        secs.checked_mul(1_000_000_000).context("duration overflow")?
-                                    }
-                                    other => bail!("Unsupported duration format {other:?} for clock resolution"),
-                                };
-                                resolution_nsec = Some(res);
-                            } else {
-                                if !ctx.policy.is_forgiving() {
-                                    ctx.policy.handle(
-                                        ctx.policy.syntax_error,
-                                        "Bare duration number without 393..394 duration description rejected in strict mode",
-                                    )?;
-                                }
-                                let res = u32::decode_dc_node(ctx, unwrap_p)?;
-                                resolution_nsec = Some(res);
-                            }
-                        } else {
-                            if !ctx.policy.is_forgiving() {
-                                ctx.policy.handle(
-                                    ctx.policy.syntax_error,
-                                    "Bare duration number without 393..394 duration description rejected in strict mode",
-                                )?;
-                            }
-                            let res = u32::decode_dc_node(ctx, unwrap_p)?;
-                            resolution_nsec = Some(res);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            idx = idx.saturating_add(1);
-        }
-
-        Ok(Self {
-            atime_sec,
-            atime_nsec,
-            mtime_sec,
-            mtime_nsec,
-            ctime_sec,
-            ctime_nsec,
-            birthtime_sec,
-            birthtime_nsec,
-            resolution_nsec,
-        })
-    }
 }
 
 /// Complete file metadata, combining POSIX attributes, timestamps, and flags.
@@ -1026,7 +922,7 @@ pub struct FileMetadata {
     pub gid: Option<u32>,
     /// Timestamps with nanosecond precision.
     #[serde(default)]
-    #[dc(nested = [329, 330, 331, 332, 378], alias = 330, alias = 331, alias = 332, alias = 378)]
+    #[dc(flatten, nested = [329, 330, 331, 332, 378])]
     pub timestamps: Option<FileTimestamps>,
     /// Semantic file flags.
     #[serde(default)]
@@ -1071,18 +967,24 @@ pub use ctb_formats_apple_single_double::{
 
 /// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
 /// or macOS extended attributes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 401, end = 402)]
 pub struct AppleMetadata {
     /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
+    #[dc(flatten, nested = [388, 403, 404, 405, 406, 407, 408, 490, 510])]
     pub finder_info: Option<FinderInfo>,
     /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
+    #[dc(short = 496, representation = f495, omit_default)]
     pub real_name: Option<String>,
     /// Standard file comment (Entry ID 4).
+    #[dc(short = 400, omit_default)]
     pub comment: Option<String>,
     /// Backup timestamp in seconds since Unix epoch (Entry ID 8/Dates).
+    #[dc(short = 399, omit_default)]
     pub backup_timestamp_sec: Option<i64>,
     /// Preserved unrecognized entries from AppleSingle or AppleDouble archive.
     #[serde(default)]
+    #[dc(skip, reason = "Unrecognized AppleSingle/AppleDouble raw entries are not serialized in Dc 401..402")]
     pub unrecognized_entries: Vec<AppleRawEntry>,
 }
 
@@ -1095,150 +997,6 @@ impl AppleMetadata {
             && self.comment.is_none()
             && self.backup_timestamp_sec.is_none()
             && self.unrecognized_entries.is_empty()
-    }
-}
-
-impl ctb_formats_dcstring::DcForgivingDefault for AppleMetadata {
-    fn dc_forgiving_default() -> Self {
-        Self::default()
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
-        if let Some(ref fi) = self.finder_info {
-            fi.encode_fields(mst)?;
-        }
-        if let Some(ref rn) = self.real_name {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(496));
-            ctb_formats_dcstring::dc_mixed_serde::encode_format_representation(
-                rn,
-                ctb_formats_dcstring::DcChar::from_u128(
-                    ctb_utilities::format_id::FormatId::FileName.dc_id()
-                        .context("Missing filename format identifier")?
-                ),
-                mst,
-                &ctb_formats_dcstring::SharedValueContext::default(),
-            )?;
-        }
-        if let Some(ref c) = self.comment {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(400));
-            c.encode_dc_mixed(mst)?;
-        }
-        if let Some(ts) = self.backup_timestamp_sec {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(399));
-            ts.encode_dc_mixed(mst)?;
-        }
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
-        Ok(())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
-    fn decode_dc_node(
-        ctx: &mut DcProjectionContext<'_, '_>,
-        node_id: NodeId,
-    ) -> Result<Self> {
-        let unwrap_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(unwrap_id)?;
-        let children = match &node.kind {
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, closer, children, .. } => {
-                ensure!(opener.to_short_dc() == Some(401), "Expected Dc 401 opener for AppleMetadata, found {opener:?}");
-                if ctx.policy.is_strict() {
-                    ensure!(closer.to_short_dc() == Some(402), "Expected Dc 402 closer for AppleMetadata, found {closer:?}");
-                }
-                children
-            }
-            other => bail!("Expected Container (401..402) for AppleMetadata, found {other:?}"),
-        };
-
-        let mut finder_info: Option<FinderInfo> = None;
-        let mut real_name = None;
-        let mut comment = None;
-        let mut backup_timestamp_sec = None;
-        let unrecognized_entries = Vec::new();
-
-        let mut idx = 0;
-        while idx < children.len() {
-            let Some(&child_id) = children.get(idx) else {
-                break;
-            };
-            let child_node = ctx.node(child_id)?;
-            let (tag_val, payload_id) = match &child_node.kind {
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                    // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
-                    let arg_id = args.first().copied().unwrap_or(child_id);
-                    (tag.to_short_dc(), arg_id)
-                }
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } => {
-                    (opener.to_short_dc(), child_id)
-                }
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
-                    let short = ch.to_short_dc();
-                    if idx.saturating_add(1) < children.len() {
-                        // Reason for fallback: out of bounds child index falls back to current child node ID
-                        let next_id = children.get(idx.saturating_add(1)).copied().unwrap_or(child_id);
-                        let next_node = ctx.node(next_id)?;
-                        let next_is_tag = matches!(&next_node.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(next_ch) if matches!(next_ch.to_short_dc(), Some(388 | 399 | 400 | 403..=408 | 490 | 496 | 510)));
-                        if !next_is_tag {
-                            idx = idx.saturating_add(1);
-                            (short, next_id)
-                        } else {
-                            (short, child_id)
-                        }
-                    } else {
-                        (short, child_id)
-                    }
-                }
-                _ => (None, child_id),
-            };
-
-            idx = idx.saturating_add(1);
-
-            let Some(tag) = tag_val else {
-                continue;
-            };
-
-            match tag {
-                496 => {
-                    let fn_fmt = ctb_formats_dcstring::DcChar::from_u128(
-                        ctb_utilities::format_id::FormatId::FileName.dc_id()
-                            .context("Missing filename format identifier")?
-                    );
-                    let rn: String = ctb_formats_dcstring::dc_mixed_serde::decode_format_representation(
-                        ctx,
-                        payload_id,
-                        fn_fmt,
-                    )?;
-                    real_name = Some(rn);
-                }
-                400 => {
-                    comment = Some(String::decode_dc_node(ctx, payload_id)?);
-                }
-                399 => {
-                    backup_timestamp_sec = Some(i64::decode_dc_node(ctx, payload_id)?);
-                }
-                finder_tag @ (388 | 403 | 404 | 405 | 406 | 407 | 408 | 490 | 510) => {
-                    let fi = finder_info.get_or_insert_with(FinderInfo::default);
-                    let _ = fi.decode_field(u128::from(finder_tag), ctx, payload_id)?;
-                }
-                _ => {
-                    ctx.policy.handle(
-                        ctx.policy.unknown_field,
-                        format!("Unknown Dc tag {tag} inside AppleMetadata (401..402)"),
-                    )?;
-                }
-            }
-        }
-
-        Ok(Self {
-            finder_info,
-            real_name,
-            comment,
-            backup_timestamp_sec,
-            unrecognized_entries,
-        })
     }
 }
 

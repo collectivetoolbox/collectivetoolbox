@@ -265,13 +265,9 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
     let decoded8 = PlatformRawFlags::decode_dc_node(&mut ctx8, arena8.roots()[0])?;
     ensure!(decoded8.raw_value() == 0x1234_5678_9ABC_DEF0, "8-byte raw flags mismatch");
 
-    // Valid: 4 bytes via [u8] list
+    // Valid: 4 bytes via binary payload
     let mut mst4 = DcMstring::new();
-    mst4.push_char(DcChar::from_short(310));
-    for b in [0x78u8, 0x56, 0x34, 0x12] {
-        b.encode_dc_mixed(&mut mst4)?;
-    }
-    mst4.push_char(DcChar::from_short(311));
+    mst4.push_binary_with_sha256(&[0x78u8, 0x56, 0x34, 0x12])?;
     let mut nav4 = DcDocumentNavigator::from_mstr(&mst4);
     let mut arena4 = DcSyntaxArena::new();
     nav4.parse_document_into_arena(&mut arena4, &strict)?;
@@ -282,11 +278,8 @@ fn test_challenge_platform_raw_flags_payload_widths() -> Result<()> {
     // Invalid widths: 0, 1, 2, 3, 5, 6, 7, 9 bytes
     for bad_len in [0, 1, 2, 3, 5, 6, 7, 9, 16] {
         let mut mst_bad = DcMstring::new();
-        mst_bad.push_char(DcChar::from_short(310));
-        for _ in 0..bad_len {
-            0u8.encode_dc_mixed(&mut mst_bad)?;
-        }
-        mst_bad.push_char(DcChar::from_short(311));
+        let payload = vec![0u8; bad_len];
+        mst_bad.push_binary_with_sha256(&payload)?;
 
         let mut nav_bad = DcDocumentNavigator::from_mstr(&mst_bad);
         let mut arena_bad = DcSyntaxArena::new();
@@ -370,8 +363,9 @@ fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
         deprecated_syntax: DiagnosticAction::Error,
         ..DcProjectionPolicy::strict()
     };
-    let mut ctx_err = DcProjectionContext::new(&arena, &deprecated_error_policy);
-    let res_err = NativeMetadata::decode_dc_node(&mut ctx_err, arena.roots()[0]);
+    let mut nav_err = DcDocumentNavigator::from_mstr(&mst);
+    let mut arena_err = DcSyntaxArena::new();
+    let res_err = nav_err.parse_document_into_arena(&mut arena_err, &deprecated_error_policy);
     ensure!(res_err.is_err(), "Policy with deprecated_syntax=Error must reject Dc 313 map");
 
     // Malformed legacy map with uneven number of elements must be rejected:

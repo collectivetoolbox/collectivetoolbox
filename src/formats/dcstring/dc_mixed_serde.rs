@@ -40,6 +40,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use ctb_formats_utilities::FormatId;
+
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_DATE_DURATION, DC_BEGIN_DATE_MAGNITUDE,
     DC_BEGIN_FORMAT_REPRESENTATION, DC_BEGIN_KV_MAP, DC_BEGIN_KV_PAIR,
@@ -58,8 +60,8 @@ use ctb_formats_dcdata::dc::{
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMstr, DcMstring};
 use crate::dc_source::DcFieldAnnotation;
 use crate::navigator::{
-    DcBinaryResolver, DcDocumentNavigator, DcProjectionPolicy, DcSyntaxArena,
-    DcSyntaxKind, NodeId,
+    DcBinaryResolver, DcDocumentNavigator, DcForgivingDefault, DcProjectionPolicy,
+    DcSyntaxArena, DcSyntaxKind, NodeId,
 };
 use crate::shared::SharedValueContext;
 use crate::{DcChar, DcChars};
@@ -100,6 +102,26 @@ pub trait DcMixedDecode: Sized {
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
+    ) -> Result<Self>;
+}
+
+/// Trait for types whose fields can be serialized or deserialized in a flattened context.
+pub trait DcMixedFlattened: Sized {
+    type State: Default;
+    fn encode_flattened_fields(
+        &self,
+        mst: &mut DcMstring,
+        context: &SharedValueContext,
+    ) -> Result<()>;
+    fn decode_flattened_field(
+        state: &mut Self::State,
+        tag: u128,
+        ctx: &mut DcProjectionContext<'_, '_>,
+        val_id: NodeId,
+    ) -> Result<bool>;
+    fn finish_flattened(
+        state: Self::State,
+        ctx: &mut DcProjectionContext<'_, '_>,
     ) -> Result<Self>;
 }
 
@@ -286,6 +308,190 @@ impl DcMixedDecode for BinaryPayload {
             .materialize_binary(&payload)
             .context("Failed to materialize binary payload in DcSyntaxNode")?;
         Ok(Self(bytes.into_owned()))
+    }
+}
+
+/// A general, struct-agnostic mixed-mode raw value representation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DcRawValue {
+    String(String),
+    Binary {
+        format: Option<FormatId>,
+        with_sha256: bool,
+        bytes: Vec<u8>,
+    },
+    FilePathSegments(Vec<Vec<u8>>),
+    U16List(Vec<u16>),
+    PartiallyEquivalent(Vec<DcRawValue>),
+}
+
+impl DcForgivingDefault for DcRawValue {
+    fn dc_forgiving_default() -> Self {
+        Self::Binary {
+            format: None,
+            with_sha256: false,
+            bytes: Vec::new(),
+        }
+    }
+}
+
+impl DcMixedEncode for DcRawValue {
+    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        self.encode_dc_mixed_with_context(mst, &SharedValueContext::default())
+    }
+
+    fn encode_dc_mixed_with_context(
+        &self,
+        mst: &mut DcMstring,
+        context: &SharedValueContext,
+    ) -> Result<()> {
+        match self {
+            Self::String(s) => s.encode_dc_mixed_with_context(mst, context),
+            Self::Binary { format: Some(fmt), bytes, .. } => {
+                let mut metadata = crate::DcString::new();
+                metadata.push(DcChar::from_u128(fmt.dc_id().context("Missing format Dc ID")?));
+                mst.push_binary_with_metadata(bytes, &metadata)
+            }
+            Self::Binary { format: None, with_sha256: true, bytes } => {
+                mst.push_binary_with_sha256(bytes)
+            }
+            Self::Binary { format: None, with_sha256: false, bytes } => {
+                mst.push_binary(bytes);
+                Ok(())
+            }
+            Self::FilePathSegments(segments) => encode_filepath_segments(segments, mst),
+            Self::U16List(units) => units.encode_dc_mixed_with_context(mst, context),
+            Self::PartiallyEquivalent(items) => {
+                mst.push_char(DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS);
+                mst.push_char(DC_BEGIN_LIST);
+                mst.push_char(DC_TYPE_ANY);
+                let mut iter = items.iter().peekable();
+                while let Some(item) = iter.next() {
+                    item.encode_dc_mixed_with_context(mst, context)?;
+                    if iter.peek().is_some() {
+                        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
+                    }
+                }
+                mst.push_char(DC_END_LIST);
+                Ok(())
+            }
+        }
+    }
+}
+
+impl DcMixedDecode for DcRawValue {
+    fn decode_dc_node(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        node_id: NodeId,
+    ) -> Result<Self> {
+        let mut curr_id = node_id;
+        while let Ok(node) = ctx.node(curr_id) {
+            match &node.kind {
+                DcSyntaxKind::Tagged { tag, args } if *tag == DC_OPTIONAL_PRESENT => {
+                    let Some(&first_arg) = args.first() else {
+                        bail!("Empty optional tagged construct (Dc 315)");
+                    };
+                    curr_id = first_arg;
+                }
+                DcSyntaxKind::Container { opener, children, .. } if *opener == DC_OPTIONAL_PRESENT => {
+                    let Some(&first_child) = children.first() else {
+                        bail!("Empty optional container (Dc 315)");
+                    };
+                    curr_id = first_child;
+                }
+                _ => break,
+            }
+        }
+
+        let node = ctx.node(curr_id)?;
+        let candidate_children: Option<Vec<NodeId>> = match &node.kind {
+            DcSyntaxKind::Container { opener, children, .. }
+                if *opener == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS =>
+            {
+                if children.len() == 1 {
+                    let Some(&first_id) = children.first() else {
+                        bail!("Missing child in partially equivalent container");
+                    };
+                    let first_child = ctx.node(first_id)?;
+                    if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_child.kind {
+                        if *child_opener == DC_BEGIN_LIST {
+                            Some(inner.clone())
+                        } else {
+                            Some(children.clone())
+                        }
+                    } else {
+                        Some(children.clone())
+                    }
+                } else {
+                    Some(children.clone())
+                }
+            }
+            DcSyntaxKind::Tagged { tag, args }
+                if *tag == DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS =>
+            {
+                if let Some(&first_arg) = args.first() {
+                    let first_node = ctx.node(first_arg)?;
+                    if let DcSyntaxKind::Container { opener: child_opener, children: inner, .. } = &first_node.kind {
+                        if *child_opener == DC_BEGIN_LIST {
+                            Some(inner.clone())
+                        } else {
+                            Some(args.clone())
+                        }
+                    } else {
+                        Some(args.clone())
+                    }
+                } else {
+                    Some(Vec::new())
+                }
+            }
+            _ => None,
+        };
+
+        if let Some(child_ids) = candidate_children {
+            let mut items = Vec::new();
+            for cid in child_ids {
+                let cnode = ctx.node(cid)?;
+                match &cnode.kind {
+                    DcSyntaxKind::Atom(ch) if ch.to_u128() == 275 || ch.to_u128() == 312 => continue,
+                    DcSyntaxKind::Tagged { tag, .. } if tag.to_u128() == 275 || tag.to_u128() == 312 => continue,
+                    _ => {}
+                }
+                items.push(Self::decode_dc_node(ctx, cid)?);
+            }
+            return Ok(Self::PartiallyEquivalent(items));
+        }
+
+        let unwrap_id = ctx.unwrap_transparent(curr_id)?;
+        if let Some((fmt, _)) = ctx.unwrap_format_representation(unwrap_id)? {
+            if fmt == format_dc_char(FormatId::FilePath)? {
+                let segments = decode_filepath_segments(ctx, unwrap_id)?;
+                return Ok(Self::FilePathSegments(segments));
+            }
+        }
+
+        let unwrap_node = ctx.node(unwrap_id)?;
+        match &unwrap_node.kind {
+            DcSyntaxKind::Binary { checksum_format, payload, .. } => {
+                let bytes = ctx.materialize_binary(payload)?.into_owned();
+                let format = checksum_format
+                    .map(|dc| FormatId::from_dc_id(dc.to_u128()).context("Unsupported binary format identifier"))
+                    .transpose()?;
+                Ok(Self::Binary {
+                    format,
+                    with_sha256: false,
+                    bytes,
+                })
+            }
+            DcSyntaxKind::Container { opener, .. } if *opener == DC_BEGIN_LIST => {
+                let units = Vec::<u16>::decode_dc_node(ctx, unwrap_id)?;
+                Ok(Self::U16List(units))
+            }
+            DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
+                let s = String::decode_dc_node(ctx, unwrap_id)?;
+                Ok(Self::String(s))
+            }
+            other => bail!("Unsupported syntax node kind for DcRawValue: {other:?}"),
+        }
     }
 }
 
@@ -1882,10 +2088,10 @@ impl DcMixedDecode for SystemTime {
 
 impl DcMixedEncode for Duration {
     fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
-        mst.push_char(DC_BEGIN_DATE_DURATION);
+        mst.push_char(DC_BEGIN_DATE_MAGNITUDE);
         mst.push_char(format_dc_char(FormatId::Nanosecond)?);
         self.as_nanos().encode_dc_mixed(mst)?;
-        mst.push_char(DC_END_DATE_DURATION);
+        mst.push_char(DC_END_DATE_MAGNITUDE);
         Ok(())
     }
 }

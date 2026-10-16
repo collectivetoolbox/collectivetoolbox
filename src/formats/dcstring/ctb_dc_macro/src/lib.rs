@@ -137,6 +137,8 @@ struct StructDcAttr {
     binary: bool,
     flatten: bool,
     ignore_unknown: bool,
+    try_from: Option<syn::Type>,
+    try_into: Option<syn::Type>,
 }
 
 #[derive(Clone, Debug)]
@@ -227,6 +229,8 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
     let mut binary = false;
     let mut flatten = false;
     let mut ignore_unknown = false;
+    let mut try_from = None;
+    let mut try_into = None;
     let mut has_dc_attr = false;
 
     for attr in &input.attrs {
@@ -286,10 +290,30 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                                     ignore_unknown = b.value;
                                 }
                             }
+                            "try_from" => {
+                                if stream.peek(syn::LitStr) {
+                                    let lit_str: syn::LitStr = stream.parse()?;
+                                    let ty: syn::Type = syn::parse_str(&lit_str.value())?;
+                                    try_from = Some(ty);
+                                } else {
+                                    let ty: syn::Type = stream.parse()?;
+                                    try_from = Some(ty);
+                                }
+                            }
+                            "try_into" => {
+                                if stream.peek(syn::LitStr) {
+                                    let lit_str: syn::LitStr = stream.parse()?;
+                                    let ty: syn::Type = syn::parse_str(&lit_str.value())?;
+                                    try_into = Some(ty);
+                                } else {
+                                    let ty: syn::Type = stream.parse()?;
+                                    try_into = Some(ty);
+                                }
+                            }
                             other => {
                                 return Err(syn::Error::new(
                                     ident.span(),
-                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, `flags`, `binary`, `flatten`, or `ignore_unknown`"),
+                                    format!("Unknown container attribute key `{other}`; expected `begin`, `end`, `flags`, `binary`, `flatten`, `ignore_unknown`, `try_from`, or `try_into`"),
                                 ));
                             }
                         }
@@ -330,7 +354,7 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         return Ok(None);
     }
 
-    if binary || flatten {
+    if binary || flatten || try_from.is_some() || try_into.is_some() {
         return Ok(Some(StructDcAttr {
             begin,
             end,
@@ -338,6 +362,8 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
             binary,
             flatten,
             ignore_unknown,
+            try_from,
+            try_into,
         }));
     }
 
@@ -380,6 +406,8 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         binary,
         flatten,
         ignore_unknown,
+        try_from,
+        try_into,
     }))
 }
 
@@ -388,7 +416,7 @@ fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
     container.ok_or_else(|| {
         syn::Error::new(
             input.span(),
-            "Missing `#[dc(...)]` attribute on struct. Structs require `#[dc(begin = ..., end = ...)]`, `#[dc(binary)]`, or `#[dc(flatten)]`.",
+            "Missing `#[dc(...)]` attribute on struct. Structs require `#[dc(begin = ..., end = ...)]`, `#[dc(binary)]`, `#[dc(flatten)]`, or `#[dc(try_from = ..., try_into = ...)]`.",
         )
     })
 }
@@ -1330,6 +1358,101 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
         return Ok(expanded);
     }
 
+    let container_attrs = parse_optional_container_attrs(input)?;
+    if let Some(ref cattrs) = container_attrs {
+        if cattrs.try_from.is_some() || cattrs.try_into.is_some() {
+            let (Some(try_from_ty), Some(try_into_ty)) = (&cattrs.try_from, &cattrs.try_into) else {
+                return Err(syn::Error::new(
+                    input.span(),
+                    "Both `try_from` and `try_into` must be specified together in `#[dc(try_from = ..., try_into = ...)]`",
+                ));
+            };
+
+            let flattened_impl = if cattrs.flatten {
+                quote! {
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
+                        type State = <#try_from_ty as #crate_root::DcMixedFlattened>::State;
+
+                        fn encode_flattened_fields(
+                            &self,
+                            mst: &mut #crate_root::DcMstring,
+                            context: &#crate_root::SharedValueContext,
+                        ) -> #anyhow_path::Result<()> {
+                            let repr: #try_into_ty = ::std::convert::TryFrom::try_from(self)
+                                .map_err(|e| #anyhow_path::anyhow!("Failed to convert for encoding: {e}"))?;
+                            <#try_into_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(&repr, mst, context)
+                        }
+
+                        fn decode_flattened_field(
+                            state: &mut Self::State,
+                            tag: u128,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            val_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            <#try_from_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)
+                        }
+
+                        fn finish_flattened(
+                            state: Self::State,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        ) -> #anyhow_path::Result<Self> {
+                            let repr = <#try_from_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?;
+                            <Self as ::std::convert::TryFrom<#try_from_ty>>::try_from(repr)
+                                .map_err(|e| #anyhow_path::anyhow!("Failed to convert decoded representation: {e}"))
+                        }
+                    }
+                }
+            } else {
+                quote! {}
+            };
+
+            return Ok(quote! {
+                #[automatically_derived]
+                impl #impl_generics #crate_root::DcForgivingDefault for #type_name #ty_generics #where_clause {
+                    fn dc_forgiving_default() -> Self {
+                        let default_repr = <#try_from_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default();
+                        match <Self as ::std::convert::TryFrom<#try_from_ty>>::try_from(default_repr) {
+                            ::std::result::Result::Ok(val) => val,
+                            ::std::result::Result::Err(_) => ::std::default::Default::default(),
+                        }
+                    }
+                }
+
+                #[automatically_derived]
+                impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+                    fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    }
+
+                    fn encode_dc_mixed_with_context(
+                        &self,
+                        mst: &mut #crate_root::DcMstring,
+                        context: &#crate_root::SharedValueContext,
+                    ) -> #anyhow_path::Result<()> {
+                        let repr: #try_into_ty = ::std::convert::TryFrom::try_from(self)
+                            .map_err(|e| #anyhow_path::anyhow!("Failed to convert for encoding: {e}"))?;
+                        <#try_into_ty as #crate_root::DcMixedEncode>::encode_dc_mixed_with_context(&repr, mst, context)
+                    }
+                }
+
+                #[automatically_derived]
+                impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                    fn decode_dc_node(
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        node_id: #crate_root::NodeId,
+                    ) -> #anyhow_path::Result<Self> {
+                        let repr = <#try_from_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, node_id)?;
+                        <Self as ::std::convert::TryFrom<#try_from_ty>>::try_from(repr)
+                            .map_err(|e| #anyhow_path::anyhow!("Failed to convert decoded representation: {e}"))
+                    }
+                }
+
+                #flattened_impl
+            });
+        }
+    }
+
     let forgiving_default_impl = expand_dc_forgiving_default(input, &crate_root)?;
 
     match &input.data {
@@ -1384,9 +1507,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             if struct_attrs.flatten {
                 let mut encode_stmts = Vec::new();
                 let mut decode_arms = Vec::new();
+                let mut decode_field_arms = Vec::new();
                 let mut field_inits = Vec::new();
                 let mut field_validations = Vec::new();
                 let mut construct_fields = Vec::new();
+                let mut has_catchall = false;
 
                 for field in fields {
                     let Some(field_ident) = field.ident.as_ref() else {
@@ -1407,6 +1532,63 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     });
 
                     if attr.flatten {
+                        if !attr.nested.is_empty() {
+                            let mut all_match_tags = attr.nested.clone();
+                            all_match_tags.extend(attr.aliases.iter().copied());
+
+                            if let Some(inner_ty) = extract_type_from_option(field_ty) {
+                                encode_stmts.push(quote! {
+                                    if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                        <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                    }
+                                });
+                                field_inits.push(quote! {
+                                    let mut #field_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
+                                });
+                                decode_arms.push(quote! {
+                                    #(#all_match_tags)|* => {
+                                        let state = #field_ident.get_or_insert_with(::std::default::Default::default);
+                                        <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)?;
+                                    }
+                                });
+                                decode_field_arms.push(quote! {
+                                    #(#all_match_tags)|* => {
+                                        let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
+                                        state.decode_field(full_tag, ctx, val_id)
+                                    }
+                                });
+                                field_validations.push(quote! {
+                                    let #field_ident = match #field_ident {
+                                        ::std::option::Option::Some(state) => ::std::option::Option::Some(
+                                            <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
+                                        ),
+                                        ::std::option::Option::None => ::std::option::Option::None,
+                                    };
+                                });
+                            } else {
+                                encode_stmts.push(quote! {
+                                    <#field_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(&self.#field_ident, mst, context)?;
+                                });
+                                field_inits.push(quote! {
+                                    let mut #field_ident: <#field_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
+                                });
+                                decode_arms.push(quote! {
+                                    #(#all_match_tags)|* => {
+                                        <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id)?;
+                                    }
+                                });
+                                decode_field_arms.push(quote! {
+                                    #(#all_match_tags)|* => {
+                                        self.#field_ident.decode_field(full_tag, ctx, val_id)
+                                    }
+                                });
+                                field_validations.push(quote! {
+                                    let #field_ident = <#field_ty as #crate_root::DcMixedFlattened>::finish_flattened(#field_ident, ctx)?;
+                                });
+                            }
+                            continue;
+                        }
+                        has_catchall = true;
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
@@ -1416,6 +1598,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                         #field_ident = Some(v);
                                     }
+                                }
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            _ => {
+                                if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    self.#field_ident = v;
+                                    Ok(true)
+                                } else {
+                                    Ok(false)
                                 }
                             }
                         });
@@ -1445,12 +1637,29 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     #field_ident = Some(val);
                                 }
                             });
+                            decode_field_arms.push(quote! {
+                                #id => {
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            ctx.materialize_binary(payload)
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node for field `{}`, found {other:?}", stringify!(#field_ident)),
+                                    };
+                                    let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    self.#field_ident = val;
+                                    Ok(true)
+                                }
+                            });
                         } else {
                             encode_stmts.push(quote! {
                                 mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                             });
                             decode_arms.push(quote! {
-                                203 => {
+                                1114315 => {
                                     let unwrap_id = ctx.unwrap_transparent(val_id)?;
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
@@ -1463,6 +1672,23 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
                                     #field_ident = Some(val);
+                                }
+                            });
+                            decode_field_arms.push(quote! {
+                                1114315 => {
+                                    let unwrap_id = ctx.unwrap_transparent(val_id)?;
+                                    let unwrap_node = ctx.node(unwrap_id)?;
+                                    let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
+                                            ctx.materialize_binary(payload)
+                                                .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
+                                        }
+                                        other => #anyhow_path::bail!("Expected Binary node for field `{}`, found {other:?}", stringify!(#field_ident)),
+                                    };
+                                    let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                    self.#field_ident = val;
+                                    Ok(true)
                                 }
                             });
                         }
@@ -1488,6 +1714,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #field_ident = Some(Some(val));
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #id => {
+                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
+                                self.#field_ident = Some(val);
+                                Ok(true)
+                            }
+                        });
                         field_inits.push(quote! {
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
@@ -1502,10 +1735,18 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #field_ident = Some(val);
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #id => {
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
                         field_inits.push(quote! {
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
                         });
                     } else {
+                        has_catchall = true;
                         encode_stmts.push(quote! {
                             #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
                         });
@@ -1515,6 +1756,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
                                         #field_ident = Some(v);
                                     }
+                                }
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            _ => {
+                                if let Ok(v) = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    self.#field_ident = v;
+                                    Ok(true)
+                                } else {
+                                    Ok(false)
                                 }
                             }
                         });
@@ -1543,8 +1794,73 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }
                 }
 
+                let unrecognized_arm = if has_catchall {
+                    None
+                } else {
+                    Some(quote! {
+                        _ => {
+                            ctx.handle_unconsumed_or_incomplete(
+                                &[format!("Unrecognized tag {tag:#X} in flattened struct {}", stringify!(#type_name))],
+                                &[],
+                            )?;
+                        }
+                    })
+                };
+
                 return Ok(quote! {
                     #forgiving_default_impl
+
+                    #[automatically_derived]
+                    impl #impl_generics #type_name #ty_generics #where_clause {
+                        #[allow(dead_code)]
+                        pub fn decode_field(
+                            &mut self,
+                            tag: impl Into<u128>,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            let _ = ctx;
+                            let tag = tag.into();
+                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
+                            let val_id = node_id;
+                            let unwrap_id = node_id;
+                            match full_tag {
+                                #(#decode_field_arms)*
+                                _ => Ok(false),
+                            }
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
+                        type State = ::std::option::Option<Self>;
+
+                        fn encode_flattened_fields(
+                            &self,
+                            mst: &mut #crate_root::DcMstring,
+                            context: &#crate_root::SharedValueContext,
+                        ) -> #anyhow_path::Result<()> {
+                            self.encode_dc_mixed_with_context(mst, context)
+                        }
+
+                        fn decode_flattened_field(
+                            state: &mut Self::State,
+                            tag: u128,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            val_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            let instance = state.get_or_insert_with(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default);
+                            instance.decode_field(tag, ctx, val_id)
+                        }
+
+                        fn finish_flattened(
+                            state: Self::State,
+                            _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        ) -> #anyhow_path::Result<Self> {
+                            Ok(state.unwrap_or_else(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default))
+                        }
+                    }
+
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
@@ -1566,7 +1882,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let unwrap_node = ctx.node(unwrap_id)?;
                             let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
-                                _ => ::std::vec![unwrap_id],
+                                _ => {
+                                    if ctx.arena.roots().contains(&node_id) || ctx.arena.roots().len() > 1 {
+                                        ctx.mark_all_roots_consumed();
+                                        ctx.arena.roots().to_vec()
+                                    } else {
+                                        ::std::vec![unwrap_id]
+                                    }
+                                }
                             };
                             #(#field_inits)*
                             for &cid in &child_ids {
@@ -1597,7 +1920,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 };
                                 match tag {
                                     #(#decode_arms)*
-                                    _ => {}
+                                    #unrecognized_arm
                                 }
                             }
                             #(#field_validations)*
@@ -1832,6 +2155,77 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 if attr.flatten {
+                    if !attr.nested.is_empty() {
+                        let mut all_match_tags = attr.nested.clone();
+                        all_match_tags.extend(attr.aliases.iter().copied());
+                        for &t in &all_match_tags {
+                            seen_ids.insert(t);
+                        }
+                        field_name_arms.push(quote! {
+                            #(#all_match_tags)|* => ::std::option::Option::Some(stringify!(#field_ident)),
+                        });
+
+                        if let Some(inner_ty) = extract_type_from_option(field_ty) {
+                            encode_fields.push(quote! {
+                                if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                    <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                }
+                            });
+                            field_inits.push(quote! {
+                                let mut #field_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
+                            });
+                            decode_arms.push(quote! {
+                                #(#all_match_tags)|* => {
+                                    let state = #field_ident.get_or_insert_with(::std::default::Default::default);
+                                    <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)?;
+                                }
+                            });
+                            decode_field_arms.push(quote! {
+                                #(#all_match_tags)|* => {
+                                    let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
+                                    state.decode_field(full_tag, ctx, val_id)
+                                }
+                            });
+                            field_validations.push(quote! {
+                                let #field_ident = match #field_ident {
+                                    ::std::option::Option::Some(state) => ::std::option::Option::Some(
+                                        <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
+                                    ),
+                                    ::std::option::Option::None => ::std::option::Option::None,
+                                };
+                            });
+                        } else {
+                            encode_fields.push(quote! {
+                                <#field_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(&self.#field_ident, mst, context)?;
+                            });
+                            field_inits.push(quote! {
+                                let mut #field_ident: <#field_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
+                            });
+                            decode_arms.push(quote! {
+                                #(#all_match_tags)|* => {
+                                    <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id)?;
+                                }
+                            });
+                            decode_field_arms.push(quote! {
+                                #(#all_match_tags)|* => {
+                                    self.#field_ident.decode_field(full_tag, ctx, val_id)
+                                }
+                            });
+                            field_validations.push(quote! {
+                                let #field_ident = <#field_ty as #crate_root::DcMixedFlattened>::finish_flattened(#field_ident, ctx)?;
+                            });
+                        }
+
+                        construct_fields.push(quote! {
+                            #field_ident
+                        });
+                        let encoding = encode_fields.last().ok_or_else(|| syn::Error::new(field.span(), "Missing flattened field encoder"))?;
+                        field_encode_arms.push(quote! {
+                            stringify!(#field_ident) => { #encoding Ok(()) },
+                        });
+                        continue;
+                    }
+
                     let type_str = quote!(#field_ty).to_string();
                     let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
                     if is_vec {
@@ -1949,7 +2343,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     seen_ids.insert(*alias);
                 }
 
-                let mut all_match_tags = vec![id];
+                let mut all_match_tags = if attr.nested.is_empty() { vec![id] } else { attr.nested.clone() };
                 all_match_tags.extend(attr.aliases.iter().copied());
                 let annotation_tags = if attr.nested.is_empty() { all_match_tags.clone() } else { attr.nested.clone() };
                 field_name_arms.push(quote! {
@@ -2655,6 +3049,36 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 #[automatically_derived]
+                impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
+                    type State = ::std::option::Option<Self>;
+
+                    fn encode_flattened_fields(
+                        &self,
+                        mst: &mut #crate_root::DcMstring,
+                        context: &#crate_root::SharedValueContext,
+                    ) -> #anyhow_path::Result<()> {
+                        self.encode_fields_with_context(mst, context)
+                    }
+
+                    fn decode_flattened_field(
+                        state: &mut Self::State,
+                        tag: u128,
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        val_id: #crate_root::NodeId,
+                    ) -> #anyhow_path::Result<bool> {
+                        let instance = state.get_or_insert_with(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default);
+                        instance.decode_field(tag, ctx, val_id)
+                    }
+
+                    fn finish_flattened(
+                        state: Self::State,
+                        _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                    ) -> #anyhow_path::Result<Self> {
+                        Ok(state.unwrap_or_else(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default))
+                    }
+                }
+
+                #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                     fn decode_dc_node(
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
@@ -2947,14 +3371,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let unwrap_node = ctx.node(unwrap_id)?;
                                     let raw_bytes: ::std::borrow::Cow<'_, [u8]> = match &unwrap_node.kind {
                                         #crate_root::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                            payload.materialize_bytes()
+                                            ctx.materialize_binary(payload)
                                                 .map_err(|e| #anyhow_path::anyhow!("Failed to materialize binary payload: {e}"))?
                                         }
-                                        #crate_root::navigator::DcSyntaxKind::Container { opener, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
-                                            let vec_bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
-                                            ::std::borrow::Cow::Owned(vec_bytes)
-                                        }
-                                        other => #anyhow_path::bail!("Expected Binary node or list for binary payload in variant {}, found {other:?}", stringify!(#variant_ident)),
+                                        other => #anyhow_path::bail!("Expected Binary node for binary payload in variant {}, found {other:?}", stringify!(#variant_ident)),
                                     };
                                     let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
                                         .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for variant `{}`: {e}", stringify!(#variant_ident)))?;
@@ -3031,6 +3451,52 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     let #f_ident: #f_ty = ::std::default::Default::default();
                                 });
                                 v_field_build.push(quote! { #f_ident });
+                                continue;
+                            }
+
+                            if attr.flatten && !attr.nested.is_empty() {
+                                let mut all_field_tags = attr.nested.clone();
+                                all_field_tags.extend(attr.aliases.iter().copied());
+
+                                if let Some(inner_ty) = extract_type_from_option(f_ty) {
+                                    encode_fields.push(quote! {
+                                        if let ::std::option::Option::Some(ref item) = #f_ident {
+                                            <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                        }
+                                    });
+                                    v_field_inits.push(quote! {
+                                        let mut #f_ident: ::std::option::Option<<#inner_ty as #crate_root::DcMixedFlattened>::State> = ::std::option::Option::None;
+                                    });
+                                    v_field_arms.push(quote! {
+                                        #(#all_field_tags)|* => {
+                                            let state = #f_ident.get_or_insert_with(::std::default::Default::default);
+                                            <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, ch_tag, ctx, child_val_id)?;
+                                        }
+                                    });
+                                    v_field_build.push(quote! {
+                                        #f_ident: match #f_ident {
+                                            ::std::option::Option::Some(state) => ::std::option::Option::Some(
+                                                <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
+                                            ),
+                                            ::std::option::Option::None => ::std::option::Option::None,
+                                        }
+                                    });
+                                } else {
+                                    encode_fields.push(quote! {
+                                        <#f_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(#f_ident, mst, context)?;
+                                    });
+                                    v_field_inits.push(quote! {
+                                        let mut #f_ident: <#f_ty as #crate_root::DcMixedFlattened>::State = ::std::default::Default::default();
+                                    });
+                                    v_field_arms.push(quote! {
+                                        #(#all_field_tags)|* => {
+                                            <#f_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #f_ident, ch_tag, ctx, child_val_id)?;
+                                        }
+                                    });
+                                    v_field_build.push(quote! {
+                                        #f_ident: <#f_ty as #crate_root::DcMixedFlattened>::finish_flattened(#f_ident, ctx)?
+                                    });
+                                }
                                 continue;
                             }
 
