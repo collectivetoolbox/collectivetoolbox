@@ -2548,6 +2548,7 @@ mod tests {
         encoded.push_char(DC_BEGIN_LIST);
         encoded.push_char(DcChar::from_short(275));
         "text".encode_dc_mixed(&mut encoded)?;
+        encoded.push_char(DC_LIST_ELEMENT_SEPARATOR);
         encoded.push_binary_with_sha256(b"different").unwrap();
         encoded.push_char(DC_END_LIST);
         let mut nav = crate::DcDocumentNavigator::from_mstr(&encoded);
@@ -3058,16 +3059,15 @@ mod tests {
         };
         assert_dc_roundtrip(&value)?;
 
-        let mut historical = DcMstring::new();
-        historical.push_char(DcChar::from_short(317));
-        historical.push_char(DcChar::from_short(385));
-        value.payload.0.encode_dc_mixed(&mut historical)?;
-        historical.push_char(DcChar::from_short(539));
-        historical.push_char(DcChar::from_short(315));
-        u64::MAX.to_le_bytes().to_vec().encode_dc_mixed(&mut historical)?;
-        historical.push_char(DcChar::from_short(318));
-        ensure!(historical.decode::<BinaryFields>(&strict)? == value,
-            "Historical byte lists must use the binary conversion contract");
+        let mut invalid_list = DcMstring::new();
+        invalid_list.push_char(DcChar::from_short(317));
+        invalid_list.push_char(DcChar::from_short(385));
+        value.payload.0.encode_dc_mixed(&mut invalid_list)?;
+        invalid_list.push_char(DcChar::from_short(318));
+        ensure!(
+            invalid_list.decode::<BinaryFields>(&strict).is_err(),
+            "Byte lists must not be accepted for binary fields under strict policy"
+        );
         Ok(())
     }
 

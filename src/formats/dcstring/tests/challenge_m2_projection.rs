@@ -366,16 +366,18 @@ fn test_challenge_duration_short_and_long_delimiters() -> Result<()> {
     ensure!(dec_395_raw == expected, "395..396 raw mismatch: got {dec_395_raw:?}");
 
     // 5. Bare number representation of Duration:
-    // STRICT must reject; FORGIVING must recover.
+    // Both strict and forgiving policies reject bare number for standalone Duration
     let mut bare_num_mst = DcMstring::new();
     nanos.encode_dc_mixed(&mut bare_num_mst)?;
 
-    let strict_res = bare_num_mst.decode::<Duration>(&strict);
-    ensure!(strict_res.is_err(), "Bare number Duration MUST fail under strict policy!");
-
-    let forgiving_dec = bare_num_mst.decode::<Duration>(&forgiving)
-        .context("Bare number Duration MUST recover under forgiving policy")?;
-    ensure!(forgiving_dec == expected, "Forgiving recovered duration mismatch");
+    ensure!(
+        bare_num_mst.decode::<Duration>(&strict).is_err(),
+        "Bare number Duration MUST fail under strict policy!"
+    );
+    ensure!(
+        bare_num_mst.decode::<Duration>(&forgiving).is_err(),
+        "Standalone Duration decoder MUST reject bare number under forgiving policy too"
+    );
 
     Ok(())
 }
@@ -524,18 +526,17 @@ fn test_challenge_format_container_extraneous_trailing_children() -> Result<()> 
     "extraneous".to_string().encode_dc_mixed(&mut mst)?;
     mst.push_char(DC_END_FORMAT_REPRESENTATION);
 
-    let mut nav = DcDocumentNavigator::from_mstr(&mst);
-    let mut arena = DcSyntaxArena::new();
-    nav.parse_document_into_arena(&mut arena, &strict)?;
-    let root_id = arena.roots().first().copied().context("Missing root")?;
-
-    // Under strict policy, extraneous trailing child MUST be rejected
-    let mut ctx_strict = DcProjectionContext::new(&arena, &strict);
-    let res_strict = ctx_strict.unwrap_format_representation(root_id);
+    let mut nav_strict = DcDocumentNavigator::from_mstr(&mst);
+    let mut arena_strict = DcSyntaxArena::new();
     ensure!(
-        res_strict.is_err(),
+        nav_strict.parse_document_into_arena(&mut arena_strict, &strict).is_err(),
         "Expected strict decode to reject format representation with extraneous trailing children"
     );
+
+    let mut nav = DcDocumentNavigator::from_mstr(&mst);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &forgiving)?;
+    let root_id = arena.roots().first().copied().context("Missing root")?;
 
     // Under forgiving policy, it should unwrap format and payload
     let mut ctx_forgiving = DcProjectionContext::new(&arena, &forgiving);

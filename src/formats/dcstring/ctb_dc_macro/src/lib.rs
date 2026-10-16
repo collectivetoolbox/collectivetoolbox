@@ -1906,13 +1906,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let #field_ident = match #field_ident {
                                 ::std::option::Option::Some(v) => v,
                                 ::std::option::Option::None => {
-                                    if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
-                                        #anyhow_path::bail!(
-                                            "Flattened field `{}` missing from DcMixed stream for {}",
-                                            stringify!(#field_ident),
-                                            stringify!(#type_name)
-                                        );
-                                    }
                                     ctx.handle_unconsumed_or_incomplete(&[], &[stringify!(#field_ident)])?;
                                     <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default()
                                 }
@@ -1970,7 +1963,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     if is_vec {
                         return Err(syn::Error::new(field.span(), "representation requires a single value, not a repeated Vec field"));
                     }
-                    let encode = if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
+                    let encode = if let Some(_inner_ty) = extract_type_from_option(field_ty) {
                         quote! {
                             if let Some(value) = &self.#field_ident {
                                 mst.push_char(#crate_root::DcChar::from_u128(#id));
@@ -2097,7 +2090,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         encode_fields.push(encode_stmt);
                     }
                 } else if attr.checksum {
-                    if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
+                    if let Some(_inner_ty) = extract_type_from_option(field_ty) {
                         let opt_marker = if attr.omit_default {
                             quote! {}
                         } else {
@@ -2126,8 +2119,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     }
                 } else if attr.binary {
-                    if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
-                        if !is_paired_raw {
+                    if let Some(_inner_ty) = extract_type_from_option(field_ty) {
+                        if is_paired_raw {
+                            encode_fields.push(quote! {});
+                        } else {
                             let opt_marker = if attr.omit_default {
                                 quote! {}
                             } else {
@@ -2140,26 +2135,22 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                 }
                             });
-                        } else {
-                            encode_fields.push(quote! {});
                         }
                     } else {
                         let encode_stmt = quote! {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
                             mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident))?;
                         };
-                        if !is_paired_raw {
-                            if attr.omit_default {
-                                encode_fields.push(quote! {
-                                    if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
-                                        #encode_stmt
-                                    }
-                                });
-                            } else {
-                                encode_fields.push(encode_stmt);
-                            }
-                        } else {
+                        if is_paired_raw {
                             encode_fields.push(quote! {});
+                        } else if attr.omit_default {
+                            encode_fields.push(quote! {
+                                if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                    #encode_stmt
+                                }
+                            });
+                        } else {
+                            encode_fields.push(encode_stmt);
                         }
                     }
                 } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
@@ -2180,7 +2171,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         } else {
                             encode_fields.push(encode_stmt);
                         }
-                    } else if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
+                    } else if let Some(_inner_ty) = extract_type_from_option(field_ty) {
                         if let Some((ref raw_ident, raw_tag)) = attr.raw {
                             let encode_stmt = quote! {
                                 match (&self.#field_ident, &self.#raw_ident) {
@@ -2248,7 +2239,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
                             }
                         });
-                    } else if let Some(_inner_ty) = extract_type_from_option(&field_ty) {
+                    } else if let Some(_inner_ty) = extract_type_from_option(field_ty) {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
@@ -2277,7 +2268,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }
                 } else if is_paired_raw {
                     encode_fields.push(quote! {});
-                } else if extract_type_from_option(&field_ty).is_some() && attr.omit_default {
+                } else if extract_type_from_option(field_ty).is_some() && attr.omit_default {
                     encode_fields.push(quote! {
                         if let ::std::option::Option::Some(ref val) = self.#field_ident {
                             mst.push_char(#crate_root::DcChar::from_u128(#id));
@@ -2302,7 +2293,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 // Field decoding
                 if let Some((ref raw_ident, raw_tag)) = attr.raw {
-                    let Some(inner_ty) = extract_type_from_option(&field_ty) else {
+                    let Some(inner_ty) = extract_type_from_option(field_ty) else {
                         return Err(syn::Error::new(field_ident.span(), "Paired raw field requires Option<T> field type"));
                     };
                     decode_arms.push(quote! {
@@ -2526,7 +2517,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ::std::option::Option::None => ::std::default::Default::default(),
                         };
                     });
-                } else if extract_type_from_option(&field_ty).is_some() {
+                } else if extract_type_from_option(field_ty).is_some() {
                     field_validations.push(quote! {
                         let #field_ident = match #field_ident {
                             ::std::option::Option::Some(v) => v,
@@ -2538,13 +2529,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let #field_ident = match #field_ident {
                             ::std::option::Option::Some(v) => v,
                             ::std::option::Option::None => {
-                                if ctx.policy.missing_required_field == #crate_root::DiagnosticAction::Error {
-                                    #anyhow_path::bail!(
-                                        "Required field `{}` missing from DcMixed stream for {}",
-                                        stringify!(#field_ident),
-                                        stringify!(#type_name)
-                                    );
-                                }
                                 ctx.handle_unconsumed_or_incomplete(&[], &[stringify!(#field_ident)])?;
                                 <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default()
                             }
@@ -2703,9 +2687,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             while idx < children.len() {
                                 let child_id = children[idx];
                                 if let Ok(child_node) = ctx.node(child_id) {
-                                    if let Ok(pos) = usize::try_from(child_node.span.start) {
-                                        ctx.current_position = pos;
-                                    }
+                                    ctx.current_position = child_node.span.start;
                                 }
                                 let child_node = ctx.node(child_id)?;
                                 let (tag, val_id) = match &child_node.kind {
@@ -2796,20 +2778,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                     }
                                     ::std::result::Result::Ok(false) => {
-                                        if ctx.policy.unknown_field == #crate_root::DiagnosticAction::Error {
-                                            #anyhow_path::bail!(
-                                                "Unexpected Dc tag {:#X} while decoding struct {}",
-                                                tag,
-                                                stringify!(#type_name)
-                                            );
-                                        }
-                                        ctx.policy.handle(
-                                            ctx.policy.unknown_field,
-                                            format!(
+                                        ctx.handle_unconsumed_or_incomplete(
+                                            &[format!(
                                                 "Unknown Dc tag {:#X} while decoding struct {}",
                                                 tag,
                                                 stringify!(#type_name)
-                                            ),
+                                            )],
+                                            &[],
                                         )?;
                                     }
                                     ::std::result::Result::Err(err) => {
@@ -2830,14 +2805,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                             if let Some(&last_id) = children.last() {
                                 if let Ok(last_node) = ctx.node(last_id) {
-                                    if let Ok(pos) = usize::try_from(last_node.span.end) {
-                                        ctx.current_position = pos;
-                                    }
+                                    ctx.current_position = last_node.span.end;
                                 }
                             } else if let Ok(root_node) = ctx.node(node_id) {
-                                if let Ok(pos) = usize::try_from(root_node.span.end) {
-                                    ctx.current_position = pos;
-                                }
+                                ctx.current_position = root_node.span.end;
                             }
                             #(#field_validations)*
                             Ok(Self {
@@ -3074,7 +3045,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let val_expr = generate_field_value_decoder(&crate_root, &anyhow_path, f_ident, f_ty, &attr, &quote!(child_val_id))?;
                             let mut all_field_tags = vec![f_tag];
                             if !attr.nested.is_empty() {
-                                all_field_tags = attr.nested.clone();
+                                all_field_tags.clone_from(&attr.nested);
                             }
                             if is_vec && attr.begin.is_none() && !attr.binary && !attr.checksum {
                                 v_field_inits.push(quote! {
@@ -3107,7 +3078,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     v_field_build.push(quote! { #f_ident: #f_ident.unwrap_or_default() });
                                 } else {
                                     v_field_build.push(quote! {
-                                        #f_ident: #f_ident.ok_or_else(|| #anyhow_path::anyhow!("Missing field `{}` in variant `{}`", stringify!(#f_ident), stringify!(#variant_ident)))?
+                                        #f_ident: match #f_ident {
+                                            ::std::option::Option::Some(v) => v,
+                                            ::std::option::Option::None => {
+                                                ctx.handle_unconsumed_or_incomplete(&[], &[stringify!(#f_ident)])?;
+                                                <#f_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default()
+                                            }
+                                        }
                                     });
                                 }
                             }
@@ -3120,10 +3097,15 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             } else if attr.checksum {
                                 if let Some(_inner_ty) = extract_type_from_option(f_ty) {
+                                    let opt_marker = if attr.omit_default {
+                                        quote! {}
+                                    } else {
+                                        quote! { mst.push_char(#crate_root::DcChar::from_short(315)); }
+                                    };
                                     quote! {
                                         if let Some(ref val) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                            mst.push_char(#crate_root::DcChar::from_short(315));
+                                            #opt_marker
                                             mst.push_checksum(#crate_root::DcChar::from_format(245), ::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                         }
                                     }
@@ -3135,10 +3117,15 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             } else if attr.binary {
                                 if let Some(_inner_ty) = extract_type_from_option(f_ty) {
+                                    let opt_marker = if attr.omit_default {
+                                        quote! {}
+                                    } else {
+                                        quote! { mst.push_char(#crate_root::DcChar::from_short(315)); }
+                                    };
                                     quote! {
                                         if let Some(ref val) = #f_ident {
                                             mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                            mst.push_char(#crate_root::DcChar::from_short(315));
+                                            #opt_marker
                                             mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val))?;
                                         }
                                     }
@@ -3164,6 +3151,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 } else {
                                     quote! {
                                         #crate_root::DcMixedEncode::encode_dc_mixed_with_context(#f_ident, mst, context)?;
+                                    }
+                                }
+                            } else if extract_type_from_option(f_ty).is_some() && attr.omit_default {
+                                quote! {
+                                    if let ::std::option::Option::Some(ref val) = #f_ident {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(val, mst, context)?;
                                     }
                                 }
                             } else {
@@ -3227,7 +3221,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     idx = idx.saturating_add(1usize);
                                     match ch_tag {
                                         #(#v_field_arms)*
-                                        _ => {}
+                                        _ => {
+                                            ctx.handle_unconsumed_or_incomplete(
+                                                &[format!("Unknown Dc tag {:#X} in variant `{}` of enum {}", ch_tag, stringify!(#variant_ident), stringify!(#type_name))],
+                                                &[],
+                                            )?;
+                                        }
                                     }
                                 }
                                 Self::#variant_ident {

@@ -461,129 +461,26 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 323, end = 324)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
     /// A `None` value represents a nameless stream, such as a Classic Mac OS
     /// resource fork (which in HFS/MFS was an intrinsic nameless fork rather
     /// than a named stream) or a default unnamed stream.
+    #[dc(short = 338)]
     pub name: Option<StreamName>,
     /// Classification of the stream.
+    #[dc(nested = 379..=384)]
     pub kind: StreamKind,
     /// The stream represented as a full `FileEntity`.
+    #[dc(nested = 317)]
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
     #[serde(default, with = "crate::serde_helpers::opt_base64")]
+    #[dc(short = 385, binary, default)]
     pub data: Option<Vec<u8>>,
-}
-
-impl ctb_formats_dcstring::DcForgivingDefault for AttachedStream {
-    fn dc_forgiving_default() -> Self {
-        Self {
-            name: None,
-            kind: StreamKind::ExtendedAttribute,
-            entity: Box::new(FileEntity::from_vec(Vec::new())),
-            data: None,
-        }
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for AttachedStream {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())
-    }
-
-    fn encode_dc_mixed_with_context(
-        &self,
-        mst: &mut ctb_formats_dcstring::DcMstring,
-        context: &ctb_formats_dcstring::SharedValueContext,
-    ) -> Result<()> {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
-        if let Some(ref name) = self.name {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
-            name.encode_dc_mixed_with_context(mst, context)?;
-        }
-        self.kind.encode_dc_mixed_with_context(mst, context)?;
-
-        self.entity.encode_dc_mixed_with_context(mst, context)?;
-
-        if let Some(ref data) = self.data {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(385));
-            mst.push_binary_with_sha256(data)?;
-        }
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(324));
-        Ok(())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for AttachedStream {
-    fn decode_dc_node(
-        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
-        node_id: ctb_formats_dcstring::NodeId,
-    ) -> Result<Self> {
-        let unwrap_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(unwrap_id)?;
-        let children = match &node.kind {
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. }
-                if opener.to_short_dc() == Some(323) => children,
-            other => bail!("Expected Container 323..324 for AttachedStream, found {other:?}"),
-        };
-
-        let mut name = None;
-        let mut kind = None;
-        let mut entity = None;
-        let mut data = None;
-
-        for &child_id in children {
-            let child_node = ctx.node(child_id)?;
-            match &child_node.kind {
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                    let short_tag = tag.to_short_dc();
-                    if short_tag == Some(338) {
-                        // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
-                        let arg_id = args.first().copied().unwrap_or(child_id);
-                        name = Some(StreamName::decode_dc_node(ctx, arg_id)?);
-                    } else if short_tag == Some(385) {
-                        // Reason for fallback: tagged node without explicit argument falls back to enclosing node ID
-                        let arg_id = args.first().copied().unwrap_or(child_id);
-                        let unwrap_arg = ctx.unwrap_transparent(arg_id)?;
-                        let arg_node = ctx.node(unwrap_arg)?;
-                        let bytes = match &arg_node.kind {
-                            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                                payload.materialize_bytes()?.into_owned()
-                            }
-                            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. }
-                                if opener.to_short_dc() == Some(310) =>
-                            {
-                                <Vec<u8> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, unwrap_arg)?
-                            }
-                            other => bail!("Expected Binary or list for AttachedStream data, found {other:?}"),
-                        };
-                        data = Some(bytes);
-                    }
-                }
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) => {
-                    if let Some(short) = ch.to_short_dc() {
-                        if (379..=384).contains(&short) {
-                            kind = Some(StreamKind::decode_dc_node(ctx, child_id)?);
-                        }
-                    }
-                }
-                ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. } => {
-                    if opener.to_short_dc() == Some(317) {
-                        entity = Some(Box::new(FileEntity::decode_dc_node(ctx, child_id)?));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let kind = kind.ok_or_else(|| anyhow::anyhow!("Missing StreamKind in AttachedStream"))?;
-        let entity = entity.ok_or_else(|| anyhow::anyhow!("Missing FileEntity in AttachedStream"))?;
-
-        Ok(Self { name, kind, entity, data })
-    }
 }
 
 impl AttachedStream {

@@ -557,63 +557,14 @@ impl FileFlag {
 }
 
 /// Raw platform bitmask as reported by the OS kernel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(binary)]
 pub struct PlatformRawFlags {
     /// Raw integer bitmask as reported by the OS kernel.
     pub raw_value: u64,
     bytes: [u8; 8],
 }
 
-impl ctb_formats_dcstring::DcForgivingDefault for PlatformRawFlags {
-    fn dc_forgiving_default() -> Self {
-        Self::from_raw(0)
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for PlatformRawFlags {
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        mst.push_binary_with_sha256(self.as_ref())
-    }
-
-    fn encode_dc_mixed_with_context(
-        &self,
-        mst: &mut ctb_formats_dcstring::DcMstring,
-        _context: &ctb_formats_dcstring::SharedValueContext,
-    ) -> Result<()> {
-        self.encode_dc_mixed(mst)
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for PlatformRawFlags {
-    fn decode_dc_node(
-        ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
-        node_id: ctb_formats_dcstring::NodeId,
-    ) -> Result<Self> {
-        let mut target_id = ctx.unwrap_transparent(node_id)?;
-        let mut target_node = ctx.node(target_id)?;
-        if let ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged { tag, args } = &target_node.kind {
-            if tag.to_short_dc() == Some(539) {
-                if let Some(&arg_id) = args.first() {
-                    target_id = ctx.unwrap_transparent(arg_id)?;
-                    target_node = ctx.node(target_id)?;
-                }
-            }
-        }
-        let raw_bytes: std::borrow::Cow<'_, [u8]> = match &target_node.kind {
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Binary { payload, .. } => {
-                payload.materialize_bytes().map_err(|e| anyhow::anyhow!("{e}"))?
-            }
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, .. }
-                if opener.to_short_dc() == Some(310) =>
-            {
-                let vec_bytes = <Vec<u8> as ctb_formats_dcstring::DcMixedDecode>::decode_dc_node(ctx, target_id)?;
-                std::borrow::Cow::Owned(vec_bytes)
-            }
-            other => bail!("Expected Binary node or list for PlatformRawFlags, found {other:?}"),
-        };
-        Self::try_from(raw_bytes.as_ref())
-    }
-}
 
 impl Serialize for PlatformRawFlags {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
@@ -1402,9 +1353,12 @@ impl Default for FileMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(key_value)]
 pub struct NativeMetadata {
+    #[dc(key = "source_os")]
     pub source_os: OsFamily,
+    #[dc(key = "values")]
     pub values: std::collections::BTreeMap<String, NativeMetadataValue>,
 }
 
@@ -1414,247 +1368,6 @@ impl ctb_formats_dcstring::LosslessWithContext for NativeMetadata {
     }
 }
 
-impl ctb_formats_dcstring::DcForgivingDefault for NativeMetadata {
-    fn dc_forgiving_default() -> Self {
-        Self {
-            source_os: OsFamily::dc_forgiving_default(),
-            values: std::collections::BTreeMap::new(),
-        }
-    }
-}
-
-impl NativeMetadata {
-    pub fn encode_dc_field(&self, field: &str, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.encode_dc_map_field(field, mst, ctb_formats_dcstring::DcKvMapEncoding::Pairs)
-    }
-
-    pub fn encode_dc_map_field(
-        &self,
-        field: &str,
-        mst: &mut ctb_formats_dcstring::DcMstring,
-        encoding: ctb_formats_dcstring::DcKvMapEncoding,
-    ) -> Result<()> {
-        match field {
-            "source_os" => {
-                encoding.encode_entry_begin(mst, true);
-                "source_os".encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
-                mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
-                self.source_os.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
-                encoding.encode_entry_end(mst);
-                Ok(())
-            }
-            "values" => {
-                encoding.encode_entry_begin(mst, true);
-                "values".encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
-                mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
-                self.values.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())?;
-                encoding.encode_entry_end(mst);
-                Ok(())
-            }
-            _ => bail!("Unknown map field {field} for NativeMetadata"),
-        }
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedEncode for NativeMetadata {
-    fn encode_dc_mixed_with_context(
-        &self,
-        mst: &mut ctb_formats_dcstring::DcMstring,
-        context: &ctb_formats_dcstring::SharedValueContext,
-    ) -> Result<()> {
-        let encoding = ctb_formats_dcstring::DcKvMapEncoding::Pairs;
-        encoding.encode_header(mst);
-        encoding.encode_entry_begin(mst, true);
-        "source_os".encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
-        self.source_os.encode_dc_mixed_with_context(mst, context)?;
-        encoding.encode_entry_end(mst);
-
-        encoding.encode_entry_begin(mst, true);
-        "values".encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(312));
-        self.values.encode_dc_mixed_with_context(mst, context)?;
-        encoding.encode_entry_end(mst);
-        encoding.encode_end(mst);
-        Ok(())
-    }
-
-    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMstring) -> Result<()> {
-        self.encode_dc_mixed_with_context(mst, &ctb_formats_dcstring::SharedValueContext::default())
-    }
-}
-
-impl ctb_formats_dcstring::DcMixedDecode for NativeMetadata {
-    fn decode_dc_node(
-        ctx: &mut DcProjectionContext<'_, '_>,
-        node_id: NodeId,
-    ) -> Result<Self> {
-        let node_id = ctx.unwrap_transparent(node_id)?;
-        let node = ctx.node(node_id)?;
-        let (opener, children) = match &node.kind {
-            ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. } => (*opener, children),
-            other => bail!("Expected key-value map container for NativeMetadata, found {other:?}"),
-        };
-        let is_pairs = opener == ctb_formats_dcstring::dc::DC_BEGIN_KV_MAP;
-        let is_legacy = opener == ctb_formats_dcstring::dc::DC_BEGIN_LEGACY_KV_MAP;
-        ensure!(is_pairs || is_legacy, "Expected map container (Dc 559 or Dc 313), found opener {opener}");
-        let encoding = if is_pairs {
-            ctb_formats_dcstring::DcKvMapEncoding::Pairs
-        } else {
-            ctx.policy.handle(
-                ctx.policy.deprecated_syntax,
-                "Deprecated Dc 313..314 key-value map syntax used for NativeMetadata",
-            )?;
-            ctb_formats_dcstring::DcKvMapEncoding::Legacy
-        };
-
-        let mut source_os: Option<OsFamily> = None;
-        let mut values: Option<std::collections::BTreeMap<String, NativeMetadataValue>> = None;
-
-        let mut iter = children.iter().copied().peekable();
-        while let Some(&child_id) = iter.peek() {
-            let child = ctx.node(child_id)?;
-            if let ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) = child.kind {
-                if ch.to_short_dc() == Some(275) || ch.to_short_dc() == Some(559) {
-                    let _ = iter.next();
-                    continue;
-                }
-            }
-            break;
-        }
-
-        if is_pairs {
-            for entry_id in iter {
-                let entry_node = ctx.node(entry_id)?;
-                let pair_children = match &entry_node.kind {
-                    ctb_formats_dcstring::navigator::DcSyntaxKind::Container { opener, children, .. } if *opener == ctb_formats_dcstring::dc::DC_BEGIN_KV_PAIR => children,
-                    other => bail!("Expected Dc 514 pair container inside map, found {other:?}"),
-                };
-                let items: Vec<NodeId> = pair_children
-                    .iter()
-                    .copied()
-                    .filter(|&id| {
-                        if let Ok(n) = ctx.node(id) {
-                            !matches!(n.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
-                ensure!(items.len() == 2, "Expected exactly key and value in pair container, found {} items", items.len());
-                let Some(&k_node_id) = items.first() else {
-                    bail!("Missing key in pair container");
-                };
-                let Some(&val_id) = items.get(1) else {
-                    bail!("Missing val in pair container");
-                };
-                let key = String::decode_dc_node(ctx, k_node_id)?;
-                let entry_span = entry_node.span.to_usize_range()?;
-                if let Ok(pos) = usize::try_from(entry_node.span.start) {
-                    ctx.current_position = pos;
-                }
-                match key.as_str() {
-                    "source_os" => {
-                        ensure!(source_os.is_none(), "Duplicate map key source_os");
-                        source_os = Some(OsFamily::decode_dc_node(ctx, val_id)?);
-                        ctx.annotate_map_field(std::any::type_name::<Self>(), "source_os", entry_span, encoding);
-                    }
-                    "values" => {
-                        ensure!(values.is_none(), "Duplicate map key values");
-                        values = Some(std::collections::BTreeMap::<String, NativeMetadataValue>::decode_dc_node(ctx, val_id)?);
-                        ctx.annotate_map_field(std::any::type_name::<Self>(), "values", entry_span, encoding);
-                    }
-                    _ => {
-                        if ctx.policy.unknown_field == ctb_formats_dcstring::DiagnosticAction::Error {
-                            bail!("Unknown map key {:?} for NativeMetadata", key);
-                        }
-                        ctx.policy.handle(
-                            ctx.policy.unknown_field,
-                            format!("Unknown map key {:?} for NativeMetadata", key),
-                        )?;
-                    }
-                }
-            }
-        } else {
-            let items: Vec<NodeId> = iter
-                .filter(|&id| {
-                    if let Ok(n) = ctx.node(id) {
-                        !matches!(n.kind, ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(312))
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-            ensure!(items.len().checked_rem(2) == Some(0), "Uneven number of items in legacy map (Dc 313)");
-            let mut i = 0usize;
-            while i < items.len() {
-                let Some(&k_id) = items.get(i) else {
-                    break;
-                };
-                let Some(&val_id) = items.get(i.saturating_add(1)) else {
-                    break;
-                };
-                let key = String::decode_dc_node(ctx, k_id)?;
-                let k_start = usize::try_from(ctx.node(k_id)?.span.start)?;
-                let v_end = usize::try_from(ctx.node(val_id)?.span.end)?;
-                ctx.current_position = k_start;
-                let entry_span = k_start..v_end;
-                match key.as_str() {
-                    "source_os" => {
-                        ensure!(source_os.is_none(), "Duplicate map key source_os");
-                        source_os = Some(OsFamily::decode_dc_node(ctx, val_id)?);
-                        ctx.annotate_map_field(std::any::type_name::<Self>(), "source_os", entry_span, encoding);
-                    }
-                    "values" => {
-                        ensure!(values.is_none(), "Duplicate map key values");
-                        values = Some(std::collections::BTreeMap::<String, NativeMetadataValue>::decode_dc_node(ctx, val_id)?);
-                        ctx.annotate_map_field(std::any::type_name::<Self>(), "values", entry_span, encoding);
-                    }
-                    _ => {
-                        if ctx.policy.unknown_field == ctb_formats_dcstring::DiagnosticAction::Error {
-                            bail!("Unknown map key {:?} for NativeMetadata", key);
-                        }
-                        ctx.policy.handle(
-                            ctx.policy.unknown_field,
-                            format!("Unknown map key {:?} for NativeMetadata", key),
-                        )?;
-                    }
-                }
-                i = i.saturating_add(2);
-            }
-        }
-
-        let source_os = match source_os {
-            Some(v) => v,
-            None => {
-                if ctx.policy.missing_required_field == ctb_formats_dcstring::DiagnosticAction::Error {
-                    bail!("Missing required field source_os");
-                }
-                ctx.policy.handle(
-                    ctx.policy.missing_required_field,
-                    "Missing required field source_os",
-                )?;
-                OsFamily::dc_forgiving_default()
-            }
-        };
-
-        let values = match values {
-            Some(v) => v,
-            None => {
-                if ctx.policy.missing_required_field == ctb_formats_dcstring::DiagnosticAction::Error {
-                    bail!("Missing required field values");
-                }
-                ctx.policy.handle(
-                    ctx.policy.missing_required_field,
-                    "Missing required field values",
-                )?;
-                std::collections::BTreeMap::new()
-            }
-        };
-
-        Ok(Self { source_os, values })
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[dc(names, begin = 310, end = 311)]
