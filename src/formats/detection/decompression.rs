@@ -471,8 +471,8 @@ use ctb_formats_dcdata::format_spec::{
 /// Default byte limit (1 MiB) for bounded decompression probes during file inspection.
 pub const DEFAULT_DECOMPRESS_BYTE_LIMIT: usize = 1024 * 1024;
 
-/// Maximum recursion depth allowed during recursive decompression inspection.
-pub const MAX_DECOMPRESSION_DEPTH: usize = 3;
+/// Default maximum recursion depth allowed during recursive decompression inspection.
+pub const DEFAULT_MAX_DECOMPRESSION_DEPTH: usize = 3;
 
 /// Wraps a `DetectionSource` to implement `std::io::Read` by reading sequentially from offset 0.
 pub struct DetectionSourceReader<'a, S: DetectionSource + ?Sized> {
@@ -595,34 +595,53 @@ pub fn resolve_compound_format(inner: FormatId, outer: FormatId) -> Option<Forma
     }
 }
 
-/// Formats a canonical Document Character format chain directive `@chain(inner > outer)`.
+/// Formats a canonical Document Character format chain directive
+/// `@chain(f_a > f_b > ...)` for layers ordered innermost → outermost.
 ///
 /// Validates the emitted directive against the format expression grammar and AST validator.
 #[must_use]
-pub fn format_chain_directive(inner_fid: FormatId, outer_fid: FormatId) -> String {
-    let directive = format!("@chain({} > {})", inner_fid.shorthand(), outer_fid.shorthand());
+pub fn format_chain_directive(layers: &[FormatId]) -> String {
+    let shorthands: Vec<&str> = layers.iter().map(FormatId::shorthand).collect();
+    let directive = format!("@chain({})", shorthands.join(" > "));
     if let Ok(expr) = parse_format_expr(&directive) {
         let _ = validate_format_expr(&expr);
     }
     directive
 }
 
-/// Formats a human-readable pretty-printed format chain description,
-/// including format shorthands and full format titles/descriptions.
+/// Resolves the display label for a format: catalog label, falling back to the
+/// format title or ident.
 #[must_use]
-pub fn format_chain_pretty(inner_fid: FormatId, outer_fid: FormatId) -> String {
-    let directive = format_chain_directive(inner_fid, outer_fid);
+fn format_chain_label(fid: FormatId) -> String {
     // Reason for fallback: format without catalog entry uses format title or ident as label
-    let inner_label = FORMAT_CATALOG
-        .lookup_format_id(inner_fid)
-        .map(|m| m.label.as_str())
-        .unwrap_or_else(|| inner_fid.title().unwrap_or(inner_fid.ident()));
-    // Reason for fallback: format without catalog entry uses format title or ident as label
-    let outer_label = FORMAT_CATALOG
-        .lookup_format_id(outer_fid)
-        .map(|m| m.label.as_str())
-        .unwrap_or_else(|| outer_fid.title().unwrap_or(outer_fid.ident()));
-    format!("{directive}: \"{inner_label}\" > \"{outer_label}\"")
+    FORMAT_CATALOG
+        .lookup_format_id(fid)
+        .map(|m| m.label.clone())
+        .unwrap_or_else(|| fid.title().unwrap_or(fid.ident()).to_string())
+}
+
+/// Formats a human-readable pretty-printed format chain description,
+/// including format shorthands and full format titles/descriptions, for layers
+/// ordered innermost → outermost.
+#[must_use]
+pub fn format_chain_pretty(layers: &[FormatId]) -> String {
+    let directive = format_chain_directive(layers);
+    let labels: Vec<String> = layers
+        .iter()
+        .map(|fid| format!("\"{}\"", format_chain_label(*fid)))
+        .collect();
+    format!("{directive}: {}", labels.join(" > "))
+}
+
+/// Formats a single chain layer as `[fN Ident "label"]` for rich rendering.
+#[must_use]
+pub fn format_chain_layer_annotation(fid: FormatId) -> String {
+    format!(
+        "[{} {:?} \"{}\"]",
+        fid.shorthand(),
+        fid,
+        format_chain_label(fid)
+    )
 }
 
 /// Builds a `DetectionCandidate` representing a compound format (e.g. `TarGz`).
@@ -656,18 +675,19 @@ pub fn build_compound_candidate(
             ),
             score: 95,
         }],
+        chain_layers: None,
     }
 }
 
-/// Builds a `DetectionCandidate` representing an arbitrary format chain (`@chain(inner > outer)`).
+/// Builds a `DetectionCandidate` representing an arbitrary format chain
+/// (`@chain(f_a > f_b > ...)`) with layers ordered innermost → outermost.
 #[must_use]
 pub fn build_format_chain_candidate(
     inner_cand: &DetectionCandidate,
     outer_cand: &DetectionCandidate,
-    inner_fid: FormatId,
-    outer_fid: FormatId,
+    layers: &[FormatId],
 ) -> DetectionCandidate {
-    let pretty_desc = format_chain_pretty(inner_fid, outer_fid);
+    let pretty_desc = format_chain_pretty(layers);
     // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
     let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
     // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
@@ -684,10 +704,11 @@ pub fn build_format_chain_candidate(
         evidence: vec![DetectionEvidence::ContainerStructure {
             detail: format!(
                 "Decompressed format chain {} validated",
-                format_chain_directive(inner_fid, outer_fid)
+                format_chain_directive(layers)
             ),
             score: 94,
         }],
+        chain_layers: Some(layers.to_vec()),
     }
 }
 
@@ -721,6 +742,7 @@ pub fn build_compat_candidate(
             confidence: ConfidenceTier::HighestConfidence,
             score: outer_cand.score.max(inner_cand.score),
             evidence: inner_cand.evidence.clone(),
+            chain_layers: inner_cand.chain_layers.clone(),
         }
     }
 }
@@ -744,13 +766,18 @@ where
     let uncompress_noreport = hint.map_or(false, |h| h.uncompress_noreport);
     // Reason for fallback: initial decompression depth defaults to 0 if omitted
     let depth = hint.map_or(0, |h| h.recursion_depth);
+    // Reason for fallback: hint defaults to the documented default depth limit if omitted
+    let max_depth = hint
+        .and_then(|h| h.max_decompression_depth)
+        .unwrap_or(DEFAULT_MAX_DECOMPRESSION_DEPTH);
 
     // In compat mode, do NOT decompress unless -z or -Z is passed
     if compat && !uncompress && !uncompress_noreport {
         return Ok(Vec::new());
     }
 
-    if depth >= MAX_DECOMPRESSION_DEPTH {
+    // A limit of 0 disables decompression probing entirely.
+    if depth >= max_depth {
         return Ok(Vec::new());
     }
 
@@ -796,6 +823,7 @@ where
                 confidence: ConfidenceTier::Moderate,
                 score: 80,
                 evidence: Vec::new(),
+                chain_layers: None,
             };
             // Note: will use synth as outer_cand
             return Ok(Vec::new());
@@ -866,6 +894,7 @@ where
                 confidence: ConfidenceTier::Weak,
                 score: 20,
                 evidence: Vec::new(),
+                chain_layers: None,
             };
             results.push(build_compat_candidate(
                 &synth_inner,
@@ -887,8 +916,16 @@ where
                 results.push(build_format_chain_candidate(
                     inner,
                     outer_candidate_ref,
-                    inner_fid,
-                    outer_fid,
+                    &[inner_fid, outer_fid],
+                ));
+            } else if let Some(mut layers) = inner.chain_layers.clone() {
+                // Inner candidate is itself a decompression chain: merge into a
+                // deeper chain by appending the outer layer (innermost → outermost).
+                layers.push(outer_fid);
+                results.push(build_format_chain_candidate(
+                    inner,
+                    outer_candidate_ref,
+                    &layers,
                 ));
             } else {
                 // Inner candidate has no registered FormatId (e.g. arbitrary text / data)
@@ -912,6 +949,7 @@ where
                         ),
                         score: 94,
                     }],
+                    chain_layers: None,
                 });
             }
         }
@@ -934,6 +972,14 @@ where
 mod tests {
     use super::*;
     use crate::detection::guess_format_report;
+
+    /// Builds a synthetic CscJournal4 payload for decompression chain tests.
+    fn csc_journal_v4_bytes() -> Vec<u8> {
+        let mut data = Vec::new();
+        data.extend_from_slice(b"CTBCSCJ\x04");
+        data.extend_from_slice(b"\x00\x01\x02\x03 synthetic journal payload for detection");
+        data
+    }
 
     fn make_test_tar_bytes() -> Vec<u8> {
         let mut tar_bytes = vec![0u8; 512];
@@ -1000,18 +1046,29 @@ mod tests {
 
     #[ctb_test]
     fn test_format_chain_directive_and_pretty() {
-        let directive =
-            format_chain_directive(FormatId::Tar, FormatId::CompressLzw);
+        let directive = format_chain_directive(&[FormatId::Tar, FormatId::CompressLzw]);
         assert_eq!(directive, "@chain(f161 > f44)");
 
         let expr = parse_format_expr(&directive)
             .expect("Should parse chain directive");
         validate_format_expr(&expr).expect("Should validate chain expression");
 
-        let pretty =
-            format_chain_pretty(FormatId::Tar, FormatId::CompressLzw);
+        let pretty = format_chain_pretty(&[FormatId::Tar, FormatId::CompressLzw]);
         assert!(pretty.starts_with("@chain(f161 > f44):"));
         assert!(pretty.contains("tar"));
+
+        // A flat 3-layer chain is valid DSL: operational operators bind
+        // left-to-right, so `a > b > c` parses as `(a > b) > c`.
+        let nested = format_chain_directive(&[
+            FormatId::CscJournal4,
+            FormatId::Gzip,
+            FormatId::Gzip,
+        ]);
+        assert_eq!(nested, "@chain(f632 > f35 > f35)");
+        let nested_expr =
+            parse_format_expr(&nested).expect("Flat 3-layer chain should parse");
+        validate_format_expr(&nested_expr)
+            .expect("Flat 3-layer chain should validate");
     }
 
     #[ctb_test]
@@ -1200,6 +1257,83 @@ mod tests {
                 .description
                 .to_ascii_lowercase()
                 .contains("(gzip")
+        );
+    }
+
+    #[ctb_test]
+    fn test_nested_gzip_chain_merges_layers() {
+        let inner = ctb_formats_compression::compress(
+            &csc_journal_v4_bytes(),
+            SupportedCompressionFormat::Gzip,
+        )
+        .expect("Inner compression should succeed");
+        let compressed = ctb_formats_compression::compress(
+            &inner,
+            SupportedCompressionFormat::Gzip,
+        )
+        .expect("Outer compression should succeed");
+        let mut slice: &[u8] = &compressed;
+        let hint = DetectionHint {
+            filename: Some("x.cscjournal.gz.gz".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top = &report.candidates[0];
+        assert!(
+            top.format_id.is_none(),
+            "Chain candidate should keep format_id unassigned"
+        );
+        let layers = top
+            .chain_layers
+            .as_ref()
+            .expect("Top candidate should carry merged chain layers");
+        assert_eq!(layers.len(), 3);
+        assert_eq!(layers[0], FormatId::CscJournal4);
+        assert_eq!(layers[1], FormatId::Gzip);
+        assert_eq!(layers[2], FormatId::Gzip);
+        assert!(
+            top.description.starts_with("@chain(f632 > f35 > f35):"),
+            "Expected 3-layer chain directive, got: {}",
+            top.description
+        );
+    }
+
+    #[ctb_test]
+    fn test_zero_max_decompression_depth_disables_probing() {
+        let compressed = ctb_formats_compression::compress(
+            &csc_journal_v4_bytes(),
+            SupportedCompressionFormat::Gzip,
+        )
+        .expect("Compression should succeed");
+        let hint = DetectionHint {
+            filename: Some("journal.cscjournal.gz".to_string()),
+            max_decompression_depth: Some(0),
+            ..Default::default()
+        };
+
+        // Direct report path
+        let mut slice: &[u8] = &compressed;
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        assert!(
+            !report
+                .candidates
+                .iter()
+                .any(|c| c.chain_layers.is_some()),
+            "No chain candidates should be produced at depth limit 0"
+        );
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+
+        // File-report path, which must propagate the depth limit from the
+        // caller-supplied hint into the internally built hint.
+        let vec_report =
+            crate::detection::guess_and_report_vec_with_hint(compressed, Some(&hint))
+                .unwrap();
+        assert!(
+            !vec_report
+                .candidates
+                .iter()
+                .any(|c| c.chain_layers.is_some()),
+            "No chain candidates should be produced at depth limit 0"
         );
     }
 }

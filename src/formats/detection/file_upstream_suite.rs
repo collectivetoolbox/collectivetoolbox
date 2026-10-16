@@ -810,6 +810,7 @@ pub fn evaluate_upstream_case(
                         confidence: ConfidenceTier::HighestConfidence,
                         score: 1000,
                         evidence: Vec::new(),
+                        chain_layers: None,
                     },
                 );
             }
@@ -843,6 +844,7 @@ pub fn evaluate_upstream_case(
                         confidence: ConfidenceTier::HighestConfidence,
                         score: res.score,
                         evidence: Vec::new(),
+                        chain_layers: None,
                     },
                 );
             }

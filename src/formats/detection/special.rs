@@ -489,6 +489,7 @@ pub fn detect_special_entity(hint: Option<&DetectionHint>) -> Option<DetectionCa
             kind: kind.to_string(),
             score: 100,
         }],
+        chain_layers: None,
     })
 }
 
@@ -518,6 +519,7 @@ pub fn detect_empty_file<S: DetectionSource + ?Sized>(source: &mut S) -> Option<
                 kind: "empty".to_string(),
                 score: 100,
             }],
+            chain_layers: None,
         })
     } else {
         None
@@ -542,6 +544,7 @@ pub fn detect_very_short_file<S: DetectionSource + ?Sized>(
                 kind: "very_short".to_string(),
                 score: 30,
             }],
+            chain_layers: None,
         })
     } else {
         None

@@ -666,6 +666,7 @@ mod tests {
                     is_primary: true,
                     score: 85,
                 }],
+                chain_layers: None,
             },
             DetectionCandidate {
                 format_id: Some(FormatId::Xml),
@@ -678,6 +679,7 @@ mod tests {
                     description: "xml_magic".to_string(),
                     score: 80,
                 }],
+                chain_layers: None,
             },
         ];
 

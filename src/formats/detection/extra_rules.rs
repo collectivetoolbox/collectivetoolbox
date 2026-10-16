@@ -522,6 +522,7 @@ pub fn detect_small_format_candidates(
             },
             score,
             evidence,
+            chain_layers: None,
         });
 
         if fmt != FormatId::UuidHex32 {
@@ -566,6 +567,7 @@ pub fn detect_small_format_candidates(
             },
             score,
             evidence,
+            chain_layers: None,
         });
         return candidates;
     }
@@ -600,6 +602,7 @@ pub fn detect_small_format_candidates(
                 confidence: ConfidenceTier::HighestConfidence,
                 score,
                 evidence,
+                chain_layers: None,
             });
             return candidates;
         }
@@ -635,6 +638,7 @@ pub fn detect_small_format_candidates(
                 confidence: ConfidenceTier::HighestConfidence,
                 score,
                 evidence,
+                chain_layers: None,
             });
             return candidates;
         }
@@ -670,6 +674,7 @@ pub fn detect_small_format_candidates(
                 confidence: ConfidenceTier::HighestConfidence,
                 score,
                 evidence,
+                chain_layers: None,
             });
             return candidates;
         }
@@ -714,6 +719,7 @@ pub fn detect_small_format_candidates(
                 confidence: ConfidenceTier::HighestConfidence,
                 score,
                 evidence,
+                chain_layers: None,
             });
             return candidates;
         }
@@ -751,6 +757,7 @@ pub fn detect_small_format_candidates(
             confidence: ConfidenceTier::HighestConfidence,
             score,
             evidence,
+            chain_layers: None,
         });
         return candidates;
     }
@@ -800,6 +807,7 @@ pub fn detect_small_format_candidates(
             confidence,
             score,
             evidence,
+            chain_layers: None,
         });
         if !has_uuid_hex32 {
             return candidates;
@@ -842,6 +850,7 @@ pub fn detect_small_format_candidates(
             confidence: ConfidenceTier::HighestConfidence,
             score,
             evidence,
+            chain_layers: None,
         });
         return candidates;
     }
@@ -878,6 +887,7 @@ pub fn detect_small_format_candidates(
             confidence: ConfidenceTier::Strong,
             score,
             evidence,
+            chain_layers: None,
         });
         return candidates;
     }
@@ -957,6 +967,7 @@ pub fn detect_custom_text_format_candidate(
                     confidence: ConfidenceTier::Strong,
                     score,
                     evidence,
+                    chain_layers: None,
                 });
             }
         }

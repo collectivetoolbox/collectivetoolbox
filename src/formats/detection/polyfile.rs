@@ -536,6 +536,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                             score: 95,
                         },
                     ],
+                    chain_layers: None,
                 }));
             }
         }
@@ -562,6 +563,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                         ),
                         score: 95,
                     }],
+                    chain_layers: None,
                 }));
             }
         }
@@ -590,6 +592,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                         ),
                         score: 95,
                     }],
+                    chain_layers: None,
                 }));
             }
         }
@@ -611,6 +614,7 @@ pub fn detect_polyglots<S: DetectionSource + ?Sized>(
                     .to_string(),
                 score: 95,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -638,6 +642,7 @@ pub fn inspect_nested_archive_entries<S: DetectionSource + ?Sized>(
                         detail: format!("Archive entry: {}", entry.name),
                         score: 80,
                     }],
+                    chain_layers: None,
                 });
             } else if lower.ends_with(".json") {
                 nested_cands.push(DetectionCandidate {
@@ -651,6 +656,7 @@ pub fn inspect_nested_archive_entries<S: DetectionSource + ?Sized>(
                         detail: format!("Archive entry: {}", entry.name),
                         score: 80,
                     }],
+                    chain_layers: None,
                 });
             }
         }

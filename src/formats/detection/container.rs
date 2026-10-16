@@ -569,6 +569,7 @@ pub fn inspect_tar<S: DetectionSource + ?Sized>(
             detail: "Validated 512-byte TAR block checksum".to_string(),
             score: 95,
         }],
+        chain_layers: None,
     }))
 }
 
@@ -947,6 +948,7 @@ pub fn inspect_json<S: DetectionSource + ?Sized>(
                 detail: "Validated JSON structure".to_string(),
                 score: 90,
             }],
+            chain_layers: None,
         })),
         2 => Ok(Some(DetectionCandidate {
             format_id: Some(FormatId::Json),
@@ -959,6 +961,7 @@ pub fn inspect_json<S: DetectionSource + ?Sized>(
                 detail: "Validated New Line Delimited JSON lines".to_string(),
                 score: 85,
             }],
+            chain_layers: None,
         })),
         _ => Ok(None),
     }
@@ -1066,6 +1069,7 @@ fn check_delimited_table(
                 detail: format!("Consistent {line_count} rows with {target_fields:?} columns"),
                 score: 70,
             }],
+            chain_layers: None,
         })
     } else {
         None
@@ -1165,6 +1169,7 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::HighestConfidence,
         score: 98,
         evidence,
+        chain_layers: None,
     }))
 }
 
@@ -1256,6 +1261,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                     detail: "Found OLE2 WordDocument stream".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name == "Book" || name == "Workbook" {
             return Ok(Some(DetectionCandidate {
@@ -1269,6 +1275,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                     detail: "Found OLE2 Workbook stream".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name == "PowerPoint Document" || name == "Current User" {
             return Ok(Some(DetectionCandidate {
@@ -1282,6 +1289,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                     detail: "Found OLE2 PowerPoint stream".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name == "DigitalSignature" {
             return Ok(Some(DetectionCandidate {
@@ -1295,6 +1303,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                     detail: "Found OLE2 DigitalSignature stream".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name == "FileHeader" || name == "HwpSummaryInformation" {
             // Check for Hancom HWP 5.0
@@ -1309,6 +1318,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                     detail: "Found OLE2 Hancom HWP streams".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         }
     }
@@ -1324,6 +1334,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
             detail: "Identified OLE2 Compound Document File structure".to_string(),
             score: 80,
         }],
+        chain_layers: None,
     }))
 }
 
@@ -1395,6 +1406,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified DOCX structure with word/ entry".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name.starts_with("xl/") {
             return Ok(Some(DetectionCandidate {
@@ -1410,6 +1422,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified XLSX structure with xl/ entry".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name.starts_with("ppt/") {
             return Ok(Some(DetectionCandidate {
@@ -1426,6 +1439,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified PPTX structure with ppt/ entry".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name.starts_with("Contents/content.hwpml") || name.starts_with("version.xml") {
             return Ok(Some(DetectionCandidate {
@@ -1439,6 +1453,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified HWPX structure with Contents/ entry".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name == "AndroidManifest.xml" {
             return Ok(Some(DetectionCandidate {
@@ -1452,6 +1467,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified APK with AndroidManifest.xml".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         } else if name.starts_with("META-INF/MANIFEST.MF") {
             return Ok(Some(DetectionCandidate {
@@ -1465,6 +1481,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified JAR with META-INF/MANIFEST.MF".to_string(),
                     score: 90,
                 }],
+                chain_layers: None,
             }));
         } else if name == "mimetype" && sample.windows(20).any(|w| w == b"application/epub+zip") {
             return Ok(Some(DetectionCandidate {
@@ -1478,6 +1495,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
                     detail: "Identified EPUB mimetype".to_string(),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         }
     }
@@ -1493,6 +1511,7 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
             detail: "Identified ZIP header entries".to_string(),
             score: 85,
         }],
+        chain_layers: None,
     }))
 }
 
@@ -1643,6 +1662,7 @@ pub fn inspect_simh<S: DetectionSource + ?Sized>(
             detail: "SIMH magnetic tape image format with valid record framing".to_string(),
             score: 80,
         }],
+        chain_layers: None,
     }))
 }
 

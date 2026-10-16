@@ -592,6 +592,10 @@ pub struct DetectionCandidate {
     pub score: u32,
     /// Accumulated evidence trails.
     pub evidence: Vec<DetectionEvidence>,
+    /// Decompression-derived format chain layers ordered innermost → outermost
+    /// (matching the `@chain(inner > outer)` directive syntax), if this
+    /// candidate wraps a decompressed payload; `None` otherwise.
+    pub chain_layers: Option<Vec<FormatId>>,
 }
 
 /// Contextual hints provided by the caller to guide detection.
@@ -613,6 +617,9 @@ pub struct DetectionHint {
     pub uncompress_noreport: bool,
     /// Maximum byte limit for bounded decompression inspection (defaults to 1 MiB).
     pub decompress_byte_limit: Option<usize>,
+    /// Maximum decompression recursion depth for chain probing (defaults to 3).
+    /// A value of `Some(0)` disables decompression probing entirely.
+    pub max_decompression_depth: Option<usize>,
     /// Current recursion depth of payload peeling / decompression.
     pub recursion_depth: usize,
     /// Whether detection should strictly emulate standard UNIX `file` output.

@@ -452,13 +452,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, ensure};
 use clap::Args;
 use std::fmt::Write as _;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use crate::chain::guess_format_chains;
+use crate::decompression::{
+    format_chain_directive, format_chain_layer_annotation,
+    DEFAULT_MAX_DECOMPRESSION_DEPTH,
+};
 use crate::detection::{
     guess_and_report_path, guess_and_report_path_with_hint,
     guess_and_report_vec, guess_and_report_vec_with_hint,
@@ -497,10 +501,24 @@ pub struct FileDetectionArgs {
     /// Try to look inside compressed files, but do not report the compression format (like `file -Z`)
     #[arg(long, short = 'Z', alias = "uncompress-noreport")]
     pub uncompress_noreport: bool,
+
+    /// Maximum number of nested decompression layers to inspect
+    /// (0 disables decompression inspection)
+    #[arg(long, value_name = "N", default_value_t = DEFAULT_MAX_DECOMPRESSION_DEPTH)]
+    pub max_decompression_depth: usize,
 }
+
+/// Reasonable upper bound for the decompression depth CLI flag to keep
+/// recursive probes bounded.
+const MAX_DECOMPRESSION_DEPTH_LIMIT: usize = 8;
 
 /// Executes file detection across the specified file paths or standard input.
 pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
+    ensure!(
+        args.max_decompression_depth <= MAX_DECOMPRESSION_DEPTH_LIMIT,
+        "Maximum decompression depth {} exceeds the supported limit of {MAX_DECOMPRESSION_DEPTH_LIMIT}",
+        args.max_decompression_depth
+    );
     let mut output = String::new();
 
     let files = if args.files.is_empty() {
@@ -541,6 +559,7 @@ pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
             compat: args.compat,
             uncompress: args.uncompress,
             uncompress_noreport: args.uncompress_noreport,
+            max_decompression_depth: Some(args.max_decompression_depth),
             file_mode,
             ..Default::default()
         };
@@ -690,12 +709,29 @@ fn render_rich_output(
 
     if let Some(top) = report.candidates.first() {
         let _ = writeln!(output, "\nTop Detection:");
+        // Chain candidates merge layer details into the Format block instead of
+        // a separate Description line.
+        let is_chain_candidate = top.format_id.is_none() && top.chain_layers.is_some();
         if let Some(fid) = top.format_id {
             let _ = writeln!(
                 output,
                 "  Format:         {fid:?} [{}]",
                 fid.shorthand()
             );
+        } else if let Some(layers) = &top.chain_layers {
+            let _ = writeln!(
+                output,
+                "  Format:         {}",
+                format_chain_directive(layers)
+            );
+            for (layer_idx, layer) in layers.iter().enumerate() {
+                let annotation = format_chain_layer_annotation(*layer);
+                if layer_idx == 0 {
+                    let _ = writeln!(output, "                  ≡ {annotation}");
+                } else {
+                    let _ = writeln!(output, "                    > {annotation}");
+                }
+            }
         } else {
             let _ = writeln!(output, "  Format:         Unassigned");
         }
@@ -713,12 +749,16 @@ fn render_rich_output(
             "  Confidence:     {:?} (Score: {}/100)",
             top.confidence, top.score
         );
-        let _ = writeln!(output, "  Description:    {}", top.description);
+        if !is_chain_candidate {
+            let _ = writeln!(output, "  Description:    {}", top.description);
+        }
 
         let _ = writeln!(output, "\nCandidates Ranked by Likelihood:");
         for (idx, cand) in report.candidates.iter().enumerate() {
             let label = if let Some(fid) = cand.format_id {
                 format!("{fid:?} ({})", fid.shorthand())
+            } else if let Some(layers) = &cand.chain_layers {
+                format_chain_directive(layers)
             } else {
                 cand.description.clone()
             };
@@ -875,6 +915,8 @@ fn format_evidence(ev: &DetectionEvidence) -> String {
 )]
 mod tests {
     use super::*;
+    use crate::FormatId;
+    use crate::types::{ConfidenceTier, DetectionCandidate};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -891,6 +933,7 @@ mod tests {
             all: false,
             uncompress: false,
             uncompress_noreport: false,
+            max_decompression_depth: DEFAULT_MAX_DECOMPRESSION_DEPTH,
         };
 
         let res = run_file_detection(&args).unwrap();
@@ -917,6 +960,7 @@ mod tests {
             all: false,
             uncompress: false,
             uncompress_noreport: false,
+            max_decompression_depth: DEFAULT_MAX_DECOMPRESSION_DEPTH,
         };
 
         let res = run_file_detection(&args).unwrap();
@@ -943,6 +987,7 @@ mod tests {
             all: false,
             uncompress: false,
             uncompress_noreport: false,
+            max_decompression_depth: DEFAULT_MAX_DECOMPRESSION_DEPTH,
         };
 
         let res = run_file_detection(&args).unwrap();
@@ -955,6 +1000,106 @@ mod tests {
             }
             _ => panic!("Expected ToolResult::Immediate"),
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_cli_rich_output_chain_candidate_rendering() {
+        let chain_cand = DetectionCandidate {
+            format_id: None,
+            dc_id: None,
+            mime: Some(
+                "application/gzip compressed-encoding=application/gzip".to_string(),
+            ),
+            description: crate::decompression::format_chain_pretty(&[
+                FormatId::CscJournal4,
+                FormatId::Gzip,
+            ]),
+            confidence: ConfidenceTier::Strong,
+            score: 94,
+            evidence: Vec::new(),
+            chain_layers: Some(vec![FormatId::CscJournal4, FormatId::Gzip]),
+        };
+        let plain_cand = DetectionCandidate {
+            format_id: Some(FormatId::Gzip),
+            dc_id: FormatId::Gzip.dc_id(),
+            mime: Some("application/gzip".to_string()),
+            description: "gzip compressed data".to_string(),
+            confidence: ConfidenceTier::HighestConfidence,
+            score: 90,
+            evidence: Vec::new(),
+            chain_layers: None,
+        };
+        let args = FileDetectionArgs {
+            files: vec![PathBuf::from("test.cscjournal.gz")],
+            compat: false,
+            mime: false,
+            brief: false,
+            all: false,
+            uncompress: false,
+            uncompress_noreport: false,
+            max_decompression_depth: DEFAULT_MAX_DECOMPRESSION_DEPTH,
+        };
+
+        // Chain candidate on top: merged Format block, no Description line
+        let chain_top = vec![chain_cand.clone(), plain_cand.clone()];
+        let report = DetectionReport {
+            outcome: DetectionOutcome::Matched(chain_top.clone()),
+            candidates: chain_top,
+            bytes_evaluated: 64,
+            stream_signals_used: false,
+            file_origin: None,
+        };
+        let mut output = String::new();
+        render_rich_output(
+            &mut output,
+            "test.cscjournal.gz",
+            Path::new("test.cscjournal.gz"),
+            &report,
+            &args,
+        );
+
+        // Chain candidate renders the compact directive in the Format line
+        assert!(output.contains("  Format:         @chain(f632 > f35)\n"));
+        // First layer annotation at the value column, marked with ≡
+        assert!(
+            output
+                .contains("                  ≡ [f632 CscJournal4 \"Collective Toolbox csc journal, version 4\"]\n")
+        );
+        // Subsequent layer annotation indented 2 further spaces with a > prefix
+        assert!(
+            output
+                .contains("                    > [f35 Gzip \"GNU gzip format (RFC 1952)\"]\n")
+        );
+        // The merged Format block replaces the Description line for chain candidates
+        let top_block = output
+            .split("Candidates Ranked by Likelihood:")
+            .next()
+            .expect("split always yields at least one segment");
+        assert!(!top_block.contains("Description:"));
+        // Candidates list shows the compact directive for chain candidates
+        assert!(output.contains("1. @chain(f632 > f35) (Confidence: Strong"));
+
+        // Non-chain candidate on top: Format and Description render as before
+        let plain_top = vec![plain_cand.clone(), chain_cand.clone()];
+        let plain_report = DetectionReport {
+            outcome: DetectionOutcome::Matched(plain_top.clone()),
+            candidates: plain_top,
+            bytes_evaluated: 64,
+            stream_signals_used: false,
+            file_origin: None,
+        };
+        let mut plain_output = String::new();
+        render_rich_output(
+            &mut plain_output,
+            "test.cscjournal.gz",
+            Path::new("test.cscjournal.gz"),
+            &plain_report,
+            &args,
+        );
+        assert!(plain_output.contains("  Format:         Gzip [f35]\n"));
+        assert!(plain_output.contains("  Description:    gzip compressed data"));
+        // The chain candidate in the list uses the compact directive label
+        assert!(plain_output.contains("2. @chain(f632 > f35) (Confidence: Strong"));
     }
 }
 /*

@@ -847,6 +847,7 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
             },
             score: sig.priority,
             evidence,
+            chain_layers: None,
         });
     }
 
@@ -1718,6 +1719,7 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                             },
                             score,
                             evidence,
+                            chain_layers: None,
                         });
                     }
                 }
@@ -2147,6 +2149,7 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
                 confidence: ConfidenceTier::HighestConfidence,
                 score: 98,
                 evidence,
+                chain_layers: None,
             }));
         }
     }
@@ -2272,6 +2275,7 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
         confidence: ConfidenceTier::HighestConfidence,
         score: *score,
         evidence,
+        chain_layers: None,
     }))
 }
 
@@ -2307,6 +2311,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified ODF Text mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/vnd.oasis.opendocument.spreadsheet" {
                 return Ok(Some(DetectionCandidate {
@@ -2320,6 +2325,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified ODF Spreadsheet mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/vnd.oasis.opendocument.presentation" {
                 return Ok(Some(DetectionCandidate {
@@ -2333,6 +2339,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified ODF Presentation mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/vnd.oasis.opendocument.graphics" {
                 return Ok(Some(DetectionCandidate {
@@ -2346,6 +2353,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified ODF Drawing mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/vnd.oasis.opendocument.formula" {
                 return Ok(Some(DetectionCandidate {
@@ -2359,6 +2367,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified ODF Formula mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/epub+zip" {
                 return Ok(Some(DetectionCandidate {
@@ -2372,6 +2381,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified EPUB mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/x-krita" {
                 return Ok(Some(DetectionCandidate {
@@ -2385,6 +2395,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified Krita mimetype in ZIP container".to_string(),
                         score: 95,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "image/openraster" {
                 return Ok(Some(DetectionCandidate {
@@ -2398,6 +2409,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified OpenRaster mimetype in ZIP container".to_string(),
                         score: 95,
                     }],
+                    chain_layers: None,
                 }));
             } else if mime_str == "application/hwp+zip" {
                 return Ok(Some(DetectionCandidate {
@@ -2411,6 +2423,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                         detail: "Verified HWPX mimetype in ZIP container".to_string(),
                         score: 98,
                     }],
+                    chain_layers: None,
                 }));
             }
         }
@@ -2451,6 +2464,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     detail: format!("Identified OOXML Word structure with word/ entry: {}", desc),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         }
 
@@ -2484,6 +2498,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     detail: format!("Identified OOXML Excel structure with xl/ entry: {}", desc),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         }
 
@@ -2511,6 +2526,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                     detail: format!("Identified OOXML PowerPoint structure: {}", desc),
                     score: 95,
                 }],
+                chain_layers: None,
             }));
         }
     }
@@ -2532,6 +2548,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: "Identified HWPX structure with Contents/ entry".to_string(),
                 score: 95,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2560,6 +2577,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: format!("Identified Android structure with AndroidManifest.xml: {}", desc),
                 score: 95,
             }],
+            chain_layers: None,
         }));
     }
     if entries.iter().any(|e| e.name == "BundleConfig.pb" || e.name == "base/manifest/AndroidManifest.xml") {
@@ -2574,6 +2592,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: "Identified Android App Bundle with BundleConfig.pb".to_string(),
                 score: 95,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2599,6 +2618,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: format!("Identified Java archive with META-INF: {}", desc),
                 score: 90,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2615,6 +2635,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: "Identified Apple iWork container with Index/Document.iwa".to_string(),
                 score: 92,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2647,6 +2668,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 ),
                 score: 85,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2663,6 +2685,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
                 detail: "Identified Google Earth KMZ with .kml entry".to_string(),
                 score: 95,
             }],
+            chain_layers: None,
         }));
     }
 
@@ -2678,6 +2701,7 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
             detail: format!("Identified ZIP archive containing {} entries", entries.len()),
             score: 85,
         }],
+        chain_layers: None,
     }))
 }
 

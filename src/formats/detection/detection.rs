@@ -682,6 +682,7 @@ pub fn guess_format_report(
                     confidence: ConfidenceTier::Strong,
                     score: 90,
                     evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
+                    chain_layers: None,
                 });
             }
         }
@@ -989,6 +990,7 @@ pub fn guess_format_report(
                         confidence,
                         score,
                         evidence,
+                        chain_layers: None,
                     });
                 }
             }
@@ -1175,6 +1177,7 @@ pub fn guess_format_report(
                 confidence,
                 score: final_score,
                 evidence,
+                chain_layers: None,
             });
         }
     }
@@ -1468,6 +1471,7 @@ pub fn detect_file_report_with_hint(
                                     ),
                                     score: 95,
                                 }],
+                                chain_layers: None,
                             });
                         }
                     }
@@ -1490,6 +1494,7 @@ pub fn detect_file_report_with_hint(
                                 detail: "Zone.Identifier".to_string(),
                                 score: 40,
                             }],
+                            chain_layers: None,
                         });
                     }
                 }
@@ -1517,6 +1522,7 @@ pub fn detect_file_report_with_hint(
                                             ),
                                             score: 85,
                                         }],
+                                        chain_layers: None,
                                     });
                                 }
                             }
@@ -1560,6 +1566,7 @@ pub fn detect_file_report_with_hint(
         hint.uncompress = user_h.uncompress;
         hint.uncompress_noreport = user_h.uncompress_noreport;
         hint.decompress_byte_limit = user_h.decompress_byte_limit;
+        hint.max_decompression_depth = user_h.max_decompression_depth;
         hint.recursion_depth = user_h.recursion_depth;
         if user_h.expected_category.is_some() {
             hint.expected_category = user_h.expected_category;
@@ -1587,6 +1594,7 @@ pub fn detect_file_report_with_hint(
                         is_primary: true,
                         score: 75,
                     }],
+                    chain_layers: None,
                 };
                 return Ok(DetectionReport {
                     outcome: DetectionOutcome::Matched(vec![candidate.clone()]),
@@ -2008,6 +2016,7 @@ mod tests {
                     detail: "Resource type TEXT".to_string(),
                     score: 75,
                 }],
+                chain_layers: None,
             }],
             ..Default::default()
         };

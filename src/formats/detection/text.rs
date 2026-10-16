@@ -1744,6 +1744,7 @@ pub fn detect_text_candidate(
         confidence,
         score,
         evidence,
+        chain_layers: None,
     }))
 }
 
