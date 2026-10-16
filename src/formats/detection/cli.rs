@@ -752,8 +752,15 @@ fn render_rich_output(
     if !chains.is_empty() {
         let _ = writeln!(output, "\nFormat Chain(s):");
         for chain in chains {
-            let layers_str: Vec<String> =
-                chain.layers.iter().map(|f| format!("{f:?}")).collect();
+            // Chain syntax is innermost->outermost (`@chain(inner > outer)`), so
+            // reverse the layers (outer->inner) to match. Otherwise the output
+            // would contradict the `@chain(...)` directive/description order.
+            let layers_str: Vec<String> = chain
+                .layers
+                .iter()
+                .rev()
+                .map(|f| format!("{f:?}"))
+                .collect();
             let _ = writeln!(
                 output,
                 "  • {} (score: {})",
