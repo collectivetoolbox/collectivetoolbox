@@ -464,14 +464,14 @@ impl StreamKind {
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(begin = 323, end = 324)]
+#[dc(begin = 323, end = 324, ignore_unknown)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
     /// A `None` value represents a nameless stream, such as a Classic Mac OS
     /// resource fork (which in HFS/MFS was an intrinsic nameless fork rather
     /// than a named stream) or a default unnamed stream.
-    #[dc(short = 338)]
+    #[dc(short = 338, omit_default)]
     pub name: Option<StreamName>,
     /// Classification of the stream.
     #[dc(nested = 379..=384)]

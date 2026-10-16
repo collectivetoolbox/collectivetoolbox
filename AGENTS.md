@@ -35,6 +35,7 @@
 The rationale for this is that what's critical to your operator is an honest assessment of *what's left* - what's *done* I don't really need to know about, because it's completed - I can forget about it and scratch it off the list. Knowing what remains to implement is critical, though, because it's key to correctness. That's especially important because if I think a slice of work is done when it's not, I'll move on to another stage of implementation, and forget the context about the previous stage - and then when I eventually discover that it was not fully completed, I have to return and regain that context to address it.
 
 ## Standards and Style Guide
+- The number-one mistake agents make in this codebase is **failure to judge correct error handling in edge cases**. This has two forms: (1) **failure to propagate legitimate edge-case errors back to callers**, instead silently discarding or swallowing the error; and, less commonly, (2) **incorrectly propagating unreachable error states back to callers in otherwise-infallible functions**, causing clunky API. Be careful to avoid these mistakes. Every error-handling case needs **thoughtful judgement**; there's no one rule or fix that you can systematically apply for this. More guidelines about this are below.
 - Use the `anyhow` crate for error handling in new code, and avoid panics.
 - Avoid statefulness where possible.
 - Docblocks should wrap at 80 columns. For modules, they should start with `//!`, and for functions, they should start with `///`.

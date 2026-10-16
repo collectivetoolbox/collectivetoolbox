@@ -452,8 +452,8 @@ impl DcMixedDecode for DcRawValue {
             for cid in child_ids {
                 let cnode = ctx.node(cid)?;
                 match &cnode.kind {
-                    DcSyntaxKind::Atom(ch) if ch.to_u128() == 275 || ch.to_u128() == 312 => continue,
-                    DcSyntaxKind::Tagged { tag, .. } if tag.to_u128() == 275 || tag.to_u128() == 312 => continue,
+                    DcSyntaxKind::Atom(ch) if ch.to_short_dc() == Some(275) || ch.to_short_dc() == Some(312) => continue,
+                    DcSyntaxKind::Tagged { tag, .. } if tag.to_short_dc() == Some(275) || tag.to_short_dc() == Some(312) => continue,
                     _ => {}
                 }
                 items.push(Self::decode_dc_node(ctx, cid)?);
@@ -1260,11 +1260,8 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
         self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
-        mst.push_char(DC_BEGIN_KV_PAIR);
         self.0.encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
         self.1.encode_dc_mixed_with_context(mst, context)?;
-        mst.push_char(DC_END_KV_PAIR);
         Ok(())
     }
 }
@@ -1286,8 +1283,13 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         }
         let node = ctx.node(node_id)?;
         match &node.kind {
-            DcSyntaxKind::Container { children, .. } => {
-                let filtered: Vec<NodeId> = children
+            DcSyntaxKind::Container { opener, children, .. } => {
+                let child_slice = if *opener == DC_BEGIN_FORMAT_REPRESENTATION && children.len() >= 3 {
+                    &children[1..]
+                } else {
+                    children.as_slice()
+                };
+                let filtered: Vec<NodeId> = child_slice
                     .iter()
                     .copied()
                     .filter(|&id| {
@@ -1990,7 +1992,21 @@ impl DcMixedDecode for PathBuf {
             }
         }
         let node = ctx.node(node_id)?;
-        bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind)
+        ctx.policy.handle(
+            ctx.policy.syntax_error,
+            format!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind),
+        )?;
+        match &node.kind {
+            DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
+                let s = String::decode_dc_node(ctx, node_id)?;
+                Ok(Self::from(s))
+            }
+            DcSyntaxKind::Binary { payload, .. } => {
+                let bytes = ctx.materialize_binary(payload)?;
+                path_from_native_bytes(&bytes)
+            }
+            other => bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {other:?}"),
+        }
     }
 }
 

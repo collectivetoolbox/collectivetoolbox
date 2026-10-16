@@ -974,7 +974,7 @@ pub struct AppleMetadata {
     #[dc(flatten, nested = [388, 403, 404, 405, 406, 407, 408, 490, 510])]
     pub finder_info: Option<FinderInfo>,
     /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
-    #[dc(short = 496, representation = f495, omit_default)]
+    #[dc(short = 496, representation = f228, omit_default)]
     pub real_name: Option<String>,
     /// Standard file comment (Entry ID 4).
     #[dc(short = 400, omit_default)]
