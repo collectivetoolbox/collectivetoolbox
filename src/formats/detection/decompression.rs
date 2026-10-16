@@ -568,7 +568,13 @@ pub fn decompress_bounded<S: DetectionSource + ?Sized>(
     };
     let mut reader = DetectionSourceReader::new(source);
     let mut writer = BoundedWriter::new(limit);
-    let _ = ctb_formats_compression::decompress_stream(&mut reader, &mut writer, supported_format);
+    if let Err(error) =
+        ctb_formats_compression::decompress_stream(&mut reader, &mut writer, supported_format)
+    {
+        // A failed probe is a normal negative result during detection, but it
+        // must not vanish entirely: log at debug level for diagnosability.
+        debug_fmt!("Decompression probe for {format:?} produced no result: {error}");
+    }
     let out = writer.into_inner();
     if out.is_empty() {
         return Ok(None);
@@ -603,8 +609,16 @@ pub fn resolve_compound_format(inner: FormatId, outer: FormatId) -> Option<Forma
 pub fn format_chain_directive(layers: &[FormatId]) -> String {
     let shorthands: Vec<&str> = layers.iter().map(FormatId::shorthand).collect();
     let directive = format!("@chain({})", shorthands.join(" > "));
-    if let Ok(expr) = parse_format_expr(&directive) {
-        let _ = validate_format_expr(&expr);
+    // A generated directive failing validation indicates a formatter bug;
+    // warn rather than emit an unparseable chain description silently.
+    match parse_format_expr(&directive).map(|expr| validate_format_expr(&expr)) {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => {
+            warn_fmt!("Format chain directive {directive} failed validation: {error}");
+        }
+        Err(error) => {
+            warn_fmt!("Format chain directive {directive} failed to parse: {error}");
+        }
     }
     directive
 }
@@ -788,13 +802,16 @@ where
             .map_or(false, ctb_formats_compression::is_supported)
     });
 
+    let synth_outer: DetectionCandidate;
     let (outer_fid, outer_candidate_ref) = if let Some(cand) = outer_cand {
         let Some(fid) = cand.format_id else {
             return Ok(Vec::new());
         };
         (fid, cand)
     } else {
-        // Fallback: check extension from hint
+        // No magic-detected compression format: fall back to the filename
+        // extension so extension-named compressed payloads still get
+        // decompressed and inspected.
         let ext_fmt = hint
             .and_then(|h| h.extension.as_deref().or(h.filename.as_deref()))
             .and_then(|name| {
@@ -805,31 +822,29 @@ where
             })
             .filter(|&fid| ctb_formats_compression::is_supported(fid));
 
-        if let Some(fid) = ext_fmt {
-            // Synthesize an outer candidate
-            // Reason for fallback: unmapped format uses debug format name
-            let desc = FORMAT_CATALOG
-                .lookup_format_id(fid)
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| format!("{:?} compressed data", fid));
-            let mime = FORMAT_CATALOG
-                .lookup_format_id(fid)
-                .and_then(|m| m.mime_types.first().cloned());
-            let synth = DetectionCandidate {
-                format_id: Some(fid),
-                dc_id: fid.dc_id(),
-                mime,
-                description: desc,
-                confidence: ConfidenceTier::Moderate,
-                score: 80,
-                evidence: Vec::new(),
-                chain_layers: None,
-            };
-            // Note: will use synth as outer_cand
+        let Some(fid) = ext_fmt else {
             return Ok(Vec::new());
-        } else {
-            return Ok(Vec::new());
-        }
+        };
+
+        // Reason for fallback: unmapped format uses debug format name
+        let desc = FORMAT_CATALOG
+            .lookup_format_id(fid)
+            .map(|m| m.label.clone())
+            .unwrap_or_else(|| format!("{:?} compressed data", fid));
+        let mime = FORMAT_CATALOG
+            .lookup_format_id(fid)
+            .and_then(|m| m.mime_types.first().cloned());
+        synth_outer = DetectionCandidate {
+            format_id: Some(fid),
+            dc_id: fid.dc_id(),
+            mime,
+            description: desc,
+            confidence: ConfidenceTier::Moderate,
+            score: 80,
+            evidence: Vec::new(),
+            chain_layers: None,
+        };
+        (fid, &synth_outer)
     };
 
     // Reason for fallback: default bounded inspection limit if unspecified in hint
@@ -1334,6 +1349,53 @@ mod tests {
                 .iter()
                 .any(|c| c.chain_layers.is_some()),
             "No chain candidates should be produced at depth limit 0"
+        );
+    }
+
+    #[ctb_test]
+    fn test_extension_fallback_decompresses_without_magic() {
+        // Raw DEFLATE has no magic signature: the outer format is only known
+        // from the filename, exercising the extension-fallback probe path.
+        let payload = "hello world\n".repeat(40).into_bytes();
+        let deflated = ctb_formats_compression::compress(
+            &payload,
+            SupportedCompressionFormat::Deflate,
+        )
+        .expect("Deflate compression should succeed");
+        let mut slice: &[u8] = &deflated;
+        let hint = DetectionHint {
+            filename: Some("payload.deflate".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top = &report.candidates[0];
+        let layers = top
+            .chain_layers
+            .as_ref()
+            .expect("Extension-only outer should still produce a chain candidate");
+        assert_eq!(
+            layers.first(),
+            Some(&FormatId::Ascii),
+            "Inner ASCII text should be the innermost layer"
+        );
+        assert_eq!(layers.last(), Some(&FormatId::Deflate));
+        assert!(top.description.starts_with("@chain(f4 > "));
+    }
+
+    #[ctb_test]
+    fn test_extension_fallback_garbage_yields_no_chain() {
+        // A file that merely carries a compressed-extension name must fail
+        // the decompression probe cleanly without erroring detection.
+        let garbage = "not gzip data at all, just plain text\n".repeat(4).into_bytes();
+        let mut slice: &[u8] = &garbage;
+        let hint = DetectionHint {
+            filename: Some("garbage.gz".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        assert!(
+            report.candidates.iter().all(|c| c.chain_layers.is_none()),
+            "Garbage with a compressed extension must not yield chain candidates"
         );
     }
 }
