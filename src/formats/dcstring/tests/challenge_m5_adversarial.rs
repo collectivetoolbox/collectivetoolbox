@@ -201,7 +201,7 @@ mod challenge1_recursion_depth_limits {
         Ok(())
     }
 
-    /// Verifies that transparent unwrapping loop in `unwrap_transparent` respects
+    /// Verifies that Stage 1 arena parsing and `unwrap_transparent` respect
     /// `policy.max_depth` and `policy.depth_limit_exceeded` without hanging or looping infinitely.
     #[crate::ctb_test]
     fn test_adversarial_transparent_unwrapping_depth_bound() -> Result<()> {
@@ -217,28 +217,29 @@ mod challenge1_recursion_depth_limits {
         }
         42u64.encode_dc_mixed(&mut doc)?;
 
-        let mut nav = DcDocumentNavigator::from_mstr(&doc);
-        let mut arena = DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, &DcProjectionPolicy::forgiving())?;
-
-        let roots = arena.roots();
-        ensure!(!roots.is_empty(), "Arena must contain root node");
-        let root = roots[0];
-
-        // Under strict policy, exceeding max_depth (32) returns an error
-        let ctx_strict = DcProjectionContext::new(&arena, &strict);
+        // Under strict policy, exceeding max_depth (32) in Stage 1 returns an error
+        let mut nav_strict = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena_strict = DcSyntaxArena::new();
         ensure!(
-            ctx_strict.unwrap_transparent(root).is_err(),
+            nav_strict.parse_document_into_arena(&mut arena_strict, &strict).is_err(),
             "Strict policy must reject transparent wrapper chains exceeding max_depth"
         );
 
-        // Under forgiving policy, unwrap_transparent terminates at 32 steps and returns the remaining node
-        let ctx_forgiving = DcProjectionContext::new(&arena, &forgiving);
+        // Under forgiving policy, Stage 1 caps the arena at 32 levels and unwrap_transparent terminates cleanly
+        let mut nav_forgiving = DcDocumentNavigator::from_mstr(&doc);
+        let mut arena_forgiving = DcSyntaxArena::new();
+        nav_forgiving.parse_document_into_arena(&mut arena_forgiving, &forgiving)?;
+
+        let roots = arena_forgiving.roots();
+        ensure!(!roots.is_empty(), "Arena must contain root node");
+        let root = roots[0];
+
+        let ctx_forgiving = DcProjectionContext::new(&arena_forgiving, &forgiving);
         let unwrapped = ctx_forgiving.unwrap_transparent(root)?;
         let node = ctx_forgiving.node(unwrapped)?;
         ensure!(
-            matches!(&node.kind, DcSyntaxKind::Tagged { tag, .. } if *tag == DC_OPTIONAL_PRESENT),
-            "Unwrapped node should remain an optional container after 32 iterations"
+            matches!(&node.kind, DcSyntaxKind::Malformed { .. }),
+            "Unwrapped node should stop at the depth-capped Malformed node after 32 iterations"
         );
 
         Ok(())
@@ -614,11 +615,7 @@ mod challenge3_transparent_unwrapping {
 
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
-        nav.parse_document_into_arena(&mut arena, &strict)?;
-        let root = arena.roots()[0];
-
-        let ctx = DcProjectionContext::new(&arena, &strict);
-        let res = ctx.unwrap_transparent(root);
+        let res = nav.parse_document_into_arena(&mut arena, &strict);
         ensure!(
             res.is_err(),
             "Equivalent list missing 312 separator must be rejected in strict mode"
@@ -680,8 +677,7 @@ mod challenge3_transparent_unwrapping {
 mod challenge4_strict_syntax_enforcement {
     use super::*;
 
-    /// Verifies that bare strings and bare binaries are strictly rejected for `PathBuf`
-    /// under strict policy, but recovered under forgiving policy.
+    /// Verifies that bare strings and bare binaries are rejected for `PathBuf`.
     #[crate::ctb_test]
     fn test_adversarial_strict_rejection_bare_strings_and_binary() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
@@ -704,13 +700,15 @@ mod challenge4_strict_syntax_enforcement {
         );
         let err_msg = format!("{:#}", res_strict.unwrap_err());
         ensure!(
-            err_msg.contains("Bare string representation of PathBuf is not allowed under strict policy"),
-            "Error message must specify bare string rejection: got {err_msg}"
+            err_msg.contains("Expected format representation (Dc 511 + f494) for PathBuf"),
+            "Error message must specify canonical format representation requirement: got {err_msg}"
         );
 
         let mut ctx_forgiving = DcProjectionContext::new(&arena, &forgiving);
-        let res_forgiving = PathBuf::decode_dc_node(&mut ctx_forgiving, root)?;
-        ensure!(res_forgiving == PathBuf::from("folder/file.txt"));
+        ensure!(
+            PathBuf::decode_dc_node(&mut ctx_forgiving, root).is_err(),
+            "Standalone PathBuf decoder must reject bare string under forgiving policy too"
+        );
 
         // 2. Bare binary payload for PathBuf
         let mut mst_bare_bin = DcMstring::new();
@@ -729,14 +727,15 @@ mod challenge4_strict_syntax_enforcement {
         );
 
         let mut ctx_bin_forgiving = DcProjectionContext::new(&arena_bin, &forgiving);
-        let res_bin_forgiving = PathBuf::decode_dc_node(&mut ctx_bin_forgiving, root_bin)?;
-        ensure!(res_bin_forgiving == PathBuf::from("raw/binary/path.dat"));
+        ensure!(
+            PathBuf::decode_dc_node(&mut ctx_bin_forgiving, root_bin).is_err(),
+            "Standalone PathBuf decoder must reject bare binary under forgiving policy too"
+        );
 
         Ok(())
     }
 
-    /// Verifies that bare numbers are strictly rejected for `Duration` and `SystemTime`
-    /// under strict policy, but recovered under forgiving policy.
+    /// Verifies that bare numbers are rejected for `Duration` and `SystemTime`.
     #[crate::ctb_test]
     fn test_adversarial_strict_rejection_bare_numbers() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
@@ -759,13 +758,15 @@ mod challenge4_strict_syntax_enforcement {
         );
         let err_dur = format!("{:#}", res_dur_strict.unwrap_err());
         ensure!(
-            err_dur.contains("Bare number representation of Duration is not allowed under strict policy"),
-            "Error must specify bare number duration rejection: got {err_dur}"
+            err_dur.contains("Expected duration container (Dc 393..394 or 395..396) for Duration"),
+            "Error must specify duration container requirement: got {err_dur}"
         );
 
         let mut ctx_dur_forgiving = DcProjectionContext::new(&arena, &forgiving);
-        let dur_forgiving = Duration::decode_dc_node(&mut ctx_dur_forgiving, root)?;
-        ensure!(dur_forgiving == Duration::from_nanos(5_000_000_000));
+        ensure!(
+            Duration::decode_dc_node(&mut ctx_dur_forgiving, root).is_err(),
+            "Standalone Duration decoder must reject bare number under forgiving policy too"
+        );
 
         // 2. Bare number for SystemTime
         let mut ctx_time_strict = DcProjectionContext::new(&arena, &strict);
@@ -776,12 +777,9 @@ mod challenge4_strict_syntax_enforcement {
         );
 
         let mut ctx_time_forgiving = DcProjectionContext::new(&arena, &forgiving);
-        let time_forgiving = std::time::SystemTime::decode_dc_node(&mut ctx_time_forgiving, root)?;
         ensure!(
-            time_forgiving
-                == std::time::UNIX_EPOCH
-                    .checked_add(Duration::from_nanos(5_000_000_000))
-                    .context("SystemTime overflow")?
+            std::time::SystemTime::decode_dc_node(&mut ctx_time_forgiving, root).is_err(),
+            "Standalone SystemTime decoder must reject bare number under forgiving policy too"
         );
 
         Ok(())

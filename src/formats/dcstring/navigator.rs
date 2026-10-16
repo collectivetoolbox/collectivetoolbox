@@ -1591,6 +1591,127 @@ impl<'a> DcDocumentNavigator<'a> {
             Push(ArenaBuildFrame),
         }
 
+        fn validate_equivalent_list_children(
+            arena: &DcSyntaxArena<'_>,
+            children: &[NodeId],
+            policy: &DcProjectionPolicy,
+        ) -> Result<()> {
+            let mut has_primary = false;
+            let mut prev_was_sep = true;
+            for &child_id in children {
+                let Some(child) = arena.get(child_id) else {
+                    continue;
+                };
+                if let DcSyntaxKind::Atom(ch) = child.kind {
+                    if ch == DC_TYPE_ANY || ctb_formats_dcdata::is_type_token(ch.0) {
+                        continue;
+                    }
+                    if ch == DC_LIST_ELEMENT_SEPARATOR {
+                        prev_was_sep = true;
+                        continue;
+                    }
+                }
+                if !prev_was_sep && has_primary {
+                    policy.handle(
+                        policy.syntax_error,
+                        "Malformed equivalent representations list: missing element separator (Dc 312)",
+                    )?;
+                }
+                prev_was_sep = false;
+                has_primary = true;
+            }
+            Ok(())
+        }
+
+        fn validate_completed_container(
+            arena: &DcSyntaxArena<'_>,
+            opener: DcChar,
+            children: &[NodeId],
+            policy: &DcProjectionPolicy,
+        ) -> Result<()> {
+            if opener == DC_BEGIN_LIST {
+                if let (Some(&first_id), Some(&second_id)) = (children.first(), children.get(1)) {
+                    if let (
+                        Some(DcSyntaxNode {
+                            kind: DcSyntaxKind::Number { digits, .. },
+                            ..
+                        }),
+                        Some(DcSyntaxNode {
+                            kind: DcSyntaxKind::Atom(ch),
+                            ..
+                        }),
+                    ) = (arena.get(first_id), arena.get(second_id))
+                    {
+                        if ctb_formats_dcdata::is_type_token(ch.0) {
+                            if let Ok(int_val) = crate::dc_number::parse_dc_number_digits(digits) {
+                                if let Ok(expected) = usize::try_from(&int_val) {
+                                    let actual = children
+                                        .get(2..)
+                                        .into_iter()
+                                        .flatten()
+                                        .filter(|&&id| {
+                                            !matches!(
+                                                arena.get(id),
+                                                Some(DcSyntaxNode {
+                                                    kind: DcSyntaxKind::Atom(c),
+                                                    ..
+                                                }) if *c == DC_LIST_ELEMENT_SEPARATOR
+                                            )
+                                        })
+                                        .count();
+                                    if actual != expected {
+                                        policy.handle(
+                                            policy.syntax_error,
+                                            format!(
+                                                "List length mismatch: header declared {expected} elements, found {actual}"
+                                            ),
+                                        )?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if matches!(
+                opener,
+                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) {
+                validate_equivalent_list_children(arena, children, policy)?;
+            } else if opener == DC_BEGIN_FORMAT_REPRESENTATION && children.len() > 2 {
+                policy.handle(
+                    policy.syntax_error,
+                    format!(
+                        "Format representation container (Dc 511) has extraneous trailing children: expected 2, found {}",
+                        children.len()
+                    ),
+                )?;
+            }
+            Ok(())
+        }
+
+        fn validate_completed_tagged(
+            arena: &DcSyntaxArena<'_>,
+            tag: DcChar,
+            args: &[NodeId],
+            policy: &DcProjectionPolicy,
+        ) -> Result<()> {
+            if matches!(
+                tag,
+                DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+            ) {
+                if let Some(&arg_id) = args.first() {
+                    if let Some(DcSyntaxNode {
+                        kind: DcSyntaxKind::Container { children, .. },
+                        ..
+                    }) = arena.get(arg_id)
+                    {
+                        validate_equivalent_list_children(arena, children, policy)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+
         let resolver = default_syntax_resolver();
         let base_level_depth = self.level_stack.len();
 
@@ -1661,6 +1782,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
             if let Some(closer) = stub.closer_dc {
+                if head == DC_BEGIN_LEGACY_KV_MAP {
+                    policy.handle(
+                        policy.deprecated_syntax,
+                        "Deprecated Dc 313..314 key-value map syntax; prefer Dc 559..560",
+                    )?;
+                }
                 let unclosed = stub.is_unclosed();
                 if stub.inner_span.is_some() && !resolver.is_opaque_container(head.to_u128()) {
                     if current_depth >= policy.max_depth {
@@ -1818,22 +1945,28 @@ impl<'a> DcDocumentNavigator<'a> {
                             closer,
                             unclosed,
                             children,
-                        } => arena.alloc(
-                            outer_span,
-                            DcSyntaxKind::Container {
-                                opener,
-                                closer,
-                                header: Vec::new(),
-                                children,
-                                trailing: Vec::new(),
-                                unclosed,
-                            },
-                        ),
+                        } => {
+                            validate_completed_container(arena, opener, &children, policy)?;
+                            arena.alloc(
+                                outer_span,
+                                DcSyntaxKind::Container {
+                                    opener,
+                                    closer,
+                                    header: Vec::new(),
+                                    children,
+                                    trailing: Vec::new(),
+                                    unclosed,
+                                },
+                            )
+                        }
                         ArenaBuildFrame::Tagged {
                             outer_span,
                             tag,
                             args,
-                        } => arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args }),
+                        } => {
+                            validate_completed_tagged(arena, tag, &args, policy)?;
+                            arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args })
+                        }
                         ArenaBuildFrame::Assignment { .. } => unreachable!(),
                     };
                     if let Some(parent) = work_stack.last_mut() {

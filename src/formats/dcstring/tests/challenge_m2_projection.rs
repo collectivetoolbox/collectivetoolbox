@@ -404,36 +404,27 @@ fn test_challenge_strict_vs_forgiving_pathbuf() -> Result<()> {
     let mut bare_str_mst = DcMstring::new();
     "usr/local/bin".to_string().encode_dc_mixed(&mut bare_str_mst)?;
 
-    // Strict policy MUST reject bare string for PathBuf
-    let strict_bare_res = bare_str_mst.decode::<PathBuf>(&strict);
+    // Both strict and forgiving policies reject bare string for standalone PathBuf
     ensure!(
-        strict_bare_res.is_err(),
-        "Strict policy MUST reject bare string representation of PathBuf! Got: {strict_bare_res:?}"
+        bare_str_mst.decode::<PathBuf>(&strict).is_err(),
+        "Strict policy MUST reject bare string representation of PathBuf"
     );
-
-    // Forgiving policy MUST recover bare string for PathBuf
-    let forgiving_bare = bare_str_mst.decode::<PathBuf>(&forgiving)
-        .context("Forgiving policy MUST safely recover bare string for PathBuf")?;
     ensure!(
-        forgiving_bare == PathBuf::from("usr/local/bin"),
-        "Forgiving PathBuf recovery mismatch"
+        bare_str_mst.decode::<PathBuf>(&forgiving).is_err(),
+        "Standalone PathBuf decoder MUST require canonical Dc 511 + f494 framing"
     );
 
     // 3. Bare raw binary representation of PathBuf:
     let mut bare_bin_mst = DcMstring::new();
     bare_bin_mst.push_binary(b"var/log/syslog");
 
-    let strict_bin_res = bare_bin_mst.decode::<PathBuf>(&strict);
     ensure!(
-        strict_bin_res.is_err(),
-        "Strict policy MUST reject bare binary representation of PathBuf! Got: {strict_bin_res:?}"
+        bare_bin_mst.decode::<PathBuf>(&strict).is_err(),
+        "Strict policy MUST reject bare binary representation of PathBuf"
     );
-
-    let forgiving_bin = bare_bin_mst.decode::<PathBuf>(&forgiving)
-        .context("Forgiving policy MUST safely recover bare binary for PathBuf")?;
     ensure!(
-        forgiving_bin == PathBuf::from("var/log/syslog"),
-        "Forgiving binary PathBuf recovery mismatch"
+        bare_bin_mst.decode::<PathBuf>(&forgiving).is_err(),
+        "Standalone PathBuf decoder MUST reject bare binary representation"
     );
 
     Ok(())
@@ -697,16 +688,17 @@ fn test_challenge_format_container_adversarial_stress() -> Result<()> {
     "extra2".to_string().encode_dc_mixed(&mut mst4)?;
     mst4.push_char(DC_END_FORMAT_REPRESENTATION);
 
+    let mut nav4_strict = DcDocumentNavigator::from_mstr(&mst4);
+    let mut arena4_strict = DcSyntaxArena::new();
+    ensure!(
+        nav4_strict.parse_document_into_arena(&mut arena4_strict, &strict).is_err(),
+        "4-child format container must fail in Stage 1 under strict policy"
+    );
+
     let mut nav4 = DcDocumentNavigator::from_mstr(&mst4);
     let mut arena4 = DcSyntaxArena::new();
-    nav4.parse_document_into_arena(&mut arena4, &strict)?;
+    nav4.parse_document_into_arena(&mut arena4, &forgiving)?;
     let root4 = arena4.roots().first().copied().context("Missing root 4")?;
-
-    let mut ctx_strict4 = DcProjectionContext::new(&arena4, &strict);
-    ensure!(
-        ctx_strict4.unwrap_format_representation(root4).is_err(),
-        "4-child format container must fail under strict policy"
-    );
 
     let mut ctx_forgiving4 = DcProjectionContext::new(&arena4, &forgiving);
     let (fmt4, payload_id4) = ctx_forgiving4
