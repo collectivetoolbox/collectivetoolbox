@@ -31,7 +31,8 @@ use ctb_utilities::*;
 
 use ctb_formats_dcstring::dc::*;
 use ctb_formats_dcstring::{
-    DcChar, DcMixedDecode, DcMixedEncode, DcMstring, DcProjectionPolicy,
+    DcChar, DcDocumentNavigator, DcMixedDecode, DcMixedEncode, DcMstring,
+    DcProjectionContext, DcProjectionPolicy, DcSyntaxArena, assert_dc_roundtrip,
 };
 use ctb_io_file::metadata::{
     AppleMetadata, FileTimestamps, NativeMetadata, PlatformRawFlags,
@@ -39,6 +40,7 @@ use ctb_io_file::metadata::{
 use ctb_io_file::{
     AttachedStream, FileEntity, FileEntityKind, LinkPath, StreamKind, StreamName,
 };
+use ctb_io_file::identity::{FileIdentity, FileOrigin};
 use ctb_utilities::format_id::FormatId;
 use std::path::{Path, PathBuf};
 
@@ -552,3 +554,513 @@ fn test_challenge_apple_and_native_metadata_framing() -> Result<()> {
     Ok(())
 }
 
+#[crate::ctb_test]
+fn test_attached_stream_serialization_clean_roundtrip() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    // Verify all stream kinds and data combinations
+    let test_cases = vec![
+        // Nameless stream with no data
+        AttachedStream {
+            name: None,
+            kind: StreamKind::MacOsResourceFork,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: None,
+        },
+        // Nameless stream with empty data
+        AttachedStream {
+            name: None,
+            kind: StreamKind::MacOsResourceFork,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(Vec::new()),
+        },
+        // Nameless stream with binary data
+        AttachedStream {
+            name: None,
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(vec![0xDE, 0xAD, 0xBE, 0xEF]),
+        },
+        // Named stream with ASCII name and data
+        AttachedStream {
+            name: Some(StreamName::from_str("user.mime_type")),
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(b"text/plain".to_vec()),
+        },
+        // Named stream with Unicode name
+        AttachedStream {
+            name: Some(StreamName::from_str("com.apple.metadata:kMDItemWhereFroms_üñîçødë")),
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(b"https://example.com/test".to_vec()),
+        },
+        // Named NTFS alternate data stream with substantial binary data
+        AttachedStream {
+            name: Some(StreamName::from_str("Zone.Identifier")),
+            kind: StreamKind::NtfsAlternateDataStream,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(vec![42u8; 1024]),
+        },
+        // Stream with PosixAclAccess kind and no data
+        AttachedStream {
+            name: Some(StreamName::from_str("system.posix_acl_access")),
+            kind: StreamKind::PosixAclAccess,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: None,
+        },
+        // Stream with SecurityLabel kind and data
+        AttachedStream {
+            name: Some(StreamName::from_str("security.selinux")),
+            kind: StreamKind::SecurityLabel,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(b"system_u:object_r:bin_t:s0".to_vec()),
+        },
+    ];
+
+    for stream in test_cases {
+        let mut mst = DcMstring::new();
+        stream.encode_dc_mixed(&mut mst)?;
+
+        // Verify structural framing:
+        // Container must start with Dc 323 and end with Dc 324
+        let dcs = mst.to_dc_string()?;
+        let chars: Vec<DcChar> = dcs.chars().collect();
+        ensure!(
+            chars.first() == Some(&DcChar::from_short(323)),
+            "AttachedStream must begin with Dc 323"
+        );
+        ensure!(
+            chars.last() == Some(&DcChar::from_short(324)),
+            "AttachedStream must end with Dc 324"
+        );
+
+        // Verify Dc 385 tag is present if and only if stream.data.is_some()
+        let has_dc_385 = chars.iter().any(|&c| c == DcChar::from_short(385));
+        if stream.data.is_some() {
+            ensure!(has_dc_385, "Expected Dc 385 tag when stream data is present");
+        } else {
+            ensure!(!has_dc_385, "Dc 385 tag must not be present when stream data is None");
+        }
+
+        // Verify Dc 338 tag is present if and only if stream.name.is_some()
+        let has_dc_338 = chars.iter().any(|&c| c == DcChar::from_short(338));
+        if stream.name.is_some() {
+            ensure!(has_dc_338, "Expected Dc 338 tag when stream name is present");
+        } else {
+            ensure!(!has_dc_338, "Dc 338 tag must not be present when stream name is None");
+        }
+
+        // Decode under strict policy and verify lossless roundtrip
+        let decoded: AttachedStream = mst.decode(&strict)?;
+        ensure!(decoded == stream, "AttachedStream roundtrip mismatch for {stream:?}");
+    }
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_attached_stream_in_file_entity_roundtrip() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    let mut entity = FileEntity::from_vec(b"main payload content".to_vec());
+    entity.streams = vec![
+        AttachedStream {
+            name: Some(StreamName::from_str("user.stream_1")),
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(b"attr1_value".to_vec()),
+        },
+        AttachedStream {
+            name: None,
+            kind: StreamKind::MacOsResourceFork,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: Some(vec![1, 2, 3, 4]),
+        },
+        AttachedStream {
+            name: Some(StreamName::from_str("SummaryInformation")),
+            kind: StreamKind::NtfsAlternateDataStream,
+            entity: Box::new(FileEntity::from_vec(Vec::new())),
+            data: None,
+        },
+    ];
+
+    let mut mst = DcMstring::new();
+    entity.encode_dc_mixed(&mut mst)?;
+
+    let decoded: FileEntity = mst.decode(&strict)?;
+    ensure!(decoded.streams.len() == 3, "Decoded stream count mismatch");
+    ensure!(decoded.streams == entity.streams, "Attached streams in FileEntity roundtrip mismatch");
+
+    Ok(())
+}
+
+// ============================================================================
+// 3. PATHBUF & OPTION<PATHBUF>: STRICT REJECTION VS FORGIVING RECOVERY
+// ============================================================================
+
+#[crate::ctb_test]
+fn test_pathbuf_standalone_strict_rejection_vs_forgiving_recovery() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+
+    // 1. Valid formatted PathBuf (Dc 511 + f494)
+    let valid_path = PathBuf::from("var/log/app.log");
+    let mut valid_mst = DcMstring::new();
+    valid_path.encode_dc_mixed(&mut valid_mst)?;
+
+    let decoded_strict: PathBuf = valid_mst.decode(&strict)?;
+    ensure!(decoded_strict == valid_path, "Strict failed to decode formatted PathBuf");
+    let decoded_forgiving: PathBuf = valid_mst.decode(&forgiving)?;
+    ensure!(decoded_forgiving == valid_path, "Forgiving failed to decode formatted PathBuf");
+
+    // 2. Bare string representation of PathBuf
+    let mut bare_str_mst = DcMstring::new();
+    "var/log/app.log".encode_dc_mixed(&mut bare_str_mst)?;
+
+    // Strict policy MUST reject bare string
+    let strict_bare_res = bare_str_mst.decode::<PathBuf>(&strict);
+    ensure!(
+        strict_bare_res.is_err(),
+        "Strict policy MUST reject bare string for PathBuf, but succeeded"
+    );
+
+    // Forgiving policy also rejects bare string without format rep
+    ensure!(
+        bare_str_mst.decode::<PathBuf>(&forgiving).is_err(),
+        "Forgiving policy MUST reject bare string for PathBuf without format rep"
+    );
+
+    // 3. Bare binary representation of PathBuf
+    let mut bare_bin_mst = DcMstring::new();
+    bare_bin_mst.push_binary_with_sha256(b"var/log/app.log")?;
+
+    // Strict policy MUST reject bare binary
+    let strict_bin_res = bare_bin_mst.decode::<PathBuf>(&strict);
+    ensure!(
+        strict_bin_res.is_err(),
+        "Strict policy MUST reject bare binary for PathBuf, but succeeded"
+    );
+
+    // Forgiving policy also rejects bare binary without format rep
+    ensure!(
+        bare_bin_mst.decode::<PathBuf>(&forgiving).is_err(),
+        "Forgiving policy MUST reject bare binary for PathBuf without format rep"
+    );
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_option_pathbuf_standalone_strict_vs_forgiving() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+
+    // 1. None (Dc 316)
+    let mut none_mst = DcMstring::new();
+    none_mst.push_char(DC_OPTIONAL_ABSENT); // 316
+    let dec_none_strict: Option<PathBuf> = none_mst.decode(&strict)?;
+    ensure!(dec_none_strict.is_none(), "Strict decode of Dc 316 must be None");
+    let dec_none_forgiving: Option<PathBuf> = none_mst.decode(&forgiving)?;
+    ensure!(dec_none_forgiving.is_none(), "Forgiving decode of Dc 316 must be None");
+
+    // 2. Some(formatted PathBuf) (Dc 315 + format 511 + f494)
+    let opt_some = Some(PathBuf::from("usr/bin/python"));
+    let mut some_mst = DcMstring::new();
+    opt_some.encode_dc_mixed(&mut some_mst)?;
+
+    let dec_some_strict: Option<PathBuf> = some_mst.decode(&strict)?;
+    ensure!(dec_some_strict == opt_some, "Strict decode of formatted Option<PathBuf> mismatch");
+    let dec_some_forgiving: Option<PathBuf> = some_mst.decode(&forgiving)?;
+    ensure!(dec_some_forgiving == opt_some, "Forgiving decode of formatted Option<PathBuf> mismatch");
+
+    // 3. Bare string inside Dc 315: 315 "usr/bin/python"
+    let mut bare_some_mst = DcMstring::new();
+    bare_some_mst.push_char(DC_OPTIONAL_PRESENT);
+    "usr/bin/python".encode_dc_mixed(&mut bare_some_mst)?;
+
+    // Strict MUST reject bare string inside Option
+    ensure!(
+        bare_some_mst.decode::<Option<PathBuf>>(&strict).is_err(),
+        "Strict decode of Option<PathBuf> with bare string MUST error, but succeeded"
+    );
+
+    // Forgiving MUST also reject bare string inside Option (no fallback)
+    ensure!(
+        bare_some_mst.decode::<Option<PathBuf>>(&forgiving).is_err(),
+        "Forgiving decode of Option<PathBuf> with bare string MUST error"
+    );
+
+    // 4. Bare binary inside Dc 315: 315 binary(b"usr/bin/python")
+    let mut bare_bin_some_mst = DcMstring::new();
+    bare_bin_some_mst.push_char(DC_OPTIONAL_PRESENT);
+    bare_bin_some_mst.push_binary_with_sha256(b"usr/bin/python")?;
+
+    // Strict MUST reject bare binary inside Option
+    ensure!(
+        bare_bin_some_mst.decode::<Option<PathBuf>>(&strict).is_err(),
+        "Strict decode of Option<PathBuf> with bare binary MUST error, but succeeded"
+    );
+
+    // Forgiving MUST also reject bare binary inside Option (no fallback)
+    ensure!(
+        bare_bin_some_mst.decode::<Option<PathBuf>>(&forgiving).is_err(),
+        "Forgiving decode of Option<PathBuf> with bare binary MUST error"
+    );
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_derived_struct_option_pathbuf_strict_vs_forgiving() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+
+    // Case 3A: Valid formatted Option<PathBuf> in FileIdentity
+    let valid_id = FileIdentity {
+        origin: FileOrigin::Synthetic,
+        relative_path: Some(PathBuf::from("docs/report.pdf")),
+        enclosing_path: Some(PathBuf::from("/var/data")),
+        nlink: 1,
+        hardlink_group: None,
+    };
+    let mut valid_mst = DcMstring::new();
+    valid_id.encode_dc_mixed(&mut valid_mst)?;
+
+    let dec_strict: FileIdentity = valid_mst.decode(&strict)?;
+    ensure!(dec_strict == valid_id, "Valid FileIdentity strict roundtrip mismatch");
+    let dec_forgiving: FileIdentity = valid_mst.decode(&forgiving)?;
+    ensure!(dec_forgiving == valid_id, "Valid FileIdentity forgiving roundtrip mismatch");
+
+    // Case 3B: FileIdentity with unformatted bare string in relative_path
+    // Framing: 319 (begin FileIdentity), origin, 337 (relative_path), "docs/report.pdf", 355 (nlink), 1, 320 (end)
+    let mut bare_str_id_mst = DcMstring::new();
+    bare_str_id_mst.push_char(DcChar::from_short(319));
+    FileOrigin::Synthetic.encode_dc_mixed(&mut bare_str_id_mst)?;
+    bare_str_id_mst.push_char(DcChar::from_short(337));
+    "docs/report.pdf".encode_dc_mixed(&mut bare_str_id_mst)?;
+    bare_str_id_mst.push_char(DcChar::from_short(355));
+    1u64.encode_dc_mixed(&mut bare_str_id_mst)?;
+    bare_str_id_mst.push_char(DcChar::from_short(320));
+
+    // Strict policy MUST reject unformatted bare string in struct field
+    let res_strict = bare_str_id_mst.decode::<FileIdentity>(&strict);
+    ensure!(
+        res_strict.is_err(),
+        "Strict policy MUST reject FileIdentity with bare string relative_path, but succeeded"
+    );
+
+    // Forgiving policy drops malformed bare string in struct field to None
+    let res_forgiving: FileIdentity = bare_str_id_mst.decode(&forgiving)?;
+    ensure!(
+        res_forgiving.relative_path.is_none(),
+        "Forgiving policy must drop malformed bare string relative_path in FileIdentity to None"
+    );
+
+    // Case 3C: FileIdentity with unformatted bare binary in relative_path
+    let mut bare_bin_id_mst = DcMstring::new();
+    bare_bin_id_mst.push_char(DcChar::from_short(319));
+    FileOrigin::Synthetic.encode_dc_mixed(&mut bare_bin_id_mst)?;
+    bare_bin_id_mst.push_char(DcChar::from_short(337));
+    bare_bin_id_mst.push_binary_with_sha256(b"docs/report.pdf")?;
+    bare_bin_id_mst.push_char(DcChar::from_short(355));
+    1u64.encode_dc_mixed(&mut bare_bin_id_mst)?;
+    bare_bin_id_mst.push_char(DcChar::from_short(320));
+
+    let res_bin_strict = bare_bin_id_mst.decode::<FileIdentity>(&strict);
+    ensure!(
+        res_bin_strict.is_err(),
+        "Strict policy MUST reject FileIdentity with bare binary relative_path, but succeeded"
+    );
+
+    let res_bin_forgiving: FileIdentity = bare_bin_id_mst.decode(&forgiving)?;
+    ensure!(
+        res_bin_forgiving.relative_path.is_none(),
+        "Forgiving policy must drop malformed bare binary relative_path in FileIdentity to None"
+    );
+
+    // Case 3D: FileIdentity with legacy v4 equivalent list in relative_path:
+    // 337 (relative_path) -> 315 [ 397 [ 310 "docs/report.pdf" binary 311 ] ]
+    let mut v4_id_mst = DcMstring::new();
+    v4_id_mst.push_char(DcChar::from_short(319));
+    FileOrigin::Synthetic.encode_dc_mixed(&mut v4_id_mst)?;
+    v4_id_mst.push_char(DcChar::from_short(337));
+    v4_id_mst.push_char(DC_OPTIONAL_PRESENT); // 315
+    v4_id_mst.push_char(DC_EQUIVALENT_REPRESENTATIONS); // 397
+    v4_id_mst.push_char(DC_BEGIN_LIST); // 310
+    "docs/report.pdf".encode_dc_mixed(&mut v4_id_mst)?;
+    v4_id_mst.push_binary_with_sha256(b"docs/report.pdf")?;
+    v4_id_mst.push_char(DC_END_LIST); // 311
+    v4_id_mst.push_char(DcChar::from_short(355));
+    1u64.encode_dc_mixed(&mut v4_id_mst)?;
+    v4_id_mst.push_char(DcChar::from_short(320));
+
+    let res_v4_strict = v4_id_mst.decode::<FileIdentity>(&strict);
+    ensure!(
+        res_v4_strict.is_err(),
+        "Strict policy MUST reject FileIdentity with legacy v4 equivalent list, but succeeded"
+    );
+
+    let res_v4_forgiving: FileIdentity = v4_id_mst.decode(&forgiving)?;
+    ensure!(
+        res_v4_forgiving.relative_path.is_none(),
+        "Forgiving policy must drop unformatted equivalent list relative_path to None"
+    );
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_attached_stream_adversarial_framing_and_assert_roundtrip() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    // 1. assert_dc_roundtrip on standard AttachedStream
+    let stream = AttachedStream {
+        name: Some(StreamName::from_str("user.checksum")),
+        kind: StreamKind::ExtendedAttribute,
+        entity: Box::new(FileEntity::from_vec(b"test_entity".to_vec())),
+        data: Some(vec![0xAA, 0xBB, 0xCC, 0xDD]),
+    };
+    assert_dc_roundtrip(&stream)?;
+
+    // 2. assert_dc_roundtrip on nameless stream
+    let nameless = AttachedStream {
+        name: None,
+        kind: StreamKind::MacOsResourceFork,
+        entity: Box::new(FileEntity::from_vec(Vec::new())),
+        data: None,
+    };
+    assert_dc_roundtrip(&nameless)?;
+
+    // 3. Malformed data payload: Tagged 385 wrapping non-binary/non-list literal node
+    let mut arena = DcSyntaxArena::new();
+    let span = ctb_formats_dcstring::navigator::DcByteSpan::new(0, 10);
+    let str_node = arena.alloc(
+        span,
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Literal {
+            type_header: Vec::new(),
+            decoded: "hello".to_string(),
+        },
+    );
+    let tag_385 = arena.alloc(
+        span,
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Tagged {
+            tag: DcChar::from_short(385),
+            args: vec![str_node],
+        },
+    );
+    let kind_atom = arena.alloc(
+        span,
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Atom(DcChar::from_short(379)),
+    );
+    let entity_node = arena.alloc(
+        span,
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Container {
+            opener: DcChar::from_short(317),
+            closer: DcChar::from_short(318),
+            children: Vec::new(),
+            header: Vec::new(),
+            trailing: Vec::new(),
+            unclosed: false,
+        },
+    );
+    let root = arena.alloc(
+        span,
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Container {
+            opener: DcChar::from_short(323),
+            closer: DcChar::from_short(324),
+            children: vec![kind_atom, entity_node, tag_385],
+            header: Vec::new(),
+            trailing: Vec::new(),
+            unclosed: false,
+        },
+    );
+    let mut ctx = DcProjectionContext::new(&arena, &strict);
+    let res = AttachedStream::decode_dc_node(&mut ctx, root);
+    ensure!(
+        res.is_err(),
+        "AttachedStream must error when Tagged 385 contains a non-binary/list arg"
+    );
+
+    // 4. Invalid stream kind atom (Dc 999) inside container 323..324
+    let mut mst_bad_kind = DcMstring::new();
+    mst_bad_kind.push_char(DcChar::from_short(323));
+    mst_bad_kind.push_char(DcChar::from_short(999)); // not a StreamKind atom
+    FileEntity::from_vec(Vec::new()).encode_dc_mixed(&mut mst_bad_kind)?;
+    mst_bad_kind.push_char(DcChar::from_short(324));
+
+    ensure!(
+        mst_bad_kind.decode::<AttachedStream>(&strict).is_err(),
+        "AttachedStream without valid StreamKind atom must error"
+    );
+
+    // 5. Container 323..324 with unknown extra tokens (should be safely ignored)
+    let mut mst_extra = DcMstring::new();
+    mst_extra.push_char(DcChar::from_short(323));
+    // Unknown atom
+    mst_extra.push_char(DcChar::from_short(299));
+    // Valid StreamKind
+    StreamKind::NtfsAlternateDataStream.encode_dc_mixed(&mut mst_extra)?;
+    // Unknown integer
+    99999u64.encode_dc_mixed(&mut mst_extra)?;
+    // Valid FileEntity
+    FileEntity::from_vec(Vec::new()).encode_dc_mixed(&mut mst_extra)?;
+    mst_extra.push_char(DcChar::from_short(324));
+
+    let dec_extra: AttachedStream = mst_extra.decode(&strict)?;
+    ensure!(dec_extra.kind == StreamKind::NtfsAlternateDataStream);
+    ensure!(dec_extra.name.is_none());
+    ensure!(dec_extra.data.is_none());
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_option_pathbuf_equivalent_list_separation() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+
+    let path = PathBuf::from("usr/include/stdio.h");
+    let mut path_mst = DcMstring::new();
+    path.encode_dc_mixed(&mut path_mst)?;
+
+    // 1. Well-formed equivalent list: 397 [ 275 formatted_path ; formatted_path 311 ]
+    let mut well_formed = DcMstring::new();
+    well_formed.push_char(DC_EQUIVALENT_REPRESENTATIONS); // 397
+    well_formed.push_char(DC_BEGIN_LIST); // 310
+    well_formed.push_char(DcChar::from_short(275)); // 275
+    path.encode_dc_mixed(&mut well_formed)?;
+    well_formed.push_char(DC_LIST_ELEMENT_SEPARATOR); // 312
+    path.encode_dc_mixed(&mut well_formed)?;
+    well_formed.push_char(DC_END_LIST); // 311
+
+    let dec_wf_strict: PathBuf = well_formed.decode(&strict)?;
+    ensure!(dec_wf_strict == path, "Well-formed equivalent list decode mismatch");
+
+    // 2. Malformed equivalent list: missing separator Dc 312 between elements
+    // 397 [ 275 formatted_path formatted_path 311 ]
+    let mut malformed = DcMstring::new();
+    malformed.push_char(DC_EQUIVALENT_REPRESENTATIONS); // 397
+    malformed.push_char(DC_BEGIN_LIST); // 310
+    malformed.push_char(DcChar::from_short(275)); // 275
+    path.encode_dc_mixed(&mut malformed)?;
+    // Missing DC_LIST_ELEMENT_SEPARATOR (312)!
+    path.encode_dc_mixed(&mut malformed)?;
+    malformed.push_char(DC_END_LIST); // 311
+
+    // Under strict policy, missing separator MUST error!
+    let res_strict = malformed.decode::<PathBuf>(&strict);
+    ensure!(
+        res_strict.is_err(),
+        "Strict policy MUST reject equivalent list with missing element separator (Dc 312), but succeeded"
+    );
+
+    // Under forgiving policy, it should recover the first representation
+    let dec_forgiving: PathBuf = malformed.decode(&forgiving)?;
+    ensure!(
+        dec_forgiving == path,
+        "Forgiving policy failed to recover path from malformed equivalent list"
+    );
+
+    Ok(())
+}

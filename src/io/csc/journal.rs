@@ -154,6 +154,47 @@ pub struct JournalSessionRecord {
     pub environment: Option<Arc<EnvDescription>>,
 }
 
+fn system_time_from_sec(timestamp_sec: i64) -> std::time::SystemTime {
+    let dur = std::time::Duration::from_secs(timestamp_sec.unsigned_abs());
+    if timestamp_sec < 0 {
+        match UNIX_EPOCH.checked_sub(dur) {
+            Some(t) => t,
+            // Reason for fallback: Pre-epoch timestamp underflowing SystemTime limits falls back to UNIX_EPOCH.
+            None => UNIX_EPOCH,
+        }
+    } else {
+        match UNIX_EPOCH.checked_add(dur) {
+            Some(t) => t,
+            // Reason for fallback: Post-epoch timestamp overflowing SystemTime limits falls back to UNIX_EPOCH.
+            None => UNIX_EPOCH,
+        }
+    }
+}
+
+fn sec_from_system_time(time: std::time::SystemTime) -> i64 {
+    match time.duration_since(UNIX_EPOCH) {
+        Ok(dur) => match i64::try_from(dur.as_secs()) {
+            Ok(s) => s,
+            // Reason for fallback: Duration exceeding i64::MAX seconds clamps to i64::MAX.
+            Err(_) => i64::MAX,
+        },
+        Err(err) => {
+            let dur = err.duration();
+            let secs = match i64::try_from(dur.as_secs()) {
+                Ok(s) => s,
+                // Reason for fallback: Duration before epoch exceeding i64::MAX seconds clamps to i64::MIN.
+                Err(_) => return i64::MIN,
+            };
+            let neg_secs = secs.saturating_neg();
+            if dur.subsec_nanos() == 0 {
+                neg_secs
+            } else {
+                neg_secs.saturating_sub(1)
+            }
+        }
+    }
+}
+
 /// Persistent error incident payload bounded by Dc 552..553.
 #[derive(
     Debug,
@@ -171,7 +212,9 @@ pub struct JournalErrorRecordPayload {
     #[dc(558)]
     pub packed_status: u64,
     #[dc(556)]
-    pub log: (String, i64),
+    pub error_message: String,
+    #[dc(nested = 390)]
+    pub timestamp: std::time::SystemTime,
 }
 
 impl JournalErrorRecordPayload {
@@ -185,18 +228,19 @@ impl JournalErrorRecordPayload {
         Self {
             path,
             packed_status,
-            log: (error_message, timestamp_sec),
+            error_message,
+            timestamp: system_time_from_sec(timestamp_sec),
         }
     }
 
     #[must_use]
     pub fn error_message(&self) -> &str {
-        &self.log.0
+        &self.error_message
     }
 
     #[must_use]
     pub fn timestamp_sec(&self) -> i64 {
-        self.log.1
+        sec_from_system_time(self.timestamp)
     }
 }
 
@@ -213,25 +257,28 @@ impl JournalErrorRecordPayload {
 #[dc(begin = 554, end = 555)]
 pub struct JournalWarningRecordPayload {
     #[dc(556)]
-    pub log: (String, i64),
+    pub message: String,
+    #[dc(nested = 390)]
+    pub timestamp: std::time::SystemTime,
 }
 
 impl JournalWarningRecordPayload {
     #[must_use]
     pub fn new(code: &str, message: &str, timestamp_sec: i64) -> Self {
         Self {
-            log: (format!("{code}: {message}"), timestamp_sec),
+            message: format!("{code}: {message}"),
+            timestamp: system_time_from_sec(timestamp_sec),
         }
     }
 
     #[must_use]
     pub fn combined_message(&self) -> &str {
-        &self.log.0
+        &self.message
     }
 
     #[must_use]
     pub fn timestamp_sec(&self) -> i64 {
-        self.log.1
+        sec_from_system_time(self.timestamp)
     }
 }
 
@@ -964,27 +1011,9 @@ pub fn read_v4_journal_snapshot(
         && !first_stub.is_unclosed()
     {
         arena.clear();
-        let session: JournalSessionRecord = match nav
+        let session: JournalSessionRecord = nav
             .decode_frame_with_arena(&first_stub, &mut arena, None, policy)
-        {
-            Ok(s) => s,
-            Err(err) => {
-                if !policy.is_forgiving() {
-                    arena.clear();
-                    match nav.decode_frame_with_arena(
-                        &first_stub,
-                        &mut arena,
-                        None,
-                        &nav_scan_policy,
-                    ) {
-                        Ok(s) => s,
-                        Err(_) => return Err(err).context("Failed to decode journal session header"),
-                    }
-                } else {
-                    return Err(err).context("Failed to decode journal session header");
-                }
-            }
-        };
+            .context("Failed to decode journal session header")?;
 
         sources = session.sources;
         destination = session.destination;
@@ -1110,7 +1139,8 @@ pub fn read_v4_journal_snapshot(
                     Ok(p) => p,
                     Err(_) => break,
                 };
-                let (error_message, timestamp_sec) = payload.log;
+                let timestamp_sec = payload.timestamp_sec();
+                let error_message = payload.error_message;
                 let stage_code = match u8::try_from(payload.packed_status >> 32) {
                     Ok(c) => c,
                     Err(_) => {
@@ -1120,8 +1150,13 @@ pub fn read_v4_journal_snapshot(
                         0
                     }
                 };
-                // Reason for fallback: Masking with 0xFFFF_FFFF guarantees the value fits in u32, but in the theoretical event conversion fails, default to 0 indicating no OS error code.
-                let os_code = u32::try_from(payload.packed_status & 0xFFFF_FFFF).unwrap_or(0);
+                #[expect(
+                    clippy::expect_used,
+                    clippy::unwrap_in_result,
+                    reason = "Bitwise AND with 0xFFFF_FFFF guarantees the value fits within u32::MAX"
+                )]
+                let os_code = u32::try_from(payload.packed_status & 0xFFFF_FFFF)
+                    .expect("Bitwise mask 0xFFFF_FFFF fits in u32");
                 let raw_path = payload.path.as_os_str().as_encoded_bytes().to_vec();
                 errors.push(JournalErrorRecord {
                     path: payload.path,
@@ -1148,7 +1183,10 @@ pub fn read_v4_journal_snapshot(
                     Some(&shared_context),
                     policy,
                 ) {
-                    Ok(p) => p.log,
+                    Ok(p) => {
+                        let timestamp_sec = p.timestamp_sec();
+                        (p.message, timestamp_sec)
+                    }
                     Err(_) => {
                         arena.clear();
                         match nav.decode_frame_with_arena::<JournalWarningRecordStringPayload>(

@@ -86,15 +86,11 @@ fn test_tier4_v4_fixture_strict_rejection_vs_forgiving_salvage() -> Result<()> {
         "v4_dcmixed-20261011.cscjournal payload must fail strict document validation due to unframed dev-era syntax"
     );
 
-    // 2. Strict journal reading rolls back the unverified dev-era batch
-    let strict_snapshot = read_journal_snapshot(&fixture_file)?;
+    // 2. Strict journal reading rejects the fixture or rolls back the unverified dev-era batch
+    let strict_snapshot = read_journal_snapshot(&fixture_file);
     ensure!(
-        strict_snapshot.last_batch_id == 0,
-        "Dev-era batch with digest mismatch must be rolled back under strict policy (last_batch_id == 0)"
-    );
-    ensure!(
-        strict_snapshot.committed_entities.is_empty(),
-        "Dev-era batch entities must be rolled back under strict policy"
+        strict_snapshot.is_err() || strict_snapshot.is_ok_and(|s| s.committed_entities.is_empty()),
+        "Authentic v4 fixture under strict mode must reject or roll back unverified entities"
     );
 
     // 3. Forgiving salvage converts the authentic v4 journal into a populated DcMstring

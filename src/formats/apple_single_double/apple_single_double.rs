@@ -2168,7 +2168,7 @@ mod tests {
             vec![401, 405, 397, 310, 275, 487],
         ] {
             let mut mst = ctb_formats_dcstring::DcMstring::new();
-            for token in malformed {
+            for &token in &malformed {
                 mst.push_char(DcChar::from_short(token));
             }
             ensure!(

@@ -38,6 +38,7 @@ pub use ast::{
     ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
     SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
+pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{parse_dc_syntax, parse_target_token};
 pub use resolver::{
     DatasetRuleResolver, StarterSet, SyntaxRuleResolver,

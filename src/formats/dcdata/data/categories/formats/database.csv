@@ -41,7 +41,7 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228536,312,PkixCrl,X.509 CRL (RFC 2585 sec. 4.2; RFC 5280 sec. 5),database,,.crl,"application/pkix-crl, application/x-pkcs7-crl",,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228537,313,Pkcs7Mime,PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7),database,,".p7c, .p7b, .spc, .p7r","application/pkcs7-mime, application/x-pkcs7-certificates, application/x-pkcs7-certreqresp",,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228538,314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,".p12, .pfx",application/x-pkcs12,com.rsa.pkcs-12,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
-2228634,410,CscJournal,Collective Toolbox csc journal,database,,.cscjournal,,,,,2 2,,,,,
+2228634,410,CscJournal,Collective Toolbox csc journal,database,"@magic_name(""Collective Toolbox csc journal"")",.cscjournal,,,,,2 2,,,,,
 2228635,411,CscDesc,Collective Toolbox csc description,database,,.cscdesc,,,,,,,,,,
 2228638,414,CscIndex,Collective Toolbox csc index,database,,.cscindex.sqlite,,,,,,,,,,
 2228639,415,CscIndexMeta,Collective Toolbox csc index metadata,database,,.cscidxmeta,,,,,,,,,,
@@ -49,4 +49,4 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228853,629,CscJournal1Meta1,"Collective Toolbox csc journal, ""CTBMETA1"" version",database,@implies(f410),.cscjournal,,,,,2 2,,,,,
 2228854,630,CscJournal1Meta2,"Collective Toolbox csc journal, ""CTBMETA2"" version",database,"@implies(f410), @based_on(f629)",.cscjournal,,,,,2 2,,,,,
 2228855,631,CscJournal1Meta3,"Collective Toolbox csc journal, ""CTBMETA3"" version",database,"@implies(f410), @based_on(f630)",.cscjournal,,,,,2 2,,,,,
-2228856,632,CscJournal4,"Collective Toolbox csc journal, version 4",database,"@implies(f410), @based_on(f631), @based_on(f484)",.cscjournal,,,,,2 2,,,,This version changes the format to be Dc mixed mode documents (f484) prepended with CTBCSCJ\04. Removing those eight leading bytes should convert it to a valid Dc mixed mode document (which has its own magic: 44 63 4D 4D 00 D5 AB 81 9E 9B 8E 4D 61 AD BC 93 3E 88 51 E7 9A),
+2228856,632,CscJournal4,"Collective Toolbox csc journal, version 4",database,"@implies(f410), @based_on(f631), @based_on(f484), @magic_name(""Collective Toolbox csc journal, version 4"")",.cscjournal,,,,,2 2,,,,This version changes the format to be Dc mixed mode documents (f484) prepended with CTBCSCJ\04. Removing those eight leading bytes should convert it to a valid Dc mixed mode document (which has its own magic: 44 63 4D 4D 00 D5 AB 81 9E 9B 8E 4D 61 AD BC 93 3E 88 51 E7 9A),

@@ -109,6 +109,65 @@ impl<'r> SyntaxEvalContext<'r> {
     }
 }
 
+/// Format syntax rule wrapping the format's AST syntax pattern expression.
+#[derive(Debug, Clone)]
+pub struct FormatSyntaxRule {
+    /// Evaluated syntax pattern expression for the format.
+    pub expr: ctb_formats_dcdata::DcSyntaxExpr,
+}
+
+/// Runtime resolver providing syntax rule lookups for Document Character formats.
+#[derive(Debug, Clone)]
+pub struct SyntaxRuntimeResolver {
+    resolver: std::sync::Arc<ctb_formats_dcdata::syntax::DatasetRuleResolver>,
+}
+
+impl SyntaxRuntimeResolver {
+    /// Looks up the syntax rule for a format by its [`FormatId`].
+    #[must_use]
+    pub fn get_format_rule(&self, fid: FormatId) -> Option<FormatSyntaxRule> {
+        let rule = self.resolver.resolve_rule(&CharTarget::Format(fid))?;
+        let expr = match &rule.pattern {
+            ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) => {
+                let payload_items: Vec<_> = items
+                    .iter()
+                    .filter(|el| !matches!(el.term, ctb_formats_dcdata::SyntaxTerm::SelfChar))
+                    .cloned()
+                    .collect();
+                ctb_formats_dcdata::DcSyntaxExpr::Sequence(payload_items)
+            }
+            other => other.clone(),
+        };
+        Some(FormatSyntaxRule { expr })
+    }
+}
+
+/// Global runtime registry for Document Character syntax rules and resolvers.
+#[derive(Debug, Clone)]
+pub struct SyntaxRuntimeRegistry {
+    resolver: SyntaxRuntimeResolver,
+}
+
+impl SyntaxRuntimeRegistry {
+    /// Returns the shared global [`SyntaxRuntimeRegistry`] instance.
+    #[must_use]
+    pub fn global() -> &'static Self {
+        static INSTANCE: std::sync::LazyLock<SyntaxRuntimeRegistry> =
+            std::sync::LazyLock::new(|| SyntaxRuntimeRegistry {
+                resolver: SyntaxRuntimeResolver {
+                    resolver: default_syntax_resolver().clone(),
+                },
+            });
+        &INSTANCE
+    }
+
+    /// Returns the syntax rule resolver instance.
+    #[must_use]
+    pub fn resolver(&self) -> &SyntaxRuntimeResolver {
+        &self.resolver
+    }
+}
+
 /// Maximum binary payload size (in bytes) eagerly loaded into memory when
 /// navigating or expanding frames from a seekable on-disk `.dcmm` file.
 /// Larger binary regions are represented as [`BinaryPayloadRef::FileSpan`].
@@ -1371,6 +1430,23 @@ impl<'a> DcDocumentNavigator<'a> {
                             header_info: DcFrameHeaderInfo::None,
                         }));
                     }
+                    if matches!(
+                        first_dc,
+                        DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
+                    ) && after_first < self.active_span.end {
+                        if let Some((DC_BEGIN_LIST, _)) = self.read_token_or_binary_at(after_first)? {
+                            self.cursor = after_first;
+                            if let Some(arg_stub) = self.next_sibling_stub(policy)? {
+                                return Ok(Some(DcFrameStub {
+                                    head_dc: first_dc,
+                                    closer_dc: None,
+                                    outer_span: DcByteSpan::new(start_offset, arg_stub.outer_span.end),
+                                    inner_span: Some(DcByteSpan::new(after_first, arg_stub.outer_span.end)),
+                                    header_info: DcFrameHeaderInfo::None,
+                                }));
+                            }
+                        }
+                    }
                     if first_dc == DC_OPTIONAL_PRESENT && after_first < self.active_span.end {
                         let mut probe = after_first;
                         let mut depth = 0usize;
@@ -1596,6 +1672,17 @@ impl<'a> DcDocumentNavigator<'a> {
             children: &[NodeId],
             policy: &DcProjectionPolicy,
         ) -> Result<()> {
+            if policy.is_strict() {
+                let has_type_header = children.first().and_then(|&id| arena.get(id)).is_some_and(|node| {
+                    matches!(node.kind, DcSyntaxKind::Atom(ch) if ch == DC_TYPE_ANY || ctb_formats_dcdata::is_type_token(ch.0))
+                });
+                if !has_type_header {
+                    policy.handle(
+                        policy.syntax_error,
+                        "Untyped equivalent representations list: missing type header",
+                    )?;
+                }
+            }
             let mut has_primary = false;
             let mut prev_was_sep = true;
             for &child_id in children {
@@ -1619,6 +1706,12 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
                 prev_was_sep = false;
                 has_primary = true;
+            }
+            if policy.is_strict() && prev_was_sep && has_primary {
+                policy.handle(
+                    policy.syntax_error,
+                    "Malformed equivalent representations list: trailing element separator (Dc 312)",
+                )?;
             }
             Ok(())
         }
@@ -1677,14 +1770,42 @@ impl<'a> DcDocumentNavigator<'a> {
                 DC_EQUIVALENT_REPRESENTATIONS | DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS
             ) {
                 validate_equivalent_list_children(arena, children, policy)?;
-            } else if opener == DC_BEGIN_FORMAT_REPRESENTATION && children.len() > 2 {
-                policy.handle(
-                    policy.syntax_error,
-                    format!(
-                        "Format representation container (Dc 511) has extraneous trailing children: expected 2, found {}",
-                        children.len()
-                    ),
-                )?;
+            } else if opener == DC_BEGIN_FORMAT_REPRESENTATION {
+                let mut max_expected_children = 2;
+                if let Some(&first_id) = children.first() {
+                    if let Some(first_node) = arena.get(first_id) {
+                        let maybe_fid = match &first_node.kind {
+                            DcSyntaxKind::Atom(ch) => FormatId::from_dc_id(ch.to_u128()),
+                            DcSyntaxKind::Identifier { name } => {
+                                FormatId::from_shorthand(name)
+                                    .or_else(|| FormatId::from_ident(name))
+                            }
+                            _ => None,
+                        };
+                        if let Some(fid) = maybe_fid {
+                            if let Some(rule) = SyntaxRuntimeRegistry::global()
+                                .resolver()
+                                .get_format_rule(fid)
+                            {
+                                if let ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) =
+                                    &rule.expr
+                                {
+                                    max_expected_children =
+                                        items.len().saturating_add(1);
+                                }
+                            }
+                        }
+                    }
+                }
+                if children.len() > max_expected_children {
+                    policy.handle(
+                        policy.syntax_error,
+                        format!(
+                            "Format representation container (Dc 511) has extraneous trailing children: expected {max_expected_children}, found {}",
+                            children.len()
+                        ),
+                    )?;
+                }
             }
             Ok(())
         }
@@ -1701,11 +1822,22 @@ impl<'a> DcDocumentNavigator<'a> {
             ) {
                 if let Some(&arg_id) = args.first() {
                     if let Some(DcSyntaxNode {
-                        kind: DcSyntaxKind::Container { children, .. },
+                        kind: DcSyntaxKind::Container { children, opener, .. },
                         ..
                     }) = arena.get(arg_id)
                     {
+                        if *opener != DC_BEGIN_LIST && policy.is_strict() {
+                            policy.handle(
+                                policy.syntax_error,
+                                "Equivalent representations (Dc 397/561) must be enclosed in a list container (Dc 310)",
+                            )?;
+                        }
                         validate_equivalent_list_children(arena, children, policy)?;
+                    } else if policy.is_strict() {
+                        policy.handle(
+                            policy.syntax_error,
+                            "Equivalent representations (Dc 397/561) must be enclosed in a list container (Dc 310)",
+                        )?;
                     }
                 }
             }

@@ -90,6 +90,17 @@ pub trait DcMixedEncode {
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, _context: &crate::SharedValueContext) -> Result<()> {
         self.encode_dc_mixed(mst)
     }
+
+    /// Encodes this value inside a `Dc 511 [format] ... Dc 512` format representation container.
+    fn encode_format_elements_with_context(
+        &self,
+        format: DcChar,
+        mst: &mut DcMstring,
+        context: &crate::SharedValueContext,
+    ) -> Result<()> {
+        let _ = format;
+        self.encode_dc_mixed_with_context(mst, context)
+    }
 }
 
 /// Trait for types that can be projected from a parsed [`NodeId`] in a [`DcSyntaxArena`].
@@ -859,6 +870,18 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                         DcSyntaxKind::Tagged { tag, .. } => *tag,
                         other => bail!("Expected Atom or Identifier for format token in Dc 511, found {other:?}"),
                     };
+                    let is_sequence_format = if let Some(fid) = FormatId::from_dc_id(format.to_u128()) {
+                        if let Some(rule) = crate::navigator::SyntaxRuntimeRegistry::global()
+                            .resolver()
+                            .get_format_rule(fid)
+                        {
+                            matches!(&rule.expr, ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) if items.len() >= 2)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
                     let payload_id = if children.len() > 2 {
                         let c1_node = self.node(c1)?;
                         if let DcSyntaxKind::Atom(ch) = c1_node.kind {
@@ -869,9 +892,13 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                             ) && children.get(2).is_some()
                             {
                                 *children.get(2).context("Missing equivalent candidate payload")?
+                            } else if is_sequence_format {
+                                node_id
                             } else {
                                 c1
                             }
+                        } else if is_sequence_format {
+                            node_id
                         } else {
                             c1
                         }
@@ -1260,9 +1287,38 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
         self.encode_dc_mixed_with_context(mst, &crate::SharedValueContext::default())
     }
     fn encode_dc_mixed_with_context(&self, mst: &mut DcMstring, context: &crate::SharedValueContext) -> Result<()> {
+        mst.push_char(DC_BEGIN_KV_PAIR);
         self.0.encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
         self.1.encode_dc_mixed_with_context(mst, context)?;
+        mst.push_char(DC_END_KV_PAIR);
         Ok(())
+    }
+    fn encode_format_elements_with_context(
+        &self,
+        format: DcChar,
+        mst: &mut DcMstring,
+        context: &crate::SharedValueContext,
+    ) -> Result<()> {
+        let is_seq_len_2 = if let Some(fid) = FormatId::from_dc_id(format.to_u128()) {
+            if let Some(rule) = crate::navigator::SyntaxRuntimeRegistry::global()
+                .resolver()
+                .get_format_rule(fid)
+            {
+                matches!(&rule.expr, ctb_formats_dcdata::DcSyntaxExpr::Sequence(items) if items.len() == 2)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if is_seq_len_2 {
+            self.0.encode_dc_mixed_with_context(mst, context)?;
+            self.1.encode_dc_mixed_with_context(mst, context)?;
+            Ok(())
+        } else {
+            self.encode_dc_mixed_with_context(mst, context)
+        }
     }
 }
 
@@ -1285,7 +1341,7 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
         match &node.kind {
             DcSyntaxKind::Container { opener, children, .. } => {
                 let child_slice = if *opener == DC_BEGIN_FORMAT_REPRESENTATION && children.len() >= 3 {
-                    &children[1..]
+                    children.get(1..).context("Format representation container missing payload children")?
                 } else {
                     children.as_slice()
                 };
@@ -1716,7 +1772,7 @@ pub fn encode_format_representation<T: DcMixedEncode + ?Sized>(
 ) -> Result<()> {
     mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
     mst.push_char(format);
-    value.encode_dc_mixed_with_context(mst, context)?;
+    value.encode_format_elements_with_context(format, mst, context)?;
     mst.push_char(DC_END_FORMAT_REPRESENTATION);
     Ok(())
 }
@@ -1992,21 +2048,7 @@ impl DcMixedDecode for PathBuf {
             }
         }
         let node = ctx.node(node_id)?;
-        ctx.policy.handle(
-            ctx.policy.syntax_error,
-            format!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind),
-        )?;
-        match &node.kind {
-            DcSyntaxKind::Literal { .. } | DcSyntaxKind::Identifier { .. } => {
-                let s = String::decode_dc_node(ctx, node_id)?;
-                Ok(Self::from(s))
-            }
-            DcSyntaxKind::Binary { payload, .. } => {
-                let bytes = ctx.materialize_binary(payload)?;
-                path_from_native_bytes(&bytes)
-            }
-            other => bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {other:?}"),
-        }
+        bail!("Expected format representation (Dc 511 + f494) for PathBuf, found {:?}", node.kind)
     }
 }
 

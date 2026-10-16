@@ -474,7 +474,6 @@ mod challenge3_transparent_unwrapping {
         let mut ctx = DcProjectionContext::new(&arena, &policy);
         let val_u64 = u64::decode_dc_node(&mut ctx, root)?;
         ensure!(val_u64 == 9876543210, "u64 unwrapping mismatch");
-        eprintln!("PART 1 PASSED");
 
         // 2. String through 397 [list] -> 561 [list] -> 315
         let mut mst_str = DcMstring::new();
@@ -500,7 +499,6 @@ mod challenge3_transparent_unwrapping {
         let mut ctx_str = DcProjectionContext::new(&arena_str, &policy);
         let val_str = String::decode_dc_node(&mut ctx_str, root_str)?;
         ensure!(val_str == "multi_layer_string", "String unwrapping mismatch");
-        eprintln!("PART 2 PASSED");
 
         // 3. Composite framed map BTreeMap<String, u32> through 397 [list] -> 315
         let mut map_data = BTreeMap::new();
@@ -524,7 +522,6 @@ mod challenge3_transparent_unwrapping {
         let mut ctx_map = DcProjectionContext::new(&arena_map, &policy);
         let val_map = Option::<BTreeMap<String, u32>>::decode_dc_node(&mut ctx_map, root_map)?;
         ensure!(val_map == Some(map_data), "Map unwrapping mismatch");
-        eprintln!("PART 3 PASSED");
 
         // 4. Collection Vec<u32> through 397 [list] -> 315
         let vec_data = vec![10u32, 20u32, 30u32, 40u32];
@@ -546,7 +543,6 @@ mod challenge3_transparent_unwrapping {
         let mut ctx_vec = DcProjectionContext::new(&arena_vec, &policy);
         let val_vec = Option::<Vec<u32>>::decode_dc_node(&mut ctx_vec, root_vec)?;
         ensure!(val_vec == Some(vec_data), "Vec unwrapping mismatch");
-        eprintln!("PART 4 PASSED");
 
         Ok(())
     }

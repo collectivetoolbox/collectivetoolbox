@@ -133,3 +133,18 @@ Looks likely duplicative of a crate (either formats/base64 or the one it depends
 ```
 
 This test was removed - is that correct, or getting around things?
+
+
+
+====
+
+
+-format,:[f0..f1114111],
++format,:[f0..f632],
+
+Doesn't look right, possibly? Or maybe is right but should be updated automatically by the data validator script.
+
+Check if there are any other changes to Dc database that aren't just adding @ident.
+
+Is DcProjectionPolicy used for parsing policy too? Maybe it should be renamed? ("Projection" the way I meant it is only applicable to serde, not other parsing cases, I think - I meant it like "project the parsed document onto a Rust struct and see what lines up and so can be deserialized".) Or maybe it's being used in a different sense?
+

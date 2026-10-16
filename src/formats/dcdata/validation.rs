@@ -497,7 +497,7 @@ pub fn validate_decompositions_table(
             continue;
         };
 
-        if row.len() < 2 {
+        let (Some(raw_tag), Some(raw_desc)) = (row.get(0), row.get(1)) else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -506,16 +506,8 @@ pub fn validate_decompositions_table(
                 Some("Ensure row has 'Decomposition' and 'Description' columns"),
             );
             continue;
-        }
-
-        #[expect(
-            clippy::expect_used,
-            reason = "Row length was verified >= 2 above, so indices 0 and 1 are in bounds"
-        )]
-        let (tag, desc) = (
-            row.get(0).expect("row has >= 2 columns").trim(),
-            row.get(1).expect("row has >= 2 columns").trim(),
-        );
+        };
+        let (tag, desc) = (raw_tag.trim(), raw_desc.trim());
 
         if tag.is_empty() {
             report.add_error(
@@ -631,7 +623,7 @@ pub fn validate_named_types_table(
             continue;
         };
 
-        if row.len() < 2 {
+        let (Some(raw_name), Some(raw_syntax)) = (row.get(0), row.get(1)) else {
             report.add_error(
                 file_path,
                 Some(line_no),
@@ -640,16 +632,8 @@ pub fn validate_named_types_table(
                 Some("Ensure row has 'Named type' and 'Syntax' columns"),
             );
             continue;
-        }
-
-        #[expect(
-            clippy::expect_used,
-            reason = "Row length was verified >= 2 above, so indices 0 and 1 are in bounds"
-        )]
-        let (name, syntax) = (
-            row.get(0).expect("row has >= 2 columns").trim(),
-            row.get(1).expect("row has >= 2 columns").trim(),
-        );
+        };
+        let (name, syntax) = (raw_name.trim(), raw_syntax.trim());
 
         if name.is_empty() {
             report.add_error(

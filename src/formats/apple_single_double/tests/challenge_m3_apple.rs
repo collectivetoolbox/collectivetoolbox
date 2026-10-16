@@ -25,16 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!    untyped equivalent lists, and invalid label indices.
 //! 3. Generative fuzzing harness to ensure error propagation and zero panics.
 
-#![allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
+
 
 #[expect(unused_imports, clippy::wildcard_imports, reason = "Integration test root")]
 use ctb_utilities::*;

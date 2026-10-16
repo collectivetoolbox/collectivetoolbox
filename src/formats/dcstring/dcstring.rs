@@ -68,8 +68,9 @@ pub use navigator::{
     BinaryPayloadRef, DEFAULT_MAX_PROJECTION_DEPTH, DcBinaryResolver,
     DcByteSpan, DcDocumentNavigator, DcForgivingDefault, DcFrameHeaderInfo,
     DcFrameStub, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
-    DiagnosticAction, INLINE_BINARY_THRESHOLD, MAX_SYNTAX_EXPANSION_DEPTH,
-    NodeId, SyntaxEvalContext, validate_dc_mixed_strict,
+    DiagnosticAction, FormatSyntaxRule, INLINE_BINARY_THRESHOLD,
+    MAX_SYNTAX_EXPANSION_DEPTH, NodeId, SyntaxEvalContext,
+    SyntaxRuntimeRegistry, SyntaxRuntimeResolver, validate_dc_mixed_strict,
     validate_dc_str_strict, validate_dc_tokens_strict,
 };
 pub use shared::{SharedJson, SharedValueContext};

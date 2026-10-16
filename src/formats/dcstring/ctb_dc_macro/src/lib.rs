@@ -1496,12 +1496,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         other => #anyhow_path::bail!("Expected Binary node inside tagged construct for {}, found {other:?}", stringify!(#type_name)),
                                     }
                                 }
-                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. }
-                                    if *opener == #crate_root::dc::DC_BEGIN_LIST =>
-                                {
-                                    let bytes = <::std::vec::Vec<u8> as #crate_root::DcMixedDecode>::decode_dc_node(ctx, unwrap_id)?;
-                                    ::std::borrow::Cow::Owned(bytes)
-                                }
                                 other => #anyhow_path::bail!("Expected Binary node for {}, found {other:?}", stringify!(#type_name)),
                             };
                             <Self as ::std::convert::TryFrom<&[u8]>>::try_from(raw_bytes.as_ref())
@@ -1727,15 +1721,40 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                         decode_arms.push(quote! {
                             #id => {
-                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
-                                #field_ident = Some(Some(val));
+                                match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    ::std::result::Result::Ok(val) => {
+                                        #field_ident = Some(Some(val));
+                                    }
+                                    ::std::result::Result::Err(err) => {
+                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
+                                            return ::std::result::Result::Err(err);
+                                        }
+                                        ctx.policy.handle(
+                                            ctx.policy.malformed_field,
+                                            format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
+                                        )?;
+                                    }
+                                }
                             }
                         });
                         decode_field_arms.push(quote! {
                             #id => {
-                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
-                                self.#field_ident = Some(val);
-                                Ok(true)
+                                match <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    ::std::result::Result::Ok(val) => {
+                                        self.#field_ident = Some(val);
+                                        Ok(true)
+                                    }
+                                    ::std::result::Result::Err(err) => {
+                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
+                                            return ::std::result::Result::Err(err);
+                                        }
+                                        ctx.policy.handle(
+                                            ctx.policy.malformed_field,
+                                            format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
+                                        )?;
+                                        Ok(true)
+                                    }
+                                }
                             }
                         });
                         field_inits.push(quote! {
@@ -1748,15 +1767,40 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                         decode_arms.push(quote! {
                             #id => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
-                                #field_ident = Some(val);
+                                match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    ::std::result::Result::Ok(val) => {
+                                        #field_ident = Some(val);
+                                    }
+                                    ::std::result::Result::Err(err) => {
+                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
+                                            return ::std::result::Result::Err(err);
+                                        }
+                                        ctx.policy.handle(
+                                            ctx.policy.malformed_field,
+                                            format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
+                                        )?;
+                                    }
+                                }
                             }
                         });
                         decode_field_arms.push(quote! {
                             #id => {
-                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id)?;
-                                self.#field_ident = val;
-                                Ok(true)
+                                match <#field_ty as #crate_root::DcMixedDecode>::decode_dc_node(ctx, val_id) {
+                                    ::std::result::Result::Ok(val) => {
+                                        self.#field_ident = val;
+                                        Ok(true)
+                                    }
+                                    ::std::result::Result::Err(err) => {
+                                        if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
+                                            return ::std::result::Result::Err(err);
+                                        }
+                                        ctx.policy.handle(
+                                            ctx.policy.malformed_field,
+                                            format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
+                                        )?;
+                                        Ok(true)
+                                    }
+                                }
                             }
                         });
                         field_inits.push(quote! {
@@ -1872,9 +1916,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                         fn finish_flattened(
                             state: Self::State,
-                            _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         ) -> #anyhow_path::Result<Self> {
-                            Ok(state.unwrap_or_else(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default))
+                            if let ::std::option::Option::Some(instance) = state {
+                                Ok(instance)
+                            } else {
+                                ctx.handle_unconsumed_or_incomplete(&[], &[stringify!(#type_name)])?;
+                                Ok(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default())
+                            }
                         }
                     }
 
@@ -3167,13 +3216,20 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                             if !next_is_tag {
                                                 idx = idx.saturating_add(1);
                                                 let mut payload_id = next_id;
+                                                let mut inner_cand = None;
                                                 if let #crate_root::navigator::DcSyntaxKind::Atom(opt_ch) = &next_node.kind {
                                                     if opt_ch.to_short_dc() == ::std::option::Option::Some(315) && idx.saturating_add(1) < children.len() {
                                                         idx = idx.saturating_add(1);
                                                         payload_id = children[idx];
+                                                        inner_cand = Some(payload_id);
+                                                    }
+                                                } else if let #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } = &next_node.kind {
+                                                    if tag.to_short_dc() == ::std::option::Option::Some(315) {
+                                                        inner_cand = args.first().copied();
                                                     }
                                                 }
-                                                if let ::std::result::Result::Ok(pnode) = ctx.node(payload_id) {
+                                                let check_397_id = inner_cand.unwrap_or(payload_id);
+                                                if let ::std::result::Result::Ok(pnode) = ctx.node(check_397_id) {
                                                     if let #crate_root::navigator::DcSyntaxKind::Atom(pch) = &pnode.kind {
                                                         if pch.to_short_dc() == ::std::option::Option::Some(397) && idx.saturating_add(1) < children.len() {
                                                             let cand_id = children[idx.saturating_add(1)];
