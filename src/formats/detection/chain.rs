@@ -550,8 +550,50 @@ pub fn guess_format_chains(
         });
     }
 
+    boost_common_implied_ancestors(&mut results);
+
     results.sort_by(|a, b| b.score.cmp(&a.score));
     results
+}
+
+/// Boosts, by one point, each chain in an exact-score tie group whose outermost
+/// format is transitively implied by every other member's outermost format.
+/// When an ambiguous extension resolves to a format family whose members all
+/// `@implies()` a shared general format (e.g. the CscJournal variants), the
+/// extension could not distinguish between the candidates, so the
+/// undifferentiated superset gets a minimal +1 nudge to rank first without
+/// distorting the wider score tiers used for confidence.
+///
+/// The OUTERMOST format identifies each chain for grouping and comparison,
+/// because that is the layer the ambiguous extension resolved to; for
+/// single-layer chains it is the only layer.
+fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
+    // All decisions are computed from the pre-boost scores so a boosted chain
+    // cannot cascade into a neighboring score tier's tie group.
+    let boosted: Vec<bool> = chains
+        .iter()
+        .enumerate()
+        .map(|(idx, chain)| {
+            let tied: Vec<&ProbableFormatChain> = chains
+                .iter()
+                .enumerate()
+                .filter(|(other_idx, other)| {
+                    *other_idx != idx && other.score == chain.score
+                })
+                .map(|(_, other)| other)
+                .collect();
+            !tied.is_empty()
+                && tied
+                    .iter()
+                    .all(|other| other.outer.implies().contains(&chain.outer))
+        })
+        .collect();
+
+    for (chain, &is_boosted) in chains.iter_mut().zip(&boosted) {
+        if is_boosted {
+            chain.score = chain.score.saturating_add(1);
+        }
+    }
 }
 
 /// Parses a filename or path into a single structured `FormatChain`.
@@ -595,6 +637,47 @@ mod tests {
         assert!(!chains.is_empty());
         assert_eq!(chains[0].outer, FormatId::Gzip);
         assert_eq!(chains[0].inner, Some(FormatId::AppleSingle));
+    }
+
+    #[ctb_test]
+    fn test_tie_boost_common_implied_ancestor() {
+        // Each CscJournal variant @implies() the base CscJournal format, so a
+        // .cscjournal filename yields five chains tied at 50; the
+        // undifferentiated superset gets the +1 nudge while the variants keep
+        // their catalog order.
+        let chains = guess_format_chains("v4_dcmixed.cscjournal", None);
+        assert_eq!(chains.len(), 5);
+        assert_eq!(chains[0].outer, FormatId::CscJournal);
+        assert_eq!(chains[0].score, 51);
+        assert_eq!(
+            chains[1..]
+                .iter()
+                .map(|chain| (chain.outer, chain.score))
+                .collect::<Vec<_>>(),
+            vec![
+                (FormatId::CscJournal1Meta1, 50),
+                (FormatId::CscJournal1Meta2, 50),
+                (FormatId::CscJournal1Meta3, 50),
+                (FormatId::CscJournal4, 50),
+            ]
+        );
+    }
+
+    #[ctb_test]
+    fn test_no_boost_without_common_implied_ancestor() {
+        // A sole candidate for its extension forms no tie group and must keep
+        // its raw extension score.
+        let chains = guess_format_chains("archive.gz", None);
+        assert_eq!(chains.len(), 1);
+        assert_eq!(chains[0].outer, FormatId::Gzip);
+        assert_eq!(chains[0].score, 50);
+
+        // Tied two-layer chains sharing the same outermost format are equal
+        // supersets of one another, not implied subsets, so neither is nudged.
+        let chains = guess_format_chains("page.html.gz", None);
+        assert_eq!(chains.len(), 2);
+        assert!(chains.iter().all(|chain| chain.outer == FormatId::Gzip));
+        assert!(chains.iter().all(|chain| chain.score == 50));
     }
 }
 /*

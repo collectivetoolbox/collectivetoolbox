@@ -1646,6 +1646,19 @@ pub fn detect_text_candidate(
     source: &mut dyn DetectionSource,
     hint: Option<&DetectionHint>,
 ) -> Result<Option<DetectionCandidate>> {
+    Ok(detect_text_candidate_and_encoding(source, hint)?.map(|(cand, _)| cand))
+}
+
+/// Performs complete text detection on a data source, returning a candidate if
+/// text is confirmed, together with the `FormatId` of the detected character
+/// encoding itself (without syntax-format overrides). The encoding format ID
+/// lets callers reason about encoding entailment (e.g. corroborating an
+/// extension candidate whose format implies a specific encoding); it is `None`
+/// when the detected encoding has no exact format catalog mapping.
+pub fn detect_text_candidate_and_encoding(
+    source: &mut dyn DetectionSource,
+    hint: Option<&DetectionHint>,
+) -> Result<Option<(DetectionCandidate, Option<FormatId>)>> {
     let mut sample_buf = vec![0u8; TEXT_ENCODING_MAX_BYTES.min(4096)];
     let n = source.read_at(0, &mut sample_buf)?;
     if n == 0 {
@@ -1736,7 +1749,7 @@ pub fn detect_text_candidate(
         ConfidenceTier::Moderate
     };
 
-    Ok(Some(DetectionCandidate {
+    Ok(Some((DetectionCandidate {
         format_id,
         dc_id: None,
         mime,
@@ -1745,7 +1758,7 @@ pub fn detect_text_candidate(
         score,
         evidence,
         chain_layers: None,
-    }))
+    }, encoding.format_id())))
 }
 
 #[cfg(test)]

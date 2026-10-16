@@ -652,10 +652,30 @@ use self::extra_rules::{
     detect_custom_text_format_candidate, detect_small_format_candidates,
 };
 use self::special::detect_special_entity;
-use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
+use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate_and_encoding};
 
 /// Bonus score awarded when a format candidate matches the target platform OS.
 const PLATFORM_PRIOR_BONUS: u32 = 15;
+
+/// Text-encoding evidence gathered by the text-analysis phase, used to
+/// corroborate extension-only candidates whose format implies this encoding.
+struct TextEncodingEvidence {
+    /// Format ID of the detected character encoding itself.
+    detected: FormatId,
+    /// Encoding/TextProperties evidence items cloned from the text candidate.
+    items: Vec<DetectionEvidence>,
+    /// Total score the text candidate earned from these evidence items.
+    score: u32,
+}
+
+/// Text-encoding compatibility for entailment corroboration. The detected
+/// encoding corroborates an implied encoding format when they are equal, or
+/// when ASCII was detected and the implied format is UTF-8 (ASCII content is
+/// a strict subset of UTF-8). This table is deliberately tiny: encodings with
+/// no subset relationship (e.g. UTF-16 vs UTF-8) do not corroborate.
+fn encoding_entailment_compatible(detected: FormatId, implied: FormatId) -> bool {
+    detected == implied || (detected == FormatId::Ascii && implied == FormatId::Utf8)
+}
 
 /// Primary format detection function returning a comprehensive report.
 pub fn guess_format_report(
@@ -1053,6 +1073,7 @@ pub fn guess_format_report(
     }
 
     // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
+    let mut text_encoding_evidence: Option<TextEncodingEvidence> = None;
     let has_strong_binary_magic = candidates.iter().any(|c| {
         (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
             && !c.description.contains("text")
@@ -1062,7 +1083,30 @@ pub fn guess_format_report(
             && c.format_id != Some(FormatId::Ascii)
     });
     if !has_strong_binary_magic {
-        if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
+        if let Ok(Some((text_cand, encoding_fmt))) =
+            detect_text_candidate_and_encoding(source, hint)
+        {
+            // Capture the encoding evidence so extension-only candidates
+            // implying this encoding can be corroborated in step 3.
+            if let Some(detected) = encoding_fmt {
+                let mut items = Vec::new();
+                let mut items_score = 0u32;
+                for ev in &text_cand.evidence {
+                    let ev_score = match ev {
+                        DetectionEvidence::Encoding { score, .. }
+                        | DetectionEvidence::TextProperties { score, .. } => *score,
+                        _ => continue,
+                    };
+                    items_score = items_score.saturating_add(ev_score);
+                    items.push(ev.clone());
+                }
+                text_encoding_evidence = Some(TextEncodingEvidence {
+                    detected,
+                    items,
+                    score: items_score,
+                });
+            }
+
             // Reason for fallback: default to 4096 byte inspection limit if arithmetic conversion overflows
             let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
             bytes_evaluated = bytes_evaluated.max(inspect_size);
@@ -1163,7 +1207,35 @@ pub fn guess_format_report(
                 }
             }
 
-            let confidence = if final_score >= 65 {
+            // Corroborate extension-only candidates that imply a text encoding
+            // with the encoding evidence gathered by the text-analysis phase,
+            // so a specific format guaranteed to be, say, UTF-8 text outranks
+            // the bare generic encoding candidate (the mechanism is general:
+            // any format implying an encoding format is corroborated).
+            let mut corroborated = false;
+            if let Some(te) = &text_encoding_evidence {
+                let implies_compatible_encoding = fmt.implies().iter().any(|implied| {
+                    implied.category() == FormatCategory::Encoding
+                        && encoding_entailment_compatible(te.detected, *implied)
+                });
+                if implies_compatible_encoding {
+                    final_score = final_score.saturating_add(te.score);
+                    evidence.extend(te.items.clone());
+                    corroborated = true;
+                }
+            }
+
+            let confidence = if corroborated {
+                // Corroborated candidates carry direct content evidence, so
+                // recompute the tier like the extension-concordance path above.
+                if final_score >= 85 {
+                    ConfidenceTier::HighestConfidence
+                } else if final_score >= 65 {
+                    ConfidenceTier::Strong
+                } else {
+                    ConfidenceTier::Moderate
+                }
+            } else if final_score >= 65 {
                 ConfidenceTier::Moderate
             } else {
                 ConfidenceTier::Weak
@@ -2216,6 +2288,67 @@ mod tests {
         };
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
         assert_eq!(report.candidates[0].format_id, Some(FormatId::CscJournal));
+    }
+
+    #[ctb_test]
+    fn test_csc_desc_implied_encoding_corroborated() {
+        // .cscdesc implies UTF-8 (f0); the ASCII content is compatible, so the
+        // specific format must outrank the bare encoding candidate.
+        let data =
+            b"CSC State File\nStatus: Completed\nFilesCommitted: 0\n".to_vec();
+        let mut slice: &[u8] = &data;
+        let hint = DetectionHint {
+            filename: Some("x.cscdesc".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::CscDesc));
+        assert!(top.evidence.iter().any(|e| matches!(
+            e,
+            DetectionEvidence::Encoding { .. }
+        )));
+        assert!(top.evidence.iter().any(|e| matches!(
+            e,
+            DetectionEvidence::TextProperties { .. }
+        )));
+
+        // The generic encoding candidate is still reported, ranked below the
+        // corroborated specific format.
+        let ascii_rank = report
+            .candidates
+            .iter()
+            .position(|c| c.format_id == Some(FormatId::Ascii));
+        assert!(ascii_rank.is_some());
+        assert!(ascii_rank.unwrap() > 0);
+    }
+
+    #[ctb_test]
+    fn test_extension_candidate_without_encoding_implication_not_corroborated() {
+        // CscJournal does not imply any encoding format, so its extension-only
+        // candidate must not gain encoding evidence even though the content
+        // is plain text.
+        let data =
+            b"CSC State File\nStatus: Completed\nFilesCommitted: 0\n".to_vec();
+        let mut slice: &[u8] = &data;
+        let hint = DetectionHint {
+            filename: Some("x.cscjournal".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let csc_journal = report
+            .candidates
+            .iter()
+            .find(|c| c.format_id == Some(FormatId::CscJournal))
+            .unwrap();
+        assert!(!csc_journal.evidence.iter().any(|e| matches!(
+            e,
+            DetectionEvidence::Encoding { .. }
+        )));
+        assert!(!csc_journal.evidence.iter().any(|e| matches!(
+            e,
+            DetectionEvidence::TextProperties { .. }
+        )));
     }
 
     #[ctb_test]

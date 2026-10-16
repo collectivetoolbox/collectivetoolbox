@@ -417,7 +417,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228632,f408,OpenBSD,0,BN,,!Cx,.Formats:os,"@ident(""OpenBsd""), @title(""OpenBSD""), @based_on(f391 & f397), @implies(f391 & f397 & f492)",,,,,,,,,,
 2228633,f409,NetBSD,0,BN,,!Cx,.Formats:os,"@ident(""NetBsd""), @title(""NetBSD""), @based_on(f391 & f397), @implies(f391 & f397 & f492)",,,,,,,,,,
 2228634,f410,Collective Toolbox csc journal,0,BN,,!Cx,.Formats:database,"@ident(""CscJournal""), @magic_name(""Collective Toolbox csc journal"")",,.cscjournal,,,,2 2,,,,
-2228635,f411,Collective Toolbox csc description,0,BN,,!Cx,.Formats:database,"@ident(""CscDesc"")",,.cscdesc,,,,,,,,
+2228635,f411,Collective Toolbox csc description,0,BN,,!Cx,.Formats:database,"@ident(""CscDesc""), @implies(f0)",,.cscdesc,,,,,,,,
 2228636,f412,DragonFly BSD,0,BN,,!Cx,.Formats:os,"@ident(""DragonFlyBsd""), @title(""DragonFly BSD""), @based_on(f407 & f391 & f397), @implies(f391 & f397 & f492)",,,,,,,,,,
 2228637,f413,GNU Mach,0,BN,,!Cx,.Formats:kernel,"@ident(""GnuMach""), @based_on(f392)",,,,,,,,,,
 2228638,f414,Collective Toolbox csc index,0,BN,,!Cx,.Formats:database,"@ident(""CscIndex"")",,.cscindex.sqlite,,,,,,,,

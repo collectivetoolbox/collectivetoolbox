@@ -458,7 +458,7 @@ use std::fmt::Write as _;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use crate::chain::guess_format_chains;
+use crate::chain::{ProbableFormatChain, guess_format_chains};
 use crate::decompression::{
     format_chain_directive, format_chain_layer_annotation,
     DEFAULT_MAX_DECOMPRESSION_DEPTH,
@@ -791,7 +791,30 @@ fn render_rich_output(
     let chains = guess_format_chains(&path_str, None);
     if !chains.is_empty() {
         let _ = writeln!(output, "\nFormat Chain(s):");
-        for chain in chains {
+        // Decompression probes actual container contents, so a filename chain
+        // whose layer sequence matches a decompression-verified candidate is
+        // no longer merely hypothetical; those chains render first, annotated.
+        let verified_sequences: Vec<Vec<FormatId>> = report
+            .candidates
+            .iter()
+            .filter_map(|cand| cand.chain_layers.clone())
+            .collect();
+        let mut ordered_chains: Vec<(&ProbableFormatChain, bool)> = chains
+            .iter()
+            .map(|chain| {
+                // Chain layers are outermost-first while candidates store them
+                // innermost-first, so compare against the reversed sequence.
+                let innermost_first: Vec<FormatId> =
+                    chain.layers.iter().rev().copied().collect();
+                let verified = verified_sequences
+                    .iter()
+                    .any(|seq| *seq == innermost_first);
+                (chain, verified)
+            })
+            .collect();
+        // Stable sort: verified chains first, otherwise original order.
+        ordered_chains.sort_by_key(|(_, verified)| !*verified);
+        for (chain, verified) in &ordered_chains {
             // Chain syntax is innermost->outermost (`@chain(inner > outer)`), so
             // reverse the layers (outer->inner) to match. Otherwise the output
             // would contradict the `@chain(...)` directive/description order.
@@ -801,9 +824,14 @@ fn render_rich_output(
                 .rev()
                 .map(|f| format!("{f:?}"))
                 .collect();
+            let verification = if *verified {
+                " ✓ verified by content"
+            } else {
+                ""
+            };
             let _ = writeln!(
                 output,
-                "  • {} (score: {})",
+                "  • {} (score: {}){verification}",
                 layers_str.join(" > "),
                 chain.score
             );
@@ -1100,6 +1128,63 @@ mod tests {
         assert!(plain_output.contains("  Description:    gzip compressed data"));
         // The chain candidate in the list uses the compact directive label
         assert!(plain_output.contains("2. @chain(f632 > f35) (Confidence: Strong"));
+    }
+
+    #[crate::ctb_test]
+    fn test_cli_rich_output_verified_chain_rendered_first() {
+        // A decompression-verified chain candidate carries layers ordered
+        // innermost-first: CscJournal4 payload inside a Gzip container.
+        let verified_cand = DetectionCandidate {
+            format_id: None,
+            dc_id: None,
+            mime: None,
+            description: String::new(),
+            confidence: ConfidenceTier::Strong,
+            score: 94,
+            evidence: Vec::new(),
+            chain_layers: Some(vec![FormatId::CscJournal4, FormatId::Gzip]),
+        };
+        let candidates = vec![verified_cand];
+        let report = DetectionReport {
+            outcome: DetectionOutcome::Matched(candidates.clone()),
+            candidates,
+            bytes_evaluated: 64,
+            stream_signals_used: false,
+            file_origin: None,
+        };
+        let mut output = String::new();
+        render_rich_output(
+            &mut output,
+            "x.cscjournal.gz",
+            Path::new("x.cscjournal.gz"),
+            &report,
+            &FileDetectionArgs::default(),
+        );
+
+        let chain_lines: Vec<&str> = output
+            .rsplit("\nFormat Chain(s):\n")
+            .next()
+            .expect("rsplit always yields at least one segment")
+            .lines()
+            .collect();
+        // The verified chain renders first, annotated; the other filename
+        // chains keep their existing format and relative order. No tie boost
+        // applies here: the ambiguous extension resolved to the inner layer,
+        // while all chains share the outermost format Gzip.
+        assert_eq!(chain_lines.len(), 5);
+        assert_eq!(
+            chain_lines[0],
+            "  • CscJournal4 > Gzip (score: 50) ✓ verified by content"
+        );
+        assert_eq!(chain_lines[1], "  • CscJournal > Gzip (score: 50)");
+        assert_eq!(
+            chain_lines[2..],
+            [
+                "  • CscJournal1Meta1 > Gzip (score: 50)",
+                "  • CscJournal1Meta2 > Gzip (score: 50)",
+                "  • CscJournal1Meta3 > Gzip (score: 50)",
+            ]
+        );
     }
 }
 /*

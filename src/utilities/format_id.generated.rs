@@ -3357,6 +3357,7 @@ impl FormatId {
             Self::FreeBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::OpenBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::NetBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
+            Self::CscDesc => &[Self::Utf8],
             Self::DragonFlyBsd => &[Self::BsdKernel, Self::BsdLibc, Self::Unix],
             Self::Fnv0 => &[Self::FowlerNollVo],
             Self::Fnv1 => &[Self::FowlerNollVo],
