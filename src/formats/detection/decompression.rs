@@ -459,6 +459,7 @@ use crate::utilities::*;
 use std::io::{self, Read, Write};
 
 use crate::mime_derivation::FORMAT_CATALOG;
+use crate::extension::resolve_extension_candidates;
 use crate::source::DetectionSource;
 use crate::types::{
     ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
@@ -818,9 +819,12 @@ where
                 let clean = name.trim().trim_start_matches('.');
                 // Reason for fallback: filename without period delimiter is already the extension
                 let last_ext = clean.rsplit('.').next().unwrap_or(clean);
-                FormatId::from_ident(last_ext)
+                Some(resolve_extension_candidates(last_ext, None))
             })
-            .filter(|&fid| ctb_formats_compression::is_supported(fid));
+            .into_iter()
+            .flatten()
+            .map(|(fid, _)| fid)
+            .find(|fid| ctb_formats_compression::is_supported(*fid));
 
         let Some(fid) = ext_fmt else {
             return Ok(Vec::new());
