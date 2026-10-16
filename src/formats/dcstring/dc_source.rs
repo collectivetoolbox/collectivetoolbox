@@ -582,12 +582,12 @@ impl DcStr {
         );
         let res = T::decode_dc_node(&mut ctx, root_id)?;
         if roots.len() > 1 && !ctx.consumed_all_roots {
-            policy.handle(
-                policy.syntax_error,
-                format!(
+            ctx.handle_unconsumed_or_incomplete(
+                &[format!(
                     "Trailing content after typed Dc value (multiple root nodes: {})",
                     roots.len()
-                ),
+                )],
+                &[],
             )?;
         }
         Ok(res)
