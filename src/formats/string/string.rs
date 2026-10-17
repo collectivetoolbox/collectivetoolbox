@@ -76,6 +76,49 @@ pub fn split_camel_case(s: &str) -> Vec<String> {
     words
 }
 
+/// Formats arbitrary binary bytes into a human-readable, valid UTF-8 string,
+/// preserving valid UTF-8 text and escaping invalid UTF-8 bytes and control
+/// characters as `\xHH` or standard escape sequences.
+#[must_use]
+pub fn escape_bytes_human_readable(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len());
+    for chunk in bytes.utf8_chunks() {
+        for ch in chunk.valid().chars() {
+            match ch {
+                '\\' => out.push_str(r"\\"),
+                '\n' => out.push_str(r"\n"),
+                '\r' => out.push_str(r"\r"),
+                '\t' => out.push_str(r"\t"),
+                c if u32::from(c) < 0x20 || c == '\x7f' => {
+                    let hex = format!("\\x{:02x}", u32::from(c));
+                    out.push_str(&hex);
+                }
+                c => out.push(c),
+            }
+        }
+        for &b in chunk.invalid() {
+            let hex = format!("\\x{b:02x}");
+            out.push_str(&hex);
+        }
+    }
+    out
+}
+
+/// Formats a filesystem path into a human-readable, valid UTF-8 string,
+/// escaping invalid UTF-8 bytes and control characters as `\xHH` hex escapes.
+#[must_use]
+pub fn escape_path_human_readable(path: &std::path::Path) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        escape_bytes_human_readable(path.as_os_str().as_bytes())
+    }
+    #[cfg(not(unix))]
+    {
+        escape_bytes_human_readable(path.to_string_lossy().as_bytes())
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -101,5 +144,40 @@ mod tests {
         );
         assert_eq!(split_camel_case("XMLParser"), vec!["XML", "Parser"]);
         assert_eq!(split_camel_case("utf8String"), vec!["utf", "8", "String"]);
+    }
+
+    #[crate::ctb_test]
+    fn test_escape_bytes_human_readable_ascii_and_unicode() {
+        assert_eq!(escape_bytes_human_readable(b"hello world"), "hello world");
+        assert_eq!(
+            escape_bytes_human_readable("🦀 /path/to/ünicøde/日本語/file.txt".as_bytes()),
+            "🦀 /path/to/ünicøde/日本語/file.txt"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_escape_bytes_human_readable_controls_and_escapes() {
+        assert_eq!(escape_bytes_human_readable(b"line1\nline2\r\ttab\\slash"), "line1\\nline2\\r\\ttab\\\\slash");
+        assert_eq!(escape_bytes_human_readable(b"\x00null\x1funit"), "\\x00null\\x1funit");
+    }
+
+    #[crate::ctb_test]
+    fn test_escape_bytes_human_readable_invalid_utf8() {
+        // 0xe9 alone is invalid UTF-8 (e.g. Latin-1 'é')
+        assert_eq!(
+            escape_bytes_human_readable(b"/path/caf\xe9.txt"),
+            "/path/caf\\xe9.txt"
+        );
+        // 0xff and 0xfe
+        assert_eq!(
+            escape_bytes_human_readable(b"\xff\xfe_raw"),
+            "\\xff\\xfe_raw"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_escape_path_human_readable() {
+        let p = std::path::Path::new("/normal/path/file.txt");
+        assert_eq!(escape_path_human_readable(p), "/normal/path/file.txt");
     }
 }

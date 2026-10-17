@@ -669,12 +669,11 @@ struct TextEncodingEvidence {
 }
 
 /// Text-encoding compatibility for entailment corroboration. The detected
-/// encoding corroborates an implied encoding format when they are equal, or
-/// when ASCII was detected and the implied format is UTF-8 (ASCII content is
-/// a strict subset of UTF-8). This table is deliberately tiny: encodings with
-/// no subset relationship (e.g. UTF-16 vs UTF-8) do not corroborate.
+/// encoding corroborates an implied encoding format when they are identical or
+/// when the detected encoding format implies the required encoding format
+/// according to the format database's `@implies(...)` relationships.
 fn encoding_entailment_compatible(detected: FormatId, implied: FormatId) -> bool {
-    detected == implied || (detected == FormatId::Ascii && implied == FormatId::Utf8)
+    detected == implied || detected.implies().contains(&implied)
 }
 
 /// Primary format detection function returning a comprehensive report.
@@ -2292,10 +2291,11 @@ mod tests {
 
     #[ctb_test]
     fn test_csc_desc_implied_encoding_corroborated() {
-        // .cscdesc implies UTF-8 (f0); the ASCII content is compatible, so the
-        // specific format must outrank the bare encoding candidate.
+        // .cscdesc implies UTF-8 (f0); when content lacks a magic header but is
+        // valid ASCII text, the implied-encoding compatibility from the database
+        // corroborates the extension candidate so it outranks bare Ascii.
         let data =
-            b"CSC State File\nStatus: Completed\nFilesCommitted: 0\n".to_vec();
+            b"Status: Completed\nFilesCommitted: 0\n".to_vec();
         let mut slice: &[u8] = &data;
         let hint = DetectionHint {
             filename: Some("x.cscdesc".to_string()),
@@ -2321,6 +2321,34 @@ mod tests {
             .position(|c| c.format_id == Some(FormatId::Ascii));
         assert!(ascii_rank.is_some());
         assert!(ascii_rank.unwrap() > 0);
+    }
+
+    #[ctb_test]
+    fn test_csc_desc_magic_detection() {
+        // "CSC State File\n" matches content magic directly, identifying
+        // CscDesc even without any filename hint.
+        let data =
+            b"CSC State File\nStatus: Completed\nFilesCommitted: 0\n".to_vec();
+        let mut slice: &[u8] = &data;
+        let report = guess_format_report(&mut slice, None).unwrap();
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::CscDesc));
+        assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
+
+        // With .cscdesc filename hint, it gains extension evidence.
+        let mut slice: &[u8] = &data;
+        let hint = DetectionHint {
+            filename: Some("x.cscdesc".to_string()),
+            ..Default::default()
+        };
+        let report_hinted = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let top_hinted = &report_hinted.candidates[0];
+        assert_eq!(top_hinted.format_id, Some(FormatId::CscDesc));
+        assert!(top_hinted.evidence.iter().any(|e| matches!(
+            e,
+            DetectionEvidence::Extension { .. }
+        )));
+        assert_eq!(top_hinted.score, 185);
     }
 
     #[ctb_test]

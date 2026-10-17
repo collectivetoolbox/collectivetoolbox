@@ -3305,6 +3305,7 @@ impl FormatId {
     #[must_use]
     pub const fn implies(&self) -> &'static [Self] {
         match self {
+            Self::Ascii => &[Self::Utf8],
             Self::Vt100 => &[Self::Videoterminal],
             Self::Lang_En_Us => &[Self::Lang_En],
             Self::Lang_En_Gb => &[Self::Lang_En],

@@ -769,7 +769,7 @@ impl JournalWriter {
                     desc_text,
                     "  - [{:?}] {}: {}",
                     err.stage,
-                    err.path.display(),
+                    ctb_formats_string::escape_path_human_readable(&err.path),
                     err.error_message
                 )?;
             }
@@ -783,9 +783,17 @@ impl JournalWriter {
         }
         writeln!(desc_text, "Sources:")?;
         for s in &self.sources {
-            writeln!(desc_text, "  - {}", s.display())?;
+            writeln!(
+                desc_text,
+                "  - {}",
+                ctb_formats_string::escape_path_human_readable(s)
+            )?;
         }
-        writeln!(desc_text, "Destination: {}", self.destination.display())?;
+        writeln!(
+            desc_text,
+            "Destination: {}",
+            ctb_formats_string::escape_path_human_readable(&self.destination)
+        )?;
         writeln!(desc_text, "NoatimeUsed: {}", self.noatime_used)?;
 
         let temp_desc = format!("{}.tmp", self.desc_path.display());

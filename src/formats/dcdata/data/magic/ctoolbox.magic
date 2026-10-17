@@ -30,4 +30,9 @@
 !:mime	application/octet-stream
 !:ext	cscjournal
 
+# Collective Toolbox csc description
+0	string		CSC\ State\ File	Collective Toolbox csc description
+!:mime	text/plain
+!:ext	cscdesc
+
 

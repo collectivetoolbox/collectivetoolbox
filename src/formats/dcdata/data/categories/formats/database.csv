@@ -42,7 +42,7 @@ Import/export/tests support columns take two space-separated levels: '<general> 
 2228537,313,Pkcs7Mime,PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7),database,,".p7c, .p7b, .spc, .p7r","application/pkcs7-mime, application/x-pkcs7-certificates, application/x-pkcs7-certreqresp",,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228538,314,Pkcs12,PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12),database,,".p12, .pfx",application/x-pkcs12,com.rsa.pkcs-12,,,,,,,,https://raw.githubusercontent.com/mrwiora/pki-tutorial/cd50703b733f3864a720602928fd0e0671ab3ddb/docs/mime.rst
 2228634,410,CscJournal,Collective Toolbox csc journal,database,"@magic_name(""Collective Toolbox csc journal"")",.cscjournal,,,,,2 2,,,,,
-2228635,411,CscDesc,Collective Toolbox csc description,database,@implies(f0),.cscdesc,,,,,,,,,,
+2228635,411,CscDesc,Collective Toolbox csc description,database,"@magic_name(""Collective Toolbox csc description""), @implies(f0)",.cscdesc,,,,,,,,,,
 2228638,414,CscIndex,Collective Toolbox csc index,database,,.cscindex.sqlite,,,,,,,,,,
 2228639,415,CscIndexMeta,Collective Toolbox csc index metadata,database,,.cscidxmeta,,,,,,,,,,
 2228640,416,Redb,redb database,database,,.redb,,,,,,,,,,

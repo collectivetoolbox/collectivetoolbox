@@ -17,7 +17,7 @@ Import/export/tests support columns take two space-separated levels: '<general> 
    5=4+optional strict validation.",References
 2228224,0,Utf8,UTF-8,encoding,@based_on(f7),".txt, .utf8",,,,"utf8, utf-8, txt",3 1,3 2,1 1,unicodePua,"For “encoding” formats, the extension given should have “.txt” appended to it when it’s not being used as an option for another format (e.g. HTML). Variants: unicode versions, BOM/no BOM, line ending variants (CR/LF/CRLF/the various others floating around), PUA extensions (variant:unicodePua type).",
 2228227,3,AsciiSafeSubset,Printable ASCII,encoding,,".txt, .ascii",,,,,3 3,3 3,1 1,,"ASCII with no control characters. Variants: Line ending variants allowed for *reading*, but only CR/LF/CRLF, and all of them mean unambiguous CR+LF (=EOL), and should be interpreted as such on import and emitted as such on export, thus preserving line-endings by requiring non-CRLF to be stored using a higher-level protocol (e.g. base64ing the content and using this as an ASCII armor format only). How useful this format is is debateable.",
-2228228,4,Ascii,ASCII,encoding,,".txt, .ascii",,,,ascii,3 3,3 3,1 1,lineEndings,7-bit ASCII. Variants: Line ending variants,
+2228228,4,Ascii,ASCII,encoding,@implies(f0),".txt, .ascii",,,,ascii,3 3,3 3,1 1,lineEndings,7-bit ASCII. Variants: Line ending variants,
 2228307,83,Ucs2,UCS-2,encoding,@based_on(f7),,,,,,,,,,,
 2228308,84,Wtf8,WTF-8,encoding,@based_on(f7),,,,,,,,,,,
 2228309,85,Utf32_BE,"UTF-32, big-endian",encoding,@based_on(f7),,,,,,,,,,,
