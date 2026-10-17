@@ -65,6 +65,9 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
 
 
+- Make ambiguous syntax definitions a validator error.
+- Make ambiguous derive macros for Dc serde a build-time error.
+
 
 
 - Regenerate Guix packaging in CI
