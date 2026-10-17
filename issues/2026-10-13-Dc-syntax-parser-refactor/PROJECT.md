@@ -7,8 +7,6 @@ subset of the original refactor, not certification of feature completion.
 
 ### Remaining Gaps vs Original Request
 
-- Syntax rules are indexed at runtime; the planned generated static syntax
-    table remains pending.
 - Textual encapsulation metadata retains a fixed 32-level nesting guard rather
     than a caller-configurable document resource budget.
 - Unsupported temporal representations, including Panorama dates, now return
@@ -40,6 +38,39 @@ subset of the original refactor, not certification of feature completion.
 - Temporal codecs reject unsupported formats. Generic conversion derives
     forward document decoding, and Apple backup timestamps use a derived date
     representation instead of an unframed integer.
+
+### Generated Static Syntax Table (2026-10-17)
+
+- `DatasetRuleResolver::load()` now materializes the generated static syntax
+    table `src/formats/dcdata/syntax/resolver/syntax_table.generated.rs`
+    (checked in; regenerated via `./scripts/validate-data-tables`) instead of
+    parsing the CSV dataset, parsing the syntax DSL, and recomputing derived
+    tables at runtime on first resolver use.
+- The table is emitted by `syntax::resolver::codegen` from the on-disk CSV
+    dataset and contains the fully derived resolver state: character and
+    format syntax rules, named type rules, script membership, opener/closer
+    delimiter pairs, `<prefer>` deprecations, container header elements,
+    trailing-after-closer elements, infix operator rules, named type starter
+    sets, and opaque container sets.
+- The CSV-driven indexing path is retained as
+    `DatasetRuleResolver::load_from_dataset` /
+    `load_from_embedded_dataset`; the generator and the dcdata test
+    `syntax::resolver::tests::test_static_syntax_table_matches_csv_dataset`
+    use it, and that test fails when the generated table diverges from the
+    embedded CSV dataset (stale-table guard).
+- Remaining nuance: first resolver use still performs a single
+    materialization pass (`LazyLock`) building hash indexes from the
+    compiled-in table literals. Zero-allocation static residency would
+    require interning the syntax AST's owned strings and remains deferred.
+- Remaining gap (build-time regeneration): `scripts/ci-build-inner` cleans
+    every `*.generated.*` file and then requires each to be regenerated
+    during `./build` with zero drift. `syntax_table.generated.rs` is
+    currently regenerated only by the `validate-data-tables --write` bin,
+    not during the build, so a clean CI build would fail to compile
+    `ctb-formats-dcdata` (the generated module file is missing) before the
+    bin can run. Closing this requires a build-time regeneration path; the
+    established in-repo precedent is the kaitai crate's build script, which
+    compiles the crate's own parser sources via `#[path]` includes.
 
 ### Verification
 

@@ -933,7 +933,7 @@ fn to_screaming_snake_case(s: &str) -> String {
     to_snake_case(s).to_ascii_uppercase()
 }
 
-fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
+pub(crate) fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     if path.exists() {
         if let Ok(existing) = fs::read_to_string(path) {
             if existing == content {

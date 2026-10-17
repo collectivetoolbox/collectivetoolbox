@@ -458,7 +458,10 @@ use std::fmt::Write as _;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-use crate::chain::{ProbableFormatChain, guess_format_chains};
+use crate::chain::{
+    DEFAULT_MAX_CHAIN_LAYERS, ProbableFormatChain, guess_format_chains,
+    guess_format_chains_bounded,
+};
 use crate::decompression::{
     format_chain_directive, format_chain_layer_annotation,
     DEFAULT_MAX_DECOMPRESSION_DEPTH,
@@ -472,7 +475,7 @@ use crate::types::{
 };
 
 /// Command-line arguments for file detection (`ctoolbox file` / `detect`).
-#[derive(Args, Debug, Clone, Default)]
+#[derive(Args, Debug, Clone)]
 pub struct FileDetectionArgs {
     /// Files to inspect and detect format for (pass '-' for stdin)
     #[arg(value_name = "FILE", default_value = "-")]
@@ -506,6 +509,21 @@ pub struct FileDetectionArgs {
     /// (0 disables decompression inspection)
     #[arg(long, value_name = "N", default_value_t = DEFAULT_MAX_DECOMPRESSION_DEPTH)]
     pub max_decompression_depth: usize,
+}
+
+impl Default for FileDetectionArgs {
+    fn default() -> Self {
+        Self {
+            files: Vec::new(),
+            compat: false,
+            mime: false,
+            brief: false,
+            all: false,
+            uncompress: false,
+            uncompress_noreport: false,
+            max_decompression_depth: DEFAULT_MAX_DECOMPRESSION_DEPTH,
+        }
+    }
 }
 
 /// Reasonable upper bound for the decompression depth CLI flag to keep
@@ -788,7 +806,12 @@ fn render_rich_output(
 
     // Format chains if available
     let path_str = path.to_string_lossy();
-    let chains = guess_format_chains(&path_str, None);
+    let max_layers = if args.max_decompression_depth > 0 {
+        args.max_decompression_depth.saturating_add(1)
+    } else {
+        DEFAULT_MAX_CHAIN_LAYERS
+    };
+    let chains = guess_format_chains_bounded(&path_str, None, max_layers);
     if !chains.is_empty() {
         let _ = writeln!(output, "\nFormat Chain(s):");
         // Decompression probes actual container contents, so a filename chain

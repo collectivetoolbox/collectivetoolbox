@@ -503,12 +503,24 @@ impl FormatChain {
     }
 }
 
-/// Parses a filename or path into candidate format chains, branching on ambiguous extensions
-/// and peeling recognized extension layers indefinitely.
-pub fn guess_format_chains(
+/// Default maximum number of extension layers to peel from a filename.
+/// Aligned with `DEFAULT_MAX_DECOMPRESSION_DEPTH + 1` (1 payload + 3 container layers).
+pub const DEFAULT_MAX_CHAIN_LAYERS: usize = 4;
+
+/// Hard upper ceiling on candidate format chains generated from Cartesian products
+/// to protect against exponential memory and CPU consumption on crafted inputs.
+pub const MAX_FORMAT_CHAINS_LIMIT: usize = 128;
+
+/// Parses a filename or path into candidate format chains, bounding peeled extension layers
+/// to `max_layers` and total Cartesian combinations to [`MAX_FORMAT_CHAINS_LIMIT`].
+pub fn guess_format_chains_bounded(
     filename: &str,
     platform: Option<FormatId>,
+    max_layers: usize,
 ) -> Vec<ProbableFormatChain> {
+    if max_layers == 0 {
+        return Vec::new();
+    }
     // Reason for fallback: filename without path separators uses full input filename as basename
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let mut parts: Vec<&str> = basename.split('.').collect();
@@ -527,10 +539,10 @@ pub fn guess_format_chains(
         return Vec::new();
     }
 
-    // Peel subsequent inner extensions indefinitely as long as remaining parts
+    // Peel subsequent inner extensions up to `max_layers` as long as remaining parts
     // resolve to recognized format candidates and leave a stem.
     let mut peeled_layers: Vec<Vec<(FormatId, u32)>> = vec![outer_candidates];
-    while parts.len() > 1 {
+    while parts.len() > 1 && peeled_layers.len() < max_layers {
         let next_ext = match parts.last() {
             Some(&ext) => ext,
             None => break,
@@ -558,6 +570,9 @@ pub fn guess_format_chains(
         stem: &str,
         results: &mut Vec<ProbableFormatChain>,
     ) {
+        if results.len() >= MAX_FORMAT_CHAINS_LIMIT {
+            return;
+        }
         if depth == peeled.len() {
             let Some(&outer) = current_layers.first() else {
                 return;
@@ -586,6 +601,9 @@ pub fn guess_format_chains(
 
         if let Some(cands) = peeled.get(depth) {
             for &(fmt, score) in cands {
+                if results.len() >= MAX_FORMAT_CHAINS_LIMIT {
+                    break;
+                }
                 current_layers.push(fmt);
                 current_scores.push(score);
                 build_cartesian_chains(
@@ -614,8 +632,19 @@ pub fn guess_format_chains(
     boost_common_implied_ancestors(&mut results);
 
     results.sort_by(|a, b| b.score.cmp(&a.score));
+
     results
 }
+
+/// Parses a filename or path into candidate format chains, branching on ambiguous extensions
+/// and peeling recognized extension layers up to [`DEFAULT_MAX_CHAIN_LAYERS`].
+pub fn guess_format_chains(
+    filename: &str,
+    platform: Option<FormatId>,
+) -> Vec<ProbableFormatChain> {
+    guess_format_chains_bounded(filename, platform, DEFAULT_MAX_CHAIN_LAYERS)
+}
+
 
 /// Boosts, by one point, each chain in an exact-score tie group whose
 /// branching format at any layer is transitively implied by all other
@@ -843,6 +872,45 @@ mod tests {
         assert_eq!(top.layers, vec![FormatId::Brotli, FormatId::Gzip, FormatId::Tar]);
         assert_eq!(top.stem, "archive");
         assert_eq!(top.to_format_spec_string(), "Tar > Gzip > Brotli");
+    }
+
+    #[ctb_test]
+    fn test_bounded_peeling_depth() {
+        // Peeling bounded to 2 layers on a 3-extension filename
+        let chains_2 = guess_format_chains_bounded("archive.tar.gz.br", None, 2);
+        assert!(!chains_2.is_empty());
+        let top_2 = &chains_2[0];
+        assert_eq!(top_2.layers.len(), 2);
+        assert_eq!(top_2.outer, FormatId::Brotli);
+        assert_eq!(top_2.inner, Some(FormatId::Gzip));
+        assert_eq!(top_2.stem, "archive.tar");
+
+        // Peeling bounded to 1 layer
+        let chains_1 = guess_format_chains_bounded("archive.tar.gz.br", None, 1);
+        assert!(!chains_1.is_empty());
+        let top_1 = &chains_1[0];
+        assert_eq!(top_1.layers.len(), 1);
+        assert_eq!(top_1.outer, FormatId::Brotli);
+        assert_eq!(top_1.inner, None);
+        assert_eq!(top_1.stem, "archive.tar.gz");
+
+        // Peeling bounded to 0 layers returns nothing
+        let chains_0 = guess_format_chains_bounded("archive.tar.gz.br", None, 0);
+        assert!(chains_0.is_empty());
+    }
+
+    #[ctb_test]
+    fn test_cartesian_limit_dos_protection() {
+        // .sz has 5 candidates and .cscjournal has 5 candidates.
+        // 5 layers of alternating ambiguous extensions would produce 5^5 = 3125 chains.
+        // The safety cap MAX_FORMAT_CHAINS_LIMIT (128) must prevent combinatorial explosion.
+        let chains = guess_format_chains_bounded(
+            "crafted.sz.cscjournal.sz.cscjournal.sz",
+            None,
+            10,
+        );
+        assert_eq!(chains.len(), MAX_FORMAT_CHAINS_LIMIT);
+        assert!(chains.len() <= 128);
     }
 }
 /*

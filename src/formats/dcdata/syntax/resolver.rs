@@ -39,13 +39,19 @@ use crate::dc::{
     DC_EQUIVALENT_REPRESENTATIONS, DC_FILE_PATH_DELIMITER, DC_OPTIONAL_ABSENT,
     DC_OPTIONAL_PRESENT, DC_PARTIALLY_EQUIVALENT_REPRESENTATIONS,
 };
+use crate::dc_def::DcDefn;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
+
+pub mod codegen;
+
+#[path = "resolver/syntax_table.generated.rs"]
+mod syntax_table;
 
 /// Precomputed starter token set for a named syntactic construct, derived
 /// recursively from the CSV syntax patterns in `README-named-types.csv` and
 /// `categories/*.csv`.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StarterSet {
     /// Exact starter token values (global graph `u128` IDs).
     pub exact_tokens: HashSet<u128>,
@@ -396,7 +402,7 @@ fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
 }
 
 /// In-memory resolver caching syntax rules, named types, and script mappings.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DatasetRuleResolver {
     rules: HashMap<CharTarget, DcSyntaxRule>,
     named_types: HashMap<String, SyntaxPattern>,
@@ -660,13 +666,39 @@ impl DatasetRuleResolver {
         }
     }
 
-    /// Loads the authoritative dataset from embedded tables.
+    /// Loads the authoritative resolver state from the generated static
+    /// syntax table (`syntax_table.generated.rs`).
+    ///
+    /// The static table is generated from the CSV dataset in
+    /// `src/formats/dcdata/data/` by `codegen::generate_syntax_table_file`
+    /// (invoked via `./scripts/validate-data-tables`), so loading performs a
+    /// single materialization pass over compiled-in table data with no CSV
+    /// parsing, syntax DSL parsing, or derived-table recomputation.
     #[must_use]
     pub fn load() -> Self {
         let mut resolver = Self::new();
+        syntax_table::populate(&mut resolver);
+        resolver
+    }
+
+    /// Builds a resolver by indexing syntax rules directly from parsed
+    /// dataset definitions.
+    ///
+    /// This is the CSV-driven authoritative indexing path used by
+    /// `codegen::generate_syntax_table_file` and by the consistency test
+    /// verifying that the generated static syntax table matches the dataset.
+    /// `dc_defns` must be sorted by long ID so delimiter precedence is
+    /// deterministic (matching `lookup::get_all_dc_defns`).
+    #[must_use]
+    pub fn load_from_dataset(
+        dc_defns: &[DcDefn],
+        format_defns: &[DcDefn],
+        named_types_csv: Option<&[u8]>,
+    ) -> Self {
+        let mut resolver = Self::new();
 
         // 1. Index rules and scripts from Document Character definitions
-        for defn in crate::lookup::get_all_dc_defns() {
+        for defn in dc_defns {
             if let Some(short_id) = defn.short_id {
                 let Ok(sid_u32) = u32::try_from(short_id) else {
                     continue;
@@ -706,7 +738,7 @@ impl DatasetRuleResolver {
 
         // Declared delimiters take precedence: a field ending in a nested
         // representation's closer does not itself open that representation.
-        for defn in crate::lookup::get_all_dc_defns() {
+        for defn in dc_defns {
             if let (Some(short_id), Some(rule)) = (defn.short_id, &defn.syntax) {
                 if let (Ok(id), Some(closer)) = (
                     u32::try_from(short_id), detect_container_closer(&rule.pattern),
@@ -719,12 +751,7 @@ impl DatasetRuleResolver {
         }
 
         // Index formats from formats category files under their script
-        let mut fmt_report = crate::report::ValidationReport::new();
-        for defn in crate::format::validate_all_format_files(
-            &crate::FORMATS_CATEGORIES_DIR,
-            None,
-            &mut fmt_report,
-        ) {
+        for defn in format_defns {
             if let Some(short_id) = defn.short_id {
                 let Some(fid) = ctb_utilities::format_id::FormatId::from_shorthand(&format!("f{short_id}")) else {
                     continue;
@@ -750,11 +777,11 @@ impl DatasetRuleResolver {
         }
 
         // 2. Index named types from README-named-types.csv
-        if let Some(bytes) = crate::get_dc_data_file("README-named-types.csv") {
+        if let Some(bytes) = named_types_csv {
             let mut rdr = csv::ReaderBuilder::new()
                 .has_headers(true)
                 .flexible(true)
-                .from_reader(&bytes[..]);
+                .from_reader(bytes);
             for result in rdr.records() {
                 let Ok(record) = result else {
                     continue;
@@ -790,6 +817,26 @@ impl DatasetRuleResolver {
 
         resolver.precompute_derived_tables();
         resolver
+    }
+
+    /// Builds a resolver by indexing the compiled-in (embedded) CSV dataset
+    /// in `src/formats/dcdata/data/`.
+    ///
+    /// Used by the consistency test verifying that the generated static
+    /// syntax table is up to date with the embedded dataset.
+    #[must_use]
+    pub fn load_from_embedded_dataset() -> Self {
+        let mut fmt_report = crate::report::ValidationReport::new();
+        let format_defns = crate::format::validate_all_format_files(
+            &crate::FORMATS_CATEGORIES_DIR,
+            None,
+            &mut fmt_report,
+        );
+        Self::load_from_dataset(
+            crate::lookup::get_all_dc_defns(),
+            &format_defns,
+            crate::get_dc_data_file("README-named-types.csv").as_deref(),
+        )
     }
 }
 
@@ -901,4 +948,90 @@ static DEFAULT_RESOLVER: LazyLock<Arc<DatasetRuleResolver>> =
 #[must_use]
 pub fn default_syntax_resolver() -> &'static Arc<DatasetRuleResolver> {
     &DEFAULT_RESOLVER
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    /// Verifies that the generated static syntax table matches the resolver
+    /// built directly from the compiled-in CSV dataset. A failure here means
+    /// `syntax_table.generated.rs` is stale or diverged; regenerate it with
+    /// `./scripts/validate-data-tables`.
+    #[crate::ctb_test]
+    fn test_static_syntax_table_matches_csv_dataset() {
+        let static_table = DatasetRuleResolver::load();
+        let from_dataset = DatasetRuleResolver::load_from_embedded_dataset();
+        const STALE: &str = "generated static syntax table diverged from the \
+            CSV dataset; regenerate with ./scripts/validate-data-tables";
+        assert_eq!(static_table.rules, from_dataset.rules, "{STALE}: rules");
+        assert_eq!(
+            static_table.named_types, from_dataset.named_types,
+            "{STALE}: named_types"
+        );
+        assert_eq!(
+            static_table.script_chars, from_dataset.script_chars,
+            "{STALE}: script_chars"
+        );
+        assert_eq!(
+            static_table.closing_delimiters, from_dataset.closing_delimiters,
+            "{STALE}: closing_delimiters"
+        );
+        assert_eq!(
+            static_table.opener_to_closer, from_dataset.opener_to_closer,
+            "{STALE}: opener_to_closer"
+        );
+        assert_eq!(
+            static_table.deprecated_targets, from_dataset.deprecated_targets,
+            "{STALE}: deprecated_targets"
+        );
+        assert_eq!(
+            static_table.container_headers, from_dataset.container_headers,
+            "{STALE}: container_headers"
+        );
+        assert_eq!(
+            static_table.trailing_after_closer,
+            from_dataset.trailing_after_closer,
+            "{STALE}: trailing_after_closer"
+        );
+        assert_eq!(
+            static_table.infix_rules, from_dataset.infix_rules,
+            "{STALE}: infix_rules"
+        );
+        assert_eq!(
+            static_table.named_type_starters,
+            from_dataset.named_type_starters,
+            "{STALE}: named_type_starters"
+        );
+        assert_eq!(
+            static_table.opaque_containers, from_dataset.opaque_containers,
+            "{STALE}: opaque_containers"
+        );
+    }
+
+    /// Spot-checks that the static table exposes core derived facts used by
+    /// the navigator and projector layers.
+    #[crate::ctb_test]
+    fn test_static_syntax_table_sanity() {
+        let resolver = DatasetRuleResolver::load();
+        assert!(resolver.resolve_named_type("number").is_some());
+        assert!(resolver.resolve_named_type("string").is_some());
+        assert!(resolver.resolve_named_type("value").is_some());
+        assert!(resolver.resolve_rule(&CharTarget::Dc(310)).is_some());
+        assert!(resolver
+            .closer_for_opener(&CharTarget::Dc(310))
+            .is_some());
+        assert!(resolver
+            .matches_named_type_starter("value", DC_OPTIONAL_PRESENT.to_u128()));
+    }
 }

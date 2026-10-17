@@ -12,6 +12,8 @@
 
 - Dc data validator CLI only recognizes `--write`/`-w`; other flags are silently ignored. Default validates CSVs embedded directly from src/formats/dcdata/data, not the general asset bundle. For read-only live-file validation use validate_all_data_tables_from_repo (covered by test_math_format_metadata); avoid --write when IDs must remain untouched.
 
+- Dc static syntax table (2026-10-17): DatasetRuleResolver::load() materializes the checked-in build-time table src/formats/dcdata/syntax/resolver/syntax_table.generated.rs (emitted by syntax::resolver::codegen from the CSV dataset) instead of parsing CSVs/syntax DSL and recomputing derived tables at runtime. After editing syntax-bearing CSV data, regenerate with ./scripts/validate-data-tables (--write); table staleness is caught by dcdata test syntax::resolver::tests::test_static_syntax_table_matches_csv_dataset, which compares against load_from_embedded_dataset(). The generator reads CSVs from disk but mirrors embedded ordering (Dc defns sorted by long ID; include_dir and the from-disk loaders both iterate files in sorted path order), so its output matches the embedded dataset build.
+
 - Use `python3 -B` (or PYTHONDONTWRITEBYTECODE=1) when importing repository helpers during probes: fixture directories are embedded and operator auto-commits can capture __pycache__ artifacts.
 
 - Parallel compression CLI tests need a distinct CTB_TEST_STORAGE_DIR per case: shared storage/cache caused intermittent `Directory not empty (os error 39)` failures. The override is supported by utilities::storage.
