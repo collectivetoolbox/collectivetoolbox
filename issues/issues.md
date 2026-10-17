@@ -68,7 +68,7 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - Make ambiguous syntax definitions a validator error.
 - Make ambiguous derive macros for Dc serde a build-time error.
 
-
+- Evaluate adding @ident for Dcs used in structs too, to make errors more obvious?
 
 - Regenerate Guix packaging in CI
 
