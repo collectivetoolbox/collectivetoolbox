@@ -32,7 +32,16 @@ This does not sound right solution - it sounds like it should be checking whethe
   identically.
 
 
-> Classic Mac OS Extended Attributes alongside legacy FinderInfo: Extended attributes stored beyond offset 70 in legacy Mac OS binary archives are preserved and roundtrip, but deep ontological mapping of arbitrary user xattrs into semantic Dcs is not yet mapped.
+- **Mac Files Lossless Roundtrip & Overlay Disambiguation**:
+  - Classic Mac OS and macOS extended attributes stored beyond offset 70 in Entry 9 (`FinderInfo`)
+    are preserved as bit-for-bit exact streams in `FileEntity.streams` (`Dc 323..324`, `StreamKind::ExtendedAttribute`),
+    avoiding speculative or lossy auto-merging into ad-hoc AppleMetadata fields.
+  - Resolved overlay ambiguity in `ExtendedFinderInfo` bytes 16..20 (`fdIconID` vs `frScroll`):
+    records are now unambiguously disambiguated using directory state (`finfo.window_bounds.is_some()`).
+    Folders preserve exact QuickDraw scroll coordinates (including `(0, 0)`), while regular files
+    preserve custom `icon_id` and zero reserved bytes without false scroll coordinate emissions.
+  - Validated by empirical challenge test suite in `ctb_io_file::tests::challenge_m3_mac_lossless` across
+    AppleDouble binary archives, `FileEntity`, and `DcMstring`.
 
 
 

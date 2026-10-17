@@ -373,8 +373,11 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
         entries: vec![],
     };
 
-    // 3. AppleSingle binary roundtrip with scroll_position (folder frScroll) vs icon_id (file)
-    let mut finfo_scroll = FinderInfo::default();
+    // 3. AppleSingle binary roundtrip with folder frScroll (including 0, 0)
+    let mut finfo_scroll = FinderInfo {
+        window_bounds: Some([50, 50, 400, 600]),
+        ..FinderInfo::default()
+    };
     finfo_scroll.extended = Some(ExtendedFinderInfo {
         icon_id: 0,
         scroll_position: Some((150, 300)),
@@ -387,19 +390,46 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
     ensure!(parsed_ext.scroll_position == Some((150, 300)));
     ensure!(parsed_ext.icon_id == 0);
 
+    // 3b. Folder with scroll_position (0, 0) - must preserve (0, 0) and not drop to None
+    let mut finfo_scroll_zero = FinderInfo {
+        window_bounds: Some([50, 50, 400, 600]),
+        ..FinderInfo::default()
+    };
+    finfo_scroll_zero.extended = Some(ExtendedFinderInfo {
+        icon_id: 0,
+        scroll_position: Some((0, 0)),
+        ..ExtendedFinderInfo::default()
+    });
+    let written_zero = ctb_formats_apple_single_double::write_apple_single_double(&make_archive(finfo_scroll_zero))?;
+    let parsed_zero = ctb_formats_apple_single_double::read_apple_single_double(&written_zero)?;
+    let parsed_ext_zero = parsed_zero.finder_info.as_ref().and_then(|f| f.extended).context("Missing zero scroll extended info")?;
+    ensure!(parsed_ext_zero.scroll_position == Some((0, 0)), "Folder scroll_position (0, 0) must be preserved");
+    ensure!(parsed_ext_zero.icon_id == 0);
+
     // 4. AppleSingle binary roundtrip with custom icon_id (file)
-    let mut finfo_icon = FinderInfo::default();
+    let mut finfo_icon = FinderInfo {
+        file_type: "TEXT".to_string(),
+        file_creator: "ttxt".to_string(),
+        ..FinderInfo::default()
+    };
     finfo_icon.extended = Some(ExtendedFinderInfo {
         icon_id: -16455,
         scroll_position: None,
         ..ExtendedFinderInfo::default()
     });
     let archive_icon = make_archive(finfo_icon);
-    let written_icon = ctb_formats_apple_single_double::write_apple_single_double(&archive_icon)?;
+    let mut written_icon = ctb_formats_apple_single_double::write_apple_single_double(&archive_icon)?;
+    // Inject dirty non-zero bytes in file's reserved bytes 18..19 (bytes 18..20 of FinderInfo)
+    // to test that a file with non-zero reserved bytes is NOT misclassified as having scroll_position
+    if let Some(pos) = written_icon.windows(4).position(|w| w == b"TEXT") {
+        if let Some(slot) = written_icon.get_mut(pos + 18..pos + 20) {
+            slot.copy_from_slice(&[0x12, 0x34]);
+        }
+    }
     let parsed_icon = ctb_formats_apple_single_double::read_apple_single_double(&written_icon)?;
     let parsed_ext_icon = parsed_icon.finder_info.as_ref().and_then(|f| f.extended).context("Missing parsed extended info")?;
     ensure!(parsed_ext_icon.icon_id == -16455);
-    ensure!(parsed_ext_icon.scroll_position.is_none());
+    ensure!(parsed_ext_icon.scroll_position.is_none(), "File with non-zero reserved bytes must not emit scroll_position");
 
     Ok(())
 }

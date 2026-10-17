@@ -163,6 +163,22 @@ pub fn create_apple_archive_from_entity(
     if has_mac_flags && finder_info.is_none() {
         finder_info = Some(FinderInfo::default());
     }
+    if entity.is_dir() {
+        if finder_info.is_some() || !extended_attributes.is_empty() {
+            let finfo = finder_info.get_or_insert_with(FinderInfo::default);
+            if finfo.window_bounds.is_none() {
+                finfo.window_bounds = Some([50, 50, 500, 700]);
+            }
+            if let Some(ref mut ext) = finfo.extended {
+                ext.icon_id = 0;
+            }
+        }
+    } else if let Some(ref mut finfo) = finder_info {
+        finfo.window_bounds = None;
+        if let Some(ref mut ext) = finfo.extended {
+            ext.scroll_position = None;
+        }
+    }
     if let Some(ref mut finfo) = finder_info {
         for flag in entity_flags {
             match flag {
@@ -501,6 +517,13 @@ fn unpack_apple_single_into_entity(entity: &mut FileEntity, archive: &AppleArchi
 }
 
 fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchive) -> Result<()> {
+    if let Some(ref finfo) = archive.finder_info {
+        if finfo.window_bounds.is_some() && archive.data_fork.is_none() {
+            if let FileEntityKind::Regular { size: 0, .. } = entity.kind {
+                entity.kind = FileEntityKind::Directory;
+            }
+        }
+    }
     let streams = archive.to_attached_streams()?;
     for stream in streams {
         if !entity.streams.iter().any(|s| s.name == stream.name) {

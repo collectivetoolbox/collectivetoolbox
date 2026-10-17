@@ -1220,8 +1220,10 @@ fn parse_finder_info(
 
     let flags = FinderFlags::from_raw_u16(raw_flags);
 
+    let is_directory = window_bounds.is_some();
+
     let extended = if slice.len() >= 32 {
-        parse_extended_finder_info(slice, is_big_endian)?
+        parse_extended_finder_info(slice, is_big_endian, is_directory)?
     } else {
         None
     };
@@ -1474,17 +1476,8 @@ fn parse_descriptors(
 fn parse_extended_finder_info(
     slice: &[u8],
     is_big_endian: bool,
+    is_directory: bool,
 ) -> Result<Option<ExtendedFinderInfo>> {
-    let icon_id = if is_big_endian {
-        read_i16_be(slice, 16)?
-    } else {
-        read_i16_le(slice, 16)?
-    };
-    let scroll_h = if is_big_endian {
-        read_i16_be(slice, 18)?
-    } else {
-        read_i16_le(slice, 18)?
-    };
     let script_byte = *slice
         .get(24)
         .ok_or_else(|| anyhow::anyhow!("Missing script byte"))?;
@@ -1502,9 +1495,24 @@ fn parse_extended_finder_info(
     } else {
         read_u32_le(slice, 28)?
     };
-    let (icon_id, scroll_position) = if scroll_h != 0 {
-        (0, Some((icon_id, scroll_h)))
+    let (icon_id, scroll_position) = if is_directory {
+        let scroll_v = if is_big_endian {
+            read_i16_be(slice, 16)?
+        } else {
+            read_i16_le(slice, 16)?
+        };
+        let scroll_h = if is_big_endian {
+            read_i16_be(slice, 18)?
+        } else {
+            read_i16_le(slice, 18)?
+        };
+        (0, Some((scroll_v, scroll_h)))
     } else {
+        let icon_id = if is_big_endian {
+            read_i16_be(slice, 16)?
+        } else {
+            read_i16_le(slice, 16)?
+        };
         (icon_id, None)
     };
     Ok(Some(ExtendedFinderInfo {
@@ -1642,15 +1650,21 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
             }
 
             if let Some(ref ext) = finfo.extended {
-                if let Some((v, h)) = ext.scroll_position {
+                if finfo.window_bounds.is_some() || ext.scroll_position.is_some() {
+                    let (v, h) = ext.scroll_position.unwrap_or((0, 0));
                     if let Some(slot) = finfo_bytes.get_mut(16..18) {
                         slot.copy_from_slice(&v.to_be_bytes());
                     }
                     if let Some(slot) = finfo_bytes.get_mut(18..20) {
                         slot.copy_from_slice(&h.to_be_bytes());
                     }
-                } else if let Some(slot) = finfo_bytes.get_mut(16..18) {
-                    slot.copy_from_slice(&ext.icon_id.to_be_bytes());
+                } else {
+                    if let Some(slot) = finfo_bytes.get_mut(16..18) {
+                        slot.copy_from_slice(&ext.icon_id.to_be_bytes());
+                    }
+                    if let Some(slot) = finfo_bytes.get_mut(18..20) {
+                        slot.copy_from_slice(&[0u8, 0u8]);
+                    }
                 }
                 if let Some(slot) = finfo_bytes.get_mut(24) {
                     *slot = u8::from_be_bytes(ext.script.to_be_bytes());
