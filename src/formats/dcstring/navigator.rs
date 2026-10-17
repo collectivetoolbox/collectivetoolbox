@@ -180,6 +180,10 @@ pub const INLINE_BINARY_THRESHOLD: u64 = 4096;
 /// Default maximum eagerly parsed metadata size for a seekable encapsulation.
 pub const MAX_BINARY_METADATA_BYTES: u64 = 1_048_576;
 
+/// Default maximum checksum-metadata nesting depth allowed when parsing
+/// textual binary encapsulation metadata.
+pub const DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH: usize = 32;
+
 /// Action to take when a syntax or projection anomaly is encountered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticAction {
@@ -215,6 +219,10 @@ pub struct DcProjectionPolicy {
     /// Maximum eagerly allocated metadata bytes per seekable binary header.
     /// Exceeding this resource budget is an error under every diagnostic policy.
     pub max_binary_metadata_bytes: u64,
+    /// Maximum nested checksum-metadata levels allowed when parsing textual
+    /// binary encapsulation metadata. Exceeding this resource budget is an
+    /// error under every diagnostic policy.
+    pub max_encapsulation_metadata_depth: usize,
 }
 
 impl DcProjectionPolicy {
@@ -232,6 +240,7 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Error,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
         }
     }
 
@@ -249,6 +258,7 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Warn,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
         }
     }
 
@@ -265,6 +275,7 @@ impl DcProjectionPolicy {
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Ignore,
             max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
+            max_encapsulation_metadata_depth: DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
         }
     }
 
@@ -284,6 +295,17 @@ impl DcProjectionPolicy {
     #[must_use]
     pub const fn with_max_binary_metadata_bytes(mut self, max_bytes: u64) -> Self {
         self.max_binary_metadata_bytes = max_bytes;
+        self
+    }
+
+    /// Sets the checksum-metadata nesting budget for textual binary
+    /// encapsulation metadata.
+    #[must_use]
+    pub const fn with_max_encapsulation_metadata_depth(
+        mut self,
+        max_depth: usize,
+    ) -> Self {
+        self.max_encapsulation_metadata_depth = max_depth;
         self
     }
 
@@ -2494,7 +2516,7 @@ impl<'a> DcDocumentNavigator<'a> {
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
                         let data_len = u64::try_from(data.len())?;
                         let abs_data_start = end_offset.saturating_sub(data_len);
-                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(metadata, policy.syntax_error)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy(metadata, policy)?;
                         let data_type = parsed.data_type.map(DcStr::to_owned);
                         Ok(Some((
                             end_offset,
@@ -2577,7 +2599,7 @@ impl<'a> DcDocumentNavigator<'a> {
                             .read_exact(&mut meta_bytes)
                             .context("Truncated .dcmm metadata payload")?;
                         let meta_str = DcStr::from_bytes(&meta_bytes)?;
-                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(meta_str, policy.syntax_error)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy(meta_str, policy)?;
                         data_type = parsed.data_type.map(DcStr::to_owned);
                         checksum = parsed.checksum_spec;
                     }
@@ -2899,7 +2921,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let mut chunks = crate::dc_mixed::DcMixedChunks { slice };
                 let Some(chunk) = chunks.next() else {
                     let sub = DcStr::from_bytes(slice)?;
-                    let (header, data, _) = crate::encapsulation::parse_text_with_checksum_action(sub, policy.syntax_error)?;
+                    let (header, data, _) = crate::encapsulation::parse_text_with_policy(sub, policy)?;
                     let cf = header.chars().next();
                     return Ok(DcSyntaxKind::Binary {
                         data_type: if header.is_empty() { None } else { Some(header) },
@@ -2916,7 +2938,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
-                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(metadata, policy.syntax_error)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_policy(metadata, policy)?;
                         let dt = parsed.data_type.map(DcStr::to_owned);
                         let cf = parsed.data_type.and_then(|d| d.chars().next());
                         Ok(DcSyntaxKind::Binary {
@@ -2926,7 +2948,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::Text(txt) => {
-                        let (header, data, _) = crate::encapsulation::parse_text_with_checksum_action(txt, policy.syntax_error)?;
+                        let (header, data, _) = crate::encapsulation::parse_text_with_policy(txt, policy)?;
                         let cf = header.chars().next();
                         Ok(DcSyntaxKind::Binary {
                             data_type: if header.is_empty() { None } else { Some(header) },
@@ -2941,7 +2963,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let sub = text
                     .get(range)
                     .context("Binary node span out of bounds in DcStr")?;
-                let (header, data, _) = crate::encapsulation::parse_text_with_checksum_action(sub, policy.syntax_error)?;
+                let (header, data, _) = crate::encapsulation::parse_text_with_policy(sub, policy)?;
                 let cf = header.chars().next();
                 Ok(DcSyntaxKind::Binary {
                     data_type: if header.is_empty() { None } else { Some(header) },

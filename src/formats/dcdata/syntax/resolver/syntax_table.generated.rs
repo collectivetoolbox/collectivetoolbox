@@ -1347,11 +1347,11 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
         DcSyntaxRule {
             pattern: SyntaxPattern::Sequence(vec![
                 SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
-                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(491)] }, quantifier: Quantifier::OneOrMore },
+                SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(491)] }, quantifier: Quantifier::ZeroOrMore },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(491)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ [^491]+ 491".to_string(),
+            raw: ":~ [^491]* 491".to_string(),
         },
     );
     resolver.rules.insert(

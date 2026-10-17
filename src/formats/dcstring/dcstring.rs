@@ -65,7 +65,8 @@ pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
 pub use kv_map::DcKvMapEncoding;
 pub use navigator::{
-    BinaryPayloadRef, DEFAULT_MAX_PROJECTION_DEPTH, DcBinaryResolver,
+    BinaryPayloadRef, DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH,
+    DEFAULT_MAX_PROJECTION_DEPTH, DcBinaryResolver,
     DcByteSpan, DcDocumentNavigator, DcForgivingDefault, DcFrameHeaderInfo,
     DcFrameStub, DcProjectionPolicy, DcSyntaxArena, DcSyntaxKind, DcSyntaxNode,
     DiagnosticAction, FormatSyntaxRule, INLINE_BINARY_THRESHOLD,

@@ -49,14 +49,16 @@ struct Cursor<'a> {
     source: &'a DcStr,
     chars: DcChars<'a>,
     checksum_action: crate::DiagnosticAction,
+    max_depth: usize,
 }
 
 impl<'a> Cursor<'a> {
-    fn new(source: &'a DcStr) -> Self {
+    fn with_policy(source: &'a DcStr, policy: &crate::DcProjectionPolicy) -> Self {
         Self {
             source,
             chars: source.chars(),
-            checksum_action: crate::DiagnosticAction::Error,
+            checksum_action: policy.syntax_error,
+            max_depth: policy.max_encapsulation_metadata_depth,
         }
     }
 
@@ -119,15 +121,21 @@ impl<'a> Cursor<'a> {
         })?))
     }
 
-    fn read_checksum(&mut self, depth: usize) -> Result<Option<(&'a DcStr, ChecksumSpec)>> {
+    fn read_checksum(&mut self) -> Result<Option<(&'a DcStr, ChecksumSpec)>> {
         if self.peek() != Some(DC_START_ENCAPSULATION_BINARY) {
             return Ok(None);
         }
         let start = self.position();
-        let (metadata, digest) = self.read_payload(depth)?;
-        let data_type = metadata
-            .data_type
-            .context("Checksum requires a hash type")?;
+        let (metadata, digest) = self.read_payload()?;
+        let spec = Self::checksum_spec_for(metadata.data_type, digest)?;
+        Ok(Some((self.range(start)?, spec)))
+    }
+
+    fn checksum_spec_for(
+        data_type: Option<&'a DcStr>,
+        digest: Vec<u8>,
+    ) -> Result<ChecksumSpec> {
+        let data_type = data_type.context("Checksum requires a hash type")?;
         let format = single_format(data_type)?;
         ensure!(
             ctb_formats_utilities::get_format_info_by_id(format)
@@ -137,29 +145,16 @@ impl<'a> Cursor<'a> {
         let algorithm = SupportedHashFormat::from_format_id(format)
             .with_context(|| format!("Unsupported encapsulation checksum algorithm: {format:?}"))?;
         ensure!(
-            digest.len() == ctb_formats_checksum::StreamingHasher::new(algorithm).finalize().len(),
+            digest.len()
+                == ctb_formats_checksum::StreamingHasher::new(algorithm)
+                    .finalize()
+                    .len(),
             "Invalid encapsulation checksum digest length"
         );
-        Ok(Some((self.range(start)?, ChecksumSpec { algorithm, expected_digest: digest })))
+        Ok(ChecksumSpec { algorithm, expected_digest: digest })
     }
 
-    fn read_payload(
-        &mut self,
-        depth: usize,
-    ) -> Result<(Metadata<'a>, Vec<u8>)> {
-        #[cfg(test)]
-        PAYLOAD_READS.with(|count| count.set(count.get().saturating_add(1)));
-        ensure!(
-            depth < 32,
-            "Encapsulation metadata nesting exceeds 32 levels"
-        );
-        ensure!(
-            self.next()? == DC_START_ENCAPSULATION_BINARY,
-            "Expected Dc 203"
-        );
-        let data_type = self.read_type()?;
-        let length = self.read_length()?;
-        let checksum = self.read_checksum(depth.saturating_add(1))?;
+    fn read_body(&mut self, length: Option<usize>) -> Result<Vec<u8>> {
         let mut digits = Vec::new();
         loop {
             let ch = self.next()?;
@@ -179,14 +174,81 @@ impl<'a> Cursor<'a> {
         if let Some(length) = length {
             ensure!(length == data.len(), "Encapsulation byte length mismatch");
         }
-        let metadata = Metadata {
-            data_type,
-            checksum: checksum.as_ref().map(|(raw, _)| *raw),
-            checksum_spec: checksum.map(|(_, spec)| spec),
-        };
-        verify(&metadata, &data, self.checksum_action)?;
-        Ok((metadata, data))
+        Ok(data)
     }
+
+    /// Parses one payload level and every nested checksum-metadata level.
+    ///
+    /// Nesting is walked with an explicit frame stack instead of recursion so
+    /// a raised caller budget cannot exhaust the call stack on adversarial
+    /// input. The nesting budget is checked once per payload level entered.
+    fn read_payload(&mut self) -> Result<(Metadata<'a>, Vec<u8>)> {
+        let mut frames: Vec<PayloadFrame<'a>> = Vec::new();
+        let mut level = loop {
+            #[cfg(test)]
+            PAYLOAD_READS.with(|count| count.set(count.get().saturating_add(1)));
+            ensure!(
+                frames.len() < self.max_depth,
+                "Encapsulation metadata nesting exceeds resource limit ({} levels)",
+                self.max_depth
+            );
+            let start = self.position();
+            ensure!(
+                self.next()? == DC_START_ENCAPSULATION_BINARY,
+                "Expected Dc 203"
+            );
+            let data_type = self.read_type()?;
+            let length = self.read_length()?;
+            if self.peek() == Some(DC_START_ENCAPSULATION_BINARY) {
+                frames.push(PayloadFrame { start, data_type, length });
+                continue;
+            }
+            let data = self.read_body(length)?;
+            break PayloadLevel {
+                data_type,
+                raw: self.range(start)?,
+                data,
+                checksum: None,
+            };
+        };
+        loop {
+            let PayloadLevel { data_type, raw, data, checksum } = level;
+            let metadata = Metadata {
+                data_type,
+                checksum: checksum.as_ref().map(|(span, _)| *span),
+                checksum_spec: checksum.map(|(_, spec)| spec),
+            };
+            verify(&metadata, &data, self.checksum_action)?;
+            let Some(frame) = frames.pop() else {
+                return Ok((metadata, data));
+            };
+            let spec = Self::checksum_spec_for(data_type, data)?;
+            let parent_data = self.read_body(frame.length)?;
+            level = PayloadLevel {
+                data_type: frame.data_type,
+                raw: self.range(frame.start)?,
+                data: parent_data,
+                checksum: Some((raw, spec)),
+            };
+        }
+    }
+}
+
+/// An enclosing payload level awaiting its own checksum-metadata body while a
+/// nested checksum payload is being parsed.
+struct PayloadFrame<'a> {
+    start: usize,
+    data_type: Option<&'a DcStr>,
+    length: Option<usize>,
+}
+
+/// A fully parsed payload level that still has to be verified and, when it is
+/// a nested checksum payload, folded into its enclosing level.
+struct PayloadLevel<'a> {
+    data_type: Option<&'a DcStr>,
+    raw: &'a DcStr,
+    data: Vec<u8>,
+    checksum: Option<(&'a DcStr, ChecksumSpec)>,
 }
 
 fn single_format(data_type: &DcStr) -> Result<FormatId> {
@@ -215,17 +277,16 @@ fn verify(metadata: &Metadata<'_>, data: &[u8], checksum_action: crate::Diagnost
 }
 
 pub(crate) fn parse_metadata(source: &DcStr) -> Result<Metadata<'_>> {
-    parse_metadata_with_checksum_action(source, crate::DiagnosticAction::Error)
+    parse_metadata_with_policy(source, &crate::DcProjectionPolicy::strict())
 }
 
-pub(crate) fn parse_metadata_with_checksum_action(
-    source: &DcStr,
-    checksum_action: crate::DiagnosticAction,
-) -> Result<Metadata<'_>> {
-    let mut cursor = Cursor::new(source);
-    cursor.checksum_action = checksum_action;
+pub(crate) fn parse_metadata_with_policy<'a>(
+    source: &'a DcStr,
+    policy: &crate::DcProjectionPolicy,
+) -> Result<Metadata<'a>> {
+    let mut cursor = Cursor::with_policy(source, policy);
     let data_type = cursor.read_type()?;
-    let checksum = cursor.read_checksum(0)?;
+    let checksum = cursor.read_checksum()?;
     ensure!(
         cursor.peek().is_none(),
         "Trailing or invalid encapsulation metadata"
@@ -269,16 +330,15 @@ pub(crate) fn parse_checksum_spec(source: &DcStr) -> Result<Option<ChecksumSpec>
 }
 
 pub(crate) fn parse_text(source: &DcStr) -> Result<(DcString, Vec<u8>, usize)> {
-    parse_text_with_checksum_action(source, crate::DiagnosticAction::Error)
+    parse_text_with_policy(source, &crate::DcProjectionPolicy::strict())
 }
 
-pub(crate) fn parse_text_with_checksum_action(
+pub(crate) fn parse_text_with_policy(
     source: &DcStr,
-    checksum_action: crate::DiagnosticAction,
+    policy: &crate::DcProjectionPolicy,
 ) -> Result<(DcString, Vec<u8>, usize)> {
-    let mut cursor = Cursor::new(source);
-    cursor.checksum_action = checksum_action;
-    let (metadata, data) = cursor.read_payload(0)?;
+    let mut cursor = Cursor::with_policy(source, policy);
+    let (metadata, data) = cursor.read_payload()?;
     let mut header = DcString::new();
     if let Some(data_type) = metadata.data_type {
         header.push_dc_str(data_type);
@@ -519,8 +579,12 @@ mod tests {
             closer.push(DC_END_ENCAPSULATION_BINARY);
             let truncated = checksum.get(..checksum.len() - closer.len()).context("Invalid checksum span")?;
             for action in [crate::DiagnosticAction::Error, crate::DiagnosticAction::Warn] {
-                assert!(parse_metadata_with_checksum_action(&checksum, action).is_err());
-                assert!(parse_metadata_with_checksum_action(truncated, action).is_err());
+                let policy = crate::DcProjectionPolicy {
+                    syntax_error: action,
+                    ..crate::DcProjectionPolicy::strict()
+                };
+                assert!(parse_metadata_with_policy(&checksum, &policy).is_err());
+                assert!(parse_metadata_with_policy(truncated, &policy).is_err());
             }
         }
         assert!(parse_metadata(&DcString::from("not metadata")).is_err());
@@ -598,6 +662,110 @@ mod tests {
                 .is_err()
         );
         assert_eq!(buffered.as_bytes(), original);
+        Ok(())
+    }
+
+    /// Builds a textual encapsulation chain `levels` payload levels deep,
+    /// where each level's checksum payload holds the SHA-256 digest of that
+    /// level's data. Returns the chain and the outermost payload's data.
+    fn nesting_budget_chain(levels: usize) -> Result<(DcString, Vec<u8>)> {
+        let mut digests = Vec::new();
+        let mut current = b"leaf payload".to_vec();
+        for _ in 0..levels {
+            current = ctb_formats_checksum::sha256(&current).to_vec();
+            digests.push(current.clone());
+        }
+        let mut text = DcString::new();
+        for _ in 0..levels {
+            text.push(DC_START_ENCAPSULATION_BINARY);
+            text.push(ctb_utilities::format_id::DC_SHA256);
+            for ch in crate::dc_number::integer_to_dc_number_chars(
+                &crate::Integer::from(32),
+            )? {
+                text.push(ch);
+            }
+        }
+        for digest in digests.iter().rev() {
+            for dc in
+                ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(digest)?
+            {
+                text.push(DcChar::from_short(dc));
+            }
+            text.push(DC_END_ENCAPSULATION_BINARY);
+        }
+        let outermost = digests.first().cloned().context("No payload levels")?;
+        Ok((text, outermost))
+    }
+
+    #[crate::ctb_test]
+    fn encapsulation_nesting_budget_is_caller_configurable() -> Result<()> {
+        let default_budget = crate::DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH;
+        let (at_default, _) = nesting_budget_chain(default_budget)?;
+        assert!(parse_text(&at_default).is_ok());
+        let (over_default, _) =
+            nesting_budget_chain(default_budget.saturating_add(1))?;
+        assert!(parse_text(&over_default).is_err());
+        let raised = crate::DcProjectionPolicy::strict()
+            .with_max_encapsulation_metadata_depth(
+                default_budget.saturating_add(1),
+            );
+        assert!(parse_text_with_policy(&over_default, &raised).is_ok());
+        let (over_raised, _) =
+            nesting_budget_chain(default_budget.saturating_add(2))?;
+        assert!(parse_text_with_policy(&over_raised, &raised).is_err());
+        let mut metadata = DcString::new();
+        metadata.push(ctb_utilities::format_id::DC_SHA256);
+        metadata.push_dc_str(&over_default);
+        assert!(parse_metadata(&metadata).is_err());
+        assert!(parse_metadata_with_policy(&metadata, &raised).is_ok());
+        Ok(())
+    }
+
+    /// Verifies that a raised caller budget parses deep checksum-metadata
+    /// nesting iteratively instead of recursing once per level.
+    #[crate::ctb_test]
+    fn deep_nesting_under_raised_budget_is_stack_safe() -> Result<()> {
+        let levels = 20_000;
+        let (deep, outermost) = nesting_budget_chain(levels)?;
+        let policy = crate::DcProjectionPolicy::strict()
+            .with_max_encapsulation_metadata_depth(levels);
+        let (header, data, consumed) = parse_text_with_policy(&deep, &policy)?;
+        assert_eq!(consumed, deep.len());
+        assert!(!header.is_empty());
+        assert_eq!(data, outermost);
+        Ok(())
+    }
+
+    /// Verifies the caller budget is honored end-to-end through document
+    /// arena parsing, not only the encapsulation entry points.
+    #[crate::ctb_test]
+    fn navigator_honors_encapsulation_nesting_budget() -> Result<()> {
+        let levels = 100;
+        let (deep, outermost) = nesting_budget_chain(levels)?;
+        let mut nav = crate::DcDocumentNavigator::from_dc_str(&deep);
+        let mut arena = crate::DcSyntaxArena::new();
+        assert!(
+            nav.parse_document_into_arena(
+                &mut arena,
+                &crate::DcProjectionPolicy::strict()
+            )
+            .is_err()
+        );
+        let policy = crate::DcProjectionPolicy::strict()
+            .with_max_encapsulation_metadata_depth(levels);
+        let mut nav = crate::DcDocumentNavigator::from_dc_str(&deep);
+        let mut arena = crate::DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        assert!(arena.diagnostics().is_empty());
+        let Some(root) = arena.roots().first().copied() else {
+            bail!("Missing arena root");
+        };
+        let node = arena.node(root).context("Missing node")?;
+        let crate::navigator::DcSyntaxKind::Binary { payload, .. } = &node.kind
+        else {
+            bail!("Expected Binary node");
+        };
+        assert_eq!(payload.materialize_bytes()?, outermost);
         Ok(())
     }
 }

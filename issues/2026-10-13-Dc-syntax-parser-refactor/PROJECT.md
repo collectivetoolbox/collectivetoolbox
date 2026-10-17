@@ -7,11 +7,15 @@ subset of the original refactor, not certification of feature completion.
 
 ### Remaining Gaps vs Original Request
 
-- Textual encapsulation metadata retains a fixed 32-level nesting guard rather
-    than a caller-configurable document resource budget.
+- Textual encapsulation metadata nesting is now a caller-configurable document
+    resource budget (`DcProjectionPolicy::max_encapsulation_metadata_depth`,
+    default 32), but the policy-free utility entry points (`DcMstring::
+    from_dc_str`, `push_binary_with_metadata`, `to_dc_string`,
+    `validate_metadata`, `write_text`) still enforce only the default budget;
+    giving those a policy-parameterized variant remains open.
 - Unsupported temporal representations, including Panorama dates, now return
     errors rather than guessed epoch nanoseconds. Implementing their conversions
-    remains separate work. [note: I think this comment does make sense at least mostly - it's like, a date is a format declaration and then the representation of that format, so actually using them would need some sort of normalization of it]
+    remains separate work. [note: I think this comment does make sense at least mostly - it's like, a date is a format declaration and then the representation of that format, so actually using them would need some sort of normalization of it. Out of scope for now, though.]
 - Clippy completes with warnings, not a warning-clean result. Full workspace,
     cross-platform, and cumulative `5aafa2bf3762da8a6d719145cb71f362851c1c6e..HEAD`
     review remain deferred. Historical milestone/test claims below do not replace
@@ -33,6 +37,14 @@ subset of the original refactor, not certification of feature completion.
 - Nested checksum metadata is parsed once per level and retains the caller's
     checksum policy. Deep assignment scanning is iterative and checks its RHS
     against the database grammar.
+- Textual encapsulation metadata nesting is a caller-configurable document
+    resource budget (`DcProjectionPolicy::max_encapsulation_metadata_depth`,
+    default `DEFAULT_MAX_ENCAPSULATION_METADATA_DEPTH` = 32,
+    `with_max_encapsulation_metadata_depth`). Exceeding it remains a hard error
+    under every diagnostic policy, matching `max_binary_metadata_bytes`.
+    Encapsulation payload parsing walks nested checksum metadata with an
+    explicit frame stack instead of recursion, so a raised budget cannot
+    exhaust the call stack (verified at 20,000 levels).
 - Arena parsing and standalone validation share policy-aware grammar checks,
     including required headers, constrained fields, and container scope recovery.
 - Document-level projection explicitly reports root consumption. Nested tuple,

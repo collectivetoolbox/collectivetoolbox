@@ -496,7 +496,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS.",,,,,,,,,
 1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,<ambiguous>473 480,"Finder label index 6, Red.",,,,,,,,,
 1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,<ambiguous>474 481,"Finder label index 7, Orange.",,,,,,,,,
-1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,:~ [^491]+ 491,Begins an extended Mac OS Finder information record (FXInfo).,,,,,,,,,
+1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,:~ [^491]* 491,Begins an extended Mac OS Finder information record (FXInfo).,,,,,,,,,
 1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,,Terminates an extended Mac OS Finder information record (FXInfo).,,,,,,,,,
 1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.,,,,,,,,,
 1114605,493,Mac OS extended Finder script code,0,BN,,!Cx,.Semantic,:~ [number:Integer],Script system text encoding code in extended Finder info.,,,,,,,,,
