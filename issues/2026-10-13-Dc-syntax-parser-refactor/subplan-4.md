@@ -1,15 +1,43 @@
-## Implementation Handoff (2026-10-17)
-
-- User authorized implementation, then approved NEW semantic Dcs File data format ([format]) and Archive member position ([number:Natural0]); implemented as short Dc563/564, preserving existing meanings. Archive format now FormatId; updated detection lookup and strict journal regression. Canonical --write data validation/regeneration passed with no diagnostics.
-- Start ac3e1a7bdb61c224a71e8f297c5de1da4f42aaf4; last observed HEAD37e76e010b1969bdc135445d97eeae8db00cc172. Operator committed concurrently, including most agent edits and unrelated asset cleanup. Do NOT revert scripts/apt-install-dev-tools or unrelated operator assets.
-- Implemented bounded checksum-size/algorithm/forgiving-unverified integrity, typed EOF crash recovery, iterative type constructors/depth policy/opaque scanning, grammar fail-fast, generic flattened presence+span+fallback and enum payload validation, policy/document-aware inspection, CSC errors/completion/salvage+policy propagation, repaired corruption tests/controls, explicit forgiving historical document conversion, and extension confidence cap. Build-script path locator now supports target/profile/build/package layouts; this fixed unavailable Unicode bundle causing new generator checks to reject valid Unicode aliases.
-- FINAL MUSL acceptance: 852 passed, zero failed/ignored across19 harnesses for dcdata/dcstring/dc-macro/io-file/io-csc/apple-single-double/conversion/detection --lib --tests --no-fail-fast. Separate utilities locator regression1 passed red/green. Logs /tmp/ctb-dc-refactor-final-tests.log. FINAL Clippy affected crates plus utilities --lib --tests --no-deps passed with warnings no errors /tmp/ctb-dc-refactor-final-clippy.log. Used --locked --offline --target x86_64-unknown-linux-musl env RUSTFLAGS='' RUSTDOCFLAGS='' CARGO_BUILD_JOBS=2. Live metadata regeneration no diagnostics; editor code diagnostics clean; git diff --check start..HEAD and HEAD both passed. Disk51GiB free; no cargo/rustc/qemu processes at final check.
-- General agents with Sol could edit/run tools; PARALLEL terminal commands across agents interfered in shared shell despite flock, causing early130/interleaved logs. Run all Cargo commands centrally or grant exclusive terminal time per agent; no overlapping terminal tool calls. Subsequent serial main validations are authoritative.
-- Existing PROJECT.md, TEST_READY.md, subplan-4.md now document verified bounded progress and Remaining Gaps vs Original Request. Refactor STILL Partially Implemented: numeric/list constraints, escaped non-Unicode payloads, diagnostic/deprecation centralization (strict still warns), some converted/optional flattened derive combinations, Remote URI/ETag semantics, unknown Apple entries, inherited binary-type-insensitive edits, textual allocation budgets, complete cumulative review and clean/full-workspace/non-Linux checks. Panorama conversions/editor deferred. No claims of full O(1) retained snapshot memory.
-- No source changes after final acceptance/lint except status documentation. No commits by assistants. Final response should lead with remaining gaps, not claim whole original feature complete.
-
-
 ## Plan: Cumulative Dc Refactor Review And Remediation
+
+### Implementation Progress: 17 October 2026
+
+**Partially Implemented.** The planning-only account below is historical.
+Implementation started at `ac3e1a7bdb61c224a71e8f297c5de1da4f42aaf4`;
+the operator committed and edited concurrently, so both committed changes and
+the working tree were included in validation without reverting unrelated work.
+
+The bounded integrity, resource-depth, opaque-framing, generic projection,
+inspection, journal replay/policy, grammar-generation, and detection-confidence
+repairs are summarized in [PROJECT.md](PROJECT.md). Final affected-crate Linux
+musl validation passed **852 tests across 19 harnesses, zero failed or ignored**,
+plus the separately passing build-script resource-locator regression.
+Affected-crate Clippy passed with warnings and no errors. Canonical data
+regeneration reported no diagnostics.
+
+The operator explicitly approved two new semantic concepts during this pass:
+Dc 563, File data format (`[format]`), and Dc 564, Archive member position
+(`[number:Natural0]`). `FileOrigin::Archive` now uses a typed `FormatId` and
+these roles rather than application-bundle-format and inode tags. Existing
+Dc meanings were not reassigned. Remote-resource semantics were not changed.
+
+### Remaining Gaps vs Original Request
+
+- Numeric/list subtype enforcement and lossless escaped non-Unicode payloads.
+- Fully data-driven shape normalization and centralized retained diagnostics,
+	including the original strict-deprecation contract.
+- Unsupported converted/optional flattened derive combinations.
+- Remote URI/ETag semantics, unknown Apple entries, and inherited binary
+	type-insensitive source reconciliation.
+- Textual payload-allocation budgets and total retained journal snapshot size.
+- Complete cumulative-review closure, clean-bootstrap, full workspace, and
+	non-Linux runtime validation. Unsupported Panorama conversion and editor
+	development remain explicitly deferred.
+
+The FIXME ledger remains explicit: the restored flattened-format note and
+inherited routine-invocation note are open; parser-vs-macro legacy/deprecation
+ownership is only partially addressed. No historical comment deletion is being
+counted as a completed fix without supporting implementation evidence.
 
 ### Status And Boundaries
 
@@ -78,7 +106,7 @@ Inherited or approval-sensitive residuals (do not silently expand implementation
 - FileOrigin::Remote uri is String under Dc 337 filepath and etag uses payload checksum semantics. These mappings predate the refactor; stricter validation may expose broken roundtrip. Verify before changing semantic identifiers; no unauthorized new Dc or weakening filepath grammar.
 - FileTimestamps::decode_field currently defaults or discards failed conversions (metadata.rs:872/:878); establish production reachability and introduction before severity/ownership decisions.
 - AppleMetadata.unrecognized_entries remain omitted; data preservation needs an approved generic representation if no suitable existing semantic representation exists. Do not invent a new semantic ID.
-- The cumulative CSV diff includes newly added Dc 562 and semantic changes beyond @ident, including empty containers, flags, filepath, literal/reference rules. Verify operator approval/provenance and semantic invariants, not just self-roundtrip. Do not assert unapproved status merely because approval is absent from the visible chat.
+- The cumulative CSV diff includes newly added Dc 562 and semantic changes beyond @ident, including empty containers, flags, filepath, literal/reference rules. Verify operator approval/provenance and semantic invariants, not just self-roundtrip. Do not assert unapproved status merely because approval is absent from the visible chat. [Operator note: Dc 562 is approved. Changes listed in Dc-changes-17-Oct are approved. Any other changes are unknown/TBD/worth asking about.]
 - Panorama temporal conversion is explicitly deferred in PROJECT.md; rejection rather than guessed units is the accepted bounded behavior. No implementation of those conversions in this plan.
 
 ### Implementation Phases And Agent Ownership
