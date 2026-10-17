@@ -671,6 +671,68 @@ mod tier3_cross_feature_combinations {
 mod tier5_adversarial_hardening {
     use super::*;
 
+    #[crate::ctb_test]
+    fn test_section_digest_algorithms() -> Result<()> {
+        for algorithm in [
+            SupportedHashFormat::Sha256,
+            SupportedHashFormat::XxHash64,
+            SupportedHashFormat::Fnv1a_1024,
+        ] {
+            let mut mst = DcMstring::new();
+            mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+            let start = mst.len();
+            mst.push_char(DC_SEQUENCE_IDENTIFIER);
+            1u64.encode_dc_mixed(&mut mst)?;
+            mst.push_char(DC_BOOLEAN_TRUE);
+            let mut hasher = ctb_formats_checksum::StreamingHasher::new(algorithm);
+            hasher.update(mst.as_bytes().get(start..).context("Missing section body")?);
+            let digest = hasher.finalize();
+            mst.push_char(DC_END_CHECKSUMMED_SECTION);
+            mst.push_char(DC_SECTION_DIGEST);
+            mst.push_checksum(
+                algorithm.to_format_id().dc_char().context("Missing hash format Dc")?,
+                &digest,
+            )?;
+            let text = mst.to_dc_string()?;
+            let mut file = tempfile::tempfile()?;
+            std::io::Write::write_all(&mut file, mst.as_ref())?;
+            for mut nav in [
+                DcDocumentNavigator::from_mstr(&mst),
+                DcDocumentNavigator::from_dc_str(&text),
+                DcDocumentNavigator::from_dcmm_file(file, 0)?,
+            ] {
+                let stub = nav.next_sibling_stub(&DcProjectionPolicy::strict())?
+                    .context("Missing checksummed section")?;
+                ensure!(matches!(stub.header_info,
+                    DcFrameHeaderInfo::ChecksummedSection { digest_valid: true, .. }
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_section_digest_length_rejected_before_materialization() -> Result<()> {
+        let mut mst = DcMstring::new();
+        mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        mst.push_char(DC_SEQUENCE_IDENTIFIER);
+        1u64.encode_dc_mixed(&mut mst)?;
+        mst.push_char(DC_END_CHECKSUMMED_SECTION);
+        mst.push_char(DC_SECTION_DIGEST);
+        mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &vec![0; 65_536])?;
+        let mut file = tempfile::tempfile()?;
+        std::io::Write::write_all(&mut file, mst.as_ref())?;
+        for mut nav in [
+            DcDocumentNavigator::from_mstr(&mst),
+            DcDocumentNavigator::from_dcmm_file(file, 0)?,
+        ] {
+            let error = nav.next_sibling_stub(&DcProjectionPolicy::strict())
+                .err().context("Oversized section digest was accepted")?;
+            ensure!(format!("{error:#}").contains("digest length"), "{error:#}");
+        }
+        Ok(())
+    }
+
     /// Tampering with 1 byte of the checksummed section body MUST cause
     /// digest validation to fail.
     #[crate::ctb_test]

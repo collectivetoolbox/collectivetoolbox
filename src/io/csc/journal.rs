@@ -896,7 +896,7 @@ pub fn read_journal_snapshot_with_policy(
         }
         m if m == JOURNAL_MAGIC_V1 => {
             let mut reader = BufReader::new(file);
-            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path)
+            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)
         }
         _ => {
             anyhow::bail!(
@@ -1051,18 +1051,12 @@ pub fn read_v4_journal_snapshot(
             Ok(Some(stub)) => stub,
             Ok(None) => break,
             Err(err) => {
-                if err
-                    .downcast_ref::<ctb_formats_dcstring::DcMixedError>()
-                    .is_some_and(|e| {
-                        matches!(
-                            e,
-                            ctb_formats_dcstring::DcMixedError::UnsupportedLegacyType { .. }
-                        )
-                    })
-                {
-                    return Err(err).context("Invalid DcMixed journal structure");
+                if err.downcast_ref::<std::io::Error>().is_some_and(|error| {
+                    error.kind() == std::io::ErrorKind::UnexpectedEof
+                }) {
+                    break;
                 }
-                break;
+                return Err(err).context("Invalid DcMixed journal structure");
             }
         };
 
@@ -1078,26 +1072,36 @@ pub fn read_v4_journal_snapshot(
                         ..
                     } => (seq, digest_valid),
                     _ => {
-                        warn!("Incomplete checksummed section in journal; rolling back tail");
-                        break;
+                        anyhow::bail!("Missing sequence identifier in closed journal checksummed section");
                     }
                 };
 
-                if !digest_valid && policy.is_strict() {
-                    warn!("Digest mismatch in journal checksummed section under strict policy; rolling back tail");
-                    break;
+                if !digest_valid {
+                    if policy.is_strict() {
+                        anyhow::ensure!(
+                            stub.outer_span.end == nav.active_span().end,
+                            "Digest mismatch in interior journal batch {batch_id}"
+                        );
+                        warn!("Digest mismatch in final journal checksummed section under strict policy; rolling back tail");
+                        break;
+                    }
+                    let message = format!("Journal batch {batch_id} was salvaged despite an invalid section digest; its integrity is not verified");
+                    policy.handle(policy.syntax_error, &message)?;
+                    warnings.push(JournalWarningRecord {
+                        code: "journal-digest-mismatch".to_owned(),
+                        message,
+                        timestamp_sec: 0,
+                    });
                 }
 
                 nav.enter_frame(&stub)?;
                 // Skip leading Dc 546 SequenceIdentifier stub
-                let Some(seq_stub) = nav.next_sibling_stub(&nav_scan_policy)? else {
-                    let _ = nav.exit_frame();
-                    break;
-                };
-                if seq_stub.head_dc != ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER {
-                    let _ = nav.exit_frame();
-                    break;
-                }
+                let seq_stub = nav.next_sibling_stub(&nav_scan_policy)?
+                    .context("Missing sequence identifier in closed journal batch")?;
+                anyhow::ensure!(
+                    seq_stub.head_dc == ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER,
+                    "Invalid sequence identifier in closed journal batch"
+                );
 
                 while let Some(entity_stub) = nav.next_sibling_stub(&nav_scan_policy)? {
                     arena.clear();
@@ -1110,10 +1114,9 @@ pub fn read_v4_journal_snapshot(
                             pending_entities.insert(path_key, entity);
                         }
                         Err(err) => {
-                            let _ = nav.exit_frame();
                             return Err(err).with_context(|| {
                                 format!(
-                                    "Failed to decode FileEntity in checksum-verified journal batch {batch_id} of {} (pass --allow-journal-errors for forgiving recovery)",
+                                    "Failed to decode FileEntity in journal batch {batch_id} (digest valid: {digest_valid}) of {} (pass --allow-journal-errors for forgiving recovery)",
                                     journal_path.display()
                                 )
                             });
@@ -1124,9 +1127,16 @@ pub fn read_v4_journal_snapshot(
 
                 last_batch_id = batch_id;
                 committed_entities.extend(pending_entities.drain());
+                is_completed = false;
                 valid_length = stub.outer_span.end;
             }
             ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED => {
+                let mut completion = DcMstring::new();
+                completion.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
+                anyhow::ensure!(
+                    stub.outer_span.len() == u64::try_from(completion.payload_bytes().len())?,
+                    "Escaped operation-completed character is not a journal completion record"
+                );
                 if !pending_entities.is_empty() {
                     break;
                 }
@@ -1138,20 +1148,17 @@ pub fn read_v4_journal_snapshot(
                     break;
                 }
                 arena.clear();
-                let payload: JournalErrorRecordPayload = match nav.decode_frame_with_arena(
+                let payload: JournalErrorRecordPayload = nav.decode_frame_with_arena(
                     &stub,
                     &mut arena,
                     Some(&shared_context),
                     policy,
-                ) {
-                    Ok(p) => p,
-                    Err(_) => break,
-                };
+                ).context("Failed to decode closed journal error record")?;
                 let timestamp_sec = payload.timestamp_sec();
                 let error_message = payload.error_message;
                 let stage_code = match u8::try_from(payload.packed_status >> 32) {
                     Ok(c) => c,
-                    Err(_) => {
+                    Err(timestamped_error) => {
                         if policy.is_strict() {
                             anyhow::bail!("Invalid stage code in error record");
                         }
@@ -1204,7 +1211,11 @@ pub fn read_v4_journal_snapshot(
                             policy,
                         ) {
                             Ok(p) => (p.message, 0),
-                            Err(_) => break,
+                            Err(string_error) => {
+                                return Err(string_error).with_context(|| format!(
+                                    "Failed to decode closed journal warning record (timestamped form: {timestamped_error:#})"
+                                ));
+                            }
                         }
                     }
                 };
@@ -1220,7 +1231,11 @@ pub fn read_v4_journal_snapshot(
                 valid_length = stub.outer_span.end;
             }
             _ => {
-                break;
+                anyhow::bail!(
+                    "Unsupported journal record {:?} at offset {}",
+                    stub.head_dc,
+                    stub.outer_span.start
+                );
             }
         }
     }
@@ -1331,6 +1346,40 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_journal_legacy_embedded_identity_obeys_policy() -> Result<()> {
+        use ctb_formats_dcstring::DcProjectionPolicy;
+
+        let context = SharedValueContext::default();
+        let mut entity = FileEntity::from_vec(b"payload".to_vec());
+        entity.identity.relative_path = Some(PathBuf::from("entry"));
+        let mut encoded = Vec::new();
+        write_entity_payload(&mut encoded, &entity, &context)?;
+        let positive = read_entity_payload(&encoded, current_platform(), &context, &DcProjectionPolicy::strict())?;
+        assert_eq!(positive.identity, entity.identity);
+
+        let marker = encoded.windows(8).position(|window| window == b"CTBMETA3")
+            .context("Missing preservation record marker")?;
+        let record_start = marker.checked_add(8).context("Preservation record offset overflow")?;
+        let mut cursor = encoded.get(record_start..).context("Invalid preservation record offset")?;
+        let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
+        let mut missing_nlink = DcMstring::new();
+        missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(319));
+        missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(349));
+        entity.identity.origin.encode_dc_mixed(&mut missing_nlink)?;
+        missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(337));
+        entity.identity.relative_path.encode_dc_mixed(&mut missing_nlink)?;
+        missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(320));
+        record.identity_dc = Some(missing_nlink.as_bytes().to_vec());
+        let mut malformed = encoded.get(..record_start).context("Invalid preservation prefix")?.to_vec();
+        write_bytes(&mut malformed, &serde_json::to_vec(&record)?)?;
+        assert!(read_entity_payload(&malformed, current_platform(), &context, &DcProjectionPolicy::strict()).is_err());
+        let salvaged = read_entity_payload(&malformed, current_platform(), &context, &DcProjectionPolicy::forgiving())?;
+        assert_eq!(salvaged.identity.relative_path, entity.identity.relative_path);
+        assert_eq!(salvaged.identity.nlink, 0);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_journal_legacy_identity_fidelity_warning() -> Result<()> {
         let context = SharedValueContext::default();
         let mut entity = FileEntity::from_vec(b"payload".to_vec());
@@ -1344,17 +1393,17 @@ mod tests {
         let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
         record.identity_dc = None;
         let prefix = encoded.get(..marker).context("Invalid preservation record prefix")?;
-        let oldest = read_entity_payload(prefix, current_platform(), &context)?;
+        let oldest = read_entity_payload(prefix, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
         assert!(oldest.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
         let mut legacy = prefix.to_vec();
         legacy.extend_from_slice(b"CTBMETA2");
         write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-        let decoded = read_entity_payload(&legacy, current_platform(), &context)?;
+        let decoded = read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
         assert!(decoded.metadata.warnings.iter().any(|warning| warning.contains("Legacy journal lacks semantic identity")));
         let mut invalid = prefix.to_vec();
         invalid.extend_from_slice(b"CTBMETA3");
         write_bytes(&mut invalid, &serde_json::to_vec(&record)?)?;
-        assert!(read_entity_payload(&invalid, current_platform(), &context).is_err());
+        assert!(read_entity_payload(&invalid, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
         Ok(())
     }
 
@@ -1378,7 +1427,7 @@ mod tests {
             let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
             legacy.extend_from_slice(magic);
             write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-            let decoded = read_entity_payload(&legacy, current_platform(), &context)?;
+            let decoded = read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
             assert_eq!(decoded.metadata.platform_raw_flags,
                 Some(ctb_io::file::PlatformRawFlags::from_raw(u64::MAX)));
         }
@@ -1386,7 +1435,7 @@ mod tests {
         let mut legacy = encoded.get(..marker).context("Invalid record prefix")?.to_vec();
         legacy.extend_from_slice(b"CTBMETA3");
         write_bytes(&mut legacy, &serde_json::to_vec(&record)?)?;
-        assert!(read_entity_payload(&legacy, current_platform(), &context).is_err());
+        assert!(read_entity_payload(&legacy, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
         Ok(())
     }
 
@@ -1403,7 +1452,7 @@ mod tests {
             };
             let mut encoded = Vec::new();
             write_entity_payload(&mut encoded, &entity, &context)?;
-            let decoded = read_entity_payload(&encoded, current_platform(), &context)?;
+            let decoded = read_entity_payload(&encoded, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())?;
             assert_eq!(decoded.identity, entity.identity);
         }
         Ok(())
@@ -1423,7 +1472,7 @@ mod tests {
         for byte in encoded.iter_mut().skip(filename_offset).take(filename_length) {
             *byte = b'x';
         }
-        let error = read_entity_payload(&encoded, current_platform(), &context)
+        let error = read_entity_payload(&encoded, current_platform(), &context, &ctb_formats_dcstring::DcProjectionPolicy::strict())
             .expect_err("Conflicting identity fields must not be discarded");
         assert!(format!("{error:#}").contains("filename disagrees"));
         Ok(())
@@ -1465,7 +1514,7 @@ mod tests {
         assert!(snapshot.committed_entities.get(b"equal".as_slice()).context("Missing equal")?.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
         let mut payload = Vec::new();
         write_entity_payload(&mut payload, &entity, &writer.shared_context)?;
-        assert!(read_entity_payload(&payload, current_platform(), &SharedValueContext::default()).is_err());
+        assert!(read_entity_payload(&payload, current_platform(), &SharedValueContext::default(), &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
         Ok(())
     }
 

@@ -2324,6 +2324,29 @@ mod tests {
     }
 
     #[ctb_test]
+    fn test_csc_desc_unrelated_text_is_not_structural_evidence() {
+        let mut slice: &[u8] = b"The shopping list contains apples and bread.\n";
+        let hint = DetectionHint {
+            filename: Some("x.cscdesc".to_string()),
+            ..Default::default()
+        };
+        let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
+        let candidate = report.candidates.iter()
+            .find(|candidate| candidate.format_id == Some(FormatId::CscDesc))
+            .unwrap();
+        assert!(candidate.confidence <= ConfidenceTier::Moderate, "{candidate:?}");
+        assert!(!candidate.evidence.iter().any(|evidence| matches!(
+            evidence,
+            DetectionEvidence::FileMagic { .. } | DetectionEvidence::CtbMagic { .. }
+        )));
+        let ascii = report.candidates.iter()
+            .find(|candidate| candidate.format_id == Some(FormatId::Ascii))
+            .unwrap();
+        assert!(candidate.score > ascii.score);
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::CscDesc));
+    }
+
+    #[ctb_test]
     fn test_csc_desc_magic_detection() {
         // "CSC State File\n" matches content magic directly, identifying
         // CscDesc even without any filename hint.
@@ -2344,6 +2367,7 @@ mod tests {
         let report_hinted = guess_format_report(&mut slice, Some(&hint)).unwrap();
         let top_hinted = &report_hinted.candidates[0];
         assert_eq!(top_hinted.format_id, Some(FormatId::CscDesc));
+        assert_eq!(top_hinted.confidence, ConfidenceTier::HighestConfidence);
         assert!(top_hinted.evidence.iter().any(|e| matches!(
             e,
             DetectionEvidence::Extension { .. }

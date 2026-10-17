@@ -82,6 +82,69 @@ fn create_mstring(chars: &[DcChar]) -> DcMstring {
 mod challenge1_recursion_depth_limits {
     use super::*;
 
+    #[crate::ctb_test]
+    fn test_adversarial_type_constructor_depth_budget() -> Result<()> {
+        let resolver = default_syntax_resolver();
+        let term = SyntaxTerm::NamedConstruct {
+            name: "type".to_owned(),
+            subtype: None,
+            capture_var: None,
+        };
+        for constructor in [DC_TYPE_UNION, DC_TYPE_INTERSECTION] {
+            let doc = create_mstring(&[
+                constructor,
+                constructor,
+                DC_TYPE_WILDCARD,
+                DC_TYPE_WILDCARD,
+                DC_TYPE_WILDCARD,
+            ]);
+            for budget in [0, 1, 2] {
+                let mut nav = DcDocumentNavigator::from_mstr(&doc);
+                let start = nav.position();
+                let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+                ctx.max_depth = budget;
+                ensure!(nav.eval_term_single(&term, &mut ctx)? == (budget == 2), "Wrong constructor boundary at budget {budget}");
+                ensure!(ctx.has_errors == (budget < 2), "Depth exhaustion must produce a diagnostic");
+                ensure!(ctx.depth == 0 && ctx.self_dc.is_none());
+                if budget < 2 {
+                    ensure!(nav.position() == start, "Failed type matching must restore the cursor");
+                } else {
+                    ensure!(nav.position() == nav.active_span().end);
+                }
+            }
+            let depth = 8192usize;
+            let mut deep = DcMstring::new();
+            for _ in 0..depth { deep.push_char(constructor); }
+            for _ in 0..=depth { deep.push_char(DC_TYPE_WILDCARD); }
+            let mut nav = DcDocumentNavigator::from_mstr(&deep);
+            let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+            ctx.max_depth = depth;
+            ensure!(nav.eval_term_single(&term, &mut ctx)?, "Raised-budget constructor chain must parse iteratively");
+            ensure!(!ctx.has_errors && nav.position() == nav.active_span().end);
+
+            for chars in [
+                vec![constructor, DC_TYPE_WILDCARD],
+                vec![constructor, DC_BOOLEAN_TRUE, DC_TYPE_WILDCARD],
+            ] {
+                let malformed = create_mstring(&chars);
+                let mut nav = DcDocumentNavigator::from_mstr(&malformed);
+                let start = nav.position();
+                let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+                ensure!(!nav.eval_term_single(&term, &mut ctx)?);
+                ensure!(nav.position() == start && ctx.depth == 0 && ctx.self_dc.is_none());
+            }
+            let list = create_mstring(&[
+                constructor, DC_BEGIN_LIST, DC_TYPE_WILDCARD,
+                DC_TYPE_WILDCARD, DC_LIST_ELEMENT_SEPARATOR, DC_TYPE_WILDCARD, DC_END_LIST,
+            ]);
+            let mut nav = DcDocumentNavigator::from_mstr(&list);
+            let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+            ensure!(nav.eval_term_single(&term, &mut ctx)?, "Generated list alternative must remain accepted");
+            ensure!(nav.position() == nav.active_span().end && !ctx.has_errors);
+        }
+        Ok(())
+    }
+
     /// Document depth is a caller policy, independent of grammar expansion.
     #[crate::ctb_test]
     fn test_adversarial_depth_limit_boundary_at_32_and_33() -> Result<()> {

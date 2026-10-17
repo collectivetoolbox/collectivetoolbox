@@ -399,8 +399,16 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
 
         writer.record_entity(&entity);
         writer.commit_batch()?;
+        if batch_num == 2 {
+            writer.mark_completed()?;
+            ensure!(read_journal_snapshot(&journal_path)?.is_completed);
+        }
     }
 
+    ensure!(
+        !read_journal_snapshot(&journal_path)?.is_completed,
+        "A newly committed batch must invalidate an earlier completion marker"
+    );
     writer.mark_completed()?;
 
     let snapshot = read_journal_snapshot(&journal_path)?;
@@ -428,6 +436,70 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
 // ============================================================================
 // TIER 5: ADVERSARIAL HARDENING (JOURNAL ENGINE)
 // ============================================================================
+
+#[crate::ctb_test]
+fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()> {
+    use ctb_formats_dcdata::dc::{
+        DC_BEGIN_ERROR_RECORD, DC_BEGIN_WARNING_RECORD, DC_END_ERROR_RECORD,
+        DC_END_WARNING_RECORD, DC_ESCAPE, DC_OPERATION_COMPLETED,
+    };
+
+    let temp = tempdir()?;
+    let journal_path = temp.path().join("invalid_records.cscjournal");
+    let mut writer = JournalWriter::create_at_path(
+        &journal_path,
+        &journal_path.with_extension("cscdesc"),
+        &[temp.path().join("src")],
+        &temp.path().join("dest"),
+    )?;
+    writer.mark_completed()?;
+    let original = fs::read(&journal_path)?;
+    ensure!(read_journal_snapshot(&journal_path)?.is_completed);
+
+    for (name, tokens) in [
+        ("unknown", vec![DcChar::from_short(517)]),
+        ("error", vec![DC_BEGIN_ERROR_RECORD, DC_END_ERROR_RECORD]),
+        ("warning", vec![DC_BEGIN_WARNING_RECORD, DC_END_WARNING_RECORD]),
+        ("escaped_completion", vec![DC_ESCAPE, DC_OPERATION_COMPLETED]),
+    ] {
+        let test_path = temp.path().join(format!("{name}.cscjournal"));
+        let mut fragment = DcMstring::new();
+        for token in tokens {
+            fragment.push_char(token);
+        }
+        fragment.push_char(DC_OPERATION_COMPLETED);
+        let mut bytes = original.clone();
+        bytes.extend_from_slice(fragment.payload_bytes());
+        fs::write(&test_path, &bytes)?;
+        ensure!(read_journal_snapshot(&test_path).is_err(), "Strict replay accepted {name}");
+        if name == "unknown" || name == "escaped_completion" {
+            ensure!(
+                read_journal_snapshot_with_policy(&test_path, &DcProjectionPolicy::forgiving()).is_err(),
+                "Forgiving replay silently discarded {name}"
+            );
+        }
+        ensure!(fs::read(&test_path)? == bytes, "Replay modified {name}");
+    }
+
+    for (name, tail, incomplete) in [
+        ("incomplete_token", &[0xC2_u8][..], true),
+        ("invalid_token", &[0x80_u8][..], false),
+    ] {
+        let test_path = temp.path().join(format!("{name}.cscjournal"));
+        let mut bytes = original.clone();
+        bytes.extend_from_slice(tail);
+        fs::write(&test_path, bytes)?;
+        let result = read_journal_snapshot(&test_path);
+        if incomplete {
+            let snapshot = result?;
+            ensure!(snapshot.is_completed);
+            ensure!(snapshot.valid_length == u64::try_from(original.len())?);
+        } else {
+            ensure!(result.is_err(), "Malformed token must not be mistaken for EOF");
+        }
+    }
+    Ok(())
+}
 
 /// Verifies that crash truncation mid-batch results in clean rollback of the trailing
 /// unclosed checksummed section without losing previously committed batches.
@@ -503,11 +575,23 @@ fn test_tier4_unclosed_trailing_batch_crash_rollback() -> Result<()> {
 
         let mut unclosed_mstr = DcMstring::new();
         unclosed_mstr.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        let body_start = unclosed_mstr.payload_bytes().len();
         unclosed_mstr.push_char(DC_SEQUENCE_IDENTIFIER);
         2u64.encode_dc_mixed(&mut unclosed_mstr)?;
+        let valid_digest = sha256(unclosed_mstr.payload_bytes().get(body_start..).context("Batch body")?);
+        let mut complete = unclosed_mstr.clone();
+        complete.push_char(DC_END_CHECKSUMMED_SECTION);
+        complete.push_char(DC_SECTION_DIGEST);
+        complete.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_digest)?;
+        let control_path = temp.path().join("complete_crash_batch.cscjournal");
+        let mut control_bytes = fs::read(&journal_path)?;
+        control_bytes.extend_from_slice(complete.payload_bytes());
+        fs::write(&control_path, control_bytes)?;
+        let control = read_journal_snapshot(&control_path)?;
+        ensure!(control.last_batch_id == 2 && control.is_committed(b"valid_file.txt"));
         // Cut off mid-stream without DC_END_CHECKSUMMED_SECTION or digest
 
-        file.write_all(unclosed_mstr.as_ref())?;
+        file.write_all(unclosed_mstr.payload_bytes())?;
     }
 
     // Reading snapshot must successfully recover batch 1 and roll back the unclosed tail
@@ -603,6 +687,7 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
 
         let mut tampered_mst = DcMstring::new();
         tampered_mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        let body_start = tampered_mst.payload_bytes().len();
         tampered_mst.push_char(DC_SEQUENCE_IDENTIFIER);
         2u64.encode_dc_mixed(&mut tampered_mst)?;
 
@@ -639,14 +724,24 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
             streams: Vec::new(),
         };
         fake_entity.encode_dc_mixed(&mut tampered_mst)?;
+        let valid_digest = sha256(tampered_mst.payload_bytes().get(body_start..).context("Batch body")?);
         tampered_mst.push_char(DC_END_CHECKSUMMED_SECTION);
 
         // Append SectionDigest (545) with invalid digest
         tampered_mst.push_char(DC_SECTION_DIGEST);
+        let mut valid_mst = tampered_mst.clone();
+        valid_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_digest)?;
+        let control_path = temp.path().join("untampered_batch.cscjournal");
+        let mut control_bytes = fs::read(&journal_path)?;
+        control_bytes.extend_from_slice(valid_mst.payload_bytes());
+        fs::write(&control_path, control_bytes)?;
+        let control = read_journal_snapshot(&control_path)?;
+        ensure!(control.last_batch_id == 2 && control.committed_entities.len() == 2);
+        ensure!(control.is_committed(b"tampered_file.txt"));
         let bogus_digest = [0xFF_u8; 32];
         tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &bogus_digest)?;
 
-        file.write_all(tampered_mst.as_ref())?;
+        file.write_all(tampered_mst.payload_bytes())?;
     }
 
     // Read snapshot: the journal streaming engine must detect the invalid digest,
@@ -669,6 +764,15 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
         !snapshot.is_committed(b"tampered_file.txt"),
         "Tampered entity must NOT be committed"
     );
+
+    let salvaged = read_journal_snapshot_with_policy(&journal_path, &DcProjectionPolicy::forgiving())?;
+    ensure!(salvaged.last_batch_id == 2 && salvaged.is_committed(b"tampered_file.txt"));
+    ensure!(salvaged.warnings.iter().any(|warning| warning.code == "journal-digest-mismatch"));
+
+    let mut suffix = DcMstring::new();
+    suffix.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
+    fs::OpenOptions::new().append(true).open(&journal_path)?.write_all(suffix.payload_bytes())?;
+    ensure!(read_journal_snapshot(&journal_path).is_err(), "Interior digest mismatch must not authorize suffix truncation");
 
     Ok(())
 }

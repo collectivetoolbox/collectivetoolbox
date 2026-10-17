@@ -1245,6 +1245,7 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     // Construct batch 3 payload bytes to simulate crash cutoffs
     let mut batch3_mst = DcMstring::new();
     batch3_mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+    let body_start = batch3_mst.payload_bytes().len();
     batch3_mst.push_char(DC_SEQUENCE_IDENTIFIER);
     3u64.encode_dc_mixed(&mut batch3_mst)?;
 
@@ -1266,14 +1267,20 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         streams: Vec::new(),
     };
     bad_entity.encode_dc_mixed(&mut batch3_mst)?;
+    let valid_hash = sha256(batch3_mst.payload_bytes().get(body_start..).context("Batch body")?);
     batch3_mst.push_char(DC_END_CHECKSUMMED_SECTION);
     batch3_mst.push_char(DC_SECTION_DIGEST);
     // Real SHA-256 digest over inner body
-    let body_bytes = batch3_mst.as_bytes().get(3..batch3_mst.len().saturating_sub(6)).unwrap_or(&[]);
-    let valid_hash = sha256(body_bytes);
     batch3_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &valid_hash)?;
 
-    let batch3_slice = batch3_mst.as_bytes();
+    let batch3_slice = batch3_mst.payload_bytes();
+    let control_path = temp.path().join("complete_batch.cscjournal");
+    let mut control_bytes = base_bytes.clone();
+    control_bytes.extend_from_slice(batch3_slice);
+    fs::write(&control_path, control_bytes)?;
+    let control = read_journal_snapshot(&control_path)?;
+    ensure!(control.last_batch_id == 3 && control.committed_entities.len() == 3);
+    ensure!(control.is_committed(b"uncommitted_crash_file.txt"));
 
     // Test 1: Cut off batch 3 at boundary and varied byte offsets
     let cutoffs: Vec<usize> = (1..batch3_slice.len())
@@ -1283,7 +1290,7 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     for &cut in &cutoffs {
         let test_path = temp.path().join(format!("cut_{cut}.cscjournal"));
         let mut test_bytes = base_bytes.clone();
-        test_bytes.extend_from_slice(batch3_slice.get(..cut).unwrap_or(&[]));
+        test_bytes.extend_from_slice(batch3_slice.get(..cut).context("Crash cutoff exceeds batch")?);
         fs::write(&test_path, test_bytes)?;
 
         let snapshot = read_journal_snapshot(&test_path)
@@ -1326,7 +1333,7 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &bogus_digest)?;
 
         let mut test_bytes = base_bytes.clone();
-        test_bytes.extend_from_slice(tampered_mst.as_bytes());
+        test_bytes.extend_from_slice(tampered_mst.payload_bytes());
         fs::write(&tampered_path, test_bytes)?;
 
         let snapshot = read_journal_snapshot(&tampered_path)

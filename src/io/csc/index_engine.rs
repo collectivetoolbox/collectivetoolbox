@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use crate::args::FsindexArgs;
 use crate::journal::{
-    JournalSnapshot, JournalWriter, read_journal_snapshot, resolve_journal_path,
+    JournalSnapshot, JournalWriter, resolve_journal_path,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::fmt::Write as _;
@@ -153,7 +153,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
                 None
             };
             let flushed =
-                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress).await?;
+                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress, &args.journal_projection_policy()).await?;
             total_flushed = total_flushed.saturating_add(flushed);
             sources_checked = sources_checked.saturating_add(1);
         }
@@ -210,7 +210,7 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
                 None
             };
             let flushed =
-                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress).await?;
+                flush_deleted_files_from_index(&conn, j_path, explicit_name, &progress, &args.journal_projection_policy()).await?;
             total_flushed = total_flushed.saturating_add(flushed);
         }
     }
@@ -790,8 +790,9 @@ pub async fn flush_deleted_files_from_index(
     journal_path: &Path,
     explicit_name: Option<&str>,
     progress: &Progress,
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<u64> {
-    let snapshot = read_journal_snapshot(journal_path)?;
+    let snapshot = crate::journal::read_journal_snapshot_with_policy(journal_path, policy)?;
     // Reason for fallback: snapshot without explicit sources defaults to inspecting destination directory
     let root_dir = snapshot
         .sources
@@ -1095,9 +1096,35 @@ mod tests {
             "Journal must contain b.txt before flush"
         );
 
+        {
+            use ctb_formats_dcdata::dc::{
+                DC_BEGIN_CHECKSUMMED_SECTION, DC_END_CHECKSUMMED_SECTION,
+                DC_OPERATION_COMPLETED, DC_SECTION_DIGEST, DC_SEQUENCE_IDENTIFIER,
+            };
+            use ctb_formats_dcstring::{DcMixedEncode, DcMstring};
+            use std::io::Write;
+
+            let mut fragment = DcMstring::new();
+            fragment.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+            fragment.push_char(DC_SEQUENCE_IDENTIFIER);
+            snap_before.last_batch_id.saturating_add(1).encode_dc_mixed(&mut fragment).expect("sequence");
+            fragment.push_char(DC_END_CHECKSUMMED_SECTION);
+            fragment.push_char(DC_SECTION_DIGEST);
+            fragment.push_checksum(ctb_utilities::format_id::DC_SHA256, &[0xFF; 32]).expect("digest");
+            fragment.push_char(DC_OPERATION_COMPLETED);
+            fs::OpenOptions::new().append(true).open(&journal_path).expect("append journal")
+                .write_all(fragment.payload_bytes()).expect("write invalid-digest batch");
+        }
+        let journal_before_flush = fs::read(&journal_path).expect("journal bytes");
+        let mut strict_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
+        strict_flush.flush_deleted = true;
+        strict_flush.source_name = Some("test_src".to_string());
+        assert!(run_fsindex(strict_flush).await.is_err(), "Strict flush must reject interior digest mismatch");
+
         // 3. Run fsindex again with the journal path and --flush-deleted
         let mut args_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
         args_flush.flush_deleted = true;
+        args_flush.allow_journal_errors = true;
         args_flush.source_name = Some("test_src".to_string());
         let res_flush = run_fsindex(args_flush).await.expect("run fsindex flush");
         if let ToolResult::Immediate { stdout, .. } = res_flush {
@@ -1142,7 +1169,10 @@ mod tests {
         assert_eq!(a_count, 1, "a.txt must remain in SQLite index");
 
         // 5. Verify the journal file was completely untouched
-        let snap_after = read_journal_snapshot(&journal_path).expect("read snap after");
+        assert_eq!(fs::read(&journal_path).expect("journal after flush"), journal_before_flush);
+        let snap_after = crate::journal::read_journal_snapshot_with_policy(
+            &journal_path, &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+        ).expect("read snap after");
         assert!(
             snap_after.is_committed(b"b.txt"),
             "Journal file must be untouched and still contain b.txt"

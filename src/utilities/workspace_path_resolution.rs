@@ -52,6 +52,13 @@ pub fn workspace_root_for_cargo_target_exe(exe_path: &Path) -> Option<PathBuf> {
         } else {
             return None;
         }
+    } else if parent.parent().is_some_and(|path| is_named_dir(path, "build")) {
+        let profile = parent.parent()?.parent()?;
+        if profile.file_name().is_some_and(is_profile_dir) {
+            profile
+        } else {
+            return None;
+        }
     } else {
         return None;
     };
@@ -105,4 +112,25 @@ fn is_profile_dir(name: &OsStr) -> bool {
     clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_build_script_workspace_root() {
+        for executable in [
+            "/repo/target/debug/build/ctb-formats-dcdata-123/build-script-build",
+            "/repo/target/x86_64-unknown-linux-musl/release/build/ctb-formats-dcdata-123/build-script-build",
+        ] {
+            assert_eq!(
+                workspace_root_for_cargo_target_exe(Path::new(executable)),
+                Some(PathBuf::from("/repo")),
+            );
+        }
+        assert_eq!(
+            workspace_root_for_cargo_target_exe(Path::new(
+                "/repo/target/debug/arbitrary/ctb-formats-dcdata-123/build-script-build",
+            )),
+            None,
+        );
+    }
+}

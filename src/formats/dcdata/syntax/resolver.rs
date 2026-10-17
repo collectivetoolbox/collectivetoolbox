@@ -669,12 +669,15 @@ impl DatasetRuleResolver {
     /// matches the dataset. `dc_defns` must be sorted by long ID so
     /// delimiter precedence is deterministic (matching
     /// `lookup::get_all_dc_defns`).
-    #[must_use]
+    ///
+    /// # Errors
+    /// Returns an error with CSV row and named type context when a named
+    /// type record or its grammar is invalid.
     pub fn load_from_dataset(
         dc_defns: &[DcDefn],
         format_defns: &[DcDefn],
         named_types_csv: Option<&[u8]>,
-    ) -> Self {
+    ) -> Result<Self> {
         let mut resolver = Self::new();
 
         // 1. Index rules and scripts from Document Character definitions
@@ -762,31 +765,30 @@ impl DatasetRuleResolver {
                 .has_headers(true)
                 .flexible(true)
                 .from_reader(bytes);
-            for result in rdr.records() {
-                let Ok(record) = result else {
-                    continue;
-                };
-                let Some(name) = record.get(0).map(str::trim) else {
-                    continue;
-                };
-                let Some(syntax_raw) = record.get(1).map(str::trim) else {
-                    continue;
-                };
-                if name.is_empty() || syntax_raw.is_empty() {
-                    continue;
-                }
-                if let Ok(rule) = parse_dc_syntax(syntax_raw) {
-                    resolver.add_named_type(name.to_string(), rule.pattern.clone());
-                    if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
-                        if let Some(first_elem) = elems.first() {
-                            if first_elem.quantifier == Quantifier::ExactOne {
-                                if let SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
-                                    if !resolver.rules.contains_key(lead_target) {
-                                        resolver.add_rule(lead_target.clone(), rule.clone());
-                                    }
-                                    if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
-                                        resolver.register_closing_delimiter(closer_tok, lead_target.clone());
-                                    }
+            for (index, result) in rdr.records().enumerate() {
+                let row = index.saturating_add(2);
+                let record = result.with_context(|| {
+                    format!("README-named-types.csv row {row}: invalid CSV record")
+                })?;
+                let name = record.get(0).map(str::trim)
+                    .filter(|name| !name.is_empty())
+                    .with_context(|| format!("README-named-types.csv row {row}: missing named type"))?;
+                let syntax_raw = record.get(1).map(str::trim)
+                    .filter(|syntax| !syntax.is_empty())
+                    .with_context(|| format!("README-named-types.csv row {row}: named type '{name}' has no syntax"))?;
+                let rule = parse_dc_syntax(syntax_raw).with_context(|| {
+                    format!("README-named-types.csv row {row}: invalid syntax for named type '{name}': {syntax_raw}")
+                })?;
+                resolver.add_named_type(name.to_string(), rule.pattern.clone());
+                if let SyntaxPattern::Sequence(ref elems) = rule.pattern {
+                    if let Some(first_elem) = elems.first() {
+                        if first_elem.quantifier == Quantifier::ExactOne {
+                            if let SyntaxTerm::CharRef(ref lead_target) = first_elem.term {
+                                if !resolver.rules.contains_key(lead_target) {
+                                    resolver.add_rule(lead_target.clone(), rule.clone());
+                                }
+                                if let Some(closer_tok) = detect_container_closer(&rule.pattern) {
+                                    resolver.register_closing_delimiter(closer_tok, lead_target.clone());
                                 }
                             }
                         }
@@ -796,7 +798,7 @@ impl DatasetRuleResolver {
         }
 
         resolver.precompute_derived_tables();
-        resolver
+        Ok(resolver)
     }
 }
 
@@ -922,7 +924,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_static_syntax_table_matches_csv_dataset() {
         let static_table = DatasetRuleResolver::load();
-        let from_dataset = DatasetRuleResolver::load_from_embedded_dataset();
+        let from_dataset = DatasetRuleResolver::load_from_embedded_dataset().unwrap();
         const STALE: &str = "generated static syntax table diverged from the \
             CSV dataset; regenerate with ./scripts/validate-data-tables";
         assert_eq!(static_table.rules, from_dataset.rules, "{STALE}: rules");

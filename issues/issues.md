@@ -76,6 +76,10 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - format syntax rule changed from :[f0..f1114111] to :[f0..f632]. The token range for format references is now capped at 632, the highest defined FormatId, instead of spanning the whole Dc space. From e378fd1bc "wip: Continue Dc parser refactoring". Is this right/necessary? I mean, those are all the *recognized* formats. I guess it might be helpful if the formats block were later shortened, but that seems somewhat unlikely now that it's allocated. If it's useful, the limit at f632 should be derived automatically at build time/when running the validator, so it doesn't get stale.
 
+- Add optional, recommended TOTP step on login
+
+- Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container

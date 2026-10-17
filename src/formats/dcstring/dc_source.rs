@@ -278,7 +278,7 @@ pub struct DcInspection<'a, T, S: DcSource + ?Sized = DcMstr> {
     source: &'a S,
     value: Option<T>,
     fields: Vec<DcFieldAnnotation>,
-    diagnostic: Option<DcDiagnostic>,
+    diagnostics: Vec<DcDiagnostic>,
 }
 
 impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
@@ -297,10 +297,10 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                         source,
                         value: None,
                         fields: Vec::new(),
-                        diagnostic: Some(DcDiagnostic {
+                        diagnostics: vec![DcDiagnostic {
                             position: 0,
                             error: err.into(),
-                        }),
+                        }],
                     };
                 }
             }
@@ -312,53 +312,32 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                         source,
                         value: None,
                         fields: Vec::new(),
-                        diagnostic: Some(DcDiagnostic {
+                        diagnostics: vec![DcDiagnostic {
                             position: 0,
                             error: err.into(),
-                        }),
+                        }],
                     };
                 }
             }
         };
 
-        if let Err(err) = nav.parse_document_into_arena(
-            &mut arena,
-            &crate::DcProjectionPolicy::forgiving(),
-        ) {
+        let parsed = nav.parse_document_into_arena(&mut arena, policy);
+        let mut diagnostics: Vec<DcDiagnostic> = arena.diagnostics().iter().map(|diagnostic| DcDiagnostic {
+            position: diagnostic.token_offset,
+            error: anyhow::anyhow!(diagnostic.message.clone()),
+        }).collect();
+        if let Err(err) = parsed {
+            diagnostics.push(DcDiagnostic { position: nav.position(), error: err });
             return Self {
                 source,
                 value: None,
                 fields: Vec::new(),
-                diagnostic: Some(DcDiagnostic {
-                    position: nav.position(),
-                    error: err,
-                }),
+                diagnostics,
             };
         }
 
         let roots = arena.roots();
-        let root_id = match roots.first() {
-            Some(&id) => id,
-            None => {
-                return Self {
-                    source,
-                    value: None,
-                    fields: Vec::new(),
-                    diagnostic: Some(DcDiagnostic {
-                        position: 0,
-                        error: anyhow::anyhow!("Empty document cannot be decoded into typed value"),
-                    }),
-                };
-            }
-        };
-
-        let trailing_error = if roots.len() > 1 {
-            Some(anyhow::anyhow!("Trailing content after typed Dc value"))
-        } else {
-            None
-        };
-
-        let (result, fields, ctx_pos) = {
+        let (result, fields, ctx_pos, projection_diagnostics, trailing_error) = {
             let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
                 &arena,
                 policy,
@@ -366,47 +345,48 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
                 Some(&mut nav),
             );
             ctx.annotating = true;
-            let result = T::decode_dc_node(&mut ctx, root_id);
+            let result = T::decode_dc_document(&mut ctx, roots);
+            let trailing_error = if let Ok((_, consumed)) = &result {
+                match roots.get(*consumed..) {
+                    Some(remaining) => ctx.handle_remaining_nodes(remaining).err(),
+                    None => Some(anyhow::anyhow!("Invalid document root consumption")),
+                }
+            } else {
+                None
+            };
             let fields = std::mem::take(&mut ctx.annotations);
-            (result, fields, ctx.current_position)
+            let projection_diagnostics = ctx.diagnostics().to_vec();
+            (result, fields, ctx.current_position, projection_diagnostics, trailing_error)
         };
 
-        let (value, diagnostic) = match result {
-            Ok(v) => {
-                let diag = if let Some(err) = trailing_error {
-                    // Reason for fallback: Fall back to navigator end position if the second root node ID is not found in the arena.
-                    let trailing_pos = roots
-                        .get(1)
-                        .and_then(|&id| arena.get(id))
-                        .map(|node| node.span.start)
-                        .unwrap_or_else(|| nav.position());
-                    Some(DcDiagnostic {
-                        position: trailing_pos,
-                        error: err,
-                    })
-                } else {
-                    None
-                };
-                (Some(v), diag)
-            }
+        diagnostics.extend(projection_diagnostics.into_iter().map(|diagnostic| DcDiagnostic {
+            position: diagnostic.token_offset,
+            error: anyhow::anyhow!(diagnostic.message),
+        }));
+        let value = match result {
+            Ok((value, _)) => Some(value),
             Err(e) => {
                 let pos = if ctx_pos != 0 {
                     ctx_pos
                 } else {
                     nav.position()
                 };
-                (None, Some(DcDiagnostic {
+                diagnostics.push(DcDiagnostic {
                     position: pos,
                     error: e,
-                }))
+                });
+                None
             }
         };
+        if let Some(error) = trailing_error {
+            diagnostics.push(DcDiagnostic { position: ctx_pos, error });
+        }
 
         Self {
             source,
             value,
             fields,
-            diagnostic,
+            diagnostics,
         }
     }
 
@@ -429,10 +409,16 @@ impl<'a, T: DcMixedDecode, S: DcSource + ?Sized> DcInspection<'a, T, S> {
         &self.fields
     }
 
-    /// Returns the first failure; inspection never guesses past unknown syntax.
+    /// Returns the first anomaly, including successful policy-directed recovery.
     #[must_use]
-    pub const fn diagnostic(&self) -> Option<&DcDiagnostic> {
-        self.diagnostic.as_ref()
+    pub fn diagnostic(&self) -> Option<&DcDiagnostic> {
+        self.diagnostics.first()
+    }
+
+    /// Returns all retained syntax and projection anomalies in encounter order.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[DcDiagnostic] {
+        &self.diagnostics
     }
 
     /// Replaces an explicitly selected field, including nested occurrences.

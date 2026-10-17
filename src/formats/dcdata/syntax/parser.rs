@@ -448,7 +448,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
 
         if ch == '~' {
             idx = idx.saturating_add(1);
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx);
+            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::SelfChar,
@@ -486,7 +486,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let sub_pattern = parse_pattern_expression(&inner)?;
             idx = end.saturating_add(1);
 
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx);
+            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
 
             elements.push(SyntaxElement::with_quantifier(
@@ -522,7 +522,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let mut element = parse_bracket_content(&inner)?;
             idx = end.saturating_add(1);
 
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx);
+            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             if quantifier != Quantifier::ExactOne {
                 element.quantifier = quantifier;
@@ -554,7 +554,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let target = parse_target_token(rule_tok).with_context(|| {
                 format!("Invalid bare rule reference in pattern: '{token_trim}'")
             })?;
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx);
+            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::RuleRef { target },
@@ -564,7 +564,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
         }
 
         if let Some(target) = parse_target_token(token_trim) {
-            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx);
+            let (quantifier, next_idx) = parse_trailing_quantifier(&chars, idx)?;
             idx = next_idx;
             elements.push(SyntaxElement::with_quantifier(
                 SyntaxTerm::CharRef(target),
@@ -580,8 +580,8 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
 }
 
 /// Helper to consume a trailing quantifier character (`+`, `*`, `?`, or `{...}`).
-fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) {
-    if let Some(&q_char) = chars.get(idx) {
+fn parse_trailing_quantifier(chars: &[char], idx: usize) -> Result<(Quantifier, usize)> {
+    Ok(if let Some(&q_char) = chars.get(idx) {
         match q_char {
             '+' => (Quantifier::OneOrMore, idx.saturating_add(1)),
             '*' => (Quantifier::ZeroOrMore, idx.saturating_add(1)),
@@ -592,41 +592,46 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) 
                 while end < chars.len() && chars.get(end) != Some(&'}') {
                     end = end.saturating_add(1);
                 }
-                if end < chars.len() {
-                    if let Some(sub) = chars.get(start..end) {
-                        let content: String = sub.iter().collect();
-                        let trimmed = content.trim();
-                        let parsed = if let Some((min_s, max_s)) =
-                            trimmed.split_once("..").or_else(|| trimmed.split_once(','))
-                        {
-                            // Reason for fallback: omitted min in range defaults to 0
-                            let min = min_s.trim().parse::<usize>().unwrap_or(0);
-                            let max = if max_s.trim().is_empty() {
-                                None
-                            } else {
-                                max_s.trim().parse::<usize>().ok()
-                            };
-                            Some(Quantifier::Range { min, max })
-                        } else if let Ok(n) = trimmed.parse::<usize>() {
-                            Some(Quantifier::Range {
-                                min: n,
-                                max: Some(n),
-                            })
-                        } else {
-                            None
-                        };
-                        if let Some(q) = parsed {
-                            return (q, end.saturating_add(1));
-                        }
-                    }
-                }
-                (Quantifier::ExactOne, idx)
+                ensure!(end < chars.len(), "Unclosed quantifier at offset {idx}");
+                let sub = chars.get(start..end)
+                    .context("Invalid quantifier bounds")?;
+                let content: String = sub.iter().collect();
+                let trimmed = content.trim();
+                let quantifier = if let Some((min_s, max_s)) =
+                    trimmed.split_once("..").or_else(|| trimmed.split_once(','))
+                {
+                    let min = if min_s.trim().is_empty() {
+                        0
+                    } else {
+                        min_s.trim().parse::<usize>().with_context(|| {
+                            format!("Invalid minimum in quantifier '{{{content}}}'")
+                        })?
+                    };
+                    let max = if max_s.trim().is_empty() {
+                        None
+                    } else {
+                        Some(max_s.trim().parse::<usize>().with_context(|| {
+                            format!("Invalid maximum in quantifier '{{{content}}}'")
+                        })?)
+                    };
+                    ensure!(
+                        max.is_none_or(|max| min <= max),
+                        "Reversed bounds in quantifier '{{{content}}}'"
+                    );
+                    Quantifier::Range { min, max }
+                } else {
+                    let count = trimmed.parse::<usize>().with_context(|| {
+                        format!("Invalid count in quantifier '{{{content}}}'")
+                    })?;
+                    Quantifier::Range { min: count, max: Some(count) }
+                };
+                (quantifier, end.saturating_add(1))
             }
             _ => (Quantifier::ExactOne, idx),
         }
     } else {
         (Quantifier::ExactOne, idx)
-    }
+    })
 }
 
 /// Parses a complete Dc syntax rule declaration string (e.g. `":~ [^248 255]+ 248"`).

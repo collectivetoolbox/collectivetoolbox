@@ -1811,7 +1811,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
                                             return ::std::result::Result::Err(err);
                                         }
-                                        ctx.policy.handle(
+                                        ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
                                         )?;
@@ -1830,7 +1830,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
                                             return ::std::result::Result::Err(err);
                                         }
-                                        ctx.policy.handle(
+                                        ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
                                         )?;
@@ -1857,7 +1857,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
                                             return ::std::result::Result::Err(err);
                                         }
-                                        ctx.policy.handle(
+                                        ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
                                         )?;
@@ -1876,7 +1876,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         if ctx.policy.malformed_field == #crate_root::DiagnosticAction::Error {
                                             return ::std::result::Result::Err(err);
                                         }
-                                        ctx.policy.handle(
+                                        ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!("Malformed field `{}` while decoding flattened struct {}: {err}", stringify!(#field_ident), stringify!(#type_name)),
                                         )?;
@@ -1941,12 +1941,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     None
                 } else {
                     Some(quote! {
-                        _ => {
-                            ctx.handle_unconsumed_or_incomplete(
-                                &[format!("Unrecognized tag {tag:#X} in flattened struct {}", stringify!(#type_name))],
-                                &[],
-                            )?;
-                        }
+                        _ => return Ok(false),
                     })
                 };
 
@@ -1959,7 +1954,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             child_ids: &[#crate_root::NodeId],
                         ) -> #anyhow_path::Result<Self> {
-                            #(#field_inits)*
+                            let mut fields = ::std::vec::Vec::new();
                             for &cid in child_ids {
                                 let cnode = ctx.node(cid)?;
                                 let (tag, val_id) = match &cnode.kind {
@@ -1978,9 +1973,39 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     #crate_root::navigator::DcSyntaxKind::Atom(ch) => (ch.to_u128(), cid),
                                     _ => (0, cid),
                                 };
-                                match tag {
-                                    #(#decode_arms)*
-                                    #unrecognized_arm
+                                fields.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
+                                    tag, value_node: val_id, source_node: cid,
+                                });
+                            }
+                            Self::decode_dc_projected_fields(ctx, &fields)
+                        }
+
+                        fn decode_dc_projected_fields(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            __dc_projected_fields: &[#crate_root::dc_mixed_serde::FieldProjectionSpec],
+                        ) -> #anyhow_path::Result<Self> {
+                            #(#field_inits)*
+                            for &__dc_field_spec in __dc_projected_fields {
+                                let tag = __dc_field_spec.tag;
+                                let val_id = __dc_field_spec.value_node;
+                                ctx.current_position = ctx.node(__dc_field_spec.source_node)?.span.start;
+                                let field_result: #anyhow_path::Result<bool> = (|| {
+                                    match tag {
+                                        #(#decode_arms)*
+                                        #unrecognized_arm
+                                    }
+                                    Ok(true)
+                                })();
+                                match field_result {
+                                    Ok(true) => {}
+                                    Ok(false) => ctx.handle_unconsumed_or_incomplete(
+                                        &[format!("Unrecognized tag {tag:#X} in flattened struct {}", stringify!(#type_name))],
+                                        &[],
+                                    )?,
+                                    Err(error) => ctx.handle_diagnostic(
+                                        ctx.policy.malformed_field,
+                                        format!("Malformed field {tag:#X} in flattened struct {}: {error:#}", stringify!(#type_name)),
+                                    )?,
                                 }
                             }
                             #(#field_validations)*
@@ -2007,7 +2032,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
-                        type State = ::std::option::Option<Self>;
+                        type State = ::std::vec::Vec<#crate_root::dc_mixed_serde::FieldProjectionSpec>;
 
                         fn encode_flattened_fields(
                             &self,
@@ -2023,20 +2048,18 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             val_id: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
-                            let instance = state.get_or_insert_with(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default);
-                            instance.decode_field(tag, ctx, val_id)
+                            let _ = ctx;
+                            state.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
+                                tag, value_node: val_id, source_node: val_id,
+                            });
+                            Ok(true)
                         }
 
                         fn finish_flattened(
                             state: Self::State,
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         ) -> #anyhow_path::Result<Self> {
-                            if let ::std::option::Option::Some(instance) = state {
-                                Ok(instance)
-                            } else {
-                                ctx.handle_unconsumed_or_incomplete(&[], &[stringify!(#type_name)])?;
-                                Ok(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default())
-                            }
+                            Self::decode_dc_projected_fields(ctx, &state)
                         }
                     }
 
@@ -3408,7 +3431,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
-                    type State = ::std::option::Option<Self>;
+                    type State = ::std::vec::Vec<#crate_root::dc_mixed_serde::FieldProjectionSpec>;
 
                     fn encode_flattened_fields(
                         &self,
@@ -3426,15 +3449,18 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         val_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<bool> {
-                        let instance = state.get_or_insert_with(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default);
-                        instance.decode_field(tag, ctx, val_id)
+                        let _ = ctx;
+                        state.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
+                            tag, value_node: val_id, source_node: val_id,
+                        });
+                        Ok(true)
                     }
 
                     fn finish_flattened(
                         state: Self::State,
-                        _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                     ) -> #anyhow_path::Result<Self> {
-                        Ok(state.unwrap_or_else(<Self as #crate_root::DcForgivingDefault>::dc_forgiving_default))
+                        Self::decode_dc_projected_fields(ctx, &state)
                     }
                 }
 
@@ -3463,38 +3489,55 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 stringify!(#type_name)
                             ),
                         };
+                        let mut fields = ::std::vec::Vec::new();
+                        for &child_id in children {
+                            let child_node = ctx.node(child_id)?;
+                            let (tag, val_id) = match &child_node.kind {
+                                #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                    // Reason for fallback: Tagged constructs without arguments or with multiple arguments pass child_id as payload.
+                                    let arg_id = if args.len() > 1 {
+                                        child_id
+                                    } else {
+                                        args.first().copied().unwrap_or(child_id)
+                                    };
+                                    (tag.to_u128(), arg_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
+                                    (opener.to_u128(), child_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
+                                    (ch.to_u128(), child_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Assignment { .. } => {
+                                    (1114381, child_id)
+                                }
+                                #crate_root::navigator::DcSyntaxKind::Identifier { .. } => {
+                                    (1114382, child_id)
+                                }
+                                _ => (0, child_id),
+                            };
+                            fields.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
+                                tag, value_node: val_id, source_node: child_id,
+                            });
+                        }
+                        Self::decode_dc_projected_fields(ctx, &fields)
+                    }
+                }
+
+                #[automatically_derived]
+                impl #impl_generics #type_name #ty_generics #where_clause {
+                    fn decode_dc_projected_fields(
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        __dc_projected_fields: &[#crate_root::dc_mixed_serde::FieldProjectionSpec],
+                    ) -> #anyhow_path::Result<Self> {
                         ctx.enter_record();
                         let result = (|| {
                             #(#field_inits)*
-                            for &child_id in children {
-                                if let Ok(child_node) = ctx.node(child_id) {
-                                    ctx.current_position = child_node.span.start;
-                                }
-                                let child_node = ctx.node(child_id)?;
-                                let (tag, val_id) = match &child_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                        // Reason for fallback: Tagged constructs without arguments or with multiple arguments pass child_id as payload.
-                                        let arg_id = if args.len() > 1 {
-                                            child_id
-                                        } else {
-                                            args.first().copied().unwrap_or(child_id)
-                                        };
-                                        (tag.to_u128(), arg_id)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                        (opener.to_u128(), child_id)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                        (ch.to_u128(), child_id)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Assignment { .. } => {
-                                        (1114381, child_id)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Identifier { .. } => {
-                                        (1114382, child_id)
-                                    }
-                                    _ => (0, child_id),
-                                };
+                            for &__dc_field_spec in __dc_projected_fields {
+                                let tag = __dc_field_spec.tag;
+                                let val_id = __dc_field_spec.value_node;
+                                let child_id = __dc_field_spec.source_node;
+                                ctx.current_position = ctx.node(child_id)?.span.start;
                                 let field_name = match tag {
                                     #(#field_name_arms)*
                                     _ => None,
@@ -3532,7 +3575,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                             return ::std::result::Result::Err(err);
                                         }
                                         // Reason for fallback: Malformed field diagnostic message displays <unknown> if field name could not be resolved from tag.
-                                        ctx.policy.handle(
+                                        ctx.handle_diagnostic(
                                             ctx.policy.malformed_field,
                                             format!(
                                                 "Malformed field `{}` while decoding struct {}: {err}",
@@ -3543,12 +3586,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     }
                                 }
                             }
-                            if let Some(&last_id) = children.last() {
-                                if let Ok(last_node) = ctx.node(last_id) {
+                            if let Some(__dc_field_spec) = __dc_projected_fields.last() {
+                                if let Ok(last_node) = ctx.node(__dc_field_spec.value_node) {
                                     ctx.current_position = last_node.span.end;
                                 }
-                            } else if let Ok(root_node) = ctx.node(node_id) {
-                                ctx.current_position = root_node.span.end;
                             }
                             #(#field_validations)*
                             Ok(Self {
@@ -3972,6 +4013,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 };
                                 for &ch_id in field_ids {
                                     let ch_node = ctx.node(ch_id)?;
+                                    ctx.current_position = ch_node.span.start;
                                     let (ch_tag, child_val_id) = match &ch_node.kind {
                                         #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
                                             // Reason for fallback: Tagged constructs without arguments fall back to ch_id as payload.
@@ -3986,14 +4028,23 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                         _ => (0, ch_id),
                                     };
-                                    match ch_tag {
-                                        #(#v_field_arms)*
-                                        _ => {
-                                            ctx.handle_unconsumed_or_incomplete(
-                                                &[format!("Unknown Dc tag {:#X} in variant `{}` of enum {}", ch_tag, stringify!(#variant_ident), stringify!(#type_name))],
-                                                &[],
-                                            )?;
-                                        }
+                                    let field_result: #anyhow_path::Result<bool> = (|| {
+                                                                                match ch_tag {
+                                                                                        #(#v_field_arms)*
+                                                                                        _ => return Ok(false),
+                                                                                }
+                                                                                Ok(true)
+                                    })();
+                                    match field_result {
+                                        Ok(true) => {}
+                                        Ok(false) => ctx.handle_unconsumed_or_incomplete(
+                                            &[format!("Unknown Dc tag {:#X} in variant `{}` of enum {}", ch_tag, stringify!(#variant_ident), stringify!(#type_name))],
+                                            &[],
+                                        )?,
+                                        Err(error) => ctx.handle_diagnostic(
+                                            ctx.policy.malformed_field,
+                                            format!("Malformed field {ch_tag:#X} in variant `{}` of enum {}: {error:#}", stringify!(#variant_ident), stringify!(#type_name)),
+                                        )?,
                                     }
                                 }
                                 Self::#variant_ident {

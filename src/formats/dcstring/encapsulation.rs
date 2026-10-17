@@ -136,21 +136,7 @@ impl<'a> Cursor<'a> {
         digest: Vec<u8>,
     ) -> Result<ChecksumSpec> {
         let data_type = data_type.context("Checksum requires a hash type")?;
-        let format = single_format(data_type)?;
-        ensure!(
-            ctb_formats_utilities::get_format_info_by_id(format)
-                .is_some_and(|info| info.category == "hash"),
-            "Checksum type is not a hash format"
-        );
-        let algorithm = SupportedHashFormat::from_format_id(format)
-            .with_context(|| format!("Unsupported encapsulation checksum algorithm: {format:?}"))?;
-        ensure!(
-            digest.len()
-                == ctb_formats_checksum::StreamingHasher::new(algorithm)
-                    .finalize()
-                    .len(),
-            "Invalid encapsulation checksum digest length"
-        );
+        let algorithm = ChecksumSpec::algorithm_for_digest(data_type, u64::try_from(digest.len())?)?;
         Ok(ChecksumSpec { algorithm, expected_digest: digest })
     }
 
@@ -312,6 +298,20 @@ pub struct ChecksumSpec {
 }
 
 impl ChecksumSpec {
+    pub(crate) fn algorithm_for_digest(data_type: &DcStr, length: u64) -> Result<SupportedHashFormat> {
+        let format = single_format(data_type)?;
+        ensure!(
+            ctb_formats_utilities::get_format_info_by_id(format)
+                .is_some_and(|info| info.category == "hash"),
+            "Checksum type is not a hash format"
+        );
+        let algorithm = SupportedHashFormat::from_format_id(format)
+            .with_context(|| format!("Unsupported encapsulation checksum algorithm: {format:?}"))?;
+        let expected_length = ctb_formats_checksum::StreamingHasher::new(algorithm).finalize().len();
+        ensure!(length == u64::try_from(expected_length)?, "Invalid encapsulation checksum digest length");
+        Ok(algorithm)
+    }
+
     pub(crate) fn matches_reader(
         &self,
         reader: &mut impl std::io::Read,

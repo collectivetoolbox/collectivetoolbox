@@ -68,6 +68,7 @@ pub const TAG_WARNING_RECORD: u8 = 7;
 pub fn read_legacy_journal_snapshot<R: Read + Seek>(
     reader: &mut BufReader<R>,
     journal_path: &Path,
+    policy: &DcProjectionPolicy,
 ) -> Result<JournalSnapshot> {
     let mut sources = Vec::new();
     let mut destination = PathBuf::new();
@@ -163,6 +164,7 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
                     &payload[..],
                     origin_platform,
                     &shared_context,
+                    policy,
                 ) {
                     Ok(entity) => {
                         // Reason for fallback: streams or entities without relative path use empty key in journal table
@@ -406,6 +408,7 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                     &payload[..],
                     origin_platform,
                     &shared_context,
+                    &DcProjectionPolicy::forgiving(),
                 ) {
                     Ok(entity) => {
                         pending_entities.push(entity);
@@ -770,6 +773,7 @@ pub fn read_entity_payload(
     mut r: &[u8],
     origin_platform: u8,
     context: &SharedValueContext,
+    policy: &DcProjectionPolicy,
 ) -> Result<FileEntity> {
     let raw_rel_path = read_bytes(&mut r)?;
     let raw_filename = read_bytes(&mut r)?;
@@ -1029,7 +1033,7 @@ pub fn read_entity_payload(
         );
         if let Some(identity_dc) = record.identity_dc {
             let identity = DcMstring::from_bytes(identity_dc)?
-                .decode::<FileIdentity>(&DcProjectionPolicy::forgiving())?;
+                .decode::<FileIdentity>(policy)?;
             let semantic_path = identity
                 .relative_path
                 .as_deref()
@@ -1067,6 +1071,7 @@ pub fn read_entity_payload(
                 &preserved.descriptor,
                 origin_platform,
                 context,
+                policy,
             )?);
             stream.data = preserved.data;
         }

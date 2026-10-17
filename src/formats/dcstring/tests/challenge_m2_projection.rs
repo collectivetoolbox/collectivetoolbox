@@ -588,6 +588,138 @@ fn test_challenge_flattened_document_projection_boundary() -> Result<()> {
     Ok(())
 }
 
+#[crate::ctb_test]
+fn test_challenge_flattened_required_field_presence() -> Result<()> {
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    struct Envelope {
+        #[dc(flatten, nested = (405, 400))]
+        record: FlattenedProjectionRecord,
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct BoundedRecord {
+        #[dc(405)]
+        label_color: u32,
+        #[dc(400)]
+        comment: String,
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    struct BoundedEnvelope {
+        #[dc(flatten, nested = (405, 400))]
+        record: BoundedRecord,
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    enum VariantEnvelope {
+        #[dc(422)]
+        Item {
+            #[dc(flatten, nested = (405, 400))]
+            record: BoundedRecord,
+        },
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    let complete = Envelope {
+        record: FlattenedProjectionRecord { label_color: 7, comment: "present".to_string() },
+    };
+    ensure!(complete.to_dc_mixed()?.decode::<Envelope>(&strict)? == complete);
+    let complete = BoundedEnvelope {
+        record: BoundedRecord { label_color: 7, comment: "present".to_string() },
+    };
+    ensure!(complete.to_dc_mixed()?.decode::<BoundedEnvelope>(&strict)? == complete);
+    let complete = VariantEnvelope::Item {
+        record: BoundedRecord { label_color: 7, comment: "present".to_string() },
+    };
+    ensure!(complete.to_dc_mixed()?.decode::<VariantEnvelope>(&strict)? == complete);
+    let mut source = DcMstring::new();
+    source.push_char(DcChar::from_short(317));
+    source.push_char(DcChar::from_short(405));
+    7_u32.encode_dc_mixed(&mut source)?;
+    source.push_char(DcChar::from_short(318));
+    let error = source.decode::<Envelope>(&strict)
+        .expect_err("Strict nested flattening must retain required-field presence");
+    ensure!(format!("{error:#}").contains("comment"));
+    let recovered = source.decode::<Envelope>(&DcProjectionPolicy::forgiving_quiet())?;
+    ensure!(recovered.record.label_color == 7);
+    ensure!(recovered.record.comment.is_empty());
+    let mut variant = DcMstring::new();
+    variant.push_char(DcChar::from_short(317));
+    variant.push_char(DcChar::from_short(422));
+    variant.push_char(DcChar::from_short(405));
+    7_u32.encode_dc_mixed(&mut variant)?;
+    variant.push_char(DcChar::from_short(318));
+    ensure!(variant.decode::<VariantEnvelope>(&strict).is_err());
+    ensure!(variant.decode::<VariantEnvelope>(&DcProjectionPolicy::forgiving_quiet())?
+        == VariantEnvelope::Item { record: BoundedRecord { label_color: 7, comment: String::new() } });
+    ensure!(source.decode::<BoundedEnvelope>(&strict).is_err());
+    let recovered = source.decode::<BoundedEnvelope>(&DcProjectionPolicy::forgiving_quiet())?;
+    ensure!(recovered.record.label_color == 7);
+    ensure!(recovered.record.comment.is_empty());
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_named_enum_malformed_field_policy() -> Result<()> {
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    enum Record {
+        #[dc(422)]
+        Item {
+            #[dc(327)]
+            color: u8,
+            #[dc(400)]
+            comment: String,
+        },
+    }
+
+    let mut source = DcMstring::new();
+    source.push_char(DcChar::from_short(317));
+    source.push_char(DcChar::from_short(422));
+    source.push_char(DcChar::from_short(327));
+    300_u32.encode_dc_mixed(&mut source)?;
+    source.push_char(DcChar::from_short(400));
+    "retained".to_string().encode_dc_mixed(&mut source)?;
+    source.push_char(DcChar::from_short(318));
+    ensure!(source.decode::<Record>(&DcProjectionPolicy::strict()).is_err());
+    let quiet = DcProjectionPolicy::forgiving_quiet();
+    let recovered = source.decode::<Record>(&quiet)?;
+    ensure!(recovered == Record::Item { color: 0, comment: "retained".to_string() });
+    let view = source.inspect_with_policy::<Record>(&quiet);
+    ensure!(view.value() == Some(&recovered));
+    ensure!(view.diagnostic().is_some(), "Quiet recovery must retain diagnostics");
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_inspection_document_policy() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let record = FlattenedProjectionRecord { label_color: 7, comment: "visible".to_string() };
+    let source = record.to_dc_mixed()?;
+    let view = source.inspect_with_policy::<FlattenedProjectionRecord>(&strict);
+    ensure!(view.value() == Some(&record));
+    ensure!(view.diagnostic().is_none());
+    let text = source.to_dc_string()?;
+    let view = text.inspect_with_policy::<FlattenedProjectionRecord>(&strict);
+    ensure!(view.value() == Some(&record));
+    ensure!(view.diagnostic().is_none());
+
+    let mut unclosed = DcMstring::new();
+    unclosed.push_char(DcChar::from_short(317));
+    source.decode::<FlattenedProjectionRecord>(&strict)?.encode_dc_mixed(&mut unclosed)?;
+    let view = unclosed.inspect_with_policy::<FlattenedProjectionRecord>(&strict);
+    ensure!(view.value().is_none(), "Strict inspection must reject unclosed framing");
+    ensure!(view.diagnostic().is_some());
+    let view = unclosed.inspect_with_policy::<FlattenedProjectionRecord>(&DcProjectionPolicy::forgiving_quiet());
+    ensure!(view.value() == Some(&record));
+    ensure!(view.diagnostic().is_some(), "Successful syntax recovery must remain visible");
+    Ok(())
+}
+
 // ============================================================================
 // 5. DURATION WITH SHORT (393..394) AND LONG (395..396) DELIMITERS
 // ============================================================================

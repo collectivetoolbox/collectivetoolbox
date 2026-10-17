@@ -627,7 +627,8 @@ pub fn generate_syntax_table_code(resolver: &DatasetRuleResolver) -> String {
 ///
 /// # Errors
 /// Returns an error if the dataset directories or the named types CSV are
-/// missing or empty, or if writing the generated file fails.
+/// missing or empty, validation fails, or writing the generated file fails.
+/// Invalid datasets are rejected before the generated file is written.
 pub fn generate_syntax_table_file(repo_root: &Path) -> Result<bool> {
     let data_dir = repo_root
         .join("src")
@@ -681,17 +682,34 @@ fn load_resolver_from_disk(
     formats_dir: &Path,
     named_types_bytes: &[u8],
 ) -> Result<DatasetRuleResolver> {
+    let named_resolver = DatasetRuleResolver::load_from_dataset(
+        &[], &[], Some(named_types_bytes),
+    )?;
+    let named_types = named_resolver.named_types.keys().cloned().collect();
     let mut report = ValidationReport::new();
-    let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
-        categories_dir,
-        &HashSet::new(),
-        None,
-        None,
-        None,
-        None,
+    let format_defns = crate::format::validate_all_format_files_from_disk(
+        formats_dir,
         None,
         &mut report,
     );
+    let format_ids = format_defns.iter().filter_map(|defn| defn.short_id).collect();
+    let format_syntax_ids = format_defns.iter()
+        .filter(|defn| defn.syntax.is_some())
+        .filter_map(|defn| defn.short_id).collect();
+    let format_registry = crate::syntax::build_format_validation_registry(&format_defns);
+    let mut dc_defns = crate::validation::validate_all_dc_files_from_disk(
+        categories_dir,
+        &format_ids,
+        None,
+        Some(&named_types),
+        None,
+        Some(&format_syntax_ids),
+        Some(&format_registry),
+        &mut report,
+    );
+    report.ensure_valid().with_context(|| {
+        format!("Invalid syntax dataset under {}", categories_dir.display())
+    })?;
     ensure!(
         !dc_defns.is_empty(),
         "No Document Character definitions were loaded from {}",
@@ -700,21 +718,16 @@ fn load_resolver_from_disk(
     // Match the canonical embedded ordering (lookup.rs sorts by long ID) so
     // delimiter precedence is identical to the embedded dataset build.
     dc_defns.sort_by_key(|defn| defn.dc_id);
-    let format_defns = crate::format::validate_all_format_files_from_disk(
-        formats_dir,
-        None,
-        &mut report,
-    );
     ensure!(
         !format_defns.is_empty(),
         "No format definitions were loaded from {}",
         formats_dir.display()
     );
-    Ok(DatasetRuleResolver::load_from_dataset(
+    DatasetRuleResolver::load_from_dataset(
         &dc_defns,
         &format_defns,
         Some(named_types_bytes),
-    ))
+    )
 }
 
 #[cfg(test)]
@@ -731,6 +744,112 @@ fn load_resolver_from_disk(
 mod tests {
     use super::*;
     use crate::syntax::parser::parse_dc_syntax;
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_rejects_invalid_named_types() -> Result<()> {
+        for (csv, expected) in [
+            ("Named type,Syntax\nbroken,:[\n", "invalid syntax"),
+            ("Named type,Syntax\nbroken,:(260){1..bad}\n", "invalid syntax"),
+            ("Named type,Syntax\nbroken\n", "has no syntax"),
+            ("Named type,Syntax\nbroken,\n", "has no syntax"),
+            ("Named type,Syntax\n,:(260)\n", "missing named type"),
+        ] {
+            let error = DatasetRuleResolver::load_from_dataset(
+                &[], &[], Some(csv.as_bytes()),
+            ).err().context("Invalid named grammar was accepted")?;
+            let message = format!("{error:#}");
+            assert!(message.contains("README-named-types.csv row 2"), "{message}");
+            assert!(message.contains(expected), "{message}");
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_generation_preserves_output_on_error() -> Result<()> {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("data");
+        for invalid_source in ["named", "category", "format"] {
+            let temp = tempfile::tempdir()?;
+            let data = temp.path().join("src/formats/dcdata/data");
+            for relative in ["categories", "categories/formats"] {
+                let target_dir = data.join(relative);
+                std::fs::create_dir_all(&target_dir)?;
+                for entry in std::fs::read_dir(source.join(relative))? {
+                    let entry = entry?;
+                    if entry.file_type()?.is_file() {
+                        std::fs::copy(entry.path(), target_dir.join(entry.file_name()))?;
+                    }
+                }
+            }
+            std::fs::copy(
+                source.join("README-named-types.csv"),
+                data.join("README-named-types.csv"),
+            )?;
+            let output = temp.path().join(
+                "src/formats/dcdata/syntax/resolver/syntax_table.generated.rs",
+            );
+            std::fs::create_dir_all(output.parent().context("Missing output parent")?)?;
+            generate_syntax_table_file(temp.path())?;
+            let original_output = std::fs::read(&output)?;
+            assert!(!original_output.is_empty());
+            let expected = if invalid_source == "named" {
+                std::fs::write(
+                    data.join("README-named-types.csv"),
+                    "Named type,Syntax\nbroken,:[\n",
+                )?;
+                "README-named-types.csv"
+            } else {
+                let relative = if invalid_source == "category" {
+                    "categories/el.csv"
+                } else {
+                    "categories/formats/hash.csv"
+                };
+                let path = data.join(relative);
+                let mut reader = csv::ReaderBuilder::new().flexible(true).from_path(&path)?;
+                let headers = reader.headers()?.clone();
+                let syntax_column = headers.iter().position(|header| {
+                    header.contains("Syntax") || header.contains("syntax")
+                }).context("Missing fixture syntax column")?;
+                let mut records = reader.records().collect::<std::result::Result<Vec<_>, _>>()?;
+                let record = records.first_mut().context("Missing fixture row")?;
+                let fields: Vec<String> = record.iter().enumerate().map(|(index, value)| {
+                    if index == syntax_column { ":~ [".to_string() } else { value.to_string() }
+                }).collect();
+                *record = csv::StringRecord::from(fields);
+                let mut writer = csv::WriterBuilder::new().flexible(true).from_path(&path)?;
+                writer.write_record(&headers)?;
+                for record in records {
+                    writer.write_record(&record)?;
+                }
+                writer.flush()?;
+                if invalid_source == "category" { "el.csv" } else { "hash.csv" }
+            };
+            let error = generate_syntax_table_file(temp.path())
+                .err().context("Invalid dataset generated a reduced table")?;
+            let message = format!("{error:#}");
+            assert!(message.contains(expected), "{message}");
+            assert!(message.contains("syntax"), "{message}");
+            assert_eq!(std::fs::read(&output)?, original_output);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_authoritative_grammar_rejects_invalid_quantifiers() -> Result<()> {
+        for bounds in [
+            "bad..3", "1..bad", "3..1", "bad,3", "1,bad", "3,1",
+            "1..2..3", "1,2,3", "", "bad", "-1..3",
+            "999999999999999999999999999999999999999999..3",
+            "1..999999999999999999999999999999999999999999",
+        ] {
+            let raw = format!(":(260){{{bounds}}}");
+            assert!(parse_dc_syntax(&raw).is_err(), "accepted {raw}");
+        }
+        assert!(parse_dc_syntax(":(260){1..3").is_err());
+        for bounds in ["2", "0..3", "..3", "1..", "..", ",3", "1,", ","] {
+            parse_dc_syntax(&format!(":(260){{{bounds}}}"))?;
+        }
+        Ok(())
+    }
 
     /// Smoke-tests the emitter against a small hand-built resolver so
     /// emitter regressions surface without regenerating the full table.

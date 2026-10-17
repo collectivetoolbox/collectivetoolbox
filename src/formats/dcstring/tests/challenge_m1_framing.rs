@@ -70,6 +70,66 @@ fn create_mstring(chars: &[DcChar]) -> DcMstring {
 // ============================================================================
 
 #[crate::ctb_test]
+fn test_challenge_shallow_scan_depth_budget() -> Result<()> {
+    let doc = create_mstring(&[
+        DC_BEGIN_OPERATION_SESSION,
+        DC_BEGIN_OPERATION_SESSION,
+        DC_BEGIN_OPERATION_SESSION,
+        DC_BOOLEAN_TRUE,
+        DC_END_OPERATION_SESSION,
+        DC_END_OPERATION_SESSION,
+        DC_END_OPERATION_SESSION,
+    ]);
+    for budget in [0, 1, 2, 3] {
+        let policy = DcProjectionPolicy::strict()
+            .with_max_depth(budget, ctb_formats_dcstring::DiagnosticAction::Error);
+        let mut nav = DcDocumentNavigator::from_mstr(&doc);
+        ensure!(nav.next_sibling_stub(&policy).is_ok() == (budget == 3), "Shallow scan ignored budget {budget}");
+    }
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_opaque_comment_payload_framing() -> Result<()> {
+    use std::io::{Seek, SeekFrom, Write};
+
+    let policy = DcProjectionPolicy::strict();
+    for payload in [vec![sdc(317)], vec![sdc(317), sdc(255), sdc(248), sdc(260), sdc(6)]] {
+      for nested in [false, true] {
+        let mut chars = vec![sdc(246)];
+        chars.extend(payload.iter().copied());
+        chars.extend([sdc(248), DC_BOOLEAN_TRUE]);
+        if nested {
+            chars.insert(0, DC_BEGIN_OPERATION_SESSION);
+            chars.push(DC_END_OPERATION_SESSION);
+        }
+        let doc = create_mstring(&chars);
+        let mut text = DcString::new();
+        for ch in chars { text.push(ch); }
+        let mut file = tempfile::tempfile()?;
+        file.write_all(doc.as_ref())?;
+        file.seek(SeekFrom::Start(0))?;
+        for mut nav in [
+            DcDocumentNavigator::from_mstr(&doc),
+            DcDocumentNavigator::from_dc_str(&text),
+            DcDocumentNavigator::from_dcmm_file(file, 0)?,
+        ] {
+            if nested {
+                let session = nav.next_sibling_stub(&policy)?.context("Expected session")?;
+                nav.enter_frame(&session)?;
+            }
+            let comment = nav.next_sibling_stub(&policy)?.context("Expected opaque comment")?;
+            ensure!(comment.head_dc == sdc(246) && comment.closer_dc == Some(sdc(248)));
+            ensure!(!comment.is_unclosed());
+            ensure!(nav.next_sibling_stub(&policy)?.context("Expected sentinel")?.head_dc == DC_BOOLEAN_TRUE);
+            ensure!(nav.next_sibling_stub(&policy)?.is_none());
+        }
+      }
+    }
+    Ok(())
+}
+
+#[crate::ctb_test]
 fn test_challenge_deeply_nested_containers_and_bounds() -> Result<()> {
     let policy = DcProjectionPolicy::strict();
 

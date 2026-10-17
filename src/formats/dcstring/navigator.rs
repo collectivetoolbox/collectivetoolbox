@@ -2753,7 +2753,9 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<(u64, u64)> {
         let resolver = default_syntax_resolver();
-        let mut closer_stack = vec![closer];
+        ensure!(self.depth() < policy.max_depth,
+            "Container depth limit reached ({}) at offset {after_opener}", policy.max_depth);
+        let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
         let mut offset = after_opener;
 
         while let Some((ch, next_offset)) = self.read_token_or_binary_at(offset)? {
@@ -2768,6 +2770,16 @@ impl<'a> DcDocumentNavigator<'a> {
                     format!("Dangling escape Dc 255 at offset {token_start}"),
                 )?;
                 return Ok((next_offset, next_offset));
+            }
+            if closer_stack.last().is_some_and(|(_, opaque)| *opaque) {
+                if closer_stack.last().is_some_and(|(expected, _)| *expected == ch) {
+                    closer_stack.pop();
+                    if closer_stack.is_empty() {
+                        return Ok((token_start, next_offset));
+                    }
+                }
+                offset = next_offset;
+                continue;
             }
             if ch == DC_START_ENCAPSULATION_BINARY {
                 let (after_bin, _) = self.scan_binary_at(token_start, policy)?;
@@ -2786,7 +2798,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 offset = self.scan_until_token(next_offset, DC_END_NUMBER, policy)?;
                 continue;
             }
-            if closer_stack.last() == Some(&ch) {
+            if closer_stack.last().is_some_and(|(expected, _)| *expected == ch) {
                 closer_stack.pop();
                 if closer_stack.is_empty() {
                     return Ok((token_start, next_offset));
@@ -2796,7 +2808,7 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             // Sacred opener/closer framing: if an inner container was left unclosed
             // before an outer closer on the stack, synchronize at the outer closer.
-            if let Some(stack_pos) = closer_stack.iter().rposition(|&c| c == ch) {
+            if let Some(stack_pos) = closer_stack.iter().rposition(|(expected, _)| *expected == ch) {
                 policy.handle(
                     policy.syntax_error,
                     format!(
@@ -2812,7 +2824,9 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
                 if let Some(inner_closer) = resolver.closer_for_opener(&target) {
-                    closer_stack.push(DcChar::from_u128(inner_closer));
+                    ensure!(self.depth().saturating_add(closer_stack.len()) < policy.max_depth,
+                        "Container depth limit reached ({}) at offset {token_start}", policy.max_depth);
+                    closer_stack.push((DcChar::from_u128(inner_closer), resolver.is_opaque_container(ch.to_u128())));
                 }
             }
             offset = next_offset;
@@ -2880,29 +2894,53 @@ impl<'a> DcDocumentNavigator<'a> {
                 format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
             )?;
         }
-        let (final_end, bin_header) = match self.scan_binary_at(after_digest_tag, policy) {
-            Ok(res) => res,
-            Err(_) => return Ok((after_digest_tag, sequence_id, false)),
-        };
-        let expected_digest = match bin_header {
+        let (final_end, bin_header) = self.scan_binary_at(after_digest_tag, policy)?;
+        let checksum = match bin_header {
             DcFrameHeaderInfo::Binary {
+                data_type: Some(data_type),
                 payload_span: Some(pspan),
                 ..
-            } => self.read_span_bytes(pspan)?.into_owned(),
-            _ => match self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy) {
-                Ok(DcSyntaxKind::Binary {
-                    payload: BinaryPayloadRef::Borrowed(b),
+            } => {
+                let algorithm = BinaryChecksum::algorithm_for_digest(&data_type, pspan.len())?;
+                BinaryChecksum {
+                    algorithm,
+                    expected_digest: self.read_span_bytes(pspan)?.into_owned(),
+                }
+            }
+            _ => {
+                let DcSyntaxKind::Binary {
+                    data_type: Some(data_type),
+                    payload,
                     ..
-                }) => b.to_vec(),
-                Ok(DcSyntaxKind::Binary {
-                    payload: BinaryPayloadRef::Inline(b),
-                    ..
-                }) => b,
-                _ => Vec::new(),
-            },
+                } = self.parse_binary_arena_node(DcByteSpan::new(after_digest_tag, final_end), policy)? else {
+                    bail!("Section digest requires a typed checksum payload");
+                };
+                let algorithm = BinaryChecksum::algorithm_for_digest(&data_type, payload.len())?;
+                BinaryChecksum { algorithm, expected_digest: payload.materialize_bytes()?.into_owned() }
+            }
         };
-        let actual_digest = self.sha256_of_span(body_span)?;
-        let valid = checksum_ok && actual_digest.as_slice() == expected_digest.as_slice();
+        let matches = match &mut self.backend {
+            NavBackend::MemoryMstr(mstr) => {
+                let mut body = mstr.as_bytes().get(body_span.to_usize_range()?)
+                    .context("Section body span out of bounds")?;
+                checksum.matches_reader(&mut body, body_span.len())?
+            }
+            NavBackend::MemoryText(text) => {
+                let mut body = text.as_bytes().get(body_span.to_usize_range()?)
+                    .context("Section body span out of bounds")?;
+                checksum.matches_reader(&mut body, body_span.len())?
+            }
+            NavBackend::SeekableFile { reader, .. } => {
+                let saved_position = reader.stream_position()?;
+                let result = (|| -> Result<bool> {
+                    reader.seek(SeekFrom::Start(body_span.start))?;
+                    checksum.matches_reader(reader, body_span.len())
+                })();
+                reader.seek(SeekFrom::Start(saved_position))?;
+                result?
+            }
+        };
+        let valid = checksum_ok && matches;
         if !valid {
             self.syntax_issue(policy, body_span.start, "Section checksum mismatch".to_owned())?;
         }
@@ -3373,7 +3411,10 @@ impl<'a> DcDocumentNavigator<'a> {
                         Ok(false)
                     }
                 } else {
-                    if in_set {
+                    let in_opaque = ctx
+                        .self_dc
+                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
+                    if in_set && !(in_opaque && first_dc == DC_ESCAPE) {
                         return Ok(false);
                     }
                     if first_dc == DC_ESCAPE {
@@ -3389,9 +3430,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         self.cursor = after_esc;
                         return Ok(true);
                     }
-                    let in_opaque = ctx
-                        .self_dc
-                        .is_some_and(|s| ctx.resolver.is_opaque_container(s));
                     if !in_opaque {
                         if first_dc == DC_START_ENCAPSULATION_BINARY {
                             if let Ok((after_bin, _)) = self.scan_binary_at(start_offset, &ctx.policy) {
@@ -3498,33 +3536,11 @@ impl<'a> DcDocumentNavigator<'a> {
                     return Ok(false);
                 }
                 if name == "type" && subtype.is_none() {
-                    if first_dc == DC_BEGIN_TYPE_DEF {
-                        if let Some(target) = CharTarget::from_u128(first) {
-                            if let Some(rule) = ctx.resolver.resolve_rule(&target) {
-                                let old_self = ctx.self_dc;
-                                ctx.self_dc = Some(first);
-                                let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                                ctx.self_dc = old_self;
-                                if matched {
-                                    return Ok(true);
-                                }
-                                self.cursor = start_offset;
-                            }
-                        }
-                    }
-                    if first_dc == DC_TYPE_INTERSECTION || first_dc == DC_TYPE_UNION {
-                        if let Some(target) = CharTarget::from_u128(first) {
-                            if let Some(rule) = ctx.resolver.resolve_rule(&target) {
-                                let old_self = ctx.self_dc;
-                                ctx.self_dc = Some(first);
-                                let matched = self.eval_pattern(&rule.pattern, ctx)?;
-                                ctx.self_dc = old_self;
-                                if matched {
-                                    return Ok(true);
-                                }
-                                self.cursor = start_offset;
-                            }
-                        }
+                    if first_dc == DC_BEGIN_TYPE_DEF
+                        || first_dc == DC_TYPE_INTERSECTION
+                        || first_dc == DC_TYPE_UNION
+                    {
+                        return self.eval_type_constructor(ctx);
                     }
                     let is_format_token =
                         (ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START
@@ -3661,6 +3677,127 @@ impl<'a> DcDocumentNavigator<'a> {
                 }
             }
         }
+    }
+
+    fn eval_type_constructor(&mut self, ctx: &mut SyntaxEvalContext<'_>) -> Result<bool> {
+        enum Frame<'r> {
+            Pattern(SyntaxPattern),
+            Sequence(Vec<SyntaxElement>, usize, u64),
+            Alternation(Vec<SyntaxPattern>, usize, u64, SyntaxEvalContext<'r>),
+            Element(SyntaxElement, usize, u64, u64),
+            Term(SyntaxTerm),
+            Restore(Option<u128>, usize, u64),
+        }
+        let start = self.cursor;
+        let old_depth = ctx.depth;
+        let old_self = ctx.self_dc;
+        let type_term = SyntaxTerm::NamedConstruct {
+            name: "type".to_owned(), subtype: None, capture_var: None,
+        };
+        let result = (|| -> Result<bool> {
+            let mut frames = vec![Frame::Term(type_term)];
+            let mut matched = true;
+            while let Some(frame) = frames.pop() {
+                match frame {
+                    Frame::Term(term) => {
+                        let token = self.read_token_or_binary_at(self.cursor)?.map(|(ch, _)| ch);
+                        let constructor = matches!(&term, SyntaxTerm::NamedConstruct { name, subtype: None, .. } if name == "type")
+                            && token.is_some_and(|ch| ch == DC_BEGIN_TYPE_DEF || ch == DC_TYPE_UNION || ch == DC_TYPE_INTERSECTION);
+                        let pattern = if constructor {
+                            token.and_then(|ch| CharTarget::from_u128(ch.to_u128()))
+                                .and_then(|target| ctx.resolver.resolve_rule(&target))
+                                .map(|rule| rule.pattern.clone())
+                        } else if let SyntaxTerm::NamedConstruct { name, subtype, .. } = &term {
+                            if name == "list" {
+                                ctx.resolver.resolve_named_type_with_arg(name, subtype.as_deref())
+                            } else { None }
+                        } else if let SyntaxTerm::RuleRef { target } = &term {
+                            ctx.resolver.resolve_rule(target).map(|rule| rule.pattern.clone())
+                        } else { None };
+                        if let Some(pattern) = pattern {
+                            if ctx.depth >= ctx.max_depth {
+                                ctx.has_errors = true;
+                                ctx.diagnostics.push(SyntaxDiagnostic {
+                                    message: format!("Syntax expansion depth limit reached ({}) for type constructor", ctx.max_depth),
+                                    token_offset: self.cursor,
+                                    is_error: true,
+                                });
+                                return Ok(false);
+                            }
+                            frames.push(Frame::Restore(ctx.self_dc, ctx.depth, self.cursor));
+                            ctx.depth = ctx.depth.saturating_add(1);
+                            if constructor { ctx.self_dc = token.map(DcChar::to_u128); }
+                            if let SyntaxTerm::RuleRef { target } = &term { ctx.self_dc = Some(target.to_u128()); }
+                            frames.push(Frame::Pattern(pattern));
+                        } else if constructor {
+                            matched = false;
+                        } else if let SyntaxTerm::Group(pattern) = term {
+                            frames.push(Frame::Pattern(pattern));
+                        } else {
+                            matched = self.eval_term_single(&term, ctx)?;
+                        }
+                    }
+                    Frame::Pattern(pattern) => match pattern {
+                        SyntaxPattern::Sequence(elements) => {
+                            frames.push(Frame::Sequence(elements, 0, self.cursor));
+                            matched = true;
+                        }
+                        SyntaxPattern::Alternation(branches) => {
+                            let Some(branch) = branches.first().cloned() else { matched = false; continue; };
+                            frames.push(Frame::Alternation(branches, 1, self.cursor, ctx.clone()));
+                            frames.push(Frame::Pattern(branch));
+                        }
+                    },
+                    Frame::Sequence(elements, index, sequence_start) => {
+                        if !matched { self.cursor = sequence_start; continue; }
+                        if let Some(element) = elements.get(index).cloned() {
+                            frames.push(Frame::Sequence(elements, index.saturating_add(1), sequence_start));
+                            frames.push(Frame::Element(element.clone(), 0, self.cursor, self.cursor));
+                            frames.push(Frame::Term(element.term));
+                        }
+                    }
+                    Frame::Alternation(branches, index, branch_start, saved_ctx) => {
+                        if matched && !ctx.has_errors { continue; }
+                        self.cursor = branch_start;
+                        *ctx = saved_ctx.clone();
+                        if let Some(branch) = branches.get(index).cloned() {
+                            frames.push(Frame::Alternation(branches, index.saturating_add(1), branch_start, saved_ctx));
+                            frames.push(Frame::Pattern(branch));
+                        } else { matched = false; }
+                    }
+                    Frame::Element(element, count, element_start, iteration_start) => {
+                        let count = if matched && !ctx.has_errors { count.saturating_add(1) } else {
+                            self.cursor = iteration_start;
+                            count
+                        };
+                        if matched && !ctx.has_errors && self.cursor > iteration_start
+                            && !element.quantifier.reached_max(count) && self.cursor < self.active_span.end
+                        {
+                            frames.push(Frame::Element(element.clone(), count, element_start, self.cursor));
+                            frames.push(Frame::Term(element.term));
+                            continue;
+                        }
+                        matched = !ctx.has_errors && match element.quantifier {
+                            Quantifier::ExactOne => count == 1,
+                            Quantifier::Optional | Quantifier::ZeroOrMore => true,
+                            Quantifier::OneOrMore => count >= 1,
+                            Quantifier::Range { min, max } => count >= min && max.is_none_or(|limit| count <= limit),
+                        };
+                        if !matched { self.cursor = element_start; }
+                    }
+                    Frame::Restore(self_dc, depth, rule_start) => {
+                        ctx.self_dc = self_dc;
+                        ctx.depth = depth;
+                        if !matched { self.cursor = rule_start; }
+                    }
+                }
+            }
+            Ok(matched)
+        })();
+        ctx.depth = old_depth;
+        ctx.self_dc = old_self;
+        if !matches!(result, Ok(true)) { self.cursor = start; }
+        result
     }
 
     fn eval_constrained_equivalent_list(

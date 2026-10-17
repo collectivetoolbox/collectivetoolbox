@@ -131,6 +131,17 @@ pub trait DcMixedDecode: Sized {
     ) -> Result<Self>;
 }
 
+/// Normalized field input shared by ordinary and flattened record projection.
+#[derive(Debug, Clone, Copy)]
+pub struct FieldProjectionSpec {
+    /// Semantic field tag selected by the containing record.
+    pub tag: u128,
+    /// Parsed node containing the field's value.
+    pub value_node: NodeId,
+    /// Original field node retained for annotations and diagnostics.
+    pub source_node: NodeId,
+}
+
 /// Trait for types whose fields can be serialized or deserialized in a flattened context.
 pub trait DcMixedFlattened: Sized {
     type State: Default;
@@ -545,6 +556,7 @@ pub struct DcProjectionContext<'a, 'ctx> {
     pub record_depth: usize,
     /// Current stream or node byte offset for diagnostics.
     pub current_position: u64,
+    diagnostics: Vec<ctb_formats_dcdata::syntax::SyntaxDiagnostic>,
     /// Optional stream-backed resolver for `DeferredStream` binary payloads.
     pub binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
 }
@@ -560,6 +572,7 @@ impl fmt::Debug for DcProjectionContext<'_, '_> {
             .field("annotating", &self.annotating)
             .field("record_depth", &self.record_depth)
             .field("current_position", &self.current_position)
+            .field("diagnostics", &self.diagnostics)
             .field("has_binary_resolver", &self.binary_resolver.is_some())
             .finish()
     }
@@ -578,6 +591,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotating: false,
             record_depth: 0,
             current_position: 0,
+            diagnostics: Vec::new(),
             binary_resolver: None,
         }
     }
@@ -609,6 +623,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             annotating: false,
             record_depth: 0,
             current_position: 0,
+            diagnostics: Vec::new(),
             binary_resolver,
         }
     }
@@ -645,12 +660,37 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
     pub fn handle_remaining_nodes(&mut self, nodes: &[NodeId]) -> Result<()> {
         for &node_id in nodes {
             let node = self.node(node_id)?;
+            self.current_position = node.span.start;
             self.handle_unconsumed_or_incomplete(
                 &[format!("Unconsumed Dc node: {:?}", node.kind)],
                 &[],
             )?;
         }
         Ok(())
+    }
+
+    /// Returns anomalies retained during projection, including quiet recovery.
+    #[must_use]
+    pub fn diagnostics(&self) -> &[ctb_formats_dcdata::syntax::SyntaxDiagnostic] {
+        &self.diagnostics
+    }
+
+    /// Records a projection anomaly and applies the caller's chosen action.
+    ///
+    /// # Errors
+    /// Returns an error when the action rejects the anomaly.
+    pub fn handle_diagnostic(
+        &mut self,
+        action: crate::DiagnosticAction,
+        message: impl Into<String>,
+    ) -> Result<()> {
+        let message = message.into();
+        self.diagnostics.push(ctb_formats_dcdata::syntax::SyntaxDiagnostic {
+            message: message.clone(),
+            token_offset: self.current_position,
+            is_error: action == crate::DiagnosticAction::Error,
+        });
+        self.policy.handle(action, message)
     }
 
     /// Checks for unconsumed Dc elements or missing required fields after decoding
@@ -664,10 +704,10 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         missing_fields: &[&'static str],
     ) -> Result<()> {
         for desc in unconsumed_descriptions {
-            self.policy.handle(self.policy.unknown_field, desc.as_str())?;
+            self.handle_diagnostic(self.policy.unknown_field, desc.as_str())?;
         }
         for field in missing_fields {
-            self.policy.handle(
+            self.handle_diagnostic(
                 self.policy.missing_required_field,
                 format!("Missing required field `{field}`"),
             )?;
@@ -2529,24 +2569,35 @@ mod tests {
                 source.push_char(DcChar::from_short(318));
             }
             let before = source.clone();
-            let view = source.inspect::<SampleFileRecord>();
-            assert!(view.value().is_none());
-            assert_eq!(
-                view.diagnostic().context("Missing diagnostic")?.position(),
-                u64::try_from(stop)?
-            );
-            assert_eq!(view.fields().len(), 1);
+            let strict_view = source.inspect::<SampleFileRecord>();
+            assert!(strict_view.value().is_none());
+            assert!(strict_view.diagnostic().is_some());
+            let quiet = DcProjectionPolicy::forgiving_quiet();
+            let view = source.inspect_with_policy::<SampleFileRecord>(&quiet);
+            assert!(view.value().is_some());
+            assert!(!view.diagnostics().is_empty());
+            if !unknown {
+                assert!(view.diagnostics().iter().any(|diagnostic| {
+                    diagnostic.error().to_string().contains("Missing required field")
+                }));
+            }
+            assert_eq!(view.fields().len(), if unknown { 2 } else { 1 });
             assert_eq!(view.fields()[0].field(), "inode");
             assert_eq!(view.source_bytes(), source.as_bytes());
-            assert!(view.replace_field("path", &updated).is_err());
+            if unknown {
+                assert_eq!(view.fields()[1].field(), "path");
+                assert!(view.replace_field("path", &updated).is_ok());
+            } else {
+                assert!(view.replace_field("path", &updated).is_err());
+            }
             let revised = view.replace_field("inode", &updated)?;
-            let replacement_end = revised.inspect::<SampleFileRecord>().fields()[0].range().end;
+            let replacement_end = revised.inspect_with_policy::<SampleFileRecord>(&quiet).fields()[0].range().end;
             assert_eq!(revised.as_bytes().get(replacement_end..), source.as_bytes().get(stop..));
             assert_eq!(source, before);
             let text = source.to_dc_string()?;
-            let view = text.inspect::<SampleFileRecord>();
+            let view = text.inspect_with_policy::<SampleFileRecord>(&quiet);
             let revised: crate::DcString = view.replace_field("inode", &updated)?;
-            assert_eq!(revised.inspect::<SampleFileRecord>().fields()[0].range().start, 6);
+            assert_eq!(revised.inspect_with_policy::<SampleFileRecord>(&quiet).fields()[0].range().start, 6);
         }
         Ok(())
     }
