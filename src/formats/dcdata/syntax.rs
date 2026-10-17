@@ -29,10 +29,20 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::sync::{Arc, LazyLock};
+
 pub mod ast;
 pub mod parser;
 pub mod resolver;
 pub mod validator;
+
+#[path = "syntax/resolver/codegen.rs"]
+pub mod codegen;
+
+#[path = "syntax/resolver/syntax_table.generated.rs"]
+mod syntax_table;
+
+mod data_constraint;
 
 pub use ast::{
     ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
@@ -40,32 +50,55 @@ pub use ast::{
 };
 pub use ast::SyntaxPattern as DcSyntaxExpr;
 pub use parser::{parse_dc_syntax, parse_target_token};
-pub use resolver::{
-    DatasetRuleResolver, StarterSet, SyntaxRuleResolver,
-    default_syntax_resolver,
-};
+pub use resolver::{DatasetRuleResolver, StarterSet, SyntaxRuleResolver};
 pub use validator::{
     FormatValidationInfo, FormatValidationRegistry,
     build_format_validation_registry, validate_dc_syntax,
 };
+pub use data_constraint::parse_data_constraint;
 
-/// Parses an optional format and decoded byte count for a data construct.
-pub fn parse_data_constraint(subtype: &str) -> anyhow::Result<(Option<&str>, Option<usize>)> {
-    let (format, length) = if subtype.starts_with("bytes=") {
-        (None, Some(subtype))
-    } else if let Some((format, length)) = subtype.split_once(';') {
-        (Some(format.trim()), Some(length.trim()))
-    } else {
-        (Some(subtype.trim()), None)
-    };
-    anyhow::ensure!(format.is_none_or(|format| !format.is_empty()), "Missing data format");
-    let bytes = if let Some(length) = length {
-        let digits = length.strip_prefix("bytes=").ok_or_else(|| anyhow::anyhow!("Expected bytes=N data constraint"))?;
-        anyhow::ensure!(!digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()),
-            "Data byte count must be a nonnegative integer");
-        Some(digits.parse::<usize>()?)
-    } else {
-        None
-    };
-    Ok((format, bytes))
+impl DatasetRuleResolver {
+    /// Loads the authoritative resolver state from the generated static
+    /// syntax table (`syntax_table.generated.rs`).
+    ///
+    /// The static table is generated from the CSV dataset in
+    /// `src/formats/dcdata/data/` by `codegen::generate_syntax_table_file`
+    /// (invoked via `./scripts/validate-data-tables`), so loading performs a
+    /// single materialization pass over compiled-in table data with no CSV
+    /// parsing, syntax DSL parsing, or derived-table recomputation.
+    #[must_use]
+    pub fn load() -> Self {
+        let mut resolver = Self::new();
+        syntax_table::populate(&mut resolver);
+        resolver
+    }
+
+    /// Builds a resolver by indexing the compiled-in (embedded) CSV dataset
+    /// in `src/formats/dcdata/data/`.
+    ///
+    /// Used by the consistency test verifying that the generated static
+    /// syntax table is up to date with the embedded dataset.
+    #[must_use]
+    pub fn load_from_embedded_dataset() -> Self {
+        let mut fmt_report = crate::report::ValidationReport::new();
+        let format_defns = crate::format::validate_all_format_files(
+            &crate::FORMATS_CATEGORIES_DIR,
+            None,
+            &mut fmt_report,
+        );
+        Self::load_from_dataset(
+            crate::lookup::get_all_dc_defns(),
+            &format_defns,
+            crate::get_dc_data_file("README-named-types.csv").as_deref(),
+        )
+    }
+}
+
+static DEFAULT_RESOLVER: LazyLock<Arc<DatasetRuleResolver>> =
+    LazyLock::new(|| Arc::new(DatasetRuleResolver::load()));
+
+/// Returns the lazily loaded shared default syntax resolver instance.
+#[must_use]
+pub fn default_syntax_resolver() -> &'static Arc<DatasetRuleResolver> {
+    &DEFAULT_RESOLVER
 }

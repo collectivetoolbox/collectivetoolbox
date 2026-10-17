@@ -41,12 +41,6 @@ use crate::dc::{
 };
 use crate::dc_def::DcDefn;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, LazyLock};
-
-pub mod codegen;
-
-#[path = "resolver/syntax_table.generated.rs"]
-mod syntax_table;
 
 /// Precomputed starter token set for a named syntactic construct, derived
 /// recursively from the CSV syntax patterns in `README-named-types.csv` and
@@ -404,17 +398,17 @@ fn parse_prefer_target(decompositions: &[String]) -> Option<CharTarget> {
 /// In-memory resolver caching syntax rules, named types, and script mappings.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DatasetRuleResolver {
-    rules: HashMap<CharTarget, DcSyntaxRule>,
-    named_types: HashMap<String, SyntaxPattern>,
-    script_chars: HashMap<String, HashSet<u128>>,
-    closing_delimiters: HashMap<u128, CharTarget>,
-    opener_to_closer: HashMap<CharTarget, u128>,
-    deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
-    container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
-    trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
-    infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
-    named_type_starters: HashMap<String, StarterSet>,
-    opaque_containers: HashSet<u128>,
+    pub(super) rules: HashMap<CharTarget, DcSyntaxRule>,
+    pub(super) named_types: HashMap<String, SyntaxPattern>,
+    pub(super) script_chars: HashMap<String, HashSet<u128>>,
+    pub(super) closing_delimiters: HashMap<u128, CharTarget>,
+    pub(super) opener_to_closer: HashMap<CharTarget, u128>,
+    pub(super) deprecated_targets: HashMap<CharTarget, Option<CharTarget>>,
+    pub(super) container_headers: HashMap<CharTarget, Vec<SyntaxElement>>,
+    pub(super) trailing_after_closer: HashMap<CharTarget, Vec<SyntaxElement>>,
+    pub(super) infix_rules: HashMap<u128, (Vec<SyntaxElement>, Vec<SyntaxElement>)>,
+    pub(super) named_type_starters: HashMap<String, StarterSet>,
+    pub(super) opaque_containers: HashSet<u128>,
 }
 
 impl DatasetRuleResolver {
@@ -595,7 +589,7 @@ impl DatasetRuleResolver {
         }
     }
 
-    fn precompute_derived_tables(&mut self) {
+    pub(super) fn precompute_derived_tables(&mut self) {
         // 1. Container headers, trailing elements after container closers, and opaque containers
         let opener_closers: Vec<(CharTarget, u128)> = self
             .opener_to_closer
@@ -666,29 +660,15 @@ impl DatasetRuleResolver {
         }
     }
 
-    /// Loads the authoritative resolver state from the generated static
-    /// syntax table (`syntax_table.generated.rs`).
-    ///
-    /// The static table is generated from the CSV dataset in
-    /// `src/formats/dcdata/data/` by `codegen::generate_syntax_table_file`
-    /// (invoked via `./scripts/validate-data-tables`), so loading performs a
-    /// single materialization pass over compiled-in table data with no CSV
-    /// parsing, syntax DSL parsing, or derived-table recomputation.
-    #[must_use]
-    pub fn load() -> Self {
-        let mut resolver = Self::new();
-        syntax_table::populate(&mut resolver);
-        resolver
-    }
-
     /// Builds a resolver by indexing syntax rules directly from parsed
     /// dataset definitions.
     ///
     /// This is the CSV-driven authoritative indexing path used by
-    /// `codegen::generate_syntax_table_file` and by the consistency test
-    /// verifying that the generated static syntax table matches the dataset.
-    /// `dc_defns` must be sorted by long ID so delimiter precedence is
-    /// deterministic (matching `lookup::get_all_dc_defns`).
+    /// `crate::syntax::codegen::generate_syntax_table_file` and by the
+    /// consistency test verifying that the generated static syntax table
+    /// matches the dataset. `dc_defns` must be sorted by long ID so
+    /// delimiter precedence is deterministic (matching
+    /// `lookup::get_all_dc_defns`).
     #[must_use]
     pub fn load_from_dataset(
         dc_defns: &[DcDefn],
@@ -818,26 +798,6 @@ impl DatasetRuleResolver {
         resolver.precompute_derived_tables();
         resolver
     }
-
-    /// Builds a resolver by indexing the compiled-in (embedded) CSV dataset
-    /// in `src/formats/dcdata/data/`.
-    ///
-    /// Used by the consistency test verifying that the generated static
-    /// syntax table is up to date with the embedded dataset.
-    #[must_use]
-    pub fn load_from_embedded_dataset() -> Self {
-        let mut fmt_report = crate::report::ValidationReport::new();
-        let format_defns = crate::format::validate_all_format_files(
-            &crate::FORMATS_CATEGORIES_DIR,
-            None,
-            &mut fmt_report,
-        );
-        Self::load_from_dataset(
-            crate::lookup::get_all_dc_defns(),
-            &format_defns,
-            crate::get_dc_data_file("README-named-types.csv").as_deref(),
-        )
-    }
 }
 
 impl SyntaxRuleResolver for DatasetRuleResolver {
@@ -939,15 +899,6 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     fn is_opaque_container(&self, opener_token: u128) -> bool {
         self.opaque_containers.contains(&opener_token)
     }
-}
-
-static DEFAULT_RESOLVER: LazyLock<Arc<DatasetRuleResolver>> =
-    LazyLock::new(|| Arc::new(DatasetRuleResolver::load()));
-
-/// Returns the lazily loaded shared default syntax resolver instance.
-#[must_use]
-pub fn default_syntax_resolver() -> &'static Arc<DatasetRuleResolver> {
-    &DEFAULT_RESOLVER
 }
 
 #[cfg(test)]

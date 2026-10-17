@@ -3106,6 +3106,7 @@ dependencies = [
 name = "ctb-formats-dcdata"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "csv",
  "ctb-build-support",
  "ctb-formats-unicode",

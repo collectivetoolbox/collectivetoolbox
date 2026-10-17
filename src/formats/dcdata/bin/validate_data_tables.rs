@@ -172,7 +172,7 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_formats_dcdata::syntax::resolver::codegen::generate_syntax_table_file(&repo_root) {
+    match ctb_formats_dcdata::syntax::codegen::generate_syntax_table_file(&repo_root) {
         Ok(updated) => {
             if updated {
                 println!("Successfully updated syntax/resolver/syntax_table.generated.rs from CSV syntax rules.");
