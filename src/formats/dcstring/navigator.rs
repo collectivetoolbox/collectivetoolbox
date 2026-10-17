@@ -177,7 +177,7 @@ impl SyntaxRuntimeRegistry {
 /// Larger binary regions are represented as [`BinaryPayloadRef::FileSpan`].
 pub const INLINE_BINARY_THRESHOLD: u64 = 4096;
 
-/// Maximum eagerly parsed metadata size for a seekable binary encapsulation.
+/// Default maximum eagerly parsed metadata size for a seekable encapsulation.
 pub const MAX_BINARY_METADATA_BYTES: u64 = 1_048_576;
 
 /// Action to take when a syntax or projection anomaly is encountered.
@@ -212,6 +212,9 @@ pub struct DcProjectionPolicy {
     pub max_depth: usize,
     /// Action taken when container or wrapper nesting exceeds [`Self::max_depth`].
     pub depth_limit_exceeded: DiagnosticAction,
+    /// Maximum eagerly allocated metadata bytes per seekable binary header.
+    /// Exceeding this resource budget is an error under every diagnostic policy.
+    pub max_binary_metadata_bytes: u64,
 }
 
 impl DcProjectionPolicy {
@@ -228,6 +231,7 @@ impl DcProjectionPolicy {
             missing_required_field: DiagnosticAction::Error,
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Error,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
         }
     }
 
@@ -244,6 +248,7 @@ impl DcProjectionPolicy {
             missing_required_field: DiagnosticAction::Warn,
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Warn,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
         }
     }
 
@@ -259,6 +264,7 @@ impl DcProjectionPolicy {
             missing_required_field: DiagnosticAction::Ignore,
             max_depth: DEFAULT_MAX_PROJECTION_DEPTH,
             depth_limit_exceeded: DiagnosticAction::Ignore,
+            max_binary_metadata_bytes: MAX_BINARY_METADATA_BYTES,
         }
     }
 
@@ -271,6 +277,13 @@ impl DcProjectionPolicy {
     ) -> Self {
         self.max_depth = max_depth;
         self.depth_limit_exceeded = action;
+        self
+    }
+
+    /// Sets the eager metadata allocation budget for each seekable binary header.
+    #[must_use]
+    pub const fn with_max_binary_metadata_bytes(mut self, max_bytes: u64) -> Self {
+        self.max_binary_metadata_bytes = max_bytes;
         self
     }
 
@@ -1248,6 +1261,77 @@ impl<'a> DcDocumentNavigator<'a> {
         &mut self,
         policy: &DcProjectionPolicy,
     ) -> Result<Option<DcFrameStub>> {
+        let resolver = default_syntax_resolver();
+        let mut assignment = None;
+        let mut rhs_rule = None;
+        loop {
+            let Some(stub) = self.scan_sibling_stub(policy)? else {
+                if let Some((start, operator, rhs_start)) = assignment {
+                    self.syntax_issue(policy, rhs_start, "Missing value on RHS of infix operator".to_owned())?;
+                    return Ok(Some(DcFrameStub {
+                        head_dc: operator,
+                        closer_dc: None,
+                        outer_span: DcByteSpan::new(start, self.cursor),
+                        inner_span: Some(DcByteSpan::new(rhs_start, self.cursor)),
+                        header_info: DcFrameHeaderInfo::None,
+                    }));
+                }
+                return Ok(None);
+            };
+            if let Some(elements) = rhs_rule.take() {
+                self.check_infix_operand(stub.outer_span, elements, policy)?;
+            }
+            if stub.head_dc == DC_BEGIN_IDENTIFIER && stub.closer_dc == Some(DC_END_IDENTIFIER) {
+                if let Some((operator, after_op)) = self.read_token_or_binary_at(stub.outer_span.end)? {
+                    if let Some((lhs, rhs)) = resolver.resolve_infix_rule(operator.to_u128()) {
+                        self.check_infix_operand(stub.outer_span, lhs, policy)?;
+                        assignment.get_or_insert((stub.outer_span.start, operator, after_op));
+                        rhs_rule = Some(rhs);
+                        self.cursor = after_op;
+                        continue;
+                    }
+                }
+            }
+            if let Some((start, operator, rhs_start)) = assignment {
+                return Ok(Some(DcFrameStub {
+                    head_dc: operator,
+                    closer_dc: None,
+                    outer_span: DcByteSpan::new(start, stub.outer_span.end),
+                    inner_span: Some(DcByteSpan::new(rhs_start, stub.outer_span.end)),
+                    header_info: DcFrameHeaderInfo::None,
+                }));
+            }
+            return Ok(Some(stub));
+        }
+    }
+
+    fn check_infix_operand(
+        &mut self,
+        span: DcByteSpan,
+        elements: &[SyntaxElement],
+        policy: &DcProjectionPolicy,
+    ) -> Result<()> {
+        let saved_span = self.active_span;
+        let saved_cursor = self.cursor;
+        self.active_span = span;
+        self.cursor = span.start;
+        let resolver = default_syntax_resolver();
+        let mut ctx = SyntaxEvalContext::new(&**resolver, None);
+        ctx.policy.clone_from(policy);
+        let result = self.eval_pattern(&SyntaxPattern::Sequence(elements.to_vec()), &mut ctx);
+        let complete = self.cursor == span.end && !ctx.has_errors;
+        self.active_span = saved_span;
+        self.cursor = saved_cursor;
+        if !result? || !complete {
+            self.syntax_issue(policy, span.start, "Infix operand does not match database syntax".to_owned())?;
+        }
+        Ok(())
+    }
+
+    fn scan_sibling_stub(
+        &mut self,
+        policy: &DcProjectionPolicy,
+    ) -> Result<Option<DcFrameStub>> {
         if self.cursor >= self.active_span.end {
             return Ok(None);
         }
@@ -1284,7 +1368,7 @@ impl<'a> DcDocumentNavigator<'a> {
 
         // 1. Check if this is a raw or textual binary encapsulation (Dc 203)
         if first_dc == DC_START_ENCAPSULATION_BINARY {
-            let (end_offset, header_info) = self.scan_binary_at(start_offset)?;
+            let (end_offset, header_info) = self.scan_binary_at(start_offset, policy)?;
             self.cursor = end_offset;
             return Ok(Some(DcFrameStub {
                 head_dc: DC_START_ENCAPSULATION_BINARY,
@@ -1324,37 +1408,6 @@ impl<'a> DcDocumentNavigator<'a> {
                         policy.syntax_error,
                         format!("Empty identifier frame (Dc 270..271) at offset {start_offset}"),
                     )?;
-                }
-                // Check if this identifier is the LHS of an infix rule (e.g. Dc 269 assignment)
-                if end_offset < self.active_span.end {
-                    if let Ok(Some((next_dc, after_op))) = self.read_token_or_binary_at(end_offset) {
-                        if resolver.resolve_infix_rule(next_dc.to_u128()).is_some() {
-                            self.cursor = after_op;
-                            let Some(rhs_stub) = self.next_sibling_stub(policy)? else {
-                                policy.handle(
-                                    policy.syntax_error,
-                                    format!("Missing value on RHS of infix operator {next_dc:?} at offset {end_offset}"),
-                                )?;
-                                self.cursor = after_op;
-                                return Ok(Some(DcFrameStub {
-                                    head_dc: next_dc,
-                                    closer_dc: None,
-                                    outer_span: DcByteSpan::new(start_offset, after_op),
-                                    inner_span: Some(DcByteSpan::new(after_op, after_op)),
-                                    header_info: DcFrameHeaderInfo::None,
-                                }));
-                            };
-                            let assign_end = rhs_stub.outer_span.end;
-                            self.cursor = assign_end;
-                            return Ok(Some(DcFrameStub {
-                                head_dc: next_dc,
-                                closer_dc: None,
-                                outer_span: DcByteSpan::new(start_offset, assign_end),
-                                inner_span: Some(DcByteSpan::new(after_op, assign_end)),
-                                header_info: DcFrameHeaderInfo::None,
-                            }));
-                        }
-                    }
                 }
             }
             self.cursor = end_offset;
@@ -2310,6 +2363,7 @@ impl<'a> DcDocumentNavigator<'a> {
     fn try_scan_raw_binary_at(
         &mut self,
         start_offset: u64,
+        policy: &DcProjectionPolicy,
     ) -> Result<Option<(u64, DcFrameHeaderInfo)>> {
         match &mut self.backend {
             NavBackend::MemoryMstr(mstr) => {
@@ -2345,16 +2399,15 @@ impl<'a> DcDocumentNavigator<'a> {
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
                         let data_len = u64::try_from(data.len())?;
                         let abs_data_start = end_offset.saturating_sub(data_len);
-                        let data_type = crate::encapsulation::parse_metadata(metadata)?
-                            .data_type
-                            .map(DcStr::to_owned);
+                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(metadata, policy.syntax_error)?;
+                        let data_type = parsed.data_type.map(DcStr::to_owned);
                         Ok(Some((
                             end_offset,
                             DcFrameHeaderInfo::Binary {
                                 data_type,
                                 payload_span: Some(DcByteSpan::new(abs_data_start, end_offset)),
                                 payload_len: data_len,
-                                checksum: crate::encapsulation::parse_checksum_spec(metadata)?,
+                                checksum: parsed.checksum_spec,
                             },
                         )))
                     }
@@ -2417,8 +2470,9 @@ impl<'a> DcDocumentNavigator<'a> {
                             .context("Binary payload offset overflow")?;
                         ensure!(payload_end <= source_end, "Truncated .dcmm metadata or binary payload");
                         ensure!(
-                            meta_len <= MAX_BINARY_METADATA_BYTES,
-                            "Binary metadata exceeds resource limit ({MAX_BINARY_METADATA_BYTES} bytes)"
+                            meta_len <= policy.max_binary_metadata_bytes,
+                            "Binary metadata exceeds resource limit ({} bytes)",
+                            policy.max_binary_metadata_bytes
                         );
                         let meta_len_usize = usize::try_from(meta_len)?;
                         let mut meta_bytes = Vec::new();
@@ -2428,10 +2482,9 @@ impl<'a> DcDocumentNavigator<'a> {
                             .read_exact(&mut meta_bytes)
                             .context("Truncated .dcmm metadata payload")?;
                         let meta_str = DcStr::from_bytes(&meta_bytes)?;
-                        data_type = crate::encapsulation::parse_metadata(meta_str)?
-                            .data_type
-                            .map(DcStr::to_owned);
-                        checksum = crate::encapsulation::parse_checksum_spec(meta_str)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(meta_str, policy.syntax_error)?;
+                        data_type = parsed.data_type.map(DcStr::to_owned);
+                        checksum = parsed.checksum_spec;
                     }
                     crate::dc_mixed::TYPE_BINARY_SHA256 => {
                         let payload_end = reader.stream_position()?.checked_add(32)
@@ -2476,8 +2529,8 @@ impl<'a> DcDocumentNavigator<'a> {
         }
     }
 
-    fn scan_binary_at(&mut self, start_offset: u64) -> Result<(u64, DcFrameHeaderInfo)> {
-        if let Some(res) = self.try_scan_raw_binary_at(start_offset)? {
+    fn scan_binary_at(&mut self, start_offset: u64, policy: &DcProjectionPolicy) -> Result<(u64, DcFrameHeaderInfo)> {
+        if let Some(res) = self.try_scan_raw_binary_at(start_offset, policy)? {
             return Ok(res);
         }
         self.scan_textual_binary_at(start_offset)
@@ -2601,7 +2654,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 return Ok((next_offset, next_offset));
             }
             if ch == DC_START_ENCAPSULATION_BINARY {
-                let (after_bin, _) = self.scan_binary_at(token_start)?;
+                let (after_bin, _) = self.scan_binary_at(token_start, policy)?;
                 offset = after_bin;
                 continue;
             }
@@ -2711,7 +2764,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 format!("Invalid [checksum] after Dc 545 at offset {after_digest_tag}"),
             )?;
         }
-        let (final_end, bin_header) = match self.scan_binary_at(after_digest_tag) {
+        let (final_end, bin_header) = match self.scan_binary_at(after_digest_tag, policy) {
             Ok(res) => res,
             Err(_) => return Ok((after_digest_tag, sequence_id, false)),
         };
@@ -2768,7 +2821,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         })
                     }
                     crate::DcMixedChunk::BinaryWithMetadata { data, metadata } => {
-                        let parsed = crate::encapsulation::parse_metadata(metadata)?;
+                        let parsed = crate::encapsulation::parse_metadata_with_checksum_action(metadata, policy.syntax_error)?;
                         let dt = parsed.data_type.map(DcStr::to_owned);
                         let cf = parsed.data_type.and_then(|d| d.chars().next());
                         Ok(DcSyntaxKind::Binary {
@@ -2802,7 +2855,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 })
             }
             NavBackend::SeekableFile { .. } => {
-                let (_, info) = self.scan_binary_at(span.start)?;
+                let (_, info) = self.scan_binary_at(span.start, policy)?;
                 let DcFrameHeaderInfo::Binary {
                     data_type,
                     payload_span: Some(pspan),
@@ -3225,7 +3278,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         .is_some_and(|s| ctx.resolver.is_opaque_container(s));
                     if !in_opaque {
                         if first_dc == DC_START_ENCAPSULATION_BINARY {
-                            if let Ok((after_bin, _)) = self.scan_binary_at(start_offset) {
+                            if let Ok((after_bin, _)) = self.scan_binary_at(start_offset, &ctx.policy) {
                                 self.cursor = after_bin;
                                 return Ok(true);
                             }
@@ -3623,7 +3676,7 @@ impl<'a> DcDocumentNavigator<'a> {
         };
 
         if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, payload_len, .. })) =
-            self.try_scan_raw_binary_at(start_offset)?
+            self.try_scan_raw_binary_at(start_offset, &ctx.policy)?
         {
             if ctx.validate_interiors && matches!(self.backend, NavBackend::SeekableFile { .. }) {
                 self.parse_binary_arena_node(
@@ -3729,7 +3782,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return Ok(false);
         }
         if let Some((end_offset, DcFrameHeaderInfo::Binary { data_type, .. })) =
-            self.try_scan_raw_binary_at(start_offset)?
+            self.try_scan_raw_binary_at(start_offset, &ctx.policy)?
         {
             let Some(ref dt) = data_type else {
                 return Ok(false);
@@ -4314,6 +4367,103 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn nested_metadata_checksum_policy() -> Result<()> {
+        let payload = b"payload";
+        let mut digest_metadata = DcString::new();
+        digest_metadata.push(ctb_utilities::format_id::DC_SHA256);
+        digest_metadata.push_dc_str(&crate::encapsulation::checksum_text(
+            ctb_utilities::format_id::DC_SHA256, &[0; 32],
+        )?);
+        let mut metadata = DcString::new();
+        crate::encapsulation::write_text(
+            &mut metadata, &ctb_formats_checksum::sha256(payload), &digest_metadata,
+        )?;
+        let mut bytes = DcMstring::new().as_bytes().to_vec();
+        bytes.extend_from_slice(&crate::dc_mixed::DC_203_BYTES);
+        bytes.push(crate::dc_mixed::TYPE_BINARY_METADATA);
+        bytes.extend_from_slice(&u128::try_from(payload.len())?.to_be_bytes());
+        bytes.extend_from_slice(&u128::try_from(metadata.len())?.to_be_bytes());
+        bytes.extend_from_slice(metadata.as_bytes());
+        bytes.extend_from_slice(payload);
+        for policy in [DcProjectionPolicy::strict(), DcProjectionPolicy::forgiving()] {
+            let mut nav = binary_file_navigator(&bytes, 8)?;
+            let result = nav.next_sibling_stub(&policy);
+            ensure!(result.is_err() == policy.is_strict(), "Nested checksum ignored caller policy: {result:?}");
+            if !policy.is_strict() {
+                let stub = result?.context("Missing binary")?;
+                let mut arena = DcSyntaxArena::new();
+                nav.expand_frame(&stub, &mut arena, &policy)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn assignment_rhs_uses_database_value_grammar() -> Result<()> {
+        let mut source = DcString::new();
+        source.push(DC_BEGIN_IDENTIFIER);
+        source.push_str("a");
+        source.push(DC_END_IDENTIFIER);
+        source.push(DC_ASSIGN);
+        source.push_str("A");
+        let mut nav = DcDocumentNavigator::from_dc_str(&source);
+        ensure!(nav.next_sibling_stub(&DcProjectionPolicy::strict()).is_err(), "Assignment accepted bare Unicode RHS");
+        let mut nav = DcDocumentNavigator::from_dc_str(&source);
+        let stub = nav.next_sibling_stub(&DcProjectionPolicy::forgiving())?.context("Missing assignment")?;
+        ensure!(stub.outer_span.end == u64::try_from(source.len())?, "Forgiving assignment lost containment");
+        ensure!(!nav.diagnostics.is_empty(), "Missing assignment diagnostic");
+        ensure!(nav.next_sibling_stub(&DcProjectionPolicy::forgiving())?.is_none(), "Assignment made no progress");
+        let mut deep = DcString::new();
+        deep.push(DC_BEGIN_IDENTIFIER);
+        deep.push_str("a");
+        deep.push(DC_END_IDENTIFIER);
+        deep.push(DC_ASSIGN);
+        for _ in 0..500 {
+            deep.push(DC_OPTIONAL_PRESENT);
+        }
+        deep.push(DC_OPTIONAL_ABSENT);
+        let policy = DcProjectionPolicy::strict().with_max_depth(600, DiagnosticAction::Error);
+        let mut nav = DcDocumentNavigator::from_dc_str(&deep);
+        nav.validate_document(&policy)?;
+        let mut nav = DcDocumentNavigator::from_dc_str(&deep);
+        let mut arena = DcSyntaxArena::new();
+        nav.parse_document_into_arena(&mut arena, &policy)?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn assignment_chain_small_stack_subprocess() -> Result<()> {
+        const CHILD: &str = "CTB_ASSIGNMENT_STACK_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new(std::env::current_exe()?)
+                .args(["--exact", "navigator::tests::assignment_chain_small_stack_subprocess", "--nocapture"])
+                .env(CHILD, "1")
+                .output()?;
+            ensure!(output.status.success(), "Assignment subprocess failed: {}", String::from_utf8_lossy(&output.stderr));
+            return Ok(());
+        }
+        let result = std::thread::Builder::new().stack_size(512 * 1024).spawn(|| -> Result<()> {
+            let mut source = DcString::new();
+            for _ in 0..256 {
+                source.push(DC_BEGIN_IDENTIFIER);
+                source.push_str("a");
+                source.push(DC_END_IDENTIFIER);
+                source.push(DC_ASSIGN);
+            }
+            source.push(DC_OPTIONAL_ABSENT);
+            let policy = DcProjectionPolicy::forgiving_quiet().with_max_depth(512, DiagnosticAction::Ignore);
+            let mut nav = DcDocumentNavigator::from_dc_str(&source);
+            let stub = nav.next_sibling_stub(&policy)?.context("Missing chain")?;
+            ensure!(stub.outer_span.end == u64::try_from(source.len())?, "Chain truncated");
+            ensure!(!nav.diagnostics.is_empty(), "Missing chain diagnostic");
+            let mut nav = DcDocumentNavigator::from_dc_str(&source);
+            ensure!(nav.next_sibling_stub(&DcProjectionPolicy::strict()).is_err(), "Invalid chain accepted");
+            Ok(())
+        })?.join().map_err(|_| anyhow::anyhow!("Assignment worker panicked"))?;
+        result
+    }
+
+    #[crate::ctb_test]
     fn file_binary_integrity_shallow_large_span_stays_lazy() -> Result<()> {
         use std::io::Write;
 
@@ -4468,6 +4618,23 @@ mod tests {
             }
         }
         let bytes = file_binary_document(&[42; 8], SupportedHashFormat::Sha256, true)?;
+        let mut nav = binary_file_navigator(&bytes, 0)?;
+        let stub = nav.next_sibling_stub(&DcProjectionPolicy::strict())?.context("Missing binary")?;
+        let DcFrameHeaderInfo::Binary { payload_span: Some(payload_span), .. } = stub.header_info else {
+            bail!("Missing binary span");
+        };
+        let metadata_start = u64::try_from(DCMM_HEADER_LEN)?
+            .checked_add(u64::try_from(crate::dc_mixed::DC_203_BYTES.len())?)
+            .and_then(|offset| offset.checked_add(33)).context("Metadata offset overflow")?;
+        let metadata_len = payload_span.start.checked_sub(metadata_start).context("Invalid metadata span")?;
+        for policy in [DcProjectionPolicy::strict(), DcProjectionPolicy::forgiving()] {
+            let mut nav = binary_file_navigator(&bytes, 0)?;
+            let error = nav.next_sibling_stub(&policy.clone().with_max_binary_metadata_bytes(metadata_len.checked_sub(1).context("Empty metadata")?))
+                .expect_err("Caller metadata limit ignored");
+            ensure!(error.to_string().contains("resource limit"), "Unexpected metadata limit error: {error}");
+            let mut nav = binary_file_navigator(&bytes, 0)?;
+            ensure!(nav.next_sibling_stub(&policy.with_max_binary_metadata_bytes(metadata_len))?.is_some(), "Exact metadata budget rejected");
+        }
         let mut nav = binary_file_navigator(&bytes, 0)?;
         nav.active_span.end = nav.active_span.end.checked_sub(1).context("Invalid test span")?;
         ensure!(nav.next_sibling_stub(&DcProjectionPolicy::forgiving()).is_err(), "Payload escaped active span");

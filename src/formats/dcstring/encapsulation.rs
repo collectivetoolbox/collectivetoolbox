@@ -37,6 +37,12 @@ use ctb_formats_dcdata::syntax::{
 pub(crate) struct Metadata<'a> {
     pub data_type: Option<&'a DcStr>,
     pub checksum: Option<&'a DcStr>,
+    pub checksum_spec: Option<ChecksumSpec>,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static PAYLOAD_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 struct Cursor<'a> {
@@ -113,12 +119,12 @@ impl<'a> Cursor<'a> {
         })?))
     }
 
-    fn read_checksum(&mut self, depth: usize) -> Result<Option<&'a DcStr>> {
+    fn read_checksum(&mut self, depth: usize) -> Result<Option<(&'a DcStr, ChecksumSpec)>> {
         if self.peek() != Some(DC_START_ENCAPSULATION_BINARY) {
             return Ok(None);
         }
         let start = self.position();
-        let (metadata, _) = self.read_payload(depth)?;
+        let (metadata, digest) = self.read_payload(depth)?;
         let data_type = metadata
             .data_type
             .context("Checksum requires a hash type")?;
@@ -128,13 +134,21 @@ impl<'a> Cursor<'a> {
                 .is_some_and(|info| info.category == "hash"),
             "Checksum type is not a hash format"
         );
-        Ok(Some(self.range(start)?))
+        let algorithm = SupportedHashFormat::from_format_id(format)
+            .with_context(|| format!("Unsupported encapsulation checksum algorithm: {format:?}"))?;
+        ensure!(
+            digest.len() == ctb_formats_checksum::StreamingHasher::new(algorithm).finalize().len(),
+            "Invalid encapsulation checksum digest length"
+        );
+        Ok(Some((self.range(start)?, ChecksumSpec { algorithm, expected_digest: digest })))
     }
 
     fn read_payload(
         &mut self,
         depth: usize,
     ) -> Result<(Metadata<'a>, Vec<u8>)> {
+        #[cfg(test)]
+        PAYLOAD_READS.with(|count| count.set(count.get().saturating_add(1)));
         ensure!(
             depth < 32,
             "Encapsulation metadata nesting exceeds 32 levels"
@@ -167,9 +181,10 @@ impl<'a> Cursor<'a> {
         }
         let metadata = Metadata {
             data_type,
-            checksum,
+            checksum: checksum.as_ref().map(|(raw, _)| *raw),
+            checksum_spec: checksum.map(|(_, spec)| spec),
         };
-        verify(&metadata, &data, depth, self.checksum_action)?;
+        verify(&metadata, &data, self.checksum_action)?;
         Ok((metadata, data))
     }
 }
@@ -186,31 +201,13 @@ fn single_format(data_type: &DcStr) -> Result<FormatId> {
     Ok(format)
 }
 
-fn verify(metadata: &Metadata<'_>, data: &[u8], depth: usize, checksum_action: crate::DiagnosticAction) -> Result<()> {
-    if let Some(checksum) = metadata.checksum {
-        let mut cursor = Cursor::new(checksum);
-        cursor.checksum_action = checksum_action;
-        let (digest_metadata, digest) =
-            cursor.read_payload(depth.saturating_add(1))?;
-        ensure!(cursor.peek().is_none(), "Trailing checksum content");
-        let format = single_format(
-            digest_metadata.data_type.context("Missing checksum type")?,
-        )?;
-        let algorithm = SupportedHashFormat::from_format_id(format)
-            .with_context(|| {
-                format!(
-                    "Unsupported encapsulation checksum algorithm: {format:?}"
-                )
-            })?;
-        let spec = ChecksumSpec {
-            algorithm,
-            expected_digest: digest,
-        };
+fn verify(metadata: &Metadata<'_>, data: &[u8], checksum_action: crate::DiagnosticAction) -> Result<()> {
+    if let Some(spec) = &metadata.checksum_spec {
         let mut reader = data;
         if !spec.matches_reader(&mut reader, u64::try_from(data.len())?)? {
             crate::DcProjectionPolicy::strict().handle(
                 checksum_action,
-                format!("Encapsulation checksum mismatch ({format:?})"),
+                format!("Encapsulation checksum mismatch ({:?})", spec.algorithm),
             )?;
         }
     }
@@ -218,7 +215,15 @@ fn verify(metadata: &Metadata<'_>, data: &[u8], depth: usize, checksum_action: c
 }
 
 pub(crate) fn parse_metadata(source: &DcStr) -> Result<Metadata<'_>> {
+    parse_metadata_with_checksum_action(source, crate::DiagnosticAction::Error)
+}
+
+pub(crate) fn parse_metadata_with_checksum_action(
+    source: &DcStr,
+    checksum_action: crate::DiagnosticAction,
+) -> Result<Metadata<'_>> {
     let mut cursor = Cursor::new(source);
+    cursor.checksum_action = checksum_action;
     let data_type = cursor.read_type()?;
     let checksum = cursor.read_checksum(0)?;
     ensure!(
@@ -227,12 +232,13 @@ pub(crate) fn parse_metadata(source: &DcStr) -> Result<Metadata<'_>> {
     );
     Ok(Metadata {
         data_type,
-        checksum,
+        checksum: checksum.as_ref().map(|(raw, _)| *raw),
+        checksum_spec: checksum.map(|(_, spec)| spec),
     })
 }
 
 pub(crate) fn validate_metadata(source: &DcStr, data: &[u8]) -> Result<()> {
-    verify(&parse_metadata(source)?, data, 0, crate::DiagnosticAction::Error)
+    verify(&parse_metadata(source)?, data, crate::DiagnosticAction::Error)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -259,27 +265,7 @@ impl ChecksumSpec {
 }
 
 pub(crate) fn parse_checksum_spec(source: &DcStr) -> Result<Option<ChecksumSpec>> {
-    let metadata = parse_metadata(source)?;
-    if let Some(checksum) = metadata.checksum {
-        let mut cursor = Cursor::new(checksum);
-        let (digest_metadata, digest) = cursor.read_payload(1)?;
-        ensure!(cursor.peek().is_none(), "Trailing checksum content");
-        let format = single_format(
-            digest_metadata.data_type.context("Missing checksum type")?,
-        )?;
-        let algorithm = SupportedHashFormat::from_format_id(format)
-            .with_context(|| {
-                format!(
-                    "Unsupported encapsulation checksum algorithm: {format:?}"
-                )
-            })?;
-        Ok(Some(ChecksumSpec {
-            algorithm,
-            expected_digest: digest,
-        }))
-    } else {
-        Ok(None)
-    }
+    Ok(parse_metadata(source)?.checksum_spec)
 }
 
 pub(crate) fn parse_text(source: &DcStr) -> Result<(DcString, Vec<u8>, usize)> {
@@ -350,6 +336,33 @@ pub(crate) fn checksum_text(format: DcChar, digest: &[u8]) -> Result<DcString> {
 mod tests {
     use super::*;
     use crate::{DcMixed, DcMstring};
+
+    #[crate::ctb_test]
+    fn nested_checksum_parsed_once_per_level() -> Result<()> {
+        let mut payloads = vec![b"payload".to_vec()];
+        for _ in 0..6 {
+            payloads.push(ctb_formats_checksum::sha256(payloads.last().unwrap()).to_vec());
+        }
+        let mut checksum = DcString::new();
+        for data in payloads.iter().skip(1).rev() {
+            let mut metadata = DcString::new();
+            metadata.push(ctb_utilities::format_id::DC_SHA256);
+            metadata.push_dc_str(&checksum);
+            let mut next = DcString::new();
+            write_text(&mut next, data, &metadata)?;
+            checksum = next;
+        }
+        let mut text = DcString::new();
+        write_text(&mut text, &payloads[0], &checksum)?;
+        PAYLOAD_READS.with(|count| count.set(0));
+        assert_eq!(parse_text(&text)?.1, payloads[0]);
+        assert_eq!(PAYLOAD_READS.with(std::cell::Cell::get), payloads.len());
+        PAYLOAD_READS.with(|count| count.set(0));
+        let parsed = parse_checksum_spec(&checksum)?.context("Missing checksum")?;
+        assert_eq!(parsed.expected_digest, payloads[1]);
+        assert_eq!(PAYLOAD_READS.with(std::cell::Cell::get), payloads.len() - 1);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn typed_dcutf_payload_is_binary_not_inline_text() -> Result<()> {
@@ -495,6 +508,21 @@ mod tests {
             &[0u8; 16],
         )?;
         assert!(validate_metadata(&unsupported, b"payload").is_err());
+        for (format, length) in [
+            (ctb_utilities::format_id::DC_SHA256, 0),
+            (ctb_utilities::format_id::DC_SHA256, 31),
+            (ctb_utilities::format_id::DC_SHA256, 33),
+            (FormatId::Md5.dc_char().context("Missing MD5 type")?, 16),
+        ] {
+            let checksum = checksum_text(format, &vec![0; length])?;
+            let mut closer = DcString::new();
+            closer.push(DC_END_ENCAPSULATION_BINARY);
+            let truncated = checksum.get(..checksum.len() - closer.len()).context("Invalid checksum span")?;
+            for action in [crate::DiagnosticAction::Error, crate::DiagnosticAction::Warn] {
+                assert!(parse_metadata_with_checksum_action(&checksum, action).is_err());
+                assert!(parse_metadata_with_checksum_action(truncated, action).is_err());
+            }
+        }
         assert!(parse_metadata(&DcString::from("not metadata")).is_err());
         let mut mixed = DcMstring::new();
         mixed.push_binary(b"payload");

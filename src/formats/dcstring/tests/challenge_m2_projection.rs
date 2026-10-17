@@ -93,6 +93,114 @@ fn test_challenge_deeply_nested_optionals() -> Result<()> {
 // ============================================================================
 
 #[crate::ctb_test]
+fn test_challenge_converted_document_preserves_consumed_roots() -> Result<()> {
+    #[derive(Debug, Default, PartialEq, DcMixed)]
+    #[dc(try_from = (u64, u64), try_into = (u64, u64))]
+    struct ConvertedPair {
+        first: u64,
+        second: u64,
+    }
+
+    impl From<(u64, u64)> for ConvertedPair {
+        fn from((first, second): (u64, u64)) -> Self {
+            Self { first, second }
+        }
+    }
+
+    impl From<&ConvertedPair> for (u64, u64) {
+        fn from(value: &ConvertedPair) -> Self {
+            (value.first, value.second)
+        }
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    let mut source = DcMstring::new();
+    12_u64.encode_dc_mixed(&mut source)?;
+    34_u64.encode_dc_mixed(&mut source)?;
+    let expected = ConvertedPair { first: 12, second: 34 };
+    ensure!(source.decode::<ConvertedPair>(&strict)? == expected);
+    true.encode_dc_mixed(&mut source)?;
+
+    let mut nav = DcDocumentNavigator::from_mstr(&source);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let mut ctx = DcProjectionContext::new(&arena, &strict);
+    let (decoded, consumed) = ConvertedPair::decode_dc_document(&mut ctx, arena.roots())?;
+    ensure!(decoded == expected);
+    ensure!(consumed == 2, "Conversion must preserve the representation's root count");
+    ensure!(source.decode::<ConvertedPair>(&strict).is_err(), "Trailing roots must not be swallowed");
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_field_conversion_errors_and_projection() -> Result<()> {
+    #[derive(Debug, Default, PartialEq, DcMixed)]
+    #[dc(try_from = i64, try_into = i64)]
+    struct CheckedNumber {
+        value: i64,
+    }
+
+    impl TryFrom<i64> for CheckedNumber {
+        type Error = anyhow::Error;
+        fn try_from(value: i64) -> Result<Self> {
+            ensure!(value >= 0, "Negative representation");
+            Ok(Self { value })
+        }
+    }
+
+    impl TryFrom<&i64> for CheckedNumber {
+        type Error = anyhow::Error;
+        fn try_from(value: &i64) -> Result<Self> {
+            Self::try_from(*value)
+        }
+    }
+
+    impl From<&CheckedNumber> for i64 {
+        fn from(value: &CheckedNumber) -> Self { value.value }
+    }
+
+    impl TryFrom<CheckedNumber> for i64 {
+        type Error = anyhow::Error;
+        fn try_from(value: CheckedNumber) -> Result<Self> {
+            ensure!(value.value != 13, "Rejected decoded value");
+            Ok(value.value)
+        }
+    }
+
+    #[derive(Debug, Default, PartialEq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    struct Bounded {
+        #[dc(327, via = CheckedNumber, omit_default)]
+        value: Option<i64>,
+    }
+
+    #[derive(Debug, Default, PartialEq, DcMixed)]
+    #[dc(flatten)]
+    struct Flattened {
+        #[dc(327, via = CheckedNumber)]
+        value: i64,
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    assert_dc_roundtrip(&Bounded { value: Some(42) })?;
+    assert_dc_roundtrip(&Flattened { value: 42 })?;
+    let mut invalid = DcMstring::new();
+    ensure!(Bounded { value: Some(-1) }.encode_dc_mixed(&mut invalid).is_err());
+    for value in [-1_i64, 13] {
+        let mut source = DcMstring::new();
+        source.push_char(DcChar::from_short(327));
+        value.encode_dc_mixed(&mut source)?;
+        ensure!(source.decode::<Flattened>(&strict).is_err());
+    }
+    let mut source = DcMstring::new();
+    source.push_char(DcChar::from_short(317));
+    Bounded { value: Some(42) }.encode_dc_field("value", &mut source)?;
+    source.push_char(DcChar::from_short(318));
+    ensure!(source.decode::<Bounded>(&strict)? == Bounded { value: Some(42) });
+    Ok(())
+}
+
+#[crate::ctb_test]
 fn test_challenge_nested_tuples_framed() -> Result<()> {
     let strict = DcProjectionPolicy::strict();
 

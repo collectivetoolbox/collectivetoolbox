@@ -33,7 +33,7 @@ pub use ctb_utilities::*;
 use anyhow::{Context, Result, ensure};
 use std::collections::BTreeMap;
 use ctb_formats_apple_single_double::{FinderFlags, FinderInfo, FinderLabel};
-use ctb_formats_dcstring::dc::{DC_BEGIN_LIST, DC_END_LIST};
+use ctb_formats_dcstring::dc::{DC_BEGIN_LIST, DC_END_LIST, DC_TYPE_ANY};
 use ctb_formats_dcstring::{
     DcChar, DcDocumentNavigator, DcKvMapEncoding, DcMixedDecode, DcMixedEncode,
     DcMstring, DcProjectionContext, DcProjectionPolicy, DcSyntaxArena,
@@ -75,9 +75,10 @@ fn test_challenge_file_timestamps_multi_root_decode() -> Result<()> {
     let roots = arena.roots();
     ensure!(roots.len() >= 4, "Expected at least 4 root statements for FileTimestamps");
 
-    // Decoding from the first root must discover all sister roots in arena.roots().
+    // Document projection explicitly receives the complete root sequence.
     let mut ctx = DcProjectionContext::new(&arena, &strict);
-    let decoded = FileTimestamps::decode_dc_node(&mut ctx, roots[0])?;
+    let (decoded, consumed) = FileTimestamps::decode_dc_document(&mut ctx, roots)?;
+    ensure!(consumed == roots.len(), "FileTimestamps must consume every timestamp root");
     ensure!(decoded == original, "Multi-root FileTimestamps decode mismatch");
 
     // Also verify decode when wrapped in FileMetadata (single root container 321..322).
@@ -145,8 +146,7 @@ fn test_challenge_file_timestamps_standalone_decode_behavior() -> Result<()> {
     let mut mst = DcMstring::new();
     ts.encode_dc_mixed(&mut mst)?;
 
-    // Standalone decode via mst.decode::<FileTimestamps> under strict policy
-    // succeeds because FileTimestamps::decode_dc_node calls ctx.mark_all_roots_consumed().
+    // Standalone decode uses FileTimestamps::decode_dc_document to consume the roots.
     let strict = DcProjectionPolicy::strict();
     let decoded_strict = mst.decode::<FileTimestamps>(&strict)?;
     ensure!(decoded_strict == ts, "Strict standalone decode mismatch");
@@ -338,16 +338,21 @@ fn test_challenge_native_metadata_pairs_roundtrip() -> Result<()> {
 fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
     // Construct a legacy Dc 313..314 map:
     let mut mst = DcMstring::new();
-    mst.push_char(DcChar::from_short(313));
+    let encoding = DcKvMapEncoding::Legacy;
+    encoding.encode_header(&mut mst);
+    encoding.encode_entry_begin(&mut mst, true);
     "source_os".encode_dc_mixed(&mut mst)?;
     mst.push_char(DcChar::from_short(312));
     OsFamily::FreeBSD.encode_dc_mixed(&mut mst)?;
+    encoding.encode_entry_end(&mut mst);
 
+    encoding.encode_entry_begin(&mut mst, false);
     "values".encode_dc_mixed(&mut mst)?;
     mst.push_char(DcChar::from_short(312));
     let empty_values: BTreeMap<String, NativeMetadataValue> = BTreeMap::new();
     empty_values.encode_dc_mixed(&mut mst)?;
-    mst.push_char(DcChar::from_short(314));
+    encoding.encode_entry_end(&mut mst);
+    encoding.encode_end(&mut mst);
 
     // Under standard strict policy (where deprecated_syntax is Warn), it succeeds with warning:
     let mut nav = DcDocumentNavigator::from_mstr(&mst);
@@ -371,19 +376,18 @@ fn test_challenge_native_metadata_legacy_map_and_diagnostics() -> Result<()> {
 
     // Malformed legacy map with uneven number of elements must be rejected:
     let mut mst_uneven = DcMstring::new();
-    mst_uneven.push_char(DcChar::from_short(313));
+    encoding.encode_header(&mut mst_uneven);
     "source_os".encode_dc_mixed(&mut mst_uneven)?;
     mst_uneven.push_char(DcChar::from_short(312));
     OsFamily::FreeBSD.encode_dc_mixed(&mut mst_uneven)?;
+    mst_uneven.push_char(DcChar::from_short(312));
     "trailing_key_without_val".encode_dc_mixed(&mut mst_uneven)?;
-    mst_uneven.push_char(DcChar::from_short(314));
+    encoding.encode_end(&mut mst_uneven);
 
     let mut nav_uneven = DcDocumentNavigator::from_mstr(&mst_uneven);
     let mut arena_uneven = DcSyntaxArena::new();
-    nav_uneven.parse_document_into_arena(&mut arena_uneven, &strict)?;
-    let mut ctx_uneven = DcProjectionContext::new(&arena_uneven, &strict);
     ensure!(
-        NativeMetadata::decode_dc_node(&mut ctx_uneven, arena_uneven.roots()[0]).is_err(),
+        nav_uneven.parse_document_into_arena(&mut arena_uneven, &strict).is_err(),
         "Legacy map with uneven item count must be rejected"
     );
 
@@ -483,11 +487,22 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     ensure!(decoded.real_name == apple.real_name, "Real name mismatch");
     ensure!(decoded.comment == apple.comment, "Comment mismatch");
     ensure!(decoded.backup_timestamp_sec == apple.backup_timestamp_sec, "Backup timestamp mismatch");
+    ensure!(decoded == apple, "Nonempty AppleMetadata roundtrip mismatch");
+    assert_dc_roundtrip(&apple)?;
+
+    let empty = AppleMetadata::default().to_dc_mixed()?;
+    let mut nav_empty = DcDocumentNavigator::from_mstr(&empty);
+    let mut arena_empty = DcSyntaxArena::new();
+    ensure!(
+        nav_empty.parse_document_into_arena(&mut arena_empty, &strict).is_err(),
+        "Empty AppleMetadata container must fail the nonempty record grammar"
+    );
 
     // Test rejection of invalid container opener (e.g. 310..311 list instead of 401..402)
     let mut mst_bad = DcMstring::new();
-    mst_bad.push_char(DcChar::from_short(310));
-    mst_bad.push_char(DcChar::from_short(311));
+    mst_bad.push_char(DC_BEGIN_LIST);
+    mst_bad.push_char(DC_TYPE_ANY);
+    mst_bad.push_char(DC_END_LIST);
     let mut nav_bad = DcDocumentNavigator::from_mstr(&mst_bad);
     let mut arena_bad = DcSyntaxArena::new();
     nav_bad.parse_document_into_arena(&mut arena_bad, &strict)?;

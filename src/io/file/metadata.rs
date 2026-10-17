@@ -1754,6 +1754,39 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_apple_backup_timestamp_signed_seconds() -> Result<()> {
+        use ctb_formats_dcstring::{DcChar, DcMixedEncode, DcMstring, DcProjectionPolicy};
+
+        for seconds in [None, Some(i64::MIN), Some(-1), Some(0), Some(1), Some(i64::MAX)] {
+            let apple = AppleMetadata {
+                real_name: Some("backup".to_owned()),
+                backup_timestamp_sec: seconds,
+                ..Default::default()
+            };
+            ctb_formats_dcstring::assert_dc_document_roundtrip(&apple)?;
+            let json = serde_json::to_string(&apple)?;
+            assert_eq!(serde_json::from_str::<AppleMetadata>(&json)?, apple);
+        }
+
+        for framed in [false, true] {
+            let mut source = DcMstring::new();
+            source.push_char(DcChar::from_short(401));
+            source.push_char(DcChar::from_short(399));
+            if framed {
+                source.push_char(DcChar::from_short(390));
+                source.push_char(DcChar::from_u128(FormatId::NsSinceEpoch.dc_id().context("Missing date format")?));
+            }
+            (-1_i64).encode_dc_mixed(&mut source)?;
+            if framed {
+                source.push_char(DcChar::from_short(391));
+            }
+            source.push_char(DcChar::from_short(402));
+            assert!(source.decode::<AppleMetadata>(&DcProjectionPolicy::strict()).is_err());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_file_timestamps_resolution_nanos() {
         let ts = FileTimestamps {
             atime_sec: 1_700_000_000,

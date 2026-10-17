@@ -238,16 +238,16 @@ mod tests {
     use super::*;
 
     #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, crate::DcMixed)]
-    #[dc(begin = 321, end = 322)]
+    #[dc(key_value)]
     struct Definition {
-        #[dc(333)]
+        #[dc(key = "value")]
         value: u64,
     }
 
     #[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, crate::DcMixed)]
     #[dc(begin = 401, end = 402)]
     struct SharedRecord {
-        #[dc(nested = 321, shared = "definition")]
+        #[dc(nested = 559, shared = "definition")]
         definition: Option<Arc<Definition>>,
     }
 

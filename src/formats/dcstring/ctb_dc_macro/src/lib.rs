@@ -89,7 +89,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - `#[dc(<id>, representation = f524)]`: Encloses a single field value in
 //!   Dc 511, the declared format identifier, and Dc 512. An absent optional
 //!   field is omitted; a present one wraps its inner value without Dc 315.
-//! - `#[dc(<id>, via = Type)]`: Converts a value through `Type` using
+//! - `#[dc(<id>, via = Type)]` on struct fields: Converts a value through `Type`
+//!   (not supported on flag records or alongside another field codec), using
 //!   `TryFrom<&T>` for encoding and `T::try_from(Type)` for decoding. Optional
 //!   fields convert their inner value; absent values are omitted.
 //! - `#[dc(nested = <end_id>)]`: Multi-level nested child structure ending with
@@ -2099,6 +2100,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         return Err(syn::Error::new(field.span(), "Expected named field in flag struct"));
                     };
                     let attr = parse_field_attrs(field)?;
+                    if attr.via.is_some() {
+                        return Err(syn::Error::new(field.span(), "via is not supported on flag records"));
+                    }
                     if attr.skip {
                         construct_flag_fields.push(quote! {
                             #field_ident: ::std::default::Default::default()
@@ -3612,6 +3616,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             field_names.push(f_ident);
                             let f_ty = &f.ty;
                             let attr = parse_field_attrs(f)?;
+                            if attr.via.is_some() {
+                                return Err(syn::Error::new(f.span(), "via requires a tagged struct field"));
+                            }
 
                             if attr.skip {
                                 v_field_inits.push(quote! {

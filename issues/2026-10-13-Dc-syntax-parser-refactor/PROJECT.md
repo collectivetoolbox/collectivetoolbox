@@ -1,5 +1,68 @@
 # Project: Dc Syntax Parser & DcSyntaxArena Deserialization/Projection Refactor
 
+## Current Status (2026-10-17)
+
+**Partially Implemented.** The correctness remediation below is a bounded
+subset of the original refactor, not certification of feature completion.
+
+### Remaining Gaps vs Original Request
+
+- Generated struct and enum projectors still reconstruct some atom-based field
+    syntax. Remove this lookahead in favor of normalized parser-owned nodes before
+    claiming the requested parsing/projection separation is complete.
+- Syntax rules are indexed at runtime; the planned generated static syntax
+    table remains pending.
+- Textual encapsulation metadata retains a fixed 32-level nesting guard rather
+    than a caller-configurable document resource budget.
+- Unsupported temporal representations, including Panorama dates, now return
+    errors rather than guessed epoch nanoseconds. Implementing their conversions
+    remains separate work.
+- Strict empty Apple metadata records still require a schema/representation
+    decision; their current database grammar requires nonempty contents.
+- Clippy completes with warnings, not a warning-clean result. Full workspace,
+    cross-platform, and cumulative `5aafa2bf3762da8a6d719145cb71f362851c1c6e..HEAD`
+    review remain deferred. Historical milestone/test claims below do not replace
+    those checks.
+
+### Correctness Remediation
+
+- File-backed binary checksums are verified with bounded streaming reads;
+    mismatches error under strict policy and warn under forgiving policy.
+- Metadata and payload bounds are checked before allocation. Metadata uses
+    fallible allocation and an explicit caller-configurable byte budget.
+- Nested checksum metadata is parsed once per level and retains the caller's
+    checksum policy. Deep assignment scanning is iterative and checks its RHS
+    against the database grammar.
+- Arena parsing and standalone validation share policy-aware grammar checks,
+    including required headers, constrained fields, and container scope recovery.
+- Document-level projection explicitly reports root consumption. Nested tuple,
+    array, and flattened projections cannot consume unrelated document roots.
+- Temporal codecs reject unsupported formats. Generic conversion derives
+    forward document decoding, and Apple backup timestamps use a derived date
+    representation instead of an unframed integer.
+
+### Verification
+
+The following command passed on the current Linux container without suppressing
+warnings: **655 passed, 0 failed, 0 ignored across 17 harnesses**. Integration
+targets include the new projection regressions:
+
+```sh
+env RUSTFLAGS='' RUSTDOCFLAGS='' cargo test \
+    -p ctb-formats-dcdata -p ctb-formats-dcstring -p ctb-dc-macro \
+    -p ctb-io-file -p ctb-io-csc -p ctb-formats-apple-single-double \
+    -p ctb-formats-conversion --lib --tests --no-fail-fast
+```
+
+Affected-crate Clippy (`--lib --tests --no-deps`) completed with warnings, not a
+warning-clean result. The final modified file integration target was also
+rechecked with Clippy. The expanded acceptance run initially found three file
+challenge failures: malformed legacy/list fixtures and document projection
+through the single-node API. Correcting those tests retained valid roundtrips,
+malformed-input rejection, and consumption assertions; no grammar relaxation or
+test skips were used. No cross-platform result or full-refactor completion is
+implied.
+
 ## Architecture
 The Document Character (`Dc`) subsystem in `ctoolbox` provides data-driven parsing, validation, serialization, and projection of structured documents, metadata, and journal logs.
 
@@ -54,8 +117,8 @@ flowchart TD
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Clean Up Commit `9105d5bae` & Finalize Stage 1 Parsing | Revert 7 files to `314c3eb70`, remove `suppress_trailing_dc_512` & `prefix_rule_fixed_arity`, finalize data-driven Stage 1 in `ctb_formats_dcdata` & `ctb_formats_dcstring`. | none | DONE |
-| M2 | Rebase `DcMixedDecode`, `DcInspection`, `source_edit` onto `DcSyntaxArena` & Delete `DcMixedReader` | Introduce `DcProjectionContext`, implement `decode_dc_node` for all standard types, unwrap transparent wrappers, rebase `source_edit` / `DcInspection`, delete `DcMixedReader` & `read_nodes`. | M1 | DONE |
+| M1 | Clean Up Commit `9105d5bae` & Finalize Stage 1 Parsing | Revert 7 files to `314c3eb70`, remove `suppress_trailing_dc_512` & `prefix_rule_fixed_arity`, finalize data-driven Stage 1 in `ctb_formats_dcdata` & `ctb_formats_dcstring`. | none | Partially Implemented |
+| M2 | Rebase `DcMixedDecode`, `DcInspection`, `source_edit` onto `DcSyntaxArena` & Delete `DcMixedReader` | Introduce `DcProjectionContext`, implement `decode_dc_node` for all standard types, unwrap transparent wrappers, rebase `source_edit` / `DcInspection`, delete `DcMixedReader` & `read_nodes`. | M1 | Partially Implemented |
 | M3 | Migrate Manual Structs (`apple_single_double` & `io/file`) | Migrate manual `DcMixedDecode` implementations in `apple_single_double` and `src/io/file/` (`metadata.rs`, `link_path.rs`, `streams.rs`) to `DcProjectionContext` + `NodeId`. | M2 | DONE |
 | M4 | Migrate `csc::journal` & Verify V4 Fixtures | Replace manual loops with `#[derive(DcMixed)]` records in `ctb_io_csc`, implement $O(1)$ arena reuse, verify strict rejection/forgiving recovery of fixtures. | M3 | DONE |
 | M5 | E2E Test Suite Verification & Adversarial Hardening | Pass 100% of E2E tests (Tiers 1-4) published in `TEST_READY.md`, followed by Tier 5 adversarial hardening with Challengers. | M4, TEST_READY.md | IN_PROGRESS |

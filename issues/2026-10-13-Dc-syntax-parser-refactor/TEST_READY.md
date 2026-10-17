@@ -1,9 +1,15 @@
 # Test Readiness Certification: Document Character (`Dc`) Syntax Parser & `DcSyntaxArena` Refactor
 
-**Date**: 2026-10-15  
-**Track**: E2E Testing Track (M5)  
-**Status**: TEST READY & VERIFIED (21/21 E2E tests passing)  
-**Author**: Test Writer Agent (`teamwork_preview_test_writer_e2e_1`)  
+> Historical report from 2026-10-15, not current feature certification. The
+> refactor remains **Partially Implemented**. See [PROJECT.md](PROJECT.md) for
+> the 2026-10-17 scoped verification and explicit remaining gaps. In particular,
+> passing tests do not establish complete parser/projection separation or the
+> deferred cumulative-diff and cross-platform review.
+
+**Date**: 2026-10-15
+**Track**: E2E Testing Track (M5)
+**Status**: TEST READY & VERIFIED (21/21 E2E tests passing)
+**Author**: Test Writer Agent (`teamwork_preview_test_writer_e2e_1`)
 
 ---
 
