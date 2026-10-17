@@ -1,131 +1,137 @@
-## Dev Environment Tips
-- Setting up a fresh dev container: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
-- A copy of dependencies are in `vendor/ctb-vendored/`. These can be referenced but should never be edited; they are auto-updated from crates.io. Similarly, the dependencies in `vendor/upstream-for-reference` should never be updated. Limited patches to other folders within the `vendor/` folder are acceptable when necessary.
-  - Adding new dependencies not already used in the repository is typically discouraged, but is permissible when specifically requested by your operator. You may propose the addition of other dependencies, but must ask your operator before adding them. Offline builds are used in CI; your operator will vendor any changed dependencies before pushing to satisfy this requirement.
-  - It is encouraged to update dependencies when cargo-deny reports a security problem. Version bumps of existing dependencies do not need operator approval.
-- You may write important notes you would like to save for the long term into the `memories/` folder in the repository. These will be reviewed and managed as part of the code.
-- If `get_test_help_bytes` fails, or some other failures related to assets loading, it means the asset bundle failed to build. This happens intermittently, particularly when running whole-workspace tests. To fix this, run `cargo clean` and re-test.
-- Tests cannot listen on any ports; they need to use other approaches, e.g. mocks, in such cases.
-- Prefer building or testing individual workspace crates. A full build takes 5 to 10 minutes.
-- To see the latest changes, use `git diff origin..HEAD`; I often commit while the agent is running for ease of reviewing, so `git diff` will be blank.
-- Don't bother running `cargo check` commands, `cargo test` commands, or the ./test script when making front-end changes.
-- During development, you can use `./lint --quick` to check JS types.
-- Note that you may need to run `killall ctoolbox` or similar to exit the server process (which generally runs until it is shut down).
-- Your operator will sometimes be involved in the coding as you work. If you see edits come in as you're working on files, don't revert them: instead, re-read them and collaboratively take into account the direction of the edits.
-- Don't run temporary builds using Cargo in Antigravity chat folders, because all new files there are loaded in as "Artifacts", and the large file count of Cargo builds locks up the IDE.
-- If your operator prompts you to add something that seems small in scope and you would need to make large changes (like significant refactoring) to accomplish it, ask to confirm before editing, or use /plan mode.
-- If prompted to move a module into a subcrate, the intended action is very simple: move files (using a tool/script, not by generating them), copy and trim the Cargo.toml, update the package name, replace the import from a module to a use, and add them to the root Cargo.toml. If anything else is needed, ask before acting on it.
-- Prefer reporting failures over reporting successes. It's more or less irrelevant that twenty tests pass if one test fails - it's the one failing one that I need to know about because it needs more work. Similarly, if you had to bypass tests during development to progress on others, highlight that as the headline summary - it tells me where to go next. Needing to report that you couldn't get a test passing in a reasonable amount of time and decided to leave it for later is completely fine and a normal part of development; leaving tests skipped or failing without making it very obvious in your summary is not. If you left some parts of a task unimplemented for later, tell me about those as the primary conclusion; similarly, it's fine to not finish something all in one go, but I need to know what I still have to focus on.
-- Keep at least 15GB disk space available. If space gets lower, the filesystem becomes very slow. A full build for one target will use most of the available disk space, so `cargo clean` between targets is necessary.
-- Glibc build requires extra dependencies. Don't install these in the dev container; just do a musl build.
-- Never use models provided by Anthropic, e.g. when creating sub-agents. GPT-6.1 Sol with short context is a good option, or GPT-6 Luna for lightweight work.
+# AGENTS.md
+
+## Dev Environment & Workflow
+
+### Setup, Builds, and Testing
+- **Fresh dev container setup**: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
+- **Build & test scope**: Prefer building or testing individual workspace crates (e.g., `cargo test -p ctb-renderer`); a full build takes 5–10 minutes.
+- **Linux target**: Always use the `musl` build in the dev container. Do not install extra host packages for a `glibc` build.
+- **Disk space**: Keep at least 15 GB of disk space free (the filesystem slows down sharply below that). A full single-target build consumes most available space, so run `cargo clean` when switching targets.
+- **Asset bundle test failures**: If `get_test_help_bytes` or other asset-loading tests fail (which happens intermittently, especially during whole-workspace test runs), the asset bundle failed to build. Run `cargo clean` and re-test.
+- **No network ports in tests**: Tests must never listen on ports; use mocks or in-memory/socketpair transports instead.
+- **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.
+- **Lingering server processes**: Run `killall ctoolbox` (or similar) if needed to stop background server processes.
+- **Antigravity chat folders**: Never run temporary Cargo builds in Antigravity chat folders; all new files there are indexed as "Artifacts" and lock up the IDE.
+
+### Dependencies & `vendor/`
+- **`vendor/ctb-vendored/`**: Auto-updated from crates.io. May be referenced, never edited.
+- **`vendor/upstream-for-reference/`**: For reference and generating diffs only; never update, use, or compile these files. Active patched copies live in the enclosing `vendor/` folder.
+- **Other `vendor/` folders**: Limited patches are acceptable when necessary.
+- **Adding vs. updating dependencies**: Adding new dependencies not already in the repository is discouraged unless specifically requested by your operator. You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing). Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
+
+### Collaboration, Git, and Sub-Agents
+- **Inspecting recent changes**: Use `git diff origin..HEAD` rather than `git diff`. The operator frequently commits while the agent is working for easier review, so a working-tree `git diff` will often be blank.
+- **Live operator edits**: If edits from the operator appear while you are working on files, do not revert them—re-read the files and align with the direction of those changes.
+- **Scope confirmation**: If a seemingly small request would require large-scale changes or significant refactoring, ask to confirm before editing, or use `/plan` mode.
+- **Moving a module into a subcrate**: Keep this mechanical: move the files using a tool/script (do not regenerate them), copy and trim `Cargo.toml`, update the package name, replace `mod` with `use`, and register the crate in the root `Cargo.toml`. Ask before doing anything beyond this.
+- **Repository memory**: Write important long-term architectural or debugging notes to the `memories/` folder in the repository; these are reviewed and versioned as part of the codebase.
+- **Sub-agent models**: Never use models provided by Anthropic (e.g., when spawning sub-agents). `GPT-6.1 Sol` with short context is a good option, or `GPT-6 Luna` for lightweight work.
 
 ## Reporting, Status Tracking, and Scope Honesty
-- **Never label a feature or status item as "Implemented" if there are any remaining gaps, missing formats, unhandled flags, or deferred prerequisites.**
-  - If a feature has even one unhandled upstream case (e.g. missing `lrzip`, missing flag, partial header parsing), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
-  - In tracking documents (like `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Do not erase or gloss over gaps when recording what was added.
-- **Differentiate between "sub-task completion" and "feature completion":**
-  - If you were asked to do a bounded subset of a feature (e.g. "implement the ones available so far"), your conclusion must frame it as partial progress toward the whole, not as the feature being finished.
-- **Lead responses with what is left, broken, or deferred:**
-  - When summarizing work, do NOT write cheerful "all done!" recaps. Start with:
-    1. **Failing / Skipped Tests or Lints** (if any).
-    2. **Known Gaps & What's Left** (what still needs to be done for full parity/completion).
+- **Lead responses with what is left, broken, or deferred**:
+  - Do NOT write cheerful "all done!" recaps. Prefer reporting failures over successes (twenty passing tests matter far less than the one failing test that still needs work). Start every summary with:
+    1. **Failing / Skipped Tests or Lints** (if any). Pausing on a difficult test and reporting it is normal; leaving tests skipped, ignored, or failing without highlighting them in the headline summary is unacceptable.
+    2. **Known Gaps & What's Left** (unimplemented parts, missing formats/flags, or edge cases remaining for full parity).
     3. **Deferred Items** (what was deliberately omitted and why).
-  - Only summarize what was implemented as secondary context under the gaps. If something is done, the operator can see the code and tests; what the operator needs from you is an accurate accounting of the remaining debt so context is not lost.
-- **Treat optimistic misrepresentation as a bug:** Calling something "complete" or "working" when known edge cases or formats were skipped is a critical accuracy failure. When in doubt, err on the side of skepticism about your own implementation.
-
-The rationale for this is that what's critical to your operator is an honest assessment of *what's left* - what's *done* I don't really need to know about, because it's completed - I can forget about it and scratch it off the list. Knowing what remains to implement is critical, though, because it's key to correctness. That's especially important because if I think a slice of work is done when it's not, I'll move on to another stage of implementation, and forget the context about the previous stage - and then when I eventually discover that it was not fully completed, I have to return and regain that context to address it.
+  - Summarize completed work only as secondary context below the gaps.
+- **Never label partial work as "Implemented" or "Complete"**:
+  - If a feature has even one unhandled upstream case (e.g., missing `lrzip`, missing flag, partial header parsing, or deferred prerequisite), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
+  - In tracking documents (such as `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Never erase or gloss over gaps when recording new progress.
+- **Differentiate sub-task completion from feature completion**:
+  - If asked to implement a bounded subset of a feature (e.g., "implement the ones available so far"), frame your conclusion as partial progress toward the whole, not as the feature being finished.
+- **Treat optimistic misrepresentation as a bug**:
+  - Calling something "complete" or "working" when known edge cases or formats were skipped is a critical accuracy failure. When in doubt, err on the side of skepticism about your own implementation.
+  - *Rationale*: Completed work can be seen directly in the code and tests and crossed off the list. An honest accounting of *what remains* is critical so context is not lost when moving to subsequent stages of implementation.
 
 ## Standards and Style Guide
-- The number-one mistake agents make in this codebase is **failure to judge correct error handling in edge cases**. This has two forms: (1) **failure to propagate legitimate edge-case errors back to callers**, instead silently discarding or swallowing the error; and, less commonly, (2) **incorrectly propagating unreachable error states back to callers in otherwise-infallible functions**, causing clunky API. Be careful to avoid these mistakes. Every error-handling case needs **thoughtful judgement**; there's no one rule or fix that you can systematically apply for this. More guidelines about this are below.
-- Use the `anyhow` crate for error handling in new code, and avoid panics.
-- Avoid statefulness where possible.
-- Docblocks should wrap at 80 columns. For modules, they should start with `//!`, and for functions, they should start with `///`.
-- Only add new comments if the code is not self-explanatory. Try to make the code self-explanatory.
-- Do not change or remove existing comments and documentation, unless they are specifically invalidated by your edits. In particular, make sure not to lose TODO or FIXME notes unless they've been resolved.
-- Instead of unwrap, expect, or similar constructions, prefer returning a Result with anyhow::Error, or other constructions like `let Some(user) = user else { return Err(...); };` to handle errors gracefully.
-- Never use `#[test]` or `#[tokio::test]`, unless patching vendor code. Always use `#[crate::ctb_test]` or `#[crate::ctb_test("tokio")]` respectively instead.
-- Never use `as` for type conversions. Use `try_from` or similar instead. `as` is strictly disallowed by the linter. utilities::math has fallible exact and approx conversion methods for all float/int conversions not normally supported.
-- Prefer `if let Some(...) = ...` over callback-requiring patterns like `.map(...).unwrap_or_else(...)`, unless there are compelling downsides or it makes the code substantially more verbose.
-- Reuse existing code wherever possible. If you find similar logic, refactor or extend it. Revise existing APIs to meet your needs rather than adding new similar ones. The utilities crate has solutions for many common tasks.
-- When requested to refactor code, don't limit the scope of refactoring, or leave messy or outdated API, out of concerns about existing callers - instead, make the refactor, and then fix the callers.
-- Disregard Clippy errors about panics/unwrapping in tests if they would make the test more complex. The standard test boilerplate should allow these.
-- You're encouraged to add new submodules when modules grow. Keep modules concise and narrowly scoped.
-- Prioritize making the project more production-ready. Address issues, missing features, and inconvenient APIs, rather than working around them. E.g.:
-  - Always use file descriptor passing for shared memory on Linux, never temp files.
+
+### Error Handling & Invariants
+- **Judge edge-case error handling carefully (the #1 agent mistake)**:
+  1. **Never silently swallow or discard legitimate edge-case errors** instead of propagating them to callers.
+  2. **Do not propagate unreachable error states in otherwise-infallible functions**, which creates clunky APIs.
+- **Fail early and loudly; never panic in production**:
+  - Fallible operations must return `anyhow::Result<T>` (`Result<T, anyhow::Error>`) and propagate errors via `?` or `let Some(val) = val else { return Err(...); };`.
+  - Never introduce panicking `unwrap`, `expect`, indexing, or unchecked arithmetic in new production code.
+  - Reserve `ensure!()`, `assert!()`, `unreachable!()`, and `.expect()` (with a Clippy allow/expect reason) strictly for provably infallible operations (such as bitmasks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable startup/installer scenarios—never in a function that returns `Result`.
+  - Never use `unwrap_or(0)` or similar fallbacks for infallible operations, as doing so obscures intent and hides broken assumptions.
+  - `unwrap_or` (and similar fallbacks) is acceptable only when the fallback behavior is genuine domain logic clearly documented in the function contract, and **requires a comment** explaining *why* it is an acceptable fallback that will not mask a true error. Never "cheat" the `unwrap_or` linter by rewriting an undocumented `.unwrap_or(...)` into an `if let Some` / `else` block.
+- **Control flow**: Prefer `if let Some(...) = ...` over callback chains like `.map(...).unwrap_or_else(...)`, unless callbacks are substantially less verbose.
+
+### Rust Idioms, Lints, and Testing
+- **No `as` casts**: `as` is strictly disallowed by the linter. Use `try_from` / `from`, or `utilities::math` for fallible exact and approximate float/int conversions.
+- **Checked arithmetic & safe indexing**: Clippy denies infix math operators (`+`, `-`, `*`, `/`, `%`) and panicking slice/index operations. Use checked or saturating arithmetic methods and safe indexing (`.get(...)`).
+- **Addressing lints**: Fix the underlying cause of lint errors rather than suppressing them. Never place `#[allow(...)]` or `#![allow(...)]` at the top level of a crate or file; attach overrides to the specific method/item where relevant.
+- **Lint bypass comments**: Comments and `reason` strings on `expect`, `unwrap_or`, or `allow` must explain *why* the lint's concern does not apply in that specific case—never merely restate *what* the code does.
+- **Standard module preludes**:
+  - Main crate files (other than `ctb_utilities`) start with:
+    ```rust
+    #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+    pub(crate) use ctb_utilities::*;
+    ```
+  - Submodules start with:
+    ```rust
+    #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
+    use crate::utilities::*;
+    ```
+  - Do not remove these preludes. They import `anyhow::{self, Result, Context, bail}`, `tracing`, and the workspace logging macros (`log!`, `log_fmt!`, `warn!`, `warn_fmt!`, etc.). Always use those macros rather than calling `tracing` directly.
+- **Tests**:
+  - Always use `#[crate::ctb_test]` or `#[crate::ctb_test("tokio")]`—never `#[test]` or `#[tokio::test]` (except when patching vendor code).
+  - Any important or nontrivial code must have test coverage.
+  - Disregard Clippy warnings about panics/unwrapping in tests when avoiding them would make the test more complex; the standard test boilerplate allows them.
+- **Docblocks & comments**:
+  - Wrap docblocks at 80 columns (`//!` for modules, `///` for functions/items).
+  - Do not wrap proper nouns or tool names (e.g., MathML, StageL) in backticks just to satisfy Clippy; add them to `clippy.toml` instead. Use backticks only for actual code and identifiers.
+  - Write self-explanatory code; add comments only where logic is non-obvious.
+  - Never alter or remove existing comments, docblocks, `TODO`s, or `FIXME`s unless specifically invalidated or resolved by your edits.
+
+### Code Design, Security, and Licensing
+- **General design**: Avoid statefulness where possible. Prefer sync code; use async only when needed. Use the newtype pattern whenever it reduces confusion.
+- **Reuse & refactoring**: Reuse existing utilities (especially `ctb_utilities`, such as `utilities::https` for HTTP requests). Refactor or extend existing APIs rather than adding duplicate helpers. When refactoring, do not leave messy or outdated APIs out of concern for callers—clean up the API and update all callers.
+- **Module structure & cleanup**: Keep modules concise and narrowly scoped; split growing modules into submodules. If you try multiple approaches during troubleshooting, remove all failed attempts and dead code before finishing.
+- **Single canonical naming**: When designing a new format or CLI interface, pick the single best name or syntax rather than supporting multiple aliases (e.g., do not support both `"case:"` and `"case-sensitive:"` tags, `"u"` and `"U"` prefixes, or duplicate CLI commands).
+- **CLI & configuration**: Avoid environment variables unless genuinely necessary; prefer CLI flags. The `ctb-cli` crate (`src/cli/`) must contain zero nontrivial logic beyond parsing into `Invocation` and dispatching to the target crate.
+- **Production readiness**: Address root issues and missing features rather than adding workarounds:
+  - Always use file-descriptor passing for shared memory on Linux, never temp files.
   - Never add in-process fallbacks for IPC calls.
-- Prefer sync code where possible; use async code when needed.
-- To make a method available over IPC, annotate it with `#[ipc_method]`, and annotate any needed structs with `#[ipc_dto]`. The necessary code will be autogenerated to call the function with `ipc!(service).method()` (async) or `ipcb!(service).method()` (blocking) without `use` statements other than the prelude, where `service` is either a name like `network` or `storage`, or omitted to call a method on the workspace.
-- Use secure best practices and patterns, for instance never passing secrets as command-line arguments, or ensuring that secrets are zeroized and have minimal lifetime and cloning in memory.
-- When writing shell scripts, never use `rm -f`, `cp -f`, or similar. Check for the failure cases and handle them explicitly instead.
-- Avoid returning HTTP 5xx errors if possible. The response bodies can be discarded by the CDN, making them confusing to debug.
-- If you reuse algorithms or code from another file, include a comment noting the source.
-- Never delete license blocks or copyright information.
-- All dependencies, including any build-time dependencies such as libraries or sysroots that are linked to the final binaries, MUST be under AGPL-3+-compatible licenses. Pre-compiled binaries are prohibited, with rare exceptions: the v86 VM and `tsc` compiler that are slow to build are precompiled and captured in the CI Docker image; and some dependencies in vendor/ctb-vendored still contain blobs at this time.
-- The files in `vendor/upstream-for-reference` are for reference only and must not be used or compiled except for generating diffs. The copies to use are in the enclosing `vendor/` folder.
-- Any important or nontrivial code should have test coverage.
-- Avoid the use of environment variables unless it's actually necessary and useful, and there isn't a neater approach like a CLI flag.
-- The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
-- Panicing unwrap, expect, etc. should not be introduced in new code.
-- Indexing that may panic is prohibited by Clippy lints.
-- Explicitly use checked or saturating arithmetic as appropriate; Clippy will deny the infix math operators.
-  - This generally means +, -, /, *, or % operators are not available.
-- Never put a Clippy allow at the top level of a crate or file; attach it instead to the methods where it is relevant.
-- When prompted to address lints, accomplish this by fixing the problems causing the lint errors, not by turning off the lints or adding allows.
-- Node.js packages must never be installed in the application. A node_modules directory must never be present. Some Node packages are acceptable to use as development-only tools installed outside of the repository (currently permitted: tsc for faster linter runs, and Playwright for in-browser testing), but they must never be used as dependencies, nor be required for correct linting.
-- If you try multiple implementations of something or guess at multiple values, leave only the one that worked and remove any that would be dead code.
-- Avoid panics, but do not fail silently - fail early and loudly:
-  - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
-  - `expect`, `assert!`, and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup), and never if a function returns a Result. Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
-  - Infallible cases and invariants must use ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar, not fallbacks like unwrap_or(), to avoid hiding broken assumptions.
-  - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
-- Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
-- Don't remove the standard module preludes even though the standard use of "allow" in them causes a Clippy warning.
-- If you make changes in troubleshooting that don't work, remove them later.
-- Use the newtype pattern whenever it may reduce confusion.
-- Do not add backticks around actual words/names of tools in docblocks just because Clippy complains about them (like MathML or StageL); add them to clippy.toml. Only add backticks for code, variable names, and similar.
-- When you have multiple choices of a name for something in a new format, pick the best one, rather than implementing multiple (e.g. don't support "case:" and "case-sensitive:" tags in a database, or "u" and "U" prefix formats; don't add multiple CLI commands that do the same thing unless asked to; etc.).
+- **IPC**: Annotate IPC methods with `#[ipc_method]` and DTO structs with `#[ipc_dto]`. Call autogenerated bindings via `ipc!(service).method()` (async) or `ipcb!(service).method()` (blocking) without extra imports beyond the prelude (`service` is e.g. `network` or `storage`, or omitted for workspace methods).
+- **Security & HTTP**: Never pass secrets as CLI arguments; zeroize secrets and minimize their lifetime and cloning in memory. Avoid returning HTTP 5xx errors if possible, as CDNs may discard their response bodies.
+- **Shell scripts**: Never use `rm -f`, `cp -f`, or similar force flags; check and handle failure cases explicitly.
+- **Licensing & attribution**:
+  - Never delete license blocks or copyright headers. If you reuse algorithms or code from another file, include a comment noting the source.
+  - All dependencies (including build-time dependencies, linked libraries, and sysroots) MUST be under AGPL-3+-compatible licenses.
+  - Pre-compiled binaries are prohibited, with rare exceptions: the `v86` VM and `tsc` compiler precompiled in the CI Docker image, and legacy blobs remaining in `vendor/ctb-vendored`.
+- **No Node.js dependencies**: Never install Node.js packages in the application; a `node_modules` directory must never exist. External dev-only tools (`tsc` for fast linter runs, Playwright for browser testing) are permitted outside the repository, but must never be application dependencies or required for correct linting.
 
-- Never add non-layout Tailwind/EncreCSS styles (such as text size, font weight, letter spacing, background/text colors, e.g. text-xs, font-bold, text-gray-500, tracking-wider) to templates. Never use faux-headers (such as span elements with utility styling classes) in templates; use proper semantic HTML tags (like h2, h3) and ensure high-contrast accessible text styling. Project-wide stylesheet is preferred for most uses. Use semantic HTML markup.
-  - For the vast majority of use cases you shouldn't need to add new CSS other than positioning of widgets, unless you're adding specifically a new themeable widget component.
-- Use icon assets instead of inline SVG if available.
-- Avoid inline JavaScript or CSS in templates.
-- Prefer `rem` CSS units over `px`.
-- Do not create new ad-hoc components, such as button styling, unless specifically requested. If a specific concept, like ".btn-secondary" or ".btn-secondary.selected" is missing, add it to the appropriate component CSS file. Do not reinvent wheels. Use CSS classes sparingly, to supplement HTML where needed without redundancy (use `<button>`, not `<button class="button">`).
-- Design guidelines are maintained in docs/design-system.md. It should be kept up to date with new UI components where applicable.
-- Avoid !important in CSS; prefer precedence corrections.
-- Prefer rem sizes, not px or em.
+### Front-End, HTML, and CSS
+- **Design system**: Follow and update [docs/design-system.md](docs/design-system.md) when adding UI components.
+- **Semantic HTML**: Use proper semantic tags (`<h2>`, `<h3>`, `<button>`) and ensure high-contrast, accessible text styling. Never use faux-headers (e.g., `<span>` with utility classes) or redundant classes (use `<button>`, not `<button class="button">`).
+- **Stylesheets over utility classes**: Never add non-layout Tailwind/EncreCSS utility styles (font size, weight, letter spacing, or colors like `text-xs`, `font-bold`, `text-gray-500`, `tracking-wider`) to templates; rely on the project-wide stylesheet. Most templates should only need widget positioning CSS unless introducing a new themeable widget component.
+- **Component styles**: Do not create ad-hoc component styling; add missing shared concepts (e.g., `.btn-secondary`, `.btn-secondary.selected`) to the appropriate component CSS file.
+- **Assets & units**: Use icon assets instead of inline SVG where available. Avoid inline JavaScript or CSS in templates. Prefer `rem` units over `px` or `em`. Avoid `!important` in CSS; fix selector precedence instead.
 
-- Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints. However, they may be used inline in Dc serialization attributes on structs/enums (shorthand syntaxes apply - 123 = short Dc 123; l123 = long Dc 123; u1a3 = U+01A3; f123 = format Dc 123). Do not add Dc consts for annotations, as those sholud be self-explanatory; only add them if they will be used in actual code.
-- Keep consts DRY, as with other code. Avoid adding aliases to them or copying them into other modules.
-- There is no such thing as a "short format ID". Format IDs must never be exposed or processed as bare integers, because bare integers are confusing and look identical to short Dc IDs. Format IDs must always use the strongly typed `FormatId` enum or the `f<N>` shorthand string (e.g. `FormatId::shorthand()`, `FormatId::from_shorthand("f34")`). Never add integer conversion APIs like `short_id()` or `from_short_id()` to `FormatId`.
-- Dc serialization/deserialization must be generalized and implemented using the attributes, never special-cased or specific to individual structs; if the attributes are insufficient, they can be extended in *generally applicable*, non-struct-specific ways; ad-hoc serialization is not a solution.
-- Proposals for new Dcs must be approved by the operator.
-- Dcs represent semantic/ontological entities, never specific encodings or structures. Dc identifiers describe semantic entities, not Rust fields or serialization encodings. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent. Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
+### Document Characters (Dc), `FormatId`, and Codegen
+- **Generated files**: Must have `.generated` in the filename so CI recreates them. Any hardcoded list of file formats or similar metadata not generated from the CSV database in `src/formats/dcdata/data/` is likely a mistake.
+- **Dc constants**: Must only be defined in `ctb_formats_dcdata::dc` (`src/formats/dcdata/dc.generated.rs`, generated from `@ident(...)` annotations in the category CSVs)—never defined, aliased, or copied in other files. They must be `DcChar`, never bare integers. Do not add named Dc constants merely for struct/enum annotations; use inline shorthand in attributes (`123` = short Dc 123; `l123` = long Dc 123; `u1a3` = U+01A3; `f123` = format Dc 123) and only add named constants when referenced in procedural code.
+- **No "short format ID"**: Format IDs must never be exposed or processed as bare integers (which are indistinguishable from short Dc IDs). Always use the strongly typed `FormatId` enum or `"f<N>"` shorthand (`FormatId::shorthand()`, `FormatId::from_shorthand("f34")`). Never add integer conversion APIs like `short_id()` or `from_short_id()` to `FormatId`.
+- **Generalized Dc serialization**: Dc serialization/deserialization must be implemented generically via derive attributes, never special-cased or ad-hoc for individual structs. If the attributes are insufficient, extend them in generally applicable, non-struct-specific ways.
+- **Ontology & approval**:
+  - Proposals for new Dcs require operator approval.
+  - Dcs represent semantic/ontological entities, never Rust fields or serialization structures. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent.
+  - Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
 
-- Generated files must have `.generated` in the filename so they are recreated in CI.
-- Any code that includes a list of file formats or similar that is *not* generated from the CSV database is likely a mistake.
+## Architecture & Workspace Layout
+- **Multi-process architecture**: The main `ctb-workspace` (`src/workspace/`) process manages application state and spawns subprocesses (`ctb-renderer` in `src/renderer/`, `ctb-io-webui` in `src/io/webui/`, `ctb-storage` in `src/storage/`, etc.) over socket-based IPC (`ctb_utilities`).
+- **Core stack**:
+  - Async runtime: `tokio`
+  - Web UI: `axum` serving HTML/JS embedded from `assets/` via `include_dir` (copied to `built/assets/` during build; opened via `webbrowser`)
+  - Storage: Turso database (`src/storage/db.rs`)
+  - External/P2P: WebRTC / `matchbox_socket`; `zeroize` for secrets
+- **Crate & module layout**:
+  - All workspace sub-crates live under `src/` (nested multiple levels deep) and must be listed in the root `Cargo.toml`.
+  - Cargo package names use `ctb-*` (kebab-case) and Rust crate identifiers use `ctb_*` (snake_case). Each sub-crate's entry `.rs` file uses the crate name minus the `ctb_` prefix (e.g., `ctb_renderer` is in `src/renderer/renderer.rs`, `ctb_storage` is in `src/storage/storage.rs`).
+  - Modules use `<module>.rs` alongside a `<module>/` directory for submodules (e.g., `src/storage/user.rs` and `src/storage/user/*.rs`).
+- **Linux static binary & display invariants**:
+  - On Linux `x86` and `x86_64`, the application and installer compile to a single statically linked `musl` binary. Minimize host environment assumptions—bundle assets and link statically rather than expecting system libraries or services.
+  - Dynamic linking, `dlopen`, and system libraries on Linux are non-options.
+  - Using X11/XWayland when Wayland is available is a non-option: a single statically linked `musl` binary that runs natively on Wayland (on Wayland or Wayland+X11 systems) and X11 (on X11-only systems) is the required target.
 
-## Architecture Overview
-- Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
-- Async runtime: tokio; web server: axum; storage: Turso database.
-- Data flow: IPC; workspace manages application state, rendered to web UI, desktop GUI, TUI; assets embedded via `include_dir`.
-- Key components: `cli/` for CLI interface, `workspace/` for process mgmt, `io/webui` for web interface. App consists of multiple Rust crates in a workspace. Sub-crates use the crate name, minus ctb_* prefix, as the main `.rs` file, e.g. the `ctb_renderer` crate is in `renderer/renderer.rs`. Modules use a file of the module name alongside the module folder, e.g. `storage/storage.rs` is the ctb_storage service crate, `storage/user.rs` is the ctb_storage::user module, and `storage/user/*.rs` holds submodules. Crates are nested multiple levels deep; `ctoolbox/Cargo.toml` lists all sub-crates.
-- On Linux x86 and x86_64, the application and installer compile to a statically linked binary (musl libc).
-- Minimize expectations and dependencies on the host system environment, e.g. avoid expecting system libraries or services to be present. Bundle dependencies where possible, e.g. via static linking or including assets in the binary.
-- Invariants: Using X11/XWayland on a system with Wayland available is a non-option. Using dynamic linking or dlopen are non-options. A single statically linked musl binary that works with Wayland on Wayland or Wayland+X11 systems and X11 on X11-only systems is the only end goal for Linux. Never use system libraries on Linux.
-
-## Project-Specific Patterns
-- Invocation handling: Parse CLI or subprocess args into `Invocation` enum.
-- Error handling: Always return `Result<T, anyhow::Error>`; no panics or unwraps.
-- Assets: Static includes like `PROJECT_DIR` for embedded files; copied to `built/assets/` during build.
-- The main file in each crate (other than ctb_utilities) starts with `#[allow(clippy::wildcard_imports)]
-pub(crate) use ctb_utilities::*;` other modules start with `#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
-use crate::utilities::*;`, importing from utilities.rs. This also provides the log functions to use: log!, log_fmt!, warn!, warn_fmt!, etc. macros that wrap tracing. It also imports `tracing` and `anyhow::{self, Result, Context, bail}`. Don't directly call tracing unless it's strictly necessary; use the utilities functions instead.
-- utilities::https is the preferred HTTP client.
-
-## Integration Points
-- Web UI: Axum server; serves HTML/JS from `assets/` include_dir; opens in browser via `webbrowser`.
-- IPC: Socket-based IPC, abstracted away in utilities crate.
-- Storage: Turso database with API in `src/storage/db.rs`.
-- External: WebRTC/matchbox_socket; zeroize for secrets.
