@@ -80,6 +80,8 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered.
 
+- csc archive: "durable ownership recovery needs more than the current journal intent records" - not sure what this means, but is there more info that needs to be recorded in the journal? As-close-to-lossless metadata capture in the journal (in copy mode) or archive (in archive mode) is a key goal.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container

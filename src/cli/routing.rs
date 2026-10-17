@@ -50,6 +50,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
         "adduser"
             | "validate-docker-image"
             | "csc"
+            | "archive"
             | "csc-verify"
             | "cscv"
             | "fsindex"
@@ -545,6 +546,9 @@ pub enum Command {
     /// Checksummed copy with rsync-compatible path resolution and an extra verification step
     #[command(name = "csc")]
     Csc(ctb_io_csc::args::CscArgs),
+    /// Create, list, verify, or extract a self-contained CSC archive.
+    #[command(name = "archive")]
+    Archive(ctb_io_csc::archive::cli::ArchiveArgs),
     /// Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
     #[command(name = "cp")]
     Cp(ctb_io_csc::args::CscArgs),
@@ -1223,6 +1227,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             )
         }
         Command::Csc(args) => ctb_io_csc::cli::run_csc(args.clone()),
+        Command::Archive(args) => ctb_io_csc::archive::cli::run_archive(args),
         Command::Cp(args) => {
             let mut cp_args = args.clone();
             cp_args.delete_manifest_after = true;

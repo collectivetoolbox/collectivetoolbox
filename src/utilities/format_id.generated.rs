@@ -1347,6 +1347,10 @@ pub enum FormatId {
     CscJournal1Meta3,
     /// Collective Toolbox csc journal, version 4 (Short 632, Category: database)
     CscJournal4,
+    /// Collective Toolbox csc archive (Short 633, Category: database)
+    CscArchive,
+    /// Collective Toolbox csc archive, version 1 (Short 634, Category: database)
+    CscArchive1,
 }
 
 impl FormatId {
@@ -1505,7 +1509,9 @@ impl FormatId {
             | Self::CscJournal1Meta1
             | Self::CscJournal1Meta2
             | Self::CscJournal1Meta3
-            | Self::CscJournal4 => FormatCategory::Database,
+            | Self::CscJournal4
+            | Self::CscArchive
+            | Self::CscArchive1 => FormatCategory::Database,
             Self::PanDate
             | Self::PanTime
             | Self::PanSuperDate
@@ -2629,6 +2635,8 @@ impl FormatId {
             "cscjournal1meta2" | "csc_journal1_meta2" => Some(Self::CscJournal1Meta2),
             "cscjournal1meta3" | "csc_journal1_meta3" => Some(Self::CscJournal1Meta3),
             "cscjournal4" | "csc_journal4" => Some(Self::CscJournal4),
+            "cscarchive" | "csc_archive" => Some(Self::CscArchive),
+            "cscarchive1" | "csc_archive1" => Some(Self::CscArchive1),
             _ => None,
         }
     }
@@ -3270,6 +3278,8 @@ impl FormatId {
             Self::CscJournal1Meta2 => "CscJournal1Meta2",
             Self::CscJournal1Meta3 => "CscJournal1Meta3",
             Self::CscJournal4 => "CscJournal4",
+            Self::CscArchive => "CscArchive",
+            Self::CscArchive1 => "CscArchive1",
         }
     }
 
@@ -3455,6 +3465,7 @@ impl FormatId {
             Self::CscJournal1Meta2 => &[Self::CscJournal],
             Self::CscJournal1Meta3 => &[Self::CscJournal],
             Self::CscJournal4 => &[Self::CscJournal],
+            Self::CscArchive1 => &[Self::CscArchive],
             _ => &[],
         }
     }
@@ -4096,6 +4107,8 @@ impl FormatId {
             Self::CscJournal1Meta2 => "f630",
             Self::CscJournal1Meta3 => "f631",
             Self::CscJournal4 => "f632",
+            Self::CscArchive => "f633",
+            Self::CscArchive1 => "f634",
         }
     }
 
@@ -4737,6 +4750,8 @@ impl FormatId {
             "f630" => Some(Self::CscJournal1Meta2),
             "f631" => Some(Self::CscJournal1Meta3),
             "f632" => Some(Self::CscJournal4),
+            "f633" => Some(Self::CscArchive),
+            "f634" => Some(Self::CscArchive1),
             _ => None,
         }
     }
@@ -5378,6 +5393,8 @@ impl FormatId {
             Self::CscJournal1Meta2 => Some(2228854_u128),
             Self::CscJournal1Meta3 => Some(2228855_u128),
             Self::CscJournal4 => Some(2228856_u128),
+            Self::CscArchive => Some(2228857_u128),
+            Self::CscArchive1 => Some(2228858_u128),
         }
     }
 
@@ -6031,6 +6048,8 @@ impl FormatId {
             2228854_u128 => Some(Self::CscJournal1Meta2),
             2228855_u128 => Some(Self::CscJournal1Meta3),
             2228856_u128 => Some(Self::CscJournal4),
+            2228857_u128 => Some(Self::CscArchive),
+            2228858_u128 => Some(Self::CscArchive1),
             _ => None,
         }
     }
@@ -7302,3 +7321,7 @@ pub const DC_CSC_JOURNAL1_META2: DcChar = DcChar::from_format(630);
 pub const DC_CSC_JOURNAL1_META3: DcChar = DcChar::from_format(631);
 /// DcChar constant for Format `CscJournal4` (Short f632, Category: database): Collective Toolbox csc journal, version 4
 pub const DC_CSC_JOURNAL4: DcChar = DcChar::from_format(632);
+/// DcChar constant for Format `CscArchive` (Short f633, Category: database): Collective Toolbox csc archive
+pub const DC_CSC_ARCHIVE: DcChar = DcChar::from_format(633);
+/// DcChar constant for Format `CscArchive1` (Short f634, Category: database): Collective Toolbox csc archive, version 1
+pub const DC_CSC_ARCHIVE1: DcChar = DcChar::from_format(634);

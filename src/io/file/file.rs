@@ -244,7 +244,7 @@ pub use clean_name::{
     MAX_FILENAME_BYTES, clean_file_name, clean_file_name_unix,
     clean_file_name_windows,
 };
-pub use entity::{File, FileEntity, FileEntityKind, FileEntityType};
+pub use entity::{File, FileEntity, FileEntityKind, FileEntityType, FileEntityWithPayload};
 pub use link_path::LinkPath;
 pub use filesystem::{
     FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache, extract_device_id,
@@ -278,7 +278,7 @@ pub use payload::{
     DiskPayloadSource, Extent, MemoryPayloadSource, PayloadSource,
     ReaderPayloadSource, get_file_extents, hash_payload_stream,
 };
-pub use sandboxable_dir::{SandboxableDir, SandboxedDir};
+pub use sandboxable_dir::{ExistingEntryPolicy, SandboxableDir, SandboxedDir};
 pub use streams::{AttachedStream, StreamKind, StreamName, read_and_hash_streams, write_streams};
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use traversal::{

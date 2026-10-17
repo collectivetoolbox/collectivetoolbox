@@ -296,6 +296,16 @@ pub struct FileEntity {
     pub streams: Vec<AttachedStream>,
 }
 
+/// A file record with primary data retained lazily when read from disk.
+#[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 317, end = 318)]
+pub struct FileEntityWithPayload {
+    #[dc(flatten, nested = [319, 321, 325, 323])]
+    pub entity: FileEntity,
+    #[dc(392, default, omit_default)]
+    pub payload: Option<ctb_formats_dcstring::LazyBinaryPayload>,
+}
+
 /// An error encountered when reading a file from disk, retaining the partial
 /// or inaccessible entity for lossless error archival and diagnostics.
 #[derive(Debug)]
@@ -592,6 +602,17 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
+        writer.write_all(ctb_formats_dcstring::DcMstring::new().as_bytes())?;
+        self.encode_record_to_writer_with_payload_and_context(writer, source, context)
+    }
+
+    /// Streams a file record without a document header into a containing document.
+    pub fn encode_record_to_writer_with_payload_and_context<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        source: &mut dyn crate::payload::PayloadSource,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
         let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
         self.identity.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
@@ -600,7 +621,7 @@ impl FileEntity {
         for stream in &self.streams {
             stream.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         }
-        writer.write_all(prefix_mst.as_bytes())?;
+        writer.write_all(prefix_mst.payload_bytes())?;
 
         let size = source.total_size();
         if size > 0 {

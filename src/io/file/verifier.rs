@@ -1582,6 +1582,7 @@ mod tests {
                 path_policy: PathTraversalPolicy::StrictSandboxed,
                 copy_specials: false,
                 force_overwrite: true,
+                existing_entry_policy: crate::sandboxable_dir::ExistingEntryPolicy::Replace,
                 apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
                 apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
             };

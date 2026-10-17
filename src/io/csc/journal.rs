@@ -589,12 +589,6 @@ impl JournalWriter {
         self.current_batch_id = self.current_batch_id.saturating_add(1);
 
         let mut mst = DcMstring::new();
-        mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
-
-        let payload_start = mst.payload_bytes().len();
-        mst.push_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER);
-        self.current_batch_id.encode_dc_mixed(&mut mst)?;
-
         for entity in &self.uncommitted_entities {
             if let Some(read_time) = entity.metadata.read_time {
                 read_time
@@ -609,19 +603,11 @@ impl JournalWriter {
             }
         }
 
-        let payload_end = mst.payload_bytes().len();
-        let section_bytes = mst
-            .payload_bytes()
-            .get(payload_start..payload_end)
-            .context("Invalid payload slice range for journal section")?;
-        let digest = ctb_formats_checksum::sha256(section_bytes);
-
-        mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
-        mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
-        mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
-
         self.validate_segment(&mst)?;
-        self.writer.write_all(mst.payload_bytes())?;
+        crate::section::write_section(&mut self.writer, self.current_batch_id, |writer| {
+            writer.write_all(mst.payload_bytes())?;
+            Ok(())
+        })?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
 
@@ -2222,6 +2208,7 @@ mod tests {
             state.clone(),
         );
         csc_args.full_provenance = true;
+        csc_args.overwrite = true;
         run_csc(csc_args).expect("run csc with full provenance");
 
         let journal_path = find_cscjournal(&state);

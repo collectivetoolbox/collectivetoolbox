@@ -2319,10 +2319,6 @@ mod tests {
         fs::create_dir_all(&root_built).unwrap();
         fs::write(root_built.join("built.rs"), "fn built() {}\n").unwrap();
 
-        let root_ci_logs = temp_dir.join("ci-logs/Mac");
-        fs::create_dir_all(&root_ci_logs).unwrap();
-        fs::write(root_ci_logs.join("panther-get.sh"), "").unwrap();
-
         // 2. Nested directories with names "vendor", "old", "generated" should NOT be skipped
         let nested_vendor = temp_dir.join("src/my_crate/vendor");
         fs::create_dir_all(&nested_vendor).unwrap();

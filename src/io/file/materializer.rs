@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::apple_double::{
-    AppleFormat, AppleWriteMode, create_apple_archive_from_entity,
+    AppleFormat, AppleWriteMode, apple_double_companion_path, create_apple_archive_from_entity,
     write_apple_double_companion, write_apple_single_double,
 };
 use crate::entity::{FileEntity, FileEntityKind};
@@ -37,7 +37,7 @@ use crate::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
 use crate::payload::{Extent, PayloadSource};
-use crate::sandboxable_dir::{DirHandleRef, SandboxableDir};
+use crate::sandboxable_dir::{DirHandleRef, ExistingEntryPolicy, SandboxableDir};
 use crate::streams::{read_and_hash_streams, remove_stream, write_streams};
 use crate::sys_flags::{apply_file_flags, apply_file_flags_with_source, query_file_flags};
 use crate::verifier::{EntityAuditOptions, audit_entity_detailed};
@@ -76,6 +76,8 @@ pub struct MaterializeOptions {
     /// If true, always overwrite the destination by recreating the payload and metadata atomically,
     /// skipping any in-place reuse even if payload checksums match.
     pub force_overwrite: bool,
+    /// Authorization to replace existing entries or modify their metadata.
+    pub existing_entry_policy: ExistingEntryPolicy,
     /// Policy for writing AppleDouble, AppleSingle, or native streams.
     pub apple_write_mode: AppleWriteMode,
     /// Extension style when writing AppleSingle archives.
@@ -91,6 +93,7 @@ impl Default for MaterializeOptions {
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
             force_overwrite: false,
+            existing_entry_policy: ExistingEntryPolicy::Refuse,
             apple_write_mode: AppleWriteMode::NativeOnly,
             apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
         }
@@ -454,6 +457,14 @@ pub fn materialize_entity(
     let (parent_dir_fd, file_name) = dest_dir
         .ensure_parent_dir(relative_path, options.path_policy)?;
 
+    if options.existing_entry_policy == ExistingEntryPolicy::Refuse && !entity.is_dir() {
+        match std::fs::symlink_metadata(&dest_path) {
+            Ok(_) => bail!("Destination already exists; explicit overwrite permission required: {}", dest_path.display()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => return Err(error).context("Cannot inspect materialization destination"),
+        }
+    }
+
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
             if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
@@ -467,6 +478,7 @@ pub fn materialize_entity(
                 &dest_path,
                 path.as_os_str().as_encoded_bytes(),
                 options.symlink_policy,
+                options.existing_entry_policy,
             );
             if let Err(error) = create(&target_path) {
                 if options.strict_lossless || !crate::link_path::is_destination_encoding_error(&error) {
@@ -522,6 +534,7 @@ pub fn materialize_entity(
                 &target_path,
                 &parent_dir_fd.as_fd(),
                 &file_name,
+                options.existing_entry_policy,
             )?;
             Ok(MaterializeReceipt {
                 destination_path: dest_path,
@@ -534,6 +547,7 @@ pub fn materialize_entity(
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
             let _dir_fd =
                 dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
+            dest_dir.authorize_metadata(relative_path, options.existing_entry_policy)?;
             let mut write_companion = false;
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
@@ -560,7 +574,7 @@ pub fn materialize_entity(
             }
             if write_companion {
                 if let Some(style) = options.apple_write_mode.double_style() {
-                    write_apple_double_companion(entity, &dest_path, dest_dir.root_path(), style)?;
+                    write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
             }
             let warnings = apply_entity_metadata(
@@ -597,6 +611,7 @@ pub fn materialize_entity(
                 &file_name,
                 &entity.kind,
                 mode,
+                options.existing_entry_policy,
             )?;
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             let warnings = apply_entity_metadata(
@@ -633,9 +648,10 @@ pub fn materialize_entity(
             is_sparse,
             extents,
         } => {
-            if !options.force_overwrite {
+            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite {
                 if let Some(receipt) = try_update_existing_regular_entity(
                     &dest_path,
+                    dest_dir,
                     entity,
                     *size,
                     expected_sha256,
@@ -770,7 +786,7 @@ pub fn materialize_entity(
                     parent_dir.join(&actual_file_name)
                 };
 
-                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name)?;
+                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name, options.existing_entry_policy)?;
                 cleanup_guard.active = false;
 
                 #[cfg(unix)]
@@ -1076,6 +1092,18 @@ pub fn materialize_entity(
                 }
             }
 
+            if write_companion && options.existing_entry_policy == ExistingEntryPolicy::Refuse {
+                if let Some(style) = options.apple_write_mode.double_style() {
+                    if let Some(companion) = apple_double_companion_path(entity, &dest_path, dest_dir, style)? {
+                        match std::fs::symlink_metadata(&companion) {
+                            Ok(_) => bail!("AppleDouble companion already exists; explicit overwrite permission required: {}", companion.display()),
+                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                            Err(error) => return Err(error).context("Cannot inspect AppleDouble companion destination"),
+                        }
+                    }
+                }
+            }
+
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             #[cfg(windows)]
             let temp_file = {
@@ -1119,12 +1147,12 @@ pub fn materialize_entity(
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Atomic rename inside parent directory
-            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
+            dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name, options.existing_entry_policy)?;
             cleanup_guard.active = false;
 
             if write_companion {
                 if let Some(style) = options.apple_write_mode.double_style() {
-                    write_apple_double_companion(entity, &dest_path, dest_dir.root_path(), style)?;
+                    write_apple_double_companion(entity, &dest_path, dest_dir, style, options.existing_entry_policy)?;
                 }
             }
 
@@ -1254,6 +1282,7 @@ pub fn materialize_entity_at_path(
 #[expect(clippy::too_many_lines, reason = "Comprehensive in-place entity validation and lossless metadata reconciliation")]
 fn try_update_existing_regular_entity(
     dest_path: &Path,
+    dest_dir: &SandboxableDir,
     entity: &FileEntity,
     size: u64,
     expected_sha256: &[u8; 32],
@@ -1284,7 +1313,7 @@ fn try_update_existing_regular_entity(
     #[cfg(not(unix))]
     return Ok(None);
     #[cfg(unix)]
-    if dest_meta.nlink() > entity.identity.nlink {
+    if dest_meta.nlink() > 1 {
         return Ok(None);
     }
 
@@ -1401,9 +1430,7 @@ fn try_update_existing_regular_entity(
     }
 
     if let Some(style) = options.apple_write_mode.double_style() {
-        // Reason for fallback: destination path without a parent directory defaults to current working directory "."
-        let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
-        write_apple_double_companion(entity, dest_path, parent_dir, style)?;
+        write_apple_double_companion(entity, dest_path, dest_dir, style, options.existing_entry_policy)?;
     } else {
         // Write missing or mismatched streams
         for (stream, source_name) in entity.streams.iter().zip(&source_names) {
@@ -1532,6 +1559,60 @@ fn try_update_existing_regular_entity(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_apple_double_preflight_preserves_primary_and_companion() -> Result<()> {
+        for mode in [
+            AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
+            AppleWriteMode::MaybeAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
+        ] {
+            for dangling in [false, true] {
+                let temp = tempfile::tempdir()?;
+                let source = temp.path().join("source");
+                let destination = temp.path().join("destination");
+                let companion = temp.path().join("._destination");
+                std::fs::write(&source, b"replacement")?;
+                if dangling { std::os::unix::fs::symlink("missing", &companion)?; }
+                else { std::fs::write(&companion, b"original companion")?; }
+                let mut entity = FileEntity::from_filesystem(&source, None)?;
+                entity.identity.relative_path = Some(PathBuf::from("destination"));
+                entity.metadata.apple = Some(crate::metadata::AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+                let sandbox = SandboxableDir::open(temp.path())?;
+                let options = MaterializeOptions { apple_write_mode: mode, ..Default::default() };
+                let mut payload = crate::MemoryPayloadSource::new(b"replacement".to_vec())?;
+                let error = materialize_entity(&entity, Some(&mut payload), &sandbox, &options).unwrap_err();
+                assert!(format!("{error:#}").contains("companion already exists"));
+                assert!(!destination.try_exists()?);
+                if dangling { assert_eq!(std::fs::read_link(&companion)?, Path::new("missing")); }
+                else { assert_eq!(std::fs::read(&companion)?, b"original companion"); }
+                assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_directory_retains_sandbox_ownership() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let source = temp.path().join("source");
+        std::fs::create_dir(&source)?;
+        let mut entity = FileEntity::from_filesystem(&source, None)?;
+        entity.identity.relative_path = Some(PathBuf::from("destination"));
+        entity.metadata.apple = Some(crate::metadata::AppleMetadata { comment: Some("directory".into()), ..Default::default() });
+        let sandbox = SandboxableDir::open(temp.path())?;
+        let options = MaterializeOptions {
+            strict_lossless: false,
+            apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Netatalk),
+            ..Default::default()
+        };
+        materialize_entity(&entity, None, &sandbox, &options)?;
+        sandbox.authorize_metadata(Path::new("destination"), ExistingEntryPolicy::Refuse)?;
+        let reopened = SandboxableDir::open(temp.path())?;
+        assert!(reopened.authorize_metadata(Path::new("destination"), ExistingEntryPolicy::Refuse).is_err());
+        assert!(temp.path().join("destination/.AppleDouble/.Parent").is_file());
+        Ok(())
+    }
+
     #[crate::ctb_test]
     fn test_malformed_timestamps_refuse_replacement_in_all_modes() {
         let temp = tempfile::tempdir().unwrap();
@@ -1577,7 +1658,7 @@ mod tests {
             let target = crate::link_path::LinkPath::from_bytes(bytes, is_windows);
             entity.kind = FileEntityKind::Symlink { target: target.clone() };
             entity.identity.relative_path = Some(PathBuf::from("link"));
-            let options = MaterializeOptions { strict_lossless, ..Default::default() };
+            let options = MaterializeOptions { strict_lossless, existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default() };
             let result = materialize_entity(&entity, None, &directory, &options);
             ensure!(result.is_ok() == succeeds, "Unexpected symlink result: {result:?}");
             if succeeds {
@@ -1722,6 +1803,63 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
+    fn test_existing_materialization_requires_explicit_permission() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let destination = temporary.path().join("destination");
+        fs::write(&destination, b"original")?;
+        fs::set_permissions(&destination, fs::Permissions::from_mode(0o600))?;
+        let before = fs::metadata(&destination)?;
+        let sandbox = SandboxableDir::open(temporary.path())?;
+        for bytes in [b"original".as_slice(), b"replacement".as_slice()] {
+            let mut entity = FileEntity::from_vec(bytes.to_vec());
+            entity.identity.relative_path = Some(PathBuf::from("destination"));
+            entity.metadata.mode = Some(0o777);
+            for force_overwrite in [false, true] {
+                let mut source = MemoryPayloadSource::new(bytes.to_vec())?;
+                let result = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
+                    strict_lossless: false, force_overwrite, ..Default::default()
+                });
+                ensure!(result.is_err());
+                let after = fs::metadata(&destination)?;
+                ensure!(before.ino() == after.ino() && before.mode() == after.mode());
+                ensure!(before.mtime() == after.mtime() && before.mtime_nsec() == after.mtime_nsec());
+                ensure!(before.ctime() == after.ctime() && before.ctime_nsec() == after.ctime_nsec());
+                ensure!(fs::read(&destination)? == b"original");
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_authorized_replacement_preserves_unrelated_hardlink() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let destination = temporary.path().join("destination");
+        let alias = temporary.path().join("alias");
+        fs::write(&destination, b"payload")?;
+        fs::hard_link(&destination, &alias)?;
+        fs::set_permissions(&destination, fs::Permissions::from_mode(0o600))?;
+        let original = fs::metadata(&alias)?;
+        let mut entity = FileEntity::from_string("payload");
+        entity.identity.relative_path = Some(PathBuf::from("destination"));
+        entity.identity.nlink = 2;
+        entity.metadata.mode = Some(0o644);
+        let mut source = MemoryPayloadSource::new(b"payload".to_vec())?;
+        let sandbox = SandboxableDir::open(temporary.path())?;
+        let receipt = materialize_entity(&entity, Some(&mut source), &sandbox, &MaterializeOptions {
+            strict_lossless: false, existing_entry_policy: ExistingEntryPolicy::Replace,
+            ..Default::default()
+        })?;
+        ensure!(!receipt.skipped_identical);
+        ensure!(fs::metadata(&alias)?.ino() == original.ino());
+        ensure!(fs::metadata(&alias)?.mode() == original.mode());
+        ensure!(fs::metadata(&destination)?.ino() != original.ino());
+        ensure!(fs::read(&alias)? == b"payload");
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
     fn test_materialize_entity_skips_identical_payload_and_updates_metadata() {
         let temp_dir = tempfile::tempdir().unwrap();
         let dest_root = temp_dir.path().join("dest");
@@ -1780,7 +1918,7 @@ mod tests {
 
         let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
-        let options = MaterializeOptions::default();
+        let options = MaterializeOptions { existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default() };
 
         let receipt1 = entity
             .materialize(Some(&mut payload), &dest_dir, &options)
@@ -1881,6 +2019,7 @@ mod tests {
         // Overwrite with force_overwrite = true
         let mut forced_options = MaterializeOptions::default();
         forced_options.force_overwrite = true;
+        forced_options.existing_entry_policy = ExistingEntryPolicy::Replace;
 
         let mut p2 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
         let r2 = entity
@@ -1953,7 +2092,9 @@ mod tests {
         let dest_dir = SandboxableDir::open(&dest_root).unwrap();
         let mut payload = MemoryPayloadSource::new(new_bytes.to_vec()).unwrap();
         let receipt = entity
-            .materialize(Some(&mut payload), &dest_dir, &MaterializeOptions::default())
+            .materialize(Some(&mut payload), &dest_dir, &MaterializeOptions {
+                existing_entry_policy: ExistingEntryPolicy::Replace, ..Default::default()
+            })
             .expect("materialize on mismatch");
 
         assert_eq!(receipt.bytes_written, size);
@@ -2005,6 +2146,7 @@ mod tests {
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
             force_overwrite: true,
+            existing_entry_policy: ExistingEntryPolicy::Replace,
             apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
             apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
         };
@@ -2024,9 +2166,9 @@ mod tests {
         let path = temp.path().join("destination");
         fs::write(&path, b"keep this data").unwrap();
         let root = SandboxableDir::open(temp.path()).unwrap();
-        assert!(root.create_hardlink(PathBuf::from("missing").as_path(), &root.root_fd(), "destination").is_err());
-        assert!(root.create_symlink(&root.root_fd(), "destination", b"invalid\0target", SymlinkValidationPolicy::PreserveVerbatim).is_err());
-        assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600).is_err());
+        assert!(root.create_hardlink(PathBuf::from("missing").as_path(), &root.root_fd(), "destination", ExistingEntryPolicy::Replace).is_err());
+        assert!(root.create_symlink(&root.root_fd(), "destination", b"invalid\0target", SymlinkValidationPolicy::PreserveVerbatim, ExistingEntryPolicy::Replace).is_err());
+        assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600, ExistingEntryPolicy::Replace).is_err());
         assert_eq!(fs::read(path).unwrap(), b"keep this data");
         assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
     }
@@ -2099,6 +2241,7 @@ mod tests {
                 };
                 let options = MaterializeOptions {
                     force_overwrite: true,
+                    existing_entry_policy: ExistingEntryPolicy::Replace,
                     strict_lossless: strict,
                     apple_write_mode: mode,
                     ..MaterializeOptions::default()
@@ -2125,6 +2268,7 @@ mod tests {
         entity.identity.relative_path = Some(PathBuf::from("payload"));
         let options = MaterializeOptions {
             force_overwrite: true,
+            existing_entry_policy: ExistingEntryPolicy::Replace,
             apple_write_mode: AppleWriteMode::ForceAppleSingle,
             ..MaterializeOptions::default()
         };

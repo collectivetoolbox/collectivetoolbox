@@ -361,6 +361,42 @@ impl DcMixedDecode for BinaryPayload {
     }
 }
 
+/// Binary data retained as an owned buffer or an offset in a backing document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LazyBinaryPayload(pub crate::navigator::BinaryPayloadRef<'static>);
+
+impl DcMixedEncode for LazyBinaryPayload {
+    fn encode_dc_mixed(&self, mst: &mut DcMstring) -> Result<()> {
+        let bytes = self.0.as_resident_bytes()
+            .context("Lazy binary encoding requires a backing reader; use streaming encoding")?;
+        mst.push_binary_with_sha256(bytes)
+    }
+}
+
+impl DcMixedDecode for LazyBinaryPayload {
+    fn decode_dc_node(ctx: &mut DcProjectionContext<'_, '_>, node_id: NodeId) -> Result<Self> {
+        use crate::navigator::BinaryPayloadRef;
+        let node_id = ctx.unwrap_transparent(node_id)?;
+        let payload = match &ctx.node(node_id)?.kind {
+            DcSyntaxKind::Binary { payload, .. } => payload,
+            other => bail!("Expected binary payload, found {other:?}"),
+        };
+        let owned = match payload {
+            BinaryPayloadRef::Borrowed(bytes) => BinaryPayloadRef::Inline(bytes.to_vec()),
+            BinaryPayloadRef::Inline(bytes) => BinaryPayloadRef::Inline(bytes.clone()),
+            BinaryPayloadRef::FileSpan { file_offset, len, checksum, checksum_action } => {
+                BinaryPayloadRef::FileSpan {
+                    file_offset: *file_offset,
+                    len: *len,
+                    checksum: checksum.clone(),
+                    checksum_action: *checksum_action,
+                }
+            }
+        };
+        Ok(Self(owned))
+    }
+}
+
 /// A general, struct-agnostic mixed-mode raw value representation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DcRawValue {

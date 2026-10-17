@@ -22,5 +22,4 @@ set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
-export CTB_WIN_VARIANT="win11"
-exec scripts/win-vm "$@"
+exec scripts/vm win11 "$@"

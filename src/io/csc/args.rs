@@ -89,11 +89,10 @@ pub struct CscArgs {
     #[arg(long, overrides_with = "verify_after")]
     pub no_verify_after: bool,
 
-    /// Always overwrite destination files by rewriting payload and metadata,
-    /// even if destination exists with identical checksum. Default is to reuse
-    /// matching payload and losslessly update metadata in-place.
+    /// Authorize replacing existing entries and restoring directory metadata.
+    /// Existing entries are refused by default, including during resume.
     #[arg(long, default_value_t = false)]
-    pub always_overwrite: bool,
+    pub overwrite: bool,
 
     /// Behavior when a source file is modified during copy.
     #[arg(long, value_enum, default_value_t = SourceChangePolicy::Error)]
@@ -966,7 +965,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         no_progress: true,
         verify_after: true,
         no_verify_after: false,
-        always_overwrite: false,
+        overwrite: false,
         on_source_change: crate::args::SourceChangePolicy::Error,
         copy_specials_as_specials: false,
         copy_block_devices_as_regular_files: false,
@@ -1111,6 +1110,15 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_csc_overwrite_argument() {
+        use clap::Parser;
+
+        assert!(!CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap().overwrite);
+        assert!(CscArgs::try_parse_from(["csc", "--overwrite", "src", "dest"]).unwrap().overwrite);
+        assert!(CscArgs::try_parse_from(["csc", "--always-overwrite", "src", "dest"]).is_err());
+    }
 
     #[crate::ctb_test]
     fn test_strict_error_on_altered_filename() {

@@ -55,7 +55,7 @@ pub use dc_mixed::{
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{
-    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened, DcMixedNumber,
+    BinaryPayload, LazyBinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedFlattened, DcMixedNumber,
     DcProjectionContext, DcRawValue, LosslessWithContext,
     assert_dc_document_roundtrip, assert_dc_roundtrip,
 };

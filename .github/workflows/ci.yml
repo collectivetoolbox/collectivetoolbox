@@ -17,9 +17,6 @@ on:
         required: false
         type: boolean
         default: false
-  schedule:
-    # Run weekly on Sundays at 03:00 UTC to guard against bit-rot
-    - cron: '0 3 * * 0'
 
 jobs:
   build-ci:
@@ -89,9 +86,45 @@ jobs:
             ci-logs/
           retention-days: 7
 
+  check-weekly-v86:
+    name: Check Weekly v86 Build Schedule
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.test_initrd)
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+      week_key: ${{ steps.get-week.outputs.week_key }}
+    steps:
+      - name: Get current week
+        id: get-week
+        run: echo "week_key=$(date +'%G-W%V')" >> "$GITHUB_OUTPUT"
+
+      - name: Check weekly v86 cache
+        id: cache-check
+        if: github.event_name == 'push'
+        uses: actions/cache/restore@v4
+        with:
+          path: .v86-build-cache
+          key: v86-build-${{ steps.get-week.outputs.week_key }}
+          lookup-only: true
+
+      - name: Decide if v86 build should run
+        id: decide
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Manual trigger requested. Running v86 initrd build."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ steps.cache-check.outputs.cache-hit }}" == "true" ]]; then
+            echo "v86 initrd build already completed this week (${{ steps.get-week.outputs.week_key }}). Skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "First push of the week (${{ steps.get-week.outputs.week_key }}). Running v86 initrd build."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify-initrd:
     name: Guix POSIX Initrd Build Verification
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.test_initrd)
+    needs: check-weekly-v86
+    if: needs.check-weekly-v86.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
@@ -114,4 +147,18 @@ jobs:
           name: guix-posix-initrd
           path: built/guix_posix_initrd.cpio.gz
           retention-days: 14
+
+      - name: Record weekly v86 build stamp
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p .v86-build-cache
+          echo "${{ github.sha }}" > .v86-build-cache/stamp
+
+      - name: Save weekly v86 build cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: .v86-build-cache
+          key: v86-build-${{ needs.check-weekly-v86.outputs.week_key }}
+
 

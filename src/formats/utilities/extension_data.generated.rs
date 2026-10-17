@@ -464,6 +464,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("cscjournal"),
     },
     ExtensionEntry {
+        format_id: FormatId::CscArchive,
+        rule: ExtensionRule::insensitive("cscarchive"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::CscArchive1,
+        rule: ExtensionRule::insensitive("cscarchive"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Videoterminal,
         rule: ExtensionRule::insensitive("txt"),
     },

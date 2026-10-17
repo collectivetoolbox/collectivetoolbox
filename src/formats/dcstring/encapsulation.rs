@@ -312,7 +312,8 @@ impl ChecksumSpec {
         Ok(algorithm)
     }
 
-    pub(crate) fn matches_reader(
+    /// Checks exactly `len` payload bytes without buffering them in memory.
+    pub fn matches_reader(
         &self,
         reader: &mut impl std::io::Read,
         len: u64,

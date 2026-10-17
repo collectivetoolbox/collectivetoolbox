@@ -48,6 +48,7 @@ dev_packages=(
     qemu-system-ppc
     qemu-system-x86
     ripgrep
+    shellcheck
     tmux
     vim-common
     xxd

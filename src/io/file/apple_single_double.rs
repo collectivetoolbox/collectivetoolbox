@@ -40,6 +40,8 @@ pub use ctb_formats_apple_single_double::{
     APPLESINGLE_MAGIC_LE, VERSION_2_0_BE,
 };
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use rustix::fd::AsFd;
 
 /// Extension methods for [`AppleArchive`] bridging to `ctb-io-file` types.
 pub trait AppleArchiveExt {
@@ -292,8 +294,9 @@ impl AppleWriteMode {
 pub fn write_apple_double_companion(
     entity: &FileEntity,
     dest_path: &Path,
-    dest_dir_root: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
     style: AppleDoubleStyle,
+    existing: crate::sandboxable_dir::ExistingEntryPolicy,
 ) -> Result<Option<PathBuf>> {
     let times = if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
@@ -306,6 +309,50 @@ pub fn write_apple_double_companion(
     } else {
         None
     };
+    let Some(companion_path) = apple_double_companion_path(entity, dest_path, dest_dir, style)? else {
+        return Ok(None);
+    };
+    let apple_double_bytes = serialize_apple_double_for_entity(entity)?;
+    let relative = companion_path.strip_prefix(dest_dir.root_path())
+        .context("AppleDouble companion is outside the destination sandbox")?;
+    let (parent, final_name) = dest_dir.ensure_parent_dir(
+        relative, crate::path_policy::PathTraversalPolicy::StrictSandboxed,
+    )?;
+    let temp_name = format!(".ctb-apple-double-{}", uuid());
+    let mut staged = dest_dir.create_temp_file(&parent.as_fd(), &temp_name, 0o600)?;
+    let result = (|| -> Result<()> {
+        std::io::Write::write_all(&mut staged, &apple_double_bytes)
+            .context("Failed to stage AppleDouble companion bytes")?;
+        if let Some((atime, mtime)) = times {
+            filetime::set_file_handle_times(&staged, Some(atime), Some(mtime))
+                .context("Failed to stage AppleDouble companion timestamps")?;
+        }
+        staged.sync_all().context("Failed to sync staged AppleDouble companion")?;
+        dest_dir.commit_atomic_file(&parent.as_fd(), &temp_name, &final_name, existing)
+    })();
+    drop(staged);
+    if let Err(error) = result {
+        #[cfg(unix)]
+        let cleanup = rustix::fs::unlinkat(parent.as_fd(), temp_name.as_str(), rustix::fs::AtFlags::empty());
+        #[cfg(not(unix))]
+        let cleanup = std::fs::remove_file(
+            companion_path.parent().context("AppleDouble companion has no parent")?.join(&temp_name),
+        );
+        if let Err(cleanup) = cleanup {
+            return Err(error).context(format!("Failed to remove staged AppleDouble companion: {cleanup}"));
+        }
+        return Err(error);
+    }
+
+    Ok(Some(companion_path))
+}
+
+pub(crate) fn apple_double_companion_path(
+    entity: &FileEntity,
+    dest_path: &Path,
+    dest_dir: &crate::sandboxable_dir::SandboxableDir,
+    style: AppleDoubleStyle,
+) -> Result<Option<PathBuf>> {
     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
     if entity.streams.is_empty() && !has_apple_meta {
@@ -323,55 +370,27 @@ pub fn write_apple_double_companion(
         Path::new(file_name),
         is_dir,
         style,
-        Some(dest_dir_root),
+        Some(dest_dir.root_path()),
         entity.identity.relative_path.as_deref(),
     );
 
-    if let Some(parent) = companion_path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create parent directory for AppleDouble companion: {}", parent.display()))?;
-    }
-
-    let apple_double_bytes = serialize_apple_double_for_entity(entity)?;
-    std::fs::write(&companion_path, &apple_double_bytes)
-        .with_context(|| format!("Failed to write AppleDouble companion file: {}", companion_path.display()))?;
-
-    // Apply timestamps from entity
-    if let Some((atime, mtime)) = times {
-        filetime::set_file_times(&companion_path, atime, mtime)
-            .with_context(|| format!("Failed to set AppleDouble companion timestamps on {}", companion_path.display()))?;
-    }
-
+    let relative = companion_path.strip_prefix(dest_dir.root_path())
+        .context("AppleDouble companion is outside the destination sandbox")?;
+    ensure!(relative.components().all(|component| matches!(
+        component, std::path::Component::Normal(_) | std::path::Component::CurDir
+    )), "AppleDouble companion path is not contained in the destination sandbox");
     Ok(Some(companion_path))
 }
 
 
-fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix: &str) {
+fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, extension: AppleSingleExtension) {
     let Some(ref rel) = entity.identity.relative_path else {
         return;
     };
-    let file_name_opt = rel.file_name().and_then(|n| n.to_str()).map(ToString::to_string);
-    if let Some(file_name) = file_name_opt {
-        let should_strip = if file_name.len() >= ext_suffix.len() {
-            let suffix_start = file_name.len().saturating_sub(ext_suffix.len());
-            // Reason for fallback: slice guaranteed in bounds by length check
-            file_name.get(suffix_start..).is_some_and(|s| s.eq_ignore_ascii_case(ext_suffix))
-        } else {
-            false
-        };
-        if should_strip {
-            let stripped_len = file_name.len().saturating_sub(ext_suffix.len());
-            if let Some(stripped_name) = file_name.get(..stripped_len) {
-                let parent = rel.parent();
-                // Reason for fallback: empty or absent parent defaults to relative file name
-                let new_rel = match parent {
-                    Some(p) if !p.as_os_str().is_empty() => p.join(stripped_name),
-                    _ => PathBuf::from(stripped_name),
-                };
-                entity.identity.relative_path = Some(new_rel);
-            }
-        }
-    }
+    let Some(stem) = rel.file_name().and_then(|name| extension.strip_from_name(name)) else {
+        return;
+    };
+    entity.identity.relative_path = Some(rel.with_file_name(stem));
 }
 
 /// Checks for and joins AppleDouble companion files or AppleSingle archive into `entity`.
@@ -385,14 +404,13 @@ pub fn join_apple_double_or_single(
     if options.any_apple_single() && entity.is_regular() {
         // Reason for fallback: file path without a file name component defaults to verbatim OsStr
         let file_name_os = file_path.file_name().unwrap_or(file_path.as_os_str());
-        let file_name_str = file_name_os.to_string_lossy();
 
         let single_match = if options.read_apple_single_as
-            && (file_name_str.ends_with(".as") || file_name_str.ends_with(".AS"))
+            && AppleSingleExtension::As.strip_from_name(file_name_os).is_some()
         {
             Some(AppleSingleExtension::As)
         } else if options.read_apple_single_asf
-            && (file_name_str.ends_with(".asf") || file_name_str.ends_with(".ASF"))
+            && AppleSingleExtension::Asf.strip_from_name(file_name_os).is_some()
         {
             Some(AppleSingleExtension::Asf)
         } else if options.read_apple_single_without_extension || options.read_apple_single {
@@ -423,10 +441,10 @@ pub fn join_apple_double_or_single(
                             unpack_apple_single_into_entity(entity, &archive)?;
                             match matched_ext {
                                 AppleSingleExtension::As => {
-                                    strip_apple_single_extension_from_entity(entity, ".as");
+                                    strip_apple_single_extension_from_entity(entity, AppleSingleExtension::As);
                                 }
                                 AppleSingleExtension::Asf => {
-                                    strip_apple_single_extension_from_entity(entity, ".asf");
+                                    strip_apple_single_extension_from_entity(entity, AppleSingleExtension::Asf);
                                 }
                                 AppleSingleExtension::WithoutExtension => {}
                             }
@@ -610,6 +628,125 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
 mod tests {
     use super::*;
     use crate::metadata::FileFlag;
+    use crate::sandboxable_dir::{ExistingEntryPolicy, SandboxableDir};
+
+    #[crate::ctb_test]
+    fn test_apple_double_companion_publication_policies() -> Result<()> {
+        for style in [AppleDoubleStyle::Alongside, AppleDoubleStyle::Zip, AppleDoubleStyle::Netatalk] {
+            let temp = tempfile::tempdir()?;
+            let path = temp.path().join("file");
+            std::fs::write(&path, b"primary")?;
+            let sandbox = SandboxableDir::open(temp.path())?;
+            let mut entity = FileEntity::from_filesystem(&path, None)?;
+            entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+            let timestamps = entity.metadata.timestamps.as_mut().unwrap();
+            timestamps.atime_sec = 1_700_000_000;
+            timestamps.atime_nsec = 123_456_789;
+            timestamps.mtime_sec = 1_700_000_001;
+            timestamps.mtime_nsec = 987_654_321;
+            let companion = apple_double_companion_path(&entity, &path, &sandbox, style)?.unwrap();
+            std::fs::create_dir_all(companion.parent().unwrap())?;
+            std::fs::write(&companion, b"original")?;
+            let before = std::fs::symlink_metadata(&companion)?;
+            assert!(write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Refuse).is_err());
+            assert_eq!(std::fs::read(&companion)?, b"original");
+            assert_eq!(std::fs::metadata(&companion)?.modified()?, before.modified()?);
+            assert_eq!(std::fs::read_dir(companion.parent().unwrap())?.count(),
+                if style == AppleDoubleStyle::Alongside { 2 } else { 1 });
+            let expected = serialize_apple_double_for_entity(&entity)?;
+            assert_eq!(write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Replace)?, Some(companion.clone()));
+            let after = std::fs::metadata(&companion)?;
+            assert_eq!(filetime::FileTime::from_last_access_time(&after), filetime::FileTime::from_unix_time(1_700_000_000, 123_456_789));
+            assert_eq!(filetime::FileTime::from_last_modification_time(&after), filetime::FileTime::from_unix_time(1_700_000_001, 987_654_321));
+            assert_eq!(std::fs::read(&companion)?, expected);
+            assert_eq!(std::fs::read(&path)?, b"primary");
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                assert_ne!(before.ino(), after.ino());
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_apple_double_companion_symlink_publication() -> Result<()> {
+        for dangling in [false, true] {
+            let temp = tempfile::tempdir()?;
+            let path = temp.path().join("file");
+            let target = temp.path().join("target");
+            let companion = temp.path().join("._file");
+            std::fs::write(&path, b"primary")?;
+            if !dangling { std::fs::write(&target, b"target original")?; }
+            std::os::unix::fs::symlink(&target, &companion)?;
+            let sandbox = SandboxableDir::open(temp.path())?;
+            let mut entity = FileEntity::from_filesystem(&path, None)?;
+            entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+            assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Refuse).is_err());
+            assert_eq!(std::fs::read_link(&companion)?, target);
+            write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Replace)?;
+            assert!(!std::fs::symlink_metadata(&companion)?.file_type().is_symlink());
+            assert_eq!(std::fs::read(&companion)?, serialize_apple_double_for_entity(&entity)?);
+            if dangling { assert!(!target.try_exists()?); }
+            else { assert_eq!(std::fs::read(&target)?, b"target original"); }
+            assert_eq!(std::fs::read_dir(temp.path())?.count(), if dangling { 2 } else { 3 });
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_invalid_metadata_preserves_originals() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("file");
+        let companion = temp.path().join("._file");
+        std::fs::write(&path, b"primary")?;
+        std::fs::write(&companion, b"original")?;
+        let sandbox = SandboxableDir::open(temp.path())?;
+        let mut entity = FileEntity::from_filesystem(&path, None)?;
+        entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
+        for existing in [ExistingEntryPolicy::Refuse, ExistingEntryPolicy::Replace] {
+            for overflow in [false, true] {
+                let mut invalid = entity.clone();
+                let timestamps = invalid.metadata.timestamps.as_mut().unwrap();
+                if overflow { timestamps.mtime_sec = i64::MIN; }
+                else { timestamps.mtime_nsec = 1_000_000_000; }
+                assert!(write_apple_double_companion(&invalid, &path, &sandbox, AppleDoubleStyle::Alongside, existing).is_err());
+                assert_eq!(std::fs::read(&companion)?, b"original");
+                assert_eq!(std::fs::read(&path)?, b"primary");
+                assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
+            }
+        }
+        entity.identity.relative_path = Some(PathBuf::from("../../file"));
+        assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Zip, ExistingEntryPolicy::Replace).is_err());
+        assert_eq!(std::fs::read(&companion)?, b"original");
+        assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_apple_double_fresh_raw_companion_names() -> Result<()> {
+        use std::os::unix::ffi::{OsStrExt, OsStringExt};
+        for (style, expected) in [
+            (AppleDoubleStyle::Alongside, b"._raw\xff".as_slice()),
+            (AppleDoubleStyle::Zip, b"__MACOSX/._raw\xff".as_slice()),
+            (AppleDoubleStyle::Netatalk, b".AppleDouble/raw\xff".as_slice()),
+        ] {
+            let temp = tempfile::tempdir()?;
+            let name = std::ffi::OsString::from_vec(b"raw\xff".to_vec());
+            let path = temp.path().join(&name);
+            std::fs::write(&path, b"primary")?;
+            let sandbox = SandboxableDir::open(temp.path())?;
+            let mut entity = FileEntity::from_filesystem(&path, None)?;
+            entity.identity.relative_path = Some(PathBuf::from(&name));
+            entity.metadata.apple = Some(AppleMetadata { comment: Some("raw".into()), ..Default::default() });
+            let companion = write_apple_double_companion(&entity, &path, &sandbox, style, ExistingEntryPolicy::Refuse)?.unwrap();
+            assert_eq!(companion.strip_prefix(temp.path())?.as_os_str().as_bytes(), expected);
+            assert_eq!(std::fs::read(&companion)?, serialize_apple_double_for_entity(&entity)?);
+        }
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_apple_double_rejects_native_timestamp_overflow_before_write() {
@@ -619,8 +756,10 @@ mod tests {
         let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
         entity.metadata.flags = Some(vec![FileFlag::Invisible]);
         entity.metadata.timestamps.as_mut().unwrap().atime_sec = i64::MIN;
+        let sandbox = crate::sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
         let error = write_apple_double_companion(
-            &entity, &path, temp.path(), AppleDoubleStyle::Alongside,
+            &entity, &path, &sandbox, AppleDoubleStyle::Alongside,
+            crate::sandboxable_dir::ExistingEntryPolicy::Replace,
         ).unwrap_err();
         assert!(format!("{error:#}").contains("native conversion range"));
         assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);

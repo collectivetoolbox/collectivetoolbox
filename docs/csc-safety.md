@@ -3,6 +3,21 @@
 The file abstraction and `csc` treat payloads and attached streams as data.
 Best-effort metadata mode must not turn payload or stream corruption into success.
 
+## CSC Archives
+
+The experimental `ctb archive` command stores primary file contents under
+existing Dc 392 as well as metadata and attached streams. Unlike a CSC journal,
+a completed `.cscarchive` is intended to be self-contained. It has independent
+magic `CTBCSCA\x01` and format identities, while sharing journal-style DcMixed
+records and checksummed-section framing. Creation can stream to stdout without
+seeking; only file output supports resume.
+
+Archive support is **Partially Implemented**. Operational diagnostics,
+large-stream memory bounds, replacement policies, and platform/security coverage
+have remaining gaps. Do not treat checksums as authentication or use an archive
+as the only copy of important data. See [the command reference](cli/archive.md)
+and [remaining implementation work](../issues/csc-usability/archive.md).
+
 ## Safety Checks
 
 - Regular replacements are staged, checked for exact length and SHA-256, synced,
@@ -33,6 +48,35 @@ Best-effort metadata mode must not turn payload or stream corruption into succes
 - Malformed timestamp components are rejected before replacement and Dc
   encoding. Native time conversion is fallible; best-effort metadata application
   retains conversion failures as warnings instead of panicking.
+
+## Overwrite Authorization
+
+CSC and archive extraction refuse existing destination entries by default.
+`csc --overwrite` authorizes replacement; the former `--always-overwrite`
+spelling is no longer accepted. Explicit overwrite rewrites regular payloads
+rather than reconciling metadata through an unrelated hardlink. Library callers
+must choose `ExistingEntryPolicy::Replace` separately from `force_overwrite`;
+forcing a rewrite is not permission to modify an existing entry.
+
+This applies to directory/root metadata, streams, flags, and AppleDouble
+companions as well as primary bytes. Newly created directories can be finalized
+by the same live sandbox instance after opened-identity revalidation. Reopening
+a directory or reading a journal intent does not grant that authority. Until
+durable publication ownership is recorded, CSC resume needs `--overwrite` when
+existing destinations must be repaired or their metadata restored.
+
+`mv` requires explicit `--force` to replace a destination, on both rename and
+copy-based paths. Native no-replace publication rejects entries appearing after
+preflight, including dangling symlinks. Immutable flags are not automatically
+cleared to force replacement. Linux and Windows have native no-replace
+implementations; other Unix platforms currently fail closed where the required
+regular-file rename operation is unsupported.
+
+AppleDouble companions are staged, timestamped, synced, and published under the
+same explicit policy. This is not yet an atomic or crash-recoverable transaction
+with the main file. Directory metadata authorization is also not a lock across
+subsequent path-based operations. Keep the concurrent-writer restrictions below;
+these checks do not establish full race resistance or power-loss safety.
 
 ## Metadata Capture and Retention
 
@@ -135,8 +179,13 @@ cannot be decoded is an error, not permission to truncate it during resume.
 
 ## Filename Identity Requirement
 
-Required by the operator's actual backup corpus; implementation and regression
-coverage still need qualification. Thousands of files have different contents
+Required by the operator's actual backup corpus; full filesystem/platform
+coverage still needs qualification. Shared collision planning, AppleSingle
+extension changes, and AppleDouble companion construction retain native names.
+Linux regressions cover distinct raw names and NFC/NFD spellings in planning,
+CSC copying/journaling, and source-free archive extraction. These tests do not
+qualify native Windows execution or all destination namespace collision cases.
+Thousands of files have different contents
 but names differing only in Unicode normalization after Apple File Protocol
 mishaps. These are distinct files, not duplicate spellings to clean up.
 

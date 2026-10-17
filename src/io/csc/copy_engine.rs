@@ -77,6 +77,7 @@ struct DeferredSymlink {
 struct DeferredDirFixup {
     src_path: PathBuf,
     dest_path: PathBuf,
+    sandbox: std::sync::Arc<SandboxableDir>,
     dir_entity: FileEntity,
     expected_filenames: Vec<Vec<u8>>,
 }
@@ -159,20 +160,6 @@ pub fn execute_copy_pipeline(
     crate::path_resolution::validate_task_overlap(tasks)?;
     let mut stats = CopyStats::default();
     let mut hardlink_map: HashMap<InodeKey, PathBuf> = HashMap::new();
-    if let Some(snap) = journal.snapshot() {
-        for entity in snap.committed_entities.values() {
-            if entity.identity.nlink > 1 && entity.is_regular() {
-                if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-                    if let Some(ref rel) = entity.identity.relative_path {
-                        let dest_path = journal.destination().join(rel);
-                        if dest_path.exists() {
-                            hardlink_map.insert(key.clone(), rel.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
     let mut deferred_dirs: Vec<DeferredDirFixup> = Vec::new();
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
@@ -208,10 +195,35 @@ pub fn execute_copy_pipeline(
         symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
         path_policy: PathTraversalPolicy::StrictSandboxed,
         copy_specials: args.copy_specials_as_specials,
-        force_overwrite: args.always_overwrite,
+        existing_entry_policy: if args.overwrite {
+            ctb_io::file::ExistingEntryPolicy::Replace
+        } else {
+            ctb_io::file::ExistingEntryPolicy::Refuse
+        },
+        force_overwrite: args.overwrite,
         apple_write_mode,
         apple_single_write_extension,
     };
+
+    if !args.dry_run && !args.overwrite {
+        let mut pending: Vec<_> = tasks.iter().map(|task| (task.source_root.clone(), task.target_root.clone())).collect();
+        while let Some((source, destination)) = pending.pop() {
+            if !std::fs::symlink_metadata(&source)?.is_dir() {
+                continue;
+            }
+            match std::fs::symlink_metadata(&destination) {
+                Ok(_) => anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                Err(error) => return Err(error.into()),
+            }
+            for entry in std::fs::read_dir(&source)? {
+                let entry = entry?;
+                if entry.file_type()?.is_dir() {
+                    pending.push((entry.path(), destination.join(entry.file_name())));
+                }
+            }
+        }
+    }
 
     // =========================================================================
     // PASS 1: Directory traversal & copying regular files, special nodes, hardlinks
@@ -244,11 +256,11 @@ pub fn execute_copy_pipeline(
         }
 
         if src_meta.is_dir() {
-            let dest_dir = if args.dry_run {
+            let dest_dir = std::sync::Arc::new(if args.dry_run {
                 SandboxableDir::open(".").context("Failed to open current directory in dry run")?
             } else {
                 SandboxableDir::create_or_open(journal.destination())?
-            };
+            });
 
             let mut dir_queue: Vec<(PathBuf, PathBuf)> =
                 vec![(src_root.clone(), tgt_root.clone())];
@@ -300,7 +312,7 @@ pub fn execute_copy_pipeline(
                     if let Err(e) = dest_dir.ensure_dir_all(
                         rel_dir,
                         options.path_policy,
-                    ) {
+                    ).and_then(|_| dest_dir.authorize_metadata(rel_dir, options.existing_entry_policy)) {
                         record_materialization_failure(journal, &dest_dir.root_path().join(rel_dir), &dir_entity, &e)?;
                         let _ = handle_item_error(
                             &curr_src,
@@ -469,6 +481,7 @@ pub fn execute_copy_pipeline(
                 deferred_dirs.push(DeferredDirFixup {
                     src_path: curr_src,
                     dest_path: curr_tgt.clone(),
+                    sandbox: std::sync::Arc::clone(&dest_dir),
                     dir_entity: dir_entity.clone(),
                     expected_filenames,
                 });
@@ -659,7 +672,10 @@ pub fn execute_copy_pipeline(
                     continue;
                 }
 
-                if let Err(e) = write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless) {
+                let relative = fixup.dir_entity.identity.relative_path.as_deref()
+                    .context("Missing deferred directory relative path")?;
+                if let Err(e) = fixup.sandbox.authorize_metadata(relative, options.existing_entry_policy)
+                    .and_then(|()| write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)) {
                     record_materialization_failure(journal, &fixup.dest_path, &fixup.dir_entity, &e)?;
                     let _ = handle_item_error(
                         &fixup.src_path,
@@ -881,40 +897,22 @@ fn copy_single_item(
     }
 
     // If an AppleSingle extension was stripped on read, update destination relative path
-    let effective_dest_rel = if let Some(dest_fname) = dest_rel_path.file_name().and_then(|f| f.to_str()) {
-        let is_stripped = if apple_read_options.read_apple_single_as
-            && (dest_fname.ends_with(".as") || dest_fname.ends_with(".AS"))
-        {
-            let stripped_len = dest_fname.len().saturating_sub(".as".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.filename_bytes() == Some(s.as_bytes()))
-        } else if apple_read_options.read_apple_single_asf
-            && (dest_fname.ends_with(".asf") || dest_fname.ends_with(".ASF"))
-        {
-            let stripped_len = dest_fname.len().saturating_sub(".asf".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.filename_bytes() == Some(s.as_bytes()))
-        } else {
-            false
-        };
-
-        if is_stripped {
-            if let Some(raw) = entity.identity.filename_bytes() {
-                if let Ok(fname_str) = std::str::from_utf8(raw) {
-                    match dest_rel_path.parent() {
-                        Some(p) if !p.as_os_str().is_empty() => p.join(fname_str),
-                        _ => PathBuf::from(fname_str),
+    let mut effective_dest_rel = dest_rel_path.to_path_buf();
+    if let Some(name) = dest_rel_path.file_name() {
+        for (enabled, extension) in [
+            (apple_read_options.read_apple_single_as, ctb_io::file::apple_double::AppleSingleExtension::As),
+            (apple_read_options.read_apple_single_asf, ctb_io::file::apple_double::AppleSingleExtension::Asf),
+        ] {
+            if enabled {
+                if let Some(stem) = extension.strip_from_name(name) {
+                    if entity.identity.filename_bytes() == Some(stem.as_encoded_bytes()) {
+                        effective_dest_rel = dest_rel_path.with_file_name(stem);
+                        break;
                     }
-                } else {
-                    dest_rel_path.to_path_buf()
                 }
-            } else {
-                dest_rel_path.to_path_buf()
             }
-        } else {
-            dest_rel_path.to_path_buf()
         }
-    } else {
-        dest_rel_path.to_path_buf()
-    };
+    }
     // Reason for fallback: parent path defaults to current directory
     let parent_path = dest_path.parent().unwrap_or(Path::new("."));
     // Reason for fallback: file name defaults to verbatim OsStr
@@ -1479,8 +1477,11 @@ mod fidelity_tests {
             &journal_path, &temp.path().join("copy.cscdesc"),
             std::slice::from_ref(&source), &destination,
         ).unwrap();
-        let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        let mut options = MaterializeOptions { strict_lossless: false, ..Default::default() };
         for expected_identical in [false, true] {
+            if expected_identical {
+                options.existing_entry_policy = ctb_io::file::ExistingEntryPolicy::Replace;
+            }
             let mut payload = ctb_io::file::MemoryPayloadSource::new(b"payload".to_vec()).unwrap();
             let receipt = materialize_entity(&entity, Some(&mut payload), &root, &options).unwrap();
             assert_eq!(receipt.skipped_identical, expected_identical && cfg!(unix));
@@ -1805,7 +1806,50 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_skip_existing_checksum() {
+    fn test_copy_preserves_raw_apple_single_stems() -> Result<()> {
+        use std::os::unix::ffi::OsStringExt;
+        use ctb_io::file::apple_double::{
+            AppleFormat, AppleSingleExtension, create_apple_archive_from_entity,
+            write_apple_single_double,
+        };
+
+        let temp = tempfile::tempdir()?;
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        let state = temp.path().join("state");
+        std::fs::create_dir(&source)?;
+        std::fs::create_dir(&state)?;
+        let names = [
+            std::ffi::OsString::from_vec(b"name\xff".to_vec()),
+            std::ffi::OsString::from_vec(b"name\xfe".to_vec()),
+            std::ffi::OsString::from("caf\u{e9}"),
+            std::ffi::OsString::from("cafe\u{301}"),
+        ];
+        for name in &names {
+            let data = name.as_encoded_bytes().to_vec();
+            let entity = FileEntity::from_vec(data.clone());
+            let archive = create_apple_archive_from_entity(&entity, AppleFormat::AppleSingle, Some(data))?;
+            let mut encoded = name.clone();
+            encoded.push(".As");
+            std::fs::write(source.join(encoded), write_apple_single_double(&archive)?)?;
+        }
+        let mut args = default_test_args(vec![source.join(""), destination.clone()], state.clone());
+        args.read_apple_single_with_extension = vec![AppleSingleExtension::As];
+        run_csc(args)?;
+        let journal_path = find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path)?;
+        for name in &names {
+            ensure!(std::fs::read(destination.join(name))? == name.as_encoded_bytes());
+            ensure!(snapshot.committed_entities.values().any(|entity|
+                entity.identity.relative_path.as_deref() == Some(Path::new(name))));
+        }
+        ensure!(std::fs::read_dir(destination)?.count() == names.len());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_identical_checksum_does_not_authorize_metadata() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_skip");
         let dest = temp.path().join("dest_skip");
@@ -1825,15 +1869,10 @@ mod tests {
             state,
         );
 
-        let res = run_csc(args).expect("run csc");
-        match res {
-            ctb_utilities::cli::ToolResult::Immediate { stdout, .. } => {
-                let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("Files skipped (identical): 1"));
-                assert!(out.contains("Files copied:             0"));
-            }
-            _ => panic!("Expected Immediate ToolResult"),
-        }
+        let original_mode = fs::metadata(dest.join("file.txt")).unwrap().permissions().mode();
+        assert!(run_csc(args).is_err());
+        assert_eq!(fs::read(dest.join("file.txt")).unwrap(), b"Same data");
+        assert_eq!(fs::metadata(dest.join("file.txt")).unwrap().permissions().mode(), original_mode);
     }
 
     #[crate::ctb_test]
@@ -1871,6 +1910,7 @@ mod tests {
         // Now resume without specifying source or dest!
         let mut resume_args = default_test_args(Vec::new(), state.clone());
         resume_args.resume = Some(journal_path);
+        resume_args.overwrite = true;
 
         let res = run_csc(resume_args).expect("run resume csc");
         match res {
@@ -1948,6 +1988,9 @@ mod tests {
         let journal_path = find_cscjournal(&state);
         let mut resume = default_test_args(Vec::new(), state.clone());
         resume.resume = Some(journal_path.clone());
+        assert!(run_csc(resume.clone()).is_err());
+        assert_eq!(fs::read(destination.join("data")).unwrap(), b"damaged!");
+        resume.overwrite = true;
         run_csc(resume).unwrap();
         assert_eq!(fs::read(destination.join("data")).unwrap(), b"original");
         assert!(!destination.join("source").exists());
@@ -2415,6 +2458,7 @@ mod tests {
             state,
         );
         resume_args.resume = Some(journal_path);
+        resume_args.overwrite = true;
         run_csc(resume_args).expect("resume run");
 
         let dest_f1 = dest.join("orig.txt");
@@ -2498,7 +2542,7 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn test_csc_default_skips_identical_file_and_updates_metadata() {
+    fn test_csc_identical_file_metadata_requires_overwrite() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_skip");
         let dest = temp.path().join("dest_skip");
@@ -2539,35 +2583,37 @@ mod tests {
         // Update metadata on source file (change mode to 0o644)
         fs::set_permissions(&file_path, fs::Permissions::from_mode(0o644)).expect("chmod updated");
 
-        // Second copy: default behavior should skip payload rewrite and losslessly update metadata in-place
-        let args2 = default_test_args(
+        // Second copy must explicitly authorize restoring metadata on existing entries.
+        let mut args2 = default_test_args(
             vec![
                 PathBuf::from(format!("{}/", src.display())),
                 dest.clone(),
             ],
             state2,
         );
-        let res2 = run_csc(args2).expect("second copy with smart skip");
+        assert!(run_csc(args2.clone()).is_err());
+        assert_eq!(fs::metadata(&dest_file).unwrap().permissions().mode() & 0o7777, 0o600);
+        assert_eq!(fs::read(&dest_file).unwrap(), payload);
+        args2.overwrite = true;
+        let res2 = run_csc(args2).expect("second copy with explicit overwrite");
         match res2 {
             ToolResult::Immediate { stdout, exit_code, .. } => {
                 assert_eq!(exit_code, 0);
                 let out = String::from_utf8_lossy(&stdout);
-                assert!(out.contains("Files copied:             0"));
-                assert!(out.contains("Files skipped (identical): 1"));
-                assert!(out.contains("Bytes transferred:        0"));
+                assert!(out.contains("Files copied:             1"));
                 assert!(out.contains("Files verified:           1"));
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
 
-        // Verify that destination metadata was updated in-place to 0o644
+        // Verify that explicitly authorized replacement restores metadata to 0o644.
         let meta2 = fs::metadata(&dest_file).expect("dest meta after update");
         assert_eq!(meta2.permissions().mode() & 0o7777, 0o644);
         assert_eq!(fs::read(&dest_file).expect("read dest after update"), payload);
     }
 
     #[crate::ctb_test]
-    fn test_csc_always_overwrite_rewrites_identical_file() {
+    fn test_csc_overwrite_rewrites_identical_file() {
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_always");
         let dest = temp.path().join("dest_always");
@@ -2591,7 +2637,7 @@ mod tests {
         );
         run_csc(args1).expect("first copy");
 
-        // Second copy with always_overwrite = true
+        // Second copy with overwrite = true
         let mut args2 = default_test_args(
             vec![
                 PathBuf::from(format!("{}/", src.display())),
@@ -2599,7 +2645,7 @@ mod tests {
             ],
             state2,
         );
-        args2.always_overwrite = true;
+        args2.overwrite = true;
 
         let res2 = run_csc(args2).expect("always overwrite copy");
         match res2 {
@@ -2612,6 +2658,32 @@ mod tests {
             }
             _ => panic!("Expected Immediate ToolResult"),
         }
+    }
+
+    #[crate::ctb_test]
+    #[cfg(unix)]
+    fn test_csc_file_overwrite_preserves_unrelated_hardlink() -> Result<()> {
+        let temporary = tempdir()?;
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        let alias = temporary.path().join("alias");
+        let state = temporary.path().join("state");
+        fs::create_dir(&state)?;
+        fs::write(&source, b"new payload")?;
+        fs::write(&destination, b"original payload")?;
+        fs::set_permissions(&source, fs::Permissions::from_mode(0o644))?;
+        fs::set_permissions(&destination, fs::Permissions::from_mode(0o600))?;
+        fs::hard_link(&destination, &alias)?;
+        let mut args = default_test_args(vec![source, destination.clone()], state);
+        assert!(run_csc(args.clone()).is_err());
+        assert_eq!(fs::read(&destination)?, b"original payload");
+        assert_eq!(fs::metadata(&destination)?.permissions().mode() & 0o777, 0o600);
+        args.overwrite = true;
+        run_csc(args)?;
+        assert_eq!(fs::read(destination)?, b"new payload");
+        assert_eq!(fs::read(&alias)?, b"original payload");
+        assert_eq!(fs::metadata(alias)?.permissions().mode() & 0o777, 0o600);
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -2698,6 +2770,7 @@ mod tests {
             state.clone(),
         );
         args.verify_after = true;
+        args.overwrite = true;
         run_csc(args).expect("run csc");
 
         let journal_path = find_cscjournal(&state);

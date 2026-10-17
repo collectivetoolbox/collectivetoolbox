@@ -27,9 +27,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub mod args;
+pub mod archive;
 pub mod cli;
 pub mod copy_engine;
 pub mod journal;
+mod section;
 pub mod path_resolution;
 pub mod verifier;
 pub mod index_engine;

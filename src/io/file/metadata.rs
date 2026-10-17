@@ -1843,7 +1843,7 @@ mod tests {
         assert!(read_and_hash_streams(&path).is_err());
         assert!(StreamName::from_bytes(b"invalid\xff").to_os_string().is_err());
         let root = SandboxableDir::open(temp.path()).unwrap();
-        assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source").is_err());
+        assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source", crate::ExistingEntryPolicy::Replace).is_err());
         assert_eq!(fs::read(path).unwrap(), b"original");
     }
 
@@ -1864,6 +1864,7 @@ mod tests {
         let root = SandboxableDir::open(destination.path()).unwrap();
         let options = crate::materializer::MaterializeOptions {
             strict_lossless: false,
+            existing_entry_policy: crate::sandboxable_dir::ExistingEntryPolicy::Replace,
             ..Default::default()
         };
         let mut payload = crate::MemoryPayloadSource::new(b"data".to_vec()).unwrap();

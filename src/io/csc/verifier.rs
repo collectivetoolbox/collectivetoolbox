@@ -758,6 +758,7 @@ mod tests {
         fs::hard_link(first.join("shared"), second.join("resumed")).expect("create resumed link");
         let mut resume_args = default_test_args(vec![first, second, dest.clone()], state);
         resume_args.resume = Some(journal.clone());
+        resume_args.overwrite = true;
         run_csc(resume_args).expect("resume hardlink copy");
         let shared_identity = ctb_io::file::identity::query_file_identity(&dest.join("first/shared"))
             .expect("shared identity");

@@ -504,3 +504,72 @@ vm_capture_failure_artifacts() {
         tail -n 1000 "$serial_log" > "$out_dir/vm-timeout-serial.log" 2>/dev/null || true
     fi
 }
+
+vm_is_ssh_available() {
+    local key="$1"
+    local port="$2"
+    local user="${3:-root}"
+    ssh -q -i "$key" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o BatchMode=yes -o ConnectTimeout=2 -p "$port" "${user}@127.0.0.1" "true" 2>/dev/null
+}
+
+vm_wait_for_ssh() {
+    local key="$1"
+    local port="$2"
+    local user="${3:-root}"
+    local max_wait="${4:-45}"
+    local os_title="${5:-VM}"
+    local elapsed=0
+    echo -n "Waiting for $os_title SSH on port $port ($user)..."
+    while [[ $elapsed -lt $max_wait ]]; do
+        if vm_is_ssh_available "$key" "$port" "$user"; then
+            echo " ready."
+            return 0
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+        echo -n "."
+    done
+    echo " timed out waiting for SSH."
+    return 1
+}
+
+vm_ssh() {
+    local key="$1"
+    local port="$2"
+    local user="$3"
+    shift 3
+    local ssh_opts=(
+        -i "$key"
+        -o StrictHostKeyChecking=no
+        -o UserKnownHostsFile=/dev/null
+        -o BatchMode=yes
+        -o LogLevel=ERROR
+        -p "$port"
+    )
+    if [[ $# -gt 0 ]]; then
+        ssh "${ssh_opts[@]}" "${user}@127.0.0.1" "$@"
+    else
+        ssh "${ssh_opts[@]}" "${user}@127.0.0.1"
+    fi
+}
+
+vm_swap_iso() {
+    local monitor_sock="$1"
+    local iso_path="$2"
+    local sleep_after="${3:-1.5}"
+    vm_cmd_monitor "$monitor_sock" "eject -f cdrom0" >/dev/null 2>&1 || true
+    sleep 0.5
+    vm_cmd_monitor "$monitor_sock" "change cdrom0 $iso_path raw" >/dev/null 2>&1 || true
+    sleep "$sleep_after"
+}
+
+vm_ensure_empty_iso() {
+    local iso_path="$1"
+    if [[ ! -f "$iso_path" ]]; then
+        local empty_dir
+        empty_dir="$(mktemp -d /tmp/ctb-empty-iso-XXXXXX)"
+        genisoimage -J -r -o "$iso_path" "$empty_dir" >/dev/null 2>&1 || true
+        remove_if_exists "$empty_dir"
+    fi
+}

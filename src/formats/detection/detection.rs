@@ -2247,6 +2247,16 @@ mod tests {
         data
     }
 
+    #[crate::ctb_test]
+    fn test_csc_archive_magic_is_distinct_from_journal() {
+        for filename in ["backup.cscarchive", "backup.cscjournal", "backup"] {
+            let mut data: &[u8] = b"CTBCSCA\x01 synthetic archive payload";
+            let hint = DetectionHint { filename: Some(filename.to_owned()), ..Default::default() };
+            let report = guess_format_report(&mut data, Some(&hint)).unwrap();
+            assert_eq!(report.candidates[0].format_id, Some(FormatId::CscArchive1));
+        }
+    }
+
     #[ctb_test]
     fn test_csc_journal_v4_magic_resolves_version() {
         let data = csc_journal_v4_bytes();

@@ -37,6 +37,24 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+fn rename_with_policy(source: &Path, destination: &Path, policy: ctb_io::file::ExistingEntryPolicy) -> Result<()> {
+    let source_parent = match source.parent().filter(|path| !path.as_os_str().is_empty()) {
+        Some(parent) => parent,
+        None => Path::new("."),
+    };
+    let destination_parent = match destination.parent().filter(|path| !path.as_os_str().is_empty()) {
+        Some(parent) => parent,
+        None => Path::new("."),
+    };
+    let source_name = source.file_name().context("Missing source entry name")?;
+    let destination_name = destination.file_name().context("Missing destination entry name")?;
+    let source_dir = ctb_io::file::SandboxableDir::open(source_parent)?;
+    let destination_dir = ctb_io::file::SandboxableDir::open(destination_parent)?;
+    destination_dir.rename_from_parent(
+        &source_dir.root_fd(), source_name, &destination_dir.root_fd(), destination_name, policy,
+    )
+}
+
 /// Executes the `mv` command.
 ///
 /// Attempts an atomic O(1) filesystem rename. When encountering `EXDEV`
@@ -113,9 +131,11 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     })?;
                 }
             }
-            std::fs::rename(&task.source_root, &task.target_root)
+            rename_with_policy(&task.source_root, &task.target_root,
+                if args.force { ctb_io::file::ExistingEntryPolicy::Replace }
+                else { ctb_io::file::ExistingEntryPolicy::Refuse })
         } else {
-            Err(std::io::Error::from(std::io::ErrorKind::CrossesDevices))
+            Err(std::io::Error::from(std::io::ErrorKind::CrossesDevices).into())
         };
 
         match rename_res {
@@ -129,7 +149,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     ));
                 }
             }
-            Err(err) if is_cross_device_error(&err) => {
+            Err(err) if err.downcast_ref::<std::io::Error>().is_some_and(is_cross_device_error) => {
                 progress.message(&format!(
                     "Cross-device move detected for {}: copying with verification...",
                     task.source_root.display()
@@ -145,7 +165,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     no_progress: args.no_progress,
                     verify_after: true,
                     no_verify_after: false,
-                    always_overwrite: args.force,
+                    overwrite: args.force,
                     on_source_change: SourceChangePolicy::Error,
                     copy_specials_as_specials: true,
                     copy_block_devices_as_regular_files: false,
@@ -331,6 +351,45 @@ mod tests {
     use ctb_utilities::cli::ToolResult;
     use std::fs;
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_mv_collision_requires_force() -> Result<()> {
+        use clap::Parser;
+        let temporary = tempdir()?;
+        fs::create_dir(temporary.path().join("source-parent"))?;
+        fs::create_dir(temporary.path().join("destination-parent"))?;
+        let source = temporary.path().join("source-parent/source");
+        let destination = temporary.path().join("destination-parent/destination");
+        fs::write(&source, b"source payload")?;
+        fs::write(&destination, b"destination payload")?;
+        let args = MvArgs::try_parse_from([
+            std::ffi::OsStr::new("mv"), std::ffi::OsStr::new("--best-effort-metadata"),
+            source.as_os_str(), destination.as_os_str(),
+        ])?;
+        assert!(run_mv(args.clone()).is_err());
+        assert_eq!(fs::read(&source)?, b"source payload");
+        assert_eq!(fs::read(&destination)?, b"destination payload");
+        let mut forced = args;
+        forced.force = true;
+        run_mv(forced)?;
+        assert!(!source.exists());
+        assert_eq!(fs::read(destination)?, b"source payload");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    #[cfg(unix)]
+    fn test_mv_dangling_collision_preserves_entries() -> Result<()> {
+        let temporary = tempdir()?;
+        let source = temporary.path().join("source");
+        let destination = temporary.path().join("destination");
+        fs::write(&source, b"source payload")?;
+        std::os::unix::fs::symlink("missing", &destination)?;
+        assert!(rename_with_policy(&source, &destination, ctb_io::file::ExistingEntryPolicy::Refuse).is_err());
+        assert_eq!(fs::read(&source)?, b"source payload");
+        assert_eq!(fs::read_link(&destination)?, Path::new("missing"));
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_mv_same_filesystem() {

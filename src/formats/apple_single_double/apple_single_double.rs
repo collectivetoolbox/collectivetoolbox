@@ -175,11 +175,29 @@ impl AppleSingleExtension {
 
     /// Appends the extension to a filename if one is configured.
     #[must_use]
-    pub fn apply_to_name(self, name: &str) -> String {
+    pub fn apply_to_name(self, name: impl AsRef<std::ffi::OsStr>) -> std::ffi::OsString {
+        let mut result = name.as_ref().to_os_string();
         match self {
-            Self::WithoutExtension => name.to_string(),
-            Self::As => format!("{name}.as"),
-            Self::Asf => format!("{name}.asf"),
+            Self::WithoutExtension => {},
+            Self::As => result.push(".as"),
+            Self::Asf => result.push(".asf"),
+        }
+        result
+    }
+
+    /// Removes the configured extension without transcoding the filename.
+    #[must_use]
+    pub fn strip_from_name(self, name: &std::ffi::OsStr) -> Option<&std::ffi::OsStr> {
+        let extension = match self {
+            Self::WithoutExtension => return Some(name),
+            Self::As => b"as".as_slice(),
+            Self::Asf => b"asf".as_slice(),
+        };
+        let path = Path::new(name);
+        if path.extension()?.as_encoded_bytes().eq_ignore_ascii_case(extension) {
+            path.file_stem()
+        } else {
+            None
         }
     }
 }
@@ -263,8 +281,9 @@ pub fn get_companion_path(
 ) -> PathBuf {
     match style {
         AppleDoubleStyle::Alongside => {
-            let name_str = file_name.to_string_lossy();
-            parent_dir.join(format!("._{}", name_str))
+            let mut name = std::ffi::OsString::from("._");
+            name.push(file_name);
+            parent_dir.join(name)
         }
         AppleDoubleStyle::Zip => {
             // Reason for fallback: root destination defaults to parent
@@ -278,13 +297,11 @@ pub fn get_companion_path(
             let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
             // Reason for fallback: path without a file name component defaults
             // to original file name
-            let name_str = rel
-                .file_name()
-                .unwrap_or(file_name.as_os_str())
-                .to_string_lossy();
+            let mut name = std::ffi::OsString::from("._");
+            name.push(rel.file_name().unwrap_or(file_name.as_os_str()));
             base.join("__MACOSX")
                 .join(rel_parent)
-                .join(format!("._{}", name_str))
+                .join(name)
         }
         AppleDoubleStyle::Netatalk => {
             if is_dir {
@@ -2086,6 +2103,49 @@ mod tests {
         );
         ensure!(netatalk_dir == PathBuf::from("/tmp/testdir/subdir/.AppleDouble/.Parent"));
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_native_name_extensions_and_companions() -> Result<()> {
+        let mut names = vec![
+            std::ffi::OsString::from("caf\u{e9}"),
+            std::ffi::OsString::from("cafe\u{301}"),
+        ];
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStringExt;
+            names.push(std::ffi::OsString::from_vec(b"name\xff".to_vec()));
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStringExt;
+            names.push(std::ffi::OsString::from_wide(&[110, 97, 109, 101, 0xD800]));
+        }
+        for name in names {
+            for extension in [AppleSingleExtension::WithoutExtension, AppleSingleExtension::As, AppleSingleExtension::Asf] {
+                let encoded = extension.apply_to_name(&name);
+                ensure!(extension.strip_from_name(&encoded) == Some(name.as_os_str()));
+            }
+            let mut mixed_case = name.clone();
+            mixed_case.push(".aSf");
+            ensure!(AppleSingleExtension::Asf.strip_from_name(&mixed_case) == Some(name.as_os_str()));
+            let mut companion = std::ffi::OsString::from("._");
+            companion.push(&name);
+            let relative = PathBuf::from("nested").join(&name);
+            for style in [AppleDoubleStyle::Alongside, AppleDoubleStyle::Zip, AppleDoubleStyle::Netatalk] {
+                let actual = get_companion_path(Path::new("destination"), Path::new(&name), false,
+                    style, Some(Path::new("destination")), Some(&relative));
+                let expected = match style {
+                    AppleDoubleStyle::Alongside => PathBuf::from("destination").join(&companion),
+                    AppleDoubleStyle::Zip => PathBuf::from("destination/__MACOSX/nested").join(&companion),
+                    AppleDoubleStyle::Netatalk => PathBuf::from("destination/.AppleDouble").join(&name),
+                };
+                ensure!(actual == expected);
+            }
+        }
+        ensure!(AppleSingleExtension::As.strip_from_name(std::ffi::OsStr::new(".as")).is_none());
+        ensure!(AppleSingleExtension::As.strip_from_name(std::ffi::OsStr::new("file.asf")).is_none());
         Ok(())
     }
 
