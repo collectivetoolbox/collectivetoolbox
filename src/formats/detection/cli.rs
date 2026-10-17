@@ -1167,16 +1167,15 @@ mod tests {
             .expect("rsplit always yields at least one segment")
             .lines()
             .collect();
-        // The verified chain renders first, annotated; the other filename
-        // chains keep their existing format and relative order. No tie boost
-        // applies here: the ambiguous extension resolved to the inner layer,
-        // while all chains share the outermost format Gzip.
+        // The verified chain renders first, annotated; the inner-layer tie
+        // boost lifts the undifferentiated CscJournal superset payload chain
+        // above its variant siblings, which keep their catalog order.
         assert_eq!(chain_lines.len(), 5);
         assert_eq!(
             chain_lines[0],
             "  • CscJournal4 > Gzip (score: 50) ✓ verified by content"
         );
-        assert_eq!(chain_lines[1], "  • CscJournal > Gzip (score: 50)");
+        assert_eq!(chain_lines[1], "  • CscJournal > Gzip (score: 51)");
         assert_eq!(
             chain_lines[2..],
             [

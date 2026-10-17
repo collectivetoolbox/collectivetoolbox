@@ -556,17 +556,20 @@ pub fn guess_format_chains(
     results
 }
 
-/// Boosts, by one point, each chain in an exact-score tie group whose outermost
-/// format is transitively implied by every other member's outermost format.
-/// When an ambiguous extension resolves to a format family whose members all
-/// `@implies()` a shared general format (e.g. the CscJournal variants), the
-/// extension could not distinguish between the candidates, so the
-/// undifferentiated superset gets a minimal +1 nudge to rank first without
-/// distorting the wider score tiers used for confidence.
+/// Boosts, by one point, each chain in an exact-score tie group whose
+/// branching format is transitively implied by the same layer of every
+/// other member. When an ambiguous extension resolves to a format family
+/// whose members all `@implies()` a shared general format (e.g. the
+/// CscJournal variants), the extension could not distinguish between the
+/// candidates, so the undifferentiated superset gets a minimal +1 nudge to
+/// rank first without distorting the wider score tiers used for confidence.
 ///
-/// The OUTERMOST format identifies each chain for grouping and comparison,
-/// because that is the layer the ambiguous extension resolved to; for
-/// single-layer chains it is the only layer.
+/// Chains are compared on the layer where the tie actually branches: the
+/// outermost format when the members' outers differ, otherwise the inner
+/// payload format. Two-layer chains like `.cscjournal.gz` branch on their
+/// ambiguous inner extension while sharing one outer format, so the nudge
+/// keys on the inner layer there, and on the sole (outer) layer for
+/// single-layer chains.
 fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
     // All decisions are computed from the pre-boost scores so a boosted chain
     // cannot cascade into a neighboring score tier's tie group.
@@ -585,7 +588,7 @@ fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
             !tied.is_empty()
                 && tied
                     .iter()
-                    .all(|other| other.outer.implies().contains(&chain.outer))
+                    .all(|other| tied_member_implies_chain(chain, other))
         })
         .collect();
 
@@ -593,6 +596,24 @@ fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
         if is_boosted {
             chain.score = chain.score.saturating_add(1);
         }
+    }
+}
+
+/// Whether the branching layer of the tied member `other` implies the
+/// corresponding layer of `chain`: the outermost format when the two chains'
+/// outers differ, and otherwise the inner payload format. Equal layers never
+/// imply one another because `implies()` is irreflexive, so a tied member
+/// sharing both of `chain`'s formats fails the check and blocks the boost.
+fn tied_member_implies_chain(
+    chain: &ProbableFormatChain,
+    other: &ProbableFormatChain,
+) -> bool {
+    if other.outer != chain.outer {
+        other.outer.implies().contains(&chain.outer)
+    } else if let (Some(other_fmt), Some(fmt)) = (other.inner, chain.inner) {
+        other_fmt.implies().contains(&fmt)
+    } else {
+        false
     }
 }
 
@@ -664,6 +685,39 @@ mod tests {
     }
 
     #[ctb_test]
+    fn test_tie_boost_inner_layer_of_two_layer_chain() {
+        // With a two-layer filename, every chain shares the Gzip outermost
+        // format, so the tie branches on the ambiguous inner extension; the
+        // +1 nudge keys on the inner payload format and lifts the
+        // undifferentiated CscJournal superset to the top.
+        let chains = guess_format_chains("v4_dcmixed.cscjournal.gz", None);
+        assert_eq!(chains.len(), 5);
+        assert_eq!(chains[0].outer, FormatId::Gzip);
+        assert_eq!(chains[0].inner, Some(FormatId::CscJournal));
+        assert_eq!(chains[0].stem, "v4_dcmixed");
+        assert_eq!(chains[0].score, 51);
+        assert_eq!(
+            chains[1..]
+                .iter()
+                .map(|chain| (chain.inner, chain.score))
+                .collect::<Vec<_>>(),
+            vec![
+                (Some(FormatId::CscJournal1Meta1), 50),
+                (Some(FormatId::CscJournal1Meta2), 50),
+                (Some(FormatId::CscJournal1Meta3), 50),
+                (Some(FormatId::CscJournal4), 50),
+            ]
+        );
+
+        // The structured chain parser now resolves the superset payload
+        // rather than an arbitrary variant.
+        let chain = parse_format_chain("v4_dcmixed.cscjournal.gz").unwrap();
+        assert_eq!(chain.outer, FormatId::Gzip);
+        assert_eq!(chain.inner, Some(FormatId::CscJournal));
+        assert_eq!(chain.to_format_spec_string(), "CscJournal > Gzip");
+    }
+
+    #[ctb_test]
     fn test_no_boost_without_common_implied_ancestor() {
         // A sole candidate for its extension forms no tie group and must keep
         // its raw extension score.
@@ -672,8 +726,9 @@ mod tests {
         assert_eq!(chains[0].outer, FormatId::Gzip);
         assert_eq!(chains[0].score, 50);
 
-        // Tied two-layer chains sharing the same outermost format are equal
-        // supersets of one another, not implied subsets, so neither is nudged.
+        // Tied two-layer chains branch on the inner payload format; the
+        // formats the .html extension resolves to imply neither one another
+        // nor a shared superset candidate, so nothing is nudged.
         let chains = guess_format_chains("page.html.gz", None);
         assert_eq!(chains.len(), 2);
         assert!(chains.iter().all(|chain| chain.outer == FormatId::Gzip));
