@@ -5421,6 +5421,15 @@ mod tests {
             sdc(389),
         ];
         validate_dc_tokens_strict(&valid_flags_equiv)?;
+
+        // 14. File flags description: empty Dc 388 389 is valid in strict mode
+        let valid_flags_empty = vec![sdc(388), sdc(389)];
+        validate_dc_tokens_strict(&valid_flags_empty)?;
+
+        // 15. Mac OS Finder flags with empty flags: 406 388 389 is valid in strict mode
+        let valid_finder_flags_empty = vec![sdc(406), sdc(388), sdc(389)];
+        validate_dc_tokens_strict(&valid_finder_flags_empty)?;
+
         Ok(())
     }
 

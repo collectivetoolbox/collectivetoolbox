@@ -865,7 +865,7 @@ impl FileTimestamps {
     /// Decodes a flattened timestamp field directly into `self`.
     pub fn decode_field(
         &mut self,
-        full_tag: u128,
+        tag: u128,
         ctx: &mut ctb_formats_dcstring::DcProjectionContext<'_, '_>,
         val_id: ctb_formats_dcstring::NodeId,
     ) -> Result<bool> {
@@ -873,7 +873,7 @@ impl FileTimestamps {
             Ok(dc) => dc,
             Err(_) => FileTimestampsDc::default(),
         };
-        let res = dc.decode_field(full_tag, ctx, val_id)?;
+        let res = dc.decode_field(tag, ctx, val_id)?;
         if res {
             if let Ok(updated) = Self::try_from(dc) {
                 *self = updated;

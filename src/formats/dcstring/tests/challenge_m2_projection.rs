@@ -1157,3 +1157,77 @@ fn test_challenge_format_container_adversarial_stress() -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, PartialEq, Eq, Default, DcMixed)]
+#[dc(begin = 401, end = 402)]
+struct ShorthandTagTestStruct {
+    #[dc(410)]
+    short_field: u32,
+    #[dc(u0041)] // 'A' = 65 (Unicode codepoint < 1114112)
+    unicode_field: u32,
+    #[dc(f80)]
+    format_field: u32,
+    #[dc(l1000)]
+    long_field: u32,
+}
+
+#[crate::ctb_test]
+fn test_challenge_decode_field_shorthand_tag_variants() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    let mut inst = ShorthandTagTestStruct::default();
+
+    // Prepare a mock arena with a value node (u32: 42)
+    let mut mst = DcMstring::new();
+    42_u32.encode_dc_mixed(&mut mst)?;
+    let mut nav = DcDocumentNavigator::from_mstr(&mst);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let val_id = arena.roots().first().copied().context("Missing root")?;
+    let mut ctx = DcProjectionContext::new(&arena, &strict);
+
+    // 1. Unicode tag 'A' (codepoint 65, which is < 1114112)
+    // In buggy code, 65 < 1114112 would add 1114112 and fail to match.
+    let matched_uni = inst.decode_field(65_u128, &mut ctx, val_id)?;
+    ensure!(matched_uni, "decode_field failed to match Unicode tag u0041 (65)");
+    ensure!(inst.unicode_field == 42, "unicode_field value mismatch");
+
+    // Also test with DcChar
+    let matched_uni_char = inst.decode_field(DcChar::from('A'), &mut ctx, val_id)?;
+    ensure!(matched_uni_char, "decode_field failed to match DcChar for Unicode tag u0041");
+
+    // 2. Short Dc tag 410 (canonical global ID: 1114112 + 410)
+    let short_dc_gid = DcChar::from_short(410).to_u128();
+    let matched_short = inst.decode_field(short_dc_gid, &mut ctx, val_id)?;
+    ensure!(matched_short, "decode_field failed to match Short Dc 410");
+    ensure!(inst.short_field == 42, "short_field value mismatch");
+
+    // 3. Format tag f80 (canonical global ID: 2228224 + 80)
+    let fmt_dc_gid = DcChar::from_format(80).to_u128();
+    let matched_fmt = inst.decode_field(fmt_dc_gid, &mut ctx, val_id)?;
+    ensure!(matched_fmt, "decode_field failed to match Format tag f80");
+    ensure!(inst.format_field == 42, "format_field value mismatch");
+
+    // 4. Long Dc tag l1000 (canonical ID: 1000)
+    let matched_long = inst.decode_field(1000_u128, &mut ctx, val_id)?;
+    ensure!(matched_long, "decode_field failed to match Long Dc tag l1000");
+    ensure!(inst.long_field == 42, "long_field value mismatch");
+
+    // 5. Unrecognized tag should return false
+    let matched_unknown = inst.decode_field(999_999_u128, &mut ctx, val_id)?;
+    ensure!(!matched_unknown, "decode_field matched unknown tag");
+
+    // 6. Roundtrip encoding and decoding of full struct
+    let full = ShorthandTagTestStruct {
+        short_field: 10,
+        unicode_field: 20,
+        format_field: 30,
+        long_field: 40,
+    };
+    let mut mst_full = DcMstring::new();
+    full.encode_dc_mixed(&mut mst_full)?;
+    let decoded_full = mst_full.decode::<ShorthandTagTestStruct>(&strict)?;
+    ensure!(decoded_full == full, "Roundtrip mismatch for ShorthandTagTestStruct");
+
+    Ok(())
+}
+

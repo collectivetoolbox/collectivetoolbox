@@ -3170,20 +3170,25 @@ mod tests {
         for mask in 0..=7 {
             let flags = SampleFlags::from_u8(mask);
             assert_dc_document_roundtrip(&flags)?;
-            let mut expected = vec![388, 310, 275];
-            for (enabled, tag) in [
-                (flags.flag_a, 499),
-                (flags.flag_b, 500),
-                (flags.flag_c, 501),
-            ] {
-                if enabled {
-                    if expected.len() > 3 {
-                        expected.push(312);
+            let expected = if mask == 0 {
+                vec![388, 389]
+            } else {
+                let mut exp = vec![388, 310, 275];
+                for (enabled, tag) in [
+                    (flags.flag_a, 499),
+                    (flags.flag_b, 500),
+                    (flags.flag_c, 501),
+                ] {
+                    if enabled {
+                        if exp.len() > 3 {
+                            exp.push(312);
+                        }
+                        exp.push(tag);
                     }
-                    expected.push(tag);
                 }
-            }
-            expected.extend([311, 389]);
+                exp.extend([311, 389]);
+                exp
+            };
             let expected = expected.into_iter()
                 .map(|id| DcChar::from_short(id).to_u128()).collect::<Vec<_>>();
             ensure!(flags.to_dc_mixed()?.to_dc_tokens()? == expected);
@@ -3195,7 +3200,6 @@ mod tests {
     fn test_flag_lists_reject_malformed_framing() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
         for tokens in [
-            vec![388, 389],
             vec![388, 499, 389],
             vec![388, 499, 500, 389],
             vec![388, 310, 499, 311, 389],
@@ -3212,6 +3216,20 @@ mod tests {
             }
             ensure!(mst.decode::<SampleFlags>(&strict).is_err());
         }
+
+        // Verify empty flag list representations decode to default in strict mode
+        for empty_tokens in [
+            vec![388, 389],
+            vec![388, 310, 275, 311, 389],
+        ] {
+            let mut mst = DcMstring::new();
+            for token in empty_tokens {
+                mst.push_char(DcChar::from_short(token));
+            }
+            let decoded: SampleFlags = mst.decode(&strict)?;
+            ensure!(!decoded.flag_a && !decoded.flag_b && !decoded.flag_c);
+        }
+
         Ok(())
     }
 
@@ -3256,6 +3274,19 @@ mod tests {
         ensure!(decoded.flags.flag_a);
         ensure!(!decoded.flags.flag_b);
         ensure!(!decoded.flags.flag_c);
+
+        // Test simplified empty flags decoding: 406 388 389
+        let mut mst_empty = DcMstring::new();
+        mst_empty.push_char(DcChar::from_short(401));
+        mst_empty.push_char(DcChar::from_short(406));
+        mst_empty.push_char(DcChar::from_short(388));
+        mst_empty.push_char(DcChar::from_short(389));
+        mst_empty.push_char(DcChar::from_short(402));
+
+        let decoded_empty = mst_empty.decode::<SampleEquivalentParent>(&strict)?;
+        ensure!(!decoded_empty.flags.flag_a);
+        ensure!(!decoded_empty.flags.flag_b);
+        ensure!(!decoded_empty.flags.flag_c);
 
         Ok(())
     }

@@ -1633,7 +1633,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 decode_field_arms.push(quote! {
                                     #(#all_match_tags)|* => {
                                         let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
-                                        state.decode_field(full_tag, ctx, val_id)
+                                        state.decode_field(tag, ctx, val_id)
                                     }
                                 });
                                 field_validations.push(quote! {
@@ -1658,7 +1658,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 });
                                 decode_field_arms.push(quote! {
                                     #(#all_match_tags)|* => {
-                                        self.#field_ident.decode_field(full_tag, ctx, val_id)
+                                        self.#field_ident.decode_field(tag, ctx, val_id)
                                     }
                                 });
                                 field_validations.push(quote! {
@@ -1996,10 +1996,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ) -> #anyhow_path::Result<bool> {
                             let _ = ctx;
                             let tag = tag.into();
-                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
                             let val_id = node_id;
                             let unwrap_id = node_id;
-                            match full_tag {
+                            match tag {
                                 #(#decode_field_arms)*
                                 _ => Ok(false),
                             }
@@ -2112,6 +2111,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         )
                     })?;
                     let mut match_tags = vec![id];
+                    if id >= SHORT_DC_REGION_START {
+                        match_tags.push(id.saturating_sub(SHORT_DC_REGION_START));
+                    }
                     match_tags.extend(attr.aliases.iter().copied());
 
                     encode_flag_fields.push(quote! {
@@ -2158,12 +2160,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
 
                         pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMstring, _context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                            mst.push_char(#crate_root::dc::DC_BEGIN_LIST);
-                            mst.push_char(#crate_root::DcChar::from_short(275));
-                            let mut first = true;
-                            #(#encode_flag_fields)*
-                            let _ = first;
-                            mst.push_char(#crate_root::dc::DC_END_LIST);
+                            let mut any_flags = false;
+                            #(#check_any_flags)*
+                            if any_flags {
+                                mst.push_char(#crate_root::dc::DC_BEGIN_LIST);
+                                mst.push_char(#crate_root::DcChar::from_short(275));
+                                let mut first = true;
+                                #(#encode_flag_fields)*
+                                let _ = first;
+                                mst.push_char(#crate_root::dc::DC_END_LIST);
+                            }
                             Ok(())
                         }
 
@@ -2178,8 +2184,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ) -> #anyhow_path::Result<bool> {
                             let _ = (ctx, node_id);
                             let tag = tag.into();
-                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
-                            match full_tag {
+                            match tag {
                                 #(#decode_flag_arms)*
                                 _ => Ok(false),
                             }
@@ -2246,6 +2251,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
                             }
                             let mut result = Self::default();
+                            if children.is_empty() {
+                                return Ok(result);
+                            }
                             if ctx.policy.is_strict() {
                                 if children.len() != 1 {
                                     #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
@@ -2388,7 +2396,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             decode_field_arms.push(quote! {
                                 #(#all_match_tags)|* => {
                                     let state = self.#field_ident.get_or_insert_with(<#inner_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default);
-                                    state.decode_field(full_tag, ctx, val_id)
+                                    state.decode_field(tag, ctx, val_id)
                                 }
                             });
                             field_validations.push(quote! {
@@ -2413,7 +2421,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             });
                             decode_field_arms.push(quote! {
                                 #(#all_match_tags)|* => {
-                                    self.#field_ident.decode_field(full_tag, ctx, val_id)
+                                    self.#field_ident.decode_field(tag, ctx, val_id)
                                 }
                             });
                             field_validations.push(quote! {
@@ -3374,10 +3382,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     ) -> #anyhow_path::Result<bool> {
                         let _ = ctx;
                         let tag = tag.into();
-                        let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
                         let val_id = node_id;
                         let unwrap_id = node_id;
-                        match full_tag {
+                        match tag {
                             #(#decode_field_arms)*
                             _ => Ok(false),
                         }

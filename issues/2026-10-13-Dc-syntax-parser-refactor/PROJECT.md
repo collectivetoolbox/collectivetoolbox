@@ -5,8 +5,11 @@
 **Partially Implemented.** The correctness remediation below is a bounded
 subset of the original refactor, not certification of feature completion.
 
-`+                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
-` does not look right
+- **Resolved `decode_field` tag alignment:** Removed `tag.saturating_add(1114112)`
+  heuristic in `ctb_dc_macro`. In the Global Graph layout, `0..=1_114_111`
+  represents Unicode codepoints, not short Dc offsets; `tag` passed at runtime
+  is already the canonical Global Graph ID (`u128`), and compile-time shorthand
+  attributes (`#[dc(...)]`) already resolve to canonical IDs per `README.shorthand.md`.
 
 `
 Overlayed Field Ambiguity (icon_id vs scroll_position / frScroll):
@@ -20,7 +23,13 @@ Resolution: parse_extended_finder_info now zeroes out icon_id when scroll_h != 0
 
 This does not sound right solution - it sounds like it should be checking whether the file or a directory, not scroll_h.
 
-- 406 388 310 275 311 389 can be simplified to 406 388 389 by > It should roundtrip. This sounds like a reasonable solution. The syntax could reasonably be refined to `:~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389` to allow the encoding to just be 406 388 389 (optional enhancement), though the meaning would be essentially equivalent.
+- **Resolved empty flag struct encoding & roundtrip (406 388 389):** Empty flag
+  structs now omit internal list containers (`310 275 ... 311`) when no flags
+  are enabled, encoding cleanly as `388 389` (or `406 388 389` when prefixed).
+  Both empty `388 389` and legacy empty list `388 310 275 311 389` decode to default
+  in strict and forgiving modes, fully conforming with Dc 388 syntax
+  `:~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389` and roundtripping
+  identically.
 
 
 > Classic Mac OS Extended Attributes alongside legacy FinderInfo: Extended attributes stored beyond offset 70 in legacy Mac OS binary archives are preserved and roundtrip, but deep ontological mapping of arbitrary user xattrs into semantic Dcs is not yet mapped.
