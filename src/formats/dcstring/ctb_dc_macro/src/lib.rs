@@ -2266,7 +2266,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut seen_ids = HashSet::new();
             seen_ids.insert(begin_dc);
             seen_ids.insert(end_dc);
-            let mut standalone_atom_tags = HashSet::new();
 
             let mut encode_fields = Vec::new();
             let mut field_inits = Vec::new();
@@ -2490,9 +2489,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 field.span(),
                                 format!("Duplicate Dc ID {nid:#X} on field `{field_ident}`"),
                             ));
-                        }
-                        if attr.tag.is_none() && !attr.flatten && attr.begin.is_none() {
-                            standalone_atom_tags.insert(*nid);
                         }
                     }
                 }
@@ -3101,14 +3097,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             if !shared_decode_arms.is_empty() {
                 seen_ids.insert(1114382);
             }
-            let mut known_field_tags: Vec<u128> = seen_ids
-                .iter()
-                .copied()
-                .filter(|&id| id != begin_dc && id != end_dc)
-                .collect();
-            known_field_tags.sort_unstable();
-            let mut standalone_tags_vec: Vec<u128> = standalone_atom_tags.into_iter().collect();
-            standalone_tags_vec.sort_unstable();
             let unmatched_decode_arm = if has_catchall_decode_arm {
                 None
             } else if struct_attrs.ignore_unknown {
@@ -3247,8 +3235,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         node_id: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<Self> {
-                        const __KNOWN_TAGS: &[u128] = &[#(#known_field_tags),*];
-                        const __STANDALONE_TAGS: &[u128] = &[#(#standalone_tags_vec),*];
                         let unwrap_id = ctx.unwrap_transparent(node_id)?;
                         let node = ctx.node(unwrap_id)?;
                         let children = match &node.kind {
@@ -3271,9 +3257,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         ctx.enter_record();
                         let result = (|| {
                             #(#field_inits)*
-                            let mut idx = 0;
-                            while idx < children.len() {
-                                let child_id = children[idx];
+                            for &child_id in children {
                                 if let Ok(child_node) = ctx.node(child_id) {
                                     ctx.current_position = child_node.span.start;
                                 }
@@ -3292,54 +3276,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         (opener.to_u128(), child_id)
                                     }
                                     #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                        let tag_val = ch.to_u128();
-                                        if !__STANDALONE_TAGS.contains(&tag_val) && __KNOWN_TAGS.contains(&tag_val) && idx.saturating_add(1) < children.len() {
-                                            let next_id = children[idx.saturating_add(1)];
-                                            let next_node = ctx.node(next_id)?;
-                                            let next_is_tag = match &next_node.kind {
-                                                #crate_root::navigator::DcSyntaxKind::Atom(next_ch) => {
-                                                    __KNOWN_TAGS.contains(&next_ch.to_u128())
-                                                }
-                                                _ => false,
-                                            };
-                                            if !next_is_tag {
-                                                idx = idx.saturating_add(1);
-                                                let mut payload_id = next_id;
-                                                let mut inner_cand = None;
-                                                if let #crate_root::navigator::DcSyntaxKind::Atom(opt_ch) = &next_node.kind {
-                                                    if opt_ch.to_short_dc() == ::std::option::Option::Some(315) && idx.saturating_add(1) < children.len() {
-                                                        idx = idx.saturating_add(1);
-                                                        payload_id = children[idx];
-                                                        inner_cand = Some(payload_id);
-                                                    }
-                                                } else if let #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } = &next_node.kind {
-                                                    if tag.to_short_dc() == ::std::option::Option::Some(315) {
-                                                        inner_cand = args.first().copied();
-                                                    }
-                                                }
-                                                let check_397_id = inner_cand.unwrap_or(payload_id);
-                                                if let ::std::result::Result::Ok(pnode) = ctx.node(check_397_id) {
-                                                    if let #crate_root::navigator::DcSyntaxKind::Atom(pch) = &pnode.kind {
-                                                        if pch.to_short_dc() == ::std::option::Option::Some(397) && idx.saturating_add(1) < children.len() {
-                                                            let cand_id = children[idx.saturating_add(1)];
-                                                            if let ::std::result::Result::Ok(cand_node) = ctx.node(cand_id) {
-                                                                if let #crate_root::navigator::DcSyntaxKind::Container { opener, .. } = &cand_node.kind {
-                                                                    if opener.to_short_dc() == ::std::option::Option::Some(310) {
-                                                                        idx = idx.saturating_add(1);
-                                                                        payload_id = cand_id;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                (tag_val, payload_id)
-                                            } else {
-                                                (tag_val, child_id)
-                                            }
-                                        } else {
-                                            (tag_val, child_id)
-                                        }
+                                        (ch.to_u128(), child_id)
                                     }
                                     #crate_root::navigator::DcSyntaxKind::Assignment { .. } => {
                                         (1114381, child_id)
@@ -3349,7 +3286,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     }
                                     _ => (0, child_id),
                                 };
-                                idx = idx.saturating_add(1);
                                 let field_name = match tag {
                                     #(#field_name_arms)*
                                     _ => None,
@@ -3819,15 +3755,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         decode_variants.push(quote! {
                             #tag_id => {
                                 #(#v_field_inits)*
-                                let field_ids: ::std::vec::Vec<#crate_root::NodeId> = match &variant_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.clone(),
-                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
-                                    #crate_root::navigator::DcSyntaxKind::Atom(_) => children.iter().skip(1).copied().collect(),
-                                    _ => ::std::vec::Vec::new(),
+                                let field_ids: &[#crate_root::NodeId] = match &variant_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.as_slice(),
+                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                                    _ => &[],
                                 };
-                                let mut idx: usize = 0usize;
-                                while idx < field_ids.len() {
-                                    let ch_id = field_ids[idx];
+                                for &ch_id in field_ids {
                                     let ch_node = ctx.node(ch_id)?;
                                     let (ch_tag, child_val_id) = match &ch_node.kind {
                                         #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
@@ -3839,26 +3772,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                             (opener.to_u128(), ch_id)
                                         }
                                         #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                            let tag_val = ch.to_u128();
-                                            if idx.saturating_add(1usize) < field_ids.len() {
-                                                idx = idx.saturating_add(1usize);
-                                                let mut payload_id = field_ids[idx];
-                                                if let Ok(next_node) = ctx.node(payload_id) {
-                                                    if let #crate_root::navigator::DcSyntaxKind::Atom(opt_ch) = &next_node.kind {
-                                                        if opt_ch.to_short_dc() == ::std::option::Option::Some(315) && idx.saturating_add(1usize) < field_ids.len() {
-                                                            idx = idx.saturating_add(1usize);
-                                                            payload_id = field_ids[idx];
-                                                        }
-                                                    }
-                                                }
-                                                (tag_val, payload_id)
-                                            } else {
-                                                (tag_val, ch_id)
-                                            }
+                                            (ch.to_u128(), ch_id)
                                         }
                                         _ => (0, ch_id),
                                     };
-                                    idx = idx.saturating_add(1usize);
                                     match ch_tag {
                                         #(#v_field_arms)*
                                         _ => {
@@ -3938,7 +3855,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                                 #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
                                     let ch_tag = ch.to_u128();
-                                    (ch_tag, children.get(1).copied().unwrap_or(variant_id))
+                                    (ch_tag, variant_id)
                                 }
                                 other => #anyhow_path::bail!(
                                     "Unexpected node {other:?} for variant in enum {}",

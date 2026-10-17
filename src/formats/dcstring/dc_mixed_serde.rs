@@ -840,11 +840,7 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 if let [single_child] = children.as_slice() {
                     let child_node = self.node(*single_child)?;
                     if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
-                        let payload_id = if let [single_arg] = args.as_slice() {
-                            *single_arg
-                        } else {
-                            *single_child
-                        };
+                        let payload_id = args.first().copied().unwrap_or(*single_child);
                         return Ok(Some((*tag, payload_id)));
                     }
                 }
@@ -2117,7 +2113,14 @@ impl DcMixedDecode for SystemTime {
                     bail!("Empty time moment container (Dc 390..391)");
                 };
                 let first = ctx.node(first_child)?;
-                let (fid, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
+                    let fid = FormatId::from_dc_id(tag.0)
+                        .context("Expected date format token after 390")?;
+                    let Some(&arg_id) = args.first() else {
+                        bail!("Missing number after format token in Dc 390..391");
+                    };
+                    (fid, arg_id)
+                } else if let DcSyntaxKind::Atom(ch) = &first.kind {
                     let fid = FormatId::from_dc_id(ch.0)
                         .context("Expected date format token after 390")?;
                     let Some(&second_child) = children.get(1) else {
@@ -2171,7 +2174,14 @@ impl DcMixedDecode for Duration {
                     bail!("Empty duration container ({opener})");
                 };
                 let first = ctx.node(first_child)?;
-                let (fid, num_id) = if let DcSyntaxKind::Atom(ch) = &first.kind {
+                let (fid, num_id) = if let DcSyntaxKind::Tagged { tag, args } = &first.kind {
+                    let fid = FormatId::from_dc_id(tag.0)
+                        .context("Expected date/duration format token")?;
+                    let Some(&arg_id) = args.first() else {
+                        bail!("Missing number after format token in duration");
+                    };
+                    (fid, arg_id)
+                } else if let DcSyntaxKind::Atom(ch) = &first.kind {
                     let fid = FormatId::from_dc_id(ch.0)
                         .context("Expected date/duration format token")?;
                     let Some(&second_child) = children.get(1) else {

@@ -65,27 +65,6 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
 
 
-- Issues in csc-file-output.txt:
-  - It's inconsistent whether the compression or the inner format is listed before or after the > in chains/descriptions. It should use the correct order for chain syntax.
-  - It could use magic to confirm that all the compressed ones are a CscJournal4 if it peeked inside the compressed stream (-z option), but doesn't seem to by default. Except in --compat mode, that should be the default. Even with the -z option, it doesn't seem to correctly identify the CscJournal4 version.
-  - "Format" seems to say "Unassigned" when there's a chain detected. It would be more helpful to indicate the top candidate chain there, I think, if it doesn't have a dedicated FormatId.
-    - I may suggest considering merging the "Description" and "Format" fields, maybe something like (note the "ASCII-art-ish" formatting for readability; this exact formatting may not be perfect):
-      Format: @chain(f410 > f623)
-              ≡ [f410 CscJournal "Collective Toolbox csc journal"]
-                > [f623 Szip "szip (Michael Schindler)"]
-  - When multiple candidates match and are tied, and one of them is a superset of the others, I would give that superset one a slight boost:
-
-  ```
-    • CscJournal (score: 50)
-  • CscJournal1Meta1 (score: 50)
-  • CscJournal1Meta2 (score: 50)
-  • CscJournal1Meta3 (score: 50)
-  • CscJournal4 (score: 50)
-```
-As each of the others @implies() CscJournal, I would maybe score CscJournal as 51, since it wasn't able to distinguish between them (in this particular case, that is; it should be able to use magic to work out a bit more).
-  - ASCII ranks above CscDesc, which is a little odd. I wonder if CscDesc @implies utf-8 or whatever would be relevant (though bag-of-bytes filesystem name encodings could potentially mean CscDesc can contain arbitrary binary data depending on the implementation; I haven't looked into it).
-  - Maybe other issues?
-
 
 
 - Regenerate Guix packaging in CI

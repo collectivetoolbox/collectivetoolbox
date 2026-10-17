@@ -20,7 +20,7 @@
 - **Adding vs. updating dependencies**: Adding new dependencies not already in the repository is discouraged unless specifically requested by your operator. You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing). Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
 
 ### Collaboration, Git, and Sub-Agents
-- **Inspecting recent changes**: Use `git diff origin..HEAD` rather than `git diff`. The operator frequently commits while the agent is working for easier review, so a working-tree `git diff` will often be blank.
+- **Inspecting recent changes**: Use `git diff origin..HEAD`, `git diff HEAD~1..HEAD`, etc. rather than `git diff`. The operator frequently commits while the agent is working for easier review, so a working-tree `git diff` will often be blank.
 - **Live operator edits**: If edits from the operator appear while you are working on files, do not revert them—re-read the files and align with the direction of those changes.
 - **Scope confirmation**: If a seemingly small request would require large-scale changes or significant refactoring, ask to confirm before editing, or use `/plan` mode.
 - **Moving a module into a subcrate**: Keep this mechanical: move the files using a tool/script (do not regenerate them), copy and trim `Cargo.toml`, update the package name, replace `mod` with `use`, and register the crate in the root `Cargo.toml`. Ask before doing anything beyond this.
@@ -35,7 +35,7 @@
     3. **Deferred Items** (what was deliberately omitted and why).
   - Summarize completed work only as secondary context below the gaps.
 - **Never label partial work as "Implemented" or "Complete"**:
-  - If a feature has even one unhandled upstream case (e.g., missing `lrzip`, missing flag, partial header parsing, or deferred prerequisite), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
+  - When porting other software, if a feature has even one unhandled upstream case (e.g., missing flag, partial header parsing, or deferred prerequisite), its status MUST be marked as `Partially Implemented` or `In Progress`, NEVER `Implemented` or `Complete`.
   - In tracking documents (such as `issues/*-status.md`), any status update MUST explicitly maintain a `Remaining Gaps vs Upstream` (or `Pending Work`) subsection listing exactly what is still missing. Never erase or gloss over gaps when recording new progress.
 - **Differentiate sub-task completion from feature completion**:
   - If asked to implement a bounded subset of a feature (e.g., "implement the ones available so far"), frame your conclusion as partial progress toward the whole, not as the feature being finished.
@@ -47,8 +47,8 @@
 
 ### Error Handling & Invariants
 - **Judge edge-case error handling carefully (the #1 agent mistake)**:
-  1. **Never silently swallow or discard legitimate edge-case errors** instead of propagating them to callers.
-  2. **Do not propagate unreachable error states in otherwise-infallible functions**, which creates clunky APIs.
+  1. **Never silently swallow or discard legitimate edge-case errors** instead of propagating them to callers. This is a very common, very critical mistake!
+  2. Less critical: **Do not propagate unreachable error states in otherwise-infallible functions**, which creates clunky APIs.
 - **Fail early and loudly; never panic in production**:
   - Fallible operations must return `anyhow::Result<T>` (`Result<T, anyhow::Error>`) and propagate errors via `?` or `let Some(val) = val else { return Err(...); };`.
   - Never introduce panicking `unwrap`, `expect`, indexing, or unchecked arithmetic in new production code.
@@ -88,8 +88,8 @@
 - **General design**: Avoid statefulness where possible. Prefer sync code; use async only when needed. Use the newtype pattern whenever it reduces confusion.
 - **Reuse & refactoring**: Reuse existing utilities (especially `ctb_utilities`, such as `utilities::https` for HTTP requests). Refactor or extend existing APIs rather than adding duplicate helpers. When refactoring, do not leave messy or outdated APIs out of concern for callers—clean up the API and update all callers.
 - **Module structure & cleanup**: Keep modules concise and narrowly scoped; split growing modules into submodules. If you try multiple approaches during troubleshooting, remove all failed attempts and dead code before finishing.
-- **Single canonical naming**: When designing a new format or CLI interface, pick the single best name or syntax rather than supporting multiple aliases (e.g., do not support both `"case:"` and `"case-sensitive:"` tags, `"u"` and `"U"` prefixes, or duplicate CLI commands).
-- **CLI & configuration**: Avoid environment variables unless genuinely necessary; prefer CLI flags. The `ctb-cli` crate (`src/cli/`) must contain zero nontrivial logic beyond parsing into `Invocation` and dispatching to the target crate.
+- **Single canonical naming**: When designing a new format or CLI interface, pick the single best name or syntax rather than supporting multiple aliases (e.g., do not support both `"case:"` and `"case-sensitive:"` tags, `"u"` and `"U"` prefixes for Unicode characters, or duplicate CLI commands).
+- **CLI & configuration**: Avoid environment variables unless genuinely necessary; prefer CLI flags. The `ctb-cli` crate (`src/cli/`) must contain zero nontrivial logic beyond parsing into `Invocation` and dispatching to the target crate. Crates supporting CLI commands will typically have a `cli` module with the argument parsing.
 - **Production readiness**: Address root issues and missing features rather than adding workarounds:
   - Always use file-descriptor passing for shared memory on Linux, never temp files.
   - Never add in-process fallbacks for IPC calls.
@@ -99,7 +99,7 @@
 - **Licensing & attribution**:
   - Never delete license blocks or copyright headers. If you reuse algorithms or code from another file, include a comment noting the source.
   - All dependencies (including build-time dependencies, linked libraries, and sysroots) MUST be under AGPL-3+-compatible licenses.
-  - Pre-compiled binaries are prohibited, with rare exceptions: the `v86` VM and `tsc` compiler precompiled in the CI Docker image, and legacy blobs remaining in `vendor/ctb-vendored`.
+  - Pre-compiled binaries are prohibited, with rare exceptions: the `v86` VM and `tsc` compiler precompiled in the CI Docker image, and blobs not yet filtered out from `vendor/ctb-vendored`.
 - **No Node.js dependencies**: Never install Node.js packages in the application; a `node_modules` directory must never exist. External dev-only tools (`tsc` for fast linter runs, Playwright for browser testing) are permitted outside the repository, but must never be application dependencies or required for correct linting.
 
 ### Front-End, HTML, and CSS
@@ -118,6 +118,7 @@
   - Proposals for new Dcs require operator approval.
   - Dcs represent semantic/ontological entities, never Rust fields or serialization structures. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent.
   - Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
+  - Dc IDs and semantic meaning are stable and cannot be changed or reassigned. Dc names and syntax are not stable at this time.
 
 ## Architecture & Workspace Layout
 - **Multi-process architecture**: The main `ctb-workspace` (`src/workspace/`) process manages application state and spawns subprocesses (`ctb-renderer` in `src/renderer/`, `ctb-io-webui` in `src/io/webui/`, `ctb-storage` in `src/storage/`, etc.) over socket-based IPC (`ctb_utilities`).
@@ -125,7 +126,9 @@
   - Async runtime: `tokio`
   - Web UI: `axum` serving HTML/JS embedded from `assets/` via `include_dir` (copied to `built/assets/` during build; opened via `webbrowser`)
   - Storage: Turso database (`src/storage/db.rs`)
-  - External/P2P: WebRTC / `matchbox_socket`; `zeroize` for secrets
+  - Networking between client and server: `utilities/https`
+  - Networking between clients; global graph sync: TBD
+  - Secrets: `zeroize`
 - **Crate & module layout**:
   - All workspace sub-crates live under `src/` (nested multiple levels deep) and must be listed in the root `Cargo.toml`.
   - Cargo package names use `ctb-*` (kebab-case) and Rust crate identifiers use `ctb_*` (snake_case). Each sub-crate's entry `.rs` file uses the crate name minus the `ctb_` prefix (e.g., `ctb_renderer` is in `src/renderer/renderer.rs`, `ctb_storage` is in `src/storage/storage.rs`).

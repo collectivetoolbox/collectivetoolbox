@@ -1890,12 +1890,17 @@ impl<'a> DcDocumentNavigator<'a> {
         arena: &mut DcSyntaxArena<'a>,
         policy: &DcProjectionPolicy,
     ) -> Result<()> {
+        let mut raw_roots = Vec::new();
         while let Some(stub) = self.next_sibling_stub(policy)? {
             let id = self.build_arena_node_from_stub(&stub, arena, policy)?;
-            arena.push_root(id);
+            raw_roots.push(id);
             for diagnostic in self.diagnostics.drain(..) {
                 arena.push_diagnostic(diagnostic);
             }
+        }
+        let normalized_roots = Self::normalize_field_nodes(raw_roots, arena);
+        for id in normalized_roots {
+            arena.push_root(id);
         }
         Ok(())
     }
@@ -1917,6 +1922,126 @@ impl<'a> DcDocumentNavigator<'a> {
         Ok(id)
     }
 
+    fn is_separator(ch: DcChar) -> bool {
+        matches!(ch.to_short_dc(), Some(255 | 275 | 312 | 513))
+    }
+
+    fn is_value_atom(ch: DcChar) -> bool {
+        if matches!(
+            ch.to_short_dc(),
+            Some(10 | 11 | 316 | 358..=367 | 379..=384 | 409..=466 | 482..=489 | 517 | 518)
+        ) {
+            return true;
+        }
+        let Ok(dc_u32) = u32::try_from(ch.to_u128()) else {
+            return false;
+        };
+        let target = ctb_formats_dcdata::CharTarget::Dc(dc_u32);
+        let resolver = default_syntax_resolver();
+        if resolver.closer_for_opener(&target).is_some() {
+            return false;
+        }
+        if !ch.is_format() && !Self::is_transparent_wrapper_tag(ch) && resolver.resolve_rule(&target).is_none() {
+            return true;
+        }
+        false
+    }
+
+    fn is_transparent_wrapper_tag(ch: DcChar) -> bool {
+        matches!(ch.to_short_dc(), Some(315 | 397 | 561))
+    }
+
+    fn is_pairable_payload(arena: &DcSyntaxArena<'_>, node_id: NodeId) -> bool {
+        let Some(node) = arena.get(node_id) else {
+            return false;
+        };
+        match &node.kind {
+            DcSyntaxKind::Number { .. }
+            | DcSyntaxKind::Binary { .. }
+            | DcSyntaxKind::Literal { .. }
+            | DcSyntaxKind::Identifier { .. }
+            | DcSyntaxKind::Assignment { .. }
+            | DcSyntaxKind::Container { .. } => true,
+            DcSyntaxKind::Atom(ch) => Self::is_value_atom(*ch),
+            DcSyntaxKind::Tagged { tag, .. } => Self::is_transparent_wrapper_tag(*tag),
+            DcSyntaxKind::Malformed { .. } => false,
+        }
+    }
+
+    pub(crate) fn normalize_field_nodes(
+        nodes: Vec<NodeId>,
+        arena: &mut DcSyntaxArena<'a>,
+    ) -> Vec<NodeId> {
+        if nodes.len() <= 1 {
+            return nodes;
+        }
+
+        // Pass 1: Right-to-left pairing of atom tags with their immediate values.
+        let mut stack: Vec<NodeId> = Vec::with_capacity(nodes.len());
+        for &node_id in nodes.iter().rev() {
+            let Some(node) = arena.get(node_id) else {
+                continue;
+            };
+            if let DcSyntaxKind::Atom(ch) = node.kind {
+                if !Self::is_separator(ch) && !Self::is_value_atom(ch) {
+                    if let Some(&top_id) = stack.last() {
+                        if Self::is_pairable_payload(arena, top_id) {
+                            stack.pop();
+                            let start = arena.get(node_id).map_or(0, |n| n.span.start);
+                            let end = arena.get(top_id).map_or(start, |n| n.span.end);
+                            let span = DcByteSpan::new(start, start.max(end));
+                            let tagged_id = arena.alloc(
+                                span,
+                                DcSyntaxKind::Tagged {
+                                    tag: ch,
+                                    args: vec![top_id],
+                                },
+                            );
+                            stack.push(tagged_id);
+                            continue;
+                        }
+                    }
+                }
+            }
+            stack.push(node_id);
+        }
+        stack.reverse();
+        let mut processed = stack;
+
+        // Pass 2: Enum variant grouping.
+        // If the container begins with an atom variant tag followed by structured fields,
+        // group the fields under a Tagged node for the variant.
+        if processed.len() > 1 {
+            let first_id = processed[0];
+            if let Some(first_node) = arena.get(first_id) {
+                if let DcSyntaxKind::Atom(variant_tag) = first_node.kind {
+                    if !Self::is_separator(variant_tag) && !Self::is_value_atom(variant_tag) {
+                        let has_structured_field = processed[1..].iter().any(|&id| {
+                            arena.get(id).map_or(false, |n| !matches!(n.kind, DcSyntaxKind::Atom(_)))
+                        });
+                        if has_structured_field {
+                            let fields = processed[1..].to_vec();
+                            let start = first_node.span.start;
+                            let last_id = fields.last().copied().unwrap_or(first_id);
+                            let end = arena.get(last_id).map_or(start, |n| n.span.end);
+                            let span = DcByteSpan::new(start, start.max(end));
+                            let variant_node_id = arena.alloc(
+                                span,
+                                DcSyntaxKind::Tagged {
+                                    tag: variant_tag,
+                                    args: fields,
+                                },
+                            );
+                            processed = vec![variant_node_id];
+                        }
+                    }
+                }
+            }
+        }
+
+        processed
+    }
+
     /// Parses a single root node from `bytes` into `arena` using `policy`.
     pub fn parse_arena(
         bytes: &'a [u8],
@@ -1930,7 +2055,12 @@ impl<'a> DcDocumentNavigator<'a> {
             let text = DcStr::from_bytes(bytes)?;
             Self::from_dc_str(text)
         };
-        nav.parse_node_into_arena(arena, policy)
+        nav.parse_document_into_arena(arena, policy)?;
+        arena
+            .roots()
+            .first()
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("Empty document or node stream"))
     }
 
     /// Parses all document root nodes from `bytes` into `arena` using `policy`.
@@ -2214,13 +2344,22 @@ impl<'a> DcDocumentNavigator<'a> {
                             unclosed,
                             children,
                         } => {
+                            let is_format_or_temporal = matches!(
+                                opener.to_short_dc(),
+                                Some(511)
+                            );
+                            let normalized_children = if is_format_or_temporal {
+                                children
+                            } else {
+                                Self::normalize_field_nodes(children, arena)
+                            };
                             arena.alloc(
                                 outer_span,
                                 DcSyntaxKind::Container {
                                     opener,
                                     closer,
                                     header: Vec::new(),
-                                    children,
+                                    children: normalized_children,
                                     trailing: Vec::new(),
                                     unclosed,
                                 },
@@ -2231,7 +2370,8 @@ impl<'a> DcDocumentNavigator<'a> {
                             tag,
                             args,
                         } => {
-                            arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args })
+                            let normalized_args = Self::normalize_field_nodes(args, arena);
+                            arena.alloc(outer_span, DcSyntaxKind::Tagged { tag, args: normalized_args })
                         }
                         ArenaBuildFrame::Assignment { .. } => unreachable!(),
                     };
