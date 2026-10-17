@@ -2091,9 +2091,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             if struct_attrs.flags {
                 let mut encode_flag_fields = Vec::new();
-                let mut init_flag_fields = Vec::new();
                 let mut decode_flag_arms = Vec::new();
-                let mut construct_flag_fields = Vec::new();
+                let mut check_any_flags = Vec::new();
 
                 for field in fields {
                     let Some(field_ident) = field.ident.as_ref() else {
@@ -2104,9 +2103,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         return Err(syn::Error::new(field.span(), "via is not supported on flag records"));
                     }
                     if attr.skip {
-                        construct_flag_fields.push(quote! {
-                            #field_ident: ::std::default::Default::default()
-                        });
                         continue;
                     }
                     let id = attr.tag.ok_or_else(|| {
@@ -2128,37 +2124,112 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     });
 
-                    init_flag_fields.push(quote! {
-                        let mut #field_ident = false;
+                    check_any_flags.push(quote! {
+                        if self.#field_ident {
+                            any_flags = true;
+                        }
                     });
 
                     decode_flag_arms.push(quote! {
                         #(#match_tags)|* => {
-                            #field_ident = true;
+                            self.#field_ident = true;
+                            Ok(true)
                         }
-                    });
-
-                    construct_flag_fields.push(quote! {
-                        #field_ident
                     });
                 }
 
                 return Ok(quote! {
                     #forgiving_default_impl
                     #[automatically_derived]
-                    impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
-                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
-                        self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                    impl #impl_generics #crate_root::DcMixedFields for #type_name #ty_generics #where_clause {
+                        fn dc_field_owner() -> &'static str { ::std::any::type_name::<Self>() }
+                        fn encode_dc_field(&self, field: &str, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                            let _ = (field, mst);
+                            #anyhow_path::bail!("Field encoding not supported for flag struct {}", stringify!(#type_name))
+                        }
                     }
-                    fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                        let _ = context;
-                            mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
+
+                    #[automatically_derived]
+                    impl #impl_generics #type_name #ty_generics #where_clause {
+                        /// Encodes the fields of this flag struct without boundary delimiters.
+                        #[allow(dead_code)]
+                        pub fn encode_fields(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                            self.encode_fields_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+
+                        pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMstring, _context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            let mut any_flags = false;
+                            #(#check_any_flags)*
+                            if !any_flags {
+                                return Ok(());
+                            }
                             mst.push_char(#crate_root::dc::DC_BEGIN_LIST);
                             mst.push_char(#crate_root::DcChar::from_short(275));
                             let mut first = true;
                             #(#encode_flag_fields)*
                             let _ = first;
                             mst.push_char(#crate_root::dc::DC_END_LIST);
+                            Ok(())
+                        }
+
+                        /// Decodes a single flag corresponding to `tag`.
+                        /// Returns true if the tag belonged to this struct and was consumed.
+                        #[allow(dead_code)]
+                        pub fn decode_field(
+                            &mut self,
+                            tag: impl Into<u128>,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            node_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            let _ = (ctx, node_id);
+                            let tag = tag.into();
+                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
+                            match full_tag {
+                                #(#decode_flag_arms)*
+                                _ => Ok(false),
+                            }
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedFlattened for #type_name #ty_generics #where_clause {
+                        type State = ::std::option::Option<Self>;
+
+                        fn encode_flattened_fields(
+                            &self,
+                            mst: &mut #crate_root::DcMstring,
+                            context: &#crate_root::SharedValueContext,
+                        ) -> #anyhow_path::Result<()> {
+                            self.encode_fields_with_context(mst, context)
+                        }
+
+                        fn decode_flattened_field(
+                            state: &mut Self::State,
+                            tag: u128,
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            val_id: #crate_root::NodeId,
+                        ) -> #anyhow_path::Result<bool> {
+                            let instance = state.get_or_insert_with(<Self as ::std::default::Default>::default);
+                            instance.decode_field(tag, ctx, val_id)
+                        }
+
+                        fn finish_flattened(
+                            state: Self::State,
+                            _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        ) -> #anyhow_path::Result<Self> {
+                            Ok(state.unwrap_or_default())
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMstring) -> #anyhow_path::Result<()> {
+                            self.encode_dc_mixed_with_context(mst, &#crate_root::SharedValueContext::default())
+                        }
+                        fn encode_dc_mixed_with_context(&self, mst: &mut #crate_root::DcMstring, context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
+                            let _ = context;
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
+                            self.encode_fields_with_context(mst, context)?;
                             mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                             Ok(())
                         }
@@ -2179,85 +2250,21 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             if opener.to_u128() != #begin_dc || closer.to_u128() != #end_dc {
                                 #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
                             }
-                            #(#init_flag_fields)*
-                            let is_strict = ctx.policy.is_strict();
-                            if is_strict {
-                                if children.len() != 1 {
-                                    #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
-                                }
-                                let list_id = children[0];
-                                let list_node = ctx.node(list_id)?;
-                                let list_children = match &list_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => lc,
-                                    _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
-                                };
-                                let mut iter = list_children.iter().copied();
-                                let first_id = iter.next().ok_or_else(|| #anyhow_path::anyhow!("Empty list in flag struct {}", stringify!(#type_name)))?;
-                                let first_node = ctx.node(first_id)?;
-                                match &first_node.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(275) => {}
-                                    _ => #anyhow_path::bail!("Flag list container missing leading element separator (Dc 275)"),
-                                }
-                                let mut expect_separator = false;
-                                for fid in iter {
-                                    let fnode = ctx.node(fid)?;
-                                    if expect_separator {
-                                        match &fnode.kind {
-                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(312) => {
-                                                expect_separator = false;
-                                                continue;
-                                            }
-                                            _ => #anyhow_path::bail!("Missing separator (Dc 312) between flag items"),
-                                        }
-                                    }
-                                    let tag = match &fnode.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
-                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
-                                        other => #anyhow_path::bail!("Unexpected node in flag list: {other:?}"),
-                                    };
-                                    match tag {
-                                        #(#decode_flag_arms)*
-                                        other => #anyhow_path::bail!("Unknown flag Dc {other:#X} for {}", stringify!(#type_name)),
-                                    }
-                                    expect_separator = true;
-                                }
-                                if !expect_separator && list_children.len() > 1 {
-                                    #anyhow_path::bail!("Trailing separator (Dc 312) in flag list");
-                                }
-                            } else {
-                                for &child_id in children {
-                                    let child_node = ctx.node(child_id)?;
-                                    let flag_ids: ::std::vec::Vec<#crate_root::NodeId> = match &child_node.kind {
-                                        #crate_root::navigator::DcSyntaxKind::Container { opener, children: list_children, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => {
-                                            list_children.clone()
-                                        }
-                                        _ => ::std::vec![child_id],
-                                    };
-                                    for fid in flag_ids {
-                                        let fnode = ctx.node(fid)?;
-                                        let tag = match &fnode.kind {
-                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
-                                            #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
-                                            _ => continue,
-                                        };
-                                        if tag == 1114112 + 275 || tag == 1114112 + 312 {
-                                            continue;
-                                        }
-                                        match tag {
-                                            #(#decode_flag_arms)*
-                                            other => {
-                                                ctx.handle_unconsumed_or_incomplete(
-                                                    &[format!("Unknown flag Dc {other:#X} for {}", stringify!(#type_name))],
-                                                    &[],
-                                                )?;
-                                            }
-                                        }
-                                    }
+                            if children.is_empty() {
+                                return Ok(Self::default());
+                            }
+                            let mut result = Self::default();
+                            let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, unwrap_id)?;
+                            for (tag, item_id) in flag_items {
+                                let matched = result.decode_field(tag, ctx, item_id)?;
+                                if !matched {
+                                    ctx.handle_unconsumed_or_incomplete(
+                                        &[format!("Unknown flag Dc {tag:#X} for {}", stringify!(#type_name))],
+                                        &[],
+                                    )?;
                                 }
                             }
-                            Ok(Self {
-                                #(#construct_flag_fields),*
-                            })
+                            Ok(result)
                         }
                     }
                 });
@@ -2283,6 +2290,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut json_restore_fields = Vec::new();
             let mut shared_names = HashSet::new();
 
+            let mut nested_field_groups: ::std::collections::BTreeMap<u128, Vec<(syn::Ident, syn::Type, Option<u128>)>> = ::std::collections::BTreeMap::new();
             let mut paired_raw_idents = HashSet::new();
             for field in fields {
                 if let Ok(attr) = parse_field_attrs(field) {
@@ -2321,7 +2329,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         if let Some(inner_ty) = extract_type_from_option(field_ty) {
                             encode_fields.push(quote! {
                                 if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                    let before_len = mst.len();
                                     <#inner_ty as #crate_root::DcMixedFlattened>::encode_flattened_fields(item, mst, context)?;
+                                    if mst.len() == before_len {
+                                        <#inner_ty as #crate_root::DcMixedFlattened>::encode_empty_flattened_marker(item, mst, context)?;
+                                    }
                                 }
                             });
                             field_inits.push(quote! {
@@ -2475,30 +2487,37 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         format!("Field `{field_ident}` requires a Dc tag, nested, or begin attribute"),
                     ));
                 };
-                if attr.nested.is_empty() {
+                if let Some(tag_id) = attr.tag {
+                    if !seen_ids.insert(tag_id) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            format!("Duplicate Dc ID {tag_id:#X} on field `{field_ident}`"),
+                        ));
+                    }
+                } else if attr.nested.is_empty() {
                     if !seen_ids.insert(id) {
                         return Err(syn::Error::new(
                             field.span(),
                             format!("Duplicate Dc ID {id:#X} on field `{field_ident}`"),
                         ));
                     }
-                } else {
-                    for nid in &attr.nested {
-                        if !seen_ids.insert(*nid) {
-                            return Err(syn::Error::new(
-                                field.span(),
-                                format!("Duplicate Dc ID {nid:#X} on field `{field_ident}`"),
-                            ));
-                        }
-                    }
+                }
+                for nid in &attr.nested {
+                    nested_field_groups.entry(*nid).or_default().push((field_ident.clone(), field_ty.clone(), attr.tag));
                 }
                 for alias in &attr.aliases {
                     seen_ids.insert(*alias);
                 }
 
-                let mut all_match_tags = if attr.nested.is_empty() { vec![id] } else { attr.nested.clone() };
+                let mut all_match_tags = if let Some(tag_id) = attr.tag {
+                    vec![tag_id]
+                } else if !attr.nested.is_empty() {
+                    attr.nested.clone()
+                } else {
+                    vec![id]
+                };
                 all_match_tags.extend(attr.aliases.iter().copied());
-                let annotation_tags = if attr.nested.is_empty() { all_match_tags.clone() } else { attr.nested.clone() };
+                let annotation_tags = all_match_tags.clone();
                 field_name_arms.push(quote! {
                     #(#annotation_tags)|* => Some(stringify!(#field_ident)),
                 });
@@ -2782,7 +2801,46 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     }
                 } else if !attr.nested.is_empty() {
-                    if is_vec {
+                    if let Some(tag_id) = attr.tag {
+                        if is_vec {
+                            let encode_stmt = quote! {
+                                for item in &self.#field_ident {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
+                                }
+                            };
+                            if attr.omit_default {
+                                encode_fields.push(quote! {
+                                    if !self.#field_ident.is_empty() {
+                                        #encode_stmt
+                                    }
+                                });
+                            } else {
+                                encode_fields.push(encode_stmt);
+                            }
+                        } else if let Some(_inner_ty) = extract_type_from_option(field_ty) {
+                            encode_fields.push(quote! {
+                                if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                    #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
+                                }
+                            });
+                        } else {
+                            let enc = quote! {
+                                mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                            };
+                            if attr.omit_default {
+                                encode_fields.push(quote! {
+                                    if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                        #enc
+                                    }
+                                });
+                            } else {
+                                encode_fields.push(enc);
+                            }
+                        }
+                    } else if is_vec {
                         encode_fields.push(quote! {
                             for item in &self.#field_ident {
                                 #crate_root::DcMixedEncode::encode_dc_mixed_with_context(item, mst, context)?;
@@ -3094,6 +3152,104 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 });
             }
 
+            for (nid, group) in &nested_field_groups {
+                if group.iter().any(|(_, _, tag)| tag.is_some()) {
+                    let first_field = &group[0].0;
+                    field_name_arms.push(quote! {
+                        #nid => Some(stringify!(#first_field)),
+                    });
+
+                    let init_dispatches: Vec<_> = group.iter().map(|(f_ident, _, _)| {
+                        quote! {
+                            if !consumed {
+                                let inst = #f_ident.get_or_insert_with(::std::default::Default::default);
+                                if inst.decode_field(flag_tag, ctx, item_id)? {
+                                    consumed = true;
+                                }
+                            }
+                        }
+                    }).collect();
+
+                    decode_arms.push(quote! {
+                        #nid => {
+                            let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, val_id)?;
+                            for (flag_tag, item_id) in flag_items {
+                                let mut consumed = false;
+                                #(#init_dispatches)*
+                                if !consumed {
+                                    ctx.handle_unconsumed_or_incomplete(
+                                        &[format!("Unknown flag Dc {flag_tag:#X} in nested {:#X} while decoding {}", #nid, stringify!(#type_name))],
+                                        &[],
+                                    )?;
+                                }
+                            }
+                        }
+                    });
+
+                    let field_dispatches: Vec<_> = group.iter().map(|(f_ident, f_ty, _)| {
+                        if extract_type_from_option(f_ty).is_some() {
+                            quote! {
+                                if !consumed {
+                                    let inst = self.#f_ident.get_or_insert_with(::std::default::Default::default);
+                                    if inst.decode_field(flag_tag, ctx, item_id)? {
+                                        consumed = true;
+                                    }
+                                }
+                            }
+                        } else {
+                            quote! {
+                                if !consumed {
+                                    if self.#f_ident.decode_field(flag_tag, ctx, item_id)? {
+                                        consumed = true;
+                                    }
+                                }
+                            }
+                        }
+                    }).collect();
+
+                    decode_field_arms.push(quote! {
+                        #nid => {
+                            let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, val_id)?;
+                            for (flag_tag, item_id) in flag_items {
+                                let mut consumed = false;
+                                #(#field_dispatches)*
+                                if !consumed {
+                                    ctx.handle_unconsumed_or_incomplete(
+                                        &[format!("Unknown flag Dc {flag_tag:#X} in nested {:#X} while decoding {}", #nid, stringify!(#type_name))],
+                                        &[],
+                                    )?;
+                                }
+                            }
+                            Ok(true)
+                        }
+                    });
+                }
+            }
+
+            let mut empty_marker_impl = quote! {};
+            for field in fields {
+                if let Some(field_ident) = field.ident.as_ref() {
+                    if let Ok(attr) = parse_field_attrs(field) {
+                        if let Some(tag_id) = attr.tag {
+                            if !attr.nested.is_empty() {
+                                empty_marker_impl = quote! {
+                                    fn encode_empty_flattened_marker(
+                                        &self,
+                                        mst: &mut #crate_root::DcMstring,
+                                        context: &#crate_root::SharedValueContext,
+                                    ) -> #anyhow_path::Result<()> {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&self.#field_ident, mst, context)?;
+                                        Ok(())
+                                    }
+                                };
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             if !shared_decode_arms.is_empty() {
                 seen_ids.insert(1114382);
             }
@@ -3210,6 +3366,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     ) -> #anyhow_path::Result<()> {
                         self.encode_fields_with_context(mst, context)
                     }
+
+                    #empty_marker_impl
 
                     fn decode_flattened_field(
                         state: &mut Self::State,

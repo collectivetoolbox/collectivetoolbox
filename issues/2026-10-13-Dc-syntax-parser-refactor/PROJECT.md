@@ -5,6 +5,10 @@
 **Partially Implemented.** The correctness remediation below is a bounded
 subset of the original refactor, not certification of feature completion.
 
+`+                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
+` does not look right
+
+
 ### Remaining Gaps vs Original Request
 
 - Textual encapsulation metadata nesting is now a caller-configurable document

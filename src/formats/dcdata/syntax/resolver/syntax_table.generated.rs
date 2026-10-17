@@ -1088,11 +1088,11 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
                     SyntaxPattern::Sequence(vec![
                         SyntaxElement { term: SyntaxTerm::RuleRef { target: CharTarget::Dc(561) }, quantifier: Quantifier::ExactOne },
                     ]),
-                ])), quantifier: Quantifier::ExactOne },
+                ])), quantifier: Quantifier::Optional },
                 SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(389)), quantifier: Quantifier::ExactOne },
             ]),
             action: None,
-            raw: ":~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:]) 389".to_string(),
+            raw: ":~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389".to_string(),
         },
     );
     resolver.rules.insert(
@@ -1291,13 +1291,13 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
                 SyntaxPattern::Sequence(vec![
                     SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
                         SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(388)), quantifier: Quantifier::ExactOne },
-                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(389)] }, quantifier: Quantifier::OneOrMore },
+                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(389)] }, quantifier: Quantifier::ZeroOrMore },
                         SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(389)), quantifier: Quantifier::ExactOne },
                     ])), quantifier: Quantifier::ExactOne },
                 ]),
             ]),
             action: None,
-            raw: ":~ [number:Natural0] | (388 [^389]+ 389)".to_string(),
+            raw: ":~ [number:Natural0] | (388 [^389]* 389)".to_string(),
         },
     );
     resolver.rules.insert(
@@ -1843,6 +1843,26 @@ fn populate_rules(resolver: &mut DatasetRuleResolver) {
             ]),
             action: None,
             raw: ":~ [list]".to_string(),
+        },
+    );
+    resolver.rules.insert(
+        CharTarget::Dc(562),
+        DcSyntaxRule {
+            pattern: SyntaxPattern::Alternation(vec![
+                SyntaxPattern::Sequence(vec![
+                    SyntaxElement { term: SyntaxTerm::SelfChar, quantifier: Quantifier::ExactOne },
+                    SyntaxElement { term: SyntaxTerm::NamedConstruct { name: "number".to_string(), subtype: Some("Natural0".to_string()), capture_var: None }, quantifier: Quantifier::ExactOne },
+                ]),
+                SyntaxPattern::Sequence(vec![
+                    SyntaxElement { term: SyntaxTerm::Group(SyntaxPattern::Sequence(vec![
+                        SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(388)), quantifier: Quantifier::ExactOne },
+                        SyntaxElement { term: SyntaxTerm::CharSet { negated: true, members: vec![CharTarget::Dc(389)] }, quantifier: Quantifier::ZeroOrMore },
+                        SyntaxElement { term: SyntaxTerm::CharRef(CharTarget::Dc(389)), quantifier: Quantifier::ExactOne },
+                    ])), quantifier: Quantifier::ExactOne },
+                ]),
+            ]),
+            action: None,
+            raw: ":~ [number:Natural0] | (388 [^389]* 389)".to_string(),
         },
     );
     resolver.rules.insert(
@@ -2965,7 +2985,7 @@ fn populate_scripts(resolver: &mut DatasetRuleResolver) {
             1_114_641_u128, 1_114_642_u128, 1_114_643_u128, 1_114_644_u128, 1_114_645_u128, 1_114_646_u128, 1_114_647_u128, 1_114_648_u128,
             1_114_649_u128, 1_114_650_u128, 1_114_651_u128, 1_114_655_u128, 1_114_656_u128, 1_114_657_u128, 1_114_658_u128, 1_114_659_u128,
             1_114_660_u128, 1_114_661_u128, 1_114_662_u128, 1_114_663_u128, 1_114_664_u128, 1_114_665_u128, 1_114_666_u128, 1_114_667_u128,
-            1_114_668_u128, 1_114_669_u128, 1_114_670_u128, 1_114_673_u128,
+            1_114_668_u128, 1_114_669_u128, 1_114_670_u128, 1_114_673_u128, 1_114_674_u128,
         ]),
     );
     resolver.script_chars.insert(

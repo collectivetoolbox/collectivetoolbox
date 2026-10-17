@@ -139,6 +139,13 @@ pub trait DcMixedFlattened: Sized {
         mst: &mut DcMstring,
         context: &SharedValueContext,
     ) -> Result<()>;
+    fn encode_empty_flattened_marker(
+        &self,
+        _mst: &mut DcMstring,
+        _context: &SharedValueContext,
+    ) -> Result<()> {
+        Ok(())
+    }
     fn decode_flattened_field(
         state: &mut Self::State,
         tag: u128,
@@ -1815,7 +1822,97 @@ pub fn decode_format_representation<T: DcMixedDecode>(
             }
         }
     }
-    bail!("Expected format representation container (Dc 511 + {format:?}), found {:?}", node.kind)
+    // Direct or inline representation when not wrapped in a Dc 511 container:
+    if let Ok(val) = T::decode_dc_node(ctx, node_id) {
+        return Ok(val);
+    }
+    bail!("Expected format representation container (Dc 511 + {format:?}) or valid inline representation, found {:?}", node.kind)
+}
+
+/// Extracts flag items `(tag, item_id)` from a flags container node.
+/// Handles:
+/// - Empty container: returns `Ok(vec![])`
+/// - List container (`310 275 ... 311`): extracts elements, ignoring separator tokens
+/// - Bare atoms / tagged items in container
+pub fn extract_flag_nodes(
+    ctx: &DcProjectionContext<'_, '_>,
+    node_id: NodeId,
+) -> Result<Vec<(u128, NodeId)>> {
+    let unwrap_id = ctx.unwrap_transparent(node_id)?;
+    let unwrap_node = ctx.node(unwrap_id)?;
+    let children = match &unwrap_node.kind {
+        DcSyntaxKind::Container { children, .. } => children.as_slice(),
+        _ => return Ok(vec![]),
+    };
+    if children.is_empty() {
+        return Ok(vec![]);
+    }
+    // If the container has a single list container child (Dc 310)
+    let candidate_children = if children.len() == 1 {
+        let first_id = children[0];
+        let first_node = ctx.node(first_id)?;
+        if let DcSyntaxKind::Container { opener, children: lc, .. } = &first_node.kind {
+            if opener.to_short_dc() == Some(310) {
+                lc.as_slice()
+            } else {
+                children
+            }
+        } else {
+            children
+        }
+    } else {
+        children
+    };
+
+    let mut result = Vec::new();
+    let mut iter = candidate_children.iter().copied().peekable();
+    // If there is a leading Dc 275 (element separator), consume it:
+    if let Some(&first_id) = iter.peek() {
+        let first_node = ctx.node(first_id)?;
+        if let DcSyntaxKind::Atom(ch) = first_node.kind {
+            if ch.to_short_dc() == Some(275) {
+                iter.next();
+            }
+        }
+    }
+
+    for item_id in iter {
+        let item_node = ctx.node(item_id)?;
+        match &item_node.kind {
+            DcSyntaxKind::Atom(ch) => {
+                let short = ch.to_short_dc();
+                if short == Some(312) || short == Some(275) {
+                    continue;
+                }
+                result.push((ch.to_u128(), item_id));
+            }
+            DcSyntaxKind::Tagged { tag, .. } => {
+                let short = tag.to_short_dc();
+                if short == Some(312) || short == Some(275) {
+                    continue;
+                }
+                result.push((tag.to_u128(), item_id));
+            }
+            DcSyntaxKind::Container { opener, .. } => {
+                let short = opener.to_short_dc();
+                if short == Some(310) {
+                    let inner = extract_flag_nodes(ctx, item_id)?;
+                    result.extend(inner);
+                } else {
+                    result.push((opener.to_u128(), item_id));
+                }
+            }
+            DcSyntaxKind::Identifier { name } => {
+                if let Some(fid) = ctb_formats_utilities::FormatId::from_shorthand(name) {
+                    if let Some(dc_id) = fid.dc_id() {
+                        result.push((dc_id, item_id));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(result)
 }
 
 /// Resolves native Unix bytes or canonical Windows WTF-8 without replacement.
