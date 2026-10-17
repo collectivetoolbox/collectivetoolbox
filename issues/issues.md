@@ -70,6 +70,10 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Evaluate adding @ident for Dcs used in structs too, to make errors more obvious?
 
+- all encoding formats really @imply f14 (Text), but aren't noted as such. I guess that's because knowing that doesn't really inform processing of the files.
+
+- f80 String and f14 Text are basically the same thing, though the context/connotation are different. Confusing, but not sure exactly how best to address.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container
