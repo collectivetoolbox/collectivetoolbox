@@ -103,7 +103,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ [ipaddr],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,.Semantic,:~ [string],File comment string.
-1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,.Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.
+1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,.Semantic,:~ [^402]* 402,Begins a preserved Mac OS Finder and archive metadata record.
 1114514,402,End Mac OS file metadata description,0,BN,,!Cx,.Semantic,,Terminates a preserved Mac OS Finder and archive metadata record.
 1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file type code.
 1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([string:[asciiprintable]{4}] | [data:bytes=4]),Four-character Mac OS Finder file creator code.

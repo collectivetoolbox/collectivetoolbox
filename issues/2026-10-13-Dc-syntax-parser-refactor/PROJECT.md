@@ -11,9 +11,7 @@ subset of the original refactor, not certification of feature completion.
     than a caller-configurable document resource budget.
 - Unsupported temporal representations, including Panorama dates, now return
     errors rather than guessed epoch nanoseconds. Implementing their conversions
-    remains separate work.
-- Strict empty Apple metadata records still require a schema/representation
-    decision; their current database grammar requires nonempty contents.
+    remains separate work. [note: I think this comment does make sense at least mostly - it's like, a date is a format declaration and then the representation of that format, so actually using them would need some sort of normalization of it]
 - Clippy completes with warnings, not a warning-clean result. Full workspace,
     cross-platform, and cumulative `5aafa2bf3762da8a6d719145cb71f362851c1c6e..HEAD`
     review remain deferred. Historical milestone/test claims below do not replace
@@ -21,6 +19,10 @@ subset of the original refactor, not certification of feature completion.
 
 ### Correctness Remediation
 
+- Empty Apple metadata containers (Dc 401..402) are permitted by updating the
+    semantic database grammar rule to `[^402]* 402` (matching environment and
+    extent containers), enabling strict empty `AppleMetadata::default()` arena
+    parsing, decode projection, and full roundtrip fidelity.
 - Generated struct and enum projectors perform single-pass iteration with zero
     lookahead; atom-based field tag/value pairs are normalized into parser-owned
     `Tagged` nodes during arena building.

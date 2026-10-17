@@ -12,6 +12,7 @@
 - **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.
 - **Lingering server processes**: Run `killall ctoolbox` (or similar) if needed to stop background server processes.
 - **Antigravity chat folders**: Never run temporary Cargo builds in Antigravity chat folders; all new files there are indexed as "Artifacts" and lock up the IDE.
+- **Clippy errors** are important to resolve. **Clippy warnings** have proven impossible to turn off for CLI compilation without breaking their display in rust-analyzer; their output is mostly noise and may be disregarded.
 
 ### Dependencies & `vendor/`
 - **`vendor/ctb-vendored/`**: Auto-updated from crates.io. May be referenced, never edited.

@@ -493,10 +493,14 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     let empty = AppleMetadata::default().to_dc_mixed()?;
     let mut nav_empty = DcDocumentNavigator::from_mstr(&empty);
     let mut arena_empty = DcSyntaxArena::new();
+    nav_empty.parse_document_into_arena(&mut arena_empty, &strict)?;
+    let mut ctx_empty = DcProjectionContext::new(&arena_empty, &strict);
+    let decoded_empty = AppleMetadata::decode_dc_node(&mut ctx_empty, arena_empty.roots()[0])?;
     ensure!(
-        nav_empty.parse_document_into_arena(&mut arena_empty, &strict).is_err(),
-        "Empty AppleMetadata container must fail the nonempty record grammar"
+        decoded_empty == AppleMetadata::default(),
+        "Empty AppleMetadata container roundtrip mismatch"
     );
+    assert_dc_roundtrip(&AppleMetadata::default())?;
 
     // Test rejection of invalid container opener (e.g. 310..311 list instead of 401..402)
     let mut mst_bad = DcMstring::new();
