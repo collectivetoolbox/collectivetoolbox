@@ -206,7 +206,7 @@ fn test_challenge_deeply_nested_containers_and_bounds() -> Result<()> {
 
 #[crate::ctb_test]
 fn test_challenge_empty_containers_all_types() -> Result<()> {
-    let policy = DcProjectionPolicy::strict();
+    let policy = DcProjectionPolicy::forgiving();
 
     let empty_pairs = [
         (DC_BEGIN_FORMAT_REPRESENTATION, DC_END_FORMAT_REPRESENTATION, "FormatRepresentation"),
@@ -222,6 +222,7 @@ fn test_challenge_empty_containers_all_types() -> Result<()> {
     for (opener, closer, name) in empty_pairs {
         // Build document with empty container followed by a sentinel boolean true
         let doc = create_mstring(&[opener, closer, DC_BOOLEAN_TRUE]);
+        ensure!(validate_dc_mixed_strict(&doc).is_err(), "{name}: strict parsing must enforce required contents");
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
 
         let stub = nav

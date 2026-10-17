@@ -105,6 +105,21 @@ pub trait DcMixedEncode {
 
 /// Trait for types that can be projected from a parsed [`NodeId`] in a [`DcSyntaxArena`].
 pub trait DcMixedDecode: Sized {
+    /// Projects a document and returns the number of roots consumed.
+    ///
+    /// Node projection must remain local; only this entrypoint may use a
+    /// document's root sequence. The caller reports any remaining roots.
+    ///
+    /// # Errors
+    /// Returns an error if the document is empty or projection fails.
+    fn decode_dc_document(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        roots: &[NodeId],
+    ) -> Result<(Self, usize)> {
+        let root = roots.first().copied().context("Empty document cannot be decoded into typed value")?;
+        Ok((Self::decode_dc_node(ctx, root)?, 1))
+    }
+
     /// Projects an instance from the given syntax `node_id` under `ctx`.
     ///
     /// # Errors
@@ -157,26 +172,14 @@ impl crate::DcMstr {
         let mut arena = crate::DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, policy)?;
         let roots = arena.roots();
-        let root_id = match roots.first() {
-            Some(&id) => id,
-            None => bail!("Empty document cannot be decoded into typed value"),
-        };
         let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
             &arena,
             policy,
             None,
             Some(&mut nav),
         );
-        let res = T::decode_dc_node(&mut ctx, root_id)?;
-        if roots.len() > 1 && !ctx.consumed_all_roots {
-            ctx.handle_unconsumed_or_incomplete(
-                &[format!(
-                    "Trailing content after typed Dc value (multiple root nodes: {})",
-                    roots.len()
-                )],
-                &[],
-            )?;
-        }
+        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
+        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
         Ok(res)
     }
 
@@ -193,26 +196,14 @@ impl crate::DcMstr {
         let mut arena = crate::DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, policy)?;
         let roots = arena.roots();
-        let root_id = match roots.first() {
-            Some(&id) => id,
-            None => bail!("Empty document cannot be decoded into typed value"),
-        };
         let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
             &arena,
             policy,
             Some(context),
             Some(&mut nav),
         );
-        let res = T::decode_dc_node(&mut ctx, root_id)?;
-        if roots.len() > 1 && !ctx.consumed_all_roots {
-            ctx.handle_unconsumed_or_incomplete(
-                &[format!(
-                    "Trailing content after typed Dc value (multiple root nodes: {})",
-                    roots.len()
-                )],
-                &[],
-            )?;
-        }
+        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
+        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
         Ok(res)
     }
 }
@@ -549,8 +540,6 @@ pub struct DcProjectionContext<'a, 'ctx> {
     pub current_position: u64,
     /// Optional stream-backed resolver for `DeferredStream` binary payloads.
     pub binary_resolver: Option<&'ctx mut dyn DcBinaryResolver>,
-    /// Indicates whether a projection consumed all roots in a multi-root document (e.g. [T; N]).
-    pub(crate) consumed_all_roots: bool,
 }
 
 impl fmt::Debug for DcProjectionContext<'_, '_> {
@@ -565,7 +554,6 @@ impl fmt::Debug for DcProjectionContext<'_, '_> {
             .field("record_depth", &self.record_depth)
             .field("current_position", &self.current_position)
             .field("has_binary_resolver", &self.binary_resolver.is_some())
-            .field("consumed_all_roots", &self.consumed_all_roots)
             .finish()
     }
 }
@@ -584,7 +572,6 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             record_depth: 0,
             current_position: 0,
             binary_resolver: None,
-            consumed_all_roots: false,
         }
     }
 
@@ -616,7 +603,6 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
             record_depth: 0,
             current_position: 0,
             binary_resolver,
-            consumed_all_roots: false,
         }
     }
 
@@ -645,14 +631,19 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
         self.arena.get(id).context("NodeId not found in DcSyntaxArena")
     }
 
-    /// Marks that all root nodes in the arena have been consumed by a multi-root decoder.
-    pub fn mark_all_roots_consumed(&mut self) {
-        self.consumed_all_roots = true;
-    }
-
-    /// Sets whether all root nodes have been consumed.
-    pub fn set_consumed_all_roots(&mut self, consumed: bool) {
-        self.consumed_all_roots = consumed;
+    /// Reports parsed nodes left over after typed projection.
+    ///
+    /// # Errors
+    /// Returns an error for missing nodes or if the policy rejects leftovers.
+    pub fn handle_remaining_nodes(&mut self, nodes: &[NodeId]) -> Result<()> {
+        for &node_id in nodes {
+            let node = self.node(node_id)?;
+            self.handle_unconsumed_or_incomplete(
+                &[format!("Unconsumed Dc node: {:?}", node.kind)],
+                &[],
+            )?;
+        }
+        Ok(())
     }
 
     /// Checks for unconsumed Dc elements or missing required fields after decoding
@@ -1323,6 +1314,24 @@ impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
 }
 
 impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
+    fn decode_dc_document(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        roots: &[NodeId],
+    ) -> Result<(Self, usize)> {
+        let root = roots.first().copied().context("Empty document cannot be decoded into pair")?;
+        let local = ctx.node(ctx.unwrap_transparent(root)?)?;
+        if matches!(local.kind, DcSyntaxKind::Container { .. })
+            || matches!(&local.kind, DcSyntaxKind::Tagged { args, .. } if args.len() >= 2)
+        {
+            return Ok((Self::decode_dc_node(ctx, root)?, 1));
+        }
+        if let [first, second, ..] = roots {
+            let pair = (A::decode_dc_node(ctx, *first)?, B::decode_dc_node(ctx, *second)?);
+            return Ok((pair, 2));
+        }
+        Ok((Self::decode_dc_node(ctx, root)?, 1))
+    }
+
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
@@ -1359,6 +1368,7 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
                 if let (Some(&first), Some(&second)) = (filtered.first(), filtered.get(1)) {
                     let a = A::decode_dc_node(ctx, first)?;
                     let b = B::decode_dc_node(ctx, second)?;
+                    ctx.handle_remaining_nodes(filtered.get(2..).context("Missing pair children")?)?;
                     return Ok((a, b));
                 }
             }
@@ -1366,16 +1376,11 @@ impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
                 if let (Some(&first), Some(&second)) = (args.first(), args.get(1)) {
                     let a = A::decode_dc_node(ctx, first)?;
                     let b = B::decode_dc_node(ctx, second)?;
+                    ctx.handle_remaining_nodes(args.get(2..).context("Missing pair arguments")?)?;
                     return Ok((a, b));
                 }
             }
             _ => {}
-        }
-        if let [r0, r1] = ctx.arena.roots() {
-            ctx.consumed_all_roots = true;
-            let a = A::decode_dc_node(ctx, *r0)?;
-            let b = B::decode_dc_node(ctx, *r1)?;
-            return Ok((a, b));
         }
         bail!("Expected Container or Tagged node with 2 elements for pair (A, B), found {:?}", node.kind)
     }
@@ -2127,16 +2132,15 @@ impl DcMixedDecode for SystemTime {
                     };
                     (fid, second_child)
                 } else {
-                    (FormatId::NsSinceEpoch, first_child)
+                    bail!("Expected date format token after 390");
                 };
-                if fid == FormatId::SecondsSinceEpoch {
-                    let secs = i64::decode_dc_node(ctx, num_id)?;
-                    let nanos = i128::from(secs)
+                let nanos = match fid {
+                    FormatId::SecondsSinceEpoch => i128::from(i64::decode_dc_node(ctx, num_id)?)
                         .checked_mul(1_000_000_000)
-                        .context("Seconds to nanoseconds overflow")?;
-                    return system_time_from_signed_nanos(nanos);
-                }
-                let nanos = i128::decode_dc_node(ctx, num_id)?;
+                        .context("Seconds to nanoseconds overflow")?,
+                    FormatId::NsSinceEpoch => i128::decode_dc_node(ctx, num_id)?,
+                    _ => bail!("Unsupported SystemTime format: {fid:?}"),
+                };
                 return system_time_from_signed_nanos(nanos);
             }
         }
@@ -2182,16 +2186,17 @@ impl DcMixedDecode for Duration {
                     };
                     (fid, second_child)
                 } else {
-                    (FormatId::Nanosecond, first_child)
+                    bail!("Expected date/duration format token");
                 };
-                let dur = if matches!(fid, FormatId::Second | FormatId::SecondsSinceEpoch) {
-                    let s = u64::decode_dc_node(ctx, num_id)?;
-                    Duration::from_secs(s)
-                } else {
-                    let nanos = u128::decode_dc_node(ctx, num_id)?;
-                    let s = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
-                    let ns = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
-                    Duration::new(s, ns)
+                let dur = match fid {
+                    FormatId::Second => Duration::from_secs(u64::decode_dc_node(ctx, num_id)?),
+                    FormatId::Nanosecond => {
+                        let nanos = u128::decode_dc_node(ctx, num_id)?;
+                        let seconds = u64::try_from(nanos.checked_div(1_000_000_000).context("Division failed")?).context("secs")?;
+                        let sub_nanos = u32::try_from(nanos.checked_rem(1_000_000_000).context("Modulo failed")?).context("sub_nanos")?;
+                        Duration::new(seconds, sub_nanos)
+                    }
+                    _ => bail!("Unsupported Duration format: {fid:?}"),
                 };
                 return Ok(dur);
             }
@@ -2213,6 +2218,30 @@ impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
 }
 
 impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
+    fn decode_dc_document(
+        ctx: &mut DcProjectionContext<'_, '_>,
+        roots: &[NodeId],
+    ) -> Result<(Self, usize)> {
+        let root = roots.first().copied().context("Empty document cannot be decoded into array")?;
+        let local = ctx.node(ctx.unwrap_transparent(root)?)?;
+        if matches!(&local.kind, DcSyntaxKind::Container { opener, .. } if matches!(*opener, DC_BEGIN_LIST | DC_BEGIN_FORMAT_REPRESENTATION))
+            || matches!(&local.kind, DcSyntaxKind::Tagged { args, .. } if args.len() == N)
+        {
+            return Ok((Self::decode_dc_node(ctx, root)?, 1));
+        }
+        if roots.len() > 1 {
+            let mut items = Vec::with_capacity(N);
+            for &root in roots.iter().take(N) {
+                items.push(T::decode_dc_node(ctx, root)?);
+            }
+            let array = items.try_into().map_err(|items: Vec<T>| {
+                anyhow!("Array length mismatch: expected {N}, found {}", items.len())
+            })?;
+            return Ok((array, N));
+        }
+        Ok((Self::decode_dc_node(ctx, root)?, 1))
+    }
+
     fn decode_dc_node(
         ctx: &mut DcProjectionContext<'_, '_>,
         node_id: NodeId,
@@ -2257,16 +2286,7 @@ impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
             let item = T::decode_dc_node(ctx, node_id)?;
             return vec![item].try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"));
         }
-        let roots = ctx.arena.roots();
-        if roots.len() == N {
-            ctx.consumed_all_roots = true;
-            let mut items: Vec<T> = Vec::with_capacity(N);
-            for &r in roots {
-                items.push(T::decode_dc_node(ctx, r)?);
-            }
-            return items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch: expected {N}"));
-        }
-        bail!("Expected container or {N} roots for [T; {N}], found {:?}", node.kind)
+        bail!("Expected container or {N} local elements for [T; {N}], found {:?}", node.kind)
     }
 }
 
@@ -2380,7 +2400,7 @@ mod tests {
     use crate::{DcMixedFields, DcProjectionPolicy, DcSource};
 
     fn sample_source_record(inode: u64) -> SampleFileRecord {
-        SampleFileRecord { inode, path: "path".to_owned(), is_directory: false, optional_size: Some(42) }
+        SampleFileRecord { inode, path: "path".into(), is_directory: false, optional_size: Some(42) }
     }
 
     #[crate::ctb_test]
@@ -2459,8 +2479,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_source_inspection_binary_and_encapsulation_boundaries() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
-        let original = SourceBinaryRecord { title: "\u{e9}".to_owned(), bytes: vec![0, 255, 42] };
-        let updated = SourceBinaryRecord { title: "updated".to_owned(), bytes: vec![43] };
+        let original = SourceBinaryRecord { title: "TEXT".to_owned(), bytes: vec![0, 255, 42, 0] };
+        let updated = SourceBinaryRecord { title: "CODE".to_owned(), bytes: vec![43, 0, 0, 0] };
         let source = original.to_dc_mixed()?;
         let view = source.inspect::<SourceBinaryRecord>();
         let revised = view.replace_field("bytes", &updated)?;
@@ -2485,7 +2505,7 @@ mod tests {
     struct SourceNestedRecord {
         #[dc(nested = 317)]
         inner: SampleFileRecord,
-        #[dc(short = 407)]
+        #[dc(short = 333)]
         numbers: Vec<u64>,
     }
 
@@ -2574,7 +2594,7 @@ mod tests {
         #[dc(short = 327)]
         inode: u64,
         #[dc(short = 337)]
-        path: String,
+        path: std::path::PathBuf,
         #[dc(short = 352)]
         is_directory: bool,
         #[dc(short = 336)]
@@ -2849,7 +2869,7 @@ mod tests {
     fn test_derive_struct_roundtrip() -> Result<()> {
         let record = SampleFileRecord {
             inode: 1234567,
-            path: "docs/readme.txt".to_string(),
+            path: "docs/readme.txt".into(),
             is_directory: false,
             optional_size: Some(1024),
         };
@@ -2857,7 +2877,7 @@ mod tests {
 
         let empty_size_record = SampleFileRecord {
             inode: 7654321,
-            path: "empty_dir".to_string(),
+            path: "empty_dir".into(),
             is_directory: true,
             optional_size: None,
         };
@@ -2916,7 +2936,7 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
     #[dc(begin = 401, end = 402)]
     struct SampleShorthandStruct {
-        #[dc(403)]
+        #[dc(336)]
         short_num: u32,
         #[dc(f315)]
         format_str: String,
@@ -2924,8 +2944,8 @@ mod tests {
         unicode_val: i32,
         #[dc(l1000)]
         long_val: u64,
-        #[dc(begin = 310, end = 311)]
-        nested_vals: Vec<String>,
+        #[dc(348)]
+        nested_vals: Option<Vec<String>>,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
@@ -2946,7 +2966,7 @@ mod tests {
             format_str: "format_f315".to_string(),
             unicode_val: -99,
             long_val: 123456789,
-            nested_vals: vec!["alpha".to_string(), "beta".to_string()],
+            nested_vals: Some(vec!["alpha".to_string(), "beta".to_string()]),
         };
         assert_dc_roundtrip(&sample)?;
 
@@ -3090,7 +3110,7 @@ mod tests {
     struct SampleEquivalentParent {
         #[dc(406, equivalents = (388, number), default, omit_default)]
         flags: SampleFlags,
-        #[dc(403, default, omit_default)]
+        #[dc(400, default, omit_default)]
         name: String,
     }
 
@@ -3146,15 +3166,15 @@ mod tests {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Default, DcMixed)]
-    #[dc(begin = 401, end = 402)]
+    #[dc(begin = 317, end = 318)]
     struct SampleBinaryStruct {
-        #[dc(403, binary)]
+        #[dc(392, binary)]
         digest: [u8; 32],
-        #[dc(404, binary)]
+        #[dc(385, binary)]
         payload: Vec<u8>,
-        #[dc(405, binary)]
+        #[dc(539, binary)]
         opt_digest: Option<[u8; 32]>,
-        #[dc(406, binary)]
+        #[dc(338, binary)]
         wrapped: BinaryPayload,
     }
 
@@ -3341,7 +3361,7 @@ mod tests {
         #[dc(346)]
         ips: Vec<std::net::IpAddr>,
         #[dc(519)]
-        formats: Vec<ctb_formats_utilities::FormatId>,
+        offsets: Vec<i64>,
     }
 
     #[crate::ctb_test]
@@ -3350,18 +3370,15 @@ mod tests {
         let v6: std::net::Ipv6Addr = "fe80::1".parse()?;
         let s = SampleRepeatedVecStruct {
             ips: vec![std::net::IpAddr::V4(v4), std::net::IpAddr::V6(v6)],
-            formats: vec![
-                ctb_formats_utilities::FormatId::PwaMobile,
-                ctb_formats_utilities::FormatId::Linux,
-            ],
+            offsets: vec![-100, 200],
         };
         assert_dc_roundtrip(&s)?;
 
         let empty = SampleRepeatedVecStruct {
             ips: Vec::new(),
-            formats: Vec::new(),
+            offsets: Vec::new(),
         };
-        assert_dc_roundtrip(&empty)?;
+        ensure!(empty.to_dc_mixed()?.decode::<SampleRepeatedVecStruct>(&DcProjectionPolicy::strict()).is_err());
         Ok(())
     }
 
@@ -3558,7 +3575,7 @@ mod tests {
         assert!(malformed.decode::<SampleFileRecord>(&strict).is_err());
         let recovered = malformed.decode::<SampleFileRecord>(&forgiving)?;
         assert_eq!(recovered.inode, 0);
-        assert_eq!(recovered.path, "path");
+        assert_eq!(recovered.path, std::path::Path::new("path"));
         assert!(!recovered.is_directory);
         assert_eq!(recovered.optional_size, None);
         Ok(())
@@ -3617,29 +3634,30 @@ mod tests {
     #[crate::ctb_test]
     fn test_tuple_and_vec_transparent_and_format_unwrapping() -> Result<()> {
         let strict = DcProjectionPolicy::strict();
-        let pair = ("left".to_owned(), 42u64);
+        let pair = (-12_i16, 42_i16);
         assert_dc_roundtrip(&pair)?;
         assert_dc_document_roundtrip(&pair)?;
 
         // Wrap pair in DC_EQUIVALENT_REPRESENTATIONS (397) and DC_BEGIN_FORMAT_REPRESENTATION (511)
-        let fmt = format_dc_char(FormatId::Point2D)?;
+        let fmt = format_dc_char(FormatId::QuickDrawPoint)?;
         let mut wrapped_pair = DcMstring::new();
         wrapped_pair.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         wrapped_pair.push_char(DC_BEGIN_LIST);
         wrapped_pair.push_char(DC_TYPE_ANY);
-        encode_format_representation(&pair, fmt, &mut wrapped_pair, &SharedValueContext::default())?;
+        encode_format_representation(&[-12_i16, 42_i16], fmt, &mut wrapped_pair, &SharedValueContext::default())?;
         wrapped_pair.push_char(DC_END_LIST);
-        assert_eq!(wrapped_pair.decode::<(String, u64)>(&strict)?, pair);
+        assert_eq!(wrapped_pair.decode::<(i16, i16)>(&strict)?, pair);
 
-        // Wrap Vec<u32> in DC_EQUIVALENT_REPRESENTATIONS (397) and DC_BEGIN_FORMAT_REPRESENTATION (511)
-        let list = vec![10u32, 20, 30];
+        // Wrap a typed list in equivalent and optional representations.
+        let list = vec![10_i16, 20];
         let mut wrapped_vec = DcMstring::new();
         wrapped_vec.push_char(DC_EQUIVALENT_REPRESENTATIONS);
         wrapped_vec.push_char(DC_BEGIN_LIST);
         wrapped_vec.push_char(DC_TYPE_ANY);
-        encode_format_representation(&list, fmt, &mut wrapped_vec, &SharedValueContext::default())?;
+        wrapped_vec.push_char(DC_OPTIONAL_PRESENT);
+        list.encode_dc_mixed(&mut wrapped_vec)?;
         wrapped_vec.push_char(DC_END_LIST);
-        assert_eq!(wrapped_vec.decode::<Vec<u32>>(&strict)?, list);
+        assert_eq!(wrapped_vec.decode::<Vec<i16>>(&strict)?, list);
         Ok(())
     }
 

@@ -465,9 +465,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     #[derive(Debug, PartialEq, Eq, DcMixed)]
-    #[dc(begin = 317, end = 318)]
+    #[dc(key_value)]
     struct MapRecord {
-        #[dc(short = 327)]
+        #[dc(key = "maps")]
         maps: BTreeMap<String, BTreeMap<String, u64>>,
     }
 
@@ -494,8 +494,11 @@ mod tests {
 
     fn source_record(value: u64) -> Result<DcMstring> {
         let mut source = DcMstring::new();
-        source.push_char(DcChar::from_short(317));
-        source.push_char(DcChar::from_short(327));
+        let pairs = crate::DcKvMapEncoding::Pairs;
+        pairs.encode_header(&mut source);
+        pairs.encode_entry_begin(&mut source, true);
+        "maps".encode_dc_mixed(&mut source)?;
+        source.push_char(DcChar::from_short(312));
         let legacy = crate::DcKvMapEncoding::Legacy;
         legacy.encode_header(&mut source);
         // The source order deliberately differs from BTreeMap's sorted order.
@@ -507,7 +510,8 @@ mod tests {
         source.push_char(DcChar::from_short(312));
         write_inner(&mut source, crate::DcKvMapEncoding::Pairs, 7)?;
         legacy.encode_end(&mut source);
-        source.push_char(DcChar::from_short(318));
+        pairs.encode_entry_end(&mut source);
+        pairs.encode_end(&mut source);
         Ok(source)
     }
 
@@ -560,7 +564,7 @@ mod tests {
                 .iter()
                 .filter(|&&token| token == DcChar::from_short(559).0)
                 .count(),
-            2
+            3
         );
         Ok(())
     }

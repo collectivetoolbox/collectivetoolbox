@@ -570,26 +570,14 @@ impl DcStr {
         let mut arena = crate::DcSyntaxArena::new();
         nav.parse_document_into_arena(&mut arena, policy)?;
         let roots = arena.roots();
-        let root_id = match roots.first() {
-            Some(&id) => id,
-            None => bail!("Empty document cannot be decoded into typed value"),
-        };
         let mut ctx = DcProjectionContext::with_shared_context_and_resolver(
             &arena,
             policy,
             context,
             Some(&mut nav),
         );
-        let res = T::decode_dc_node(&mut ctx, root_id)?;
-        if roots.len() > 1 && !ctx.consumed_all_roots {
-            ctx.handle_unconsumed_or_incomplete(
-                &[format!(
-                    "Trailing content after typed Dc value (multiple root nodes: {})",
-                    roots.len()
-                )],
-                &[],
-            )?;
-        }
+        let (res, consumed) = T::decode_dc_document(&mut ctx, roots)?;
+        ctx.handle_remaining_nodes(roots.get(consumed..).context("Invalid document root consumption")?)?;
         Ok(res)
     }
 

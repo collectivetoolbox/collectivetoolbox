@@ -37,7 +37,7 @@ use ctb_formats_dcdata::dc::*;
 pub struct MultiFieldRecord {
     #[dc(short = 327)]
     pub id: u64,
-    #[dc(short = 337)]
+    #[dc(short = 400)]
     pub name: String,
     #[dc(short = 352)]
     pub active: bool,
@@ -46,13 +46,13 @@ pub struct MultiFieldRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
-#[dc(begin = 401, end = 402)]
+#[dc(key_value)]
 pub struct BoundedComplexRecord {
-    #[dc(short = 403)]
+    #[dc(key = "title")]
     pub title: String,
-    #[dc(begin = 310, end = 311)]
+    #[dc(key = "counters")]
     pub counters: Vec<u64>,
-    #[dc(short = 406)]
+    #[dc(key = "flags")]
     pub flags: Option<u64>,
 }
 
@@ -408,7 +408,7 @@ fn test_challenge_unknown_forward_compatible_tokens_preserved_around_edits() -> 
     doc.push_binary_with_sha256(b"unknown_future_sensor_telemetry_payload")?;
 
     // Field name
-    doc.push_char(DcChar::from_short(337));
+    doc.push_char(DcChar::from_short(400));
     "known_name".encode_dc_mixed(&mut doc)?;
 
     doc.push_char(DcChar::from_short(352));

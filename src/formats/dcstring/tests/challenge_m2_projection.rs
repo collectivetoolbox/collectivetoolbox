@@ -30,7 +30,7 @@ use ctb_utilities::*;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 pub use ctb_formats_dcstring::*;
 use ctb_formats_dcdata::dc::*;
@@ -225,9 +225,69 @@ fn test_challenge_btreemap_nested_and_legacy() -> Result<()> {
 #[dc(begin = 401, end = 402)]
 struct StructWithArray {
     #[dc(short = 403)]
-    title: String,
-    #[dc(short = 404)]
-    values: [u32; 3],
+    file_type: String,
+    #[dc(407, representation = f523)]
+    icon_location: [i16; 2],
+}
+
+#[derive(Debug, PartialEq, Eq, DcMixed)]
+#[dc(flatten)]
+struct FlattenedProjectionRecord {
+    #[dc(405)]
+    label_color: u32,
+    #[dc(400)]
+    comment: String,
+}
+
+#[derive(Debug, PartialEq, Eq, DcMixed)]
+#[dc(begin = 401, end = 402)]
+struct TemporalProjectionRecord {
+    #[dc(387)]
+    inspected_at: SystemTime,
+    #[dc(400)]
+    comment: String,
+}
+
+#[derive(Debug, PartialEq, Eq, DcMixed)]
+#[dc(flatten)]
+struct AdjacentDateFields {
+    #[dc(330)]
+    atime: SystemTime,
+    #[dc(329)]
+    mtime: SystemTime,
+}
+
+#[crate::ctb_test]
+fn test_adjacent_date_fields_preserve_prefix_boundaries() -> Result<()> {
+    let value = AdjacentDateFields {
+        atime: SystemTime::UNIX_EPOCH.checked_add(Duration::new(1_700_000_000, 500)).context("Time overflow")?,
+        mtime: SystemTime::UNIX_EPOCH.checked_add(Duration::new(1_700_000_001, 600)).context("Time overflow")?,
+    };
+    let encoded = value.to_dc_mixed()?;
+    let strict = DcProjectionPolicy::strict();
+    let mut nav = DcDocumentNavigator::from_mstr(&encoded);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    ensure!(arena.roots().len() == 2, "Date fields must remain sibling roots: {:?}", arena.roots());
+    ensure!(encoded.decode::<AdjacentDateFields>(&strict)? == value);
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_strict_decode_requires_list_type_header() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let mut empty = DcMstring::new();
+    empty.push_char(DC_BEGIN_LIST);
+    empty.push_char(DC_END_LIST);
+    ensure!(validate_dc_mixed_strict(&empty).is_err());
+    ensure!(empty.decode::<Vec<u32>>(&strict).is_err(), "Strict Vec decode accepted a missing type header");
+
+    let mut array = DcMstring::new();
+    array.push_char(DC_BEGIN_LIST);
+    42_u32.encode_dc_mixed(&mut array)?;
+    array.push_char(DC_END_LIST);
+    ensure!(array.decode::<[u32; 1]>(&strict).is_err(), "Strict array decode accepted a missing type header");
+    Ok(())
 }
 
 #[crate::ctb_test]
@@ -240,6 +300,8 @@ fn test_challenge_array_bare_roots() -> Result<()> {
     arr.encode_dc_mixed(&mut mst)?;
     let decoded = mst.decode::<[u32; 3]>(&strict)?;
     ensure!(decoded == arr, "Bare [u32; 3] roundtrip mismatch");
+    ensure!(mst.to_dc_string()?.decode::<[u32; 3]>(&strict)? == arr);
+    ensure!(mst.to_dc_string()?.decode_with_context::<[u32; 3]>(&SharedValueContext::default(), &strict)? == arr);
 
     // 2. Bare array with N = 1
     let arr1 = [999_u64];
@@ -266,6 +328,7 @@ fn test_challenge_bug_array_container_decoding_dropped_items() -> Result<()> {
     // Build a list container: Dc 310, 11, 312, 22, 312, 33, Dc 311
     let mut list_mst = DcMstring::new();
     list_mst.push_char(DC_BEGIN_LIST);
+    list_mst.push_char(DC_TYPE_ANY);
     11_u32.encode_dc_mixed(&mut list_mst)?;
     list_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
     22_u32.encode_dc_mixed(&mut list_mst)?;
@@ -280,26 +343,138 @@ fn test_challenge_bug_array_container_decoding_dropped_items() -> Result<()> {
     Ok(())
 }
 
-/// BUG 3 EMPIRICAL REPRODUCTION:
-/// Arrays in struct fields: `StructWithArray { values: [u32; 3] }` with `#[dc(short = 404)]`.
-/// The macro encodes tag 404 followed by 3 numbers. However, `navigator.rs` parses tag 404
-/// with default arity 1. Therefore, `values: [u32; 3]` receives a `Tagged` node with 1 arg
-/// instead of 3, and fails with `Array length mismatch` or container mismatch.
+/// Finder icon coordinates use the database's QuickDraw point representation.
 #[crate::ctb_test]
 fn test_challenge_bug_array_in_struct_field() -> Result<()> {
     let strict = DcProjectionPolicy::strict();
 
     let item = StructWithArray {
-        title: "test_array".to_string(),
-        values: [100, 200, 300],
+        file_type: "TEXT".to_string(),
+        icon_location: [100, 200],
     };
     let mut mst = DcMstring::new();
     item.encode_dc_mixed(&mut mst)?;
 
-    let res = mst.decode::<StructWithArray>(&strict);
+    validate_dc_mixed_strict(&mst)?;
+    ensure!(mst.decode::<StructWithArray>(&strict)? == item);
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_nested_tuple_and_array_do_not_project_document_roots() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    let mut mst = DcMstring::new();
+    vec![1_u16].encode_dc_mixed(&mut mst)?;
+    "outside".to_string().encode_dc_mixed(&mut mst)?;
+
     ensure!(
-        res.is_err(),
-        "Expected StructWithArray decode to fail due to tag arity mismatch in array field"
+        mst.decode::<Vec<(DcRawValue, DcRawValue)>>(&strict).is_err(),
+        "Nested tuple projection must not escape to document roots"
+    );
+    ensure!(
+        mst.decode::<Vec<[DcRawValue; 2]>>(&strict).is_err(),
+        "Nested array projection must not escape to document roots"
+    );
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_tuple_reports_local_leftovers() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+    let mut source = DcMstring::new();
+    for value in [1_u32, 2, 3] {
+        value.encode_dc_mixed(&mut source)?;
+    }
+    let mut nav = DcDocumentNavigator::from_mstr(&source);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let children = arena.roots().to_vec();
+    let pair = arena.alloc(
+        DcByteSpan::new(0, 0),
+        DcSyntaxKind::Container {
+            opener: DC_BEGIN_KV_PAIR,
+            closer: DC_END_KV_PAIR,
+            header: Vec::new(),
+            children: children.clone(),
+            trailing: Vec::new(),
+            unclosed: false,
+        },
+    );
+    let tagged = arena.alloc(
+        DcByteSpan::new(0, 0),
+        DcSyntaxKind::Tagged { tag: DC_BEGIN_KV_PAIR, args: children },
+    );
+    for node in [pair, tagged] {
+        let mut ctx = DcProjectionContext::new(&arena, &strict);
+        let error = <(u32, u32)>::decode_dc_node(&mut ctx, node)
+            .expect_err("Strict tuple projection must report unused local nodes");
+        ensure!(format!("{error:#}").contains("Unconsumed Dc node"));
+        let mut ctx = DcProjectionContext::new(&arena, &forgiving);
+        ensure!(<(u32, u32)>::decode_dc_node(&mut ctx, node)? == (1, 2));
+    }
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_document_sequence_leftovers() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+    let mut array = [1_u32, 2].to_dc_mixed()?;
+    3_u32.encode_dc_mixed(&mut array)?;
+    ensure!(array.decode::<[u32; 2]>(&strict).is_err());
+    ensure!(array.decode::<[u32; 2]>(&forgiving)? == [1, 2]);
+
+    let mut pair = (1_u32, 2_u32).to_dc_mixed()?;
+    "outside".to_string().encode_dc_mixed(&mut pair)?;
+    ensure!(pair.decode::<(u32, u32)>(&strict).is_err());
+    ensure!(pair.decode::<(u32, u32)>(&forgiving)? == (1, 2));
+
+    let mut framed_array = vec![1_u32, 2].to_dc_mixed()?;
+    "outside".to_string().encode_dc_mixed(&mut framed_array)?;
+    ensure!(framed_array.decode::<[u32; 2]>(&strict).is_err());
+    ensure!(framed_array.decode::<[u32; 2]>(&forgiving)? == [1, 2]);
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_flattened_document_projection_boundary() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let record = FlattenedProjectionRecord {
+        label_color: 7,
+        comment: "visible".to_string(),
+    };
+
+    let mut encoded = DcMstring::new();
+    record.encode_dc_mixed(&mut encoded)?;
+    validate_dc_mixed_strict(&encoded)?;
+    let decoded = encoded.decode::<FlattenedProjectionRecord>(&strict)?;
+    ensure!(decoded == record, "Top-level flattened decode mismatch");
+    ensure!(encoded.to_dc_string()?.decode::<FlattenedProjectionRecord>(&strict)? == record);
+    ensure!(encoded.to_dc_string()?.decode_with_context::<FlattenedProjectionRecord>(&SharedValueContext::default(), &strict)? == record);
+
+    let mut nested_doc = DcMstring::new();
+    vec![1_u16].encode_dc_mixed(&mut nested_doc)?;
+    record.encode_dc_mixed(&mut nested_doc)?;
+
+    let mut nav = DcDocumentNavigator::from_mstr(&nested_doc);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let list_root = arena.roots().first().copied().context("Missing list root")?;
+    let nested_child_id = match &arena.node(list_root).context("Missing list root")?.kind {
+        ctb_formats_dcstring::navigator::DcSyntaxKind::Container { children, .. } => {
+            children.last().copied().context("Missing nested list child")?
+        }
+        other => bail!("Expected list root for nested flattened repro, found {other:?}"),
+    };
+
+    let mut ctx = DcProjectionContext::new(&arena, &strict);
+    ensure!(
+        FlattenedProjectionRecord::decode_dc_node(&mut ctx, nested_child_id).is_err(),
+        "Nested flattened decode must not project from document roots"
     );
 
     Ok(())
@@ -355,15 +530,14 @@ fn test_challenge_duration_short_and_long_delimiters() -> Result<()> {
         .context("Duration in Dc 395..396 container failed to decode")?;
     ensure!(dec_395 == expected, "395..396 mismatch: got {dec_395:?}");
 
-    // 4. Duration without format indicator inside 395..396 (defaults to nanos)
+    // 4. Duration without a format indicator must not guess nanoseconds.
     let mut mst_395_raw = DcMstring::new();
     mst_395_raw.push_char(DcChar::from_short(395));
     nanos.encode_dc_mixed(&mut mst_395_raw)?;
     mst_395_raw.push_char(DcChar::from_short(396));
 
-    let dec_395_raw = mst_395_raw.decode::<Duration>(&strict)
-        .context("Duration in Dc 395..396 without format failed to decode")?;
-    ensure!(dec_395_raw == expected, "395..396 raw mismatch: got {dec_395_raw:?}");
+    ensure!(mst_395_raw.decode::<Duration>(&strict).is_err());
+    ensure!(mst_395_raw.decode::<Duration>(&forgiving).is_err());
 
     // 5. Bare number representation of Duration:
     // Both strict and forgiving policies reject bare number for standalone Duration
@@ -379,6 +553,124 @@ fn test_challenge_duration_short_and_long_delimiters() -> Result<()> {
         "Standalone Duration decoder MUST reject bare number under forgiving policy too"
     );
 
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_temporal_codecs_reject_unsupported_formats() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+    let forgiving = DcProjectionPolicy::forgiving();
+    let pan_date = DcChar::from_u128(
+        ctb_formats_utilities::FormatId::PanDate
+            .dc_id()
+            .context("Missing PanDate format identifier")?,
+    );
+    let mut system_time_doc = DcMstring::new();
+    system_time_doc.push_char(DC_BEGIN_TIME_MOMENT);
+    system_time_doc.push_char(pan_date);
+    123_i64.encode_dc_mixed(&mut system_time_doc)?;
+    system_time_doc.push_char(DC_END_TIME_MOMENT);
+
+    let system_time_err = system_time_doc
+        .decode::<SystemTime>(&strict)
+        .expect_err("Unsupported SystemTime format must fail");
+    ensure!(
+        format!("{system_time_err:#}").contains("Unsupported SystemTime format"),
+        "SystemTime error must name unsupported format: {system_time_err:#}"
+    );
+    ensure!(
+        system_time_doc.decode::<SystemTime>(&forgiving).is_err(),
+        "Standalone SystemTime decode must reject unsupported formats under forgiving policy too"
+    );
+
+    let mut nav = DcDocumentNavigator::from_mstr(&system_time_doc);
+    let mut arena = DcSyntaxArena::new();
+    nav.parse_document_into_arena(&mut arena, &strict)?;
+    let root = arena.roots().first().copied().context("Missing time root")?;
+    let children = arena.node(root).context("Missing time node")?.children().to_vec();
+    let unsupported_duration = arena.alloc(
+        DcByteSpan::new(0, 0),
+        DcSyntaxKind::Container {
+            opener: DC_BEGIN_DATE_MAGNITUDE,
+            closer: DC_END_DATE_MAGNITUDE,
+            header: Vec::new(),
+            children,
+            trailing: Vec::new(),
+            unclosed: false,
+        },
+    );
+    for policy in [&strict, &forgiving] {
+        let mut ctx = DcProjectionContext::new(&arena, policy);
+        let error = Duration::decode_dc_node(&mut ctx, unsupported_duration)
+            .expect_err("Unsupported Duration format must fail at projection");
+        ensure!(format!("{error:#}").contains("Unsupported Duration format"));
+    }
+
+    let mut record_doc = DcMstring::new();
+    record_doc.push_char(DcChar::from_short(401));
+    record_doc.push_char(DcChar::from_short(387));
+    record_doc.push_char(DC_BEGIN_TIME_MOMENT);
+    record_doc.push_char(pan_date);
+    456_i64.encode_dc_mixed(&mut record_doc)?;
+    record_doc.push_char(DC_END_TIME_MOMENT);
+    record_doc.push_char(DcChar::from_short(400));
+    "kept".to_string().encode_dc_mixed(&mut record_doc)?;
+    record_doc.push_char(DcChar::from_short(402));
+
+    ensure!(
+        record_doc.decode::<TemporalProjectionRecord>(&strict).is_err(),
+        "Strict struct decode must reject unsupported nested SystemTime formats"
+    );
+    let recovered = record_doc.decode::<TemporalProjectionRecord>(&forgiving)?;
+    ensure!(
+        recovered == TemporalProjectionRecord {
+            inspected_at: SystemTime::UNIX_EPOCH,
+            comment: "kept".to_string(),
+        },
+        "Forgiving struct decode must recover with default SystemTime"
+    );
+
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_system_time_supported_formats_and_signed_nanos() -> Result<()> {
+    use ctb_formats_utilities::FormatId;
+    let strict = DcProjectionPolicy::strict();
+    for format in [FormatId::SecondsSinceEpoch, FormatId::NsSinceEpoch] {
+        for value in [-1_000_000_001_i64, -999_999_999, -1, 0, 1, 999_999_999, 1_000_000_001] {
+            let mut source = DcMstring::new();
+            source.push_char(DC_BEGIN_TIME_MOMENT);
+            source.push_char(DcChar::from_u128(format.dc_id().context("Missing date format")?));
+            value.encode_dc_mixed(&mut source)?;
+            source.push_char(DC_END_TIME_MOMENT);
+            validate_dc_mixed_strict(&source)?;
+            let magnitude = match format {
+                FormatId::SecondsSinceEpoch => Duration::from_secs(value.unsigned_abs()),
+                FormatId::NsSinceEpoch => Duration::from_nanos(value.unsigned_abs()),
+                _ => bail!("Unexpected test format"),
+            };
+            let expected = if value < 0 {
+                SystemTime::UNIX_EPOCH.checked_sub(magnitude)
+            } else {
+                SystemTime::UNIX_EPOCH.checked_add(magnitude)
+            }.context("Test timestamp out of range")?;
+            ensure!(source.decode::<SystemTime>(&strict)? == expected);
+            assert_dc_roundtrip(&expected)?;
+        }
+    }
+    for format in [FormatId::PanDate, FormatId::PanTime, FormatId::PanSuperDate] {
+        let mut source = DcMstring::new();
+        source.push_char(DC_BEGIN_TIME_MOMENT);
+        source.push_char(DcChar::from_u128(format.dc_id().context("Missing date format")?));
+        1_i64.encode_dc_mixed(&mut source)?;
+        source.push_char(DC_END_TIME_MOMENT);
+        validate_dc_mixed_strict(&source)?;
+        for policy in [DcProjectionPolicy::strict(), DcProjectionPolicy::forgiving()] {
+            let error = source.decode::<SystemTime>(&policy).expect_err("Unsupported date format");
+            ensure!(format!("{error:#}").contains("Unsupported SystemTime format"));
+        }
+    }
     Ok(())
 }
 
@@ -521,7 +813,7 @@ fn test_challenge_format_container_extraneous_trailing_children() -> Result<()> 
     // Build format representation container Dc 511 ... 512 with 3 children: [format, payload, extraneous]
     let mut mst = DcMstring::new();
     mst.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-    mst.push_char(DcChar::from_format(100)); // Some format
+    mst.push_char(DcChar::from_format(490)); // IPv4 numeric representation
     42_u32.encode_dc_mixed(&mut mst)?;
     "extraneous".to_string().encode_dc_mixed(&mut mst)?;
     mst.push_char(DC_END_FORMAT_REPRESENTATION);
@@ -543,7 +835,7 @@ fn test_challenge_format_container_extraneous_trailing_children() -> Result<()> 
     let res_forgiving = ctx_forgiving.unwrap_format_representation(root_id)?;
     ensure!(res_forgiving.is_some(), "Forgiving policy should unwrap format representation");
     let (fmt, payload_id) = res_forgiving.unwrap();
-    ensure!(fmt == DcChar::from_format(100));
+    ensure!(fmt == DcChar::from_format(490));
     let val = u32::decode_dc_node(&mut ctx_forgiving, payload_id)?;
     ensure!(val == 42);
 
@@ -557,6 +849,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     // 1. Empty array [u32; 0] from empty list container
     let mut empty_mst = DcMstring::new();
     empty_mst.push_char(DC_BEGIN_LIST);
+    empty_mst.push_char(DC_TYPE_ANY);
     empty_mst.push_char(DC_END_LIST);
 
     let decoded_empty = empty_mst.decode::<[u32; 0]>(&strict)
@@ -566,6 +859,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     // 2. Length mismatch: container has 4 items, target is [u32; 3]
     let mut too_many_mst = DcMstring::new();
     too_many_mst.push_char(DC_BEGIN_LIST);
+    too_many_mst.push_char(DC_TYPE_ANY);
     1_u32.encode_dc_mixed(&mut too_many_mst)?;
     too_many_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
     2_u32.encode_dc_mixed(&mut too_many_mst)?;
@@ -584,6 +878,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     // 3. Length mismatch: container has 2 items, target is [u32; 3]
     let mut too_few_mst = DcMstring::new();
     too_few_mst.push_char(DC_BEGIN_LIST);
+    too_few_mst.push_char(DC_TYPE_ANY);
     1_u32.encode_dc_mixed(&mut too_few_mst)?;
     too_few_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
     2_u32.encode_dc_mixed(&mut too_few_mst)?;
@@ -599,6 +894,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let string_arr = ["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
     let mut str_mst = DcMstring::new();
     str_mst.push_char(DC_BEGIN_LIST);
+    str_mst.push_char(DC_TYPE_ANY);
     string_arr.get(0).context("Missing elem 0")?.encode_dc_mixed(&mut str_mst)?;
     str_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
     string_arr.get(1).context("Missing elem 1")?.encode_dc_mixed(&mut str_mst)?;
@@ -614,6 +910,7 @@ fn test_challenge_array_container_adversarial_boundaries() -> Result<()> {
     let opt_arr = [Some(10_u32), None, Some(30_u32)];
     let mut opt_mst = DcMstring::new();
     opt_mst.push_char(DC_BEGIN_LIST);
+    opt_mst.push_char(DC_TYPE_ANY);
     opt_arr.get(0).context("Missing opt 0")?.encode_dc_mixed(&mut opt_mst)?;
     opt_mst.push_char(DC_LIST_ELEMENT_SEPARATOR);
     opt_arr.get(1).context("Missing opt 1")?.encode_dc_mixed(&mut opt_mst)?;
@@ -683,7 +980,7 @@ fn test_challenge_format_container_adversarial_stress() -> Result<()> {
     // 1. Format container with 4 children: [format, payload, child2, child3]
     let mut mst4 = DcMstring::new();
     mst4.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-    mst4.push_char(DcChar::from_format(100));
+    mst4.push_char(DcChar::from_format(490));
     888_u32.encode_dc_mixed(&mut mst4)?;
     "extra1".to_string().encode_dc_mixed(&mut mst4)?;
     "extra2".to_string().encode_dc_mixed(&mut mst4)?;
@@ -705,14 +1002,14 @@ fn test_challenge_format_container_adversarial_stress() -> Result<()> {
     let (fmt4, payload_id4) = ctx_forgiving4
         .unwrap_format_representation(root4)?
         .context("4-child format container should unwrap under forgiving policy")?;
-    ensure!(fmt4 == DcChar::from_format(100));
+    ensure!(fmt4 == DcChar::from_format(490));
     let val4 = u32::decode_dc_node(&mut ctx_forgiving4, payload_id4)?;
     ensure!(val4 == 888);
 
     // 2. Exact 2-child format container passes both strict and forgiving
     let mut mst2 = DcMstring::new();
     mst2.push_char(DC_BEGIN_FORMAT_REPRESENTATION);
-    mst2.push_char(DcChar::from_format(200));
+    mst2.push_char(DcChar::from_format(490));
     777_u32.encode_dc_mixed(&mut mst2)?;
     mst2.push_char(DC_END_FORMAT_REPRESENTATION);
 
@@ -725,7 +1022,7 @@ fn test_challenge_format_container_adversarial_stress() -> Result<()> {
     let (fmt2, payload_id2) = ctx_strict2
         .unwrap_format_representation(root2)?
         .context("2-child format container should unwrap under strict policy")?;
-    ensure!(fmt2 == DcChar::from_format(200));
+    ensure!(fmt2 == DcChar::from_format(490));
     let val2 = u32::decode_dc_node(&mut ctx_strict2, payload_id2)?;
     ensure!(val2 == 777);
 

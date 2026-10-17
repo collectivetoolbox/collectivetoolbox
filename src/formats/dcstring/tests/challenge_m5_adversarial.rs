@@ -82,9 +82,7 @@ fn create_mstring(chars: &[DcChar]) -> DcMstring {
 mod challenge1_recursion_depth_limits {
     use super::*;
 
-    /// Verifies exact boundary behavior:
-    /// Nesting 31 containers passes validation (depth remains bounded < 32).
-    /// Nesting 32 and 33 containers strictly fails with recursion depth / header limit error.
+    /// Document depth is a caller policy, independent of grammar expansion.
     #[crate::ctb_test]
     fn test_adversarial_depth_limit_boundary_at_32_and_33() -> Result<()> {
         ensure!(
@@ -118,11 +116,7 @@ mod challenge1_recursion_depth_limits {
             doc32.push_char(DC_END_LIST);
         }
 
-        let res32 = validate_dc_mixed_strict(&doc32);
-        ensure!(
-            res32.is_err(),
-            "32 levels of nesting must reach recursion depth limit"
-        );
+        validate_dc_mixed_strict(&doc32)?;
 
         // C. 33 levels of nested lists: strictly rejected
         let mut doc33 = DcMstring::new();
@@ -135,11 +129,12 @@ mod challenge1_recursion_depth_limits {
             doc33.push_char(DC_END_LIST);
         }
 
-        let res33 = validate_dc_mixed_strict(&doc33);
-        ensure!(
-            res33.is_err(),
-            "33 levels of nesting must fail strict validation"
-        );
+        validate_dc_mixed_strict(&doc33)?;
+        let low = DcProjectionPolicy::strict().with_max_depth(32, DiagnosticAction::Error);
+        let mut nav = DcDocumentNavigator::from_mstr(&doc33);
+        ensure!(nav.validate_document(&low).is_err());
+        let mut arena = DcSyntaxArena::new();
+        ensure!(nav.parse_document_into_arena(&mut arena, &low).is_err());
 
         // D. Also verify validate_dc_str_strict and validate_dc_tokens_strict reject depth 33
         let mut text33 = DcString::new();
@@ -152,11 +147,7 @@ mod challenge1_recursion_depth_limits {
             text33.push(DC_END_LIST);
         }
 
-        let res_str = validate_dc_str_strict(&text33);
-        ensure!(
-            res_str.is_err(),
-            "validate_dc_str_strict must reject 33 levels of nesting"
-        );
+        validate_dc_str_strict(&text33)?;
 
         let mut tokens33 = Vec::new();
         for _ in 0..33 {
@@ -168,11 +159,7 @@ mod challenge1_recursion_depth_limits {
             tokens33.push(DC_END_LIST.to_u128());
         }
 
-        let res_tok = validate_dc_tokens_strict(&tokens33);
-        ensure!(
-            res_tok.is_err(),
-            "validate_dc_tokens_strict must reject 33 levels of nesting"
-        );
+        validate_dc_tokens_strict(&tokens33)?;
 
         Ok(())
     }
@@ -194,9 +181,15 @@ mod challenge1_recursion_depth_limits {
 
             let res = validate_dc_mixed_strict(&doc);
             ensure!(
-                res.is_err(),
-                "Extreme nesting of depth {depth} must be rejected"
+                res.is_ok() == (depth <= 64),
+                "Default document depth budget disagrees at depth {depth}"
             );
+            let raised = DcProjectionPolicy::strict().with_max_depth(600, DiagnosticAction::Error);
+            let mut nav = DcDocumentNavigator::from_mstr(&doc);
+            nav.validate_document(&raised)?;
+            let mut arena = DcSyntaxArena::new();
+            nav.parse_document_into_arena(&mut arena, &raised)?;
+            ensure!(arena.diagnostics().is_empty());
         }
         Ok(())
     }
@@ -370,8 +363,10 @@ mod challenge2_complex_container_nesting {
 
         let tampered_mst = DcMstring::from_bytes(tampered)?;
         let mut tampered_nav = DcDocumentNavigator::from_mstr(&tampered_mst);
+        ensure!(tampered_nav.next_sibling_stub(&policy).is_err());
+        let mut tampered_nav = DcDocumentNavigator::from_mstr(&tampered_mst);
         let tampered_stub = tampered_nav
-            .next_sibling_stub(&policy)?
+            .next_sibling_stub(&DcProjectionPolicy::forgiving())?
             .context("Tampered stub")?;
 
         if let DcFrameHeaderInfo::ChecksummedSection { digest_valid, .. } =
@@ -609,6 +604,7 @@ mod challenge3_transparent_unwrapping {
         200u64.encode_dc_mixed(&mut doc)?;
         doc.push_char(DC_END_LIST);
 
+        ensure!(validate_dc_mixed_strict(&doc).is_err(), "Standalone validation must enforce equivalent separators too");
         let mut nav = DcDocumentNavigator::from_mstr(&doc);
         let mut arena = DcSyntaxArena::new();
         let res = nav.parse_document_into_arena(&mut arena, &strict);

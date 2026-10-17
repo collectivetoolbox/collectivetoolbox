@@ -252,9 +252,9 @@ mod tests {
     }
 
     #[derive(Debug, PartialEq, Eq, crate::DcMixed)]
-    #[dc(begin = 317, end = 318)]
+    #[dc(key_value)]
     struct NestedRecord {
-        #[dc(333)]
+        #[dc(key = "record")]
         record: Box<SharedRecord>,
     }
 

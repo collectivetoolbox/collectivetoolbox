@@ -328,13 +328,14 @@ mod tier2_boundary_corner_cases {
     /// and correct inner spans (`inner_span.start == inner_span.end`).
     #[crate::ctb_test]
     fn test_tier2_empty_containers() -> Result<()> {
-        let policy = DcProjectionPolicy::strict();
+        let policy = DcProjectionPolicy::forgiving();
         for (opener, closer, name) in [
             (DC_BEGIN_FORMAT_REPRESENTATION, DC_END_FORMAT_REPRESENTATION, "empty format representation"),
             (DC_BEGIN_LEGACY_KV_MAP, DC_END_LEGACY_KV_MAP, "empty legacy kv map"),
             (DC_BEGIN_KV_MAP, DC_END_KV_MAP, "empty kv map"),
         ] {
             let doc = create_test_mstring(&[opener, closer]);
+            ensure!(validate_dc_mixed_strict(&doc).is_err());
             let mut nav = DcDocumentNavigator::from_mstr(&doc);
 
             let stub = nav
@@ -515,6 +516,8 @@ mod tier3_cross_feature_combinations {
 
         // 2. Begin KV map (559)
         mst.push_char(DC_BEGIN_KV_MAP);
+        mst.push_char(DC_TYPE_WILDCARD);
+        mst.push_char(DC_TYPE_WILDCARD);
 
         // First KV pair: 514 [key] 312 [val] 515
         mst.push_char(DC_BEGIN_KV_PAIR);
@@ -577,6 +580,8 @@ mod tier3_cross_feature_combinations {
         );
 
         nav.enter_frame(&kv_stub)?;
+        ensure!(nav.next_sibling_stub(&policy)?.context("Key type header")?.head_dc == DC_TYPE_WILDCARD);
+        ensure!(nav.next_sibling_stub(&policy)?.context("Value type header")?.head_dc == DC_TYPE_WILDCARD);
         let pair_stub = nav.next_sibling_stub(&policy)?.context("KV pair stub")?;
         ensure!(
             pair_stub.head_dc == DC_BEGIN_KV_PAIR,
@@ -721,8 +726,10 @@ mod tier5_adversarial_hardening {
         tampered_mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
 
         let mut nav = DcDocumentNavigator::from_mstr(&tampered_mst);
+        ensure!(nav.next_sibling_stub(&policy).is_err());
+        let mut nav = DcDocumentNavigator::from_mstr(&tampered_mst);
         let stub = nav
-            .next_sibling_stub(&policy)?
+            .next_sibling_stub(&DcProjectionPolicy::forgiving())?
             .context("Stub for tampered section")?;
 
         if let DcFrameHeaderInfo::ChecksummedSection { digest_valid, .. } = stub.header_info {

@@ -965,6 +965,26 @@ pub use ctb_formats_apple_single_double::{
     AppleRawEntry, ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 390, end = 391)]
+enum UnixSecondsDc {
+    #[dc(f486)]
+    Seconds(i64),
+}
+
+impl From<&i64> for UnixSecondsDc {
+    fn from(seconds: &i64) -> Self {
+        Self::Seconds(*seconds)
+    }
+}
+
+impl From<UnixSecondsDc> for i64 {
+    fn from(value: UnixSecondsDc) -> Self {
+        let UnixSecondsDc::Seconds(seconds) = value;
+        seconds
+    }
+}
+
 /// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
 /// or macOS extended attributes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, ctb_formats_dcstring::DcMixed)]
@@ -980,7 +1000,7 @@ pub struct AppleMetadata {
     #[dc(short = 400, omit_default)]
     pub comment: Option<String>,
     /// Backup timestamp in seconds since Unix epoch (Entry ID 8/Dates).
-    #[dc(short = 399, omit_default)]
+    #[dc(short = 399, via = UnixSecondsDc, omit_default)]
     pub backup_timestamp_sec: Option<i64>,
     /// Preserved unrecognized entries from AppleSingle or AppleDouble archive.
     #[serde(default)]

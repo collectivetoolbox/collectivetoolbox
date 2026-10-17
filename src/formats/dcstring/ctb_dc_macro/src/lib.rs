@@ -89,6 +89,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - `#[dc(<id>, representation = f524)]`: Encloses a single field value in
 //!   Dc 511, the declared format identifier, and Dc 512. An absent optional
 //!   field is omitted; a present one wraps its inner value without Dc 315.
+//! - `#[dc(<id>, via = Type)]`: Converts a value through `Type` using
+//!   `TryFrom<&T>` for encoding and `T::try_from(Type)` for decoding. Optional
+//!   fields convert their inner value; absent values are omitted.
 //! - `#[dc(nested = <end_id>)]`: Multi-level nested child structure ending with
 //!   `<end_id>`.
 //! - `#[dc(begin = <b_id>, end = <e_id>)]`: Field bounded by explicit delimiters.
@@ -163,6 +166,7 @@ struct FieldDcAttr {
     shared: Option<syn::LitStr>,
     raw: Option<(syn::Ident, u128)>,
     representation: Option<u128>,
+    via: Option<syn::Type>,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -438,6 +442,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut shared = None;
     let mut raw = None;
     let mut representation = None;
+    let mut via = None;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -464,6 +469,9 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                         stream.parse::<syn::Token![=]>()?;
                         let key = ident.to_string();
                         match key.as_str() {
+                            "via" => {
+                                via = Some(stream.parse::<syn::Type>()?);
+                            }
                             "shared" => {
                                 shared = Some(stream.parse::<syn::LitStr>()?);
                             }
@@ -673,6 +681,15 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
             "representation requires a tagged value field without another codec"));
     }
 
+    if via.is_some() && (tag.is_none() || !nested.is_empty()
+        || begin.is_some() || end.is_some() || binary || checksum || flatten
+        || skip || equivalents.is_some() || shared.is_some() || raw.is_some()
+        || representation.is_some() || extract_type_from_container(&field.ty, "Vec").is_some())
+    {
+        return Err(syn::Error::new(field.span(),
+            "via requires a single tagged value field without another codec"));
+    }
+
     if let (Some(b), Some(e)) = (begin, end) {
         if b == e {
             return Err(syn::Error::new(
@@ -718,6 +735,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         shared,
         raw,
         representation,
+        via,
     })
 }
 
@@ -818,6 +836,35 @@ fn expand_dc_forgiving_default(
     })
 }
 
+fn generate_via_field_encoder(
+    crate_root: &proc_macro2::TokenStream,
+    anyhow_path: &proc_macro2::TokenStream,
+    field_ident: &syn::Ident,
+    field_ty: &syn::Type,
+    attr: &FieldDcAttr,
+) -> proc_macro2::TokenStream {
+    let via = &attr.via;
+    let id = &attr.tag;
+    let encode = quote! {
+        let repr = <#via as ::std::convert::TryFrom<_>>::try_from(value)
+            .map_err(|error| #anyhow_path::anyhow!("Failed to convert field `{}` for encoding: {error}", stringify!(#field_ident)))?;
+        mst.push_char(#crate_root::DcChar::from_u128(#id));
+        #crate_root::DcMixedEncode::encode_dc_mixed_with_context(&repr, mst, context)?;
+    };
+    if extract_type_from_option(field_ty).is_some() {
+        quote! { if let Some(value) = &self.#field_ident { #encode } }
+    } else if attr.omit_default {
+        quote! {
+            if self.#field_ident != <#field_ty as ::std::default::Default>::default() {
+                let value = &self.#field_ident;
+                #encode
+            }
+        }
+    } else {
+        quote! { let value = &self.#field_ident; #encode }
+    }
+}
+
 fn generate_field_value_decoder(
     crate_root: &proc_macro2::TokenStream,
     anyhow_path: &proc_macro2::TokenStream,
@@ -832,6 +879,16 @@ fn generate_field_value_decoder(
 
     if attr.skip {
         return Ok(quote! { ::std::default::Default::default() });
+    }
+
+    if let Some(via) = &attr.via {
+        let value_ty = if let Some(inner_ty) = inner_opt { inner_ty } else { field_ty };
+        let decode = quote! {{
+            let repr = <#via as #crate_root::DcMixedDecode>::decode_dc_node(ctx, #node_id_expr)?;
+            <#value_ty as ::std::convert::TryFrom<#via>>::try_from(repr)
+                .map_err(|error| #anyhow_path::anyhow!("Failed to convert decoded field `{}`: {error}", stringify!(#field_ident)))?
+        }};
+        return Ok(if inner_opt.is_some() { quote! { Some(#decode) } } else { decode });
     }
 
     if let Some(format) = attr.representation {
@@ -1438,6 +1495,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                    fn decode_dc_document(
+                        ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                        roots: &[#crate_root::NodeId],
+                    ) -> #anyhow_path::Result<(Self, usize)> {
+                        let (repr, consumed) = <#try_from_ty as #crate_root::DcMixedDecode>::decode_dc_document(ctx, roots)?;
+                        let value = <Self as ::std::convert::TryFrom<#try_from_ty>>::try_from(repr)
+                            .map_err(|e| #anyhow_path::anyhow!("Failed to convert decoded representation: {e}"))?;
+                        Ok((value, consumed))
+                    }
+
                     fn decode_dc_node(
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         node_id: #crate_root::NodeId,
@@ -1621,6 +1688,20 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     Ok(false)
                                 }
                             }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = None;
+                        });
+                    } else if attr.via.is_some() {
+                        let id = attr.tag;
+                        let encode = generate_via_field_encoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr);
+                        let decode = generate_field_value_decoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr, &quote!(val_id))?;
+                        encode_stmts.push(encode);
+                        decode_arms.push(quote! {
+                            #id => { #field_ident = Some(#decode); }
+                        });
+                        decode_field_arms.push(quote! {
+                            #id => { self.#field_ident = #decode; Ok(true) }
                         });
                         field_inits.push(quote! {
                             let mut #field_ident: ::std::option::Option<#field_ty> = None;
@@ -1873,6 +1954,38 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #type_name #ty_generics #where_clause {
+                        fn decode_dc_fields(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            child_ids: &[#crate_root::NodeId],
+                        ) -> #anyhow_path::Result<Self> {
+                            #(#field_inits)*
+                            for &cid in child_ids {
+                                let cnode = ctx.node(cid)?;
+                                let (tag, val_id) = match &cnode.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
+                                        let ::std::option::Option::Some(&first_arg) = args.first() else {
+                                            ctx.handle_unconsumed_or_incomplete(
+                                                &[format!("Empty tagged field {:#X} in flattened struct {}", tag.to_u128(), stringify!(#type_name))],
+                                                &[],
+                                            )?;
+                                            continue;
+                                        };
+                                        let arg_id = if args.len() > 1 { cid } else { first_arg };
+                                        (tag.to_u128(), arg_id)
+                                    }
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => (opener.to_u128(), cid),
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => (ch.to_u128(), cid),
+                                    _ => (0, cid),
+                                };
+                                match tag {
+                                    #(#decode_arms)*
+                                    #unrecognized_arm
+                                }
+                            }
+                            #(#field_validations)*
+                            Ok(Self { #(#construct_fields),* })
+                        }
+
                         #[allow(dead_code)]
                         pub fn decode_field(
                             &mut self,
@@ -1940,6 +2053,18 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                        fn decode_dc_document(
+                            ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
+                            roots: &[#crate_root::NodeId],
+                        ) -> #anyhow_path::Result<(Self, usize)> {
+                            let root = roots.first().copied().ok_or_else(|| #anyhow_path::anyhow!("Empty flattened document"))?;
+                            let local = ctx.node(ctx.unwrap_transparent(root)?)?;
+                            if roots.len() > 1 && !matches!(local.kind, #crate_root::navigator::DcSyntaxKind::Container { .. }) {
+                                return Ok((Self::decode_dc_fields(ctx, roots)?, roots.len()));
+                            }
+                            Ok((Self::decode_dc_node(ctx, root)?, 1))
+                        }
+
                         fn decode_dc_node(
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             node_id: #crate_root::NodeId,
@@ -1948,51 +2073,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             let unwrap_node = ctx.node(unwrap_id)?;
                             let child_ids: ::std::vec::Vec<#crate_root::NodeId> = match &unwrap_node.kind {
                                 #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.clone(),
-                                _ => {
-                                    if ctx.arena.roots().contains(&node_id) || ctx.arena.roots().len() > 1 {
-                                        ctx.mark_all_roots_consumed();
-                                        ctx.arena.roots().to_vec()
-                                    } else {
-                                        ::std::vec![unwrap_id]
-                                    }
-                                }
+                                _ => ::std::vec![unwrap_id],
                             };
-                            #(#field_inits)*
-                            for &cid in &child_ids {
-                                let cnode = ctx.node(cid)?;
-                                let (tag, val_id) = match &cnode.kind {
-                                    #crate_root::navigator::DcSyntaxKind::Tagged { tag, args } => {
-                                        let ::std::option::Option::Some(&first_arg) = args.first() else {
-                                            ctx.handle_unconsumed_or_incomplete(
-                                                &[format!("Empty tagged field {:#X} in flattened struct {}", tag.to_u128(), stringify!(#type_name))],
-                                                &[],
-                                            )?;
-                                            continue;
-                                        };
-                                        let arg_id = if args.len() > 1 {
-                                            cid
-                                        } else {
-                                            first_arg
-                                        };
-                                        (tag.to_u128(), arg_id)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Container { opener, .. } => {
-                                        (opener.to_u128(), cid)
-                                    }
-                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) => {
-                                        (ch.to_u128(), cid)
-                                    }
-                                    _ => (0, cid),
-                                };
-                                match tag {
-                                    #(#decode_arms)*
-                                    #unrecognized_arm
-                                }
-                            }
-                            #(#field_validations)*
-                            Ok(Self {
-                                #(#construct_fields),*
-                            })
+                            Self::decode_dc_fields(ctx, &child_ids)
                         }
                     }
                 });
@@ -2423,7 +2506,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let type_str = quote!(#field_ty).to_string();
                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
 
-                if let Some(format) = attr.representation {
+                if attr.via.is_some() {
+                    encode_fields.push(generate_via_field_encoder(&crate_root, &anyhow_path, field_ident, field_ty, &attr));
+                } else if let Some(format) = attr.representation {
                     if is_vec {
                         return Err(syn::Error::new(field.span(), "representation requires a single value, not a repeated Vec field"));
                     }
