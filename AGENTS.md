@@ -6,7 +6,7 @@
 - **Fresh dev container setup**: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
 - **Build & test scope**: Prefer building or testing individual workspace crates (e.g., `cargo test -p ctb-renderer`); a full build takes 5–10 minutes.
 - **Linux target**: Always use the `musl` build in the dev container. Do not install extra host packages for a `glibc` build.
-- **Disk space**: Keep at least 15 GB of disk space free (the filesystem slows down sharply below that). A full single-target build consumes most available space, so run `cargo clean` when switching targets.
+- **Disk space**: Keep at least 25 GB of disk space free (the filesystem slows down sharply below that and can lock up the computer). A full single-target build consumes most available space, so run `cargo clean` when switching targets.
 - **Asset bundle test failures**: If `get_test_help_bytes` or other asset-loading tests fail, inspect the failure first. When stale or missing build assets are confirmed, run `cargo clean` and re-test, but never clean while other builds or tests are running.
 - **No network ports in tests**: Tests must never listen on ports; use mocks or in-memory/socketpair transports instead.
 - **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.
@@ -18,7 +18,10 @@
 - **`vendor/ctb-vendored/`**: Auto-updated from crates.io. May be referenced, never edited.
 - **`vendor/upstream-for-reference/`**: For reference and generating diffs only; never update, use, or compile these files. Active patched copies live in the enclosing `vendor/` folder.
 - **Other `vendor/` folders**: Limited patches are acceptable when necessary.
-- **Adding vs. updating dependencies**: Adding new dependencies not already in the repository is discouraged unless specifically requested by your operator. You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing). Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
+- **Adding vs. updating dependencies**: Adding new dependencies not already in the repository is discouraged unless specifically requested by your operator.
+  - You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing).
+  - Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
+  - If you want to run a local build offline for testing (either offline or online is acceptable for general development), but the vendored dependencies folder is outdated, stop and report back to the operator. Do **not** revert dependency changes to force it to run anyway.
 
 ### Collaboration, Git, and Sub-Agents
 - **Inspecting recent changes**: Record the starting commit with `git rev-parse HEAD`. Review committed changes with `git diff <start>..HEAD`, staged/unstaged changes with `git diff HEAD`, and new files with `git status --short`. The operator commits and pushes during work, so neither a working-tree diff nor `origin..HEAD` alone is sufficient.

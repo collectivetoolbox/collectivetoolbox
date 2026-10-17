@@ -428,6 +428,8 @@ Options:
           Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
       --continue-on-error
           Continue copying remaining files when an item cannot be read, copied, or materialized. Errors are logged into the journal and descriptor instead of aborting the operation
+      --allow-journal-errors
+          Allow forgiving projection when reading state journals containing syntax or schema errors
   -h, --help
           Print help (see more with '--help')
 ```
@@ -523,6 +525,8 @@ Options:
           Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
       --continue-on-error
           Continue copying remaining files when an item cannot be read, copied, or materialized. Errors are logged into the journal and descriptor instead of aborting the operation
+      --allow-journal-errors
+          Allow forgiving projection when reading state journals containing syntax or schema errors
   -h, --help
           Print help (see more with '--help')
 ```
@@ -539,25 +543,26 @@ Arguments:
   [DIRECTORY]  Target directory to verify. If omitted, uses the destination path recorded in the manifest. Specifying this allows verifying relocated folders
 
 Options:
-      --no-drop-caches    Skip dropping OS kernel caches and per-file cache eviction before reading
-      --ignore-atime      Ignore access time (atime) differences during verification (defaults to true)
-      --check-atime       Explicitly check access time (atime) differences during verification
-      --ignore-mtime      Ignore modification time (mtime) differences during verification
-      --ignore-ctime      Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
-      --check-ctime       Explicitly enforce status/metadata change time (ctime) verification
-      --ignore-owner      Ignore ownership (UID and GID) differences
-      --ignore-perms      Ignore file mode / permission differences
-      --ignore-flags      Ignore semantic file flags differences
-      --ignore-xattrs     Ignore alternate data streams and extended attribute differences
-      --ignore-untracked  Do not report untracked extra files present on disk that are absent from manifest
-      --ignore <IGNORE>   Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
-      --format <FORMAT>   Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
-  -q, --quiet             Only report discrepancies or errors, suppressing informational progress
-      --best-effort       Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
-      --strict            Enforce strictest verification settings, enabling --check-atime and --check-ctime
-      --allow-incomplete  Allow verifying against a manifest that failed, was aborted, or has not completed verification
-      --full-provenance   Record full provenance environment information using slow environment detection
-  -h, --help              Print help (see more with '--help')
+      --no-drop-caches        Skip dropping OS kernel caches and per-file cache eviction before reading
+      --ignore-atime          Ignore access time (atime) differences during verification (defaults to true)
+      --check-atime           Explicitly check access time (atime) differences during verification
+      --ignore-mtime          Ignore modification time (mtime) differences during verification
+      --ignore-ctime          Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
+      --check-ctime           Explicitly enforce status/metadata change time (ctime) verification
+      --ignore-owner          Ignore ownership (UID and GID) differences
+      --ignore-perms          Ignore file mode / permission differences
+      --ignore-flags          Ignore semantic file flags differences
+      --ignore-xattrs         Ignore alternate data streams and extended attribute differences
+      --ignore-untracked      Do not report untracked extra files present on disk that are absent from manifest
+      --ignore <IGNORE>       Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
+      --format <FORMAT>       Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
+  -q, --quiet                 Only report discrepancies or errors, suppressing informational progress
+      --best-effort           Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
+      --strict                Enforce strictest verification settings, enabling --check-atime and --check-ctime
+      --allow-incomplete      Allow verifying against a manifest that failed, was aborted, or has not completed verification
+      --full-provenance       Record full provenance environment information using slow environment detection
+      --allow-journal-errors  Allow forgiving projection when reading state journals containing syntax or schema errors
+  -h, --help                  Print help (see more with '--help')
 ```
 
 ### `ctoolbox csum`
@@ -825,13 +830,14 @@ Arguments:
   [FILE]...  Files to inspect and detect format for (pass '-' for stdin) [default: -]
 
 Options:
-      --compat               Produce output strictly compatible with the standard UNIX `file` command
-  -i, --mime                 Output MIME type string instead of human-readable description (like `file -i`)
-  -b, --brief                Do not prepend filenames to output lines (like `file -b`)
-  -k, --all                  Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
-  -z, --uncompress           Try to look inside compressed files (like `file -z`)
-  -Z, --uncompress-noreport  Try to look inside compressed files, but do not report the compression format (like `file -Z`)
-  -h, --help                 Print help
+      --compat                       Produce output strictly compatible with the standard UNIX `file` command
+  -i, --mime                         Output MIME type string instead of human-readable description (like `file -i`)
+  -b, --brief                        Do not prepend filenames to output lines (like `file -b`)
+  -k, --all                          Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
+  -z, --uncompress                   Try to look inside compressed files (like `file -z`)
+  -Z, --uncompress-noreport          Try to look inside compressed files, but do not report the compression format (like `file -Z`)
+      --max-decompression-depth <N>  Maximum number of nested decompression layers to inspect (0 disables decompression inspection) [default: 3]
+  -h, --help                         Print help
 ```
 
 ### `ctoolbox file2metadatajson`
@@ -956,6 +962,7 @@ Options:
       --password-file <FILE>         Read password from the specified file instead of prompting
       --password-stdin               Read password from standard input instead of prompting
       --full-provenance              Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
+      --allow-journal-errors         Allow forgiving projection when reading state journals containing syntax or schema errors
   -h, --help                         Print help
 ```
 

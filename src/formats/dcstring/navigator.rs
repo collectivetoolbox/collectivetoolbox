@@ -1961,11 +1961,8 @@ impl<'a> DcDocumentNavigator<'a> {
         matches!(ch.to_short_dc(), Some(315 | 397 | 561))
     }
 
-    fn is_pairable_payload(arena: &DcSyntaxArena<'_>, node_id: NodeId) -> bool {
-        let Some(node) = arena.get(node_id) else {
-            return false;
-        };
-        match &node.kind {
+    fn is_pairable_kind(kind: &DcSyntaxKind<'_>) -> bool {
+        match kind {
             DcSyntaxKind::Number { .. }
             | DcSyntaxKind::Binary { .. }
             | DcSyntaxKind::Literal { .. }
@@ -1995,10 +1992,12 @@ impl<'a> DcDocumentNavigator<'a> {
             if let DcSyntaxKind::Atom(ch) = node.kind {
                 if !Self::is_separator(ch) && !Self::is_value_atom(ch) {
                     if let Some(&top_id) = stack.last() {
-                        if Self::is_pairable_payload(arena, top_id) {
+                        if let Some(top_node) = arena.get(top_id)
+                            && Self::is_pairable_kind(&top_node.kind)
+                        {
+                            let start = node.span.start;
+                            let end = top_node.span.end;
                             stack.pop();
-                            let start = arena.get(node_id).map_or(0, |n| n.span.start);
-                            let end = arena.get(top_id).map_or(start, |n| n.span.end);
                             let span = DcByteSpan::new(start, start.max(end));
                             let tagged_id = arena.alloc(
                                 span,

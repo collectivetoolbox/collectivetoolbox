@@ -587,7 +587,9 @@ pub fn guess_format_chains_bounded(
                 Ok(len) if len > 0 => len,
                 _ => 1,
             };
+            // Reason for fallback: len_u64 is non-zero so checked_div cannot fail; defaults to 0 on division failure.
             let avg_u64 = sum_score.checked_div(len_u64).unwrap_or(0);
+            // Reason for fallback: average score of u32 values fits within u32; defaults to 0 on numeric overflow.
             let avg_score = u32::try_from(avg_u64).unwrap_or(0);
             results.push(ProbableFormatChain {
                 outer,

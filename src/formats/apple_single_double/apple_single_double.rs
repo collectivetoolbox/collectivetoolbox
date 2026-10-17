@@ -1651,6 +1651,7 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
 
             if let Some(ref ext) = finfo.extended {
                 if finfo.window_bounds.is_some() || ext.scroll_position.is_some() {
+                    // Reason for fallback: In Finder DXInfo / folder window records, if window bounds are present but scroll position was not explicitly specified, default to unscrolled origin (0, 0).
                     let (v, h) = ext.scroll_position.unwrap_or((0, 0));
                     if let Some(slot) = finfo_bytes.get_mut(16..18) {
                         slot.copy_from_slice(&v.to_be_bytes());

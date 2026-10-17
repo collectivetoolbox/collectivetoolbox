@@ -86,6 +86,7 @@ fn should_skip_dir(
         || rel_str == "old"
         || rel_str == "built"
         || rel_str == "node_modules"
+        || rel_str == "ci-logs"
     {
         return true;
     }
@@ -2317,6 +2318,10 @@ mod tests {
         let root_built = temp_dir.join("built/assets");
         fs::create_dir_all(&root_built).unwrap();
         fs::write(root_built.join("built.rs"), "fn built() {}\n").unwrap();
+
+        let root_ci_logs = temp_dir.join("ci-logs/Mac");
+        fs::create_dir_all(&root_ci_logs).unwrap();
+        fs::write(root_ci_logs.join("panther-get.sh"), "").unwrap();
 
         // 2. Nested directories with names "vendor", "old", "generated" should NOT be skipped
         let nested_vendor = temp_dir.join("src/my_crate/vendor");

@@ -2217,6 +2217,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             state: Self::State,
                             _ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         ) -> #anyhow_path::Result<Self> {
+                            // Reason for fallback: when no fields belonging to the flattened struct are encountered in the Dc stream, state is None and we fall back to the default struct value.
                             Ok(state.unwrap_or_default())
                         }
                     }
