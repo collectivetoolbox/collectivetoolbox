@@ -74,6 +74,8 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - f80 String and f14 Text are basically the same thing, though the context/connotation are different. Confusing, but not sure exactly how best to address.
 
+- format syntax rule changed from :[f0..f1114111] to :[f0..f632]. The token range for format references is now capped at 632, the highest defined FormatId, instead of spanning the whole Dc space. From e378fd1bc "wip: Continue Dc parser refactoring". Is this right/necessary? I mean, those are all the *recognized* formats. I guess it might be helpful if the formats block were later shortened, but that seems somewhat unlikely now that it's allocated. If it's useful, the limit at f632 should be derived automatically at build time/when running the validator, so it doesn't get stale.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container
