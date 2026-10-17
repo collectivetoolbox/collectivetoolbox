@@ -21,7 +21,7 @@ applyTo: '**'
 - Prefer reporting failures over reporting successes. It's more or less irrelevant that twenty tests pass if one test fails - it's the one failing one that I need to know about because it needs more work. Similarly, if you had to bypass tests during development to progress on others, highlight that as the headline summary - it tells me where to go next. Needing to report that you couldn't get a test passing in a reasonable amount of time and decided to leave it for later is completely fine and a normal part of development; leaving tests skipped or failing without making it very obvious in your summary is not. If you left some parts of a task unimplemented for later, tell me about those as the primary conclusion; similarly, it's fine to not finish something all in one go, but I need to know what I still have to focus on.
 - Keep at least 15GB disk space available. If space gets lower, the filesystem becomes very slow. A full build for one target will use most of the available disk space, so `cargo clean` between targets is necessary.
 - Glibc build requires extra dependencies. Don't install these in the dev container; just do a musl build.
-- Never use models provided by Anthropic when creating sub-agents.
+- Never use models provided by Anthropic, e.g. when creating sub-agents.
 
 ## Reporting, Status Tracking, and Scope Honesty
 - **Never label a feature or status item as "Implemented" if there are any remaining gaps, missing formats, unhandled flags, or deferred prerequisites.**
