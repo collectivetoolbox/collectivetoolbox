@@ -106,17 +106,14 @@ pub fn escape_bytes_human_readable(bytes: &[u8]) -> String {
 
 /// Formats a filesystem path into a human-readable, valid UTF-8 string,
 /// escaping invalid UTF-8 bytes and control characters as `\xHH` hex escapes.
+///
+/// On POSIX/Unix systems, paths are read as raw native bytes; on Windows, paths
+/// are read as canonical WTF-8 bytes via `OsStr::as_encoded_bytes()`.
+/// Any invalid UTF-8 bytes (including unpaired surrogates in WTF-8) and
+/// control characters are losslessly escaped as `\xHH`.
 #[must_use]
 pub fn escape_path_human_readable(path: &std::path::Path) -> String {
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-        escape_bytes_human_readable(path.as_os_str().as_bytes())
-    }
-    #[cfg(not(unix))]
-    {
-        escape_bytes_human_readable(path.to_string_lossy().as_bytes())
-    }
+    escape_bytes_human_readable(path.as_os_str().as_encoded_bytes())
 }
 
 #[cfg(test)]
@@ -179,5 +176,15 @@ mod tests {
     fn test_escape_path_human_readable() {
         let p = std::path::Path::new("/normal/path/file.txt");
         assert_eq!(escape_path_human_readable(p), "/normal/path/file.txt");
+    }
+
+    #[crate::ctb_test]
+    fn test_escape_bytes_human_readable_wtf8_surrogates() {
+        // Unpaired surrogate U+D800 encoded as 3-byte WTF-8: 0xED, 0xA0, 0x80
+        let wtf8_bytes = [b'a', 0xED, 0xA0, 0x80, b'b'];
+        assert_eq!(
+            escape_bytes_human_readable(&wtf8_bytes),
+            "a\\xed\\xa0\\x80b"
+        );
     }
 }
