@@ -2,7 +2,10 @@
 applyTo: '**'
 ---
 ## Dev Environment Tips
+- Setting up a fresh dev container: `scripts/apt-install-build-deps; scripts/apt-install-dev-tools`
 - A copy of dependencies are in `vendor/ctb-vendored/`. These can be referenced but should never be edited; they are auto-updated from crates.io. Similarly, the dependencies in `vendor/upstream-for-reference` should never be updated. Limited patches to other folders within the `vendor/` folder are acceptable when necessary.
+  - Adding new dependencies not already used in the repository is typically discouraged, but is permissible when specifically requested by your operator. You may propose the addition of other dependencies, but must ask your operator before adding them. Offline builds are used in CI; your operator will vendor any changed dependencies before pushing to satisfy this requirement.
+  - It is encouraged to update dependencies when cargo-deny reports a security problem. Version bumps of existing dependencies do not need operator approval.
 - You may write important notes you would like to save for the long term into the `memories/` folder in the repository. These will be reviewed and managed as part of the code.
 - If `get_test_help_bytes` fails, or some other failures related to assets loading, it means the asset bundle failed to build. This happens intermittently, particularly when running whole-workspace tests. To fix this, run `cargo clean` and re-test.
 - Tests cannot listen on any ports; they need to use other approaches, e.g. mocks, in such cases.
@@ -16,6 +19,9 @@ applyTo: '**'
 - If your operator prompts you to add something that seems small in scope and you would need to make large changes (like significant refactoring) to accomplish it, ask to confirm before editing, or use /plan mode.
 - If prompted to move a module into a subcrate, the intended action is very simple: move files (using a tool/script, not by generating them), copy and trim the Cargo.toml, update the package name, replace the import from a module to a use, and add them to the root Cargo.toml. If anything else is needed, ask before acting on it.
 - Prefer reporting failures over reporting successes. It's more or less irrelevant that twenty tests pass if one test fails - it's the one failing one that I need to know about because it needs more work. Similarly, if you had to bypass tests during development to progress on others, highlight that as the headline summary - it tells me where to go next. Needing to report that you couldn't get a test passing in a reasonable amount of time and decided to leave it for later is completely fine and a normal part of development; leaving tests skipped or failing without making it very obvious in your summary is not. If you left some parts of a task unimplemented for later, tell me about those as the primary conclusion; similarly, it's fine to not finish something all in one go, but I need to know what I still have to focus on.
+- Keep at least 15GB disk space available. If space gets lower, the filesystem becomes very slow. A full build for one target will use most of the available disk space, so `cargo clean` between targets is necessary.
+- Glibc build requires extra dependencies. Don't install these in the dev container; just do a musl build.
+- Never use models provided by Anthropic when creating sub-agents.
 
 ## Reporting, Status Tracking, and Scope Honesty
 - **Never label a feature or status item as "Implemented" if there are any remaining gaps, missing formats, unhandled flags, or deferred prerequisites.**
@@ -25,7 +31,7 @@ applyTo: '**'
   - If you were asked to do a bounded subset of a feature (e.g. "implement the ones available so far"), your conclusion must frame it as partial progress toward the whole, not as the feature being finished.
 - **Lead responses with what is left, broken, or deferred:**
   - When summarizing work, do NOT write cheerful "all done!" recaps. Start with:
-    1. **Failing / Skipped Tests** (if any).
+    1. **Failing / Skipped Tests or Lints** (if any).
     2. **Known Gaps & What's Left** (what still needs to be done for full parity/completion).
     3. **Deferred Items** (what was deliberately omitted and why).
   - Only summarize what was implemented as secondary context under the gaps. If something is done, the operator can see the code and tests; what the operator needs from you is an accurate accounting of the remaining debt so context is not lost.
@@ -34,6 +40,7 @@ applyTo: '**'
 The rationale for this is that what's critical to your operator is an honest assessment of *what's left* - what's *done* I don't really need to know about, because it's completed - I can forget about it and scratch it off the list. Knowing what remains to implement is critical, though, because it's key to correctness. That's especially important because if I think a slice of work is done when it's not, I'll move on to another stage of implementation, and forget the context about the previous stage - and then when I eventually discover that it was not fully completed, I have to return and regain that context to address it.
 
 ## Standards and Style Guide
+- The number-one mistake agents make in this codebase is **failure to judge correct error handling in edge cases**. This has two forms: (1) **failure to propagate legitimate edge-case errors back to callers**, instead silently discarding or swallowing the error; and, less commonly, (2) **incorrectly propagating unreachable error states back to callers in otherwise-infallible functions**, causing clunky API. Be careful to avoid these mistakes. Every error-handling case needs **thoughtful judgement**; there's no one rule or fix that you can systematically apply for this. More guidelines about this are below.
 - Use the `anyhow` crate for error handling in new code, and avoid panics.
 - Avoid statefulness where possible.
 - Docblocks should wrap at 80 columns. For modules, they should start with `//!`, and for functions, they should start with `///`.
@@ -57,7 +64,10 @@ The rationale for this is that what's critical to your operator is an honest ass
 - Avoid returning HTTP 5xx errors if possible. The response bodies can be discarded by the CDN, making them confusing to debug.
 - If you reuse algorithms or code from another file, include a comment noting the source.
 - Never delete license blocks or copyright information.
+- All dependencies, including any build-time dependencies such as libraries or sysroots that are linked to the final binaries, MUST be under AGPL-3+-compatible licenses. Pre-compiled binaries are prohibited, with rare exceptions: the v86 VM and `tsc` compiler that are slow to build are precompiled and captured in the CI Docker image; and some dependencies in vendor/ctb-vendored still contain blobs at this time.
+- The files in `vendor/upstream-for-reference` are for reference only and must not be used or compiled except for generating diffs. The copies to use are in the enclosing `vendor/` folder.
 - Any important or nontrivial code should have test coverage.
+- Avoid the use of environment variables unless it's actually necessary and useful, and there isn't a neater approach like a CLI flag.
 - The CLI crate should not contain any nontrivial logic. Any logic specific to a given crate beyond a method dispatch to the relevant crate is strictly prohibited.
 - Panicing unwrap, expect, etc. should not be introduced in new code.
 - Indexing that may panic is prohibited by Clippy lints.
@@ -92,6 +102,12 @@ The rationale for this is that what's critical to your operator is an honest ass
 - Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints. However, they may be used inline in Dc serialization attributes on structs/enums (shorthand syntaxes apply - 123 = short Dc 123; l123 = long Dc 123; u1a3 = U+01A3; f123 = format Dc 123). Do not add Dc consts for annotations, as those sholud be self-explanatory; only add them if they will be used in actual code.
 - Keep consts DRY, as with other code. Avoid adding aliases to them or copying them into other modules.
 - There is no such thing as a "short format ID". Format IDs must never be exposed or processed as bare integers, because bare integers are confusing and look identical to short Dc IDs. Format IDs must always use the strongly typed `FormatId` enum or the `f<N>` shorthand string (e.g. `FormatId::shorthand()`, `FormatId::from_shorthand("f34")`). Never add integer conversion APIs like `short_id()` or `from_short_id()` to `FormatId`.
+- Dc serialization/deserialization must be generalized and implemented using the attributes, never special-cased or specific to individual structs; if the attributes are insufficient, they can be extended in *generally applicable*, non-struct-specific ways; ad-hoc serialization is not a solution.
+- Proposals for new Dcs must be approved by the operator.
+- Dcs represent semantic/ontological entities, never specific encodings or structures. Dc identifiers describe semantic entities, not Rust fields or serialization encodings. Multiple encodings of the same value belong under its existing semantic identifier using Dc 397. Equivalent representations must denote the same value; distinct values or provenance roles must not be presented as equivalent. Path values must follow the declared typed filepath syntax rather than substituting an undelimited string or opaque byte buffer.
+
+- Generated files must have `.generated` in the filename so they are recreated in CI.
+- Any code that includes a list of file formats or similar that is *not* generated from the CSV database is likely a mistake.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
