@@ -6,6 +6,17 @@
 > passing tests do not establish complete parser/projection separation or the
 > deferred cumulative-diff and cross-platform review.
 
+## 17 October Implementation Verification
+
+**Partially Implemented**, not full feature certification. The bounded review
+remediation passed 852 tests across 19 Linux musl harnesses with zero failures
+or ignored tests, plus a separate build-script resource-locator regression.
+Affected-crate Clippy passed with warnings and no errors. Data-table
+regeneration reported no diagnostics for the approved Dc 563/564 additions.
+See the current verification and **Remaining Gaps vs Original Request** in
+[PROJECT.md](PROJECT.md); the historical readiness claims below do not cover
+those gaps, full workspace testing, clean-bootstrap builds, or other platforms.
+
 **Date**: 2026-10-15
 **Track**: E2E Testing Track (M5)
 **Status**: TEST READY & VERIFIED (21/21 E2E tests passing)

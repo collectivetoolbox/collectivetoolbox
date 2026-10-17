@@ -244,3 +244,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114670,558,Operation status code,0,BN,,!Cx,.Semantic,"@ident(""OperationStatusCode""), :~ [number:Integer]",Numeric status or return code associated with an operation.
 1114673,561,Partially equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""PartiallyEquivalentRepresentations""), :~ [list]","Indicates that the values within the list represent the same entity, but one or more representations are incomplete or lossy compared to the others."
 1114674,562,Mac OS extended Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]* 389),Extended Mac OS Finder flags (FXInfo fdXFlags / DXInfo frXFlags).
+1114675,563,File data format,0,BN,,!Cx,.Semantic,:~ [format],Data format of the file identified by the enclosing descriptor.
+1114676,564,Archive member position,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Zero-based position of a member within the archive identified by the enclosing origin descriptor.

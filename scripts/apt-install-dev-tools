@@ -45,6 +45,7 @@ dev_packages=(
     npm
     perl
     proot
+    qemu-system-ppc
     qemu-system-x86
     ripgrep
     tmux

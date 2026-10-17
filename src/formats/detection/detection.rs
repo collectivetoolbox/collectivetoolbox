@@ -1457,7 +1457,7 @@ pub fn detect_file_report_with_hint(
     } = &file.identity.origin
     {
         FORMAT_CATALOG
-            .lookup_ident(archive_format)
+            .lookup_format_id(*archive_format)
             .and_then(|m| m.os_associations.first().copied())
     } else {
         None

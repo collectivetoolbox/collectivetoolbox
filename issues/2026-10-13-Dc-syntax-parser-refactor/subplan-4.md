@@ -1,5 +1,44 @@
 ## Plan: Cumulative Dc Refactor Review And Remediation
 
+### Implementation Progress: 17 October 2026
+
+**Partially Implemented.** The planning-only account below is historical.
+Implementation started at `ac3e1a7bdb61c224a71e8f297c5de1da4f42aaf4`;
+the operator committed and edited concurrently, so both committed changes and
+the working tree were included in validation without reverting unrelated work.
+
+The bounded integrity, resource-depth, opaque-framing, generic projection,
+inspection, journal replay/policy, grammar-generation, and detection-confidence
+repairs are summarized in [PROJECT.md](PROJECT.md). Final affected-crate Linux
+musl validation passed **852 tests across 19 harnesses, zero failed or ignored**,
+plus the separately passing build-script resource-locator regression.
+Affected-crate Clippy passed with warnings and no errors. Canonical data
+regeneration reported no diagnostics.
+
+The operator explicitly approved two new semantic concepts during this pass:
+Dc 563, File data format (`[format]`), and Dc 564, Archive member position
+(`[number:Natural0]`). `FileOrigin::Archive` now uses a typed `FormatId` and
+these roles rather than application-bundle-format and inode tags. Existing
+Dc meanings were not reassigned. Remote-resource semantics were not changed.
+
+### Remaining Gaps vs Original Request
+
+- Numeric/list subtype enforcement and lossless escaped non-Unicode payloads.
+- Fully data-driven shape normalization and centralized retained diagnostics,
+	including the original strict-deprecation contract.
+- Unsupported converted/optional flattened derive combinations.
+- Remote URI/ETag semantics, unknown Apple entries, and inherited binary
+	type-insensitive source reconciliation.
+- Textual payload-allocation budgets and total retained journal snapshot size.
+- Complete cumulative-review closure, clean-bootstrap, full workspace, and
+	non-Linux runtime validation. Unsupported Panorama conversion and editor
+	development remain explicitly deferred.
+
+The FIXME ledger remains explicit: the restored flattened-format note and
+inherited routine-invocation note are open; parser-vs-macro legacy/deprecation
+ownership is only partially addressed. No historical comment deletion is being
+counted as a completed fix without supporting implementation evidence.
+
 ### Status And Boundaries
 
 - Planning only: no repository source edits, commits, branches, builds, Rust tests, or Clippy executions were performed in this session.

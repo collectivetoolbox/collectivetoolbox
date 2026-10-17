@@ -101,11 +101,11 @@ pub enum FileOrigin {
         #[dc(short = 337)]
         archive_path: PathBuf,
         /// Sequential index of the entry inside the archive.
-        #[dc(short = 327)]
+        #[dc(short = 564)]
         entry_index: u64,
         /// Format of the archive container (e.g. "tar", "zip").
-        #[dc(short = 371)]
-        archive_format: String,
+        #[dc(short = 563)]
+        archive_format: FormatId,
     },
     /// Remote network resource.
     #[dc(short = 353)]

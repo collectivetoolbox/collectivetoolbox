@@ -1492,7 +1492,7 @@ mod tests {
             entity.identity.origin = FileOrigin::Archive {
                 archive_path: PathBuf::from("source.tar"),
                 entry_index: 3,
-                archive_format: "tar".to_owned(),
+                archive_format: FormatId::Tar,
             };
             let mut encoded = Vec::new();
             write_entity_payload(&mut encoded, &entity, &context)?;

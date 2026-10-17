@@ -48,7 +48,78 @@ This does not sound right solution - it sounds like it should be checking whethe
 
 
 
+### 17 October Review Remediation
+
+**Partially Implemented.** This pass remediates a bounded subset of the
+cumulative review; it does not certify the original refactor as finished.
+
+- Section verification validates raw digest length before materialization and
+    uses the declared supported hash algorithm. Invalid untyped checksums may be
+    retained only as unverified frames under forgiving policy; no algorithm is
+    inferred from a historical fixture.
+- Type constructor evaluation is iterative, and shallow container scanning
+    honors depth policy. Generated opaque-container classification prevents
+    comment contents from opening unrelated structural frames.
+- Flattened projection retains required-field presence and original field
+    spans. Final conversion failures follow caller policy; named enum fields
+    validate malformed duplicates, and unit variants check unused contents.
+- Inspection honors parsing policy, decodes document-level values, and retains
+    parser/projection diagnostics. Malformed source editing explicitly opts into
+    forgiving inspection instead of bypassing strict syntax checks.
+- Journal replay distinguishes typed incomplete EOF from malformed closed
+    records, rejects escaped completion markers, invalidates prior completion
+    after a later batch, and retains integrity-salvage warnings. Policy reaches
+    flush-deleted and legacy embedded identity decoding. Document conversion
+    explicitly selects forgiving historical projection; replay defaults remain
+    strict. Corruption tests append payload bytes and include positive controls.
+- Encoding compatibility no longer upgrades extension-only format candidates
+    to structural certainty. Genuine descriptor magic retains high confidence.
+- Authoritative grammar loading rejects invalid named rules and quantifiers;
+    failed generation preserves the previous output. Cargo build-script paths
+    now resolve the existing workspace resource bundle for validation.
+- The operator approved two additional semantic concepts: Dc 563, File data
+    format (`[format]`), and Dc 564, Archive member position
+    (`[number:Natural0]`). Archive origins now use these instead of bundle-format
+    and filesystem-inode tags, and `archive_format` is a typed `FormatId`.
+    Canonical regeneration reported no validation diagnostics.
+
+Verification on Linux musl: **852 passed, 0 failed, 0 ignored across 19
+harnesses**, plus the separately passing Cargo build-script locator regression.
+The affected crates were dcdata, dcstring, dc-macro, io-file, io-csc,
+apple-single-double, conversion, and detection, using `--lib --tests
+--no-fail-fast`, explicit `x86_64-unknown-linux-musl`, `--locked --offline`,
+and empty `RUSTFLAGS`/`RUSTDOCFLAGS`. Affected-crate Clippy, also including
+utilities, passed with warnings and no errors. Full logs for this session are
+`/tmp/ctb-dc-refactor-final-tests.log` and
+`/tmp/ctb-dc-refactor-final-clippy.log`. Full workspace, clean-bootstrap, and
+non-Linux runtime checks were not run.
+
+Historical FIXME audit: 49 commit diffs contained 13 added FIXME-bearing
+lines. The flattened-format note was inherited, temporarily removed, restored,
+and remains open; the routine-invocation note is also inherited and retained.
+The removed macro-layer note is only partially addressed: shared map extraction
+exists, but legacy/deprecation policy is not fully centralized. Quoted and
+generated copies are not independent resolved tasks.
+
 ### Remaining Gaps vs Original Request
+
+- Named numeric/list subtype constraints and escaped non-Unicode literal or
+    identifier payloads still require the source-traced review regressions and
+    fixes; passing current tests does not establish their correctness.
+- Parser/projector shape normalization and retained diagnostics are not fully
+    centralized. In particular, deprecated syntax can bypass diagnostic sinks,
+    and `strict()` still warns rather than errors on deprecation, contrary to
+    the original strict-policy specification.
+- Converted flattened struct wrappers and optional flattened enum encoding
+    have unhandled derive combinations identified during implementation. These
+    are not covered by the successful bounded-field regression cases.
+- Remote URI/ETag mappings, unknown Apple entry preservation, and inherited
+    binary type-insensitive source reconciliation remain semantic/fidelity
+    work. They were not silently resolved by the archive-origin correction.
+- Digest-size validation bounds raw file-backed digest reads; general textual
+    encapsulation still lacks a payload-allocation budget before decoding.
+- Journal parser overhead is bounded per expanded record, but snapshots retain
+    all committed entities. Total snapshot memory is not O(1).
 
 - Textual encapsulation metadata nesting is now a caller-configurable document
     resource budget (`DcProjectionPolicy::max_encapsulation_metadata_depth`,
