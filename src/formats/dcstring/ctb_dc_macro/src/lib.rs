@@ -1447,8 +1447,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             tag: u128,
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             val_id: #crate_root::NodeId,
+                            source_node: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
-                            <#try_from_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)
+                            <#try_from_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id, source_node)
                         }
 
                         fn finish_flattened(
@@ -1627,7 +1628,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 decode_arms.push(quote! {
                                     #(#all_match_tags)|* => {
                                         let state = #field_ident.get_or_insert_with(::std::default::Default::default);
-                                        <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)?;
+                                        <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id, unwrap_id)?;
                                     }
                                 });
                                 decode_field_arms.push(quote! {
@@ -1638,9 +1639,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 });
                                 field_validations.push(quote! {
                                     let #field_ident = match #field_ident {
-                                        ::std::option::Option::Some(state) => ::std::option::Option::Some(
-                                            <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
-                                        ),
+                                        ::std::option::Option::Some(state) => #crate_root::dc_mixed_serde::finish_flattened_field::<#inner_ty>(state, ctx, stringify!(#field_ident))?,
                                         ::std::option::Option::None => ::std::option::Option::None,
                                     };
                                 });
@@ -1653,7 +1652,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 });
                                 decode_arms.push(quote! {
                                     #(#all_match_tags)|* => {
-                                        <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id)?;
+                                        <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id, unwrap_id)?;
                                     }
                                 });
                                 decode_field_arms.push(quote! {
@@ -1662,7 +1661,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     }
                                 });
                                 field_validations.push(quote! {
-                                    let #field_ident = <#field_ty as #crate_root::DcMixedFlattened>::finish_flattened(#field_ident, ctx)?;
+                                    let #field_ident = match #crate_root::dc_mixed_serde::finish_flattened_field::<#field_ty>(#field_ident, ctx, stringify!(#field_ident))? {
+                                        Some(value) => value,
+                                        None => <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default(),
+                                    };
                                 });
                             }
                             continue;
@@ -2048,10 +2050,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             tag: u128,
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             val_id: #crate_root::NodeId,
+                            source_node: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
                             let _ = ctx;
                             state.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
-                                tag, value_node: val_id, source_node: val_id,
+                                tag, value_node: val_id, source_node,
                             });
                             Ok(true)
                         }
@@ -2232,6 +2235,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             tag: u128,
                             ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                             val_id: #crate_root::NodeId,
+                            _source_node: #crate_root::NodeId,
                         ) -> #anyhow_path::Result<bool> {
                             let instance = state.get_or_insert_with(<Self as ::std::default::Default>::default);
                             instance.decode_field(tag, ctx, val_id)
@@ -2415,7 +2419,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             decode_arms.push(quote! {
                                 #(#all_match_tags)|* => {
                                     let state = #field_ident.get_or_insert_with(::std::default::Default::default);
-                                    <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id)?;
+                                    <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, tag, ctx, val_id, unwrap_id)?;
                                 }
                             });
                             decode_field_arms.push(quote! {
@@ -2426,9 +2430,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             });
                             field_validations.push(quote! {
                                 let #field_ident = match #field_ident {
-                                    ::std::option::Option::Some(state) => ::std::option::Option::Some(
-                                        <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
-                                    ),
+                                    ::std::option::Option::Some(state) => #crate_root::dc_mixed_serde::finish_flattened_field::<#inner_ty>(state, ctx, stringify!(#field_ident))?,
                                     ::std::option::Option::None => ::std::option::Option::None,
                                 };
                             });
@@ -2441,7 +2443,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             });
                             decode_arms.push(quote! {
                                 #(#all_match_tags)|* => {
-                                    <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id)?;
+                                    <#field_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #field_ident, tag, ctx, val_id, unwrap_id)?;
                                 }
                             });
                             decode_field_arms.push(quote! {
@@ -2450,7 +2452,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             });
                             field_validations.push(quote! {
-                                let #field_ident = <#field_ty as #crate_root::DcMixedFlattened>::finish_flattened(#field_ident, ctx)?;
+                                let #field_ident = match #crate_root::dc_mixed_serde::finish_flattened_field::<#field_ty>(#field_ident, ctx, stringify!(#field_ident))? {
+                                    Some(value) => value,
+                                    None => <#field_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default(),
+                                };
                             });
                         }
 
@@ -3449,10 +3454,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         tag: u128,
                         ctx: &mut #crate_root::DcProjectionContext<'_, '_>,
                         val_id: #crate_root::NodeId,
+                        source_node: #crate_root::NodeId,
                     ) -> #anyhow_path::Result<bool> {
                         let _ = ctx;
                         state.push(#crate_root::dc_mixed_serde::FieldProjectionSpec {
-                            tag, value_node: val_id, source_node: val_id,
+                            tag, value_node: val_id, source_node,
                         });
                         Ok(true)
                     }
@@ -3700,7 +3706,19 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                         decode_variants.push(quote! {
-                            #tag_id => Self::#variant_ident,
+                            #tag_id => {
+                                let remaining = match &variant_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.as_slice(),
+                                    #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                                    #crate_root::navigator::DcSyntaxKind::Atom(_) => match children.split_first() {
+                                        Some((_, remaining)) => remaining,
+                                        None => &[],
+                                    },
+                                    _ => &[],
+                                };
+                                ctx.handle_remaining_nodes(remaining)?;
+                                Self::#variant_ident
+                            },
                         });
                     }
                     Fields::Unnamed(unnamed) => {
@@ -3832,14 +3850,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     v_field_arms.push(quote! {
                                         #(#all_field_tags)|* => {
                                             let state = #f_ident.get_or_insert_with(::std::default::Default::default);
-                                            <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, ch_tag, ctx, child_val_id)?;
+                                            <#inner_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(state, ch_tag, ctx, child_val_id, ch_id)?;
                                         }
                                     });
                                     v_field_build.push(quote! {
                                         #f_ident: match #f_ident {
-                                            ::std::option::Option::Some(state) => ::std::option::Option::Some(
-                                                <#inner_ty as #crate_root::DcMixedFlattened>::finish_flattened(state, ctx)?
-                                            ),
+                                            ::std::option::Option::Some(state) => #crate_root::dc_mixed_serde::finish_flattened_field::<#inner_ty>(state, ctx, stringify!(#f_ident))?,
                                             ::std::option::Option::None => ::std::option::Option::None,
                                         }
                                     });
@@ -3852,11 +3868,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     });
                                     v_field_arms.push(quote! {
                                         #(#all_field_tags)|* => {
-                                            <#f_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #f_ident, ch_tag, ctx, child_val_id)?;
+                                            <#f_ty as #crate_root::DcMixedFlattened>::decode_flattened_field(&mut #f_ident, ch_tag, ctx, child_val_id, ch_id)?;
                                         }
                                     });
                                     v_field_build.push(quote! {
-                                        #f_ident: <#f_ty as #crate_root::DcMixedFlattened>::finish_flattened(#f_ident, ctx)?
+                                        #f_ident: match #crate_root::dc_mixed_serde::finish_flattened_field::<#f_ty>(#f_ident, ctx, stringify!(#f_ident))? {
+                                            Some(value) => value,
+                                            None => <#f_ty as #crate_root::DcForgivingDefault>::dc_forgiving_default(),
+                                        }
                                     });
                                 }
                                 continue;
@@ -3892,8 +3911,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 });
                                 v_field_arms.push(quote! {
                                     #(#all_field_tags)|* => {
+                                        let val = #val_expr;
                                         if #f_ident.is_none() {
-                                            let val = #val_expr;
                                             #f_ident = ::std::option::Option::Some(val);
                                         }
                                     }

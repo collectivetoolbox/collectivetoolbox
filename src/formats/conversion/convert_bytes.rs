@@ -188,7 +188,10 @@ pub fn convert_bytes_to_dcmstring(
             ctb_formats_dcstring::converters::ascii::ascii_safe_subset_to_dcmstring(bytes)?
         }
         SupportedDcInputFormat::CscJournal => {
-            ctb_io_csc::journal::convert_cscjournal_to_dcmstring(bytes)?
+            ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_policy(
+                bytes,
+                &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+            )?
         }
     };
 

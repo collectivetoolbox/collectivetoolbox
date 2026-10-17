@@ -2542,7 +2542,7 @@ impl<'a> DcDocumentNavigator<'a> {
                 let source_end = self.active_span.end.min(*end_offset);
                 ensure!(
                     after_dc203.checked_add(17).context("Binary header offset overflow")? <= source_end,
-                    "Truncated .dcmm binary header"
+                    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm binary header")
                 );
                 reader.seek(SeekFrom::Start(after_dc203))?;
                 let mut type_byte = [0_u8; 1];
@@ -2572,7 +2572,7 @@ impl<'a> DcDocumentNavigator<'a> {
                         ensure!(
                             reader.stream_position()?.checked_add(16)
                                 .context("Metadata header offset overflow")? <= source_end,
-                            "Truncated .dcmm metadata length"
+                            std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm metadata length")
                         );
                         let mut meta_len_buf = [0_u8; 16];
                         reader
@@ -2584,7 +2584,9 @@ impl<'a> DcDocumentNavigator<'a> {
                             .context("Metadata end offset overflow")?;
                         let payload_end = metadata_end.checked_add(data_len)
                             .context("Binary payload offset overflow")?;
-                        ensure!(payload_end <= source_end, "Truncated .dcmm metadata or binary payload");
+                        ensure!(payload_end <= source_end, std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm metadata or binary payload",
+                        ));
                         ensure!(
                             meta_len <= policy.max_binary_metadata_bytes,
                             "Binary metadata exceeds resource limit ({} bytes)",
@@ -2606,7 +2608,9 @@ impl<'a> DcDocumentNavigator<'a> {
                         let payload_end = reader.stream_position()?.checked_add(32)
                             .and_then(|start| start.checked_add(data_len))
                             .context("Binary payload offset overflow")?;
-                        ensure!(payload_end <= source_end, "Truncated .dcmm SHA256 encapsulation");
+                        ensure!(payload_end <= source_end, std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof, "Truncated .dcmm SHA256 encapsulation",
+                        ));
                         let mut digest = vec![0_u8; 32];
                         reader.read_exact(&mut digest).context("Truncated .dcmm SHA256 digest")?;
                         checksum = Some(BinaryChecksum {
@@ -2628,8 +2632,10 @@ impl<'a> DcDocumentNavigator<'a> {
                     .context("Binary payload offset overflow")?;
                 ensure!(
                     payload_end <= source_end,
-                    "Truncated .dcmm binary encapsulation at offset {start_offset} (needs {payload_end}, end is {})",
-                    self.active_span.end
+                    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, format!(
+                        "Truncated .dcmm binary encapsulation at offset {start_offset} (needs {payload_end}, end is {})",
+                        self.active_span.end,
+                    ))
                 );
                 reader.seek(SeekFrom::Start(payload_end))?;
                 Ok(Some((
@@ -2907,6 +2913,9 @@ impl<'a> DcDocumentNavigator<'a> {
             )?;
         }
         let (final_end, bin_header) = self.scan_binary_at(after_digest_tag, policy)?;
+        if !checksum_ok {
+            return Ok((final_end, sequence_id, false));
+        }
         let checksum = match bin_header {
             DcFrameHeaderInfo::Binary {
                 data_type: Some(data_type),

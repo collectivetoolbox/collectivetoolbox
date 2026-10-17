@@ -267,9 +267,19 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
 }
 
 /// Converts a legacy state journal (revisions 1..=3) to the v4 Dc format (`CTBCSCJ\x04`).
+/// Embedded Dc identities are decoded strictly.
 pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
     reader: &mut BufReader<R>,
     writer: &mut W,
+) -> Result<()> {
+    convert_legacy_journal_to_v4_with_policy(reader, writer, &DcProjectionPolicy::strict())
+}
+
+/// Converts a legacy journal with an explicit embedded Dc projection policy.
+pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
+    reader: &mut BufReader<R>,
+    writer: &mut W,
+    policy: &DcProjectionPolicy,
 ) -> Result<()> {
     // If the reader is at the start of the stream, consume and verify legacy magic
     if reader.stream_position()? == 0 {
@@ -408,7 +418,7 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
                     &payload[..],
                     origin_platform,
                     &shared_context,
-                    &DcProjectionPolicy::forgiving(),
+                    policy,
                 ) {
                     Ok(entity) => {
                         pending_entities.push(entity);
@@ -537,10 +547,18 @@ pub fn convert_legacy_journal_to_v4<R: Read + Seek, W: Write>(
 
 /// Converts in-memory legacy journal bytes to v4 journal bytes (`CTBCSCJ\x04`).
 pub fn convert_legacy_journal_bytes_to_v4(bytes: &[u8]) -> Result<Vec<u8>> {
+    convert_legacy_journal_bytes_to_v4_with_policy(bytes, &DcProjectionPolicy::strict())
+}
+
+/// Converts legacy journal bytes using an explicit embedded Dc projection policy.
+pub fn convert_legacy_journal_bytes_to_v4_with_policy(
+    bytes: &[u8],
+    policy: &DcProjectionPolicy,
+) -> Result<Vec<u8>> {
     let mut cursor = Cursor::new(bytes);
     let mut reader = BufReader::new(&mut cursor);
     let mut out = Vec::new();
-    convert_legacy_journal_to_v4(&mut reader, &mut out)?;
+    convert_legacy_journal_to_v4_with_policy(&mut reader, &mut out, policy)?;
     Ok(out)
 }
 

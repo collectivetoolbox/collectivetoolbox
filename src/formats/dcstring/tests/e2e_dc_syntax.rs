@@ -712,6 +712,34 @@ mod tier5_adversarial_hardening {
     }
 
     #[crate::ctb_test]
+    fn test_section_digest_untyped_forgiving_recovery() -> Result<()> {
+        let mut mst = DcMstring::new();
+        mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);
+        mst.push_char(DC_SEQUENCE_IDENTIFIER);
+        1u64.encode_dc_mixed(&mut mst)?;
+        mst.push_char(DC_END_CHECKSUMMED_SECTION);
+        mst.push_char(DC_SECTION_DIGEST);
+        mst.push_binary(&[0; 32]);
+        mst.push_char(DC_BOOLEAN_TRUE);
+        let mut strict = DcDocumentNavigator::from_mstr(&mst);
+        ensure!(strict.next_sibling_stub(&DcProjectionPolicy::strict()).is_err());
+        let mut file = tempfile::tempfile()?;
+        std::io::Write::write_all(&mut file, mst.as_ref())?;
+        for mut nav in [
+            DcDocumentNavigator::from_mstr(&mst),
+            DcDocumentNavigator::from_dcmm_file(file, 0)?,
+        ] {
+            let policy = DcProjectionPolicy::forgiving_quiet();
+            let stub = nav.next_sibling_stub(&policy)?.context("Missing recovered section")?;
+            ensure!(matches!(stub.header_info,
+                DcFrameHeaderInfo::ChecksummedSection { digest_valid: false, .. }
+            ));
+            ensure!(nav.next_sibling_stub(&policy)?.context("Missing following sibling")?.head_dc == DC_BOOLEAN_TRUE);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_section_digest_length_rejected_before_materialization() -> Result<()> {
         let mut mst = DcMstring::new();
         mst.push_char(DC_BEGIN_CHECKSUMMED_SECTION);

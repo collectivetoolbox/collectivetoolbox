@@ -632,6 +632,20 @@ fn test_challenge_flattened_required_field_presence() -> Result<()> {
         record: BoundedRecord { label_color: 7, comment: "present".to_string() },
     };
     ensure!(complete.to_dc_mixed()?.decode::<BoundedEnvelope>(&strict)? == complete);
+    let source = complete.to_dc_mixed()?;
+    let view = source.inspect_with_policy::<BoundedEnvelope>(&strict);
+    let comment = view.fields().iter().find(|field| field.field() == "comment")
+        .context("Missing nested comment annotation")?;
+    let updated = BoundedEnvelope {
+        record: BoundedRecord { label_color: 7, comment: "replacement comment".to_string() },
+    };
+    let revised = view.replace_annotation(comment, &updated.record)?;
+    ensure!(revised.decode::<BoundedEnvelope>(&strict)? == updated);
+    ensure!(revised == updated.to_dc_mixed()?, "Replacement must not duplicate field tags");
+    let range = comment.range();
+    ensure!(revised.as_bytes().get(..range.start) == source.as_bytes().get(..range.start));
+    let suffix = source.as_bytes().get(range.end..).context("Invalid comment range")?;
+    ensure!(revised.as_bytes().ends_with(suffix), "Bytes after the comment must be preserved");
     let complete = VariantEnvelope::Item {
         record: BoundedRecord { label_color: 7, comment: "present".to_string() },
     };
@@ -660,6 +674,58 @@ fn test_challenge_flattened_required_field_presence() -> Result<()> {
     let recovered = source.decode::<BoundedEnvelope>(&DcProjectionPolicy::forgiving_quiet())?;
     ensure!(recovered.record.label_color == 7);
     ensure!(recovered.record.comment.is_empty());
+    let mut reject_missing = DcProjectionPolicy::forgiving_quiet();
+    reject_missing.missing_required_field = DiagnosticAction::Error;
+    ensure!(source.decode::<Envelope>(&reject_missing).is_err());
+    ensure!(source.decode::<BoundedEnvelope>(&reject_missing).is_err());
+    ensure!(variant.decode::<VariantEnvelope>(&reject_missing).is_err());
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_flattened_finalization_policy() -> Result<()> {
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(flatten)]
+    struct Representation {
+        #[dc(405)]
+        value: u32,
+    }
+
+    #[derive(Debug, Default, PartialEq, Eq, DcMixed)]
+    #[dc(flatten, try_from = Representation, try_into = Representation)]
+    struct Converted {
+        value: u32,
+    }
+
+    impl TryFrom<Representation> for Converted {
+        type Error = anyhow::Error;
+        fn try_from(repr: Representation) -> Result<Self> {
+            ensure!(repr.value != 7, "Rejected finalized representation");
+            Ok(Self { value: repr.value })
+        }
+    }
+
+    impl From<&Converted> for Representation {
+        fn from(value: &Converted) -> Self { Self { value: value.value } }
+    }
+
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    enum Variant {
+        #[dc(422)]
+        Required {
+            #[dc(flatten, nested = 405)]
+            converted: Converted,
+        },
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    let quiet = DcProjectionPolicy::forgiving_quiet();
+    let source = Variant::Required { converted: Converted { value: 7 } }.to_dc_mixed()?;
+    ensure!(source.decode::<Variant>(&strict).is_err());
+    let view = source.inspect_with_policy::<Variant>(&quiet);
+    ensure!(view.value() == Some(&Variant::Required { converted: Converted::default() }));
+    ensure!(view.diagnostics().iter().any(|diagnostic| format!("{:#}", diagnostic.error()).contains("Rejected finalized representation")));
     Ok(())
 }
 
@@ -692,6 +758,45 @@ fn test_challenge_named_enum_malformed_field_policy() -> Result<()> {
     let view = source.inspect_with_policy::<Record>(&quiet);
     ensure!(view.value() == Some(&recovered));
     ensure!(view.diagnostic().is_some(), "Quiet recovery must retain diagnostics");
+    let expected = Record::Item { color: 7, comment: "retained".to_string() };
+    let mut duplicate = DcMstring::new();
+    duplicate.push_char(DcChar::from_short(317));
+    duplicate.push_char(DcChar::from_short(422));
+    duplicate.push_char(DcChar::from_short(327));
+    7_u8.encode_dc_mixed(&mut duplicate)?;
+    duplicate.push_char(DcChar::from_short(327));
+    300_u32.encode_dc_mixed(&mut duplicate)?;
+    duplicate.push_char(DcChar::from_short(400));
+    "retained".to_string().encode_dc_mixed(&mut duplicate)?;
+    duplicate.push_char(DcChar::from_short(318));
+    ensure!(duplicate.decode::<Record>(&DcProjectionPolicy::strict()).is_err());
+    let view = duplicate.inspect_with_policy::<Record>(&quiet);
+    ensure!(view.value() == Some(&expected));
+    ensure!(view.diagnostic().is_some(), "Malformed duplicate fields must be diagnosed");
+    Ok(())
+}
+
+#[crate::ctb_test]
+fn test_challenge_unit_enum_unconsumed_children() -> Result<()> {
+    #[derive(Debug, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 317, end = 318)]
+    enum Record {
+        #[dc(422)]
+        Unit,
+    }
+
+    let strict = DcProjectionPolicy::strict();
+    ensure!(Record::Unit.to_dc_mixed()?.decode::<Record>(&strict)? == Record::Unit);
+    let mut source = DcMstring::new();
+    source.push_char(DcChar::from_short(317));
+    source.push_char(DcChar::from_short(422));
+    source.push_char(DcChar::from_short(400));
+    "unexpected".to_string().encode_dc_mixed(&mut source)?;
+    source.push_char(DcChar::from_short(318));
+    ensure!(source.decode::<Record>(&strict).is_err());
+    let view = source.inspect_with_policy::<Record>(&DcProjectionPolicy::forgiving_quiet());
+    ensure!(view.value() == Some(&Record::Unit));
+    ensure!(view.diagnostic().is_some(), "Unit-variant children must not be silently discarded");
     Ok(())
 }
 

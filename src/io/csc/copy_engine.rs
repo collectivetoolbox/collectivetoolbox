@@ -1946,17 +1946,27 @@ mod tests {
         run_csc(args).unwrap();
         fs::write(destination.join("data"), b"damaged!").unwrap();
         let journal_path = find_cscjournal(&state);
-        {
-            use std::io::Write;
-            let mut journal = fs::OpenOptions::new().append(true).open(&journal_path).unwrap();
-            journal.write_all(b"damaged tail").unwrap();
-        }
         let mut resume = default_test_args(Vec::new(), state.clone());
         resume.resume = Some(journal_path.clone());
         run_csc(resume).unwrap();
         assert_eq!(fs::read(destination.join("data")).unwrap(), b"original");
         assert!(!destination.join("source").exists());
         assert!(crate::journal::read_journal_snapshot(&journal_path).unwrap().is_completed);
+
+        fs::write(destination.join("data"), b"damaged!").unwrap();
+        {
+            use std::io::Write;
+            let mut journal = fs::OpenOptions::new().append(true).open(&journal_path).unwrap();
+            journal.write_all(b"damaged tail").unwrap();
+        }
+        let malformed_journal = fs::read(&journal_path).unwrap();
+        let mut resume = default_test_args(Vec::new(), state.clone());
+        resume.resume = Some(journal_path.clone());
+        let error = run_csc(resume).err().expect("Malformed records must not authorize destructive resume");
+        assert!(format!("{error:#}").contains("Unsupported journal record"));
+        assert_eq!(fs::read(destination.join("data")).unwrap(), b"damaged!");
+        assert_eq!(fs::read(&journal_path).unwrap(), malformed_journal);
+        assert!(!destination.join("source").exists());
     }
 
     #[cfg(unix)]

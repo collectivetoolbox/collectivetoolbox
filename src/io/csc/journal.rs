@@ -49,7 +49,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub mod legacy;
 
 pub use legacy::{
-    convert_legacy_journal_bytes_to_v4, convert_legacy_journal_to_v4,
+    convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
+    convert_legacy_journal_to_v4, convert_legacy_journal_to_v4_with_policy,
 };
 
 pub(crate) use legacy::{
@@ -915,6 +916,14 @@ pub fn read_journal_snapshot_with_policy(
 pub fn convert_cscjournal_to_dcmstring(
     bytes: &[u8],
 ) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
+    convert_cscjournal_to_dcmstring_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+}
+
+/// Converts journal bytes, using `policy` when projecting legacy Dc identities.
+pub fn convert_cscjournal_to_dcmstring_with_policy(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<(DcMstring, ctb_formats_utilities::FormatLog)> {
     anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
     let magic = bytes
         .get(..8)
@@ -934,7 +943,7 @@ pub fn convert_cscjournal_to_dcmstring(
             is_legacy,
             "Invalid or unrecognized cscjournal magic bytes: {magic:?}"
         );
-        let v4_bytes = legacy::convert_legacy_journal_bytes_to_v4(bytes)?;
+        let v4_bytes = legacy::convert_legacy_journal_bytes_to_v4_with_policy(bytes, policy)?;
         return ctb_formats_dcstring::dc_mixed::dcmm_to_dcmstring(
             v4_bytes
                 .get(8..)
@@ -948,6 +957,14 @@ pub fn convert_cscjournal_to_dcmstring(
 /// Converts in-memory cscjournal bytes to version 4+ journal bytes (`CTBCSCJ\x04`).
 /// If already version 4+, returns the bytes unmodified.
 pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    convert_cscjournal_to_v4_bytes_with_policy(bytes, &ctb_formats_dcstring::DcProjectionPolicy::strict())
+}
+
+/// Converts journal bytes, using `policy` when projecting legacy Dc identities.
+pub fn convert_cscjournal_to_v4_bytes_with_policy(
+    bytes: &[u8],
+    policy: &ctb_formats_dcstring::DcProjectionPolicy,
+) -> Result<Vec<u8>> {
     anyhow::ensure!(bytes.len() >= 8, "CscJournal data is too short (< 8 bytes)");
     let magic = bytes
         .get(..8)
@@ -959,7 +976,7 @@ pub fn convert_cscjournal_to_v4_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
     } else if magic == JOURNAL_MAGIC_V1
         || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v < 4))
     {
-        legacy::convert_legacy_journal_bytes_to_v4(bytes)
+        legacy::convert_legacy_journal_bytes_to_v4_with_policy(bytes, policy)
     } else {
         anyhow::bail!("Invalid or unrecognized cscjournal magic bytes: {magic:?}");
     }
@@ -1202,7 +1219,7 @@ pub fn read_v4_journal_snapshot(
                         let timestamp_sec = p.timestamp_sec();
                         (p.message, timestamp_sec)
                     }
-                    Err(_) => {
+                    Err(timestamped_error) => {
                         arena.clear();
                         match nav.decode_frame_with_arena::<JournalWarningRecordStringPayload>(
                             &stub,
@@ -1364,10 +1381,9 @@ mod tests {
         let mut record: PreservationRecord = serde_json::from_slice(&read_bytes(&mut cursor)?)?;
         let mut missing_nlink = DcMstring::new();
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(319));
-        missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(349));
         entity.identity.origin.encode_dc_mixed(&mut missing_nlink)?;
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(337));
-        entity.identity.relative_path.encode_dc_mixed(&mut missing_nlink)?;
+        entity.identity.relative_path.as_ref().context("Missing test path")?.encode_dc_mixed(&mut missing_nlink)?;
         missing_nlink.push_char(ctb_formats_dcstring::DcChar::from_short(320));
         record.identity_dc = Some(missing_nlink.as_bytes().to_vec());
         let mut malformed = encoded.get(..record_start).context("Invalid preservation prefix")?.to_vec();
@@ -1376,6 +1392,34 @@ mod tests {
         let salvaged = read_entity_payload(&malformed, current_platform(), &context, &DcProjectionPolicy::forgiving())?;
         assert_eq!(salvaged.identity.relative_path, entity.identity.relative_path);
         assert_eq!(salvaged.identity.nlink, 0);
+
+        let mut journal = JOURNAL_MAGIC_V1.to_vec();
+        journal.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
+        write_u32(&mut journal, 0)?;
+        write_bytes(&mut journal, b"destination")?;
+        journal.push(TAG_ENTITY);
+        write_u32(&mut journal, u32::try_from(malformed.len())?)?;
+        journal.extend_from_slice(&xxhash::xxhash3_64(&malformed));
+        journal.extend_from_slice(&malformed);
+        journal.push(TAG_BATCH_COMMIT);
+        legacy::write_u64(&mut journal, 1)?;
+        journal.extend_from_slice(&ctb_formats_checksum::sha256(&malformed));
+        journal.push(TAG_JOB_COMPLETED);
+        assert!(convert_cscjournal_to_v4_bytes(&journal).is_err());
+        assert!(convert_cscjournal_to_dcmstring(&journal).is_err());
+        assert!(convert_cscjournal_to_v4_bytes_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
+        assert!(convert_cscjournal_to_dcmstring_with_policy(&journal, &DcProjectionPolicy::strict()).is_err());
+        let converted = convert_cscjournal_to_v4_bytes_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
+        let temp = tempdir()?;
+        let path = temp.path().join("salvaged.cscjournal");
+        fs::write(&path, converted)?;
+        let snapshot = read_journal_snapshot(&path)?;
+        assert!(snapshot.is_completed);
+        assert_eq!(snapshot.last_batch_id, 1);
+        assert_eq!(snapshot.committed_entities.get(b"entry".as_slice()).context("Missing salvaged entity")?.identity, salvaged.identity);
+        let (document, log) = convert_cscjournal_to_dcmstring_with_policy(&journal, &DcProjectionPolicy::forgiving())?;
+        assert!(document.len() > ctb_formats_dcstring::DCMM_HEADER_LEN);
+        assert!(!log.has_errors());
         Ok(())
     }
 
@@ -1722,10 +1766,16 @@ mod tests {
             file.write_all(b"badpayload").expect("write junk payload");
         }
 
-        // Snapshot should cleanly recover up to the last valid batch and discard corrupted bytes
-        let recovered = read_journal_snapshot(writer.journal_path()).expect("recover after corruption");
-        assert_eq!(recovered.committed_entities.len(), 2);
-        assert_eq!(recovered.last_batch_id, snap.last_batch_id);
+        let malformed_journal = fs::read(writer.journal_path()).expect("read malformed journal");
+        for policy in [
+            ctb_formats_dcstring::DcProjectionPolicy::strict(),
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+        ] {
+            let error = read_journal_snapshot_with_policy(writer.journal_path(), &policy)
+                .expect_err("Malformed closed records must not be silently discarded");
+            assert!(format!("{error:#}").contains("Unsupported journal record"));
+        }
+        assert_eq!(fs::read(writer.journal_path()).expect("reread journal"), malformed_journal);
     }
 
     #[crate::ctb_test]
@@ -2250,14 +2300,22 @@ mod tests {
     fn test_all_journal_revision_fixtures() -> Result<()> {
         let fixtures_dir = ctb_utilities::manifest_fixture_path(env!("CARGO_MANIFEST_DIR"), "fixtures/journals");
 
-        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"))?;
-        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"))?;
-        let s3 = read_journal_snapshot(&fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal"))?;
+        let s1 = read_journal_snapshot(&fixtures_dir.join("v1_ctbmeta1-20261011.cscjournal"))
+            .context("Failed to read revision 1 fixture")?;
+        let s2 = read_journal_snapshot(&fixtures_dir.join("v2_ctbmeta2-20261011.cscjournal"))
+            .context("Failed to read revision 2 fixture")?;
+        let v3_fixture = fixtures_dir.join("v3_ctbmeta3-20261011.cscjournal");
+        let strict_error = read_journal_snapshot(&v3_fixture)
+            .expect_err("Historical untyped path literals must be rejected strictly");
+        assert!(format!("{strict_error:#}").contains("missing Dc 262..263 type header"));
+        let s3 = read_journal_snapshot_with_policy(
+            &v3_fixture,
+            &ctb_formats_dcstring::DcProjectionPolicy::forgiving(),
+        ).context("Failed to recover revision 3 fixture with explicit forgiving policy")?;
         let v4_fixture = fixtures_dir.join("v4_dcmixed-20261011.cscjournal");
         assert!(
-            read_journal_snapshot(&v4_fixture).is_err()
-                || read_journal_snapshot(&v4_fixture).is_ok_and(|s| s.committed_entities.is_empty()),
-            "v4_dcmixed-20261011 fixture contains development-era serializer bugs and must error or roll back in strict mode"
+            read_journal_snapshot(&v4_fixture).is_err(),
+            "Development-era malformed closed records must be rejected in strict mode"
         );
         let s4 = read_journal_snapshot_with_policy(
             &v4_fixture,
@@ -2336,16 +2394,17 @@ mod tests {
         let temp = tempfile::tempdir()?;
 
         // Test converting legacy revisions 1..=3 to v4 bytes and validating snapshot parity
-        for (rev_name, filename) in [
-            ("v1_ctbmeta1", "v1_ctbmeta1-20261011.cscjournal"),
-            ("v2_ctbmeta2", "v2_ctbmeta2-20261011.cscjournal"),
-            ("v3_ctbmeta3", "v3_ctbmeta3-20261011.cscjournal"),
+        for (rev_name, filename, policy) in [
+            ("v1_ctbmeta1", "v1_ctbmeta1-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
+            ("v2_ctbmeta2", "v2_ctbmeta2-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
+            ("v3_ctbmeta3", "v3_ctbmeta3-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
         ] {
             let legacy_path = fixtures_dir.join(filename);
             let legacy_bytes = fs::read(&legacy_path)?;
-            let orig_snap = read_journal_snapshot(&legacy_path)?;
+            let orig_snap = read_journal_snapshot_with_policy(&legacy_path, &policy)
+                .with_context(|| format!("Failed to read {rev_name} fixture before conversion"))?;
 
-            let v4_bytes = convert_cscjournal_to_v4_bytes(&legacy_bytes)?;
+            let v4_bytes = convert_cscjournal_to_v4_bytes_with_policy(&legacy_bytes, &policy)?;
             assert!(
                 v4_bytes.starts_with(JOURNAL_MAGIC_V4),
                 "{rev_name} converted bytes must start with JOURNAL_MAGIC_V4"
@@ -2381,14 +2440,14 @@ mod tests {
         }
 
         // Test converting all 4 revisions directly to DcMstring
-        for filename in [
-            "v1_ctbmeta1-20261011.cscjournal",
-            "v2_ctbmeta2-20261011.cscjournal",
-            "v3_ctbmeta3-20261011.cscjournal",
-            "v4_dcmixed-20261011.cscjournal",
+        for (filename, policy) in [
+            ("v1_ctbmeta1-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
+            ("v2_ctbmeta2-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::strict()),
+            ("v3_ctbmeta3-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
+            ("v4_dcmixed-20261011.cscjournal", ctb_formats_dcstring::DcProjectionPolicy::forgiving()),
         ] {
             let bytes = fs::read(fixtures_dir.join(filename))?;
-            let (doc, log) = convert_cscjournal_to_dcmstring(&bytes)?;
+            let (doc, log) = convert_cscjournal_to_dcmstring_with_policy(&bytes, &policy)?;
             assert!(
                 doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
                 "{filename}: DcMstring document must have payload beyond 21-byte header"

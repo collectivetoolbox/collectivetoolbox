@@ -109,11 +109,11 @@ fn test_challenge_authentic_v4_strict_rejection_and_forgiving_salvage() -> Resul
         "Strict traversal must reject dev-era syntax quirks (untyped checksum / missing type header) with error"
     );
 
-    // 3. Strict journal reading rolls back unverified dev-era batch or fails session header
+    // 3. Strict journal reading rejects malformed closed records
     let strict_res = read_journal_snapshot(&fixture_path);
     ensure!(
-        strict_res.is_err() || strict_res.is_ok_and(|s| s.committed_entities.is_empty()),
-        "Authentic v4 fixture under strict mode must reject or roll back unverified entities"
+        strict_res.is_err(),
+        "Authentic v4 fixture under strict mode must reject malformed closed records"
     );
 
     // 4. Forgiving policy salvages the authentic journal cleanly
@@ -215,8 +215,13 @@ fn test_challenge_all_four_journal_revisions() -> Result<()> {
     ensure!(s2.is_completed, "v2 journal must be completed");
     ensure!(!s2.committed_entities.is_empty(), "v2 must have entities");
 
-    // Revision 3
-    let s3 = read_journal_snapshot(&fixtures.join("v3_ctbmeta3-20261011.cscjournal"))?;
+    // Revision 3 uses historical untyped path literals
+    let v3_fixture = fixtures.join("v3_ctbmeta3-20261011.cscjournal");
+    let strict_error = read_journal_snapshot(&v3_fixture)
+        .expect_err("Historical untyped path literals must be rejected strictly");
+    ensure!(format!("{strict_error:#}").contains("missing Dc 262..263 type header"));
+    let s3 = read_journal_snapshot_with_policy(&v3_fixture, &DcProjectionPolicy::forgiving())
+        .context("Failed to recover revision 3 fixture with explicit forgiving policy")?;
     ensure!(s3.is_completed, "v3 journal must be completed");
     ensure!(!s3.committed_entities.is_empty(), "v3 must have entities");
 
@@ -230,15 +235,15 @@ fn test_challenge_all_four_journal_revisions() -> Result<()> {
     ensure!(s4.environment.is_some(), "v4 must have environment");
 
     // Conversion of all revisions to v4 DcMstring
-    for rev_file in [
-        "v1_ctbmeta1-20261011.cscjournal",
-        "v2_ctbmeta2-20261011.cscjournal",
-        "v3_ctbmeta3-20261011.cscjournal",
-        "v4_dcmixed-20261011.cscjournal",
+    for (rev_file, policy) in [
+        ("v1_ctbmeta1-20261011.cscjournal", DcProjectionPolicy::strict()),
+        ("v2_ctbmeta2-20261011.cscjournal", DcProjectionPolicy::strict()),
+        ("v3_ctbmeta3-20261011.cscjournal", DcProjectionPolicy::forgiving()),
+        ("v4_dcmixed-20261011.cscjournal", DcProjectionPolicy::forgiving()),
     ] {
         let path = fixtures.join(rev_file);
         let bytes = fs::read(&path)?;
-        let (doc, log) = convert_cscjournal_to_dcmstring(&bytes)?;
+        let (doc, log) = ctb_io_csc::journal::convert_cscjournal_to_dcmstring_with_policy(&bytes, &policy)?;
         ensure!(
             doc.len() > ctb_formats_dcstring::DCMM_HEADER_LEN,
             "{rev_file} must convert to non-empty DcMstring"
@@ -878,23 +883,24 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
         writer.record_entity(&entity);
         writer.commit_batch()?;
 
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        ensure!(snapshot.last_batch_id == 1, "Control must commit batch 1");
+        ensure!(snapshot.is_committed(b"valid.txt"), "Control must preserve batch 1 entity");
+
         // Append random garbage bytes
         {
             let mut file = OpenOptions::new().append(true).open(&journal_path)?;
             file.write_all(&[0xDE, 0xAD, 0xBE, 0xEF, 0xFF, 0x00, 0x12, 0x34])?;
         }
 
-        // Reading snapshot under both policies must successfully recover batch 1 without panicking!
-        let mut file = File::open(&journal_path)?;
-        let snapshot = read_v4_journal_snapshot(&mut file, &journal_path, false, &strict_policy)?;
-        ensure!(
-            snapshot.last_batch_id == 1,
-            "Garbage tail must roll back to batch 1"
-        );
-        ensure!(
-            snapshot.is_committed(b"valid.txt"),
-            "Batch 1 entity must remain committed"
-        );
+        let malformed_journal = fs::read(&journal_path)?;
+        for policy in [&strict_policy, &forgiving_policy] {
+            let mut file = File::open(&journal_path)?;
+            let error = read_v4_journal_snapshot(&mut file, &journal_path, false, policy)
+                .expect_err("Unknown records must not authorize rollback");
+            ensure!(format!("{error:#}").contains("Unsupported journal record"));
+        }
+        ensure!(fs::read(&journal_path)? == malformed_journal, "Rejected replay must preserve journal bytes");
     }
 
     Ok(())

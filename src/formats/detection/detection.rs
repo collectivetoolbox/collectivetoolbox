@@ -2281,7 +2281,7 @@ mod tests {
     fn test_csc_desc_implied_encoding_corroborated() {
         // .cscdesc implies UTF-8 (f0); when content lacks a magic header but is
         // valid ASCII text, the implied-encoding compatibility from the database
-        // corroborates the extension candidate so it outranks bare Ascii.
+        // strengthens the tentative extension candidate without confirming its structure.
         let data =
             b"Status: Completed\nFilesCommitted: 0\n".to_vec();
         let mut slice: &[u8] = &data;
@@ -2290,25 +2290,24 @@ mod tests {
             ..Default::default()
         };
         let report = guess_format_report(&mut slice, Some(&hint)).unwrap();
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::CscDesc));
-        assert!(top.evidence.iter().any(|e| matches!(
+        let candidate = report.candidates.iter()
+            .find(|candidate| candidate.format_id == Some(FormatId::CscDesc)).unwrap();
+        assert_eq!(candidate.confidence, ConfidenceTier::Moderate);
+        assert!(candidate.evidence.iter().any(|e| matches!(
             e,
             DetectionEvidence::Encoding { .. }
         )));
-        assert!(top.evidence.iter().any(|e| matches!(
+        assert!(candidate.evidence.iter().any(|e| matches!(
             e,
             DetectionEvidence::TextProperties { .. }
         )));
 
-        // The generic encoding candidate is still reported, ranked below the
-        // corroborated specific format.
+        // Confirmed encoding evidence ranks ahead of an unverified format hint.
         let ascii_rank = report
             .candidates
             .iter()
             .position(|c| c.format_id == Some(FormatId::Ascii));
-        assert!(ascii_rank.is_some());
-        assert!(ascii_rank.unwrap() > 0);
+        assert_eq!(ascii_rank, Some(0));
     }
 
     #[ctb_test]
@@ -2331,7 +2330,7 @@ mod tests {
             .find(|candidate| candidate.format_id == Some(FormatId::Ascii))
             .unwrap();
         assert!(candidate.score > ascii.score);
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::CscDesc));
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
     }
 
     #[ctb_test]

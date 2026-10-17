@@ -162,11 +162,41 @@ pub trait DcMixedFlattened: Sized {
         tag: u128,
         ctx: &mut DcProjectionContext<'_, '_>,
         val_id: NodeId,
+        source_node: NodeId,
     ) -> Result<bool>;
     fn finish_flattened(
         state: Self::State,
         ctx: &mut DcProjectionContext<'_, '_>,
     ) -> Result<Self>;
+}
+
+/// Finalizes a flattened field using the containing record's recovery policy.
+///
+/// A recovered malformed field is absent, just like a failed ordinary field.
+///
+/// # Errors
+/// Returns the finalization error when malformed fields are errors.
+pub fn finish_flattened_field<T: DcMixedFlattened>(
+    state: T::State,
+    ctx: &mut DcProjectionContext<'_, '_>,
+    field: &str,
+) -> Result<Option<T>> {
+    let diagnostic_start = ctx.diagnostics().len();
+    match T::finish_flattened(state, ctx) {
+        Ok(value) => Ok(Some(value)),
+        Err(error) => {
+            if ctx.policy.malformed_field == crate::DiagnosticAction::Error
+                || ctx.diagnostics().iter().skip(diagnostic_start).any(|diagnostic| diagnostic.is_error)
+            {
+                return Err(error);
+            }
+            ctx.handle_diagnostic(
+                ctx.policy.malformed_field,
+                format!("Malformed flattened field `{field}`: {error:#}"),
+            )?;
+            Ok(None)
+        }
+    }
 }
 
 /// Trait indicating whether an alternative representation is lossless given serialization context.
