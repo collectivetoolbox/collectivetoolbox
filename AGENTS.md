@@ -7,7 +7,7 @@
 - **Build & test scope**: Prefer building or testing individual workspace crates (e.g., `cargo test -p ctb-renderer`); a full build takes 5–10 minutes.
 - **Linux target**: Always use the `musl` build in the dev container. Do not install extra host packages for a `glibc` build.
 - **Disk space**: Keep at least 15 GB of disk space free (the filesystem slows down sharply below that). A full single-target build consumes most available space, so run `cargo clean` when switching targets.
-- **Asset bundle test failures**: If `get_test_help_bytes` or other asset-loading tests fail (which happens intermittently, especially during whole-workspace test runs), the asset bundle failed to build. Run `cargo clean` and re-test.
+- **Asset bundle test failures**: If `get_test_help_bytes` or other asset-loading tests fail, inspect the failure first. When stale or missing build assets are confirmed, run `cargo clean` and re-test, but never clean while other builds or tests are running.
 - **No network ports in tests**: Tests must never listen on ports; use mocks or in-memory/socketpair transports instead.
 - **Front-end workflow**: Skip `cargo check`, `cargo test`, and `./test` for front-end-only changes. Use `./lint --quick` to check JS/TS types.
 - **Lingering server processes**: Run `killall ctoolbox` (or similar) if needed to stop background server processes.
@@ -20,7 +20,7 @@
 - **Adding vs. updating dependencies**: Adding new dependencies not already in the repository is discouraged unless specifically requested by your operator. You may propose new dependencies, but must ask before adding them (CI runs offline; the operator vendors changed dependencies before pushing). Version bumps of existing dependencies—especially when `cargo-deny` reports a security advisory—are encouraged and do not require approval.
 
 ### Collaboration, Git, and Sub-Agents
-- **Inspecting recent changes**: Use `git diff origin..HEAD`, `git diff HEAD~1..HEAD`, etc. rather than `git diff`. The operator frequently commits while the agent is working for easier review, so a working-tree `git diff` will often be blank.
+- **Inspecting recent changes**: Record the starting commit with `git rev-parse HEAD`. Review committed changes with `git diff <start>..HEAD`, staged/unstaged changes with `git diff HEAD`, and new files with `git status --short`. The operator commits and pushes during work, so neither a working-tree diff nor `origin..HEAD` alone is sufficient.
 - **Live operator edits**: If edits from the operator appear while you are working on files, do not revert them—re-read the files and align with the direction of those changes.
 - **Scope confirmation**: If a seemingly small request would require large-scale changes or significant refactoring, ask to confirm before editing, or use `/plan` mode.
 - **Moving a module into a subcrate**: Keep this mechanical: move the files using a tool/script (do not regenerate them), copy and trim `Cargo.toml`, update the package name, replace `mod` with `use`, and register the crate in the root `Cargo.toml`. Ask before doing anything beyond this.
@@ -46,13 +46,14 @@
 ## Standards and Style Guide
 
 ### Error Handling & Invariants
-- **Judge edge-case error handling carefully (the #1 agent mistake)**:
-  1. **Never silently swallow or discard legitimate edge-case errors** instead of propagating them to callers. This is a very common, very critical mistake!
+- **Judge edge-case error handling carefully (the #1 agent mistake)**: Every case needs judgment, not a mechanical fix; passing tests on ordinary inputs can miss rare failures.
+  1. **Never silently swallow or discard legitimate edge-case errors** instead of propagating them to callers. Prefer a returned error over a crash, and a crash over silently incorrect results; recoverable errors must return `Result`.
   2. Less critical: **Do not propagate unreachable error states in otherwise-infallible functions**, which creates clunky APIs.
 - **Fail early and loudly; never panic in production**:
   - Fallible operations must return `anyhow::Result<T>` (`Result<T, anyhow::Error>`) and propagate errors via `?` or `let Some(val) = val else { return Err(...); };`.
+  - Use `anyhow::ensure!` (re-exported as `ensure!` by the prelude) for fallible validation: it returns `Err`, not a panic.
   - Never introduce panicking `unwrap`, `expect`, indexing, or unchecked arithmetic in new production code.
-  - Reserve `ensure!()`, `assert!()`, `unreachable!()`, and `.expect()` (with a Clippy allow/expect reason) strictly for provably infallible operations (such as bitmasks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable startup/installer scenarios—never in a function that returns `Result`.
+  - Reserve `assert!()`, `unreachable!()`, and `.expect()` (with a Clippy allow/expect reason) strictly for provably infallible operations (such as bitmasks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable startup/installer scenarios—never in a function that returns `Result`.
   - Never use `unwrap_or(0)` or similar fallbacks for infallible operations, as doing so obscures intent and hides broken assumptions.
   - `unwrap_or` (and similar fallbacks) is acceptable only when the fallback behavior is genuine domain logic clearly documented in the function contract, and **requires a comment** explaining *why* it is an acceptable fallback that will not mask a true error. Never "cheat" the `unwrap_or` linter by rewriting an undocumented `.unwrap_or(...)` into an `if let Some` / `else` block.
 - **Control flow**: Prefer `if let Some(...) = ...` over callback chains like `.map(...).unwrap_or_else(...)`, unless callbacks are substantially less verbose.
@@ -87,9 +88,10 @@
 ### Code Design, Security, and Licensing
 - **General design**: Avoid statefulness where possible. Prefer sync code; use async only when needed. Use the newtype pattern whenever it reduces confusion.
 - **Reuse & refactoring**: Reuse existing utilities (especially `ctb_utilities`, such as `utilities::https` for HTTP requests). Refactor or extend existing APIs rather than adding duplicate helpers. When refactoring, do not leave messy or outdated APIs out of concern for callers—clean up the API and update all callers.
+- **Canonical constants**: Keep all constants DRY; do not add aliases or copy them into other modules.
 - **Module structure & cleanup**: Keep modules concise and narrowly scoped; split growing modules into submodules. If you try multiple approaches during troubleshooting, remove all failed attempts and dead code before finishing.
 - **Single canonical naming**: When designing a new format or CLI interface, pick the single best name or syntax rather than supporting multiple aliases (e.g., do not support both `"case:"` and `"case-sensitive:"` tags, `"u"` and `"U"` prefixes for Unicode characters, or duplicate CLI commands).
-- **CLI & configuration**: Avoid environment variables unless genuinely necessary; prefer CLI flags. The `ctb-cli` crate (`src/cli/`) must contain zero nontrivial logic beyond parsing into `Invocation` and dispatching to the target crate. Crates supporting CLI commands will typically have a `cli` module with the argument parsing.
+- **CLI & configuration**: Avoid environment variables unless genuinely necessary; prefer CLI flags. Parse CLI and subprocess arguments into `Invocation`. The `ctb-cli` crate (`src/cli/`) must contain zero nontrivial logic beyond parsing and dispatching to the target crate. Crates supporting CLI commands will typically have a `cli` module with the argument parsing.
 - **Production readiness**: Address root issues and missing features rather than adding workarounds:
   - Always use file-descriptor passing for shared memory on Linux, never temp files.
   - Never add in-process fallbacks for IPC calls.

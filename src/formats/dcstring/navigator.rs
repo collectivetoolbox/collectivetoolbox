@@ -1926,25 +1926,13 @@ impl<'a> DcDocumentNavigator<'a> {
         matches!(ch.to_short_dc(), Some(255 | 275 | 312 | 513))
     }
 
+    fn is_primitive_value_atom(ch: DcChar) -> bool {
+        matches!(ch.to_short_dc(), Some(10 | 11 | 316 | 517 | 518))
+    }
+
     fn is_value_atom(ch: DcChar) -> bool {
-        if matches!(
-            ch.to_short_dc(),
-            Some(10 | 11 | 316 | 358..=367 | 379..=384 | 409..=466 | 482..=489 | 517 | 518)
-        ) {
-            return true;
-        }
-        let Ok(dc_u32) = u32::try_from(ch.to_u128()) else {
-            return false;
-        };
-        let target = ctb_formats_dcdata::CharTarget::Dc(dc_u32);
-        let resolver = default_syntax_resolver();
-        if resolver.closer_for_opener(&target).is_some() {
-            return false;
-        }
-        if !ch.is_format() && !Self::is_transparent_wrapper_tag(ch) && resolver.resolve_rule(&target).is_none() {
-            return true;
-        }
-        false
+        Self::is_primitive_value_atom(ch)
+            || matches!(ch.to_short_dc(), Some(379..=384 | 482..=489))
     }
 
     fn is_transparent_wrapper_tag(ch: DcChar) -> bool {
@@ -1962,7 +1950,7 @@ impl<'a> DcDocumentNavigator<'a> {
             | DcSyntaxKind::Identifier { .. }
             | DcSyntaxKind::Assignment { .. }
             | DcSyntaxKind::Container { .. } => true,
-            DcSyntaxKind::Atom(ch) => Self::is_value_atom(*ch),
+            DcSyntaxKind::Atom(ch) => Self::is_primitive_value_atom(*ch),
             DcSyntaxKind::Tagged { tag, .. } => Self::is_transparent_wrapper_tag(*tag),
             DcSyntaxKind::Malformed { .. } => false,
         }

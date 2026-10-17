@@ -840,7 +840,11 @@ impl<'a, 'ctx> DcProjectionContext<'a, 'ctx> {
                 if let [single_child] = children.as_slice() {
                     let child_node = self.node(*single_child)?;
                     if let DcSyntaxKind::Tagged { tag, args } = &child_node.kind {
-                        let payload_id = args.first().copied().unwrap_or(*single_child);
+                        let payload_id = if let [single_arg] = args.as_slice() {
+                            *single_arg
+                        } else {
+                            *single_child
+                        };
                         return Ok(Some((*tag, payload_id)));
                     }
                 }
