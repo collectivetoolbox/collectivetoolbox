@@ -8,6 +8,27 @@ subset of the original refactor, not certification of feature completion.
 `+                            let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
 ` does not look right
 
+`
+Overlayed Field Ambiguity (icon_id vs scroll_position / frScroll):
+
+In Classic Mac OS (FXInfo for files vs DXInfo for folders), bytes 16–19 of the 32-byte Finder info record have dual meaning depending on whether the entity is a file or a folder:
+Files: Byte offset 16–17 is fdIconID (custom icon ID, e.g. -16455), and bytes 18–19 are reserved/zero.
+Folders: Bytes 16–19 are frScroll (Point containing vertical and horizontal scroll coordinates (v, h) for the folder window).
+If scroll_position was previously parsed when scroll_h != 0, icon_id was left populated with v, causing custom icon ID Dc 492 to be emitted alongside coordinate Dc 407.
+Resolution: parse_extended_finder_info now zeroes out icon_id when scroll_h != 0, and write_apple_single_double checks scroll_position first before falling back to icon_id.
+`
+
+This does not sound right solution - it sounds like it should be checking whether the file or a directory, not scroll_h.
+
+- 406 388 310 275 311 389 can be simplified to 406 388 389 by > It should roundtrip. This sounds like a reasonable solution. The syntax could reasonably be refined to `:~ ([list:Semantic:fileflag] | [539:] | [397:] | [561:])? 389` to allow the encoding to just be 406 388 389 (optional enhancement), though the meaning would be essentially equivalent.
+
+
+> Classic Mac OS Extended Attributes alongside legacy FinderInfo: Extended attributes stored beyond offset 70 in legacy Mac OS binary archives are preserved and roundtrip, but deep ontological mapping of arbitrary user xattrs into semantic Dcs is not yet mapped.
+
+
+
+
+
 
 ### Remaining Gaps vs Original Request
 

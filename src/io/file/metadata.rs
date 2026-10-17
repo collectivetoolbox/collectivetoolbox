@@ -991,7 +991,7 @@ impl From<UnixSecondsDc> for i64 {
 #[dc(begin = 401, end = 402)]
 pub struct AppleMetadata {
     /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
-    #[dc(flatten, nested = [388, 403, 404, 405, 406, 407, 408, 490, 510])]
+    #[dc(flatten, nested = [388, 403, 404, 405, 406, 407, 408, 490, 510, 562])]
     pub finder_info: Option<FinderInfo>,
     /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
     #[dc(short = 496, representation = f228, omit_default)]

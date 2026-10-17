@@ -1848,9 +1848,8 @@ pub fn extract_flag_nodes(
         return Ok(vec![]);
     }
     // If the container has a single list container child (Dc 310)
-    let candidate_children = if children.len() == 1 {
-        let first_id = children[0];
-        let first_node = ctx.node(first_id)?;
+    let candidate_children = if let [first_id] = children {
+        let first_node = ctx.node(*first_id)?;
         if let DcSyntaxKind::Container { opener, children: lc, .. } = &first_node.kind {
             if opener.to_short_dc() == Some(310) {
                 lc.as_slice()

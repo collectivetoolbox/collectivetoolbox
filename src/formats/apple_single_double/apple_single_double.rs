@@ -825,13 +825,13 @@ impl ctb_formats_dcstring::DcMixedNumber for FinderLabel {
 #[dc(begin = 490, end = 491)]
 pub struct ExtendedFinderInfo {
     /// Custom icon ID (for files).
-    #[dc(492, default)]
+    #[dc(492, default, omit_default)]
     pub icon_id: i16,
     /// Script system code.
     #[dc(493, default, omit_default)]
     pub script: i8,
     /// Extended flags byte.
-    #[dc(nested = 388, alias = 406, default, omit_default)]
+    #[dc(562, nested = 388, default, omit_default)]
     pub xflags: ExtendedFlags,
     /// Comment ID.
     #[dc(494, default, omit_default)]
@@ -840,7 +840,7 @@ pub struct ExtendedFinderInfo {
     #[dc(495, default, omit_default)]
     pub put_away: u32,
     /// Icon view scroll position for folders (DXInfo `frScroll`).
-    #[dc(407, representation = f523)]
+    #[dc(407, representation = f523, default, omit_default)]
     pub scroll_position: Option<(i16, i16)>,
 }
 
@@ -858,7 +858,7 @@ pub struct FinderInfo {
     #[dc(405, equivalents = (405, number), default, omit_default)]
     pub label: FinderLabel,
     /// Decoded boolean flag details.
-    #[dc(nested = 388, alias = 406, default, omit_default)]
+    #[dc(406, nested = 388, default, omit_default)]
     pub flags: FinderFlags,
     /// Icon coordinates in QuickDraw grid `(v, h)`.
     #[dc(407, representation = f523, default, omit_default)]
@@ -1502,10 +1502,10 @@ fn parse_extended_finder_info(
     } else {
         read_u32_le(slice, 28)?
     };
-    let scroll_position = if scroll_h != 0 {
-        Some((icon_id, scroll_h))
+    let (icon_id, scroll_position) = if scroll_h != 0 {
+        (0, Some((icon_id, scroll_h)))
     } else {
-        None
+        (icon_id, None)
     };
     Ok(Some(ExtendedFinderInfo {
         icon_id,
@@ -1642,18 +1642,15 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
             }
 
             if let Some(ref ext) = finfo.extended {
-                if let Some(slot) = finfo_bytes.get_mut(16..18) {
-                    slot.copy_from_slice(&ext.icon_id.to_be_bytes());
-                }
                 if let Some((v, h)) = ext.scroll_position {
-                    if ext.icon_id == 0 {
-                        if let Some(slot) = finfo_bytes.get_mut(16..18) {
-                            slot.copy_from_slice(&v.to_be_bytes());
-                        }
+                    if let Some(slot) = finfo_bytes.get_mut(16..18) {
+                        slot.copy_from_slice(&v.to_be_bytes());
                     }
                     if let Some(slot) = finfo_bytes.get_mut(18..20) {
                         slot.copy_from_slice(&h.to_be_bytes());
                     }
+                } else if let Some(slot) = finfo_bytes.get_mut(16..18) {
+                    slot.copy_from_slice(&ext.icon_id.to_be_bytes());
                 }
                 if let Some(slot) = finfo_bytes.get_mut(24) {
                     *slot = u8::from_be_bytes(ext.script.to_be_bytes());

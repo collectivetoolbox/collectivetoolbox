@@ -502,6 +502,23 @@ fn test_challenge_apple_metadata_container_and_fields() -> Result<()> {
     );
     assert_dc_roundtrip(&AppleMetadata::default())?;
 
+    // Verify Some(FinderInfo::default()) roundtrip (does not collapse to None)
+    let some_default_finder = AppleMetadata {
+        finder_info: Some(FinderInfo::default()),
+        ..AppleMetadata::default()
+    };
+    let some_default_mst = some_default_finder.to_dc_mixed()?;
+    let mut nav_sdf = DcDocumentNavigator::from_mstr(&some_default_mst);
+    let mut arena_sdf = DcSyntaxArena::new();
+    nav_sdf.parse_document_into_arena(&mut arena_sdf, &strict)?;
+    let mut ctx_sdf = DcProjectionContext::new(&arena_sdf, &strict);
+    let decoded_sdf = AppleMetadata::decode_dc_node(&mut ctx_sdf, arena_sdf.roots()[0])?;
+    ensure!(
+        decoded_sdf == some_default_finder,
+        "Some(FinderInfo::default()) roundtrip mismatch"
+    );
+    assert_dc_roundtrip(&some_default_finder)?;
+
     // Test rejection of invalid container opener (e.g. 310..311 list instead of 401..402)
     let mut mst_bad = DcMstring::new();
     mst_bad.push_char(DC_BEGIN_LIST);

@@ -2158,11 +2158,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
 
                         pub fn encode_fields_with_context(&self, mst: &mut #crate_root::DcMstring, _context: &#crate_root::SharedValueContext) -> #anyhow_path::Result<()> {
-                            let mut any_flags = false;
-                            #(#check_any_flags)*
-                            if !any_flags {
-                                return Ok(());
-                            }
                             mst.push_char(#crate_root::dc::DC_BEGIN_LIST);
                             mst.push_char(#crate_root::DcChar::from_short(275));
                             let mut first = true;
@@ -2250,18 +2245,63 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             if opener.to_u128() != #begin_dc || closer.to_u128() != #end_dc {
                                 #anyhow_path::bail!("Container delimiters mismatch for flag struct {}: expected {:#X}..{:#X}, found {opener}..{closer}", stringify!(#type_name), #begin_dc, #end_dc);
                             }
-                            if children.is_empty() {
-                                return Ok(Self::default());
-                            }
                             let mut result = Self::default();
-                            let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, unwrap_id)?;
-                            for (tag, item_id) in flag_items {
-                                let matched = result.decode_field(tag, ctx, item_id)?;
-                                if !matched {
-                                    ctx.handle_unconsumed_or_incomplete(
-                                        &[format!("Unknown flag Dc {tag:#X} for {}", stringify!(#type_name))],
-                                        &[],
-                                    )?;
+                            if ctx.policy.is_strict() {
+                                if children.len() != 1 {
+                                    #anyhow_path::bail!("Flag struct {} requires a single list container in strict mode", stringify!(#type_name));
+                                }
+                                let list_id = children[0];
+                                let list_node = ctx.node(list_id)?;
+                                let list_children = match &list_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Container { opener, children: lc, .. } if opener.to_short_dc() == ::std::option::Option::Some(310) => lc,
+                                    _ => #anyhow_path::bail!("Flag struct {} missing list container (Dc 310)", stringify!(#type_name)),
+                                };
+                                let mut iter = list_children.iter().copied();
+                                let first_id = iter.next().ok_or_else(|| #anyhow_path::anyhow!("Empty list in flag struct {}", stringify!(#type_name)))?;
+                                let first_node = ctx.node(first_id)?;
+                                match &first_node.kind {
+                                    #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(275) => {}
+                                    _ => #anyhow_path::bail!("Flag list container missing leading element separator (Dc 275)"),
+                                }
+                                let mut expecting_separator = false;
+                                for item_id in iter {
+                                    let item_node = ctx.node(item_id)?;
+                                    if expecting_separator {
+                                        match &item_node.kind {
+                                            #crate_root::navigator::DcSyntaxKind::Atom(ch) if ch.to_short_dc() == ::std::option::Option::Some(312) => {
+                                                expecting_separator = false;
+                                                continue;
+                                            }
+                                            _ => #anyhow_path::bail!("Missing list element separator (Dc 312) in flag struct {}", stringify!(#type_name)),
+                                        }
+                                    }
+                                    let tag = match &item_node.kind {
+                                        #crate_root::navigator::DcSyntaxKind::Atom(ch) => ch.to_u128(),
+                                        #crate_root::navigator::DcSyntaxKind::Tagged { tag, .. } => tag.to_u128(),
+                                        other => #anyhow_path::bail!("Unexpected syntax node in strict flag list: {other:?}"),
+                                    };
+                                    let matched = result.decode_field(tag, ctx, item_id)?;
+                                    if !matched {
+                                        ctx.handle_unconsumed_or_incomplete(
+                                            &[format!("Unknown flag Dc {tag:#X} in strict flag struct {}", stringify!(#type_name))],
+                                            &[],
+                                        )?;
+                                    }
+                                    expecting_separator = true;
+                                }
+                                if !expecting_separator && list_children.len() > 1 {
+                                    #anyhow_path::bail!("Trailing separator or malformed structure in strict flag list");
+                                }
+                            } else {
+                                let flag_items = #crate_root::dc_mixed_serde::extract_flag_nodes(ctx, unwrap_id)?;
+                                for (tag, item_id) in flag_items {
+                                    let matched = result.decode_field(tag, ctx, item_id)?;
+                                    if !matched {
+                                        ctx.handle_unconsumed_or_incomplete(
+                                            &[format!("Unknown flag Dc {tag:#X} for {}", stringify!(#type_name))],
+                                            &[],
+                                        )?;
+                                    }
                                 }
                             }
                             Ok(result)
@@ -3154,7 +3194,10 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             for (nid, group) in &nested_field_groups {
                 if group.iter().any(|(_, _, tag)| tag.is_some()) {
-                    let first_field = &group[0].0;
+                    let Some(first_entry) = group.first() else {
+                        continue;
+                    };
+                    let first_field = &first_entry.0;
                     field_name_arms.push(quote! {
                         #nid => Some(stringify!(#first_field)),
                     });

@@ -336,3 +336,70 @@ fn test_challenge_finder_info_boundary_values() -> Result<()> {
 
     Ok(())
 }
+
+#[crate::ctb_test]
+fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
+    let strict = DcProjectionPolicy::strict();
+
+    // 1. Default ExtendedFinderInfo roundtrip (Dc 490 491)
+    let default_ext = ExtendedFinderInfo::default();
+    ctb_formats_dcstring::assert_dc_document_roundtrip(&default_ext)?;
+    let default_finfo = FinderInfo {
+        extended: Some(default_ext),
+        ..FinderInfo::default()
+    };
+    ctb_formats_dcstring::assert_dc_document_roundtrip(&default_finfo)?;
+
+    // 2. ExtendedFinderInfo with custom xflags (Dc 562) roundtrip
+    let mut ext_with_flags = ExtendedFinderInfo::default();
+    ext_with_flags.xflags.custom_badge = true;
+    ext_with_flags.xflags.routing_info = true;
+    ctb_formats_dcstring::assert_dc_document_roundtrip(&ext_with_flags)?;
+
+    let make_archive = |finfo: FinderInfo| AppleArchive {
+        format: AppleFormat::AppleDouble,
+        version: 0x00020000,
+        real_name: None,
+        comment: None,
+        timestamps: None,
+        backup_timestamp_sec: None,
+        finder_info: Some(finfo),
+        extended_attributes: vec![],
+        unrecognized_entries: vec![],
+        data_fork: None,
+        resource_fork: None,
+        data_fork_size: None,
+        resource_fork_size: None,
+        entries: vec![],
+    };
+
+    // 3. AppleSingle binary roundtrip with scroll_position (folder frScroll) vs icon_id (file)
+    let mut finfo_scroll = FinderInfo::default();
+    finfo_scroll.extended = Some(ExtendedFinderInfo {
+        icon_id: 0,
+        scroll_position: Some((150, 300)),
+        ..ExtendedFinderInfo::default()
+    });
+    let archive_scroll = make_archive(finfo_scroll);
+    let written = ctb_formats_apple_single_double::write_apple_single_double(&archive_scroll)?;
+    let parsed = ctb_formats_apple_single_double::read_apple_single_double(&written)?;
+    let parsed_ext = parsed.finder_info.as_ref().and_then(|f| f.extended).context("Missing parsed extended info")?;
+    ensure!(parsed_ext.scroll_position == Some((150, 300)));
+    ensure!(parsed_ext.icon_id == 0);
+
+    // 4. AppleSingle binary roundtrip with custom icon_id (file)
+    let mut finfo_icon = FinderInfo::default();
+    finfo_icon.extended = Some(ExtendedFinderInfo {
+        icon_id: -16455,
+        scroll_position: None,
+        ..ExtendedFinderInfo::default()
+    });
+    let archive_icon = make_archive(finfo_icon);
+    let written_icon = ctb_formats_apple_single_double::write_apple_single_double(&archive_icon)?;
+    let parsed_icon = ctb_formats_apple_single_double::read_apple_single_double(&written_icon)?;
+    let parsed_ext_icon = parsed_icon.finder_info.as_ref().and_then(|f| f.extended).context("Missing parsed extended info")?;
+    ensure!(parsed_ext_icon.icon_id == -16455);
+    ensure!(parsed_ext_icon.scroll_position.is_none());
+
+    Ok(())
+}
