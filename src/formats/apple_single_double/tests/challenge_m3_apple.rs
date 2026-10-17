@@ -422,8 +422,10 @@ fn test_challenge_extended_finder_info_and_scroll_roundtrip() -> Result<()> {
     // Inject dirty non-zero bytes in file's reserved bytes 18..19 (bytes 18..20 of FinderInfo)
     // to test that a file with non-zero reserved bytes is NOT misclassified as having scroll_position
     if let Some(pos) = written_icon.windows(4).position(|w| w == b"TEXT") {
-        if let Some(slot) = written_icon.get_mut(pos + 18..pos + 20) {
-            slot.copy_from_slice(&[0x12, 0x34]);
+        if let (Some(start), Some(end)) = (pos.checked_add(18), pos.checked_add(20)) {
+            if let Some(slot) = written_icon.get_mut(start..end) {
+                slot.copy_from_slice(&[0x12, 0x34]);
+            }
         }
     }
     let parsed_icon = ctb_formats_apple_single_double::read_apple_single_double(&written_icon)?;

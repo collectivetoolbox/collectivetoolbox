@@ -509,15 +509,15 @@ for p in "${platforms[@]}"; do
 
         if [[ "$build_binaries" != "true" ]]; then
             echo "=== Running CLI compression tests ==="
+            cli_build_args=(--features debug)
+            if [[ "$release" == "release" ]]; then
+                cli_build_args=(--release)
+            fi
+            CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctoolbox --bin ctoolbox --target "$target" "${cli_build_args[@]}" || exit 1
             if [[ "$target" == *windows* ]]; then
-                cli_build_args=(--features debug)
-                if [[ "$release" == "release" ]]; then
-                    cli_build_args=(--release)
-                fi
-                CTB_BRANDING="$branding" RUSTFLAGS="$target_rustflags" cargo build $offline "${extra_cargo_flags[@]}" -p ctoolbox --bin ctoolbox --target "$target" "${cli_build_args[@]}" || exit 1
                 bash scripts/test-compression-cli "$CARGO_TARGET_X86_64_WIN7_WINDOWS_GNU_RUNNER $PWD/target/$target/$release/ctoolbox.exe" || exit 1
             else
-                bash scripts/test-compression-cli || exit 1
+                bash scripts/test-compression-cli "$PWD/target/$target/$release/ctoolbox" || exit 1
             fi
         fi
     fi
