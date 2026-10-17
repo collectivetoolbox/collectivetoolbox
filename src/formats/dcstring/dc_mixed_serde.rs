@@ -2740,11 +2740,12 @@ mod tests {
         incomplete.push_char(DcChar::from_short(312));
         "future".encode_dc_mixed(&mut incomplete)?;
         incomplete.push_binary_with_sha256(b"unknown value").unwrap();
-        let view = incomplete.inspect::<SampleKeyedRecord>();
+        let forgiving = DcProjectionPolicy::forgiving();
+        let view = incomplete.inspect_with_policy::<SampleKeyedRecord>(&forgiving);
         assert!(view.diagnostic().is_some());
         let end = view.fields()[0].range().end;
         let revised = view.replace_field("count", &updated)?;
-        let revised_end = revised.inspect::<SampleKeyedRecord>().fields()[0].range().end;
+        let revised_end = revised.inspect_with_policy::<SampleKeyedRecord>(&forgiving).fields()[0].range().end;
         assert_eq!(revised.as_bytes().get(revised_end..), incomplete.as_bytes().get(end..));
         Ok(())
     }

@@ -16,21 +16,21 @@
      id="namedview4"
      pagecolor="#ffffff"
      bordercolor="#000000"
-     borderopacity="0.25"
+     borderopacity="0"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="2"
-     inkscape:cx="36.5"
-     inkscape:cy="5.4999999"
+     inkscape:deskcolor="#ffffff"
+     inkscape:zoom="2.8284271"
+     inkscape:cx="0.1767767"
+     inkscape:cy="-114.90485"
      inkscape:window-width="2259"
-     inkscape:window-height="1199"
+     inkscape:window-height="1203"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg4"
-     showguides="true">
+     showguides="false">
     <sodipodi:guide
        position="2.4250714,4.2164967"
        orientation="0,-1"
@@ -54,6 +54,12 @@
   </sodipodi:namedview>
   <defs
      id="defs2">
+    <rect
+       x="-181.01934"
+       y="-340.11836"
+       width="6.363961"
+       height="33.941125"
+       id="rect1" />
     <linearGradient
        id="a">
       <stop
@@ -81,7 +87,7 @@
        d="M36.069 295.112h1250.402v204.393H36.069z" />
   </defs>
   <rect
-     style="fill:#ffffff;fill-opacity:1;stroke-width:0.40783;stroke-opacity:0.143911"
+     style="fill:none;fill-opacity:1;stroke-width:0.40783;stroke-opacity:0.143911"
      id="rect6"
      width="6.3502994"
      height="6.3502994"
@@ -89,17 +95,17 @@
      y="-8.6736174e-19" />
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-size:7.77212px;font-family:'Quicksand Light';-inkscape-font-specification:'Quicksand Light,  Light';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#c3bcd0;stroke-width:1.34071;stroke-opacity:0.143911"
-     x="7.769218"
-     y="5.7513695"
+     style="font-style:normal;font-variant:normal;font-weight:300;font-stretch:normal;font-size:7.75401px;font-family:'Quicksand Light';-inkscape-font-specification:'Quicksand Light,  Light';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#c3bcd0;stroke-width:1.33759;stroke-opacity:0.143911"
+     x="8.2336044"
+     y="5.7379704"
      id="text4"
-     transform="scale(0.91792373,1.0894151)"><tspan
+     transform="scale(0.91578517,1.0919592)"><tspan
        sodipodi:role="line"
        id="tspan4"
-       style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-family:'Quicksand Medium';-inkscape-font-specification:'Quicksand Medium,  Medium';fill:#000000;fill-opacity:1;stroke-width:1.34071"
-       x="7.769218"
-       y="5.7513695">Collective<tspan
-   style="font-size:2.12126px;stroke-width:1.34071"
+       style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-family:'Quicksand Medium';-inkscape-font-specification:'Quicksand Medium,  Medium';fill:#000000;fill-opacity:1;stroke-width:1.33759"
+       x="8.2336044"
+       y="5.7379704">Collective<tspan
+   style="font-size:1.58641px;stroke-width:1.33759"
    id="tspan5"> </tspan>Toolbox</tspan></text>
   <rect
      style="fill:#0009a1;fill-opacity:1;stroke-width:0.425999;stroke-opacity:0.143911"
@@ -220,4 +226,9 @@
      height="0.22024298"
      x="3.089911"
      y="3.0912127" />
+  <text
+     xml:space="preserve"
+     transform="matrix(0.2645958,0,0,0.2645958,-0.00136155,0)"
+     id="text1"
+     style="fill:none;-inkscape-font-specification:'Quicksand Medium,  Medium';font-family:'Quicksand Medium';font-size:5.33333333px;stroke-opacity:0.14391144;text-orientation:auto;stroke-width:1.61;font-weight:500;text-align:start;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1)" />
 </svg>

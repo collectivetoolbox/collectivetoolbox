@@ -2753,8 +2753,12 @@ impl<'a> DcDocumentNavigator<'a> {
         policy: &DcProjectionPolicy,
     ) -> Result<(u64, u64)> {
         let resolver = default_syntax_resolver();
-        ensure!(self.depth() < policy.max_depth,
-            "Container depth limit reached ({}) at offset {after_opener}", policy.max_depth);
+        if self.depth() >= policy.max_depth {
+            policy.handle(policy.depth_limit_exceeded, format!(
+                "Container depth limit reached ({}) at offset {after_opener}",
+                policy.max_depth,
+            ))?;
+        }
         let mut closer_stack = vec![(closer, resolver.is_opaque_container(opener.to_u128()))];
         let mut offset = after_opener;
 
@@ -2824,9 +2828,17 @@ impl<'a> DcDocumentNavigator<'a> {
             }
             if let Some(target) = CharTarget::from_u128(ch.to_u128()) {
                 if let Some(inner_closer) = resolver.closer_for_opener(&target) {
-                    ensure!(self.depth().saturating_add(closer_stack.len()) < policy.max_depth,
-                        "Container depth limit reached ({}) at offset {token_start}", policy.max_depth);
-                    closer_stack.push((DcChar::from_u128(inner_closer), resolver.is_opaque_container(ch.to_u128())));
+                    if self.depth().saturating_add(closer_stack.len()) >= policy.max_depth {
+                        policy.handle(policy.depth_limit_exceeded, format!(
+                            "Container depth limit reached ({}) at offset {token_start}",
+                            policy.max_depth,
+                        ))?;
+                    }
+                    closer_stack.try_reserve(1)?;
+                    closer_stack.push((
+                        DcChar::from_u128(inner_closer),
+                        resolver.is_opaque_container(ch.to_u128()),
+                    ));
                 }
             }
             offset = next_offset;
@@ -3692,7 +3704,9 @@ impl<'a> DcDocumentNavigator<'a> {
         let old_depth = ctx.depth;
         let old_self = ctx.self_dc;
         let type_term = SyntaxTerm::NamedConstruct {
-            name: "type".to_owned(), subtype: None, capture_var: None,
+            name: "type".to_owned(),
+            subtype: None,
+            capture_var: None,
         };
         let result = (|| -> Result<bool> {
             let mut frames = vec![Frame::Term(type_term)];
@@ -3710,15 +3724,22 @@ impl<'a> DcDocumentNavigator<'a> {
                         } else if let SyntaxTerm::NamedConstruct { name, subtype, .. } = &term {
                             if name == "list" {
                                 ctx.resolver.resolve_named_type_with_arg(name, subtype.as_deref())
-                            } else { None }
+                            } else {
+                                None
+                            }
                         } else if let SyntaxTerm::RuleRef { target } = &term {
                             ctx.resolver.resolve_rule(target).map(|rule| rule.pattern.clone())
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some(pattern) = pattern {
                             if ctx.depth >= ctx.max_depth {
                                 ctx.has_errors = true;
                                 ctx.diagnostics.push(SyntaxDiagnostic {
-                                    message: format!("Syntax expansion depth limit reached ({}) for type constructor", ctx.max_depth),
+                                    message: format!(
+                                        "Syntax expansion depth limit reached ({}) for type constructor",
+                                        ctx.max_depth
+                                    ),
                                     token_offset: self.cursor,
                                     is_error: true,
                                 });
@@ -3726,8 +3747,12 @@ impl<'a> DcDocumentNavigator<'a> {
                             }
                             frames.push(Frame::Restore(ctx.self_dc, ctx.depth, self.cursor));
                             ctx.depth = ctx.depth.saturating_add(1);
-                            if constructor { ctx.self_dc = token.map(DcChar::to_u128); }
-                            if let SyntaxTerm::RuleRef { target } = &term { ctx.self_dc = Some(target.to_u128()); }
+                            if constructor {
+                                ctx.self_dc = token.map(DcChar::to_u128);
+                            }
+                            if let SyntaxTerm::RuleRef { target } = &term {
+                                ctx.self_dc = Some(target.to_u128());
+                            }
                             frames.push(Frame::Pattern(pattern));
                         } else if constructor {
                             matched = false;
@@ -3743,13 +3768,19 @@ impl<'a> DcDocumentNavigator<'a> {
                             matched = true;
                         }
                         SyntaxPattern::Alternation(branches) => {
-                            let Some(branch) = branches.first().cloned() else { matched = false; continue; };
+                            let Some(branch) = branches.first().cloned() else {
+                                matched = false;
+                                continue;
+                            };
                             frames.push(Frame::Alternation(branches, 1, self.cursor, ctx.clone()));
                             frames.push(Frame::Pattern(branch));
                         }
                     },
                     Frame::Sequence(elements, index, sequence_start) => {
-                        if !matched { self.cursor = sequence_start; continue; }
+                        if !matched {
+                            self.cursor = sequence_start;
+                            continue;
+                        }
                         if let Some(element) = elements.get(index).cloned() {
                             frames.push(Frame::Sequence(elements, index.saturating_add(1), sequence_start));
                             frames.push(Frame::Element(element.clone(), 0, self.cursor, self.cursor));
@@ -3757,16 +3788,22 @@ impl<'a> DcDocumentNavigator<'a> {
                         }
                     }
                     Frame::Alternation(branches, index, branch_start, saved_ctx) => {
-                        if matched && !ctx.has_errors { continue; }
+                        if matched && !ctx.has_errors {
+                            continue;
+                        }
                         self.cursor = branch_start;
                         *ctx = saved_ctx.clone();
                         if let Some(branch) = branches.get(index).cloned() {
                             frames.push(Frame::Alternation(branches, index.saturating_add(1), branch_start, saved_ctx));
                             frames.push(Frame::Pattern(branch));
-                        } else { matched = false; }
+                        } else {
+                            matched = false;
+                        }
                     }
                     Frame::Element(element, count, element_start, iteration_start) => {
-                        let count = if matched && !ctx.has_errors { count.saturating_add(1) } else {
+                        let count = if matched && !ctx.has_errors {
+                            count.saturating_add(1)
+                        } else {
                             self.cursor = iteration_start;
                             count
                         };
@@ -3783,12 +3820,16 @@ impl<'a> DcDocumentNavigator<'a> {
                             Quantifier::OneOrMore => count >= 1,
                             Quantifier::Range { min, max } => count >= min && max.is_none_or(|limit| count <= limit),
                         };
-                        if !matched { self.cursor = element_start; }
+                        if !matched {
+                            self.cursor = element_start;
+                        }
                     }
                     Frame::Restore(self_dc, depth, rule_start) => {
                         ctx.self_dc = self_dc;
                         ctx.depth = depth;
-                        if !matched { self.cursor = rule_start; }
+                        if !matched {
+                            self.cursor = rule_start;
+                        }
                     }
                 }
             }
@@ -3796,7 +3837,9 @@ impl<'a> DcDocumentNavigator<'a> {
         })();
         ctx.depth = old_depth;
         ctx.self_dc = old_self;
-        if !matches!(result, Ok(true)) { self.cursor = start; }
+        if !matches!(result, Ok(true)) {
+            self.cursor = start;
+        }
         result
     }
 

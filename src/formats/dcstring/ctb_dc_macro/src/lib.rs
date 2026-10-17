@@ -1988,6 +1988,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             for &__dc_field_spec in __dc_projected_fields {
                                 let tag = __dc_field_spec.tag;
                                 let val_id = __dc_field_spec.value_node;
+                                let unwrap_id = __dc_field_spec.source_node;
                                 ctx.current_position = ctx.node(__dc_field_spec.source_node)?.span.start;
                                 let field_result: #anyhow_path::Result<bool> = (|| {
                                     match tag {
@@ -3537,6 +3538,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let tag = __dc_field_spec.tag;
                                 let val_id = __dc_field_spec.value_node;
                                 let child_id = __dc_field_spec.source_node;
+                                let unwrap_id = child_id;
                                 ctx.current_position = ctx.node(child_id)?.span.start;
                                 let field_name = match tag {
                                     #(#field_name_arms)*

@@ -1211,7 +1211,6 @@ pub fn guess_format_report(
             // so a specific format guaranteed to be, say, UTF-8 text outranks
             // the bare generic encoding candidate (the mechanism is general:
             // any format implying an encoding format is corroborated).
-            let mut corroborated = false;
             if let Some(te) = &text_encoding_evidence {
                 let implies_compatible_encoding = fmt.implies().iter().any(|implied| {
                     implied.category() == FormatCategory::Encoding
@@ -1220,21 +1219,10 @@ pub fn guess_format_report(
                 if implies_compatible_encoding {
                     final_score = final_score.saturating_add(te.score);
                     evidence.extend(te.items.clone());
-                    corroborated = true;
                 }
             }
 
-            let confidence = if corroborated {
-                // Corroborated candidates carry direct content evidence, so
-                // recompute the tier like the extension-concordance path above.
-                if final_score >= 85 {
-                    ConfidenceTier::HighestConfidence
-                } else if final_score >= 65 {
-                    ConfidenceTier::Strong
-                } else {
-                    ConfidenceTier::Moderate
-                }
-            } else if final_score >= 65 {
+            let confidence = if final_score >= 65 {
                 ConfidenceTier::Moderate
             } else {
                 ConfidenceTier::Weak

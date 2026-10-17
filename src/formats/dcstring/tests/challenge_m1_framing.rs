@@ -95,36 +95,38 @@ fn test_challenge_opaque_comment_payload_framing() -> Result<()> {
 
     let policy = DcProjectionPolicy::strict();
     for payload in [vec![sdc(317)], vec![sdc(317), sdc(255), sdc(248), sdc(260), sdc(6)]] {
-      for nested in [false, true] {
-        let mut chars = vec![sdc(246)];
-        chars.extend(payload.iter().copied());
-        chars.extend([sdc(248), DC_BOOLEAN_TRUE]);
-        if nested {
-            chars.insert(0, DC_BEGIN_OPERATION_SESSION);
-            chars.push(DC_END_OPERATION_SESSION);
-        }
-        let doc = create_mstring(&chars);
-        let mut text = DcString::new();
-        for ch in chars { text.push(ch); }
-        let mut file = tempfile::tempfile()?;
-        file.write_all(doc.as_ref())?;
-        file.seek(SeekFrom::Start(0))?;
-        for mut nav in [
-            DcDocumentNavigator::from_mstr(&doc),
-            DcDocumentNavigator::from_dc_str(&text),
-            DcDocumentNavigator::from_dcmm_file(file, 0)?,
-        ] {
+                for nested in [false, true] {
+                    let mut chars = vec![sdc(246)];
+                    chars.extend(payload.iter().copied());
+                    chars.extend([sdc(248), DC_BOOLEAN_TRUE]);
             if nested {
-                let session = nav.next_sibling_stub(&policy)?.context("Expected session")?;
-                nav.enter_frame(&session)?;
+                        chars.insert(0, DC_BEGIN_OPERATION_SESSION);
+                        chars.push(DC_END_OPERATION_SESSION);
+                    }
+                    let doc = create_mstring(&chars);
+                    let mut text = DcString::new();
+                    for ch in chars {
+                        text.push(ch);
+                    }
+                    let mut file = tempfile::tempfile()?;
+                    file.write_all(doc.as_ref())?;
+                    file.seek(SeekFrom::Start(0))?;
+                    for mut nav in [
+                        DcDocumentNavigator::from_mstr(&doc),
+                        DcDocumentNavigator::from_dc_str(&text),
+                        DcDocumentNavigator::from_dcmm_file(file, 0)?,
+                    ] {
+                        if nested {
+                            let session = nav.next_sibling_stub(&policy)?.context("Expected session")?;
+                            nav.enter_frame(&session)?;
+                        }
+                        let comment = nav.next_sibling_stub(&policy)?.context("Expected opaque comment")?;
+                        ensure!(comment.head_dc == sdc(246) && comment.closer_dc == Some(sdc(248)));
+                        ensure!(!comment.is_unclosed());
+                        ensure!(nav.next_sibling_stub(&policy)?.context("Expected sentinel")?.head_dc == DC_BOOLEAN_TRUE);
+                        ensure!(nav.next_sibling_stub(&policy)?.is_none());
             }
-            let comment = nav.next_sibling_stub(&policy)?.context("Expected opaque comment")?;
-            ensure!(comment.head_dc == sdc(246) && comment.closer_dc == Some(sdc(248)));
-            ensure!(!comment.is_unclosed());
-            ensure!(nav.next_sibling_stub(&policy)?.context("Expected sentinel")?.head_dc == DC_BOOLEAN_TRUE);
-            ensure!(nav.next_sibling_stub(&policy)?.is_none());
-        }
-      }
+                }
     }
     Ok(())
 }
