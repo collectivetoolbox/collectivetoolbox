@@ -466,6 +466,18 @@ pub struct ProbableFormatChain {
     pub score: u32,
 }
 
+impl ProbableFormatChain {
+    /// Converts this format chain into a format specification string representation,
+    /// ordering layers from innermost payload to outermost container (`inner > ... > outer`).
+    #[must_use]
+    pub fn to_format_spec_string(&self) -> String {
+        let mut rev_layers = self.layers.clone();
+        rev_layers.reverse();
+        let names: Vec<String> = rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
+        names.join(" > ")
+    }
+}
+
 /// Represents a structured chain of format layers parsed from a multipart filename (e.g. .html.gz).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatChain {
@@ -491,7 +503,8 @@ impl FormatChain {
     }
 }
 
-/// Parses a filename or path into candidate format chains, branching on ambiguous extensions.
+/// Parses a filename or path into candidate format chains, branching on ambiguous extensions
+/// and peeling recognized extension layers indefinitely.
 pub fn guess_format_chains(
     filename: &str,
     platform: Option<FormatId>,
@@ -514,41 +527,89 @@ pub fn guess_format_chains(
         return Vec::new();
     }
 
-    let mut results = Vec::new();
+    // Peel subsequent inner extensions indefinitely as long as remaining parts
+    // resolve to recognized format candidates and leave a stem.
+    let mut peeled_layers: Vec<Vec<(FormatId, u32)>> = vec![outer_candidates];
+    while parts.len() > 1 {
+        let next_ext = match parts.last() {
+            Some(&ext) => ext,
+            None => break,
+        };
+        let candidates = resolve_extension_candidates(next_ext, platform);
+        if candidates.is_empty() {
+            break;
+        }
+        parts.pop();
+        peeled_layers.push(candidates);
+    }
 
-    for (outer_fmt, outer_score) in outer_candidates {
-        if parts.len() > 1 {
-            let inner_ext = match parts.last() {
-                Some(&ext) => ext,
-                None => "",
+    let stem = parts.join(".");
+    let num_layers = peeled_layers.len();
+
+    let mut results = Vec::new();
+    let mut current_layers = Vec::with_capacity(num_layers);
+    let mut current_scores = Vec::with_capacity(num_layers);
+
+    fn build_cartesian_chains(
+        peeled: &[Vec<(FormatId, u32)>],
+        depth: usize,
+        current_layers: &mut Vec<FormatId>,
+        current_scores: &mut Vec<u32>,
+        stem: &str,
+        results: &mut Vec<ProbableFormatChain>,
+    ) {
+        if depth == peeled.len() {
+            let Some(&outer) = current_layers.first() else {
+                return;
             };
-            let inner_candidates = resolve_extension_candidates(inner_ext, platform);
-            if !inner_candidates.is_empty() {
-                // Reason for fallback: single-component filename without stem defaults to empty prefix slice
-                let stem = parts.get(..parts.len().saturating_sub(1)).unwrap_or(&[]).join(".");
-                for (inner_fmt, inner_score) in inner_candidates {
-                    let combined_score = outer_score.saturating_add(inner_score) / 2;
-                    results.push(ProbableFormatChain {
-                        outer: outer_fmt,
-                        inner: Some(inner_fmt),
-                        layers: vec![outer_fmt, inner_fmt],
-                        stem: stem.clone(),
-                        score: combined_score,
-                    });
-                }
-                continue;
-            }
+            let inner = if current_layers.len() > 1 {
+                current_layers.last().copied()
+            } else {
+                None
+            };
+            let sum_score: u64 = current_scores.iter().map(|&s| u64::from(s)).sum();
+            let len_u64 = match u64::try_from(current_scores.len()) {
+                Ok(len) if len > 0 => len,
+                _ => 1,
+            };
+            let avg_u64 = sum_score.checked_div(len_u64).unwrap_or(0);
+            let avg_score = u32::try_from(avg_u64).unwrap_or(0);
+            results.push(ProbableFormatChain {
+                outer,
+                inner,
+                layers: current_layers.clone(),
+                stem: stem.to_string(),
+                score: avg_score,
+            });
+            return;
         }
 
-        let stem = parts.join(".");
-        results.push(ProbableFormatChain {
-            outer: outer_fmt,
-            inner: None,
-            layers: vec![outer_fmt],
-            stem,
-            score: outer_score,
-        });
+        if let Some(cands) = peeled.get(depth) {
+            for &(fmt, score) in cands {
+                current_layers.push(fmt);
+                current_scores.push(score);
+                build_cartesian_chains(
+                    peeled,
+                    depth.saturating_add(1),
+                    current_layers,
+                    current_scores,
+                    stem,
+                    results,
+                );
+                current_scores.pop();
+                current_layers.pop();
+            }
+        }
     }
+
+    build_cartesian_chains(
+        &peeled_layers,
+        0,
+        &mut current_layers,
+        &mut current_scores,
+        &stem,
+        &mut results,
+    );
 
     boost_common_implied_ancestors(&mut results);
 
@@ -557,63 +618,72 @@ pub fn guess_format_chains(
 }
 
 /// Boosts, by one point, each chain in an exact-score tie group whose
-/// branching format is transitively implied by the same layer of every
-/// other member. When an ambiguous extension resolves to a format family
-/// whose members all `@implies()` a shared general format (e.g. the
-/// CscJournal variants), the extension could not distinguish between the
-/// candidates, so the undifferentiated superset gets a minimal +1 nudge to
-/// rank first without distorting the wider score tiers used for confidence.
+/// branching format at any layer is transitively implied by all other
+/// siblings that match on every other layer. When an ambiguous extension
+/// resolves to a format family whose members all `@implies()` a shared
+/// general format (e.g. the CscJournal variants), the extension could not
+/// distinguish between the candidates, so the undifferentiated superset gets
+/// a minimal +1 nudge to rank first without distorting the wider score tiers
+/// used for confidence.
 ///
-/// Chains are compared on the layer where the tie actually branches: the
-/// outermost format when the members' outers differ, otherwise the inner
-/// payload format. Two-layer chains like `.cscjournal.gz` branch on their
-/// ambiguous inner extension while sharing one outer format, so the nudge
-/// keys on the inner layer there, and on the sole (outer) layer for
-/// single-layer chains.
+/// Multi-layer chains (such as `.cscjournal.sz`) branch at each ambiguous
+/// extension independently. Sibling comparison is performed per-layer: two
+/// chains are siblings at layer `k` if they share the exact same formats at all
+/// other layers `j != k`, are tied in score, and differ at layer `k`.
 fn boost_common_implied_ancestors(chains: &mut [ProbableFormatChain]) {
-    // All decisions are computed from the pre-boost scores so a boosted chain
-    // cannot cascade into a neighboring score tier's tie group.
-    let boosted: Vec<bool> = chains
-        .iter()
-        .enumerate()
-        .map(|(idx, chain)| {
-            let tied: Vec<&ProbableFormatChain> = chains
-                .iter()
-                .enumerate()
-                .filter(|(other_idx, other)| {
-                    *other_idx != idx && other.score == chain.score
-                })
-                .map(|(_, other)| other)
-                .collect();
-            !tied.is_empty()
-                && tied
-                    .iter()
-                    .all(|other| tied_member_implies_chain(chain, other))
-        })
-        .collect();
+    let mut boosts = vec![0u32; chains.len()];
 
-    for (chain, &is_boosted) in chains.iter_mut().zip(&boosted) {
+    for (idx, chain) in chains.iter().enumerate() {
+        let n = chain.layers.len();
+        if n == 0 {
+            continue;
+        }
+        let mut is_boosted = false;
+        for k in 0..n {
+            let Some(&chain_fmt_at_k) = chain.layers.get(k) else {
+                continue;
+            };
+
+            let mut siblings_at_k = Vec::new();
+            for (other_idx, other) in chains.iter().enumerate() {
+                if other_idx == idx || other.score != chain.score || other.layers.len() != n {
+                    continue;
+                }
+                let matches_others = (0..n).all(|j| {
+                    if j == k {
+                        other.layers.get(j) != Some(&chain_fmt_at_k)
+                    } else {
+                        other.layers.get(j) == chain.layers.get(j)
+                    }
+                });
+                if matches_others {
+                    if let Some(&other_fmt) = other.layers.get(k) {
+                        siblings_at_k.push(other_fmt);
+                    }
+                }
+            }
+
+            if !siblings_at_k.is_empty()
+                && siblings_at_k.iter().all(|other_fmt| {
+                    other_fmt.implies().contains(&chain_fmt_at_k)
+                })
+            {
+                is_boosted = true;
+                break;
+            }
+        }
+
         if is_boosted {
-            chain.score = chain.score.saturating_add(1);
+            if let Some(b) = boosts.get_mut(idx) {
+                *b = 1;
+            }
         }
     }
-}
 
-/// Whether the branching layer of the tied member `other` implies the
-/// corresponding layer of `chain`: the outermost format when the two chains'
-/// outers differ, and otherwise the inner payload format. Equal layers never
-/// imply one another because `implies()` is irreflexive, so a tied member
-/// sharing both of `chain`'s formats fails the check and blocks the boost.
-fn tied_member_implies_chain(
-    chain: &ProbableFormatChain,
-    other: &ProbableFormatChain,
-) -> bool {
-    if other.outer != chain.outer {
-        other.outer.implies().contains(&chain.outer)
-    } else if let (Some(other_fmt), Some(fmt)) = (other.inner, chain.inner) {
-        other_fmt.implies().contains(&fmt)
-    } else {
-        false
+    for (chain, &b) in chains.iter_mut().zip(&boosts) {
+        if b > 0 {
+            chain.score = chain.score.saturating_add(b);
+        }
     }
 }
 
@@ -733,6 +803,46 @@ mod tests {
         assert_eq!(chains.len(), 2);
         assert!(chains.iter().all(|chain| chain.outer == FormatId::Gzip));
         assert!(chains.iter().all(|chain| chain.score == 50));
+    }
+
+    #[ctb_test]
+    fn test_tie_boost_multi_ambiguous_layers() {
+        // Both .sz (5 candidates) and .cscjournal (5 candidates) branch, producing
+        // 25 chains. Sibling comparison per-layer allows CscJournal to be recognized
+        // as the superset at the inner layer for every outer variant, giving it
+        // score 51 over the 50-scored variant inner formats.
+        let chains = guess_format_chains("v4_dcmixed.cscjournal.sz", None);
+        assert_eq!(chains.len(), 25);
+        // The top candidate has CscJournal inner format with boosted score 51
+        assert_eq!(chains[0].outer, FormatId::Szip);
+        assert_eq!(chains[0].inner, Some(FormatId::CscJournal));
+        assert_eq!(chains[0].score, 51);
+
+        // Every outer variant's CscJournal chain is boosted to 51
+        let boosted_inners: Vec<(FormatId, Option<FormatId>, u32)> = chains
+            .iter()
+            .filter(|c| c.score == 51)
+            .map(|c| (c.outer, c.inner, c.score))
+            .collect();
+        assert_eq!(boosted_inners.len(), 5);
+        for (_, inner, score) in boosted_inners {
+            assert_eq!(inner, Some(FormatId::CscJournal));
+            assert_eq!(score, 51);
+        }
+    }
+
+    #[ctb_test]
+    fn test_indefinite_peeling_three_layers() {
+        // archive.tar.gz.br has 3 extension layers: .br -> .gz -> .tar
+        let chains = guess_format_chains("archive.tar.gz.br", None);
+        assert!(!chains.is_empty());
+        let top = &chains[0];
+        assert_eq!(top.layers.len(), 3);
+        assert_eq!(top.outer, FormatId::Brotli);
+        assert_eq!(top.inner, Some(FormatId::Tar));
+        assert_eq!(top.layers, vec![FormatId::Brotli, FormatId::Gzip, FormatId::Tar]);
+        assert_eq!(top.stem, "archive");
+        assert_eq!(top.to_format_spec_string(), "Tar > Gzip > Brotli");
     }
 }
 /*

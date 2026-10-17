@@ -3758,6 +3758,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let field_ids: &[#crate_root::NodeId] = match &variant_node.kind {
                                     #crate_root::navigator::DcSyntaxKind::Tagged { args, .. } => args.as_slice(),
                                     #crate_root::navigator::DcSyntaxKind::Container { children, .. } => children.as_slice(),
+                                    #crate_root::navigator::DcSyntaxKind::Atom(_) => if children.len() > 1 { &children[1..] } else { &[] },
                                     _ => &[],
                                 };
                                 for &ch_id in field_ids {

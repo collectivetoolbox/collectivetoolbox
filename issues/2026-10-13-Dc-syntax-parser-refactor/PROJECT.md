@@ -7,9 +7,6 @@ subset of the original refactor, not certification of feature completion.
 
 ### Remaining Gaps vs Original Request
 
-- Generated struct and enum projectors still reconstruct some atom-based field
-    syntax. Remove this lookahead in favor of normalized parser-owned nodes before
-    claiming the requested parsing/projection separation is complete.
 - Syntax rules are indexed at runtime; the planned generated static syntax
     table remains pending.
 - Textual encapsulation metadata retains a fixed 32-level nesting guard rather
@@ -26,6 +23,9 @@ subset of the original refactor, not certification of feature completion.
 
 ### Correctness Remediation
 
+- Generated struct and enum projectors perform single-pass iteration with zero
+    lookahead; atom-based field tag/value pairs are normalized into parser-owned
+    `Tagged` nodes during arena building.
 - File-backed binary checksums are verified with bounded streaming reads;
     mismatches error under strict policy and warn under forgiving policy.
 - Metadata and payload bounds are checked before allocation. Metadata uses

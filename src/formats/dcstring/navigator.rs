@@ -1964,7 +1964,7 @@ impl<'a> DcDocumentNavigator<'a> {
             return nodes;
         }
 
-        // Pass 1: Right-to-left pairing of atom tags with their immediate values.
+        // Right-to-left pairing of atom tags with their immediate values into Tagged nodes.
         let mut stack: Vec<NodeId> = Vec::with_capacity(nodes.len());
         for &node_id in nodes.iter().rev() {
             let Some(node) = arena.get(node_id) else {
@@ -1994,40 +1994,7 @@ impl<'a> DcDocumentNavigator<'a> {
             stack.push(node_id);
         }
         stack.reverse();
-        let mut processed = stack;
-
-        // Pass 2: Enum variant grouping.
-        // If the container begins with an atom variant tag followed by structured fields,
-        // group the fields under a Tagged node for the variant.
-        if processed.len() > 1 {
-            let first_id = processed[0];
-            if let Some(first_node) = arena.get(first_id) {
-                if let DcSyntaxKind::Atom(variant_tag) = first_node.kind {
-                    if !Self::is_separator(variant_tag) && !Self::is_value_atom(variant_tag) {
-                        let has_structured_field = processed[1..].iter().any(|&id| {
-                            arena.get(id).map_or(false, |n| !matches!(n.kind, DcSyntaxKind::Atom(_)))
-                        });
-                        if has_structured_field {
-                            let fields = processed[1..].to_vec();
-                            let start = first_node.span.start;
-                            let last_id = fields.last().copied().unwrap_or(first_id);
-                            let end = arena.get(last_id).map_or(start, |n| n.span.end);
-                            let span = DcByteSpan::new(start, start.max(end));
-                            let variant_node_id = arena.alloc(
-                                span,
-                                DcSyntaxKind::Tagged {
-                                    tag: variant_tag,
-                                    args: fields,
-                                },
-                            );
-                            processed = vec![variant_node_id];
-                        }
-                    }
-                }
-            }
-        }
-
-        processed
+        stack
     }
 
     /// Parses a single root node from `bytes` into `arena` using `policy`.

@@ -470,6 +470,10 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
         return candidates;
     }
 
+    // 0. Boost common implied ancestors in exact-score tie groups so undifferentiated
+    // general formats rank above their variants rather than being prematurely subsumed.
+    let boosted_ancestors = boost_candidate_implied_ancestors(&mut candidates);
+
     let mut subsumed_indices = std::collections::HashSet::new();
     let num_candidates = candidates.len();
 
@@ -485,6 +489,14 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
             let Some(parent_candidate) = candidates.get(j) else {
                 continue;
             };
+
+            // A candidate boosted as the common implied ancestor cannot be subsumed
+            // by the very variants that imply it.
+            if let Some(p_fmt) = parent_candidate.format_id {
+                if boosted_ancestors.contains(&p_fmt) {
+                    continue;
+                }
+            }
 
             let is_subclass = match (child_candidate.format_id, parent_candidate.format_id) {
                 (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
@@ -637,6 +649,67 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     candidates
 }
 
+/// Boosts, by one point, each candidate in an exact-score/confidence tie group whose
+/// format is transitively implied by all other related tied candidates, returning the
+/// set of boosted format IDs so they are protected from subsequent subsumption.
+fn boost_candidate_implied_ancestors(
+    candidates: &mut [DetectionCandidate],
+) -> std::collections::HashSet<FormatId> {
+    let mut boosted_set = std::collections::HashSet::new();
+    let num_candidates = candidates.len();
+    if num_candidates <= 1 {
+        return boosted_set;
+    }
+
+    let mut boosts = vec![0u32; num_candidates];
+
+    for (idx, cand) in candidates.iter().enumerate() {
+        let Some(cand_fid) = cand.format_id else {
+            continue;
+        };
+
+        let mut related_siblings = Vec::new();
+        for (other_idx, other) in candidates.iter().enumerate() {
+            if other_idx == idx || other.score != cand.score || other.confidence != cand.confidence {
+                continue;
+            }
+            let Some(other_fid) = other.format_id else {
+                continue;
+            };
+            if other_fid == cand_fid {
+                continue;
+            }
+
+            let is_related = other_fid.implies().contains(&cand_fid)
+                || cand_fid.implies().contains(&other_fid)
+                || other_fid.category() == cand_fid.category();
+
+            if is_related {
+                related_siblings.push(other_fid);
+            }
+        }
+
+        if !related_siblings.is_empty()
+            && related_siblings.iter().all(|&other_fid| {
+                other_fid.implies().contains(&cand_fid)
+            })
+        {
+            if let Some(b) = boosts.get_mut(idx) {
+                *b = 1;
+            }
+            boosted_set.insert(cand_fid);
+        }
+    }
+
+    for (cand, &b) in candidates.iter_mut().zip(&boosts) {
+        if b > 0 {
+            cand.score = cand.score.saturating_add(b);
+        }
+    }
+
+    boosted_set
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -691,6 +764,53 @@ mod tests {
             ev,
             DetectionEvidence::SubsumedAncestor { parent_id: Some(p), .. } if *p == FormatId::Xml
         )));
+    }
+
+    #[ctb_test]
+    fn test_resolve_candidate_conflicts_tie_boost() {
+        // Tied candidates without differentiating evidence: CscJournal is implied
+        // by its variants, so it receives a +1 boost (50 -> 51) and ranks first.
+        let candidates = vec![
+            DetectionCandidate {
+                format_id: Some(FormatId::CscJournal4),
+                dc_id: None,
+                mime: None,
+                description: "CscJournal4".to_string(),
+                confidence: ConfidenceTier::Weak,
+                score: 50,
+                evidence: Vec::new(),
+                chain_layers: None,
+            },
+            DetectionCandidate {
+                format_id: Some(FormatId::CscJournal),
+                dc_id: None,
+                mime: None,
+                description: "CscJournal".to_string(),
+                confidence: ConfidenceTier::Weak,
+                score: 50,
+                evidence: Vec::new(),
+                chain_layers: None,
+            },
+            DetectionCandidate {
+                format_id: Some(FormatId::CscJournal1Meta1),
+                dc_id: None,
+                mime: None,
+                description: "CscJournal1Meta1".to_string(),
+                confidence: ConfidenceTier::Weak,
+                score: 50,
+                evidence: Vec::new(),
+                chain_layers: None,
+            },
+        ];
+
+        let resolved = resolve_candidate_conflicts(candidates);
+        assert_eq!(resolved.len(), 3);
+        assert_eq!(resolved[0].format_id, Some(FormatId::CscJournal));
+        assert_eq!(resolved[0].score, 51);
+        assert_eq!(resolved[1].format_id, Some(FormatId::CscJournal4));
+        assert_eq!(resolved[1].score, 50);
+        assert_eq!(resolved[2].format_id, Some(FormatId::CscJournal1Meta1));
+        assert_eq!(resolved[2].score, 0); // subsumed by CscJournal4
     }
 }
 /*
