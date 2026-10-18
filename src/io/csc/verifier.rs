@@ -525,8 +525,8 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         );
     }
 
-    let target_dir = if let Some(ref custom_dir) = args.dir {
-        custom_dir.clone()
+    let target_dir = if let Some(custom_dir) = args.target_directory() {
+        custom_dir.to_path_buf()
     } else {
         snapshot.destination.clone()
     };
@@ -538,7 +538,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     );
     anyhow::ensure!(
         target_dir.is_dir(),
-        "Target path to verify is not a directory: {}",
+        "Target path to verify is not a directory: {}. If verifying an archive or relocated directory, pass target directory as argument or --dir <path>.",
         target_dir.display()
     );
 

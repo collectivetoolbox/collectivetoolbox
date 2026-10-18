@@ -15,7 +15,7 @@ use ctb_io::file::{
 use ctb_utilities::cli::ToolResult;
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Seek, SeekFrom, Write};
+use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
 
 #[derive(Debug, Clone, Parser)]
@@ -38,6 +38,9 @@ pub enum ArchiveCommand {
         /// Retain source failures, continue capture, and report nonzero status.
         #[arg(long, conflicts_with = "resume")]
         continue_on_error: bool,
+        /// Write as journal format (different magic bytes, omits stream or file bodies).
+        #[arg(long)]
+        journal: bool,
     },
     /// List committed members and capture diagnostics.
     List { archive: PathBuf },
@@ -72,12 +75,12 @@ pub enum ArchiveCommand {
 
 pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
     match &args.command {
-        ArchiveCommand::Create { archive, sources, resume, continue_on_error } => {
+        ArchiveCommand::Create { archive, sources, resume, continue_on_error, journal } => {
             let _scope = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
             if *resume {
                 ensure!(!continue_on_error, "Cannot combine --resume with --continue-on-error; capture diagnostics cannot be resolved by resume");
                 ensure!(archive != Path::new("-"), "Cannot resume archive output on stdout");
-                resume_archive(archive)?;
+                resume_archive(archive, *journal)?;
                 return Ok(ToolResult::Immediate {
                     stdout: Vec::new(), stderr: b"Archive resumed and completed.\n".to_vec(), exit_code: 0,
                 });
@@ -90,7 +93,7 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                     let output = File::from(std::io::stdout().as_fd().try_clone_to_owned()?);
                     validate_output_identity(&output, &plan.members)?;
                 }
-                let outcome = create_archive(std::io::stdout().lock(), sources, archive, &plan, *continue_on_error, None)?;
+                let outcome = create_archive(std::io::stdout().lock(), sources, archive, &plan, *continue_on_error, None, *journal)?;
                 (outcome.error_count, outcome.warning_count, outcome.completed)
             } else {
                 let mut options = OpenOptions::new();
@@ -101,7 +104,7 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                     options.mode(0o600);
                 }
                 let file = options.open(archive).with_context(|| format!("Cannot create {}", archive.display()))?;
-                let outcome = create_archive(FileArchiveOutput::new(file), sources, archive, &plan, *continue_on_error, None)?;
+                let outcome = create_archive(FileArchiveOutput::new(file), sources, archive, &plan, *continue_on_error, None, *journal)?;
                 (outcome.error_count, outcome.warning_count, outcome.completed)
             };
             let clean = completed && error_count == 0 && warning_count == 0;
@@ -439,11 +442,12 @@ struct CaptureRequest<'a> {
     plan: &'a SourcePlan,
     continue_on_error: bool,
     recovered: Option<&'a JournalReader>,
+    journal: bool,
 }
 
 fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Path, plan: &SourcePlan,
-    continue_on_error: bool, recovered: Option<&JournalReader>) -> Result<CaptureOutcome<W>> {
-    capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered }, &mut FilesystemCapture)
+    continue_on_error: bool, recovered: Option<&JournalReader>, journal: bool) -> Result<CaptureOutcome<W>> {
+    capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered, journal }, &mut FilesystemCapture)
 }
 
 fn persist_source_error<W: ArchiveOutput>(writer: &mut JournalWriter<W>, record: &JournalErrorRecord) -> Result<()> {
@@ -468,7 +472,7 @@ fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut JournalWriter<W>, en
 }
 
 fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, capture: &mut impl CaptureSource) -> Result<CaptureOutcome<W>> {
-    let CaptureRequest { sources, archive, plan, continue_on_error, recovered } = request;
+    let CaptureRequest { sources, archive, plan, continue_on_error, recovered, journal } = request;
     let session = if let Some(recovered) = recovered {
         recovered.session.clone()
     } else {
@@ -479,8 +483,13 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             environment: Some(ctb_io_environment::capture_quick_arc()),
         }
     };
+    let magic = if journal {
+        crate::journal::stream::JournalMagic::JournalV4
+    } else {
+        crate::journal::stream::JournalMagic::ArchiveV1
+    };
     let mut writer = if let Some(recovered) = recovered { recovered.resume_writer(output)? }
-        else { JournalWriter::new(output, &session, crate::journal::stream::JournalMagic::ArchiveV1)? };
+        else { JournalWriter::new(output, &session, magic)? };
     let mut error_count = 0_usize;
     let mut warning_count = 0_usize;
     for diagnostic in &plan.diagnostics {
@@ -518,6 +527,9 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         entity.identity.relative_path = Some(member.relative.clone());
         entity.identity.enclosing_path = None;
         if let Some(environment) = &session.environment { attach_environment(&mut entity, environment); }
+        if journal {
+            entity.strip_stream_bodies();
+        }
         persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
         if let Err(error) = crate::journal::stream::ensure_clean_metadata(&entity) {
             persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
@@ -537,7 +549,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
                 }
             }
         }
-        let mut payload = if matches!(entity.kind, FileEntityKind::Regular { .. }) {
+        let mut payload = if matches!(entity.kind, FileEntityKind::Regular { .. }) && !journal {
             match capture.open(&member.source).and_then(|mut payload| { payload.bind_snapshot(&snapshot)?; Ok(payload) }) {
                 Ok(payload) => Some(payload),
                 Err(error) => {
@@ -592,11 +604,19 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
     Ok(CaptureOutcome { output, error_count, warning_count, completed: true })
 }
 
-fn resume_archive(path: &Path) -> Result<()> {
+fn resume_archive(path: &Path, journal: bool) -> Result<()> {
     let mut file = OpenOptions::new().read(true).write(true).open(path)?;
+    let mut magic = [0_u8; 8];
+    file.seek(SeekFrom::Start(0))?;
+    file.read_exact(&mut magic)?;
+    let is_journal = &magic == crate::journal::JOURNAL_MAGIC_V4 || journal;
     let recovered = JournalReader::recover(file.try_clone()?)?;
     ensure!(!recovered.completed, "Cannot resume a completed archive");
-    recovered.verify_self_contained_prefix()?;
+    if is_journal {
+        recovered.verify_contents()?;
+    } else {
+        recovered.verify_self_contained_prefix()?;
+    }
     validate_members(&recovered)?;
     let plan = plan_sources(&recovered.session.sources, path)?;
     ensure!(plan.diagnostics.is_empty(), "Cannot resume with source planning diagnostics");
@@ -616,7 +636,7 @@ fn resume_archive(path: &Path) -> Result<()> {
     file.set_len(recovered.valid_length)?;
     file.sync_all()?;
     file.seek(SeekFrom::End(0))?;
-    let outcome = create_archive(FileArchiveOutput::new(file), &recovered.session.sources, path, &plan, false, Some(&recovered))?;
+    let outcome = create_archive(FileArchiveOutput::new(file), &recovered.session.sources, path, &plan, false, Some(&recovered), is_journal)?;
     ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0, "Resumed archive has capture diagnostics");
     Ok(())
 }
@@ -817,6 +837,8 @@ mod tests {
     use super::*;
     use ctb_formats_dcstring::DcMstring;
     use std::io::Read;
+    use crate::verifier::run_csc_verify;
+    use crate::args::default_verify_args;
 
     #[derive(Clone, Copy)]
     enum CaptureFault { None, Capture, Open, Read, Finish, Warning }
@@ -949,7 +971,7 @@ mod tests {
 
     fn capture_request<'a>(sources: &'a [PathBuf], archive: &'a Path, plan: &'a SourcePlan,
         continue_on_error: bool) -> CaptureRequest<'a> {
-        CaptureRequest { sources, archive, plan, continue_on_error, recovered: None }
+        CaptureRequest { sources, archive, plan, continue_on_error, recovered: None, journal: false }
     }
 
     #[crate::ctb_test]
@@ -985,7 +1007,7 @@ mod tests {
         let expected: HashSet<_> = originals.iter().map(|(relative, _)| Path::new("source").join(relative))
             .chain([PathBuf::from("source"), PathBuf::from("source/__MACOSX"), PathBuf::from("source/.AppleDouble")]).collect();
         ensure!(plan.members.iter().map(|member| member.relative.clone()).collect::<HashSet<_>>() == expected);
-        let outcome = create_archive(FileArchiveOutput::new(File::create(&archive)?), &sources, &archive, &plan, false, None)?;
+        let outcome = create_archive(FileArchiveOutput::new(File::create(&archive)?), &sources, &archive, &plan, false, None, false)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
@@ -1064,7 +1086,7 @@ mod tests {
             let archive = temporary.path().join("output");
             let plan = plan_sources(&sources, &archive)?;
             let output = MutatingOutput { output: FileArchiveOutput::new(File::create(&archive)?), root, syncs: 0 };
-            let outcome = create_archive(output, &sources, &archive, &plan, continue_on_error, None)?;
+            let outcome = create_archive(output, &sources, &archive, &plan, continue_on_error, None, false)?;
             ensure!(outcome.error_count == 1 && outcome.completed == continue_on_error);
             drop(outcome.output);
             let reader = JournalReader::recover(File::open(&archive)?)?;
@@ -1144,7 +1166,7 @@ mod tests {
         for continue_on_error in [false, true] {
             let path = temporary.path().join(format!("{continue_on_error}.cscarchive"));
             let result = run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-                archive: path.clone(), sources: vec![missing.clone(), good.clone()], resume: false, continue_on_error,
+                archive: path.clone(), sources: vec![missing.clone(), good.clone()], resume: false, continue_on_error, journal: false,
             } })?;
             ensure!(matches!(result, ToolResult::Immediate { exit_code: 1, stderr, stdout }
                 if stdout.is_empty() && !String::from_utf8_lossy(&stderr).contains("Archive created.")));
@@ -1156,7 +1178,7 @@ mod tests {
             ensure!(reader.verify().is_err());
             if continue_on_error { reader.verify_integrity()?; }
             let before = std::fs::read(&path)?;
-            ensure!(resume_archive(&path).is_err());
+            ensure!(resume_archive(&path, false).is_err());
             ensure!(std::fs::read(&path)? == before);
         }
         Ok(())
@@ -1171,7 +1193,7 @@ mod tests {
             let archive = if sources.len() == 1 { source.join("overlap.cscarchive") }
                 else { temporary.path().join("duplicate.cscarchive") };
             ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-                archive: archive.clone(), sources, resume: false, continue_on_error: true,
+                archive: archive.clone(), sources, resume: false, continue_on_error: true, journal: false,
             } }).is_err());
             ensure!(!archive.exists());
         }
@@ -1378,7 +1400,7 @@ mod tests {
     #[crate::ctb_test]
     fn archive_stdout_argument_parsing() -> Result<()> {
         let args = ArchiveArgs::try_parse_from(["archive", "create", "-", "source/"])?;
-        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false, continue_on_error: false }
+        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false, continue_on_error: false, journal: false }
             if archive == Path::new("-") && sources == vec![PathBuf::from("source/")]));
         ensure!(ArchiveArgs::try_parse_from(["archive", "create", "output", "--resume", "--continue-on-error"]).is_err());
         let stdout_resume = ArchiveArgs::try_parse_from(["archive", "create", "-", "--resume"])?;
@@ -1406,7 +1428,7 @@ mod tests {
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
         let file = File::create(&archive_path)?;
-        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
+        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None, false)?;
         drop(outcome.output);
 
         let reader = JournalReader::recover(File::open(&archive_path)?)?;
@@ -1456,7 +1478,7 @@ mod tests {
             std::fs::write(source.join(name).join(name), name.as_encoded_bytes())?;
         }
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false,
+            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false, journal: false,
         } })?;
         for name in &names {
             std::fs::remove_file(source.join(name).join(name))?;
@@ -1487,7 +1509,7 @@ mod tests {
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
         let file = File::create(&archive_path)?;
-        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
+        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None, false)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
@@ -1517,7 +1539,7 @@ mod tests {
         std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o700))?;
         std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o755))?;
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false,
+            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false, journal: false,
         } })?;
         let reader = JournalReader::new(File::open(archive)?)?;
         let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
@@ -1545,7 +1567,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &path)?;
-        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None, false)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         let completed = std::fs::read(&path)?;
@@ -1555,7 +1577,7 @@ mod tests {
         OpenOptions::new().write(true).open(&path)?.set_len(recovered_length)?;
         let before = std::fs::read(&path)?;
         std::fs::write(&source, b"modified!")?;
-        ensure!(resume_archive(&path).is_err());
+        ensure!(resume_archive(&path, false).is_err());
         ensure!(std::fs::read(&path)? == before, "Failed source validation changed the archive");
         Ok(())
     }
@@ -1568,7 +1590,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None, false)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         let length = std::fs::metadata(&path)?.len();
@@ -1578,11 +1600,11 @@ mod tests {
         let mut tail = DcMstring::new();
         tail.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
         OpenOptions::new().append(true).open(&path)?.write_all(tail.payload_bytes())?;
-        resume_archive(&path)?;
+        resume_archive(&path, false)?;
         let reader = JournalReader::new(File::open(&path)?)?;
         reader.verify()?;
         ensure!(reader.members.len() == 1);
-        ensure!(resume_archive(&path).is_err(), "Completed archive accepted append/resume");
+        ensure!(resume_archive(&path, false).is_err(), "Completed archive accepted append/resume");
         Ok(())
     }
 
@@ -1598,7 +1620,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None, false)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         let reader = JournalReader::new(File::open(&path)?)?;
@@ -1631,7 +1653,7 @@ mod tests {
         let archive_path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
-        let outcome = create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, false, None, false)?;
         let clean = outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0;
         if !clean {
             ensure!(!outcome.completed && outcome.error_count == 1 && outcome.warning_count > 0);
@@ -1718,6 +1740,132 @@ mod tests {
         ensure!(std::fs::read_link(destination.join("source/symlink"))? == Path::new("data"));
         ensure!(xattr::get(&data, "user.ctb.archive")? == Some(b"stream payload".to_vec()));
         ensure!(xattr::get(hardlink, "user.ctb.archive")? == Some(b"stream payload".to_vec()));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_create_journal_flag_writes_journal_v4_and_omits_bodies() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        let file1 = source.join("hello.txt");
+        std::fs::write(&file1, b"hello world")?;
+        let sub = source.join("sub");
+        std::fs::create_dir(&sub)?;
+        let file2 = sub.join("nested.bin");
+        std::fs::write(&file2, vec![0x42; 256])?;
+
+        #[cfg(unix)]
+        {
+            xattr::set(&file1, "user.ctb.test", b"stream body")?;
+        }
+
+        let journal_path = temporary.path().join("manifest.cscjournal");
+        let result = run_archive(&ArchiveArgs {
+            command: ArchiveCommand::Create {
+                archive: journal_path.clone(),
+                sources: vec![source.join("")],
+                resume: false,
+                continue_on_error: false,
+                journal: true,
+            },
+        })?;
+        ensure!(matches!(result, ToolResult::Immediate { exit_code: 0, .. }));
+
+        // 1. Verify leading magic is JOURNAL_MAGIC_V4 (b"CTBCSCJ\x04")
+        let mut f = File::open(&journal_path)?;
+        let mut magic = [0_u8; 8];
+        f.read_exact(&mut magic)?;
+        ensure!(&magic == crate::journal::JOURNAL_MAGIC_V4, "Expected JOURNAL_MAGIC_V4 magic header");
+
+        // 2. Read with JournalReader: regular file bodies and stream bodies must be omitted
+        let reader = JournalReader::new(File::open(&journal_path)?)?;
+        ensure!(reader.is_completed(), "Journal must be completed");
+        ensure!(!reader.members.is_empty(), "Journal must have committed members");
+        for member in &reader.members {
+            ensure!(member.payload.is_none(), "Journal format must omit file payloads");
+            for stream in &member.entity.streams {
+                ensure!(stream.data.is_none() && stream.payload.is_none(), "Journal format must omit stream bodies");
+            }
+        }
+
+        // 3. Verify it can be used with csc-verify against the source directory
+        let verify_args = default_verify_args(journal_path.clone(), Some(source.clone()));
+        let verify_res = run_csc_verify(&verify_args)?;
+        ensure!(matches!(verify_res, ToolResult::Immediate { exit_code: 0, .. }));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn csc_verify_supports_default_archive_format_source_free() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        std::fs::write(source.join("alpha.txt"), b"alpha content")?;
+        std::fs::write(source.join("beta.txt"), b"beta content")?;
+
+        let archive_path = temporary.path().join("test.cscarchive");
+        let result = run_archive(&ArchiveArgs {
+            command: ArchiveCommand::Create {
+                archive: archive_path.clone(),
+                sources: vec![source.join("")],
+                resume: false,
+                continue_on_error: false,
+                journal: false,
+            },
+        })?;
+        ensure!(matches!(result, ToolResult::Immediate { exit_code: 0, .. }));
+
+        // Verify magic is ARCHIVE_MAGIC
+        let mut f = File::open(&archive_path)?;
+        let mut magic = [0_u8; 8];
+        f.read_exact(&mut magic)?;
+        ensure!(&magic == crate::journal::ARCHIVE_MAGIC, "Expected ARCHIVE_MAGIC header");
+
+        // Extract to destination
+        let dest = temporary.path().join("extracted");
+        let extract_res = run_archive(&ArchiveArgs {
+            command: ArchiveCommand::Extract {
+                archive: archive_path.clone(),
+                destination: dest.clone(),
+                overwrite: false,
+                trust_symlink_targets: false,
+                best_effort_metadata: true,
+                copy_specials_as_specials: false,
+                recover: false,
+            },
+        })?;
+        ensure!(matches!(extract_res, ToolResult::Immediate { exit_code: 0, .. }));
+
+        // Remove source completely: verify must succeed without touching source filesystem!
+        std::fs::remove_dir_all(&source)?;
+        ensure!(!source.exists());
+
+        // Verify using positional target directory
+        let verify_args = default_verify_args(archive_path.clone(), Some(dest.clone()));
+        let verify_res = run_csc_verify(&verify_args)?;
+        ensure!(matches!(verify_res, ToolResult::Immediate { exit_code: 0, .. }));
+
+        // Verify using --dir flag
+        let mut verify_flag_args = default_verify_args(archive_path.clone(), None);
+        verify_flag_args.dir_flag = Some(dest.clone());
+        let flag_res = run_csc_verify(&verify_flag_args)?;
+        ensure!(matches!(flag_res, ToolResult::Immediate { exit_code: 0, .. }));
+
+        // Error guidance when verifying archive without specifying directory
+        let no_dest_args = default_verify_args(archive_path.clone(), None);
+        let err = match run_csc_verify(&no_dest_args) {
+            Err(e) => e,
+            Ok(_) => bail!("Expected csc-verify without target directory to fail"),
+        };
+        ensure!(err.to_string().contains("pass target directory as argument or --dir <path>"));
+
+        // Introduce a content corruption in extracted directory
+        std::fs::write(dest.join("alpha.txt"), b"corrupted content")?;
+        let corrupt_res = run_csc_verify(&verify_args)?;
+        ensure!(matches!(corrupt_res, ToolResult::Immediate { exit_code: 1, .. }));
+
         Ok(())
     }
 }

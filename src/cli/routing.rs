@@ -51,6 +51,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "validate-docker-image"
             | "csc"
             | "archive"
+            | "csc-archive"
             | "csc-verify"
             | "cscv"
             | "csc-diff"
@@ -548,7 +549,7 @@ pub enum Command {
     #[command(name = "csc")]
     Csc(ctb_io_csc::args::CscArgs),
     /// Create, list, verify, or extract a self-contained CSC archive.
-    #[command(name = "archive")]
+    #[command(name = "archive", alias = "csc-archive")]
     Archive(ctb_io_csc::archive::cli::ArchiveArgs),
     /// Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
     #[command(name = "cp")]

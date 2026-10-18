@@ -148,6 +148,7 @@ Arguments:
 Options:
       --resume             Resume an interrupted file-output archive using its recorded sources
       --continue-on-error  Retain source failures, continue capture, and report nonzero status
+      --journal            Write as journal format (different magic bytes, omits stream or file bodies)
   -h, --help               Print help
 ```
 
@@ -696,10 +697,11 @@ Verify a directory against a manifest recorded by csc
 Usage: ctoolbox csc-verify [OPTIONS] <MANIFEST> [DIRECTORY]
 
 Arguments:
-  <MANIFEST>   Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files
-  [DIRECTORY]  Target directory to verify. If omitted, uses the destination path recorded in the manifest. Specifying this allows verifying relocated folders
+  <MANIFEST>   Path to the manifest file (.cscjournal, .cscdesc, or .cscarchive) or directory containing state files
+  [DIRECTORY]  Target directory to verify. If omitted, uses the destination path recorded in the manifest. Specifying this allows verifying relocated folders or archives
 
 Options:
+      --dir <DIRECTORY>       Target directory to verify (alias for positional DIRECTORY)
       --no-drop-caches        Skip dropping OS kernel caches and per-file cache eviction before reading
       --ignore-atime          Ignore access time (atime) differences during verification (defaults to true)
       --check-atime           Explicitly check access time (atime) differences during verification

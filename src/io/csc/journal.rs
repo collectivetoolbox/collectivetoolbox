@@ -40,7 +40,7 @@ use ctb_io_environment::EnvDescription;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, BufWriter, Read, Seek, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
@@ -915,7 +915,8 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
         for entry in ctb_io::file::read_dir_raw(path)? {
             let entry = entry?;
             let p = entry.path();
-            if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+            let ext = p.extension().and_then(|e| e.to_str());
+            if ext == Some("cscjournal") || ext == Some("cscarchive") {
                 if let Ok(meta) = p.metadata() {
                     // Reason for fallback: filesystems lacking mtime support default to UNIX_EPOCH so missing timestamps sort oldest
                     let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
@@ -930,7 +931,7 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
     }
 
     anyhow::bail!(
-        "Could not find valid .cscjournal file from path: {}",
+        "Could not find valid .cscjournal or .cscarchive file from path: {}",
         path.display()
     )
 }
@@ -988,7 +989,7 @@ pub fn read_journal_snapshot_with_policy(
     };
 
     let mut snapshot = match &magic {
-        m if m == JOURNAL_MAGIC_V4 => {
+        m if m == JOURNAL_MAGIC_V4 || m == ARCHIVE_MAGIC => {
             read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)?
         }
         m if m == JOURNAL_MAGIC_V1 => {
@@ -1054,7 +1055,8 @@ pub fn convert_cscjournal_to_dcmstring_with_policy(
         .context("Slice bounds invalid for journal magic")?;
 
     let is_v4_or_newer = magic == JOURNAL_MAGIC_V4
-        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4));
+        || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
+        || magic == ARCHIVE_MAGIC;
 
     let dcmm_bytes = if is_v4_or_newer {
         bytes
@@ -1095,6 +1097,7 @@ pub fn convert_cscjournal_to_v4_bytes_with_policy(
         .context("Slice bounds invalid for journal magic")?;
     if magic == JOURNAL_MAGIC_V4
         || (magic.starts_with(b"CTBCSCJ") && magic.get(7).is_some_and(|&v| v >= 4))
+        || magic == ARCHIVE_MAGIC
     {
         Ok(bytes.to_vec())
     } else if magic == JOURNAL_MAGIC_V1
@@ -1114,9 +1117,14 @@ pub fn read_v4_journal_snapshot(
     noatime_used: bool,
     policy: &ctb_formats_dcstring::DcProjectionPolicy,
 ) -> Result<JournalSnapshot> {
-    let nav_file = file
+    let mut nav_file = file
         .try_clone()
         .with_context(|| format!("Failed to clone file handle for {}", journal_path.display()))?;
+    nav_file.seek(SeekFrom::Start(0))?;
+    let mut magic = [0_u8; 8];
+    nav_file.read_exact(&mut magic)?;
+    let is_archive = &magic == ARCHIVE_MAGIC;
+
     let scanned = JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
         .with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
     let origin_platform = match u8::try_from(scanned.session.origin_platform) {
@@ -1129,7 +1137,7 @@ pub fn read_v4_journal_snapshot(
     let mut committed_entities = HashMap::new();
     let mut warnings = scanned.warnings;
     for member in scanned.members {
-        if member.payload.is_some() {
+        if !is_archive && member.payload.is_some() {
             let msg = format!(
                 "Journal snapshot for {:?} contains unexpected embedded file body",
                 member.entity.identity.relative_path
@@ -1141,8 +1149,12 @@ pub fn read_v4_journal_snapshot(
                 timestamp_sec: 0,
             });
         }
-        let entity = member.entity;
-        warn_unexpected_stream_bodies(&entity, &mut warnings);
+        let mut entity = member.entity;
+        if !is_archive {
+            warn_unexpected_stream_bodies(&entity, &mut warnings);
+        } else {
+            entity.strip_stream_bodies();
+        }
         let path_key = match entity.identity.path_bytes() {
             Some(bytes) => bytes.to_vec(),
             None => Vec::new(),

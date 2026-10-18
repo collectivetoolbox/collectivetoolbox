@@ -30,7 +30,7 @@ use clap::{Parser, ValueEnum};
 pub use ctb_io::file::{
     AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Policy for handling detected changes to source files during copying.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
@@ -591,14 +591,18 @@ impl VerificationCriteriaArgs {
     about = "Verifies a directory against a manifest created by csc, reporting all changed files and metadata differences"
 )]
 pub struct CscVerifyArgs {
-    /// Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files.
+    /// Path to the manifest file (.cscjournal, .cscdesc, or .cscarchive) or directory containing state files.
     #[arg(value_name = "MANIFEST")]
     pub manifest: PathBuf,
 
     /// Target directory to verify. If omitted, uses the destination path recorded
-    /// in the manifest. Specifying this allows verifying relocated folders.
+    /// in the manifest. Specifying this allows verifying relocated folders or archives.
     #[arg(value_name = "DIRECTORY")]
     pub dir: Option<PathBuf>,
+
+    /// Target directory to verify (alias for positional DIRECTORY).
+    #[arg(long = "dir", value_name = "DIRECTORY", conflicts_with = "dir")]
+    pub dir_flag: Option<PathBuf>,
 
     #[command(flatten)]
     pub criteria: VerificationCriteriaArgs,
@@ -640,6 +644,11 @@ impl CscVerifyArgs {
         } else {
             ctb_formats_dcstring::DcProjectionPolicy::strict()
         }
+    }
+
+    #[must_use]
+    pub fn target_directory(&self) -> Option<&Path> {
+        self.dir.as_deref().or(self.dir_flag.as_deref())
     }
 
     #[must_use]
@@ -1242,6 +1251,7 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
     CscVerifyArgs {
         manifest,
         dir,
+        dir_flag: None,
         criteria: VerificationCriteriaArgs {
             no_drop_caches: true,
             ignore_atime: true,

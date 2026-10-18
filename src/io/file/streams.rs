@@ -516,6 +516,17 @@ pub trait AttachedStreamSource {
 /// Reads stream bodies from memory or their recorded filesystem origin.
 pub struct FilesystemStreamSource;
 
+impl FilesystemStreamSource {
+    /// Returns true if this stream has an available payload source in memory,
+    /// in an archive reference, on the filesystem, or is zero-length.
+    pub fn has_source(&self, stream: &AttachedStream) -> bool {
+        stream.data.is_some()
+            || stream.payload.is_some()
+            || matches!(stream.entity.identity.origin, FileOrigin::Filesystem { .. })
+            || matches!(stream.entity.kind, FileEntityKind::Regular { size: 0, .. })
+    }
+}
+
 impl AttachedStreamSource for FilesystemStreamSource {
     fn open(&self, stream: &AttachedStream) -> Result<Box<dyn std::io::Read + Send>> {
         if let Some(data) = &stream.data {
@@ -642,11 +653,34 @@ impl AttachedStream {
         Ok(())
     }
 
+    pub(crate) fn encode_record_to_writer_without_body<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
+        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
+        if let Some(ref name) = self.name {
+            prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
+            name.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
+        }
+        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
+        writer.write_all(prefix_mst.payload_bytes())?;
+        self.entity.encode_record_to_writer_with_context(writer, context)?;
+        let mut suffix = ctb_formats_dcstring::DcMstring::new();
+        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
+        writer.write_all(suffix.payload_bytes())?;
+        Ok(())
+    }
+
     /// Discards in-memory payload bytes, retaining stream name, classification,
     /// and entity metadata/digests.
     pub fn strip_body(&mut self) {
         self.data = None;
         self.payload = None;
+        if matches!(self.entity.identity.origin, FileOrigin::Filesystem { .. }) {
+            self.entity.identity.origin = FileOrigin::Synthetic;
+        }
         self.entity.strip_stream_bodies();
     }
 }

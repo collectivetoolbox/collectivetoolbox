@@ -646,7 +646,11 @@ impl FileEntity {
         self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         writer.write_all(prefix_mst.payload_bytes())?;
         for stream in &self.streams {
-            stream.encode_record_to_writer_with_source(writer, &crate::streams::FilesystemStreamSource, context)?;
+            if crate::streams::FilesystemStreamSource.has_source(stream) {
+                stream.encode_record_to_writer_with_source(writer, &crate::streams::FilesystemStreamSource, context)?;
+            } else {
+                stream.encode_record_to_writer_without_body(writer, context)?;
+            }
         }
 
         if let Some(source) = source {
