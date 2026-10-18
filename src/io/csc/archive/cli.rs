@@ -1,7 +1,7 @@
 #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
-use super::{ArchiveReader, ArchiveWriter};
+use crate::journal::{JournalReader, stream::RecordWriter};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalSessionRecord, JournalWarningRecord, current_platform};
 use crate::journal::capture::{CapturedSource, CapturedTree, CommittedHardlinks, attach_environment, discover_directory};
 use clap::{Parser, Subcommand};
@@ -107,7 +107,7 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
             })
         }
         ArchiveCommand::List { archive } => {
-            let reader = ArchiveReader::recover(File::open(archive)?)?;
+            let reader = JournalReader::recover(File::open(archive)?)?;
             validate_members(&reader)?;
             let mut output = String::new();
             use std::fmt::Write;
@@ -136,14 +136,14 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
             })
         }
         ArchiveCommand::Verify { archive } => {
-            let reader = ArchiveReader::new(File::open(archive)?)?;
-            reader.verify()?;
+            let reader = JournalReader::new(File::open(archive)?)?;
+            reader.verify_self_contained()?;
             validate_members(&reader)?;
             Ok(ToolResult::immediate_ok(b"Archive verified.\n".to_vec()))
         }
         ArchiveCommand::Extract { archive, destination, overwrite, trust_symlink_targets,
             best_effort_metadata, copy_specials_as_specials } => {
-            let reader = ArchiveReader::new(File::open(archive)?)?;
+            let reader = JournalReader::new(File::open(archive)?)?;
             let options = MaterializeOptions {
                 strict_lossless: !best_effort_metadata,
                 existing_entry_policy: if *overwrite { ctb_io::file::ExistingEntryPolicy::Replace }
@@ -370,21 +370,21 @@ struct CaptureRequest<'a> {
     archive: &'a Path,
     plan: &'a SourcePlan,
     continue_on_error: bool,
-    recovered: Option<&'a ArchiveReader>,
+    recovered: Option<&'a JournalReader>,
 }
 
 fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Path, plan: &SourcePlan,
-    continue_on_error: bool, recovered: Option<&ArchiveReader>) -> Result<CaptureOutcome<W>> {
+    continue_on_error: bool, recovered: Option<&JournalReader>) -> Result<CaptureOutcome<W>> {
     capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered }, &mut FilesystemCapture)
 }
 
-fn persist_source_error<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, record: &JournalErrorRecord) -> Result<()> {
+fn persist_source_error<W: ArchiveOutput>(writer: &mut RecordWriter<W>, record: &JournalErrorRecord) -> Result<()> {
     writer.record_error(record).with_context(|| format!("Cannot persist source failure: {}", record.error_message))?;
     writer.output_mut().flush().with_context(|| format!("Cannot flush source failure: {}", record.error_message))?;
     writer.output_mut().sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
 }
 
-fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, entity: &FileEntity,
+fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut RecordWriter<W>, entity: &FileEntity,
     path: &Path, count: &mut usize) -> Result<()> {
     crate::journal::capture::visit_warnings(entity, &mut |_entity, message| {
         let warning = JournalWarningRecord {
@@ -412,7 +412,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         }
     };
     let mut writer = if let Some(recovered) = recovered { recovered.resume_writer(output)? }
-        else { ArchiveWriter::new(output, &session, crate::journal::stream::JournalProfile::ArchiveV1)? };
+        else { RecordWriter::new(output, &session, crate::journal::stream::JournalMagic::ArchiveV1)? };
     let mut error_count = 0_usize;
     let mut warning_count = 0_usize;
     for diagnostic in &plan.diagnostics {
@@ -451,7 +451,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         entity.identity.enclosing_path = None;
         if let Some(environment) = &session.environment { attach_environment(&mut entity, environment); }
         persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
-        if let Err(error) = super::ensure_clean_metadata(&entity) {
+        if let Err(error) = crate::journal::stream::ensure_clean_metadata(&entity) {
             persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
             error_count = error_count.saturating_add(1);
             if continue_on_error { continue; }
@@ -526,9 +526,9 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
 
 fn resume_archive(path: &Path) -> Result<()> {
     let mut file = OpenOptions::new().read(true).write(true).open(path)?;
-    let recovered = ArchiveReader::recover(file.try_clone()?)?;
+    let recovered = JournalReader::recover(file.try_clone()?)?;
     ensure!(!recovered.completed, "Cannot resume a completed archive");
-    recovered.verify_contents()?;
+    recovered.verify_self_contained_prefix()?;
     validate_members(&recovered)?;
     let plan = plan_sources(&recovered.session.sources, path)?;
     ensure!(plan.diagnostics.is_empty(), "Cannot resume with source planning diagnostics");
@@ -553,7 +553,7 @@ fn resume_archive(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn validate_members(reader: &ArchiveReader) -> Result<()> {
+fn validate_members(reader: &JournalReader) -> Result<()> {
     let mut names = HashMap::new();
     for member in &reader.members {
         let path = member.entity.identity.relative_path.as_deref().context("Archive member missing relative path")?;
@@ -579,9 +579,9 @@ fn validate_members(reader: &ArchiveReader) -> Result<()> {
     Ok(())
 }
 
-fn extract_archive(reader: &ArchiveReader, destination: &Path, options: &MaterializeOptions) -> Result<()> {
+fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions) -> Result<()> {
     ensure!(cfg!(unix), "Sandboxed archive extraction is currently supported only on Unix");
-    reader.verify()?;
+    reader.verify_self_contained()?;
     validate_members(reader)?;
     if let Some(metadata) = existing_metadata(destination)? {
         ensure!(metadata.is_dir() && !metadata.file_type().is_symlink(), "Extraction destination is not a real directory");
@@ -847,7 +847,7 @@ mod tests {
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
-        let reader = ArchiveReader::new(File::open(&archive)?)?;
+        let reader = JournalReader::new(File::open(&archive)?)?;
         reader.verify()?;
         ensure!(reader.members.iter().filter_map(|member| member.entity.identity.relative_path.clone()).collect::<HashSet<_>>() == expected);
         for (relative, bytes) in &originals {
@@ -925,7 +925,7 @@ mod tests {
             let outcome = create_archive(output, &sources, &archive, &plan, continue_on_error, None)?;
             ensure!(outcome.error_count == 1 && outcome.completed == continue_on_error);
             drop(outcome.output);
-            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            let reader = JournalReader::recover(File::open(&archive)?)?;
             ensure!(reader.members.len() == 2 && reader.errors.len() == 1);
             ensure!(reader.is_completed() == continue_on_error && reader.verify().is_err());
         }
@@ -953,7 +953,7 @@ mod tests {
             capture_request(&sources, &archive, &plan, false), &mut CleanupCapture)?;
         ensure!(!outcome.completed && outcome.warning_count > 0 && outcome.error_count == 1);
         drop(outcome.output);
-        let reader = ArchiveReader::recover(File::open(&archive)?)?;
+        let reader = JournalReader::recover(File::open(&archive)?)?;
         ensure!(reader.warnings.iter().any(|warning| warning.message.contains("injected symlink cleanup")));
         ensure!(reader.members.is_empty());
         ensure!(reader.errors.iter().any(|error| error.error_message.contains("injected symlink cleanup")));
@@ -985,7 +985,7 @@ mod tests {
                 ensure!(outcome.error_count > 0);
                 ensure!(outcome.completed == continue_on_error);
                 drop(outcome.output);
-                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                let reader = JournalReader::recover(File::open(&archive)?)?;
                 ensure!(reader.has_diagnostics() && reader.verify().is_err());
                 if during_capture { ensure!(reader.members.len() == 1); }
             }
@@ -1006,7 +1006,7 @@ mod tests {
             } })?;
             ensure!(matches!(result, ToolResult::Immediate { exit_code: 1, stderr, stdout }
                 if stdout.is_empty() && !String::from_utf8_lossy(&stderr).contains("Archive created.")));
-            let reader = ArchiveReader::recover(File::open(&path)?)?;
+            let reader = JournalReader::recover(File::open(&path)?)?;
             ensure!(reader.errors.len() == 1 && reader.errors.first().context("Missing diagnostic")?.path == missing);
             ensure!(reader.errors.first().context("Missing diagnostic")?.stage == JournalErrorStage::MetadataRead);
             ensure!(reader.is_completed() == continue_on_error);
@@ -1055,7 +1055,7 @@ mod tests {
                 ensure!(outcome.error_count == 1 && outcome.completed == continue_on_error);
                 ensure!(outcome.warning_count == usize::from(matches!(fault, CaptureFault::Warning)));
                 drop(outcome.output);
-                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                let reader = JournalReader::recover(File::open(&archive)?)?;
                 ensure!(reader.errors.len() == 1 && reader.members.len() == usize::from(continue_on_error));
                 let expected_stage = if matches!(fault, CaptureFault::Open) { JournalErrorStage::PayloadOpen }
                     else { JournalErrorStage::MetadataRead };
@@ -1089,7 +1089,7 @@ mod tests {
                     capture_request(&sources, &archive, &plan, continue_on_error), &mut capture)?;
                 ensure!(outcome.error_count == 1 && outcome.warning_count == 0 && outcome.completed == continue_on_error);
                 drop(outcome.output);
-                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                let reader = JournalReader::recover(File::open(&archive)?)?;
                 ensure!(reader.errors.len() == 1 && reader.members.len() == if continue_on_error { 2 } else { 1 });
                 ensure!(reader.sequence == if continue_on_error { 3 } else { 2 });
                 let mut contents = Vec::new();
@@ -1126,9 +1126,9 @@ mod tests {
             ensure!(format!("{error:#}").contains("injected source read failure"));
             ensure!(!capture.opened.contains(&good) && bytes.borrow().len() > 32_768);
             std::fs::write(&archive, &*bytes.borrow())?;
-            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            let reader = JournalReader::recover(File::open(&archive)?)?;
             ensure!(!reader.is_completed() && reader.members.is_empty() && reader.errors.is_empty());
-            ensure!(ArchiveReader::new(File::open(&archive)?).is_err());
+            ensure!(JournalReader::new(File::open(&archive)?).is_err());
         }
         let mut cursor = std::io::Cursor::new(Vec::new());
         ensure!(cursor.checkpoint()?.is_none() && cursor.rollback(0).is_err());
@@ -1161,7 +1161,7 @@ mod tests {
                 ensure!(format!("{error:#}").contains("injected source read failure"));
             }
             ensure!(!capture.opened.contains(&good));
-            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            let reader = JournalReader::recover(File::open(&archive)?)?;
             ensure!(!reader.is_completed() && reader.errors.is_empty());
         }
         Ok(())
@@ -1185,7 +1185,7 @@ mod tests {
             capture_request(&sources, &archive, &plan, true), &mut capture)?;
         ensure!(outcome.error_count == 1 && outcome.completed);
         drop(outcome.output);
-        let reader = ArchiveReader::new(File::open(&archive)?)?;
+        let reader = JournalReader::new(File::open(&archive)?)?;
         reader.verify_integrity()?;
         validate_members(&reader)?;
         ensure!(reader.members.len() == 2);
@@ -1207,7 +1207,7 @@ mod tests {
             sources: vec![source.clone()], destination: archive.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = ArchiveWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalProfile::ArchiveV1)?;
+        let mut writer = RecordWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV1)?;
         writer.record_error(&crate::journal::JournalErrorRecord {
             path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
             stage: crate::journal::JournalErrorStage::MetadataRead,
@@ -1265,7 +1265,7 @@ mod tests {
             std::fs::remove_dir(source.join(name))?;
         }
         std::fs::remove_dir(source)?;
-        let reader = ArchiveReader::new(File::open(&archive)?)?;
+        let reader = JournalReader::new(File::open(&archive)?)?;
         reader.verify()?;
         extract_archive(&reader, &destination, &MaterializeOptions {
             strict_lossless: false, ..Default::default()
@@ -1293,7 +1293,7 @@ mod tests {
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
-        let reader = ArchiveReader::new(File::open(&archive_path)?)?;
+        let reader = JournalReader::new(File::open(&archive_path)?)?;
         reader.verify()?;
         let destination = temporary.path().join("restored");
         let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
@@ -1321,7 +1321,7 @@ mod tests {
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
             archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false,
         } })?;
-        let reader = ArchiveReader::new(File::open(archive)?)?;
+        let reader = JournalReader::new(File::open(archive)?)?;
         let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
         ensure!(extract_archive(&reader, &destination, &options).is_err());
         ensure!(std::fs::read(destination.join("data"))? == b"original payload");
@@ -1381,7 +1381,7 @@ mod tests {
         tail.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
         OpenOptions::new().append(true).open(&path)?.write_all(tail.payload_bytes())?;
         resume_archive(&path)?;
-        let reader = ArchiveReader::new(File::open(&path)?)?;
+        let reader = JournalReader::new(File::open(&path)?)?;
         reader.verify()?;
         ensure!(reader.members.len() == 1);
         ensure!(resume_archive(&path).is_err(), "Completed archive accepted append/resume");
@@ -1403,7 +1403,7 @@ mod tests {
         let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
         ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
         drop(outcome.output);
-        let reader = ArchiveReader::new(File::open(&path)?)?;
+        let reader = JournalReader::new(File::open(&path)?)?;
         let destination = temporary.path().join("destination");
         std::fs::create_dir(&destination)?;
         #[cfg(unix)]
@@ -1443,7 +1443,7 @@ mod tests {
         drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
         if !clean {
-            let reader = ArchiveReader::recover(File::open(&archive_path)?)?;
+            let reader = JournalReader::recover(File::open(&archive_path)?)?;
             ensure!(!reader.is_completed());
             ensure!(reader.errors.len() == error_count && reader.warnings.len() == warning_count);
             let link = source.join("symlink");
@@ -1455,7 +1455,7 @@ mod tests {
                 && error.error_message.contains("Unix cannot restore change time")));
             ensure!(!reader.members.iter().any(|member| member.entity.identity.relative_path.as_deref() == Some(Path::new("source/symlink"))));
             ensure!(reader.verify().is_err());
-            ensure!(ArchiveReader::new(File::open(&archive_path)?).is_err());
+            ensure!(JournalReader::new(File::open(&archive_path)?).is_err());
             let listed = run_archive(&ArchiveArgs { command: ArchiveCommand::List { archive: archive_path.clone() } })?;
             ensure!(matches!(listed, ToolResult::Immediate { exit_code: 1, stderr, .. }
                 if String::from_utf8_lossy(&stderr).contains("Unix cannot restore change time")));
@@ -1466,7 +1466,7 @@ mod tests {
             }).is_err());
             ensure!(!destination.exists());
         } else {
-            let reader = ArchiveReader::new(File::open(&archive_path)?)?;
+            let reader = JournalReader::new(File::open(&archive_path)?)?;
             ensure!(reader.is_completed() && reader.errors.is_empty() && reader.warnings.is_empty());
             assert_links_and_attached_streams_restored(&reader, &temporary.path().join("restored"))?;
         }
@@ -1482,8 +1482,8 @@ mod tests {
             sources: Vec::new(), destination: archive_path.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = ArchiveWriter::new(File::create(&archive_path)?, &session,
-            crate::journal::stream::JournalProfile::ArchiveV1)?;
+        let mut writer = RecordWriter::new(File::create(&archive_path)?, &session,
+            crate::journal::stream::JournalMagic::ArchiveV1)?;
         let mut data = FileEntity::from_vec(b"linked payload".to_vec());
         data.identity.relative_path = Some(PathBuf::from("source/data"));
         data.streams.push(ctb_io::file::AttachedStream::from_data(
@@ -1500,14 +1500,14 @@ mod tests {
         symlink.kind = FileEntityKind::Symlink { target: LinkPath::from_relative_path(Path::new("data"))? };
         writer.write_entity(&symlink, None)?;
         drop(writer.finish()?);
-        let reader = ArchiveReader::new(File::open(&archive_path)?)?;
+        let reader = JournalReader::new(File::open(&archive_path)?)?;
         ensure!(reader.is_completed() && reader.errors.is_empty() && reader.warnings.is_empty());
         ensure!(reader.members.len() == 3);
         assert_links_and_attached_streams_restored(&reader, &temporary.path().join("restored"))
     }
 
     #[cfg(unix)]
-    fn assert_links_and_attached_streams_restored(reader: &ArchiveReader, destination: &Path) -> Result<()> {
+    fn assert_links_and_attached_streams_restored(reader: &JournalReader, destination: &Path) -> Result<()> {
         use std::os::unix::fs::MetadataExt;
         reader.verify()?;
         let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };

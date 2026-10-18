@@ -27,10 +27,10 @@ pub(crate) fn ensure_clean_metadata(entity: &FileEntity) -> Result<()> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum JournalProfile {
-    /// Metadata batches with top-level diagnostic records.
+pub enum JournalMagic {
+    /// Journal header magic.
     JournalV4,
-    /// One body-bearing or diagnostic record per checked section.
+    /// Archive header magic.
     ArchiveV1,
 }
 
@@ -41,7 +41,6 @@ pub struct RecordWriter<W: Write> {
     failed: bool,
     source_failed: bool,
     sink_failed: bool,
-    profile: JournalProfile,
     completed: bool,
 }
 
@@ -49,14 +48,14 @@ impl<W: Write> RecordWriter<W> {
     pub fn new(
         mut writer: W,
         session: &JournalSessionRecord,
-        profile: JournalProfile,
+        profile: JournalMagic,
     ) -> Result<Self> {
         let mut header = DcMstring::new();
         session.encode_dc_mixed(&mut header)?;
         ctb_formats_dcstring::validate_dc_mixed_strict(&header)?;
         writer.write_all(match profile {
-            JournalProfile::JournalV4 => super::JOURNAL_MAGIC_V4,
-            JournalProfile::ArchiveV1 => ARCHIVE_MAGIC,
+            JournalMagic::JournalV4 => super::JOURNAL_MAGIC_V4,
+            JournalMagic::ArchiveV1 => ARCHIVE_MAGIC,
         })?;
         writer.write_all(header.as_bytes())?;
         Self::resume_output(writer, session, profile, 0, false)
@@ -65,7 +64,7 @@ impl<W: Write> RecordWriter<W> {
     pub(crate) fn resume_output(
         writer: W,
         session: &JournalSessionRecord,
-        profile: JournalProfile,
+        _profile: JournalMagic,
         sequence: u64,
         completed: bool,
     ) -> Result<Self> {
@@ -76,7 +75,6 @@ impl<W: Write> RecordWriter<W> {
             failed: false,
             source_failed: false,
             sink_failed: false,
-            profile,
             completed,
         })
     }
@@ -137,10 +135,6 @@ impl<W: Write> RecordWriter<W> {
         durable: impl FnOnce(&mut W) -> Result<()>,
     ) -> Result<()> {
         self.ensure_ready()?;
-        ensure!(
-            self.profile == JournalProfile::JournalV4,
-            "Metadata batches require journal profile"
-        );
         self.write_record_durable(
             |writer, context| {
                 let mut record = DcMstring::new();
@@ -178,19 +172,10 @@ impl<W: Write> RecordWriter<W> {
         precommit: impl FnOnce() -> Result<()>,
     ) -> Result<()> {
         self.ensure_ready()?;
-        ensure!(
-            self.profile == JournalProfile::ArchiveV1,
-            "Body records require archive profile"
-        );
-        ensure_clean_metadata(entity)?;
         if let FileEntityKind::Regular { size, .. } = &entity.kind {
-            let source = payload
-                .as_ref()
-                .context("Regular record requires file data")?;
-            ensure!(
-                source.total_size() == *size,
-                "Source size differs from record metadata"
-            );
+            if let Some(source) = payload.as_ref() {
+                ensure!(source.total_size() == *size, "Source size differs from record metadata");
+            }
         } else {
             ensure!(
                 payload.is_none(),
@@ -199,9 +184,7 @@ impl<W: Write> RecordWriter<W> {
         }
         let mut source_failed = false;
         let result = self.write_record(|mut writer, context| {
-            if let FileEntityKind::Regular { size, sha256, .. } = &entity.kind {
-                let source =
-                    payload.context("Regular record requires file data")?;
+            if let (FileEntityKind::Regular { size, sha256, .. }, Some(source)) = (&entity.kind, payload) {
                 let mut source = VerifiedSource {
                     source,
                     digest: Sha256Stream::new(),
@@ -226,10 +209,6 @@ impl<W: Write> RecordWriter<W> {
                     bail!("Source fidelity warnings: {}", warnings.join("; "));
                 }
             } else {
-                ensure!(
-                    payload.is_none(),
-                    "Non-regular record cannot contain primary data"
-                );
                 let mut record = DcMstring::new();
                 entity.encode_dc_mixed_with_context(&mut record, context)?;
                 ctb_formats_dcstring::validate_dc_mixed_strict(&record)?;
@@ -297,15 +276,7 @@ impl<W: Write> RecordWriter<W> {
         encode: impl FnOnce(&mut dyn Write, &SharedValueContext) -> Result<()>,
         durable: impl FnOnce(&mut W) -> Result<()>,
     ) -> Result<()> {
-        match self.profile {
-            JournalProfile::ArchiveV1 => {
-                self.write_record_durable(encode, durable)
-            }
-            JournalProfile::JournalV4 => self.transaction(
-                |writer, context| encode(writer, context),
-                durable,
-            ),
-        }
+        self.transaction(|writer, context| encode(writer, context), durable)
     }
 
     pub(crate) fn write_record(
@@ -419,7 +390,6 @@ impl<W: Write> RecordWriter<W> {
             failed: self.failed,
             source_failed: self.source_failed,
             sink_failed: self.sink_failed,
-            profile: self.profile,
             completed: self.completed,
         }
     }
@@ -593,6 +563,27 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn magic_does_not_select_record_grammar() -> Result<()> {
+        let session = session();
+        let entity = FileEntity::from_vec(b"body".to_vec());
+        let error = JournalErrorRecord::from_error(std::path::Path::new("source"),
+            super::super::JournalErrorStage::PayloadRead, &anyhow::anyhow!("capture failure"));
+        let mut encodings = Vec::new();
+        for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
+            let mut writer = RecordWriter::new(Vec::new(), &session, magic)?;
+            writer.write_batch(std::slice::from_ref(&entity), |_| Ok(()))?;
+            let mut payload = MemoryPayloadSource::new(b"body".to_vec())?;
+            writer.write_entity(&entity, Some(&mut payload))?;
+            writer.write_entity(&entity, None)?;
+            writer.record_error(&error)?;
+            let bytes = writer.finish()?;
+            encodings.push(bytes.get(8..).context("Missing format magic")?.to_vec());
+        }
+        ensure!(encodings.first() == encodings.get(1), "Magic changed the record grammar");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn profiles_match_historical_bytes_with_same_session_and_short_output()
     -> Result<()> {
         let session = session();
@@ -614,7 +605,7 @@ mod tests {
             message: "warning".into(),
             timestamp_sec: 13,
         };
-        for profile in [JournalProfile::JournalV4, JournalProfile::ArchiveV1] {
+        for profile in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
             let mut writer = RecordWriter::new(
                 ShortOutput(Vec::new()),
                 &session,
@@ -623,14 +614,14 @@ mod tests {
             let mut header = DcMstring::new();
             session.encode_dc_mixed(&mut header)?;
             let mut expected = match profile {
-                JournalProfile::JournalV4 => {
+                JournalMagic::JournalV4 => {
                     super::super::JOURNAL_MAGIC_V4.to_vec()
                 }
-                JournalProfile::ArchiveV1 => ARCHIVE_MAGIC.to_vec(),
+                JournalMagic::ArchiveV1 => ARCHIVE_MAGIC.to_vec(),
             };
             expected.extend_from_slice(header.as_bytes());
             match profile {
-                JournalProfile::JournalV4 => {
+                JournalMagic::JournalV4 => {
                     let mut body = DcMstring::new();
                     for entity in &entities {
                         entity.encode_dc_mixed_with_context(
@@ -643,7 +634,7 @@ mod tests {
                         Ok(())
                     })?;
                 }
-                JournalProfile::ArchiveV1 => {
+                JournalMagic::ArchiveV1 => {
                     for (index, entity) in entities.iter().enumerate() {
                         let data = if index == 0 {
                             b"first".to_vec()
@@ -674,7 +665,7 @@ mod tests {
             let mut diagnostic = DcMstring::new();
             JournalErrorRecordPayload::from_record(&error)?
                 .encode_dc_mixed(&mut diagnostic)?;
-            if profile == JournalProfile::JournalV4 {
+            if profile == JournalMagic::JournalV4 {
                 expected.extend_from_slice(diagnostic.payload_bytes());
             } else {
                 reference_section(
@@ -687,7 +678,7 @@ mod tests {
             let mut diagnostic = DcMstring::new();
             JournalWarningRecordPayload::from_record(&warning)
                 .encode_dc_mixed(&mut diagnostic)?;
-            if profile == JournalProfile::JournalV4 {
+            if profile == JournalMagic::JournalV4 {
                 expected.extend_from_slice(diagnostic.payload_bytes());
             } else {
                 reference_section(
@@ -713,7 +704,7 @@ mod tests {
         let mut writer = RecordWriter::new(
             Vec::new(),
             &session(),
-            JournalProfile::JournalV4,
+            JournalMagic::JournalV4,
         )?;
         let entity = FileEntity::from_vec(b"payload".to_vec());
         ensure!(
@@ -747,7 +738,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn capture_metadata_precommit_failure_has_no_footer_and_can_rollback() -> Result<()> {
-        let mut writer = RecordWriter::new(Vec::new(), &session(), JournalProfile::ArchiveV1)?;
+        let mut writer = RecordWriter::new(Vec::new(), &session(), JournalMagic::ArchiveV1)?;
         let checkpoint = writer.output_mut().len();
         let mut entity = FileEntity::from_vec(Vec::new());
         entity.kind = FileEntityKind::Directory;
@@ -767,7 +758,7 @@ mod tests {
     #[crate::ctb_test]
     fn journal_completion_durability_failure_poisoned_modern_and_legacy() -> Result<()> {
         for legacy in [false, true] {
-            let mut writer = RecordWriter::new(Vec::new(), &session(), JournalProfile::JournalV4)?;
+            let mut writer = RecordWriter::new(Vec::new(), &session(), JournalMagic::JournalV4)?;
             let result = if legacy {
                 writer.complete_legacy(|_| bail!("injected completion sync failure"))
             } else {
@@ -789,7 +780,7 @@ mod tests {
     #[crate::ctb_test]
     fn completed_profiles_refuse_all_writes_and_duplicate_completion()
     -> Result<()> {
-        for profile in [JournalProfile::JournalV4, JournalProfile::ArchiveV1] {
+        for profile in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
             let mut writer =
                 RecordWriter::new(Vec::new(), &session(), profile)?;
             writer.complete(|_| Ok(()))?;

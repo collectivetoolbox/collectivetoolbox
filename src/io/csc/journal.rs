@@ -49,7 +49,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub(crate) mod capture;
 pub mod legacy;
 pub(crate) mod scanner;
+mod reader;
 pub mod stream;
+
+pub use reader::{JournalReader, JournalPayload};
+pub use scanner::ReadMode;
 
 pub use legacy::{
     convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
@@ -493,7 +497,7 @@ impl JournalWriter {
             sources: sources.to_vec(), destination: destination.to_path_buf(),
             origin_platform: u32::from(current_platform()), environment: Some(Arc::clone(&env)),
         };
-        let mut writer = stream::RecordWriter::new(BufWriter::new(file), &session, stream::JournalProfile::JournalV4)?;
+        let mut writer = stream::RecordWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV4)?;
         Self::sync_output(writer.output_mut())?;
 
         let jw = Self {
@@ -580,7 +584,7 @@ impl JournalWriter {
             origin_platform: u32::from(snapshot.origin_platform), environment: snapshot.environment.clone(),
         };
         let writer = stream::RecordWriter::resume_output(BufWriter::new(file), &session,
-            stream::JournalProfile::JournalV4, snapshot.last_batch_id, false)?;
+            stream::JournalMagic::JournalV4, snapshot.last_batch_id, false)?;
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -1027,9 +1031,8 @@ pub fn read_v4_journal_snapshot(
     let nav_file = file
         .try_clone()
         .with_context(|| format!("Failed to clone file handle for {}", journal_path.display()))?;
-    let scanned = scanner::scan::<FileEntity>(
-        nav_file, scanner::ReaderProfile::Journal { projection_policy: policy },
-    ).with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
+    let scanned = JournalReader::read(nav_file, scanner::ReadMode::Recover, policy)
+        .with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
     let origin_platform = match u8::try_from(scanned.session.origin_platform) {
         Ok(platform) => platform,
         Err(_) => {
@@ -1038,7 +1041,8 @@ pub fn read_v4_journal_snapshot(
         }
     };
     let mut committed_entities = HashMap::new();
-    for entity in scanned.members {
+    for member in scanned.members {
+        let entity = member.entity;
         let path_key = match entity.identity.path_bytes() {
             Some(bytes) => bytes.to_vec(),
             None => Vec::new(),
