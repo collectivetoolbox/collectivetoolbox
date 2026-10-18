@@ -510,6 +510,26 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn every_supported_checksum_validates_encapsulated_payloads() -> Result<()> {
+        let data = b"checksum capability coverage";
+        for algorithm in SupportedHashFormat::ALL {
+            let metadata = checksum_text(
+                algorithm.to_format_id().dc_char().context("Missing hash type")?,
+                &ctb_formats_checksum::hash(data, *algorithm),
+            )?;
+            let mut mixed = DcMstring::new();
+            mixed.push_binary_with_metadata(data, &metadata)?;
+            crate::validate_dc_mixed_strict(&mixed)?;
+            let text = mixed.to_dc_string()?;
+            crate::validate_dc_str_strict(&text)?;
+            let mut corrupted = data.to_vec();
+            *corrupted.first_mut().context("Empty payload")? ^= 1;
+            ensure!(validate_metadata(&metadata, &corrupted).is_err());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn optional_metadata_empty_payload_and_legacy_base64() -> Result<()> {
         let mut old = DcString::new();
         old.push(DC_START_ENCAPSULATION_BINARY);
