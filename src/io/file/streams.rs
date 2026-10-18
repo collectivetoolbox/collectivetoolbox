@@ -35,7 +35,10 @@ use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcProjectionContext, DcRawValue, NodeId};
+use ctb_formats_dcstring::{
+    BinaryPayloadRef, DcMixedDecode, DcMixedEncode, DcProjectionContext, DcRawValue,
+    LazyBinaryPayload, NodeId,
+};
 use ctb_utilities::format_id::FormatId;
 
 /// Native stream name, independent of the journal reader's operating system.
@@ -545,6 +548,13 @@ impl AttachedStream {
         writer.write_all(suffix.as_bytes())?;
         Ok(())
     }
+
+    /// Discards in-memory payload bytes, retaining stream name, classification,
+    /// and entity metadata/digests.
+    pub fn strip_body(&mut self) {
+        self.data = None;
+        self.entity.strip_stream_bodies();
+    }
 }
 
 /// Reads all extended attributes, resource forks, and security labels from `path`.
@@ -658,6 +668,94 @@ impl AttachedStream {
         })
     }
 
+    /// Creates an attached stream from an incremental reader, computing its digest and size
+    /// in bounded memory (without buffering the entire payload if `retain_body` is false).
+    pub fn from_stream_reader<R: std::io::Read>(
+        name: Option<StreamName>,
+        kind: StreamKind,
+        mut reader: R,
+        retain_body: bool,
+    ) -> Result<Self> {
+        let mut hasher = Sha256Stream::new();
+        let mut total_size = 0_u64;
+        let mut buffer = [0_u8; 64 * 1024];
+        let mut collected = if retain_body { Some(Vec::new()) } else { None };
+
+        loop {
+            let bytes_read = reader.read(&mut buffer)?;
+            if bytes_read == 0 {
+                break;
+            }
+            let chunk = buffer.get(..bytes_read).context("Invalid slice range")?;
+            hasher.update(chunk);
+            total_size = total_size.checked_add(u64::try_from(bytes_read)?).context("Stream size overflow")?;
+            if let Some(ref mut vec) = collected {
+                vec.extend_from_slice(chunk);
+            }
+        }
+
+        let sha256 = hasher.finalize();
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: None,
+                enclosing_path: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: None,
+                uid: None,
+                gid: None,
+                timestamps: None,
+                flags: None,
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: Some(ctb_io_environment::capture_quick_arc()),
+                apple: None,
+                warnings: Vec::new(),
+                errors: Vec::new(),
+            },
+            kind: FileEntityKind::Regular {
+                size: total_size,
+                sha256,
+                is_sparse: false,
+                extents: if total_size > 0 {
+                    vec![Extent::Data {
+                        offset: 0,
+                        length: total_size,
+                    }]
+                } else {
+                    Vec::new()
+                },
+            },
+            streams: Vec::new(),
+        };
+
+        Ok(Self {
+            name,
+            kind,
+            entity: Box::new(entity),
+            data: collected,
+        })
+    }
+
+    /// Converts this `AttachedStream` into an `AttachedStreamWithPayload`.
+    #[must_use]
+    pub fn into_with_payload(self) -> AttachedStreamWithPayload {
+        let payload = self.data.map(|d| {
+            LazyBinaryPayload(BinaryPayloadRef::Inline(d))
+        });
+        AttachedStreamWithPayload {
+            name: self.name,
+            kind: self.kind,
+            entity: self.entity,
+            payload,
+        }
+    }
+
     /// Lossy string name for logging and diagnostics.
     #[must_use]
     pub fn to_string_lossy(&self) -> std::borrow::Cow<'_, str> {
@@ -670,6 +768,50 @@ impl AttachedStream {
                 _ => std::borrow::Cow::Borrowed("(unnamed stream)"),
             },
         }
+    }
+}
+
+/// An attached stream whose payload data is retained lazily via [`LazyBinaryPayload`].
+#[derive(Debug, Clone, PartialEq, Eq, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 323, end = 324, ignore_unknown)]
+pub struct AttachedStreamWithPayload {
+    /// Original name and encoding.
+    #[dc(short = 338, omit_default)]
+    pub name: Option<StreamName>,
+    /// Classification of the stream.
+    #[dc(nested = 379..=384)]
+    pub kind: StreamKind,
+    /// The stream represented as a full `FileEntity`.
+    #[dc(nested = 317)]
+    pub entity: Box<FileEntity>,
+    /// Lazy stream payload data.
+    #[dc(385, default, omit_default)]
+    pub payload: Option<LazyBinaryPayload>,
+}
+
+impl AttachedStreamWithPayload {
+    /// Converts this lazy stream into an in-memory `AttachedStream`, loading resident
+    /// payload bytes if present.
+    pub fn into_attached_stream(self) -> Result<AttachedStream> {
+        let data = match self.payload {
+            Some(p) => match p.0.as_resident_bytes() {
+                Some(b) => Some(b.to_vec()),
+                None => anyhow::bail!("Lazy payload is backed by file span and cannot be made resident without file handle"),
+            },
+            None => None,
+        };
+        Ok(AttachedStream {
+            name: self.name,
+            kind: self.kind,
+            entity: self.entity,
+            data,
+        })
+    }
+
+    /// Returns a borrowed slice of the payload if resident in memory.
+    #[must_use]
+    pub fn resident_data(&self) -> Option<&[u8]> {
+        self.payload.as_ref().and_then(|p| p.0.as_resident_bytes())
     }
 }
 
@@ -1205,5 +1347,44 @@ mod tests {
         assert!(xattr::get(&destination, "user.stream").unwrap().is_none());
         entity.kind = FileEntityKind::Fifo;
         assert!(verify_materialized_entity(&source, &entity, false).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_incremental_attached_stream_reader_and_lazy_payload() -> Result<()> {
+        let payload = vec![0x5a_u8; 128 * 1024]; // 128KB payload
+        let expected_size = u64::try_from(payload.len())?;
+        let expected_hash = ctb_formats_checksum::sha256(&payload);
+
+        // 1. Incremental reading without retaining body in memory (bounded O(1) memory)
+        let stream_streaming = AttachedStream::from_stream_reader(
+            Some(StreamName::from_str("user.large_stream")),
+            StreamKind::ExtendedAttribute,
+            std::io::Cursor::new(&payload),
+            false, // retain_body = false
+        )?;
+        assert_eq!(stream_streaming.data, None);
+        if let FileEntityKind::Regular { size, sha256, .. } = &stream_streaming.entity.kind {
+            assert_eq!(*size, expected_size);
+            assert_eq!(*sha256, expected_hash);
+        } else {
+            panic!("Expected regular stream entity kind");
+        }
+
+        // 2. Incremental reading with body retained
+        let stream_buffered = AttachedStream::from_stream_reader(
+            Some(StreamName::from_str("user.large_stream")),
+            StreamKind::ExtendedAttribute,
+            std::io::Cursor::new(&payload),
+            true, // retain_body = true
+        )?;
+        assert_eq!(stream_buffered.data.as_deref(), Some(payload.as_slice()));
+
+        // 3. Lazy payload representation
+        let lazy = stream_buffered.into_with_payload();
+        assert_eq!(lazy.resident_data(), Some(payload.as_slice()));
+        let restored = lazy.into_attached_stream()?;
+        assert_eq!(restored.data.as_deref(), Some(payload.as_slice()));
+
+        Ok(())
     }
 }

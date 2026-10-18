@@ -537,6 +537,14 @@ impl FileEntity {
         }
     }
 
+    /// Recursively strips in-memory stream payload bytes from all attached streams,
+    /// retaining stream names, classifications, and entity metadata/digests.
+    pub fn strip_stream_bodies(&mut self) {
+        for stream in &mut self.streams {
+            stream.strip_body();
+        }
+    }
+
     /// Creates a synthetic regular `FileEntity` from a String or string slice.
     #[must_use]
     pub fn from_string(content: impl Into<String>) -> Self {

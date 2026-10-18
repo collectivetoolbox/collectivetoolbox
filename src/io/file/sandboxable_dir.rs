@@ -284,6 +284,138 @@ impl SandboxableDir {
         Ok(())
     }
 
+    /// Queries the unique filesystem identity ([`InodeKey`]) of a directory owned
+    /// and created by this sandbox instance.
+    pub fn query_owned_directory_identity(&self, relative: &Path) -> Result<crate::identity::InodeKey> {
+        let mut normalized = PathBuf::new();
+        for component in relative.components() {
+            match component {
+                Component::CurDir => {}
+                Component::Normal(name) => normalized.push(name),
+                _ => anyhow::bail!("Querying directory identity requires a contained relative path"),
+            }
+        }
+        #[cfg(unix)]
+        {
+            let owned = self.owned_directories.lock()
+                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let handle = owned.get(normalized.as_os_str())
+                .with_context(|| format!("Directory was not created by this sandbox instance: {}", relative.display()))?;
+            let st = fstat(handle)?;
+            Ok(crate::identity::InodeKey::new(st.st_dev, st.st_ino))
+        }
+        #[cfg(windows)]
+        {
+            let owned = self.owned_directories.lock()
+                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?;
+            let handle = owned.get(normalized.as_os_str())
+                .with_context(|| format!("Directory was not created by this sandbox instance: {}", relative.display()))?;
+            let (volume, high, low) = windows_directory_identity(handle)?;
+            let file_index = (u64::from(high) << 32) | u64::from(low);
+            Ok(crate::identity::InodeKey::new(u64::from(volume), file_index))
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = relative;
+            anyhow::bail!("Directory identity query is unsupported on this platform")
+        }
+    }
+
+    /// Restores ownership authority for an existing directory created in a prior session,
+    /// verifying that the directory at `relative` exists, contains no intermediate symlinks,
+    /// and strictly matches `expected_identity`.
+    pub fn restore_applied_directory_ownership(
+        &self,
+        relative: &Path,
+        expected_identity: &crate::identity::InodeKey,
+    ) -> Result<()> {
+        #[cfg(unix)]
+        {
+            let current_root = open(
+                &self.root_path,
+                OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                Mode::empty(),
+            ).context("Metadata root no longer names a no-follow directory")?;
+            let expected_root = fstat(&self.root_fd)?;
+            let actual_root = fstat(&current_root)?;
+            anyhow::ensure!(
+                expected_root.st_dev == actual_root.st_dev && expected_root.st_ino == actual_root.st_ino,
+                "Metadata root directory identity changed"
+            );
+            let mut current = current_root;
+            let mut normalized = PathBuf::new();
+            for component in relative.components() {
+                match component {
+                    Component::CurDir => {}
+                    Component::Normal(name) => {
+                        current = openat(
+                            &current, name,
+                            OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+                            Mode::empty(),
+                        ).with_context(|| format!("Failed to open directory component '{}'", Path::new(name).display()))?;
+                        normalized.push(name);
+                    }
+                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                }
+            }
+            let actual = fstat(&current)?;
+            anyhow::ensure!(
+                actual.st_dev == expected_identity.device_id && malachite::Natural::from(actual.st_ino) == expected_identity.inode,
+                "Directory identity mismatch for {}: expected dev={}, ino={}, got dev={}, ino={}",
+                relative.display(),
+                expected_identity.device_id,
+                expected_identity.inode,
+                actual.st_dev,
+                actual.st_ino,
+            );
+            self.owned_directories.lock()
+                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
+                .insert(normalized.as_os_str().to_owned(), current);
+            Ok(())
+        }
+        #[cfg(windows)]
+        {
+            let mut current = open_windows_directory(&self.root_path)?;
+            anyhow::ensure!(
+                windows_directory_identity(&self.root_handle)? == windows_directory_identity(&current)?,
+                "Metadata root directory identity changed"
+            );
+            let mut normalized = PathBuf::new();
+            let mut destination = self.root_path.clone();
+            for component in relative.components() {
+                match component {
+                    Component::CurDir => {}
+                    Component::Normal(name) => {
+                        normalized.push(name);
+                        destination.push(name);
+                        current = open_windows_directory(&destination)?;
+                    }
+                    _ => anyhow::bail!("Metadata authorization requires a contained relative path"),
+                }
+            }
+            let (volume, high, low) = windows_directory_identity(&current)?;
+            let actual_file_index = (u64::from(high) << 32) | u64::from(low);
+            anyhow::ensure!(
+                u64::from(volume) == expected_identity.device_id && malachite::Natural::from(actual_file_index) == expected_identity.inode,
+                "Directory identity mismatch for {}: expected volume={}, file_index={}, got volume={}, file_index={}",
+                relative.display(),
+                expected_identity.device_id,
+                expected_identity.inode,
+                volume,
+                actual_file_index,
+            );
+            self.owned_directories.lock()
+                .map_err(|_| anyhow::anyhow!("Created-directory ownership lock poisoned"))?
+                .insert(normalized.as_os_str().to_owned(), current);
+            Ok(())
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (relative, expected_identity);
+            anyhow::bail!("Restoring directory ownership is unsupported on this platform")
+        }
+    }
+
     /// Returns the absolute path of the destination root.
     pub fn root_path(&self) -> &Path {
         &self.root_path
@@ -1707,6 +1839,62 @@ mod tests {
         assert_eq!(receipt.bytes_written, size);
         assert_eq!(receipt.sha256, Some(sha256));
         assert!(dest_root.join("convenience").join("test.txt").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_durable_destination_identity_ownership_restore() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path().join("sandbox_root");
+        let sandbox1 = SandboxableDir::create_or_open(&root)?;
+
+        let rel_nested = Path::new("nested/sub");
+        sandbox1.ensure_dir_all(rel_nested, PathTraversalPolicy::StrictSandboxed)?;
+
+        // Created directory can be authorized under Refuse policy in the same instance
+        sandbox1.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)?;
+        let identity = sandbox1.query_owned_directory_identity(rel_nested)?;
+
+        // Reopening the sandbox creates a fresh instance without in-memory ownership
+        let sandbox2 = SandboxableDir::open(&root)?;
+        assert!(
+            sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse).is_err(),
+            "Reopened sandbox without restored ownership must refuse authorization"
+        );
+
+        // Mismatched identity receipt must fail to restore
+        let bogus_identity = crate::identity::InodeKey::new(
+            identity.device_id,
+            malachite::Natural::from(123456789_u64),
+        );
+        assert!(
+            sandbox2.restore_applied_directory_ownership(rel_nested, &bogus_identity).is_err(),
+            "Restoring with mismatched identity must fail"
+        );
+        assert!(
+            sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse).is_err(),
+            "Authorization must still be refused after failed restore"
+        );
+
+        // Valid identity receipt restores ownership and permits Refuse policy authorization
+        sandbox2.restore_applied_directory_ownership(rel_nested, &identity)?;
+        sandbox2.authorize_metadata(rel_nested, ExistingEntryPolicy::Refuse)?;
+
+        // Tampering: replace directory with another entity or symlink
+        let tampered_path = root.join(rel_nested);
+        std::fs::remove_dir(&tampered_path)?;
+        std::fs::create_dir(&tampered_path)?;
+        let sandbox3 = SandboxableDir::open(&root)?;
+        // If a new inode was created by recreate (or if identity differs), restore fails or succeeds based on identity check
+        // Note: if the recreated dir happens to get a different inode:
+        let new_id = crate::identity::query_file_identity(&tampered_path)?;
+        if new_id != identity {
+            assert!(
+                sandbox3.restore_applied_directory_ownership(rel_nested, &identity).is_err(),
+                "Replaced directory with different inode must not match original receipt"
+            );
+        }
+
+        Ok(())
     }
 }
 

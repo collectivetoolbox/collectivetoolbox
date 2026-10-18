@@ -37,6 +37,7 @@ use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
 use ctb_io::file::Natural;
 use ctb_io_environment::EnvDescription;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -418,6 +419,14 @@ pub fn current_platform() -> u8 {
     }
 }
 
+/// Durable identity receipt proving exclusive creation and authorization of a
+/// destination directory across crash and resume sessions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppliedDirectoryReceipt {
+    pub relative: PathBuf,
+    pub identity: InodeKey,
+}
+
 /// Summary of an active or completed journal recovered from disk.
 #[derive(Debug, Clone)]
 pub struct JournalSnapshot {
@@ -432,6 +441,7 @@ pub struct JournalSnapshot {
     pub environment: Option<Arc<EnvDescription>>,
     pub errors: Vec<JournalErrorRecord>,
     pub warnings: Vec<JournalWarningRecord>,
+    pub applied_directories: HashMap<PathBuf, InodeKey>,
 }
 
 impl JournalSnapshot {
@@ -469,6 +479,7 @@ pub struct StateJournal {
     warnings: Vec<JournalWarningRecord>,
     is_legacy: bool,
     pending_descriptor_status: Option<String>,
+    applied_directories: HashMap<PathBuf, InodeKey>,
 }
 
 impl StateJournal {
@@ -518,6 +529,7 @@ impl StateJournal {
             warnings: Vec::new(),
             is_legacy: false,
             pending_descriptor_status: None,
+            applied_directories: HashMap::new(),
         };
 
         jw.update_desc_file("InProgress")?;
@@ -603,7 +615,19 @@ impl StateJournal {
             warnings: snapshot.warnings.clone(),
             is_legacy,
             pending_descriptor_status: None,
+            applied_directories: snapshot.applied_directories.clone(),
         })
+    }
+
+    /// Records an applied destination directory identity receipt for crash recovery.
+    pub fn record_applied_directory(&mut self, relative: PathBuf, identity: InodeKey) {
+        self.applied_directories.insert(relative, identity);
+    }
+
+    /// Read-only map of all applied destination directory identity receipts.
+    #[must_use]
+    pub fn applied_directories(&self) -> &HashMap<PathBuf, InodeKey> {
+        &self.applied_directories
     }
 
     /// Records whether `O_NOATIME` was successfully used for payload operations.
@@ -626,9 +650,13 @@ impl StateJournal {
     }
 
     /// Queues a `FileEntity` for transactional commit.
+    /// In copy mode, stream payloads are stripped so that `.cscjournal` records
+    /// only stream metadata and checksums rather than duplicating stream bodies.
     /// A poisoned or completed writer retains the item; the next commit fails.
     pub fn record_entity(&mut self, entity: &FileEntity) {
-        self.uncommitted_entities.push(entity.clone());
+        let mut entity = entity.clone();
+        entity.strip_stream_bodies();
+        self.uncommitted_entities.push(entity);
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.
@@ -835,6 +863,20 @@ impl StateJournal {
             ctb_formats_string::escape_path_human_readable(&self.destination)
         )?;
         writeln!(desc_text, "NoatimeUsed: {}", self.noatime_used)?;
+        if !self.applied_directories.is_empty() {
+            writeln!(desc_text, "AppliedDirectories:")?;
+            let mut sorted: Vec<_> = self.applied_directories.iter().collect();
+            sorted.sort_by(|a, b| a.0.cmp(b.0));
+            for (rel, id) in sorted {
+                let receipt = AppliedDirectoryReceipt {
+                    relative: rel.clone(),
+                    identity: id.clone(),
+                };
+                if let Ok(line) = serde_json::to_string(&receipt) {
+                    writeln!(desc_text, "  - {line}")?;
+                }
+            }
+        }
 
         let temp_desc = format!("{}.tmp", self.desc_path.display());
         std::fs::write(&temp_desc, desc_text.as_bytes())?;
@@ -920,23 +962,42 @@ pub fn read_journal_snapshot_with_policy(
     file.read_exact(&mut magic).context("Incomplete journal magic")?;
 
     let desc_path = journal_path.with_extension("cscdesc");
-    let noatime_used = if desc_path.exists() {
+    let (noatime_used, applied_directories) = if desc_path.exists() {
         if let Ok(desc_content) = std::fs::read_to_string(&desc_path) {
-            desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true")
+            let noatime = desc_content.lines().any(|l| l.trim() == "NoatimeUsed: true");
+            let mut dirs = HashMap::new();
+            let mut in_applied = false;
+            for line in desc_content.lines() {
+                let trimmed = line.trim();
+                if trimmed == "AppliedDirectories:" {
+                    in_applied = true;
+                    continue;
+                }
+                if in_applied {
+                    if let Some(entry) = trimmed.strip_prefix("- ") {
+                        if let Ok(receipt) = serde_json::from_str::<AppliedDirectoryReceipt>(entry) {
+                            dirs.insert(receipt.relative, receipt.identity);
+                        }
+                    } else if !trimmed.is_empty() && !line.starts_with("  ") {
+                        in_applied = false;
+                    }
+                }
+            }
+            (noatime, dirs)
         } else {
-            false
+            (false, HashMap::new())
         }
     } else {
-        false
+        (false, HashMap::new())
     };
 
-    match &magic {
+    let mut snapshot = match &magic {
         m if m == JOURNAL_MAGIC_V4 => {
-            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)
+            read_v4_journal_snapshot(&mut file, &journal_path, noatime_used, policy)?
         }
         m if m == JOURNAL_MAGIC_V1 => {
             let mut reader = BufReader::new(file);
-            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)
+            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)?
         }
         _ => {
             anyhow::bail!(
@@ -944,7 +1005,9 @@ pub fn read_journal_snapshot_with_policy(
                 journal_path.display()
             );
         }
-    }
+    };
+    snapshot.applied_directories = applied_directories;
+    Ok(snapshot)
 }
 
 /// Converts any in-memory cscjournal bytes (legacy or v4+) to a `DcMstring` document.
@@ -1062,6 +1125,7 @@ pub fn read_v4_journal_snapshot(
         environment: scanned.session.environment,
         errors: scanned.errors,
         warnings: scanned.warnings,
+        applied_directories: HashMap::new(),
     })
 }
 
@@ -1941,7 +2005,12 @@ mod tests {
         assert!(snap.is_committed(b"link.txt"));
 
         let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
-        assert_eq!(read_file, &file_entity);
+        let mut expected_file = file_entity.clone();
+        expected_file.strip_stream_bodies();
+        assert_eq!(read_file, &expected_file);
+        for stream in &read_file.streams {
+            assert_eq!(stream.data, None);
+        }
         assert_eq!(read_file.identity.enclosing_path, Some(src.clone()));
         assert_eq!(read_file.metadata.read_time, Some(read_time_expected));
         if let FileEntityKind::Regular { size, sha256, .. } = &read_file.kind {
@@ -2658,6 +2727,111 @@ mod tests {
             );
             assert!(!log.has_errors(), "{filename}: conversion should not log errors");
         }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_copy_journal_strips_attached_stream_bodies() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("copy.cscjournal");
+        let desc_path = temp.path().join("copy.cscdesc");
+        let source = temp.path().join("source.bin");
+        let destination = temp.path().join("dest.bin");
+
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            std::slice::from_ref(&source),
+            &destination,
+        )?;
+
+        let mut entity = FileEntity::from_vec(b"primary content".to_vec());
+        entity.identity.relative_path = Some("source.bin".into());
+
+        let stream_payload = b"large stream payload that should not be in journal".to_vec();
+        let expected_size = u64::try_from(stream_payload.len())?;
+        let expected_hash = ctb_formats_checksum::sha256(&stream_payload);
+
+        let stream = AttachedStream::from_data(
+            Some(StreamName::from_str("user.test_stream")),
+            StreamKind::ExtendedAttribute,
+            stream_payload.clone(),
+        )?;
+        entity.streams.push(stream);
+
+        journal.record_entity(&entity);
+        journal.commit_batch()?;
+
+        // Verify on-disk .cscjournal does not contain the stream body bytes
+        let journal_bytes = fs::read(&journal_path)?;
+        assert!(
+            !journal_bytes.windows(stream_payload.len()).any(|w| w == stream_payload.as_slice()),
+            "Copy mode .cscjournal must not contain stream payload bodies"
+        );
+
+        // Verify reading snapshot restores metadata and digests but stream.data is None
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        let recorded = snapshot.committed_entities.values().next().context("Missing committed entity")?;
+        assert_eq!(recorded.streams.len(), 1);
+        assert_eq!(recorded.streams[0].name, Some(StreamName::from_str("user.test_stream")));
+        assert_eq!(recorded.streams[0].kind, StreamKind::ExtendedAttribute);
+        assert_eq!(recorded.streams[0].data, None, "Stream data must be stripped in journal snapshot");
+
+        // Metadata and checksums are preserved on stream.entity
+        if let FileEntityKind::Regular { size, sha256, .. } = &recorded.streams[0].entity.kind {
+            assert_eq!(*size, expected_size);
+            assert_eq!(*sha256, expected_hash);
+        } else {
+            panic!("Expected regular stream entity kind");
+        }
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_durable_applied_directory_receipts() -> Result<()> {
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("applied.cscjournal");
+        let desc_path = temp.path().join("applied.cscdesc");
+        let source = temp.path().join("src");
+        let destination = temp.path().join("dst");
+
+        let mut journal = StateJournal::create_at_path(
+            &journal_path,
+            &desc_path,
+            std::slice::from_ref(&source),
+            &destination,
+        )?;
+
+        let rel1 = PathBuf::from("dir1");
+        let id1 = InodeKey::new(12345, 67890_u64);
+        let rel2 = PathBuf::from("dir1/nested");
+        let id2 = InodeKey::new(12345, 67891_u64);
+
+        journal.record_applied_directory(rel1.clone(), id1.clone());
+        journal.record_applied_directory(rel2.clone(), id2.clone());
+
+        let mut dummy = FileEntity::from_vec(b"dummy".to_vec());
+        dummy.identity.relative_path = Some("dir1/file.txt".into());
+        journal.record_entity(&dummy);
+        journal.commit_batch()?;
+
+        // Verify .cscdesc contains AppliedDirectories section
+        let desc_content = fs::read_to_string(&desc_path)?;
+        assert!(desc_content.contains("AppliedDirectories:"));
+
+        // Snapshot reading restores applied_directories
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert_eq!(snapshot.applied_directories.len(), 2);
+        assert_eq!(snapshot.applied_directories.get(&rel1), Some(&id1));
+        assert_eq!(snapshot.applied_directories.get(&rel2), Some(&id2));
+
+        // Reopening journal for resume retains applied_directories
+        let resumed = StateJournal::open_for_resume(&journal_path, &desc_path, &snapshot)?;
+        assert_eq!(resumed.applied_directories().len(), 2);
+        assert_eq!(resumed.applied_directories().get(&rel1), Some(&id1));
+        assert_eq!(resumed.applied_directories().get(&rel2), Some(&id2));
 
         Ok(())
     }

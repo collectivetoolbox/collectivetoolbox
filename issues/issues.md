@@ -80,17 +80,23 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered.
 
-- csc archive: "durable ownership recovery needs more than the current journal intent records" - clarified: "ownership" here refers to destination sandbox directory creation authority in `SandboxableDir` under `ExistingEntryPolicy::Refuse`. Reopening a sandbox across crash/resume loses in-memory directory handles, so journal records (which only record source files and intended paths) cannot safely prove authority to mutate existing destination directories without durable applied-identity receipts (e.g. dev/ino or Windows File ID). Source metadata (ownership, mode, timestamps, ACLs, xattrs) is already captured losslessly in `FileEntity`.
+- csc archive: Durable destination identity for crash recovery
+  Status: Partially Implemented (In Progress)
+  - Implemented: Durable `AppliedDirectoryReceipt` tracking in `.cscdesc` (`applied_directories`) mapping relative paths to `InodeKey` handles. `SandboxableDir::query_owned_directory_identity` queries and `restore_applied_directory_ownership` restores creation authority under `ExistingEntryPolicy::Refuse` during crash/resume, preventing unauthorized mutations and rejecting tampered directories.
+  - Remaining Gaps: Dedicated 128-bit Windows File ID (`FILE_ID_128`) query integration on ReFS/modern NTFS (currently falls back to synthetic InodeKey volume/file-index tracking); full resume pipeline across arbitrary deep subtrees with preexisting uncommitted files under Refuse policy.
 
 - csc archive:
-
-Still pending: lazy attached streams, durable source inventory and recovery transactions, native Windows runtime tests, and executable smoke testing.
-
-Remaining implementation gaps: attached-stream streaming across file I/O, CSC, and archives, then move to recovery and losslessness issues.
-
+  Status: In Progress
+  - Partially Implemented:
+    - Lazy Attached Streams: Added `AttachedStream::from_stream_reader` (bounded chunked hashing/sizing with `retain_body: false` in O(1) memory) and `AttachedStreamWithPayload` with `LazyBinaryPayload` (Dc 385).
+    - Copy Mode Stream Body Stripping in Journals: `AttachedStream::strip_body` and `FileEntity::strip_stream_bodies` strip stream data (`data: None`) in `StateJournal::record_entity` during copy mode (`ctb csc`), keeping stream metadata and digests in `.cscjournal` while leaving archives fully self-contained.
+  - Remaining Gaps & What's Left:
+    - Incremental streaming pipeline across archive writer/reader members (streaming large stream payloads directly to/from disk files without in-memory `Vec<u8>`).
+    - Durable source inventory and crash-recovery transaction log validation for interrupted multi-file moves.
+    - Native Windows runtime qualification: `x86_64-pc-windows-gnu` compiles cleanly, but live NTFS alternate data streams (:Zone.Identifier) execution and qualification in Windows VM remain unverified.
 
 - csc archive: Do large alternate data streams get fully saved in archives (rather than only a checksum as they are/should be in journals)?
-  Confirmed: archives save full alternate data stream bodies under Dc 385 so archives are completely self-contained. In journals (copy mode), stream bodies should not be duplicated into `.cscjournal`, only their metadata and checksums.
+  Confirmed: archives save full alternate data stream bodies under Dc 385 so archives are completely self-contained. In journals (copy mode), stream bodies are stripped (`data: None`) in `.cscjournal`, retaining only metadata and SHA-256 checksums.
 
 - Are there any remaining redundant/duplicated implementations of filesystem traversal, or is it now all succesfully consolidated to file/traversal?
   Confirmed: all recursive filesystem traversal across `ctb-io` and `ctb-io-csc` is consolidated to `src/io/file/traversal.rs` (`traverse_dir`, `read_dir_safe`, and `discover_directory`).

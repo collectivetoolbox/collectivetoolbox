@@ -263,6 +263,7 @@ pub fn read_legacy_journal_snapshot<R: Read + Seek>(
         environment,
         errors,
         warnings,
+        applied_directories: HashMap::new(),
     })
 }
 

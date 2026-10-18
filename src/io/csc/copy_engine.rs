@@ -198,7 +198,25 @@ pub fn execute_copy_pipeline(
                 continue;
             }
             match std::fs::symlink_metadata(&destination) {
-                Ok(_) => anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display()),
+                Ok(_) => {
+                    let is_resumed_and_authorized = if let Some(snap) = journal.snapshot() {
+                        if let Ok(rel) = compute_journal_relative_path(journal.destination(), &destination) {
+                            if let Some(expected_id) = snap.applied_directories.get(&rel) {
+                                ctb_io::file::identity::query_file_identity(&destination)
+                                    .is_ok_and(|actual_id| actual_id == *expected_id)
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    if !is_resumed_and_authorized {
+                        anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display());
+                    }
+                }
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
                 Err(error) => return Err(error.into()),
             }
@@ -247,6 +265,15 @@ pub fn execute_copy_pipeline(
             } else {
                 SandboxableDir::create_or_open(journal.destination())?
             });
+
+            if let Some(snap) = journal.snapshot() {
+                for (rel_dir, expected_identity) in &snap.applied_directories {
+                    let _ = dest_dir.restore_applied_directory_ownership(rel_dir, expected_identity);
+                }
+            }
+            if let Ok(root_id) = dest_dir.query_owned_directory_identity(Path::new("")) {
+                journal.record_applied_directory(PathBuf::new(), root_id);
+            }
 
             let mut dir_queue: Vec<(PathBuf, PathBuf)> =
                 vec![(src_root.clone(), tgt_root.clone())];
@@ -311,6 +338,9 @@ pub fn execute_copy_pipeline(
                             &mut stats,
                         )?;
                         continue;
+                    }
+                    if let Ok(identity) = dest_dir.query_owned_directory_identity(rel_dir) {
+                        journal.record_applied_directory(rel.clone(), identity);
                     }
                 }
                 stats.dirs_created = stats.dirs_created.saturating_add(1);
@@ -1661,7 +1691,7 @@ mod fidelity_tests {
             assert!(recorded.metadata.errors.iter().any(|message| message.contains("WindowsUtf16([58, 55296])")));
             assert_eq!(recorded.streams[0].name, entity.streams[0].name);
             assert_eq!(recorded.streams[0].kind, entity.streams[0].kind);
-            assert_eq!(recorded.streams[0].data, entity.streams[0].data);
+            assert_eq!(recorded.streams[0].data, None);
             assert_eq!(recorded.streams[0].entity.kind, entity.streams[0].entity.kind);
         }
     }
@@ -3901,5 +3931,94 @@ mod tests {
             }
             _ => panic!("Expected immediate result"),
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_resume_without_overwrite_using_durable_destination_receipts() -> Result<()> {
+        let temp = tempdir()?;
+        let src = temp.path().join("src_durable");
+        let dest = temp.path().join("dest_durable");
+        let state = temp.path().join("state_durable");
+        fs::create_dir_all(src.join("sub"))?;
+        fs::create_dir_all(&state)?;
+
+        // Run 1: copies the directory structure
+        let args1 = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(args1)?;
+
+        assert!(dest.join("sub").is_dir());
+        let journal_path = find_cscjournal(&state);
+
+        // Add a new file to the directory
+        fs::write(src.join("sub").join("file1.txt"), b"resumed payload")?;
+
+        // Run 2: Resume WITHOUT --overwrite (args.overwrite is false by default).
+        // Under Refuse policy, destination directory already exists.
+        // It must succeed by verifying the durable destination identity receipt.
+        let mut resume_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        resume_args.resume = Some(journal_path.clone());
+        resume_args.overwrite = false; // explicitly refuse overwrite
+
+        let res = run_csc(resume_args)?;
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert_eq!(fs::read(dest.join("sub").join("file1.txt"))?, b"resumed payload");
+
+        // Tampering test: if destination directory is replaced with another directory having a different inode
+        let tampered_dest = temp.path().join("dest_tampered");
+        let tampered_state = temp.path().join("state_tampered");
+        fs::create_dir_all(&tampered_state)?;
+        let mut tamper_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                tampered_dest.clone(),
+            ],
+            tampered_state.clone(),
+        );
+        run_csc(tamper_args)?;
+        let tampered_journal = find_cscjournal(&tampered_state);
+
+        // Recreate sub with a different inode
+        let sub_dir = tampered_dest.join("sub");
+        fs::remove_dir_all(&sub_dir)?;
+        fs::create_dir(&sub_dir)?;
+        let new_id = ctb_io::file::identity::query_file_identity(&sub_dir)?;
+
+        let mut tamper_resume = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                tampered_dest.clone(),
+            ],
+            tampered_state.clone(),
+        );
+        tamper_resume.resume = Some(tampered_journal);
+        tamper_resume.overwrite = false;
+
+        let snap = crate::journal::read_journal_snapshot(&tamper_resume.resume.clone().unwrap())?;
+        if let Some(expected_id) = snap.applied_directories.get(Path::new("sub")) {
+            if *expected_id != new_id {
+                let err = run_csc(tamper_resume);
+                assert!(err.is_err(), "Resume must refuse when directory identity receipt does not match");
+            }
+        }
+
+        Ok(())
     }
 }
