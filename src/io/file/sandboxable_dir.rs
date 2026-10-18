@@ -1130,6 +1130,7 @@ fn windows_directory_identity(handle: &std::fs::File) -> Result<(u64, u128)> {
     // 1. Try FileIdInfo (Windows 8 / Server 2012+ / ReFS / modern NTFS) for 128-bit File ID
     let mut id_info = std::mem::MaybeUninit::<FILE_ID_INFO>::uninit();
     let size = u32::try_from(std::mem::size_of::<FILE_ID_INFO>())?;
+    // SAFETY: raw_handle is borrowed from a live File, and id_info points to a writable buffer of size bytes matching FILE_ID_INFO.
     if unsafe {
         GetFileInformationByHandleEx(
             raw_handle,
@@ -1138,6 +1139,7 @@ fn windows_directory_identity(handle: &std::fs::File) -> Result<(u64, u128)> {
             size,
         )
     } != 0 {
+        // SAFETY: GetFileInformationByHandleEx succeeded, initializing id_info with FILE_ID_INFO.
         let id_info = unsafe { id_info.assume_init() };
         let file_id_128 = u128::from_le_bytes(id_info.FileId.Identifier);
         if file_id_128 != 0 {
@@ -1147,6 +1149,7 @@ fn windows_directory_identity(handle: &std::fs::File) -> Result<(u64, u128)> {
 
     // 2. Fall back to standard 64-bit file index via GetFileInformationByHandle
     let mut information = BY_HANDLE_FILE_INFORMATION::default();
+    // SAFETY: raw_handle is borrowed from a live File, and information is a valid, writable BY_HANDLE_FILE_INFORMATION struct.
     if unsafe { GetFileInformationByHandle(raw_handle, &raw mut information) } == 0 {
         return Err(std::io::Error::last_os_error())
             .context("Native directory identity is unsupported or unavailable");
@@ -1206,6 +1209,7 @@ fn publish_windows(temp: &Path, destination: &Path, existing: ExistingEntryPolic
         ExistingEntryPolicy::Refuse => 0,
         ExistingEntryPolicy::Replace => MOVEFILE_REPLACE_EXISTING,
     };
+    // SAFETY: source and target are valid, non-null, NUL-terminated wide string buffers that outlive MoveFileExW.
     if unsafe { MoveFileExW(source.as_ptr(), target.as_ptr(), flags) } == 0 {
         return Err(std::io::Error::last_os_error()).with_context(|| format!(
             "Failed to publish {} as {} ({existing:?})", temp.display(), destination.display()

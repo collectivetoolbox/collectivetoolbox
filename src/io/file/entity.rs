@@ -1831,6 +1831,7 @@ mod tests {
         let file = std::fs::OpenOptions::new()
             .read(true).write(true).create_new(true).open(&path).unwrap();
         let mut returned = 0;
+        // SAFETY: file is a live open handle, returned is a valid stack buffer, and FSCTL_SET_SPARSE requires no input or output data buffers.
         let success = unsafe {
             windows_sys::Win32::System::IO::DeviceIoControl(
                 file.as_raw_handle(),
@@ -1893,6 +1894,7 @@ mod tests {
         let mut file = std::fs::OpenOptions::new()
             .read(true).write(true).create_new(true).open(&path).unwrap();
         let mut returned = 0;
+        // SAFETY: file is a live open handle, returned is a valid stack buffer, and FSCTL_SET_SPARSE requires no input or output data buffers.
         let success = unsafe {
             DeviceIoControl(
                 file.as_raw_handle(), FSCTL_SET_SPARSE,
@@ -1922,6 +1924,7 @@ mod tests {
         ] {
             let zero_info = FILE_ZERO_DATA_INFORMATION { FileOffset: start, BeyondFinalZero: end };
             let mut ret = 0;
+            // SAFETY: file is a live open handle, zero_info points to a valid initialized FILE_ZERO_DATA_INFORMATION buffer of the specified size, and ret is a valid stack buffer.
             unsafe {
                 DeviceIoControl(
                     file.as_raw_handle(), FSCTL_SET_ZERO_DATA,

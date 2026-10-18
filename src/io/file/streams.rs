@@ -1038,17 +1038,20 @@ pub fn write_streams(
                     continue;
                 }
             }
+            let stream_size = data.len();
             if strict_lossless {
                 anyhow::bail!(
-                    "Target filesystem failed to store stream {:?} on {} (error: {}). Data would be lost.",
+                    "Target filesystem failed to store stream {:?} ({} bytes) on {} (error: {}). It may be too large for the OS or filesystem. Data would be lost.",
                     stream.to_string_lossy(),
+                    stream_size,
                     display_target.display(),
                     e
                 );
             }
             warn_fmt!(
-                "Caveat: Target filesystem cannot store extended attribute {:?} on {}: {} (proceeding best-effort)",
+                "Caveat: Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {} (it may be too large for the OS or filesystem; proceeding best-effort)",
                 stream.to_string_lossy(),
+                stream_size,
                 display_target.display(),
                 e
             );
@@ -1155,12 +1158,22 @@ pub fn write_stream_from_reader<R: std::io::Read>(
     }
     anyhow::ensure!(total_read == *size && hasher.finalize() == *sha256,
         "Stream payload does not match descriptor: {:?}", stream.to_string_lossy());
+    let stream_size = data.len();
     if let Err(e) = xattr::set(dest, &name_os, &data) {
         if strict_lossless {
-            anyhow::bail!("Target filesystem failed to store stream {:?} on {}: {e}", stream.to_string_lossy(), dest.display());
+            anyhow::bail!(
+                "Target filesystem failed to store stream {:?} ({} bytes) on {}: {e} (it may be too large for the OS or filesystem). Data would be lost.",
+                stream.to_string_lossy(),
+                stream_size,
+                dest.display()
+            );
         }
-        warn_fmt!("Caveat: Target filesystem cannot store extended attribute {:?} on {}: {e} (best-effort)",
-            stream.to_string_lossy(), dest.display());
+        warn_fmt!(
+            "Caveat: Target filesystem cannot store extended attribute {:?} ({} bytes) on {}: {e} (it may be too large for the OS or filesystem; best-effort)",
+            stream.to_string_lossy(),
+            stream_size,
+            dest.display()
+        );
     }
     Ok(())
 }
