@@ -91,20 +91,21 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
   - Remaining Gaps & Pending Work:
     - Extend AppleDouble/AppleSingle conversion writers to consume nonresident attached bodies through `AttachedStreamSource`. Materialization currently rejects these conversion modes before mutation when bodies are nonresident, rather than silently omitting them. Native stream capture, archive writing, lazy projection, and pre-publication extraction use the streaming path.
     - Native Windows ADS/reparse runtime qualification remains pending. Windows library and test targets cross-check successfully; the portable large-stream regression verifies source-free lazy archive bodies, and the publication regression rejects changed source bodies. These do not replace live NTFS execution. Live ReFS testing is not required.
+    - Windows Clippy remains blocked by seven pre-existing undocumented unsafe blocks in `file/sandboxable_dir.rs` and Windows tests in `file/entity.rs`; musl Clippy passes, and the new durable-publication unsafe block has its required safety justification.
 
 
-- Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)?
+- Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)? A good practical test (add a test script to run this whole process, probably, so it can be re-tried and variations on it added) would be to create a file with a few large (>512kB) streams with odd, mangled, and differing-only-in-normalization Unicode filenames on FreeBSD, and pack them into a `csc archive` there. Copy that out of FreeBSD and save it as a test fixture. On Linux, extract it using AppleDouble files. Then, `csc archive` that folder, with reading AppleDouble files turned on, re-joining the streams to their files. Copy that archive into Windows 11, and extract it. `csc archive` it there. Copy that back out. Unpack it on FreeBSD, then do a `ctoolbox csc-diff` (this isn't a command yet, but would be very handy - just hand it two paths and get back a diff, using the same logic and strictness as a csc copy).
+
+In errors like Target filesystem failed to store stream {:?} on {}: {e}", stream.to_string_lossy(), dest.display());
+        }
+        warn_fmt!("Caveat: Target filesystem cannot store extended attribute {:?} on {}: {e} (best-effort)",
+It should indicate what the size of the stream was, as that's a common issue, and note that it may be too large for the OS or filesystem.
 
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container
 
 File flags did not have complete implementation
-
-In errors like Target filesystem failed to store stream {:?} on {}: {e}", stream.to_string_lossy(), dest.display());
-        }
-        warn_fmt!("Caveat: Target filesystem cannot store extended attribute {:?} on {}: {e} (best-effort)",
-It should indicate what the size of the stream was, as that's a common issue, and note that it may be too large for the OS or filesystem.
 
 magic-square
 

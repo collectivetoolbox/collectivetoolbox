@@ -61,6 +61,19 @@
 - Descriptor updates after durable journal writes can fail independently.
   Pending-descriptor state blocks new operations; retry_descriptor repairs only
   metadata, without duplicate journal bytes/counters/completion markers.
+- Descriptor publication uses `file::write_file_durable`: sync staged contents,
+  then atomically replace and sync the parent on Unix; Windows uses write-through
+  replacement. Publication failures retain descriptor-retry state.
+- `AttachedStream` projects through `AttachedStreamWithPayload` using generic
+  conversion derives. File-backed archive bodies remain lazy; copy-journal body
+  stripping clears both `data` and `payload`. Body diagnostics recurse through
+  stream entities in the shared v4 snapshot path, including direct reader calls.
+- Native ADS capture hashes incrementally and records a filesystem origin.
+  `AttachedStreamSource` supplies captured or archive-backed readers; regular
+  materialization writes and verifies attached bodies before atomic publication.
+  Nonresident AppleDouble/AppleSingle conversion is explicitly rejected before
+  mutation until companion writers accept the same reader interface. Native
+  Windows runtime qualification remains separate from cross-target checking.
 - CapturedTree final validation and pending-warning persistence must precede
   completion. Best-effort validation returning Ok can still retain warnings;
   drain them through the shared visitor before discarding snapshots. Companion

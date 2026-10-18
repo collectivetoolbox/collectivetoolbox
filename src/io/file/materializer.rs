@@ -1243,6 +1243,7 @@ pub fn write_file_durable(path: &Path, contents: &[u8]) -> Result<()> {
         let source = crate::metadata::windows::path_to_wide(staged.path())?;
         let destination = crate::metadata::windows::path_to_wide(path)?;
         #[expect(unsafe_code, reason = "Both native paths are live NUL-terminated UTF-16 buffers")]
+        // SAFETY: Both path buffers remain live and NUL-terminated for these calls.
         unsafe {
             if SetFileAttributesW(source.as_ptr(), FILE_ATTRIBUTE_NORMAL) == 0 {
                 return Err(std::io::Error::last_os_error()).context("Failed to prepare durable replacement");
