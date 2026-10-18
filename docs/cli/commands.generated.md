@@ -50,9 +50,11 @@ Commands:
   python                     Run the embedded Python interpreter or execute Python scripts
   validate-docker-image      Validate a docker save image tarball
   csc                        Checksummed copy with rsync-compatible path resolution and an extra verification step
+  archive                    Create, list, verify, or extract a self-contained CSC archive
   cp                         Copy files or directories with an extra verification step (alias for `csc --delete-manifest-after`)
   mv                         Move files or directories without copying when possible, or run verified cross-device copy
   csc-verify                 Verify a directory against a manifest recorded by csc
+  csc-diff                   Compare two filesystem paths with the same verification strictness and logic as csc
   fsindex                    Index a directory or csc manifest for quick searching
   fsearch                    Fast indexed search against a .cscindex.sqlite database
   csum                       Calculate checksum for a file or stdin
@@ -113,6 +115,89 @@ Arguments:
 Options:
       --password-stdin  Read password from stdin even if running interactively
   -h, --help            Print help
+```
+
+### `ctoolbox archive`
+
+```text
+Create, list, verify, or extract a self-contained CSC archive
+
+Usage: ctoolbox archive <COMMAND>
+
+Commands:
+  create   Create a self-contained uncompressed CSC archive
+  list     List committed members and capture diagnostics
+  verify   Verify archive structure, checksums, and file contents without sources
+  extract  Extract a verified archive beneath a destination directory
+
+Options:
+  -h, --help  Print help
+```
+
+### `ctoolbox archive create`
+
+```text
+Create a self-contained uncompressed CSC archive
+
+Usage: ctoolbox archive create [OPTIONS] <ARCHIVE> [SOURCES]...
+
+Arguments:
+  <ARCHIVE>     Archive output path, or - for binary stdout
+  [SOURCES]...  
+
+Options:
+      --resume             Resume an interrupted file-output archive using its recorded sources
+      --continue-on-error  Retain source failures, continue capture, and report nonzero status
+  -h, --help               Print help
+```
+
+### `ctoolbox archive extract`
+
+```text
+Extract a verified archive beneath a destination directory
+
+Usage: ctoolbox archive extract [OPTIONS] <ARCHIVE> <DESTINATION>
+
+Arguments:
+  <ARCHIVE>      
+  <DESTINATION>  
+
+Options:
+      --overwrite                  Replace existing regular files atomically; merge existing directories
+      --trust-symlink-targets      Preserve link targets verbatim, including targets outside destination
+      --best-effort-metadata       Report filesystem metadata losses instead of requiring exact restoration
+      --copy-specials-as-specials  Permit restoration of FIFOs and device nodes as special files
+      --recover                    Extract committed members from incomplete archives or archives containing capture errors
+  -h, --help                       Print help
+```
+
+### `ctoolbox archive list`
+
+```text
+List committed members and capture diagnostics
+
+Usage: ctoolbox archive list <ARCHIVE>
+
+Arguments:
+  <ARCHIVE>  
+
+Options:
+  -h, --help  Print help
+```
+
+### `ctoolbox archive verify`
+
+```text
+Verify archive structure, checksums, and file contents without sources
+
+Usage: ctoolbox archive verify [OPTIONS] <ARCHIVE>
+
+Arguments:
+  <ARCHIVE>  
+
+Options:
+      --recover  Allow verification of incomplete archives or archives containing capture errors
+  -h, --help     Print help
 ```
 
 ### `ctoolbox base2base`
@@ -364,8 +449,8 @@ Options:
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
           Skip the post-flush verification pass
-      --always-overwrite
-          Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
+      --overwrite
+          Authorize replacing existing entries and restoring directory metadata. Existing entries are refused by default, including during resume
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
       --copy-specials-as-specials
@@ -461,8 +546,8 @@ Options:
           Recalculate checksums after flushing OS caches (default: enabled)
       --no-verify-after
           Skip the post-flush verification pass
-      --always-overwrite
-          Always overwrite destination files by rewriting payload and metadata, even if destination exists with identical checksum. Default is to reuse matching payload and losslessly update metadata in-place
+      --overwrite
+          Authorize replacing existing entries and restoring directory metadata. Existing entries are refused by default, including during resume
       --on-source-change <ON_SOURCE_CHANGE>
           Behavior when a source file is modified during copy [default: error] [possible values: error, best-effort]
       --copy-specials-as-specials
@@ -531,6 +616,78 @@ Options:
           Print help (see more with '--help')
 ```
 
+### `ctoolbox csc-diff`
+
+```text
+Compare two filesystem paths with the same verification strictness and logic as csc
+
+Usage: ctoolbox csc-diff [OPTIONS] <PATH_A> <PATH_B>
+
+Arguments:
+  <PATH_A>  First path to compare (reference)
+  <PATH_B>  Second path to compare (target)
+
+Options:
+      --no-drop-caches
+          Skip dropping OS kernel caches and per-file cache eviction before reading
+      --ignore-atime
+          Ignore access time (atime) differences during verification (defaults to true)
+      --check-atime
+          Explicitly check access time (atime) differences during verification
+      --ignore-mtime
+          Ignore modification time (mtime) differences during verification
+      --ignore-ctime
+          Ignore status/metadata change time (ctime) differences (defaults to true as POSIX cannot set ctime)
+      --check-ctime
+          Explicitly enforce status/metadata change time (ctime) verification
+      --ignore-owner
+          Ignore ownership (UID and GID) differences
+      --ignore-perms
+          Ignore file mode / permission differences
+      --ignore-flags
+          Ignore semantic file flags differences
+      --ignore-xattrs
+          Ignore alternate data streams and extended attribute differences
+      --ignore-untracked
+          Do not report untracked extra files present on disk that are absent from manifest or reference tree
+      --ignore <IGNORE>
+          Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
+      --best-effort
+          Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
+      --strict
+          Enforce strictest verification settings, enabling --check-atime and --check-ctime
+      --format <FORMAT>
+          Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
+  -q, --quiet
+          Only report discrepancies or errors, suppressing informational progress
+  -v, --verbose
+          Verbose output showing each file compared
+  -x, --one-file-system
+          Stay on the current filesystem and do not cross mount boundaries
+      --read-apple-double [<STYLE>]
+          Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --read-apple-double-alongside
+          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+      --no-read-apple-double-alongside
+          Disable reading alongside (._<filename>) AppleDouble companion files
+      --read-apple-double-zip
+          Read __MACOSX/ directory AppleDouble companion files
+      --read-apple-double-netatalk
+          Read Netatalk .AppleDouble companion files
+      --read-apple-single
+          Read AppleSingle files and decode data fork, resource fork, and Apple metadata
+      --read-apple-single-without-extension
+          Read bare AppleSingle files without extension (alias for --read-apple-single)
+      --no-read-apple-single
+          Disable reading bare AppleSingle files without extension
+      --read-apple-single-with-extension <EXT>
+          Read AppleSingle files with the specified extension ('as' or 'asf') [possible values: without-extension, as, asf]
+      --full-provenance
+          Record full provenance environment information using slow environment detection
+  -h, --help
+          Print help (see more with '--help')
+```
+
 ### `ctoolbox csc-verify`
 
 ```text
@@ -553,12 +710,12 @@ Options:
       --ignore-perms          Ignore file mode / permission differences
       --ignore-flags          Ignore semantic file flags differences
       --ignore-xattrs         Ignore alternate data streams and extended attribute differences
-      --ignore-untracked      Do not report untracked extra files present on disk that are absent from manifest
+      --ignore-untracked      Do not report untracked extra files present on disk that are absent from manifest or reference tree
       --ignore <IGNORE>       Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked)
-      --format <FORMAT>       Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
-  -q, --quiet                 Only report discrepancies or errors, suppressing informational progress
       --best-effort           Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
       --strict                Enforce strictest verification settings, enabling --check-atime and --check-ctime
+      --format <FORMAT>       Output reporting format (`text` or `json`) [default: text] [possible values: text, json]
+  -q, --quiet                 Only report discrepancies or errors, suppressing informational progress
       --allow-incomplete      Allow verifying against a manifest that failed, was aborted, or has not completed verification
       --full-provenance       Record full provenance environment information using slow environment detection
       --allow-journal-errors  Allow forgiving projection when reading state journals containing syntax or schema errors

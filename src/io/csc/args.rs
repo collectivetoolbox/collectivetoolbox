@@ -299,45 +299,17 @@ impl CscArgs {
     /// Resolves AppleSingle / AppleDouble read options.
     #[must_use]
     pub fn resolve_apple_read_options(&self) -> AppleReadOptions {
-        let mut alongside = !self.no_read_apple_double_alongside;
-        if self.read_apple_double_alongside {
-            alongside = true;
-        }
-        let mut zip = self.read_apple_double_zip;
-        let mut netatalk = self.read_apple_double_netatalk;
-
-        if let Some(style) = self.read_apple_double {
-            match style {
-                AppleDoubleStyle::Alongside => alongside = true,
-                AppleDoubleStyle::Zip => zip = true,
-                AppleDoubleStyle::Netatalk => netatalk = true,
-            }
-        }
-
-        let read_single_bare = (self.read_apple_single || self.read_apple_single_without_extension)
-            && !self.no_read_apple_single;
-
-        let mut read_as = false;
-        let mut read_asf = false;
-        let mut read_bare = read_single_bare;
-
-        for ext in &self.read_apple_single_with_extension {
-            match ext {
-                AppleSingleExtension::As => read_as = true,
-                AppleSingleExtension::Asf => read_asf = true,
-                AppleSingleExtension::WithoutExtension => read_bare = true,
-            }
-        }
-
-        AppleReadOptions {
-            read_apple_double_alongside: alongside,
-            read_apple_double_zip: zip,
-            read_apple_double_netatalk: netatalk,
-            read_apple_single_without_extension: read_bare,
-            read_apple_single: read_bare,
-            read_apple_single_as: read_as,
-            read_apple_single_asf: read_asf,
-        }
+        resolve_apple_read_options_from_flags(
+            self.read_apple_double,
+            self.read_apple_double_alongside,
+            self.no_read_apple_double_alongside,
+            self.read_apple_double_zip,
+            self.read_apple_double_netatalk,
+            self.read_apple_single,
+            self.read_apple_single_without_extension,
+            self.no_read_apple_single,
+            &self.read_apple_single_with_extension,
+        )
     }
 
     /// Resolves AppleSingle / AppleDouble write mode, ensuring mutual exclusivity.
@@ -388,6 +360,60 @@ impl CscArgs {
     }
 }
 
+/// Helper to resolve AppleSingle / AppleDouble read options from raw CLI flags.
+#[must_use]
+pub fn resolve_apple_read_options_from_flags(
+    read_apple_double: Option<AppleDoubleStyle>,
+    read_apple_double_alongside: bool,
+    no_read_apple_double_alongside: bool,
+    read_apple_double_zip: bool,
+    read_apple_double_netatalk: bool,
+    read_apple_single: bool,
+    read_apple_single_without_extension: bool,
+    no_read_apple_single: bool,
+    read_apple_single_with_extension: &[AppleSingleExtension],
+) -> AppleReadOptions {
+    let mut alongside = !no_read_apple_double_alongside;
+    if read_apple_double_alongside {
+        alongside = true;
+    }
+    let mut zip = read_apple_double_zip;
+    let mut netatalk = read_apple_double_netatalk;
+
+    if let Some(style) = read_apple_double {
+        match style {
+            AppleDoubleStyle::Alongside => alongside = true,
+            AppleDoubleStyle::Zip => zip = true,
+            AppleDoubleStyle::Netatalk => netatalk = true,
+        }
+    }
+
+    let read_single_bare = (read_apple_single || read_apple_single_without_extension)
+        && !no_read_apple_single;
+
+    let mut read_as = false;
+    let mut read_asf = false;
+    let mut read_bare = read_single_bare;
+
+    for ext in read_apple_single_with_extension {
+        match ext {
+            AppleSingleExtension::As => read_as = true,
+            AppleSingleExtension::Asf => read_asf = true,
+            AppleSingleExtension::WithoutExtension => read_bare = true,
+        }
+    }
+
+    AppleReadOptions {
+        read_apple_double_alongside: alongside,
+        read_apple_double_zip: zip,
+        read_apple_double_netatalk: netatalk,
+        read_apple_single_without_extension: read_bare,
+        read_apple_single: read_bare,
+        read_apple_single_as: read_as,
+        read_apple_single_asf: read_asf,
+    }
+}
+
 /// Output format for verification reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ValueEnum)]
 pub enum VerifyOutputFormat {
@@ -398,22 +424,9 @@ pub enum VerifyOutputFormat {
     Json,
 }
 
-/// Command-line arguments for `csc-verify` (or `cscv`).
-#[derive(Parser, Debug, Clone)]
-#[command(
-    name = "csc-verify",
-    about = "Verifies a directory against a manifest created by csc, reporting all changed files and metadata differences"
-)]
-pub struct CscVerifyArgs {
-    /// Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files.
-    #[arg(value_name = "MANIFEST")]
-    pub manifest: PathBuf,
-
-    /// Target directory to verify. If omitted, uses the destination path recorded
-    /// in the manifest. Specifying this allows verifying relocated folders.
-    #[arg(value_name = "DIRECTORY")]
-    pub dir: Option<PathBuf>,
-
+/// Common verification and strictness criteria flags shared by `csc-verify` and `csc-diff`.
+#[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
+pub struct VerificationCriteriaArgs {
     /// Skip dropping OS kernel caches and per-file cache eviction before reading.
     #[arg(long)]
     pub no_drop_caches: bool,
@@ -455,21 +468,13 @@ pub struct CscVerifyArgs {
     #[arg(long)]
     pub ignore_xattrs: bool,
 
-    /// Do not report untracked extra files present on disk that are absent from manifest.
+    /// Do not report untracked extra files present on disk that are absent from manifest or reference tree.
     #[arg(long)]
     pub ignore_untracked: bool,
 
     /// Comma-separated list of metadata fields to ignore (e.g. atime,mtime,owner,perms,flags,xattrs,untracked).
     #[arg(long, value_delimiter = ',')]
     pub ignore: Vec<String>,
-
-    /// Output reporting format (`text` or `json`).
-    #[arg(long, value_enum, default_value_t = VerifyOutputFormat::Text)]
-    pub format: VerifyOutputFormat,
-
-    /// Only report discrepancies or errors, suppressing informational progress.
-    #[arg(short = 'q', long)]
-    pub quiet: bool,
 
     /// Verify in best-effort mode: tolerates timestamp precision differences
     /// up to 2 seconds and ignores ownership mismatches if running unprivileged.
@@ -479,38 +484,9 @@ pub struct CscVerifyArgs {
     /// Enforce strictest verification settings, enabling --check-atime and --check-ctime.
     #[arg(long)]
     pub strict: bool,
-
-    /// Allow verifying against a manifest that failed, was aborted, or has not completed verification.
-    #[arg(
-        long = "allow-incomplete",
-        alias = "allow-failed",
-        alias = "allow-truncated",
-        default_value_t = false
-    )]
-    pub allow_incomplete: bool,
-
-    /// Record full provenance environment information using slow environment detection.
-    #[arg(long)]
-    pub full_provenance: bool,
-
-    /// Allow forgiving projection when reading state journals containing syntax or schema errors.
-    #[arg(long)]
-    pub allow_journal_errors: bool,
 }
 
-impl CscVerifyArgs {
-    /// Returns the projection policy to use when decoding state journals.
-    #[must_use]
-    pub const fn journal_projection_policy(
-        &self,
-    ) -> ctb_formats_dcstring::DcProjectionPolicy {
-        if self.allow_journal_errors {
-            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
-        } else {
-            ctb_formats_dcstring::DcProjectionPolicy::strict()
-        }
-    }
-
+impl VerificationCriteriaArgs {
     #[must_use]
     pub fn should_ignore_atime(&self) -> bool {
         if self.strict || self.check_atime {
@@ -575,7 +551,7 @@ impl CscVerifyArgs {
         !self.no_drop_caches
     }
 
-    /// Returns true if verification is running in its strictest possible settings with no skipped or relaxed checks.
+    /// Returns true if criteria are set to strictest possible settings.
     #[must_use]
     pub fn is_strict(&self) -> bool {
         !self.should_ignore_atime()
@@ -587,12 +563,10 @@ impl CscVerifyArgs {
             && !self.should_ignore_xattrs()
             && !self.should_ignore_untracked()
             && !self.best_effort
-            && !self.allow_incomplete
-            && !self.allow_journal_errors
             && self.should_drop_caches()
     }
 
-    /// Converts this set of CLI verification flags into `EntityAuditOptions`.
+    /// Converts this set of criteria flags into `EntityAuditOptions`.
     #[must_use]
     pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
         ctb_io::file::verifier::EntityAuditOptions {
@@ -607,6 +581,268 @@ impl CscVerifyArgs {
             drop_caches: self.should_drop_caches(),
             best_effort: if self.strict { false } else { self.best_effort },
         }
+    }
+}
+
+/// Command-line arguments for `csc-verify`.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "csc-verify",
+    about = "Verifies a directory against a manifest created by csc, reporting all changed files and metadata differences"
+)]
+pub struct CscVerifyArgs {
+    /// Path to the manifest file (.cscjournal or .cscdesc) or directory containing state files.
+    #[arg(value_name = "MANIFEST")]
+    pub manifest: PathBuf,
+
+    /// Target directory to verify. If omitted, uses the destination path recorded
+    /// in the manifest. Specifying this allows verifying relocated folders.
+    #[arg(value_name = "DIRECTORY")]
+    pub dir: Option<PathBuf>,
+
+    #[command(flatten)]
+    pub criteria: VerificationCriteriaArgs,
+
+    /// Output reporting format (`text` or `json`).
+    #[arg(long, value_enum, default_value_t = VerifyOutputFormat::Text)]
+    pub format: VerifyOutputFormat,
+
+    /// Only report discrepancies or errors, suppressing informational progress.
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
+
+    /// Allow verifying against a manifest that failed, was aborted, or has not completed verification.
+    #[arg(
+        long = "allow-incomplete",
+        alias = "allow-failed",
+        alias = "allow-truncated",
+        default_value_t = false
+    )]
+    pub allow_incomplete: bool,
+
+    /// Record full provenance environment information using slow environment detection.
+    #[arg(long)]
+    pub full_provenance: bool,
+
+    /// Allow forgiving projection when reading state journals containing syntax or schema errors.
+    #[arg(long)]
+    pub allow_journal_errors: bool,
+}
+
+impl CscVerifyArgs {
+    /// Returns the projection policy to use when decoding state journals.
+    #[must_use]
+    pub const fn journal_projection_policy(
+        &self,
+    ) -> ctb_formats_dcstring::DcProjectionPolicy {
+        if self.allow_journal_errors {
+            ctb_formats_dcstring::DcProjectionPolicy::forgiving()
+        } else {
+            ctb_formats_dcstring::DcProjectionPolicy::strict()
+        }
+    }
+
+    #[must_use]
+    pub fn should_ignore_atime(&self) -> bool {
+        self.criteria.should_ignore_atime()
+    }
+
+    #[must_use]
+    pub fn should_ignore_mtime(&self) -> bool {
+        self.criteria.should_ignore_mtime()
+    }
+
+    #[must_use]
+    pub fn should_ignore_ctime(&self) -> bool {
+        self.criteria.should_ignore_ctime()
+    }
+
+    #[must_use]
+    pub fn should_ignore_owner(&self) -> bool {
+        self.criteria.should_ignore_owner()
+    }
+
+    #[must_use]
+    pub fn should_ignore_perms(&self) -> bool {
+        self.criteria.should_ignore_perms()
+    }
+
+    #[must_use]
+    pub fn should_ignore_flags(&self) -> bool {
+        self.criteria.should_ignore_flags()
+    }
+
+    #[must_use]
+    pub fn should_ignore_xattrs(&self) -> bool {
+        self.criteria.should_ignore_xattrs()
+    }
+
+    #[must_use]
+    pub fn should_ignore_untracked(&self) -> bool {
+        self.criteria.should_ignore_untracked()
+    }
+
+    #[must_use]
+    pub fn should_drop_caches(&self) -> bool {
+        self.criteria.should_drop_caches()
+    }
+
+    /// Returns true if verification is running in its strictest possible settings with no skipped or relaxed checks.
+    #[must_use]
+    pub fn is_strict(&self) -> bool {
+        self.criteria.is_strict()
+            && !self.allow_incomplete
+            && !self.allow_journal_errors
+    }
+
+    /// Converts this set of CLI verification flags into `EntityAuditOptions`.
+    #[must_use]
+    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+        self.criteria.to_audit_options()
+    }
+}
+
+impl std::ops::Deref for CscVerifyArgs {
+    type Target = VerificationCriteriaArgs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.criteria
+    }
+}
+
+impl std::ops::DerefMut for CscVerifyArgs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.criteria
+    }
+}
+
+/// Command-line arguments for `csc-diff`.
+#[derive(Parser, Debug, Clone)]
+#[command(
+    name = "csc-diff",
+    about = "Compare two filesystem paths and report differences using the same logic and strictness as csc copy"
+)]
+pub struct CscDiffArgs {
+    /// First path to compare (reference).
+    #[arg(value_name = "PATH_A")]
+    pub path_a: PathBuf,
+
+    /// Second path to compare (target).
+    #[arg(value_name = "PATH_B")]
+    pub path_b: PathBuf,
+
+    #[command(flatten)]
+    pub criteria: VerificationCriteriaArgs,
+
+    /// Output reporting format (`text` or `json`).
+    #[arg(long, value_enum, default_value_t = VerifyOutputFormat::Text)]
+    pub format: VerifyOutputFormat,
+
+    /// Only report discrepancies or errors, suppressing informational progress.
+    #[arg(short = 'q', long)]
+    pub quiet: bool,
+
+    /// Verbose output showing each file compared.
+    #[arg(short = 'v', long)]
+    pub verbose: bool,
+
+    /// Stay on the current filesystem and do not cross mount boundaries.
+    #[arg(short = 'x', long = "one-file-system")]
+    pub one_file_system: bool,
+
+    /// Read AppleDouble companion files and join them into file entities.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub read_apple_double: Option<AppleDoubleStyle>,
+
+    /// Read alongside (._<filename>) AppleDouble companion files (default: enabled).
+    #[arg(long, overrides_with = "no_read_apple_double_alongside")]
+    pub read_apple_double_alongside: bool,
+
+    /// Disable reading alongside (._<filename>) AppleDouble companion files.
+    #[arg(long, overrides_with = "read_apple_double_alongside")]
+    pub no_read_apple_double_alongside: bool,
+
+    /// Read __MACOSX/ directory AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_zip: bool,
+
+    /// Read Netatalk .AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_netatalk: bool,
+
+    /// Read AppleSingle files and decode data fork, resource fork, and Apple metadata.
+    #[arg(long, overrides_with = "no_read_apple_single")]
+    pub read_apple_single: bool,
+
+    /// Read bare AppleSingle files without extension (alias for --read-apple-single).
+    #[arg(long, overrides_with = "no_read_apple_single")]
+    pub read_apple_single_without_extension: bool,
+
+    /// Disable reading bare AppleSingle files without extension.
+    #[arg(long, overrides_with = "read_apple_single")]
+    pub no_read_apple_single: bool,
+
+    /// Read AppleSingle files with the specified extension ('as' or 'asf').
+    #[arg(long, value_name = "EXT", action = clap::ArgAction::Append)]
+    pub read_apple_single_with_extension: Vec<AppleSingleExtension>,
+
+    /// Record full provenance environment information using slow environment detection.
+    #[arg(long)]
+    pub full_provenance: bool,
+}
+
+impl CscDiffArgs {
+    /// Resolves AppleSingle / AppleDouble read options.
+    #[must_use]
+    pub fn resolve_apple_read_options(&self) -> AppleReadOptions {
+        resolve_apple_read_options_from_flags(
+            self.read_apple_double,
+            self.read_apple_double_alongside,
+            self.no_read_apple_double_alongside,
+            self.read_apple_double_zip,
+            self.read_apple_double_netatalk,
+            self.read_apple_single,
+            self.read_apple_single_without_extension,
+            self.no_read_apple_single,
+            &self.read_apple_single_with_extension,
+        )
+    }
+
+    /// Converts this set of CLI verification flags into `EntityAuditOptions`.
+    #[must_use]
+    pub fn to_audit_options(&self) -> ctb_io::file::verifier::EntityAuditOptions {
+        self.criteria.to_audit_options()
+    }
+
+    #[must_use]
+    pub fn should_drop_caches(&self) -> bool {
+        self.criteria.should_drop_caches()
+    }
+
+    #[must_use]
+    pub fn should_ignore_untracked(&self) -> bool {
+        self.criteria.should_ignore_untracked()
+    }
+}
+
+impl std::ops::Deref for CscDiffArgs {
+    type Target = VerificationCriteriaArgs;
+
+    fn deref(&self) -> &Self::Target {
+        &self.criteria
+    }
+}
+
+impl std::ops::DerefMut for CscDiffArgs {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.criteria
     }
 }
 
@@ -1006,25 +1242,65 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
     CscVerifyArgs {
         manifest,
         dir,
-        no_drop_caches: true,
-        ignore_atime: true,
-        check_atime: false,
-        ignore_mtime: false,
-        ignore_ctime: true,
-        check_ctime: false,
-        ignore_owner: true,
-        ignore_perms: false,
-        ignore_flags: true,
-        ignore_xattrs: false,
-        ignore_untracked: false,
-        ignore: Vec::new(),
+        criteria: VerificationCriteriaArgs {
+            no_drop_caches: true,
+            ignore_atime: true,
+            check_atime: false,
+            ignore_mtime: false,
+            ignore_ctime: true,
+            check_ctime: false,
+            ignore_owner: true,
+            ignore_perms: false,
+            ignore_flags: true,
+            ignore_xattrs: false,
+            ignore_untracked: false,
+            ignore: Vec::new(),
+            best_effort: true,
+            strict: false,
+        },
         format: VerifyOutputFormat::Text,
         quiet: false,
-        best_effort: true,
-        strict: false,
         allow_incomplete: false,
         full_provenance: false,
         allow_journal_errors: false,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn default_diff_args(path_a: PathBuf, path_b: PathBuf) -> CscDiffArgs {
+    CscDiffArgs {
+        path_a,
+        path_b,
+        criteria: VerificationCriteriaArgs {
+            no_drop_caches: true,
+            ignore_atime: true,
+            check_atime: false,
+            ignore_mtime: false,
+            ignore_ctime: true,
+            check_ctime: false,
+            ignore_owner: false,
+            ignore_perms: false,
+            ignore_flags: false,
+            ignore_xattrs: false,
+            ignore_untracked: false,
+            ignore: Vec::new(),
+            best_effort: false,
+            strict: false,
+        },
+        format: VerifyOutputFormat::Text,
+        quiet: false,
+        verbose: false,
+        one_file_system: false,
+        read_apple_double: None,
+        read_apple_double_alongside: true,
+        no_read_apple_double_alongside: false,
+        read_apple_double_zip: false,
+        read_apple_double_netatalk: false,
+        read_apple_single: false,
+        read_apple_single_without_extension: false,
+        no_read_apple_single: false,
+        read_apple_single_with_extension: Vec::new(),
+        full_provenance: false,
     }
 }
 

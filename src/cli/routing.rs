@@ -53,6 +53,7 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "archive"
             | "csc-verify"
             | "cscv"
+            | "csc-diff"
             | "fsindex"
             | "fsearch"
             | "csum"
@@ -558,6 +559,9 @@ pub enum Command {
     /// Verify a directory against a manifest recorded by csc
     #[command(name = "csc-verify", alias = "cscv")]
     CscVerify(ctb_io_csc::args::CscVerifyArgs),
+    /// Compare two filesystem paths with the same verification strictness and logic as csc
+    #[command(name = "csc-diff")]
+    CscDiff(ctb_io_csc::args::CscDiffArgs),
     /// Index a directory or csc manifest for quick searching
     #[command(name = "fsindex")]
     Fsindex(ctb_io_csc::args::FsindexArgs),
@@ -1235,6 +1239,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
         }
         Command::Mv(args) => ctb_io_csc::move_engine::run_mv(args.clone()),
         Command::CscVerify(args) => ctb_io_csc::verifier::run_csc_verify(args),
+        Command::CscDiff(args) => ctb_io_csc::diff_engine::run_csc_diff(args),
         Command::Fsindex(args) => ctb_io_csc::index_engine::run_fsindex(args.clone()).await,
         Command::Fsearch(args) => ctb_io_csc::search_engine::run_fsearch(args.clone()).await,
         Command::Csum {

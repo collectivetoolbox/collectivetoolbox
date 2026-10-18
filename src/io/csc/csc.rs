@@ -38,6 +38,7 @@ pub mod index_engine;
 pub mod search_engine;
 pub mod move_engine;
 pub mod index_meta;
+pub mod diff_engine;
 
 #[cfg(all(test, unix))]
 pub(crate) fn run_permission_test_unprivileged(test_path: &str) -> Result<bool> {

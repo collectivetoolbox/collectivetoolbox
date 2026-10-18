@@ -31,10 +31,11 @@ use crate::utilities::*;
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
 use crate::journal::{read_journal_snapshot, resolve_journal_path, JournalErrorRecord};
 use crate::journal::PLATFORM_WINDOWS;
-use ctb_io::file::entity::FileEntityKind;
+use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{extract_file_identity, resolve_relative_path_for_os};
 use ctb_io::file::link_path::LinkPath;
-use ctb_io::file::verifier::{DiffKind, IgnoredDifferences, audit_entity_detailed, try_drop_system_caches};
+pub use ctb_io::file::verifier::IgnoredDifferences;
+use ctb_io::file::verifier::{DiffKind, audit_entity_detailed, try_drop_system_caches};
 use ctb_utilities::cli::ToolResult;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -54,6 +55,17 @@ pub fn check_cache_flush_privileges() {
     }
 }
 
+/// Classification of verification report source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum VerificationReportKind {
+    ManifestVerification,
+    PathDiff,
+}
+
+const fn default_report_kind() -> VerificationReportKind {
+    VerificationReportKind::ManifestVerification
+}
+
 /// Collection of discrepancies detected for a specific relative file path.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct EntryDiff {
@@ -61,9 +73,11 @@ pub struct EntryDiff {
     pub differences: Vec<DiffKind>,
 }
 
-/// Overall verification audit report for a directory tree against a manifest.
+/// Overall verification audit report for a directory tree or diff comparison.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct VerificationReport {
+    #[serde(default = "default_report_kind")]
+    pub report_kind: VerificationReportKind,
     pub target_directory: PathBuf,
     pub manifest_path: PathBuf,
     pub total_manifest_entries: usize,
@@ -96,15 +110,41 @@ impl VerificationReport {
     pub fn format_human_report(&self) -> String {
         use std::fmt::Write;
         let mut out = String::new();
-        let _ = writeln!(out, "--- CSC Manifest Verification Report ---");
-        let _ = writeln!(out, "Manifest:         {}", self.manifest_path.display());
-        let _ = writeln!(out, "Target Directory: {}", self.target_directory.display());
+        let (header, source_lbl, target_lbl, target_subject, source_summary_lbl, missing_lbl, untracked_lbl, untracked_tag) = match self.report_kind {
+            VerificationReportKind::ManifestVerification => (
+                "--- CSC Manifest Verification Report ---",
+                "Manifest:        ",
+                "Target Directory:",
+                "directory and manifest",
+                "Manifest entries: ",
+                "Missing Entries",
+                "Untracked Entries",
+                "[UNTRACKED]",
+            ),
+            VerificationReportKind::PathDiff => (
+                "--- CSC Diff Report ---",
+                "Path A:          ",
+                "Path B:          ",
+                "paths",
+                "Path A entries:  ",
+                "Missing in B",
+                "Extra in B",
+                "[EXTRA]",
+            ),
+        };
+        let _ = writeln!(out, "{header}");
+        let _ = writeln!(out, "{source_lbl} {}", self.manifest_path.display());
+        let _ = writeln!(out, "{target_lbl} {}", self.target_directory.display());
 
         if self.is_clean() {
+            let match_subject = match self.report_kind {
+                VerificationReportKind::ManifestVerification => "Directory matches manifest",
+                VerificationReportKind::PathDiff => "Paths match",
+            };
             if self.caveats.is_empty() {
                 let _ = writeln!(
                     out,
-                    "Status:           OK - Directory matches manifest perfectly."
+                    "Status:           OK - {match_subject} perfectly."
                 );
             } else if self.best_effort && !self.ignored_differences.is_empty() {
                 let mut parts = Vec::new();
@@ -146,12 +186,12 @@ impl VerificationReport {
                 let details = parts.join(" and ");
                 let _ = writeln!(
                     out,
-                    "Status:           OK - Directory matches manifest in best-effort mode; ignored {details}."
+                    "Status:           OK - {match_subject} in best-effort mode; ignored {details}."
                 );
             } else {
                 let _ = writeln!(
                     out,
-                    "Status:           OK - Directory matches manifest."
+                    "Status:           OK - {match_subject}."
                 );
             }
             let _ = writeln!(
@@ -173,7 +213,7 @@ impl VerificationReport {
 
         let _ = writeln!(
             out,
-            "Status:           FAILED - Discrepancies detected between directory and manifest.\n"
+            "Status:           FAILED - Discrepancies detected between {target_subject}.\n"
         );
 
         if !self.recorded_errors.is_empty() {
@@ -191,7 +231,7 @@ impl VerificationReport {
         }
 
         if !self.missing_entries.is_empty() {
-            let _ = writeln!(out, "Missing Entries ({}):", self.missing_entries.len());
+            let _ = writeln!(out, "{missing_lbl} ({}):", self.missing_entries.len());
             for m in &self.missing_entries {
                 let _ = writeln!(out, "  [MISSING] {}", m.display());
             }
@@ -199,9 +239,9 @@ impl VerificationReport {
         }
 
         if !self.untracked_entries.is_empty() {
-            let _ = writeln!(out, "Untracked Entries ({}):", self.untracked_entries.len());
+            let _ = writeln!(out, "{untracked_lbl} ({}):", self.untracked_entries.len());
             for u in &self.untracked_entries {
-                let _ = writeln!(out, "  [UNTRACKED] {}", u.display());
+                let _ = writeln!(out, "  {untracked_tag} {}", u.display());
             }
             let _ = writeln!(out);
         }
@@ -218,13 +258,13 @@ impl VerificationReport {
         }
 
         let _ = writeln!(out, "Summary:");
-        let _ = writeln!(out, "  Manifest entries:  {}", self.total_manifest_entries);
+        let _ = writeln!(out, "  {source_summary_lbl} {}", self.total_manifest_entries);
         let _ = writeln!(out, "  Clean matches:     {}", self.matched_entries);
         let _ = writeln!(out, "  Changed entries:   {}", self.changed_entries.len());
-        let _ = writeln!(out, "  Missing entries:   {}", self.missing_entries.len());
+        let _ = writeln!(out, "  {missing_lbl}:   {}", self.missing_entries.len());
         let _ = writeln!(
             out,
-            "  Untracked entries: {}",
+            "  {untracked_lbl}: {}",
             self.untracked_entries.len()
         );
 
@@ -246,86 +286,47 @@ impl VerificationReport {
 }
 
 /// Performs verification of target directory against manifest according to options.
-#[expect(clippy::too_many_lines, reason = "Manifest verification orchestrator covering files, dirs, symlinks, and hardlinks")]
-pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<VerificationReport> {
-    let journal_path = resolve_journal_path(&args.manifest)?;
-    let snapshot = crate::journal::read_journal_snapshot_with_policy(
-        &journal_path,
-        &args.journal_projection_policy(),
-    )?;
+/// Result of an audit pass against a destination directory.
+#[derive(Debug, Default)]
+pub struct AuditPassResult {
+    pub matched_entries: usize,
+    pub changed_entries: Vec<EntryDiff>,
+    pub missing_entries: Vec<PathBuf>,
+    pub verified_paths: HashSet<PathBuf>,
+    pub total_ignored: IgnoredDifferences,
+}
 
-    if !snapshot.is_completed && !args.allow_incomplete {
-        anyhow::bail!(
-            "Manifest at {} is incomplete or was not marked finished (transfer failed, truncated, or post-copy verification was not run). Pass --allow-incomplete to verify anyway.",
-            journal_path.display()
-        );
-    }
+/// Audits a sequence of expected entities against entries on disk in target_dir.
+#[expect(clippy::too_many_lines, reason = "Comprehensive entity traversal and audit against target")]
+pub fn audit_entries_against_target(
+    target_dir: &Path,
+    expected_entries: impl IntoIterator<Item = (PathBuf, FileEntity)>,
+    audit_options: &ctb_io::file::verifier::EntityAuditOptions,
+    strict_hardlink_paths: bool,
+) -> Result<AuditPassResult> {
+    let mut result = AuditPassResult::default();
 
-    let target_dir = if let Some(ref custom_dir) = args.dir {
-        custom_dir.clone()
-    } else {
-        snapshot.destination.clone()
-    };
-
-    anyhow::ensure!(
-        target_dir.exists(),
-        "Target directory to verify does not exist: {}",
-        target_dir.display()
-    );
-    anyhow::ensure!(
-        target_dir.is_dir(),
-        "Target path to verify is not a directory: {}",
-        target_dir.display()
-    );
-
-    // Drop OS page cache and attempt kernel drop_caches if enabled
-    if args.should_drop_caches() {
-        check_cache_flush_privileges();
-        try_drop_system_caches();
-    }
-
-    let audit_options = args.to_audit_options();
-    let mut changed_entries = Vec::new();
-    let mut missing_entries = Vec::new();
-    let mut matched_entries = 0_usize;
-    let mut verified_paths = HashSet::new();
-    let mut total_ignored = IgnoredDifferences::default();
-
-    let total_manifest_entries = snapshot
-        .committed_entities
-        .iter()
-        .filter(|(raw_rel, entity)| {
-            if matches!(entity.kind, FileEntityKind::Directory) {
-                !raw_rel.is_empty() && *raw_rel != b"."
-            } else {
-                true
-            }
-        })
-        .count();
-    let is_windows = snapshot.origin_platform == PLATFORM_WINDOWS;
-
-    for (raw_rel, entity) in &snapshot.committed_entities {
-        let rel_path = match resolve_relative_path_for_os(raw_rel, is_windows) {
-            Ok(p) => p,
-            Err(e) => {
-                let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
-                changed_entries.push(EntryDiff {
-                    relative_path: p,
-                    differences: vec![DiffKind::IncompatiblePath {
-                        reason: e.to_string(),
-                    }],
-                });
-                continue;
-            }
-        };
-
+    for (rel_path, entity) in expected_entries {
         if matches!(entity.kind, FileEntityKind::Directory)
             && (rel_path.as_os_str().is_empty() || rel_path == Path::new("."))
         {
+            // For root directory itself, check directory attributes
+            let (diffs, ignored) = audit_entity_detailed(target_dir, &entity, audit_options)?;
+            result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
+            result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
+            result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
+            result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
+            result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
+            if !diffs.is_empty() && diffs != vec![DiffKind::MissingOnDisk] {
+                result.changed_entries.push(EntryDiff {
+                    relative_path: rel_path.clone(),
+                    differences: diffs,
+                });
+            }
             continue;
         }
 
-        verified_paths.insert(normalize_rel_path(&rel_path));
+        result.verified_paths.insert(normalize_rel_path(&rel_path));
         let full_path = target_dir.join(&rel_path);
 
         match &entity.kind {
@@ -333,10 +334,11 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 target_relative_path,
             } => {
                 let tgt_rel = match target_relative_path
-                    .to_path_buf_for_materialization(!args.best_effort || args.strict) {
+                    .to_path_buf_for_materialization(strict_hardlink_paths)
+                {
                     Ok(p) => p,
                     Err(e) => {
-                        changed_entries.push(EntryDiff {
+                        result.changed_entries.push(EntryDiff {
                             relative_path: rel_path.clone(),
                             differences: vec![DiffKind::IncompatiblePath {
                                 reason: e.to_string(),
@@ -355,7 +357,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                         let first_identity = extract_file_identity(&full_path, &m1)?;
                         let target_identity = extract_file_identity(&tgt_full, &m2)?;
                         if first_identity != target_identity {
-                            changed_entries.push(EntryDiff {
+                            result.changed_entries.push(EntryDiff {
                                 relative_path: rel_path.clone(),
                                 differences: vec![DiffKind::HardlinkMismatch {
                                     expected_target: tgt_rel,
@@ -369,24 +371,24 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                                 }],
                             });
                         } else {
-                            matched_entries = matched_entries.saturating_add(1);
+                            result.matched_entries = result.matched_entries.saturating_add(1);
                         }
                     }
                     (Err(error), _) if error.kind() != std::io::ErrorKind::NotFound => {
-                        return Err(error).with_context(|| format!(
-                            "Failed to query hardlink metadata: {}", full_path.display(),
-                        ));
+                        return Err(error).with_context(|| {
+                            format!("Failed to query hardlink metadata: {}", full_path.display())
+                        });
                     }
                     (_, Err(error)) if error.kind() != std::io::ErrorKind::NotFound => {
-                        return Err(error).with_context(|| format!(
-                            "Failed to query hardlink target metadata: {}", tgt_full.display(),
-                        ));
+                        return Err(error).with_context(|| {
+                            format!("Failed to query hardlink target metadata: {}", tgt_full.display())
+                        });
                     }
                     (Err(_), _) => {
-                        missing_entries.push(rel_path.clone());
+                        result.missing_entries.push(rel_path.clone());
                     }
                     (_, Err(_)) => {
-                        changed_entries.push(EntryDiff {
+                        result.changed_entries.push(EntryDiff {
                             relative_path: rel_path.clone(),
                             differences: vec![DiffKind::HardlinkMismatch {
                                 expected_target: tgt_rel,
@@ -400,19 +402,19 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
                 }
             }
             _ => {
-                let (diffs, ignored) = audit_entity_detailed(&full_path, entity, &audit_options)?;
-                total_ignored.ownership = total_ignored.ownership.saturating_add(ignored.ownership);
-                total_ignored.timestamps = total_ignored.timestamps.saturating_add(ignored.timestamps);
-                total_ignored.permissions = total_ignored.permissions.saturating_add(ignored.permissions);
-                total_ignored.flags = total_ignored.flags.saturating_add(ignored.flags);
-                total_ignored.sparseness = total_ignored.sparseness.saturating_add(ignored.sparseness);
+                let (diffs, ignored) = audit_entity_detailed(&full_path, &entity, audit_options)?;
+                result.total_ignored.ownership = result.total_ignored.ownership.saturating_add(ignored.ownership);
+                result.total_ignored.timestamps = result.total_ignored.timestamps.saturating_add(ignored.timestamps);
+                result.total_ignored.permissions = result.total_ignored.permissions.saturating_add(ignored.permissions);
+                result.total_ignored.flags = result.total_ignored.flags.saturating_add(ignored.flags);
+                result.total_ignored.sparseness = result.total_ignored.sparseness.saturating_add(ignored.sparseness);
 
                 if diffs.is_empty() {
-                    matched_entries = matched_entries.saturating_add(1);
+                    result.matched_entries = result.matched_entries.saturating_add(1);
                 } else if diffs == vec![DiffKind::MissingOnDisk] {
-                    missing_entries.push(rel_path.clone());
+                    result.missing_entries.push(rel_path.clone());
                 } else {
-                    changed_entries.push(EntryDiff {
+                    result.changed_entries.push(EntryDiff {
                         relative_path: rel_path.clone(),
                         differences: diffs,
                     });
@@ -421,45 +423,18 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         }
     }
 
-    // 5. Discover untracked entries on disk unless ignored
-    let mut untracked_entries = Vec::new();
-    let mut total_disk_scanned = 0_usize;
+    Ok(result)
+}
 
-    if !args.should_ignore_untracked() {
-        // If manifest contains "." or "" as an entity, the target directory itself was the root of copy.
-        // Otherwise, only the specific top-level subtrees/entities copied (e.g. ".fonts", "dir1") are
-        // within the scope of this manifest; siblings in target_dir outside these roots are ignored.
-        let is_root_target = snapshot.committed_entities.iter().any(|(raw_rel, entity)| {
-            (raw_rel.is_empty() || raw_rel == b".")
-                && matches!(entity.kind, FileEntityKind::Directory)
-        });
-        let top_level_roots: Option<HashSet<PathBuf>> = if is_root_target {
-            None
-        } else {
-            let roots: HashSet<PathBuf> = verified_paths
-                .iter()
-                .filter_map(|p| p.components().next().map(|c| PathBuf::from(c.as_os_str())))
-                .collect();
-            Some(roots)
-        };
-
-        let disk_entries = scan_disk_entries(&target_dir, top_level_roots.as_ref())?;
-        total_disk_scanned = disk_entries.len();
-
-        for disk_rel in disk_entries {
-            let norm = normalize_rel_path(&disk_rel);
-            if !verified_paths.contains(&norm) {
-                untracked_entries.push(disk_rel);
-            }
-        }
-    }
-
-    // Sort entries for deterministic output
-    changed_entries.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
-    missing_entries.sort();
-    untracked_entries.sort();
-
-    let is_best_effort = args.best_effort && !args.strict;
+/// Constructs human-readable caveats based on verification options and ignored discrepancies.
+#[must_use]
+pub fn build_audit_caveats(
+    audit_options: &ctb_io::file::verifier::EntityAuditOptions,
+    ignore_untracked: bool,
+    dropped_caches: bool,
+    is_best_effort: bool,
+    total_ignored: &IgnoredDifferences,
+) -> Vec<String> {
     let mut caveats = Vec::new();
 
     if audit_options.ignore_atime {
@@ -483,10 +458,10 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     if audit_options.ignore_xattrs {
         caveats.push("Extended attributes and alternate data streams not verified (--ignore-xattrs)".to_string());
     }
-    if args.should_ignore_untracked() {
+    if ignore_untracked {
         caveats.push("Untracked disk files not scanned (--ignore-untracked)".to_string());
     }
-    if !args.should_drop_caches() {
+    if !dropped_caches {
         caveats.push("OS cache eviction skipped (--no-drop-caches)".to_string());
     }
     if is_best_effort {
@@ -532,6 +507,139 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
             caveats.push(format!("Best-effort mode: ignored {}", parts.join(" and ")));
         }
     }
+    caveats
+}
+
+/// Performs verification of target directory against manifest according to options.
+pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<VerificationReport> {
+    let journal_path = resolve_journal_path(&args.manifest)?;
+    let snapshot = crate::journal::read_journal_snapshot_with_policy(
+        &journal_path,
+        &args.journal_projection_policy(),
+    )?;
+
+    if !snapshot.is_completed && !args.allow_incomplete {
+        anyhow::bail!(
+            "Manifest at {} is incomplete or was not marked finished (transfer failed, truncated, or post-copy verification was not run). Pass --allow-incomplete to verify anyway.",
+            journal_path.display()
+        );
+    }
+
+    let target_dir = if let Some(ref custom_dir) = args.dir {
+        custom_dir.clone()
+    } else {
+        snapshot.destination.clone()
+    };
+
+    anyhow::ensure!(
+        target_dir.exists(),
+        "Target directory to verify does not exist: {}",
+        target_dir.display()
+    );
+    anyhow::ensure!(
+        target_dir.is_dir(),
+        "Target path to verify is not a directory: {}",
+        target_dir.display()
+    );
+
+    // Drop OS page cache and attempt kernel drop_caches if enabled
+    if args.should_drop_caches() {
+        check_cache_flush_privileges();
+        try_drop_system_caches();
+    }
+
+    let audit_options = args.to_audit_options();
+    let is_windows = snapshot.origin_platform == PLATFORM_WINDOWS;
+
+    let total_manifest_entries = snapshot
+        .committed_entities
+        .iter()
+        .filter(|(raw_rel, entity)| {
+            if matches!(entity.kind, FileEntityKind::Directory) {
+                !raw_rel.is_empty() && *raw_rel != b"."
+            } else {
+                true
+            }
+        })
+        .count();
+
+    let mut changed_entries = Vec::new();
+    let mut expected_entries = Vec::with_capacity(snapshot.committed_entities.len());
+
+    for (raw_rel, entity) in &snapshot.committed_entities {
+        let rel_path = match resolve_relative_path_for_os(raw_rel, is_windows) {
+            Ok(p) => p,
+            Err(e) => {
+                let p = PathBuf::from(String::from_utf8_lossy(raw_rel).as_ref());
+                changed_entries.push(EntryDiff {
+                    relative_path: p,
+                    differences: vec![DiffKind::IncompatiblePath {
+                        reason: e.to_string(),
+                    }],
+                });
+                continue;
+            }
+        };
+        expected_entries.push((rel_path, entity.clone()));
+    }
+
+    let pass = audit_entries_against_target(
+        &target_dir,
+        expected_entries,
+        &audit_options,
+        !args.criteria.best_effort || args.criteria.strict,
+    )?;
+
+    changed_entries.extend(pass.changed_entries);
+    let mut missing_entries = pass.missing_entries;
+    let matched_entries = pass.matched_entries;
+    let verified_paths = pass.verified_paths;
+    let total_ignored = pass.total_ignored;
+
+    // Discover untracked entries on disk unless ignored
+    let mut untracked_entries = Vec::new();
+    let mut total_disk_scanned = 0_usize;
+
+    if !args.should_ignore_untracked() {
+        let is_root_target = snapshot.committed_entities.iter().any(|(raw_rel, entity)| {
+            (raw_rel.is_empty() || raw_rel == b".")
+                && matches!(entity.kind, FileEntityKind::Directory)
+        });
+        let top_level_roots: Option<HashSet<PathBuf>> = if is_root_target {
+            None
+        } else {
+            let roots: HashSet<PathBuf> = verified_paths
+                .iter()
+                .filter_map(|p| p.components().next().map(|c| PathBuf::from(c.as_os_str())))
+                .collect();
+            Some(roots)
+        };
+
+        let disk_entries = scan_disk_entries(&target_dir, top_level_roots.as_ref())?;
+        total_disk_scanned = disk_entries.len();
+
+        for disk_rel in disk_entries {
+            let norm = normalize_rel_path(&disk_rel);
+            if !verified_paths.contains(&norm) {
+                untracked_entries.push(disk_rel);
+            }
+        }
+    }
+
+    // Sort entries for deterministic output
+    changed_entries.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+    missing_entries.sort();
+    untracked_entries.sort();
+
+    let is_best_effort = args.criteria.best_effort && !args.criteria.strict;
+    let mut caveats = build_audit_caveats(
+        &audit_options,
+        args.should_ignore_untracked(),
+        args.should_drop_caches(),
+        is_best_effort,
+        &total_ignored,
+    );
+
     if args.allow_incomplete && !snapshot.is_completed {
         caveats.push("Manifest is incomplete or was not marked finished (--allow-incomplete)".to_string());
     }
@@ -541,6 +649,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     }
 
     Ok(VerificationReport {
+        report_kind: VerificationReportKind::ManifestVerification,
         target_directory: target_dir,
         manifest_path: journal_path,
         total_manifest_entries,
@@ -556,12 +665,12 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
     })
 }
 
-fn normalize_rel_path(p: &Path) -> PathBuf {
+pub(crate) fn normalize_rel_path(p: &Path) -> PathBuf {
     // Reason for fallback: If path does not start with "./", it is already a normalized relative path.
     p.strip_prefix("./").unwrap_or(p).to_path_buf()
 }
 
-fn scan_disk_entries(
+pub(crate) fn scan_disk_entries(
     root: &Path,
     top_level_roots: Option<&HashSet<PathBuf>>,
 ) -> Result<HashSet<PathBuf>> {
@@ -1387,11 +1496,12 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_verification_report_formatting_modes() {
-        use crate::verifier::VerificationReport;
+        use crate::verifier::{VerificationReport, VerificationReportKind};
         use ctb_io::file::verifier::IgnoredDifferences;
 
         // 1. Clean report with no caveats (strictest settings)
         let strict_clean = VerificationReport {
+            report_kind: VerificationReportKind::ManifestVerification,
             target_directory: PathBuf::from("/target"),
             manifest_path: PathBuf::from("/manifest.cscjournal"),
             total_manifest_entries: 5,
@@ -1411,6 +1521,7 @@ mod tests {
 
         // 2. Clean report with caveats (non-strict settings)
         let non_strict_clean = VerificationReport {
+            report_kind: VerificationReportKind::ManifestVerification,
             target_directory: PathBuf::from("/target"),
             manifest_path: PathBuf::from("/manifest.cscjournal"),
             total_manifest_entries: 5,
@@ -1436,6 +1547,7 @@ mod tests {
 
         // 3. Clean report in best-effort mode with ignored differences
         let be_clean = VerificationReport {
+            report_kind: VerificationReportKind::ManifestVerification,
             target_directory: PathBuf::from("/target"),
             manifest_path: PathBuf::from("/manifest.cscjournal"),
             total_manifest_entries: 5,
@@ -1464,6 +1576,51 @@ mod tests {
         assert!(!out3.contains("Directory matches manifest perfectly"));
         assert!(out3.contains("Caveats:"));
         assert!(out3.contains("ignored 2 timestamp differences"));
+
+        // 4. Path diff mode report
+        let diff_clean = VerificationReport {
+            report_kind: VerificationReportKind::PathDiff,
+            target_directory: PathBuf::from("/path/b"),
+            manifest_path: PathBuf::from("/path/a"),
+            total_manifest_entries: 3,
+            total_disk_entries_scanned: 3,
+            matched_entries: 3,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: Vec::new(),
+            recorded_errors: Vec::new(),
+        };
+        let out4 = diff_clean.format_human_report();
+        assert!(out4.contains("--- CSC Diff Report ---"));
+        assert!(out4.contains("Path A:           /path/a"));
+        assert!(out4.contains("Path B:           /path/b"));
+        assert!(out4.contains("Status:           OK - Paths match perfectly."));
+        assert!(out4.contains("Verified Entries: 3 (0 discrepancies)"));
+
+        // 5. Path diff mode report with differences
+        let diff_fail = VerificationReport {
+            report_kind: VerificationReportKind::PathDiff,
+            target_directory: PathBuf::from("/path/b"),
+            manifest_path: PathBuf::from("/path/a"),
+            total_manifest_entries: 3,
+            total_disk_entries_scanned: 3,
+            matched_entries: 2,
+            changed_entries: Vec::new(),
+            missing_entries: vec![PathBuf::from("missing.txt")],
+            untracked_entries: vec![PathBuf::from("extra.txt")],
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: Vec::new(),
+            recorded_errors: Vec::new(),
+        };
+        let out5 = diff_fail.format_human_report();
+        assert!(out5.contains("Status:           FAILED - Discrepancies detected between paths."));
+        assert!(out5.contains("Path A entries:   3"));
+        assert!(out5.contains("Missing in B (1):"));
+        assert!(out5.contains("Extra in B (1):"));
     }
 
     #[cfg(unix)]
