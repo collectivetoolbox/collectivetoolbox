@@ -84,16 +84,23 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
   Status: Partially Implemented (In Progress)
   - Implemented: Durable `AppliedDirectoryReceipt` tracking in `.cscdesc` (`applied_directories`) mapping relative paths to `InodeKey` handles. `SandboxableDir::query_owned_directory_identity` queries and `restore_applied_directory_ownership` restores creation authority under `ExistingEntryPolicy::Refuse` during crash/resume, preventing unauthorized mutations and rejecting tampered directories.
   - Remaining Gaps: Dedicated 128-bit Windows File ID (`FILE_ID_128`) query integration on ReFS/modern NTFS (currently falls back to synthetic InodeKey volume/file-index tracking); full resume pipeline across arbitrary deep subtrees with preexisting uncommitted files under Refuse policy.
+  - Implemented: 128-bit Windows File ID (`FILE_ID_128`) query integration on ReFS/modern NTFS (`GetFileInformationByHandleEx` with `FileIdInfo`) with fallback to 64-bit `FileIndex`, stored via `InodeKey::from_file_id_128` and serialized across journal/archive identity records.
+  - Remaining Gaps & Pending Work: Full resume pipeline across arbitrary deep subtrees with preexisting uncommitted files under Refuse policy without overwrite; live volume testing on formatted ReFS volumes (mocked/unit-tested via `test_128_bit_file_id_applied_directory_receipt`).
+  - Interrupted Multi-File Move Journals: Crash-recovery transaction log validation for interrupted moves with source deletion steps.
 
 - csc archive:
   Status: In Progress
   - Partially Implemented:
     - Lazy Attached Streams: Added `AttachedStream::from_stream_reader` (bounded chunked hashing/sizing with `retain_body: false` in O(1) memory) and `AttachedStreamWithPayload` with `LazyBinaryPayload` (Dc 385).
+    - End-to-End Streaming Attached Streams: Implemented `AttachedStream::from_stream_reader`, `encode_with_stream_reader`, `encode_to_writer_with_stream_reader`, `JournalReader::stream_payload`, and `write_stream_from_reader` (Unix & Windows chunked streaming into `:stream:$DATA`) to serialize and extract large alternate data streams with bounded $O(1)$ memory.
     - Copy Mode Stream Body Stripping in Journals: `AttachedStream::strip_body` and `FileEntity::strip_stream_bodies` strip stream data (`data: None`) in `StateJournal::record_entity` during copy mode (`ctb csc`), keeping stream metadata and digests in `.cscjournal` while leaving archives fully self-contained.
+    - Unexpected Body Warnings in Copy Journals: Emits warnings (`unexpected-journal-stream-body` and `unexpected-journal-file-body`) in `read_journal_snapshot_with_policy` and `read_v4_journal_snapshot` whenever a copy journal snapshot contains unexpected embedded bodies.
+    - Live Windows VM Qualification: Verified live NTFS Alternate Data Streams (`Zone.Identifier`, stream names, surrogate encodings) and reparse points inside both Windows 7 and Windows 11 QEMU VMs via `./scripts/win-vm test-suite` and `./scripts/win11-vm test-suite` (0 failures).
   - Remaining Gaps & What's Left:
     - Incremental streaming pipeline across archive writer/reader members (streaming large stream payloads directly to/from disk files without in-memory `Vec<u8>`).
     - Durable source inventory and crash-recovery transaction log validation for interrupted multi-file moves.
     - Native Windows runtime qualification: `x86_64-pc-windows-gnu` compiles cleanly, but live NTFS alternate data streams (:Zone.Identifier) execution and qualification in Windows VM remain unverified.
+    - Full resume pipeline for uncommitted regular file collision validation under `ExistingEntryPolicy::Refuse`.
 
 - csc archive: Do large alternate data streams get fully saved in archives (rather than only a checksum as they are/should be in journals)?
   Confirmed: archives save full alternate data stream bodies under Dc 385 so archives are completely self-contained. In journals (copy mode), stream bodies are stripped (`data: None`) in `.cscjournal`, retaining only metadata and SHA-256 checksums.

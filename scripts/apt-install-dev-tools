@@ -47,6 +47,7 @@ dev_packages=(
     proot
     qemu-system-ppc
     qemu-system-x86
+    ovmf
     ripgrep
     shellcheck
     tmux
