@@ -24,6 +24,18 @@
 - File publication and moves share `rename_from_parent`, preserving native I/O
   errors so EXDEV can select verified copy fallback. AppleDouble companions use
   staged publication, but paired-file crash recovery remains pending.
+- Archive diagnostics reuse journal error/warning payload conversions in checked
+  sections. Completion and byte integrity do not imply clean capture;
+  `verify_integrity` is separate from `verify`, which rejects retained diagnostics
+  and semantic metadata warnings. Resume refuses committed diagnostics before
+  truncation until resolution semantics and durable inventory exist.
+- Creation can continue only after source failures. The core records source and
+  sink failures separately; sink/encoding ambiguity is fatal. File-output
+  rollback discards BufWriter bytes via `into_parts` before truncating/seeking;
+  never flush the failed section to roll it back. Stdout cannot roll back.
+- Recovery must reject every byte after completion, including partial tokens;
+  permissive EOF recovery applies only before completion. Journal `mark_failed`
+  must propagate pending-record commit errors before updating its descriptor.
 
 Archive capability status and outstanding work are tracked in
 [the archive issue](../issues/csc-usability/archive.md).

@@ -22,4 +22,4 @@ set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
-exec scripts/vm win11 "$@"
+exec ci-logs/vm win11 "$@"

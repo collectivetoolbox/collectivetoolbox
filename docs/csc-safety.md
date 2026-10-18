@@ -12,9 +12,17 @@ magic `CTBCSCA\x01` and format identities, while sharing journal-style DcMixed
 records and checksummed-section framing. Creation can stream to stdout without
 seeking; only file output supports resume.
 
-Archive support is **Partially Implemented**. Operational diagnostics,
-large-stream memory bounds, replacement policies, and platform/security coverage
-have remaining gaps. Do not treat checksums as authentication or use an archive
+Archive support is **Partially Implemented**. Capture failures and warnings now
+use the shared journal diagnostic representation in checksummed archive sections.
+Completion is not a clean-capture guarantee: diagnostic archives return nonzero
+and cannot pass lossless verification or normal extraction. Source-only failures
+can roll back an uncommitted file-output member; stdout cannot roll back an
+emitted member, and sink/persistence failures always abort. Diagnostic-bearing
+archives cannot resume until durable failure-resolution semantics exist.
+
+Large-stream memory bounds, durable inventory/recovery, replacement policies,
+and platform/security coverage still have gaps. Do not treat checksums as
+authentication or use an archive
 as the only copy of important data. See [the command reference](cli/archive.md)
 and [remaining implementation work](../issues/csc-usability/archive.md).
 
@@ -48,6 +56,8 @@ and [remaining implementation work](../issues/csc-usability/archive.md).
 - Malformed timestamp components are rejected before replacement and Dc
   encoding. Native time conversion is fallible; best-effort metadata application
   retains conversion failures as warnings instead of panicking.
+- Journal failure finalization propagates pending-record commit errors rather
+  than publishing a descriptor that implies those records were persisted.
 
 ## Overwrite Authorization
 

@@ -125,6 +125,21 @@ pub struct JournalErrorRecord {
     pub timestamp_sec: i64,
 }
 
+impl JournalErrorRecord {
+    /// Captures an operational failure without discarding its native cause.
+    #[must_use]
+    pub fn from_error(path: &Path, stage: JournalErrorStage, error: &anyhow::Error) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            raw_path: path.as_os_str().as_encoded_bytes().to_vec(),
+            stage,
+            error_message: format!("{error:#}"),
+            os_error: error.downcast_ref::<std::io::Error>().and_then(std::io::Error::raw_os_error),
+            timestamp_sec: sec_from_system_time(SystemTime::now()),
+        }
+    }
+}
+
 /// A persistent record of an operational warning or caveat stored in the journal.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct JournalWarningRecord {
@@ -219,6 +234,59 @@ pub struct JournalErrorRecordPayload {
 }
 
 impl JournalErrorRecordPayload {
+    /// Uses the record's typed path and whole-second timestamp for v4 encoding.
+    /// The separate `raw_path` field is not serialized by this format.
+    ///
+    /// # Errors
+    /// Rejects `Some(0)`, which is indistinguishable from no native OS error.
+    pub fn from_record(record: &JournalErrorRecord) -> Result<Self> {
+        let stage_code = u64::from(record.stage.to_code());
+        let os_code = match record.os_error {
+            Some(error_code) => {
+                anyhow::ensure!(error_code != 0, "Zero OS error code cannot be distinguished from an absent error in this journal format");
+                u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
+            }
+            None => 0_u64,
+        };
+        Ok(Self::new(
+            record.path.clone(),
+            (stage_code << 32) | os_code,
+            record.error_message.clone(),
+            record.timestamp_sec,
+        ))
+    }
+
+    /// Reconstructs raw bytes from the decoded host path and floors the timestamp
+    /// to whole seconds. Unknown byte-sized stages retain the traversal fallback.
+    ///
+    /// # Errors
+    /// Rejects stages larger than one byte under the strict journal policy.
+    pub fn to_record(
+        &self,
+        policy: &ctb_formats_dcstring::DcProjectionPolicy,
+    ) -> Result<JournalErrorRecord> {
+        let stage_code = match u8::try_from(self.packed_status >> 32) {
+            Ok(code) => code,
+            Err(_) => {
+                anyhow::ensure!(!policy.is_strict(), "Invalid stage code in error record");
+                0
+            }
+        };
+        let os_code = u32::try_from(self.packed_status & 0xFFFF_FFFF)?;
+        Ok(JournalErrorRecord {
+            path: self.path.clone(),
+            raw_path: self.path.as_os_str().as_encoded_bytes().to_vec(),
+            stage: JournalErrorStage::from_code(stage_code),
+            error_message: self.error_message.clone(),
+            os_error: if os_code == 0 {
+                None
+            } else {
+                Some(i32::from_le_bytes(os_code.to_le_bytes()))
+            },
+            timestamp_sec: self.timestamp_sec(),
+        })
+    }
+
     #[must_use]
     pub fn new(
         path: PathBuf,
@@ -264,6 +332,27 @@ pub struct JournalWarningRecordPayload {
 }
 
 impl JournalWarningRecordPayload {
+    /// Combines the warning code and message using the journal's `": "` delimiter.
+    #[must_use]
+    pub fn from_record(record: &JournalWarningRecord) -> Self {
+        Self::new(&record.code, &record.message, record.timestamp_sec)
+    }
+
+    /// Splits at the first `": "`, retaining later delimiters in the message.
+    /// Warnings without a delimiter have an empty code.
+    #[must_use]
+    pub fn to_record(&self) -> JournalWarningRecord {
+        let (code, message) = match self.message.split_once(": ") {
+            Some((code, message)) => (code.to_string(), message.to_string()),
+            None => (String::new(), self.message.clone()),
+        };
+        JournalWarningRecord {
+            code,
+            message,
+            timestamp_sec: self.timestamp_sec(),
+        }
+    }
+
     #[must_use]
     pub fn new(code: &str, message: &str, timestamp_sec: i64) -> Self {
         Self {
@@ -656,21 +745,7 @@ impl JournalWriter {
             self.update_desc_file("InProgress")?;
             return Ok(());
         }
-        let stage_code = u64::from(error.stage.to_code());
-        let os_code = match error.os_error {
-            Some(error_code) => {
-                anyhow::ensure!(error_code != 0, "Zero OS error code cannot be distinguished from an absent error in this journal format");
-                u64::from(u32::from_le_bytes(error_code.to_le_bytes()))
-            }
-            None => 0_u64,
-        };
-        let packed = (stage_code << 32) | os_code;
-        let payload = JournalErrorRecordPayload::new(
-            error.path.clone(),
-            packed,
-            error.error_message.clone(),
-            error.timestamp_sec,
-        );
+        let payload = JournalErrorRecordPayload::from_record(error)?;
         let mut mst = DcMstring::new();
         payload.encode_dc_mixed(&mut mst)?;
 
@@ -706,7 +781,7 @@ impl JournalWriter {
             self.update_desc_file("InProgress")?;
             return Ok(());
         }
-        let payload = JournalWarningRecordPayload::new(code, message, now_sec);
+        let payload = JournalWarningRecordPayload::from_record(&record);
         let mut mst = DcMstring::new();
         payload.encode_dc_mixed(&mut mst)?;
 
@@ -721,7 +796,7 @@ impl JournalWriter {
 
     /// Marks the job as failed with a specified reason and updates `.cscdesc`.
     pub fn mark_failed(&mut self, reason: &str) -> Result<()> {
-        let _ = self.commit_batch();
+        self.commit_batch().with_context(|| format!("Failed to commit pending journal records while marking failure: {reason}"))?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
         let status = format!("Failed: {reason}");
@@ -1157,37 +1232,7 @@ pub fn read_v4_journal_snapshot(
                     Some(&shared_context),
                     policy,
                 ).context("Failed to decode closed journal error record")?;
-                let timestamp_sec = payload.timestamp_sec();
-                let error_message = payload.error_message;
-                let stage_code = match u8::try_from(payload.packed_status >> 32) {
-                    Ok(c) => c,
-                    Err(timestamped_error) => {
-                        if policy.is_strict() {
-                            anyhow::bail!("Invalid stage code in error record");
-                        }
-                        0
-                    }
-                };
-                #[expect(
-                    clippy::expect_used,
-                    clippy::unwrap_in_result,
-                    reason = "Bitwise AND with 0xFFFF_FFFF guarantees the value fits within u32::MAX"
-                )]
-                let os_code = u32::try_from(payload.packed_status & 0xFFFF_FFFF)
-                    .expect("Bitwise mask 0xFFFF_FFFF fits in u32");
-                let raw_path = payload.path.as_os_str().as_encoded_bytes().to_vec();
-                errors.push(JournalErrorRecord {
-                    path: payload.path,
-                    raw_path,
-                    stage: JournalErrorStage::from_code(stage_code),
-                    error_message,
-                    os_error: if os_code == 0 {
-                        None
-                    } else {
-                        Some(i32::from_le_bytes(os_code.to_le_bytes()))
-                    },
-                    timestamp_sec,
-                });
+                errors.push(payload.to_record(policy)?);
                 valid_length = stub.outer_span.end;
             }
             ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD => {
@@ -1195,16 +1240,13 @@ pub fn read_v4_journal_snapshot(
                     break;
                 }
                 arena.clear();
-                let (combined, timestamp_sec) = match nav.decode_frame_with_arena::<JournalWarningRecordPayload>(
+                let payload = match nav.decode_frame_with_arena::<JournalWarningRecordPayload>(
                     &stub,
                     &mut arena,
                     Some(&shared_context),
                     policy,
                 ) {
-                    Ok(p) => {
-                        let timestamp_sec = p.timestamp_sec();
-                        (p.message, timestamp_sec)
-                    }
+                    Ok(payload) => payload,
                     Err(timestamped_error) => {
                         arena.clear();
                         match nav.decode_frame_with_arena::<JournalWarningRecordStringPayload>(
@@ -1213,7 +1255,10 @@ pub fn read_v4_journal_snapshot(
                             Some(&shared_context),
                             policy,
                         ) {
-                            Ok(p) => (p.message, 0),
+                            Ok(payload) => JournalWarningRecordPayload {
+                                message: payload.message,
+                                timestamp: UNIX_EPOCH,
+                            },
                             Err(string_error) => {
                                 return Err(string_error).with_context(|| format!(
                                     "Failed to decode closed journal warning record (timestamped form: {timestamped_error:#})"
@@ -1222,15 +1267,7 @@ pub fn read_v4_journal_snapshot(
                         }
                     }
                 };
-                let (code, message) = match combined.split_once(": ") {
-                    Some((c, m)) => (c.to_string(), m.to_string()),
-                    None => (String::new(), combined),
-                };
-                warnings.push(JournalWarningRecord {
-                    code,
-                    message,
-                    timestamp_sec,
-                });
+                warnings.push(payload.to_record());
                 valid_length = stub.outer_span.end;
             }
             _ => {
@@ -1302,6 +1339,200 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn diagnostic_mark_failed_propagates_pending_encoding_failure() -> Result<()> {
+        let temporary = tempdir()?;
+        let source = temporary.path().join("source");
+        let journal = temporary.path().join("copy.cscjournal");
+        let description = temporary.path().join("copy.cscdesc");
+        fs::write(&source, b"payload")?;
+        let mut entity = FileEntity::from_filesystem(&source, None)?;
+        entity.metadata.timestamps.as_mut().context("Missing captured timestamps")?.mtime_nsec = 1_000_000_000;
+        let mut writer = JournalWriter::create_at_path(&journal, &description,
+            std::slice::from_ref(&source), temporary.path())?;
+        let before = fs::read(&description)?;
+        writer.record_entity(&entity);
+        let error = writer.mark_failed("Injected operation failure").expect_err("Invalid pending record must fail");
+        ensure!(format!("{error:#}").contains("Invalid file timestamp nanoseconds"));
+        ensure!(writer.uncommitted_entities.len() == 1);
+        ensure!(fs::read(&description)? == before, "Failed commit rewrote the descriptor as persisted status");
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn diagnostic_error_conversion() -> Result<()> {
+        let policy = ctb_formats_dcstring::DcProjectionPolicy::strict();
+        for stage in [
+            JournalErrorStage::Traversal,
+            JournalErrorStage::MetadataRead,
+            JournalErrorStage::PayloadOpen,
+            JournalErrorStage::PayloadRead,
+            JournalErrorStage::Materialize,
+            JournalErrorStage::PostCheck,
+        ] {
+            for os_error in [None, Some(13), Some(-1), Some(i32::MIN), Some(i32::MAX)] {
+                for timestamp_sec in [-1, 0, 1] {
+                    let record = JournalErrorRecord {
+                        path: PathBuf::from("source"),
+                        raw_path: b"source".to_vec(),
+                        stage,
+                        error_message: "OS error fidelity".to_owned(),
+                        os_error,
+                        timestamp_sec,
+                    };
+                    let payload = JournalErrorRecordPayload::from_record(&record)?;
+                    assert_eq!(payload.to_record(&policy)?, record);
+                    let os_code = match os_error {
+                        Some(code) => u64::from(u32::from_le_bytes(code.to_le_bytes())),
+                        None => 0,
+                    };
+                    let expected = JournalErrorRecordPayload::new(
+                        record.path.clone(),
+                        (u64::from(stage.to_code()) << 32) | os_code,
+                        record.error_message.clone(),
+                        timestamp_sec,
+                    );
+                    let mut actual_bytes = DcMstring::new();
+                    payload.encode_dc_mixed(&mut actual_bytes)?;
+                    let mut expected_bytes = DcMstring::new();
+                    expected.encode_dc_mixed(&mut expected_bytes)?;
+                    assert_eq!(actual_bytes.as_bytes(), expected_bytes.as_bytes());
+                }
+            }
+        }
+        let zero = JournalErrorRecord {
+            path: PathBuf::from("source"),
+            raw_path: b"source".to_vec(),
+            stage: JournalErrorStage::Traversal,
+            error_message: String::new(),
+            os_error: Some(0),
+            timestamp_sec: 0,
+        };
+        assert!(JournalErrorRecordPayload::from_record(&zero).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn diagnostic_status_validation() -> Result<()> {
+        let strict = ctb_formats_dcstring::DcProjectionPolicy::strict();
+        let forgiving = ctb_formats_dcstring::DcProjectionPolicy::forgiving();
+        for stage_code in [6_u64, 255, 256, u64::from(u32::MAX)] {
+            let payload = JournalErrorRecordPayload::new(
+                PathBuf::from("source"), stage_code << 32, String::new(), 0,
+            );
+            assert_eq!(payload.to_record(&strict).is_err(), stage_code > 255);
+            assert_eq!(payload.to_record(&forgiving)?.stage, JournalErrorStage::Traversal);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn diagnostic_warning_conversion() {
+        for timestamp_sec in [-1, 0, 1] {
+            let record = JournalWarningRecord {
+                code: "metadata".to_owned(),
+                message: "first: second: third".to_owned(),
+                timestamp_sec,
+            };
+            let payload = JournalWarningRecordPayload::from_record(&record);
+            assert_eq!(payload.message, "metadata: first: second: third");
+            assert_eq!(payload.to_record(), record);
+        }
+        let payload = JournalWarningRecordPayload {
+            message: "unsplit warning".to_owned(),
+            timestamp: UNIX_EPOCH,
+        };
+        assert_eq!(payload.to_record(), JournalWarningRecord {
+            code: String::new(),
+            message: payload.message.clone(),
+            timestamp_sec: 0,
+        });
+    }
+
+    #[crate::ctb_test]
+    fn diagnostic_timestamp_conversion() -> Result<()> {
+        for (timestamp, timestamp_sec) in [
+            (UNIX_EPOCH.checked_sub(std::time::Duration::from_millis(1)), -1),
+            (UNIX_EPOCH.checked_add(std::time::Duration::from_millis(999)), 0),
+        ] {
+            let timestamp = timestamp.context("Test timestamp out of range")?;
+            let error = JournalErrorRecordPayload {
+                path: PathBuf::from("source"),
+                packed_status: 0,
+                error_message: String::new(),
+                timestamp,
+            };
+            assert_eq!(error.to_record(&ctb_formats_dcstring::DcProjectionPolicy::strict())?.timestamp_sec, timestamp_sec);
+            let warning = JournalWarningRecordPayload {
+                message: "code: message".to_owned(),
+                timestamp,
+            };
+            assert_eq!(warning.to_record().timestamp_sec, timestamp_sec);
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn diagnostic_non_utf8_path_conversion() -> Result<()> {
+        use std::os::unix::ffi::OsStrExt;
+
+        let raw_path = b"source/\xff".to_vec();
+        let record = JournalErrorRecord {
+            path: PathBuf::from(std::ffi::OsStr::from_bytes(&raw_path)),
+            raw_path,
+            stage: JournalErrorStage::PayloadOpen,
+            error_message: "non-UTF-8 path".to_owned(),
+            os_error: Some(-1),
+            timestamp_sec: 0,
+        };
+        let payload = JournalErrorRecordPayload::from_record(&record)?;
+        assert_eq!(payload.to_record(&ctb_formats_dcstring::DcProjectionPolicy::strict())?, record);
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("raw-path.cscjournal");
+        let mut writer = JournalWriter::create_at_path(
+            &journal_path, &journal_path.with_extension("cscdesc"),
+            &[temp.path().join("source")], &temp.path().join("destination"),
+        )?;
+        writer.record_error(&record)?;
+        assert_eq!(read_journal_snapshot(&journal_path)?.errors, vec![record]);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn diagnostic_cross_platform_path_conversion() -> Result<()> {
+        use std::os::unix::ffi::OsStrExt;
+
+        let raw_path = b"C:/source/\xed\xa0\x80".to_vec();
+        let record = JournalErrorRecord {
+            path: PathBuf::from(std::ffi::OsStr::from_bytes(&raw_path)),
+            raw_path,
+            stage: JournalErrorStage::PayloadRead,
+            error_message: "Windows WTF-8 filename".to_owned(),
+            os_error: Some(-1),
+            timestamp_sec: -1,
+        };
+        let session = JournalSessionRecord {
+            sources: vec![PathBuf::from("C:/source")],
+            destination: PathBuf::from("D:/destination"),
+            origin_platform: u32::from(PLATFORM_WINDOWS),
+            environment: None,
+        };
+        let mut document = DcMstring::new();
+        session.encode_dc_mixed(&mut document)?;
+        JournalErrorRecordPayload::from_record(&record)?.encode_dc_mixed(&mut document)?;
+        let mut bytes = JOURNAL_MAGIC_V4.to_vec();
+        bytes.extend_from_slice(document.as_bytes());
+        let temp = tempdir()?;
+        let journal_path = temp.path().join("windows-path.cscjournal");
+        fs::write(&journal_path, bytes)?;
+        let snapshot = read_journal_snapshot(&journal_path)?;
+        assert_eq!(snapshot.origin_platform, PLATFORM_WINDOWS);
+        assert_eq!(snapshot.errors, vec![record]);
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_journal_signed_os_errors_roundtrip() -> Result<()> {

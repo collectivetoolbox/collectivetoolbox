@@ -92,24 +92,8 @@ fn handle_item_error(
     journal: &mut JournalWriter,
     stats: &mut CopyStats,
 ) -> Result<Option<PathBuf>> {
-    // Reason for fallback: pre-epoch system clock failure defaults error timestamp to 0
-    let now_sec = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .ok()
-        .and_then(|d| i64::try_from(d.as_secs()).ok())
-        .unwrap_or(0);
-    let os_error = err
-        .downcast_ref::<std::io::Error>()
-        .and_then(std::io::Error::raw_os_error);
-    let error_message = format!("{err:#}");
-    let err_record = JournalErrorRecord {
-        path: src_path.to_path_buf(),
-        raw_path: src_path.as_os_str().as_encoded_bytes().to_vec(),
-        stage,
-        error_message: error_message.clone(),
-        os_error,
-        timestamp_sec: now_sec,
-    };
+    let err_record = JournalErrorRecord::from_error(src_path, stage, &err);
+    let error_message = &err_record.error_message;
     journal.record_error(&err_record)
         .with_context(|| format!("Failed to journal copy failure: {error_message}"))?;
     if args.continue_on_error {

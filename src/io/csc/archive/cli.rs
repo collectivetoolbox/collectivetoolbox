@@ -2,11 +2,11 @@
 use crate::utilities::*;
 
 use super::{ArchiveReader, ArchiveWriter};
-use crate::journal::{JournalSessionRecord, current_platform};
+use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalSessionRecord, JournalWarningRecord, current_platform};
 use clap::{Parser, Subcommand};
 use ctb_io::file::{
     DirTraverser, DiskPayloadSource, FileEntity, FileEntityKind, FileOrigin,
-    InodeKey, LinkPath, MaterializeOptions, PathTraversalPolicy, SandboxableDir,
+    InodeKey, LinkPath, MaterializeOptions, OnTraversalError, PathTraversalPolicy, PayloadSource, SandboxableDir,
     SymlinkValidationPolicy, TraversalOptions, path_has_trailing_slash,
     resolve_existing_ancestors,
 };
@@ -33,8 +33,11 @@ pub enum ArchiveCommand {
         /// Resume an interrupted file-output archive using its recorded sources.
         #[arg(long)]
         resume: bool,
+        /// Retain source failures, continue capture, and report nonzero status.
+        #[arg(long, conflicts_with = "resume")]
+        continue_on_error: bool,
     },
-    /// List the members of a completed archive.
+    /// List committed members and capture diagnostics.
     List { archive: PathBuf },
     /// Verify archive structure, checksums, and file contents without sources.
     Verify { archive: PathBuf },
@@ -59,9 +62,10 @@ pub enum ArchiveCommand {
 
 pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
     match &args.command {
-        ArchiveCommand::Create { archive, sources, resume } => {
+        ArchiveCommand::Create { archive, sources, resume, continue_on_error } => {
             let _scope = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
             if *resume {
+                ensure!(!continue_on_error, "Cannot combine --resume with --continue-on-error; capture diagnostics cannot be resolved by resume");
                 ensure!(archive != Path::new("-"), "Cannot resume archive output on stdout");
                 resume_archive(archive)?;
                 return Ok(ToolResult::Immediate {
@@ -69,14 +73,15 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                 });
             }
             let plan = plan_sources(sources, archive)?;
-            if archive == Path::new("-") {
+            let (error_count, warning_count, completed) = if archive == Path::new("-") {
                 #[cfg(unix)]
                 {
                     use std::os::fd::AsFd;
                     let output = File::from(std::io::stdout().as_fd().try_clone_to_owned()?);
-                    validate_output_identity(&output, &plan)?;
+                    validate_output_identity(&output, &plan.members)?;
                 }
-                drop(create_archive(std::io::stdout().lock(), sources, archive, &plan, None, None)?);
+                let outcome = create_archive(std::io::stdout().lock(), sources, archive, &plan, *continue_on_error, None)?;
+                (outcome.error_count, outcome.warning_count, outcome.completed)
             } else {
                 let mut options = OpenOptions::new();
                 options.write(true).create_new(true);
@@ -86,12 +91,17 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                     options.mode(0o600);
                 }
                 let file = options.open(archive).with_context(|| format!("Cannot create {}", archive.display()))?;
-                let sync = file.try_clone()?;
-                create_archive(BufWriter::new(file), sources, archive, &plan, Some(&sync), None)?;
-                sync.sync_all()?;
-            }
+                let outcome = create_archive(FileArchiveOutput::new(file), sources, archive, &plan, *continue_on_error, None)?;
+                (outcome.error_count, outcome.warning_count, outcome.completed)
+            };
+            let clean = completed && error_count == 0 && warning_count == 0;
             Ok(ToolResult::Immediate {
-                stdout: Vec::new(), stderr: b"Archive created.\n".to_vec(), exit_code: 0,
+                stdout: Vec::new(),
+                stderr: if clean { b"Archive created.\n".to_vec() } else {
+                    format!("Archive capture {}: {error_count} errors; {warning_count} warnings.\n",
+                        if completed { "finished with diagnostics" } else { "stopped incomplete" }).into_bytes()
+                },
+                exit_code: if clean { 0 } else { 1 },
             })
         }
         ArchiveCommand::List { archive } => {
@@ -104,10 +114,23 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                 let path = member.entity.identity.relative_path.as_deref().context("Archive member has no path")?;
                 writeln!(output, "{}\t{size}\t{}", member.entity.kind.entity_type().as_str(), path.display())?;
             }
+            let mut diagnostics = String::new();
+            if !reader.is_completed() {
+                diagnostics.push_str("Archive is incomplete; listing committed members only.\n");
+            }
+            for error in &reader.errors {
+                writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
+            }
+            for warning in &reader.warnings {
+                writeln!(diagnostics, "Capture warning ({}): {}", warning.code, warning.message)?;
+            }
+            if reader.has_diagnostics() {
+                writeln!(diagnostics, "Capture errors: {}; warnings: {}. Archive is not a clean capture.", reader.errors.len(), reader.warnings.len())?;
+            }
             Ok(ToolResult::Immediate {
                 stdout: output.into_bytes(),
-                stderr: if reader.completed { Vec::new() } else { b"Archive is incomplete; listing committed members only.\n".to_vec() },
-                exit_code: if reader.completed { 0 } else { 1 },
+                stderr: diagnostics.into_bytes(),
+                exit_code: if reader.is_completed() && !reader.has_diagnostics() { 0 } else { 1 },
             })
         }
         ArchiveCommand::Verify { archive } => {
@@ -142,36 +165,73 @@ struct SourceMember {
     relative: PathBuf,
 }
 
-fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<Vec<SourceMember>> {
+#[derive(Debug, Default)]
+struct SourcePlan {
+    members: Vec<SourceMember>,
+    diagnostics: Vec<JournalErrorRecord>,
+}
+
+fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
     ensure!(!sources.is_empty(), "At least one source is required");
     let output = if archive == Path::new("-") { None } else { Some(resolve_existing_ancestors(archive)?) };
-    let mut plan = Vec::new();
+    let working_directory = std::env::current_dir()?;
+    let mut plan = SourcePlan::default();
     let mut names = HashSet::new();
     for source in sources {
-        let metadata = std::fs::symlink_metadata(source)?;
+        let absolute = working_directory.join(source);
         if let Some(output) = &output {
-            let resolved = resolve_existing_ancestors(source)?;
-            ensure!(*output != resolved && !(metadata.is_dir() && output.starts_with(&resolved)),
+            let resolved = resolve_existing_ancestors(&absolute)?;
+            ensure!(*output != resolved && !output.starts_with(&resolved),
                 "Archive output overlaps a source: {}", source.display());
         }
+        let metadata = match std::fs::symlink_metadata(&absolute) {
+            Ok(metadata) => metadata,
+            Err(error) => {
+                plan.diagnostics.push(JournalErrorRecord::from_error(&absolute, JournalErrorStage::MetadataRead, &error.into()));
+                continue;
+            }
+        };
         let prefix = if metadata.is_dir() && path_has_trailing_slash(source) {
             PathBuf::from(".")
         } else {
             PathBuf::from(source.file_name().context("Source has no basename; use a trailing slash for a directory root")?)
         };
         if metadata.is_dir() {
-            let traverser = DirTraverser::new(source, TraversalOptions::default().yield_root(true))?;
+            let traverser = match DirTraverser::new(&absolute, TraversalOptions::default()
+                .yield_root(true).error_policy(OnTraversalError::Capture)) {
+                Ok(traverser) => traverser,
+                Err(error) => {
+                    plan.diagnostics.push(JournalErrorRecord::from_error(&absolute, JournalErrorStage::Traversal, &error));
+                    continue;
+                }
+            };
+            let mut root_names = HashSet::new();
             for item in traverser {
-                let item = item?;
-                ensure!(item.errors.is_empty(), "Source traversal errors: {}", item.errors.join("; "));
+                let item = match item {
+                    Ok(item) => item,
+                    Err(error) => {
+                        plan.diagnostics.push(JournalErrorRecord::from_error(&absolute, JournalErrorStage::Traversal, &error));
+                        continue;
+                    }
+                };
                 let relative = normalized_member(&prefix.join(&item.relative_path))?;
-                ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
-                plan.push(SourceMember { source: item.path, relative });
+                if root_names.insert(relative.clone()) {
+                    ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
+                } else {
+                    ensure!(!item.errors.is_empty(), "Duplicate archive member: {}", relative.display());
+                }
+                if !item.errors.is_empty() {
+                    let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
+                    plan.diagnostics.push(JournalErrorRecord::from_error(&item.path, JournalErrorStage::Traversal, &error));
+                    plan.members.retain(|member| member.source != item.path);
+                    continue;
+                }
+                plan.members.push(SourceMember { source: item.path, relative });
             }
         } else {
             let relative = normalized_member(&prefix)?;
             ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
-            plan.push(SourceMember { source: source.clone(), relative });
+            plan.members.push(SourceMember { source: absolute, relative });
         }
     }
     Ok(plan)
@@ -209,7 +269,120 @@ fn validate_output_identity(output: &File, plan: &[SourceMember]) -> Result<()> 
     Ok(())
 }
 
-fn create_archive<W: Write>(output: W, sources: &[PathBuf], archive: &Path, plan: &[SourceMember], sync: Option<&File>, recovered: Option<&ArchiveReader>) -> Result<W> {
+trait ArchiveOutput: Write {
+    fn checkpoint(&mut self) -> Result<Option<u64>> { Ok(None) }
+    fn rollback(&mut self, _position: u64) -> Result<()> { bail!("Archive output cannot roll back") }
+    fn sync(&mut self) -> Result<()> { Ok(()) }
+}
+
+impl ArchiveOutput for std::io::StdoutLock<'_> {}
+impl ArchiveOutput for Vec<u8> {}
+impl ArchiveOutput for std::io::Cursor<Vec<u8>> {}
+
+impl ArchiveOutput for File {
+    fn checkpoint(&mut self) -> Result<Option<u64>> { Ok(Some(self.stream_position()?)) }
+    fn rollback(&mut self, position: u64) -> Result<()> {
+        self.set_len(position)?;
+        self.seek(SeekFrom::Start(position))?;
+        self.sync_data()?;
+        Ok(())
+    }
+    fn sync(&mut self) -> Result<()> { Ok(self.sync_all()?) }
+}
+
+struct FileArchiveOutput {
+    buffer: Option<BufWriter<File>>,
+}
+
+impl FileArchiveOutput {
+    fn new(file: File) -> Self { Self { buffer: Some(BufWriter::new(file)) } }
+}
+
+impl Write for FileArchiveOutput {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.buffer.as_mut().ok_or_else(|| std::io::Error::other("Archive file buffer unavailable"))?.write(bytes)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.buffer.as_mut().ok_or_else(|| std::io::Error::other("Archive file buffer unavailable"))?.flush()
+    }
+}
+
+impl ArchiveOutput for FileArchiveOutput {
+    fn checkpoint(&mut self) -> Result<Option<u64>> {
+        self.flush()?;
+        Ok(Some(self.buffer.as_mut().context("Archive file buffer unavailable")?.get_mut().stream_position()?))
+    }
+    fn rollback(&mut self, position: u64) -> Result<()> {
+        let (mut file, _) = self.buffer.take().context("Archive file buffer unavailable")?.into_parts();
+        ArchiveOutput::rollback(&mut file, position)?;
+        self.buffer = Some(BufWriter::new(file));
+        Ok(())
+    }
+    fn sync(&mut self) -> Result<()> {
+        self.flush()?;
+        self.buffer.as_ref().context("Archive file buffer unavailable")?.get_ref().sync_all()?;
+        Ok(())
+    }
+}
+
+impl Drop for FileArchiveOutput {
+    fn drop(&mut self) {
+        if let Some(buffer) = self.buffer.take() { drop(buffer.into_parts()); }
+    }
+}
+
+struct CaptureOutcome<W> {
+    output: W,
+    error_count: usize,
+    warning_count: usize,
+    completed: bool,
+}
+
+trait CaptureSource {
+    fn capture(&mut self, path: &Path) -> Result<FileEntity> { FileEntity::from_filesystem(path, None) }
+    fn open(&mut self, path: &Path) -> Result<Box<dyn PayloadSource>> { Ok(Box::new(DiskPayloadSource::open(path)?)) }
+}
+
+struct FilesystemCapture;
+impl CaptureSource for FilesystemCapture {}
+
+struct CaptureRequest<'a> {
+    sources: &'a [PathBuf],
+    archive: &'a Path,
+    plan: &'a SourcePlan,
+    continue_on_error: bool,
+    recovered: Option<&'a ArchiveReader>,
+}
+
+fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Path, plan: &SourcePlan,
+    continue_on_error: bool, recovered: Option<&ArchiveReader>) -> Result<CaptureOutcome<W>> {
+    capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered }, &mut FilesystemCapture)
+}
+
+fn persist_source_error<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, record: &JournalErrorRecord) -> Result<()> {
+    writer.record_error(record).with_context(|| format!("Cannot persist source failure: {}", record.error_message))?;
+    writer.writer.flush().with_context(|| format!("Cannot flush source failure: {}", record.error_message))?;
+    writer.writer.sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
+}
+
+fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, entity: &FileEntity,
+    path: &Path, count: &mut usize) -> Result<()> {
+    for message in &entity.metadata.warnings {
+        let warning = JournalWarningRecord {
+            code: "FileReadWarning".to_owned(), message: format!("{}: {message}", path.display()),
+            timestamp_sec: i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs())?,
+        };
+        writer.record_warning(&warning).with_context(|| format!("Cannot persist metadata warning: {message}"))?;
+        writer.writer.flush().with_context(|| format!("Cannot flush metadata warning: {message}"))?;
+        writer.writer.sync().with_context(|| format!("Cannot sync metadata warning: {message}"))?;
+        *count = count.saturating_add(1);
+    }
+    for stream in &entity.streams { persist_metadata_warnings(writer, &stream.entity, path, count)?; }
+    Ok(())
+}
+
+fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, capture: &mut impl CaptureSource) -> Result<CaptureOutcome<W>> {
+    let CaptureRequest { sources, archive, plan, continue_on_error, recovered } = request;
     let session = if let Some(recovered) = recovered {
         recovered.session.clone()
     } else {
@@ -222,6 +395,15 @@ fn create_archive<W: Write>(output: W, sources: &[PathBuf], archive: &Path, plan
     };
     let mut writer = if let Some(recovered) = recovered { ArchiveWriter::resume(output, recovered)? }
         else { ArchiveWriter::new(output, &session)? };
+    let mut error_count = 0_usize;
+    let mut warning_count = 0_usize;
+    for diagnostic in &plan.diagnostics {
+        persist_source_error(&mut writer, diagnostic)?;
+        error_count = error_count.saturating_add(1);
+    }
+    if error_count != 0 && !continue_on_error {
+        return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+    }
     let mut hardlinks = HashMap::<InodeKey, PathBuf>::new();
     let mut committed_paths = HashSet::new();
     if let Some(recovered) = recovered {
@@ -235,35 +417,78 @@ fn create_archive<W: Write>(output: W, sources: &[PathBuf], archive: &Path, plan
             }
         }
     }
-    for member in plan {
-        let mut entity = FileEntity::from_filesystem(&member.source, None)?;
+    for member in &plan.members {
+        if committed_paths.contains(&member.relative) { continue; }
+        let mut entity = match capture.capture(&member.source) {
+            Ok(entity) => entity,
+            Err(error) => {
+                persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
+                error_count = error_count.saturating_add(1);
+                if continue_on_error { continue; }
+                return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+            }
+        };
         entity.identity.relative_path = Some(member.relative.clone());
         entity.identity.enclosing_path = None;
         if let Some(environment) = &session.environment { entity.set_environment(environment.clone()); }
+        persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
+        if let Err(error) = super::ensure_clean_metadata(&entity) {
+            persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
+            error_count = error_count.saturating_add(1);
+            if continue_on_error { continue; }
+            return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+        }
         if matches!(entity.kind, FileEntityKind::Regular { .. }) && entity.identity.nlink > 1 {
             if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
                 if let Some(target) = hardlinks.get(key) {
                     if target != &member.relative {
                         entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_relative_path(target)? };
                     }
-                } else {
-                    hardlinks.insert(key.clone(), member.relative.clone());
                 }
             }
         }
-        if committed_paths.contains(&member.relative) {
-            continue;
-        }
-        if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-            let mut payload = DiskPayloadSource::open(&member.source)?;
-            writer.write_entity(&entity, Some(&mut payload))?;
+        let mut payload = if matches!(entity.kind, FileEntityKind::Regular { .. }) {
+            match capture.open(&member.source) {
+                Ok(payload) => Some(payload),
+                Err(error) => {
+                    persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PayloadOpen, &error))?;
+                    error_count = error_count.saturating_add(1);
+                    if continue_on_error { continue; }
+                    return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+                }
+            }
+        } else { None };
+        let checkpoint = writer.writer.checkpoint()?;
+        let result = if let Some(payload) = &mut payload {
+            writer.write_entity(&entity, Some(payload.as_mut()))
         } else {
-            writer.write_entity(&entity, None)?;
+            writer.write_entity(&entity, None)
+        };
+        if let Err(error) = result {
+            if writer.is_failed() {
+                if !writer.can_rollback_source_failure() {
+                    return Err(error).context("Archive output or unclassified member failure");
+                }
+                let position = checkpoint.with_context(|| format!("Cannot roll back forward-only archive after source failure: {error:#}"))?;
+                writer.rollback_source_failure(|output| output.rollback(position))
+                    .with_context(|| format!("Cannot roll back archive after source failure: {error:#}"))?;
+            }
+            persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PayloadRead, &error))?;
+            error_count = error_count.saturating_add(1);
+            if continue_on_error { continue; }
+            return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
         }
         writer.writer.flush()?;
-        if let Some(file) = sync { file.sync_data()?; }
+        writer.writer.sync()?;
+        if matches!(entity.kind, FileEntityKind::Regular { .. }) {
+            if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
+                hardlinks.insert(key.clone(), member.relative.clone());
+            }
+        }
     }
-    writer.finish()
+    let mut output = writer.finish()?;
+    output.sync()?;
+    Ok(CaptureOutcome { output, error_count, warning_count, completed: true })
 }
 
 fn resume_archive(path: &Path) -> Result<()> {
@@ -273,7 +498,8 @@ fn resume_archive(path: &Path) -> Result<()> {
     recovered.verify_contents()?;
     validate_members(&recovered)?;
     let plan = plan_sources(&recovered.session.sources, path)?;
-    let planned: HashMap<_, _> = plan.iter().map(|member| (member.relative.as_path(), member.source.as_path())).collect();
+    ensure!(plan.diagnostics.is_empty(), "Cannot resume with source planning diagnostics");
+    let planned: HashMap<_, _> = plan.members.iter().map(|member| (member.relative.as_path(), member.source.as_path())).collect();
     for committed in &recovered.members {
         let relative = committed.entity.identity.relative_path.as_deref().context("Committed member missing path")?;
         let source = planned.get(relative).context("Committed source disappeared")?;
@@ -289,9 +515,8 @@ fn resume_archive(path: &Path) -> Result<()> {
     file.set_len(recovered.valid_length)?;
     file.sync_all()?;
     file.seek(SeekFrom::End(0))?;
-    let sync = file.try_clone()?;
-    create_archive(BufWriter::new(file), &recovered.session.sources, path, &plan, Some(&sync), Some(&recovered))?;
-    sync.sync_all()?;
+    let outcome = create_archive(FileArchiveOutput::new(file), &recovered.session.sources, path, &plan, false, Some(&recovered))?;
+    ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0, "Resumed archive has capture diagnostics");
     Ok(())
 }
 
@@ -416,12 +641,378 @@ fn existing_metadata(path: &Path) -> Result<Option<std::fs::Metadata>> {
 mod tests {
     use super::*;
     use ctb_formats_dcstring::DcMstring;
+    use std::io::Read;
+
+    #[derive(Clone, Copy)]
+    enum CaptureFault { None, Capture, Open, Read, Finish, Warning }
+
+    struct FaultCapture {
+        path: PathBuf,
+        fault: CaptureFault,
+        opened: Vec<PathBuf>,
+    }
+
+    impl CaptureSource for FaultCapture {
+        fn capture(&mut self, path: &Path) -> Result<FileEntity> {
+            if path == self.path && matches!(self.fault, CaptureFault::Capture) {
+                bail!("injected metadata capture failure");
+            }
+            let mut entity = FileEntity::from_filesystem(path, None)?;
+            if path == self.path && matches!(self.fault, CaptureFault::Warning) {
+                let mut stream = ctb_io::file::AttachedStream::from_data(None,
+                    ctb_io::file::StreamKind::infer_from_name(b"fixture"), Vec::new())?;
+                stream.entity.metadata.warnings.push("injected recursive warning".to_owned());
+                entity.streams.push(stream);
+            }
+            Ok(entity)
+        }
+        fn open(&mut self, path: &Path) -> Result<Box<dyn PayloadSource>> {
+            self.opened.push(path.to_path_buf());
+            if path == self.path {
+                if matches!(self.fault, CaptureFault::Open) { bail!("injected payload open failure"); }
+                if matches!(self.fault, CaptureFault::Read | CaptureFault::Finish) {
+                    return Ok(Box::new(FaultPayload {
+                        source: DiskPayloadSource::open(path)?, bytes: 0,
+                        finish_failure: matches!(self.fault, CaptureFault::Finish),
+                    }));
+                }
+            }
+            Ok(Box::new(DiskPayloadSource::open(path)?))
+        }
+    }
+
+    struct FaultPayload {
+        source: DiskPayloadSource,
+        bytes: usize,
+        finish_failure: bool,
+    }
+
+    impl Read for FaultPayload {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if !self.finish_failure && self.bytes >= 32_768 {
+                return Err(std::io::Error::other("injected source read failure after buffer boundary"));
+            }
+            let limit = if self.finish_failure { buffer.len() } else { buffer.len().min(32_768_usize.saturating_sub(self.bytes)) };
+            let count = self.source.read(buffer.get_mut(..limit).ok_or_else(|| std::io::Error::other("Invalid test read limit"))?)?;
+            self.bytes = self.bytes.saturating_add(count);
+            Ok(count)
+        }
+    }
+
+    impl Seek for FaultPayload {
+        fn seek(&mut self, position: SeekFrom) -> std::io::Result<u64> { self.source.seek(position) }
+    }
+
+    impl PayloadSource for FaultPayload {
+        fn total_size(&self) -> u64 { self.source.total_size() }
+        fn extents(&self) -> &[ctb_io::file::Extent] { self.source.extents() }
+        fn finish(&mut self) -> Result<Vec<String>> {
+            if self.finish_failure { bail!("injected source finish failure"); }
+            self.source.finish()
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct ForwardOutput(std::rc::Rc<std::cell::RefCell<Vec<u8>>>);
+
+    impl Write for ForwardOutput {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.borrow_mut().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    }
+    impl ArchiveOutput for ForwardOutput {}
+
+    #[derive(Clone, Copy, Debug)]
+    enum OutputFault { Write, WriteZero, Flush, Sync, Rollback, Diagnostic }
+
+    struct FaultOutput {
+        output: FileArchiveOutput,
+        fault: OutputFault,
+        started: bool,
+        rolled_back: bool,
+    }
+
+    impl Write for FaultOutput {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.started && matches!(self.fault, OutputFault::Write) ||
+                self.rolled_back && matches!(self.fault, OutputFault::Diagnostic) {
+                return Err(std::io::Error::other("injected sink write failure"));
+            }
+            if self.started && matches!(self.fault, OutputFault::WriteZero) { return Ok(0); }
+            self.output.write(bytes)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            if self.started && matches!(self.fault, OutputFault::Flush) {
+                return Err(std::io::Error::other("injected sink flush failure"));
+            }
+            self.output.flush()
+        }
+    }
+
+    impl ArchiveOutput for FaultOutput {
+        fn checkpoint(&mut self) -> Result<Option<u64>> {
+            let position = self.output.checkpoint()?;
+            self.started = true;
+            Ok(position)
+        }
+        fn rollback(&mut self, position: u64) -> Result<()> {
+            if matches!(self.fault, OutputFault::Rollback) { bail!("injected rollback failure"); }
+            self.output.rollback(position)?;
+            self.rolled_back = true;
+            Ok(())
+        }
+        fn sync(&mut self) -> Result<()> {
+            if self.started && matches!(self.fault, OutputFault::Sync) { bail!("injected sink sync failure"); }
+            self.output.sync()
+        }
+    }
+
+    fn capture_request<'a>(sources: &'a [PathBuf], archive: &'a Path, plan: &'a SourcePlan,
+        continue_on_error: bool) -> CaptureRequest<'a> {
+        CaptureRequest { sources, archive, plan, continue_on_error, recovered: None }
+    }
+
+    #[crate::ctb_test]
+    fn archive_planning_diagnostics_continue_and_default_stop() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let missing = temporary.path().join("missing");
+        let good = temporary.path().join("good");
+        std::fs::write(&good, b"good contents")?;
+        for continue_on_error in [false, true] {
+            let path = temporary.path().join(format!("{continue_on_error}.cscarchive"));
+            let result = run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
+                archive: path.clone(), sources: vec![missing.clone(), good.clone()], resume: false, continue_on_error,
+            } })?;
+            ensure!(matches!(result, ToolResult::Immediate { exit_code: 1, stderr, stdout }
+                if stdout.is_empty() && !String::from_utf8_lossy(&stderr).contains("Archive created.")));
+            let reader = ArchiveReader::recover(File::open(&path)?)?;
+            ensure!(reader.errors.len() == 1 && reader.errors.first().context("Missing diagnostic")?.path == missing);
+            ensure!(reader.errors.first().context("Missing diagnostic")?.stage == JournalErrorStage::MetadataRead);
+            ensure!(reader.is_completed() == continue_on_error);
+            ensure!(reader.members.len() == usize::from(continue_on_error));
+            ensure!(reader.verify().is_err());
+            if continue_on_error { reader.verify_integrity()?; }
+            let before = std::fs::read(&path)?;
+            ensure!(resume_archive(&path).is_err());
+            ensure!(std::fs::read(&path)? == before);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_safety_failures_never_continue() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        for sources in [vec![source.clone()], vec![source.clone(), source.clone()]] {
+            let archive = if sources.len() == 1 { source.join("overlap.cscarchive") }
+                else { temporary.path().join("duplicate.cscarchive") };
+            ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
+                archive: archive.clone(), sources, resume: false, continue_on_error: true,
+            } }).is_err());
+            ensure!(!archive.exists());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_runtime_removed_capture_open_and_recursive_warning() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let failed = temporary.path().join("failed");
+        let good = temporary.path().join("good");
+        std::fs::write(&good, b"good")?;
+        for fault in [CaptureFault::None, CaptureFault::Capture, CaptureFault::Open, CaptureFault::Warning] {
+            for continue_on_error in [false, true] {
+                std::fs::write(&failed, b"failed")?;
+                let archive = temporary.path().join("runtime.cscarchive");
+                let sources = vec![failed.clone(), good.clone()];
+                let plan = plan_sources(&sources, &archive)?;
+                if matches!(fault, CaptureFault::None) { std::fs::remove_file(&failed)?; }
+                let mut capture = FaultCapture { path: failed.clone(), fault, opened: Vec::new() };
+                let outcome = capture_archive(FileArchiveOutput::new(File::create(&archive)?),
+                    capture_request(&sources, &archive, &plan, continue_on_error), &mut capture)?;
+                ensure!(outcome.error_count == 1 && outcome.completed == continue_on_error);
+                ensure!(outcome.warning_count == usize::from(matches!(fault, CaptureFault::Warning)));
+                drop(outcome.output);
+                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                ensure!(reader.errors.len() == 1 && reader.members.len() == usize::from(continue_on_error));
+                let expected_stage = if matches!(fault, CaptureFault::Open) { JournalErrorStage::PayloadOpen }
+                    else { JournalErrorStage::MetadataRead };
+                ensure!(reader.errors.first().context("Missing runtime diagnostic")?.stage == expected_stage);
+                ensure!(reader.warnings.len() == usize::from(matches!(fault, CaptureFault::Warning)));
+                if matches!(fault, CaptureFault::Warning) {
+                    ensure!(!capture.opened.contains(&failed));
+                    ensure!(reader.warnings.first().context("Missing warning")?.message.contains("injected recursive warning"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_buffered_source_rollback_exact_members_and_sequence() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let first = temporary.path().join("first");
+        let failed = temporary.path().join("failed");
+        let last = temporary.path().join("last");
+        std::fs::write(&first, b"first committed contents")?;
+        std::fs::write(&failed, vec![0xAC; 131_072])?;
+        std::fs::write(&last, b"last committed contents")?;
+        let archive = temporary.path().join("rollback.cscarchive");
+        let sources = vec![first, failed.clone(), last];
+        let plan = plan_sources(&sources, &archive)?;
+        for fault in [CaptureFault::Read, CaptureFault::Finish] {
+            for continue_on_error in [false, true] {
+                let mut capture = FaultCapture { path: failed.clone(), fault, opened: Vec::new() };
+                let outcome = capture_archive(FileArchiveOutput::new(File::create(&archive)?),
+                    capture_request(&sources, &archive, &plan, continue_on_error), &mut capture)?;
+                ensure!(outcome.error_count == 1 && outcome.warning_count == 0 && outcome.completed == continue_on_error);
+                drop(outcome.output);
+                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                ensure!(reader.errors.len() == 1 && reader.members.len() == if continue_on_error { 2 } else { 1 });
+                ensure!(reader.sequence == if continue_on_error { 3 } else { 2 });
+                let mut contents = Vec::new();
+                reader.payload(reader.members.first().context("Missing first member")?)?.read_to_end(&mut contents)?;
+                ensure!(contents == b"first committed contents");
+                if continue_on_error {
+                    reader.verify_integrity()?;
+                    contents.clear();
+                    reader.payload(reader.members.last().context("Missing last member")?)?.read_to_end(&mut contents)?;
+                    ensure!(contents == b"last committed contents");
+                }
+                ensure!(reader.verify().is_err());
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_forward_only_source_fault_aborts_without_completion() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let failed = temporary.path().join("failed");
+        let good = temporary.path().join("good");
+        std::fs::write(&failed, vec![0xAC; 131_072])?;
+        std::fs::write(&good, b"not attempted")?;
+        let archive = temporary.path().join("stdout.cscarchive");
+        let sources = vec![failed.clone(), good.clone()];
+        let plan = plan_sources(&sources, &archive)?;
+        for continue_on_error in [false, true] {
+            let output = ForwardOutput::default();
+            let bytes = output.0.clone();
+            let mut capture = FaultCapture { path: failed.clone(), fault: CaptureFault::Read, opened: Vec::new() };
+            let error = capture_archive(output, capture_request(&sources, &archive, &plan, continue_on_error), &mut capture)
+                .err().context("Forward output accepted a source fault")?;
+            ensure!(format!("{error:#}").contains("injected source read failure"));
+            ensure!(!capture.opened.contains(&good) && bytes.borrow().len() > 32_768);
+            std::fs::write(&archive, &*bytes.borrow())?;
+            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            ensure!(!reader.is_completed() && reader.members.is_empty() && reader.errors.is_empty());
+            ensure!(ArchiveReader::new(File::open(&archive)?).is_err());
+        }
+        let mut cursor = std::io::Cursor::new(Vec::new());
+        ensure!(cursor.checkpoint()?.is_none() && cursor.rollback(0).is_err());
+        let mut vector = Vec::new();
+        ensure!(vector.checkpoint()?.is_none() && vector.rollback(0).is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_sink_diagnostic_and_rollback_failures_abort() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let failed = temporary.path().join("failed");
+        let good = temporary.path().join("good");
+        std::fs::write(&failed, vec![0xAC; 131_072])?;
+        std::fs::write(&good, b"not attempted")?;
+        let archive = temporary.path().join("sink.cscarchive");
+        let sources = vec![failed.clone(), good.clone()];
+        let plan = plan_sources(&sources, &archive)?;
+        for fault in [OutputFault::Write, OutputFault::WriteZero, OutputFault::Flush,
+            OutputFault::Sync, OutputFault::Rollback, OutputFault::Diagnostic] {
+            let output = FaultOutput {
+                output: FileArchiveOutput::new(File::create(&archive)?), fault, started: false, rolled_back: false,
+            };
+            let source_fault = if matches!(fault, OutputFault::Rollback | OutputFault::Diagnostic) { CaptureFault::Read }
+                else { CaptureFault::None };
+            let mut capture = FaultCapture { path: failed.clone(), fault: source_fault, opened: Vec::new() };
+            let error = capture_archive(output, capture_request(&sources, &archive, &plan, true), &mut capture)
+                .err().with_context(|| format!("Sink fault accepted: {fault:?}"))?;
+            if matches!(fault, OutputFault::Rollback | OutputFault::Diagnostic) {
+                ensure!(format!("{error:#}").contains("injected source read failure"));
+            }
+            ensure!(!capture.opened.contains(&good));
+            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            ensure!(!reader.is_completed() && reader.errors.is_empty());
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    #[cfg(unix)]
+    fn archive_failed_hardlink_definition_is_never_referenced() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let failed = temporary.path().join("failed");
+        let definition = temporary.path().join("definition");
+        let reference = temporary.path().join("reference");
+        std::fs::write(&failed, vec![0xCA; 131_072])?;
+        std::fs::hard_link(&failed, &definition)?;
+        std::fs::hard_link(&failed, &reference)?;
+        let archive = temporary.path().join("hardlinks.cscarchive");
+        let sources = vec![failed.clone(), definition.clone(), reference];
+        let plan = plan_sources(&sources, &archive)?;
+        let mut capture = FaultCapture { path: failed, fault: CaptureFault::Read, opened: Vec::new() };
+        let outcome = capture_archive(FileArchiveOutput::new(File::create(&archive)?),
+            capture_request(&sources, &archive, &plan, true), &mut capture)?;
+        ensure!(outcome.error_count == 1 && outcome.completed);
+        drop(outcome.output);
+        let reader = ArchiveReader::new(File::open(&archive)?)?;
+        reader.verify_integrity()?;
+        validate_members(&reader)?;
+        ensure!(reader.members.len() == 2);
+        ensure!(matches!(reader.members.first().context("Missing definition")?.entity.kind, FileEntityKind::Regular { .. }));
+        let FileEntityKind::Hardlink { target_relative_path } = &reader.members.last().context("Missing hardlink")?.entity.kind else {
+            bail!("Expected a committed hardlink reference");
+        };
+        ensure!(target_relative_path.to_path_buf()? == Path::new("definition"));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_diagnostic_status_rejects_extraction() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let archive = temporary.path().join("failed.cscarchive");
+        let destination = temporary.path().join("destination");
+        let source = temporary.path().join("unreadable");
+        let session = JournalSessionRecord {
+            sources: vec![source.clone()], destination: archive.clone(),
+            origin_platform: u32::from(current_platform()), environment: None,
+        };
+        let mut writer = ArchiveWriter::new(File::create(&archive)?, &session)?;
+        writer.record_error(&crate::journal::JournalErrorRecord {
+            path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
+            stage: crate::journal::JournalErrorStage::MetadataRead,
+            error_message: "Injected capture failure".to_owned(), os_error: Some(13), timestamp_sec: 0,
+        })?;
+        drop(writer.finish()?);
+        let listed = run_archive(&ArchiveArgs { command: ArchiveCommand::List { archive: archive.clone() } })?;
+        ensure!(matches!(listed, ToolResult::Immediate { exit_code: 1, stderr, .. }
+            if String::from_utf8_lossy(&stderr).contains("Injected capture failure")));
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone() } }).is_err());
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+            archive, destination: destination.clone(), overwrite: false,
+            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+        } }).is_err());
+        ensure!(!destination.exists(), "Failed capture modified extraction destination");
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn archive_stdout_argument_parsing() -> Result<()> {
         let args = ArchiveArgs::try_parse_from(["archive", "create", "-", "source/"])?;
-        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false }
+        ensure!(matches!(args.command, ArchiveCommand::Create { archive, sources, resume: false, continue_on_error: false }
             if archive == Path::new("-") && sources == vec![PathBuf::from("source/")]));
+        ensure!(ArchiveArgs::try_parse_from(["archive", "create", "output", "--resume", "--continue-on-error"]).is_err());
         let stdout_resume = ArchiveArgs::try_parse_from(["archive", "create", "-", "--resume"])?;
         ensure!(run_archive(&stdout_resume).is_err());
         Ok(())
@@ -448,7 +1039,7 @@ mod tests {
             std::fs::write(source.join(name).join(name), name.as_encoded_bytes())?;
         }
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-            archive: archive.clone(), sources: vec![source.join("")], resume: false,
+            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false,
         } })?;
         for name in &names {
             std::fs::remove_file(source.join(name).join(name))?;
@@ -479,7 +1070,7 @@ mod tests {
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
         let file = File::create(&archive_path)?;
-        create_archive(BufWriter::new(file), &sources, &archive_path, &plan, None, None)?;
+        create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
         std::fs::remove_dir_all(&source)?;
         let reader = ArchiveReader::new(File::open(&archive_path)?)?;
         reader.verify()?;
@@ -507,7 +1098,7 @@ mod tests {
         std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o700))?;
         std::fs::set_permissions(&destination, std::fs::Permissions::from_mode(0o755))?;
         run_archive(&ArchiveArgs { command: ArchiveCommand::Create {
-            archive: archive.clone(), sources: vec![source.join("")], resume: false,
+            archive: archive.clone(), sources: vec![source.join("")], resume: false, continue_on_error: false,
         } })?;
         let reader = ArchiveReader::new(File::open(archive)?)?;
         let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
@@ -535,7 +1126,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, None, None)?;
+        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
         let completed = std::fs::read(&path)?;
         let mut marker = DcMstring::new();
         marker.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
@@ -556,7 +1147,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, None, None)?;
+        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
         let length = std::fs::metadata(&path)?.len();
         let mut marker = DcMstring::new();
         marker.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
@@ -584,7 +1175,7 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, None, None)?;
+        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
         let reader = ArchiveReader::new(File::open(&path)?)?;
         let destination = temporary.path().join("destination");
         std::fs::create_dir(&destination)?;
@@ -616,7 +1207,7 @@ mod tests {
         let archive_path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
-        create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, None, None)?;
+        create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, false, None)?;
         std::fs::remove_dir_all(&source)?;
         let reader = ArchiveReader::new(File::open(&archive_path)?)?;
         reader.verify()?;

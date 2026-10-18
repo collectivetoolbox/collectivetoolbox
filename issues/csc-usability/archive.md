@@ -77,6 +77,29 @@ stronger guarantees.
 	The final disk check left 27 GB free, so no further build/VM was started near
 	the repository's 25 GB minimum. Existing generated help may still show the old
 	overwrite spelling until normal executable/doc generation runs.
+- Persistent archive error/warning sections now reuse shared journal semantic
+	conversions and operational incident construction. Listing displays them and
+	returns nonzero; completed byte integrity is separate from clean capture.
+	Normal verification and extraction reject diagnostic captures before writes.
+- Creation supports `--continue-on-error`: retained planning/runtime failures
+	permit other source members, with nonzero status. File source-only failures
+	discard buffered bytes before rollback; stdout aborts after a partial member.
+	Sink, flush/sync, rollback, and diagnostic-persistence failures always abort.
+	Hardlink definitions are registered only after successful member commitment.
+- Resume refuses committed diagnostics before truncation, and cannot be combined
+	with `--continue-on-error`. No durable failure-resolution or intended-inventory
+	semantics are claimed. Older experimental readers reject diagnostic sections;
+	diagnostic-free v1 reads and journal wire behavior remain compatible.
+- Journal `mark_failed` now propagates pending commit/encoding failures instead
+	of silently discarding them and updating the failure descriptor. The focused
+	invalid-timestamp regression verifies queued metadata and descriptor retention.
+- Recovery now rejects truncated or unconsumed trailing bytes after completion;
+	completion cannot turn a partial trailing record into a valid listing. The
+	focused regression checks every section-marker prefix after the marker.
+- This diagnostic slice passed 400 musl tests/doctests with no failures or
+	ignored tests, scoped file/CSC/CLI Clippy, and Windows CSC test compilation.
+	Native Windows runtime, a new executable smoke run, and generated CLI reference
+	refresh remain unverified. The latest disk check left 31 GB free.
 
 #### Pending Work
 
@@ -89,8 +112,9 @@ stronger guarantees.
 - Harden Apple parsing/raw representation retention and staged main/companion
 	publication. Persistent local extraction/publication recovery state is now in
 	scope; it is not a required archive sidecar and does not modify the archive.
-- Implement persistent archive diagnostics, continue-on-error, exhaustive torn
-	record recovery, shared durability/error propagation, and adversarial tests.
+- Complete durable diagnostic resolution/retry, exhaustive torn-record recovery,
+  shared durability/error propagation, and adversarial tests. Current retained
+  failures are not evidence of a complete original source inventory.
 - Qualify actual destination namespace collisions, native Windows containment,
 	and crash/power-failure guarantees. Exact filename preservation in these
 	passing Linux cases does not establish universal filesystem/platform fidelity.
@@ -99,8 +123,10 @@ stronger guarantees.
 
 ### Remaining Gaps vs Plan
 
-- Persistent operational error/warning records and `--continue-on-error` are not
-	implemented. Creation aborts on errors; interrupted output remains incomplete.
+- Persistent diagnostics and source-error continuation are present, but durable
+	resolution/retry and intended-source inventory remain pending. Resume rejects
+	recorded diagnostics; stdout cannot persist an in-band failure after partial
+	member emission and instead aborts with incomplete output.
 - Attached-stream capture and projection still buffer stream data; only primary
 	contents have the complete lazy bounded-memory path. Very large streams need
 	a generic shared capture/projection extension before claiming full payload-
