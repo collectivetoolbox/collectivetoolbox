@@ -1,33 +1,3 @@
-Ran command: Search validate_dc_mixed_strict (`git grep -n "validate_dc_mixed_strict"`)
-Ran command: Find definition of validate_dc_mixed_strict (`git grep -n "fn validate_dc_mixed_strict"`)
-Viewed navigator.rs:4470-4520
-Ran command: Search stream in dcstring (`git grep -i "stream" src/formats/dcstring/`)
-Viewed stream.rs:140-165
-Viewed stream.rs:40-75
-Viewed stream.rs:220-275
-Ran command: Search validate_and_copy_dcmm_stream (`git grep -n "validate_and_copy_dcmm_stream" src/formats/dcstring/`)
-Viewed dc_mixed.rs:1320-1390
-Ran command: Find validate_document_strict (`git grep -n "fn validate_document_strict" src/formats/dcstring/`)
-Viewed navigator.rs:4335-4420
-Ran command: Find DcDocumentNavigator impls (`git grep -n "impl.*DcDocumentNavigator" src/formats/dcstring/`)
-Viewed navigator.rs:1040-1130
-Ran command: Search from_dcmm_file usages (`git grep "from_dcmm_file"`)
-Viewed stream.rs:1-140
-Ran command: Search pub fn validate in dcstring (`git grep -n "pub fn validate" src/formats/dcstring/`)
-Ran command: Search validate in src/formats (`git grep -n "validate" src/formats/`)
-Viewed dcstring.rs:1-75
-Ran command: Search NavBackend definition (`git grep -n "enum NavBackend" src/formats/dcstring/`)
-Viewed navigator.rs:995-1040
-Viewed dc_mixed.rs:1170-1230
-Viewed dc_mixed.rs:1360-1460
-Viewed dc_mixed.rs:1460-1530
-Ran command: Search streaming and validation (`git grep -i "streaming" | grep -i "validat"`)
-Viewed dc-string-api.md:1-100
-Viewed dc-string-api.md:101-140
-Ran command: Search for StreamingValidator (`git grep -i "streamingvalid"`)
-Ran command: Search validate.*stream in src (`git grep -in "validate.*stream" src/`)
-Viewed convert_stream.rs:165-190
-Viewed stream.rs:135-225
 
 There is no single 1:1 streaming replacement that works over an arbitrary forward-only `std::io::Read` / `Write` while still performing full Document Character grammar validation. However, depending on what level of validation and what type of stream you have, the codebase provides two different streaming equivalents in [`ctb_formats_dcstring`](file:///workspaces/ctoolbox/src/formats/dcstring/dcstring.rs):
 
