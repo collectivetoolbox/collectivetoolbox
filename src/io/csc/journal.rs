@@ -872,16 +872,12 @@ impl StateJournal {
                     relative: rel.clone(),
                     identity: id.clone(),
                 };
-                if let Ok(line) = serde_json::to_string(&receipt) {
-                    writeln!(desc_text, "  - {line}")?;
-                }
+                let line = serde_json::to_string(&receipt)?;
+                writeln!(desc_text, "  - {line}")?;
             }
         }
 
-        let temp_desc = format!("{}.tmp", self.desc_path.display());
-        std::fs::write(&temp_desc, desc_text.as_bytes())?;
-        std::fs::rename(&temp_desc, &self.desc_path)?;
-        Ok(())
+        ctb_io::file::write_file_durable(&self.desc_path, desc_text.as_bytes())
     }
 
     #[must_use]
@@ -997,7 +993,11 @@ pub fn read_journal_snapshot_with_policy(
         }
         m if m == JOURNAL_MAGIC_V1 => {
             let mut reader = BufReader::new(file);
-            legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)?
+            let mut snapshot = legacy::read_legacy_journal_snapshot(&mut reader, &journal_path, policy)?;
+            for entity in snapshot.committed_entities.values() {
+                warn_unexpected_stream_bodies(entity, &mut snapshot.warnings);
+            }
+            snapshot
         }
         _ => {
             anyhow::bail!(
@@ -1007,24 +1007,29 @@ pub fn read_journal_snapshot_with_policy(
         }
     };
     snapshot.applied_directories = applied_directories;
-    for entity in snapshot.committed_entities.values() {
-        for stream in &entity.streams {
-            if stream.data.is_some() {
+    Ok(snapshot)
+}
+
+fn warn_unexpected_stream_bodies(entity: &FileEntity, warnings: &mut Vec<JournalWarningRecord>) {
+    let mut pending = vec![entity];
+    while let Some(current) = pending.pop() {
+        for stream in &current.streams {
+            if stream.data.is_some() || stream.payload.is_some() {
                 let msg = format!(
                     "Journal snapshot for {:?} contains unexpected embedded stream body: {:?}",
                     entity.identity.relative_path,
                     stream.to_string_lossy()
                 );
                 warn_fmt!("{msg}");
-                snapshot.warnings.push(JournalWarningRecord {
+                warnings.push(JournalWarningRecord {
                     code: "unexpected-journal-stream-body".into(),
                     message: msg,
                     timestamp_sec: 0,
                 });
             }
+            pending.push(&stream.entity);
         }
     }
-    Ok(snapshot)
 }
 
 /// Converts any in-memory cscjournal bytes (legacy or v4+) to a `DcMstring` document.
@@ -1137,6 +1142,7 @@ pub fn read_v4_journal_snapshot(
             });
         }
         let entity = member.entity;
+        warn_unexpected_stream_bodies(&entity, &mut warnings);
         let path_key = match entity.identity.path_bytes() {
             Some(bytes) => bytes.to_vec(),
             None => Vec::new(),
@@ -2928,16 +2934,22 @@ mod tests {
         // Manually inject an entity that retains an in-memory stream body into the record queue
         let mut entity = FileEntity::from_vec(b"hello".to_vec());
         entity.identity.relative_path = Some("file_with_stream.txt".into());
-        let stream = AttachedStream::from_data(
+        let mut stream = AttachedStream::from_data(
             Some(StreamName::from_str("user.stream")),
             StreamKind::ExtendedAttribute,
             b"embedded_stream_body".to_vec(),
         )?;
+        stream.entity.streams.push(AttachedStream::from_data(
+            Some(StreamName::from_str("user.nested")),
+            StreamKind::ExtendedAttribute,
+            b"nested_stream_body".to_vec(),
+        )?);
         entity.streams.push(stream);
 
-        // Bypass record_entity's strip_stream_bodies by directly queueing
-        journal.uncommitted_entities.push(entity);
-        journal.commit_batch()?;
+        // Bypass copy-mode stripping to exercise both primary and stream bodies.
+        let mut payload = ctb_io::file::MemoryPayloadSource::new(b"hello".to_vec())?;
+        journal.writer.write_entity(&entity, Some(&mut payload))?;
+        StateJournal::sync_output(journal.writer.output_mut())?;
 
         // Reading snapshot must emit and record a warning for the unexpected stream body
         let snapshot = read_journal_snapshot(&journal_path)?;
@@ -2945,6 +2957,15 @@ mod tests {
             snapshot.warnings.iter().any(|w| w.code == "unexpected-journal-stream-body"),
             "Expected unexpected-journal-stream-body warning in copy journal snapshot"
         );
+        assert_eq!(snapshot.warnings.iter().filter(|warning| warning.code == "unexpected-journal-stream-body").count(), 2);
+        assert_eq!(snapshot.warnings.iter().filter(|warning| warning.code == "unexpected-journal-file-body").count(), 1);
+        let direct = read_v4_journal_snapshot(
+            &mut File::open(&journal_path)?,
+            &journal_path,
+            false,
+            &ctb_formats_dcstring::DcProjectionPolicy::strict(),
+        )?;
+        assert_eq!(direct.warnings, snapshot.warnings);
 
         Ok(())
     }

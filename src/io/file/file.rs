@@ -258,8 +258,8 @@ pub use identity::{
 pub use ctb_formats_dcstring::{Integer, Natural};
 pub use materializer::{
     MaterializeOptions, MaterializeReceipt, apply_entity_metadata, materialize_entity,
-    materialize_entity_at_path, verify_directory_filenames_exact,
-    verify_filename_exact_bytes,
+    materialize_entity_at_path, materialize_entity_with_stream_source, verify_directory_filenames_exact,
+    verify_filename_exact_bytes, write_file_durable,
 };
 pub use metadata::{
     FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily, PlatformRawFlags,

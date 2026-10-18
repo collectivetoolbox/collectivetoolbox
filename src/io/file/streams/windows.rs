@@ -117,17 +117,15 @@ pub fn read_and_hash_streams(path: &Path) -> Result<Vec<AttachedStream>> {
             let mut stream_wide = base_wide.to_vec();
             stream_wide.extend_from_slice(units);
             let stream_os = OsString::from_wide(&stream_wide);
-            let data = std::fs::read(PathBuf::from(stream_os))
-                .with_context(|| format!("Failed to read Windows alternate data stream {name:?} on {}", path.display()))?;
+            let stream = AttachedStream::from_file(
+                Some(name), StreamKind::NtfsAlternateDataStream, &PathBuf::from(stream_os),
+            )
+                .with_context(|| format!("Failed to read Windows alternate data stream {units:?} on {}", path.display()))?;
             anyhow::ensure!(
-                u64::try_from(data.len())? == u64::try_from(info.StreamSize)?,
+                matches!(stream.entity.kind, FileEntityKind::Regular { size, .. } if size == u64::try_from(info.StreamSize)?),
                 "Windows stream changed size during capture"
             );
-            streams.push(AttachedStream::from_data(
-                Some(name),
-                StreamKind::NtfsAlternateDataStream,
-                data,
-            )?);
+            streams.push(stream);
         }
         // SAFETY: The search handle is live and info remains a valid output buffer.
         if unsafe { FindNextStreamW(search.0, (&raw mut info).cast()) } == 0 {
@@ -164,30 +162,85 @@ pub fn write_windows_streams(
     streams: &[AttachedStream],
     strict_lossless: bool,
 ) -> Result<()> {
+    write_windows_streams_from_source(dest, streams, strict_lossless, &super::FilesystemStreamSource)
+}
+
+pub fn write_windows_streams_from_source(
+    dest: &Path,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+    source: &dyn super::AttachedStreamSource,
+) -> Result<()> {
     let mut validated = Vec::new();
     let mut names: Vec<Vec<u16>> = Vec::new();
     for stream in streams {
-        let Some(ref data) = stream.data else {
-            anyhow::bail!(
-                "Stream {:?} has no payload data to write",
-                stream.to_string_lossy()
-            );
+        let (canonical_name, name_units) = canonical_stream_name(stream, strict_lossless)?;
+        for existing in &names {
+            anyhow::ensure!(!native_names_equal(existing, &name_units)?, "Stream names collide on the destination platform");
+        }
+        names.push(name_units);
+        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
+            anyhow::bail!("Attached stream is not a regular payload");
         };
-        let name = match &stream.name {
-            Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
-            None => match stream.kind {
-                StreamKind::MacOsResourceFork => {
-                    OsString::from("com.apple.ResourceFork")
+        let reader = source.open(stream)?;
+        let mut reader = std::io::Read::take(reader, size.checked_add(1).context("Stream size overflow")?);
+        let mut hasher = Sha256Stream::new();
+        anyhow::ensure!(
+            std::io::copy(&mut reader, &mut hasher)? == *size && hasher.finalize() == *sha256,
+            "Attached stream payload does not match its descriptor: {:?}", stream.name
+        );
+        validated.push((stream, canonical_name));
+    }
+    for (stream, name) in validated {
+        let mut reader = source.open(stream)?;
+        let write = write_windows_stream_to_name(dest, stream, &name, &mut reader);
+        if let Err(error) = &write {
+            // ERROR_NO_UNICODE_TRANSLATION is an encoding failure, not a
+            // permission or storage failure that replacement could conceal.
+            if !strict_lossless && error.downcast_ref::<std::io::Error>().and_then(std::io::Error::raw_os_error) == Some(1113) {
+                let adapted = OsString::from(name.to_string_lossy().into_owned());
+                if adapted != name {
+                    let units: Vec<u16> = adapted.encode_wide().collect();
+                    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
+                    let bare = units.get(1..units.len().saturating_sub(suffix.len()))
+                        .context("Invalid adapted stream name bounds")?;
+                    for existing in &names {
+                        anyhow::ensure!(!native_names_equal(existing, bare)?,
+                            "Replacement stream names collide on the destination filesystem");
+                    }
+                    names.push(bare.to_vec());
+                    warn_fmt!("Destination rejected stream name encoding on {}; retrying with replacement characters (best-effort): {error}",
+                        dest.display());
+                    let mut reader = source.open(stream)?;
+                    write_windows_stream_to_name(dest, stream, &adapted, &mut reader)
+                        .context("Destination also rejected adapted Windows stream name")?;
+                    continue;
                 }
-                _ => {
-                    anyhow::bail!(
-                        "Cannot write unnamed stream to Windows alternate data stream on {}",
-                        dest.display()
-                    );
-                }
+            }
+        }
+        write.with_context(|| {
+            format!(
+                "Failed to write Windows alternate data stream {:?} ({:?}) to {}",
+                stream.to_string_lossy(), stream.name, dest.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn canonical_stream_name(stream: &AttachedStream, strict_lossless: bool) -> Result<(OsString, Vec<u16>)> {
+    let name = match &stream.name {
+        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+        None => match stream.kind {
+            StreamKind::MacOsResourceFork => {
+                OsString::from("com.apple.ResourceFork")
+            }
+            _ => {
+                anyhow::bail!("Cannot write unnamed stream to Windows alternate data stream");
             },
-        };
-        let units: Vec<u16> = name.encode_wide().collect();
+        },
+    };
+    let units: Vec<u16> = name.encode_wide().collect();
         anyhow::ensure!(
             !units.is_empty()
                 && !units.contains(&0)
@@ -216,66 +269,10 @@ pub fn write_windows_streams(
             !name_units.is_empty() && !name_units.contains(&u16::from(b':')),
             "Invalid Windows alternate data stream name: {:?}", stream.name
         );
-        for existing in &names {
-            anyhow::ensure!(!native_names_equal(existing, name_units)?, "Stream names collide on the destination platform");
-        }
-        names.push(name_units.to_vec());
         let mut canonical_name = OsString::from(":");
         canonical_name.push(OsString::from_wide(name_units));
         canonical_name.push(":$DATA");
-        let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
-            anyhow::bail!("Attached stream is not a regular payload");
-        };
-        let mut hasher = Sha256Stream::new();
-        hasher.update(data);
-        anyhow::ensure!(
-            u64::try_from(data.len())? == *size && hasher.finalize() == *sha256,
-            "Attached stream payload does not match its descriptor: {:?}", stream.name
-        );
-        validated.push((stream, canonical_name, data));
-    }
-    for (stream, name, data) in validated {
-        let wide = crate::metadata::windows::path_to_wide(dest)?;
-        let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
-        stream_wide.extend(name.encode_wide());
-        let stream_path = OsString::from_wide(&stream_wide);
-        let write = std::fs::write(PathBuf::from(stream_path), data);
-        if let Err(error) = &write {
-            // ERROR_NO_UNICODE_TRANSLATION is an encoding failure, not a
-            // permission or storage failure that replacement could conceal.
-            if !strict_lossless && error.raw_os_error() == Some(1113) {
-                let adapted = OsString::from(name.to_string_lossy().into_owned());
-                if adapted != name {
-                    let units: Vec<u16> = adapted.encode_wide().collect();
-                    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
-                    let bare = units.get(1..units.len().saturating_sub(suffix.len()))
-                        .context("Invalid adapted stream name bounds")?;
-                    for existing in &names {
-                        anyhow::ensure!(!native_names_equal(existing, bare)?,
-                            "Replacement stream names collide on the destination filesystem");
-                    }
-                    names.push(bare.to_vec());
-                    let mut adapted_path = wide.get(..wide.len().saturating_sub(1))
-                        .context("Invalid path length")?.to_vec();
-                    adapted_path.extend_from_slice(&units);
-                    warn_fmt!("Destination rejected stream name encoding on {}; retrying with replacement characters (best-effort): {error}",
-                        dest.display());
-                    std::fs::write(PathBuf::from(OsString::from_wide(&adapted_path)), data)
-                        .context("Destination also rejected adapted Windows stream name")?;
-                    continue;
-                }
-            }
-        }
-        write.with_context(|| {
-            format!(
-                "Failed to write Windows alternate data stream {:?} ({:?}) to {}",
-                stream.to_string_lossy(),
-                stream.name,
-                dest.display()
-            )
-        })?;
-    }
-    Ok(())
+    Ok((canonical_name, name_units.to_vec()))
 }
 
 /// Writes a single alternate data stream from a streaming reader directly to disk.
@@ -285,45 +282,23 @@ pub fn write_windows_stream_from_reader<R: std::io::Read>(
     reader: &mut R,
     strict_lossless: bool,
 ) -> Result<()> {
-    use std::io::Write;
+    let (name, _) = canonical_stream_name(stream, strict_lossless)?;
+    write_windows_stream_to_name(dest, stream, &name, reader)
+}
 
+fn write_windows_stream_to_name(
+    dest: &Path,
+    stream: &AttachedStream,
+    name: &std::ffi::OsStr,
+    reader: &mut dyn std::io::Read,
+) -> Result<()> {
+    use std::io::Write;
     let FileEntityKind::Regular { size, sha256, .. } = &stream.entity.kind else {
         anyhow::bail!("Attached stream is not a regular payload");
     };
-    let name = match &stream.name {
-        Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
-        None => match stream.kind {
-            StreamKind::MacOsResourceFork => OsString::from("com.apple.ResourceFork"),
-            _ => {
-                if strict_lossless {
-                    anyhow::bail!("Cannot write unnamed non-resource-fork stream to {}", dest.display());
-                }
-                warn_fmt!("Caveat: Skipping unnamed stream on {} (proceeding best-effort)", dest.display());
-                return Ok(());
-            }
-        },
-    };
-    let units: Vec<u16> = name.encode_wide().collect();
-    let name_units = if units.starts_with(&[u16::from(b':')]) {
-        units.get(1..).context("Missing stream name")?
-    } else {
-        &units
-    };
-    let suffix: Vec<u16> = ":$DATA".encode_utf16().collect();
-    let name_units = if name_units.len() >= suffix.len()
-        && native_names_equal(name_units.get(name_units.len().saturating_sub(suffix.len())..).context("Invalid stream type suffix")?, &suffix)?
-    {
-        name_units.get(..name_units.len().saturating_sub(suffix.len())).context("Invalid stream name length")?
-    } else {
-        name_units
-    };
-    let mut canonical_name = OsString::from(":");
-    canonical_name.push(OsString::from_wide(name_units));
-    canonical_name.push(":$DATA");
-
     let wide = crate::metadata::windows::path_to_wide(dest)?;
     let mut stream_wide = wide.get(..wide.len().saturating_sub(1)).context("Invalid path length")?.to_vec();
-    stream_wide.extend(canonical_name.encode_wide());
+    stream_wide.extend(name.encode_wide());
     let stream_path = OsString::from_wide(&stream_wide);
 
     let mut file = std::fs::File::create(PathBuf::from(stream_path))
@@ -338,13 +313,15 @@ pub fn write_windows_stream_from_reader<R: std::io::Read>(
             break;
         }
         let chunk = buffer.get(..bytes_read).context("Invalid slice range")?;
+        total_copied = total_copied.checked_add(u64::try_from(bytes_read)?).context("Stream copy size overflow")?;
+        anyhow::ensure!(total_copied <= *size, "Stream grew during restoration");
         hasher.update(chunk);
         file.write_all(chunk)?;
-        total_copied = total_copied.checked_add(u64::try_from(bytes_read)?).context("Stream copy size overflow")?;
     }
     file.flush()?;
     anyhow::ensure!(total_copied == *size && hasher.finalize() == *sha256,
         "Attached stream payload does not match its descriptor: {:?}", stream.to_string_lossy());
+    file.sync_all()?;
     Ok(())
 }
 

@@ -445,6 +445,9 @@ pub const RESOURCE_FORK_XATTR_NAME: &str = if cfg!(target_os = "macos") {
     "user.com.apple.ResourceFork"
 };
 
+#[cfg(target_os = "linux")]
+const LINUX_XATTR_SIZE_MAX: u64 = 65_536;
+
 impl StreamKind {
     /// Infers the stream kind from its byte name.
     #[must_use]
@@ -467,7 +470,7 @@ impl StreamKind {
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
-#[dc(begin = 323, end = 324, ignore_unknown)]
+#[dc(try_from = AttachedStreamWithPayload, try_into = AttachedStreamWithPayload)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
@@ -492,7 +495,61 @@ pub struct AttachedStream {
     pub payload: Option<LazyBinaryPayload>,
 }
 
+impl Default for AttachedStream {
+    fn default() -> Self {
+        Self {
+            name: None,
+            kind: StreamKind::ExtendedAttribute,
+            entity: Box::new(<FileEntity as ctb_formats_dcstring::DcForgivingDefault>::dc_forgiving_default()),
+            data: None,
+            payload: None,
+        }
+    }
+}
+
+/// Supplies resident, captured, or archived bytes for an attached stream.
+pub trait AttachedStreamSource {
+    /// Opens the stream at its first payload byte.
+    fn open(&self, stream: &AttachedStream) -> Result<Box<dyn std::io::Read + Send>>;
+}
+
+/// Reads stream bodies from memory or their recorded filesystem origin.
+pub struct FilesystemStreamSource;
+
+impl AttachedStreamSource for FilesystemStreamSource {
+    fn open(&self, stream: &AttachedStream) -> Result<Box<dyn std::io::Read + Send>> {
+        if let Some(data) = &stream.data {
+            return Ok(Box::new(std::io::Cursor::new(data.clone())));
+        }
+        if let Some(payload) = &stream.payload {
+            let bytes = payload.0.as_resident_bytes().context("Archived stream requires its backing reader")?;
+            return Ok(Box::new(std::io::Cursor::new(bytes.to_vec())));
+        }
+        if let FileOrigin::Filesystem { key, canonical_path } = &stream.entity.identity.origin {
+            ensure!(crate::identity::query_file_identity(canonical_path)? == *key, "Captured stream identity changed");
+            let file = std::fs::File::open(canonical_path)?;
+            ensure!(crate::identity::query_file_identity(canonical_path)? == *key, "Captured stream identity changed while opening");
+            return Ok(Box::new(file));
+        }
+        if matches!(stream.entity.kind, FileEntityKind::Regular { size: 0, .. }) {
+            return Ok(Box::new(std::io::empty()));
+        }
+        bail!("Stream {:?} has no payload source", stream.to_string_lossy())
+    }
+}
+
 impl AttachedStream {
+    /// Hashes a file-backed stream without retaining its body in memory.
+    pub fn from_file(name: Option<StreamName>, kind: StreamKind, path: &Path) -> Result<Self> {
+        let canonical_path = std::fs::canonicalize(path)?;
+        let key = crate::identity::query_file_identity(&canonical_path)?;
+        let file = std::fs::File::open(&canonical_path)?;
+        let mut stream = Self::from_stream_reader(name, kind, file, false)?;
+        ensure!(crate::identity::query_file_identity(&canonical_path)? == key, "Stream identity changed during capture");
+        stream.entity.identity.origin = FileOrigin::Filesystem { key, canonical_path };
+        Ok(stream)
+    }
+
     /// Serializes this `AttachedStream` along with its stream payload data (`Dc 385`),
     /// streaming from `reader` without buffering the entire payload into an intermediate vector.
     pub fn encode_with_stream_reader<R: std::io::Read>(
@@ -525,31 +582,63 @@ impl AttachedStream {
         reader: &mut R,
         size: u64,
     ) -> Result<()> {
+        writer.write_all(ctb_formats_dcstring::DcMstring::new().as_bytes())?;
+        self.encode_record_to_writer_with_reader(writer, reader, size, &ctb_formats_dcstring::SharedValueContext::default())
+    }
+
+    pub(crate) fn encode_record_to_writer_with_source<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        source: &dyn AttachedStreamSource,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        let FileEntityKind::Regular { size, .. } = self.entity.kind else {
+            bail!("Attached stream is not a regular payload");
+        };
+        let mut reader = source.open(self)?;
+        self.encode_record_to_writer_with_reader(writer, &mut reader, size, context)
+    }
+
+    fn encode_record_to_writer_with_reader<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        reader: &mut dyn std::io::Read,
+        size: u64,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        let FileEntityKind::Regular { size: expected_size, sha256, .. } = self.entity.kind else {
+            bail!("Attached stream is not a regular payload");
+        };
+        ensure!(size == expected_size, "Stream source size differs from metadata");
         let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
         if let Some(ref name) = self.name {
             prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
-            name.encode_dc_mixed(&mut prefix_mst)?;
+            name.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         }
-        self.kind.encode_dc_mixed(&mut prefix_mst)?;
-        self.entity.encode_dc_mixed(&mut prefix_mst)?;
-        writer.write_all(prefix_mst.as_bytes())?;
+        self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
+        writer.write_all(prefix_mst.payload_bytes())?;
+        self.entity.encode_record_to_writer_with_context(writer, context)?;
 
+        let mut checked = StreamDigestReader { reader, digest: Sha256Stream::new() };
         if size > 0 {
             let mut tag = ctb_formats_dcstring::DcMstring::new();
             tag.push_char(ctb_formats_dcstring::DcChar::from_short(385));
-            writer.write_all(tag.as_bytes())?;
+            writer.write_all(tag.payload_bytes())?;
             ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
                 writer,
-                reader,
+                &mut checked,
                 size,
                 None,
             )?;
         }
+        let mut extra = [0_u8; 1];
+        ensure!(std::io::Read::read(&mut checked, &mut extra)? == 0, "Stream grew during encoding");
+        ensure!(checked.digest.finalize() == sha256, "Stream contents changed during encoding");
 
         let mut suffix = ctb_formats_dcstring::DcMstring::new();
         suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
-        writer.write_all(suffix.as_bytes())?;
+        writer.write_all(suffix.payload_bytes())?;
         Ok(())
     }
 
@@ -557,7 +646,22 @@ impl AttachedStream {
     /// and entity metadata/digests.
     pub fn strip_body(&mut self) {
         self.data = None;
+        self.payload = None;
         self.entity.strip_stream_bodies();
+    }
+}
+
+struct StreamDigestReader<'a> {
+    reader: &'a mut dyn std::io::Read,
+    digest: Sha256Stream,
+}
+
+impl std::io::Read for StreamDigestReader<'_> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        let count = self.reader.read(buffer)?;
+        let bytes = buffer.get(..count).ok_or_else(|| std::io::Error::other("Invalid stream read count"))?;
+        self.digest.update(bytes);
+        Ok(count)
     }
 }
 
@@ -751,9 +855,11 @@ impl AttachedStream {
     /// Converts this `AttachedStream` into an `AttachedStreamWithPayload`.
     #[must_use]
     pub fn into_with_payload(self) -> AttachedStreamWithPayload {
-        let payload = self.data.map(|d| {
-            LazyBinaryPayload(BinaryPayloadRef::Inline(d))
-        });
+        let payload = if let Some(data) = self.data {
+            Some(LazyBinaryPayload(BinaryPayloadRef::Inline(data)))
+        } else {
+            self.payload
+        };
         AttachedStreamWithPayload {
             name: self.name,
             kind: self.kind,
@@ -796,13 +902,12 @@ pub struct AttachedStreamWithPayload {
 }
 
 impl AttachedStreamWithPayload {
-    /// Converts this lazy stream into an in-memory `AttachedStream`, loading resident
-    /// payload bytes if present.
+    /// Converts resident bytes to `data`, retaining nonresident payload spans.
     pub fn into_attached_stream(self) -> Result<AttachedStream> {
         let data = match self.payload.as_ref() {
             Some(p) => match p.0.as_resident_bytes() {
                 Some(b) => Some(b.to_vec()),
-                None => anyhow::bail!("Lazy payload is backed by file span and cannot be made resident without file handle"),
+                None => None,
             },
             None => None,
         };
@@ -810,8 +915,8 @@ impl AttachedStreamWithPayload {
             name: self.name,
             kind: self.kind,
             entity: self.entity,
+            payload: if data.is_some() { None } else { self.payload },
             data,
-            payload: self.payload,
         })
     }
 
@@ -819,6 +924,22 @@ impl AttachedStreamWithPayload {
     #[must_use]
     pub fn resident_data(&self) -> Option<&[u8]> {
         self.payload.as_ref().and_then(|p| p.0.as_resident_bytes())
+    }
+}
+
+impl TryFrom<&AttachedStream> for AttachedStreamWithPayload {
+    type Error = anyhow::Error;
+
+    fn try_from(stream: &AttachedStream) -> Result<Self> {
+        Ok(stream.clone().into_with_payload())
+    }
+}
+
+impl TryFrom<AttachedStreamWithPayload> for AttachedStream {
+    type Error = anyhow::Error;
+
+    fn try_from(stream: AttachedStreamWithPayload) -> Result<Self> {
+        stream.into_attached_stream()
     }
 }
 
@@ -936,8 +1057,42 @@ pub fn write_streams(
     Ok(())
 }
 
-/// Writes a single attached stream directly from a `Read` stream to disk without buffering
-/// the entire payload in memory.
+/// Writes attached bodies from the caller's source before file publication.
+pub fn write_streams_from_source(
+    dest: &Path,
+    target_display_path: Option<&Path>,
+    streams: &[AttachedStream],
+    strict_lossless: bool,
+    source: &dyn AttachedStreamSource,
+) -> Result<()> {
+    if streams.iter().all(|stream| stream.data.is_some()) {
+        return write_streams(dest, target_display_path, streams, strict_lossless);
+    }
+    #[cfg(windows)]
+    return windows::write_windows_streams_from_source(dest, streams, strict_lossless, source);
+    #[cfg(not(windows))]
+    {
+        let mut names = std::collections::HashSet::new();
+        for stream in streams {
+            let name = match &stream.name {
+                Some(name) => name.to_os_string_for_materialization(strict_lossless)?,
+                None if stream.kind == StreamKind::MacOsResourceFork => OsString::from(RESOURCE_FORK_XATTR_NAME),
+                None => {
+                    ensure!(!strict_lossless, "Cannot write unnamed attached stream");
+                    continue;
+                }
+            };
+            ensure!(names.insert(name), "Stream names collide on the destination platform");
+        }
+        for stream in streams {
+            let mut reader = source.open(stream)?;
+            write_stream_from_reader(dest, stream, &mut reader, strict_lossless)?;
+        }
+        Ok(())
+    }
+}
+
+/// Writes a single attached stream from a reader to its native destination.
 #[cfg(unix)]
 pub fn write_stream_from_reader<R: std::io::Read>(
     dest: &Path,
@@ -983,7 +1138,10 @@ pub fn write_stream_from_reader<R: std::io::Read>(
         }
     }
 
-    let mut data = Vec::with_capacity(usize::try_from(*size).unwrap_or(0));
+    #[cfg(target_os = "linux")]
+    ensure!(*size <= LINUX_XATTR_SIZE_MAX, "Attached stream exceeds the Linux xattr limit");
+    let mut data = Vec::new();
+    data.try_reserve_exact(usize::try_from(*size)?)?;
     let mut buf = [0_u8; 64 * 1024];
     let mut total_read = 0_u64;
     loop {
@@ -992,6 +1150,7 @@ pub fn write_stream_from_reader<R: std::io::Read>(
         let chunk = buf.get(..n).context("Invalid slice range")?;
         hasher.update(chunk);
         total_read = total_read.checked_add(u64::try_from(n)?).context("Stream size overflow")?;
+        ensure!(total_read <= *size, "Stream grew during restoration");
         data.extend_from_slice(chunk);
     }
     anyhow::ensure!(total_read == *size && hasher.finalize() == *sha256,
@@ -1089,6 +1248,25 @@ pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    #[crate::ctb_test]
+    fn test_file_backed_stream_capture_and_reader() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("large-stream");
+        let bytes = vec![0x5a_u8; 2 * 1024 * 1024];
+        std::fs::write(&path, &bytes)?;
+        let stream = AttachedStream::from_file(
+            Some(StreamName::from_str("user.large")), StreamKind::ExtendedAttribute, &path,
+        )?;
+        ensure!(stream.data.is_none() && stream.payload.is_none());
+        let mut reader = FilesystemStreamSource.open(&stream)?;
+        let mut digest = Sha256Stream::new();
+        ensure!(std::io::copy(&mut reader, &mut digest)? == u64::try_from(bytes.len())?);
+        ensure!(digest.finalize() == ctb_formats_checksum::sha256(&bytes));
+        std::fs::remove_file(&path)?;
+        ensure!(FilesystemStreamSource.open(&stream).is_err());
+        Ok(())
+    }
+
     use super::*;
     use crate::*;
     use std::fs;
@@ -1323,7 +1501,12 @@ mod tests {
                     let streams = read_and_hash_streams(&path).unwrap();
                     assert_eq!(streams.len(), 1);
                     assert_eq!(streams[0].name, stream.name);
-                    assert_eq!(streams[0].data, stream.data);
+                    assert!(streams[0].data.is_none());
+                    assert_eq!(streams[0].entity.kind, stream.entity.kind);
+                    let mut reader = FilesystemStreamSource.open(&streams[0]).unwrap();
+                    let mut digest = Sha256Stream::new();
+                    std::io::copy(&mut reader, &mut digest).unwrap();
+                    assert_eq!(digest.finalize(), ctb_formats_checksum::sha256(stream.data.as_ref().unwrap()));
                 }
                 Err(error) => {
                     assert!(environment::is_wine(), "Unexpected native stream failure: {error:#}");
@@ -1479,6 +1662,21 @@ mod tests {
             true, // retain_body = true
         )?;
         assert_eq!(stream_buffered.data.as_deref(), Some(payload.as_slice()));
+
+        let mut streamed_document = Vec::new();
+        stream_streaming.encode_to_writer_with_stream_reader(
+            &mut streamed_document,
+            &mut payload.as_slice(),
+            expected_size,
+        )?;
+        let mut buffered_document = ctb_formats_dcstring::DcMstring::new();
+        stream_streaming.encode_with_stream_reader(
+            &mut buffered_document,
+            &mut payload.as_slice(),
+            expected_size,
+        )?;
+        ensure!(streamed_document == buffered_document.as_bytes(), "Stream encoders disagree");
+        ctb_formats_dcstring::validate_dc_mixed_strict(&buffered_document)?;
 
         // 3. Lazy payload representation
         let lazy = stream_buffered.into_with_payload();

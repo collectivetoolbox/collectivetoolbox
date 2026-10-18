@@ -81,7 +81,6 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - csc archive: Durable destination identity and interrupted moves
   Status: Partially Implemented
   - Remaining Gaps & Pending Work:
-    - Make applied-directory receipts crash-durable: `StateJournal::update_desc_file` writes and renames `.cscdesc` without syncing the file or its containing directory. The journal batch is synced separately, so loss of the descriptor can lose resume authority.
     - Stop silently discarding `restore_applied_directory_ownership` errors in the copy pipeline; propagate or explicitly report receipt restoration failures.
     - Qualify resume across deep subtrees with preexisting uncommitted regular files under `ExistingEntryPolicy::Refuse`, without overwrite. The receipt regression only resumes a previously completed empty subtree after adding a source file, not this crash window.
     - Add durable source inventory and per-source deletion/recovery state for interrupted multi-file moves. `run_mv` currently cleans up using in-memory `copied_entities`, without a durable deletion transaction log.
@@ -90,25 +89,22 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 - csc archive: Bounded-memory attached-stream pipeline
   Status: Partially Implemented
   - Remaining Gaps & Pending Work:
-    - Connect lazy stream capture, encoding, and projection end to end. Windows `read_and_hash_streams` uses `std::fs::read`; `AttachedStream::data` decodes Dc 385 into `Vec<u8>`, while its lazy `payload` field is skipped by the derive. The separate `AttachedStreamWithPayload` does not replace that production path. Large stream bodies are saved, but not with bounded memory.
-    - Repair `AttachedStream::encode_to_writer_with_stream_reader`: prefix, tag, and suffix use `DcMstring::as_bytes()`, emitting extra document headers inside the record. A temporary comparison against `encode_with_stream_reader` failed on 2026-10-18. The existing incremental-stream test does not exercise either encoder; `encode_with_stream_reader` itself still accumulates the document in memory.
-    - Native Windows ADS/reparse runtime qualification for the reviewed revision remains unverified here. Earlier claims of successful Windows 7/11 qualification conflict with the old pending item and were not established by the Linux tests. Live ReFS testing is not required.
+    - Extend AppleDouble/AppleSingle conversion writers to consume nonresident attached bodies through `AttachedStreamSource`. Materialization currently rejects these conversion modes before mutation when bodies are nonresident, rather than silently omitting them. Native stream capture, archive writing, lazy projection, and pre-publication extraction use the streaming path.
+    - Native Windows ADS/reparse runtime qualification remains pending. Windows library and test targets cross-check successfully; the portable large-stream regression verifies source-free lazy archive bodies, and the publication regression rejects changed source bodies. These do not replace live NTFS execution. Live ReFS testing is not required.
 
-- csc copy-journal unexpected-body warnings
-  Status: Partially Implemented
-  - Remaining Gaps & Pending Work: Stream-body warnings inspect only immediate streams in `read_journal_snapshot_with_policy`, not nested stream entities. Calling public `read_v4_journal_snapshot` directly also bypasses that stream-body warning pass. Keep primary-body and stream-body warning coverage consistent across reader entry points.
 
-Medium: Stream writer emits extra document headers. A temporary byte-comparison probe failed. streams.rs:536
-Medium: Unsupported checksums error instead of warning in forgiving mode. Reproduced with MD5. encapsulation.rs:304
-Medium: Directory receipts are renamed without fsync, so crash-durable resume authority is not assured. journal.rs:881
-Medium: Windows ADS capture still buffers entire bodies; end-to-end bounded-memory streaming is incomplete. windows.rs:120
-
+- Are Alternate Data Streams, HFS forks, Windows Extended Attributes, and xattrs on Linux all supported correctly? Will it risk mixing up EA and ADS on Windows? Do large ADS transfer correctly between ZFS (testable on FreeBSD), AppleDouble/AppleSingle, and NTFS (on Windows 7 and 11)?
 
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container
 
 File flags did not have complete implementation
+
+In errors like Target filesystem failed to store stream {:?} on {}: {e}", stream.to_string_lossy(), dest.display());
+        }
+        warn_fmt!("Caveat: Target filesystem cannot store extended attribute {:?} on {}: {e} (best-effort)",
+It should indicate what the size of the stream was, as that's a common issue, and note that it may be too large for the OS or filesystem.
 
 magic-square
 

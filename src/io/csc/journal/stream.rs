@@ -208,10 +208,7 @@ impl<W: Write> JournalWriter<W> {
                     bail!("Source fidelity warnings: {}", warnings.join("; "));
                 }
             } else {
-                let mut record = DcMstring::new();
-                entity.encode_dc_mixed_with_context(&mut record, context)?;
-                ctb_formats_dcstring::validate_dc_mixed_strict(&record)?;
-                writer.write_all(record.payload_bytes())?;
+                entity.encode_record_to_writer_with_context(&mut writer, context)?;
             }
             if let Err(error) = precommit() {
                 source_failed = true;

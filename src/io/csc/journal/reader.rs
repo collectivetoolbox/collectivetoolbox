@@ -229,6 +229,12 @@ pub struct JournalPayload {
     extents: Vec<Extent>,
 }
 
+impl ctb_io::file::streams::AttachedStreamSource for JournalReader {
+    fn open(&self, stream: &ctb_io::file::AttachedStream) -> Result<Box<dyn Read + Send>> {
+        Ok(Box::new(self.stream_payload(stream)?))
+    }
+}
+
 impl Read for JournalPayload {
     fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
         let remaining = self.length.checked_sub(self.position)
@@ -296,7 +302,7 @@ mod tests {
             stream.data = Some(b"modified".to_vec());
             entity.streams.push(stream);
             let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
-            writer.write_entity(&entity, None)?;
+            writer.write_batch(&[entity], |_| Ok(()))?;
             let reader = JournalReader::new(archive_file(&writer.finish()?)?)?;
             ensure!(reader.verify().is_err(), "Metadata-only verification skipped attached stream integrity");
         }
@@ -326,6 +332,35 @@ mod tests {
     use super::*;
     use crate::journal::stream::{ObservedSink, VerifiedSource};
     use ctb_io::file::MemoryPayloadSource;
+
+    #[crate::ctb_test]
+    fn large_attached_stream_is_lazy_and_source_independent() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("stream-source");
+        let archive = temporary.path().join("archive");
+        let bytes = vec![0x5a_u8; 2 * 1024 * 1024];
+        std::fs::write(&source, &bytes)?;
+        let mut entity = FileEntity::from_vec(Vec::new());
+        entity.streams.push(ctb_io::file::AttachedStream::from_file(
+            Some(ctb_io::file::StreamName::from_str("user.large")),
+            ctb_io::file::StreamKind::ExtendedAttribute, &source,
+        )?);
+        let session = JournalSessionRecord { sources: Vec::new(), destination: archive.clone(), origin_platform: 1, environment: None };
+        let mut writer = JournalWriter::new(File::create(&archive)?, &session, JournalMagic::ArchiveV1)?;
+        writer.write_entity(&entity, None)?;
+        drop(writer.finish()?);
+        std::fs::remove_file(&source)?;
+        let reader = JournalReader::new(File::open(&archive)?)?;
+        reader.verify_self_contained()?;
+        let stream = reader.members.first().context("Missing archive member")?.entity.streams.first().context("Missing stream")?;
+        ensure!(stream.data.is_none());
+        ensure!(matches!(stream.payload.as_ref().map(|payload| &payload.0), Some(BinaryPayloadRef::FileSpan { .. })));
+        let mut payload = reader.stream_payload(stream)?;
+        let mut digest = Sha256Stream::new();
+        ensure!(std::io::copy(&mut payload, &mut digest)? == u64::try_from(bytes.len())?);
+        ensure!(digest.finalize() == ctb_formats_checksum::sha256(&bytes));
+        Ok(())
+    }
 
     fn diagnostic_writer() -> Result<JournalWriter<Vec<u8>>> {
         JournalWriter::new(Vec::new(), &JournalSessionRecord {

@@ -722,11 +722,11 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             }
             let materialize_res = if matches!(member.entity.kind, FileEntityKind::Regular { .. }) {
                 match reader.payload(member) {
-                    Ok(mut payload) => member.entity.materialize(Some(&mut payload), &sandbox, options),
+                    Ok(mut payload) => ctb_io::file::materialize_entity_with_stream_source(&member.entity, Some(&mut payload), &sandbox, options, reader),
                     Err(err) => Err(err),
                 }
             } else {
-                member.entity.materialize(None, &sandbox, options)
+                ctb_io::file::materialize_entity_with_stream_source(&member.entity, None, &sandbox, options, reader)
             };
             let receipt = match materialize_res {
                 Ok(receipt) => receipt,
@@ -737,25 +737,6 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 Err(error) => return Err(error),
             };
             for warning in receipt.warnings { warn_fmt!("{warning}"); }
-            for stream in &member.entity.streams {
-                if stream.payload.is_some() || stream.data.is_some() {
-                    let mut stream_reader = match reader.stream_payload(stream) {
-                        Ok(r) => r,
-                        Err(error) if recover => {
-                            warn_fmt!("Failed to open stream reader for {:?}: {error:#}; skipping", stream.to_string_lossy());
-                            continue;
-                        }
-                        Err(error) => return Err(error),
-                    };
-                    if let Err(error) = ctb_io::file::write_stream_from_reader(&receipt.destination_path, stream, &mut stream_reader, options.strict_lossless) {
-                        if recover {
-                            warn_fmt!("Failed to extract attached stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
-                        } else {
-                            return Err(error);
-                        }
-                    }
-                }
-            }
             if !hardlinks {
                 if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, false, false) {
                     if recover {
@@ -809,28 +790,9 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
                 Err(error) => return Err(error),
             }
         } else {
-            match member.entity.materialize(None, &sandbox, options) {
+            match ctb_io::file::materialize_entity_with_stream_source(&member.entity, None, &sandbox, options, reader) {
                 Ok(receipt) => {
                     for warning in receipt.warnings { warn_fmt!("{warning}"); }
-                    for stream in &member.entity.streams {
-                        if stream.payload.is_some() || stream.data.is_some() {
-                            let mut stream_reader = match reader.stream_payload(stream) {
-                                Ok(r) => r,
-                                Err(error) if recover => {
-                                    warn_fmt!("Failed to open dir stream reader: {error:#}; skipping in recover mode");
-                                    continue;
-                                }
-                                Err(error) => return Err(error),
-                            };
-                            if let Err(error) = ctb_io::file::write_stream_from_reader(&receipt.destination_path, stream, &mut stream_reader, options.strict_lossless) {
-                                if recover {
-                                    warn_fmt!("Failed to write directory stream {:?}: {error:#}; skipping in recover mode", stream.to_string_lossy());
-                                } else {
-                                    return Err(error);
-                                }
-                            }
-                        }
-                    }
                 }
                 Err(error) if recover => {
                     warn_fmt!("Failed to materialize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());

@@ -386,6 +386,24 @@ pub fn materialize_entity(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
 ) -> Result<MaterializeReceipt> {
+    materialize_entity_with_stream_source(entity, payload, dest_dir, options, &crate::streams::FilesystemStreamSource)
+}
+
+/// Materializes primary and attached bodies before publishing a regular file.
+pub fn materialize_entity_with_stream_source(
+    entity: &FileEntity,
+    payload: Option<&mut dyn PayloadSource>,
+    dest_dir: &SandboxableDir,
+    options: &MaterializeOptions,
+    stream_source: &dyn crate::streams::AttachedStreamSource,
+) -> Result<MaterializeReceipt> {
+    if matches!(options.apple_write_mode,
+        AppleWriteMode::ForceAppleDouble(_) | AppleWriteMode::MaybeAppleDouble(_)
+        | AppleWriteMode::ForceAppleSingle | AppleWriteMode::MaybeAppleSingle)
+    {
+        ensure!(entity.streams.iter().all(|stream| stream.data.is_some()),
+            "AppleDouble/AppleSingle conversion of nonresident attached bodies is not supported");
+    }
     if let Some(timestamps) = &entity.metadata.timestamps {
         timestamps.validate()?;
     }
@@ -469,7 +487,7 @@ pub fn materialize_entity(
                 create(&adapted)?;
                 adaptation_warnings.push(warning);
             }
-            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+            crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
             let mut warnings = apply_entity_metadata(
                 &dest_path,
                 None,
@@ -533,13 +551,13 @@ pub fn materialize_entity(
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-                    let res = write_streams(&dest_path, None, &entity.streams, false);
+                    let res = crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, false, stream_source);
                     if res.is_err() || has_apple_meta {
                         write_companion = true;
                     }
                 }
                 _ => {
-                    write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+                    crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
@@ -590,7 +608,7 @@ pub fn materialize_entity(
                 mode,
                 options.existing_entry_policy,
             )?;
-            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+            crate::streams::write_streams_from_source(&dest_path, None, &entity.streams, options.strict_lossless, stream_source)?;
             let warnings = apply_entity_metadata(
                 &dest_path,
                 None,
@@ -625,7 +643,8 @@ pub fn materialize_entity(
             is_sparse,
             extents,
         } => {
-            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite {
+            if options.existing_entry_policy == ExistingEntryPolicy::Replace && !options.force_overwrite
+                && entity.streams.iter().all(|stream| stream.data.is_some()) {
                 if let Some(receipt) = try_update_existing_regular_entity(
                     &dest_path,
                     dest_dir,
@@ -1052,13 +1071,13 @@ pub fn materialize_entity(
                 AppleWriteMode::MaybeAppleDouble(_) => {
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
-                    let streams_res = write_streams(&temp_path, Some(&dest_path), &entity.streams, false);
+                    let streams_res = crate::streams::write_streams_from_source(&temp_path, Some(&dest_path), &entity.streams, false, stream_source);
                     if streams_res.is_err() || has_apple_meta {
                         write_companion = true;
                     }
                 }
                 _ => {
-                    write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+                    crate::streams::write_streams_from_source(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless, stream_source)?;
                     // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
@@ -1204,6 +1223,44 @@ impl Drop for TempFileCleanupGuard<'_> {
             let _ = std::fs::remove_file(self.parent_fd.path.join(&self.temp_name));
         }
     }
+}
+
+/// Atomically replaces a file after syncing its contents and publication.
+pub fn write_file_durable(path: &Path, contents: &[u8]) -> Result<()> {
+    let parent = match path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+        Some(parent) => parent,
+        None => Path::new("."),
+    };
+    let mut staged = tempfile::NamedTempFile::new_in(parent)?;
+    std::io::Write::write_all(&mut staged, contents)?;
+    staged.as_file().sync_all()?;
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_ATTRIBUTE_NORMAL, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+            MoveFileExW, SetFileAttributesW,
+        };
+        let source = crate::metadata::windows::path_to_wide(staged.path())?;
+        let destination = crate::metadata::windows::path_to_wide(path)?;
+        #[expect(unsafe_code, reason = "Both native paths are live NUL-terminated UTF-16 buffers")]
+        unsafe {
+            if SetFileAttributesW(source.as_ptr(), FILE_ATTRIBUTE_NORMAL) == 0 {
+                return Err(std::io::Error::last_os_error()).context("Failed to prepare durable replacement");
+            }
+            if MoveFileExW(source.as_ptr(), destination.as_ptr(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0 {
+                return Err(std::io::Error::last_os_error()).context("Failed to publish durable replacement");
+            }
+        }
+    }
+    #[cfg(unix)]
+    {
+        let directory = std::fs::File::open(parent)?;
+        staged.persist(path)?;
+        directory.sync_all()?;
+    }
+    #[cfg(not(any(unix, windows)))]
+    anyhow::bail!("Durable file replacement is unsupported on this platform");
+    Ok(())
 }
 
 /// Verifies a collection of filenames within a directory in a single pass.
@@ -1536,6 +1593,58 @@ fn try_update_existing_regular_entity(
     reason = "Standard repository test boilerplate"
 )]
 mod tests {
+    #[crate::ctb_test]
+    fn test_file_backed_stream_is_written_before_publication() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("stream-source");
+        let bytes = vec![0x5a_u8; 128];
+        std::fs::write(&source, &bytes)?;
+        let mut entity = FileEntity::from_vec(b"primary".to_vec());
+        entity.identity.relative_path = Some("destination".into());
+        entity.streams.push(crate::streams::AttachedStream::from_file(
+            Some(crate::streams::StreamName::from_str("user.lazy")),
+            crate::streams::StreamKind::ExtendedAttribute, &source,
+        )?);
+        let sandbox = SandboxableDir::open(temporary.path())?;
+        let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
+        let companion_options = MaterializeOptions {
+            apple_write_mode: AppleWriteMode::ForceAppleDouble(crate::apple_double::AppleDoubleStyle::Alongside),
+            ..options.clone()
+        };
+        let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &companion_options).is_err());
+        assert!(!temporary.path().join("destination").try_exists()?);
+        let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+        materialize_entity(&entity, Some(&mut payload), &sandbox, &options)?;
+        let restored = read_and_hash_streams(&temporary.path().join("destination"))?;
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored.first().context("Missing restored stream")?.entity.kind, entity.streams.first().context("Missing expected stream")?.entity.kind);
+        entity.identity.relative_path = Some("must-not-publish".into());
+        std::fs::write(&source, b"changed after capture")?;
+        let mut payload = crate::MemoryPayloadSource::new(b"primary".to_vec())?;
+        assert!(materialize_entity(&entity, Some(&mut payload), &sandbox, &options).is_err());
+        assert!(!temporary.path().join("must-not-publish").try_exists()?);
+        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 2);
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_write_file_durable_replacement_and_failure_cleanup() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let destination = temporary.path().join("receipt");
+        write_file_durable(&destination, b"first receipt")?;
+        write_file_durable(&destination, b"updated receipt")?;
+        assert_eq!(std::fs::read(&destination)?, b"updated receipt");
+        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 1);
+        let blocked = temporary.path().join("blocked");
+        std::fs::create_dir(&blocked)?;
+        assert!(write_file_durable(&blocked, b"must not publish").is_err());
+        assert!(blocked.is_dir());
+        assert_eq!(std::fs::read_dir(temporary.path())?.count(), 2);
+        assert_eq!(std::fs::read(&destination)?, b"updated receipt");
+        Ok(())
+    }
+
     #[cfg(unix)]
     #[crate::ctb_test]
     fn test_apple_double_preflight_preserves_primary_and_companion() -> Result<()> {

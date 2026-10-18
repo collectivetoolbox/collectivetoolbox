@@ -621,28 +621,48 @@ impl FileEntity {
         source: &mut dyn crate::payload::PayloadSource,
         context: &ctb_formats_dcstring::SharedValueContext,
     ) -> Result<()> {
+        self.encode_record_to_writer(writer, Some(source), context)
+    }
+
+    /// Streams metadata and attached bodies without a primary file body.
+    pub fn encode_record_to_writer_with_context<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
+        self.encode_record_to_writer(writer, None, context)
+    }
+
+    fn encode_record_to_writer<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        source: Option<&mut dyn crate::payload::PayloadSource>,
+        context: &ctb_formats_dcstring::SharedValueContext,
+    ) -> Result<()> {
         let mut prefix_mst = ctb_formats_dcstring::DcMstring::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
         self.identity.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         self.metadata.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
         self.kind.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        for stream in &self.streams {
-            stream.encode_dc_mixed_with_context(&mut prefix_mst, context)?;
-        }
         writer.write_all(prefix_mst.payload_bytes())?;
+        for stream in &self.streams {
+            stream.encode_record_to_writer_with_source(writer, &crate::streams::FilesystemStreamSource, context)?;
+        }
 
-        let size = source.total_size();
-        if size > 0 {
-            let mut tag = ctb_formats_dcstring::DcMstring::new();
-            tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
-            writer.write_all(tag.payload_bytes())?;
-            source.seek(std::io::SeekFrom::Start(0))?;
-            ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
-                writer,
-                source,
-                size,
-                None,
-            )?;
+        if let Some(source) = source {
+            let size = source.total_size();
+            if size > 0 {
+                let mut tag = ctb_formats_dcstring::DcMstring::new();
+                tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
+                writer.write_all(tag.payload_bytes())?;
+                source.seek(std::io::SeekFrom::Start(0))?;
+                ctb_formats_dcstring::DcMstring::write_binary_encapsulation(
+                    writer,
+                    source,
+                    size,
+                    None,
+                )?;
+            }
         }
 
         let mut suffix = ctb_formats_dcstring::DcMstring::new();
