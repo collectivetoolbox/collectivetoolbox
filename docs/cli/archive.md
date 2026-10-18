@@ -14,6 +14,7 @@ ctb archive create backup.cscarchive --resume
 ctb archive list backup.cscarchive
 ctb archive verify backup.cscarchive
 ctb archive extract backup.cscarchive restored/
+ctb archive extract partial.cscarchive restored/ --recover
 ```
 
 Creation refuses to replace an existing archive. Sources without a trailing
@@ -45,17 +46,24 @@ source failure inside an emitted member aborts without a valid completion marker
 Broken pipes, flush/sync failures, and failed rollback always abort.
 
 A completed archive with errors or warnings is not a lossless capture. Creation
-and listing return nonzero; listing displays retained diagnostics. Verification
-and extraction reject it, including before creating an extraction destination.
+and listing return nonzero; listing displays retained diagnostics. By default,
+verification and extraction reject it before modifying destination state.
+To extract or verify all intact committed members from an incomplete archive or
+an archive containing capture errors/warnings, pass `--recover` (aliases:
+`--salvage`, `--allow-archive-errors`, `--allow-journal-errors`). In recover
+mode, readable members are restored, capture errors and warnings are emitted to
+standard error, and damaged members are reported and skipped rather than
+aborting the entire extraction.
+
 The library's `verify_integrity` checks completed structure and archived bytes
 independently of capture success; this is not an authentication or completeness
-guarantee. General salvage extraction is not provided.
+guarantee.
 
 File-output resume requires the original sources. It verifies committed contents
 and source identities before truncating an unclosed final section. It does not
 append to a completed archive or silently repair a corrupt committed section.
-An incomplete archive can be listed, with nonzero status, but cannot be extracted
-as though it were complete.
+An incomplete archive can be listed, with nonzero status, and can be extracted
+with `--recover`.
 
 Resume refuses archives with committed error/warning diagnostics before
 truncation, because their failures cannot yet be resolved and accounted for

@@ -80,7 +80,7 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Make sure recent checksum changes have the effect of supporting all formats supported by the checksum module, and erroring (or warning in forgiving mode) if an unsupported format is encountered.
 
-- csc archive: "durable ownership recovery needs more than the current journal intent records" - not sure what this means, but is there more info that needs to be recorded in the journal? As-close-to-lossless metadata capture in the journal (in copy mode) or archive (in archive mode) is a key goal.
+- csc archive: "durable ownership recovery needs more than the current journal intent records" - clarified: "ownership" here refers to destination sandbox directory creation authority in `SandboxableDir` under `ExistingEntryPolicy::Refuse`. Reopening a sandbox across crash/resume loses in-memory directory handles, so journal records (which only record source files and intended paths) cannot safely prove authority to mutate existing destination directories without durable applied-identity receipts (e.g. dev/ino or Windows File ID). Source metadata (ownership, mode, timestamps, ACLs, xattrs) is already captured losslessly in `FileEntity`.
 
 - csc archive:
 
@@ -90,10 +90,12 @@ Remaining implementation gaps: attached-stream streaming across file I/O, CSC, a
 
 
 - csc archive: Do large alternate data streams get fully saved in archives (rather than only a checksum as they are/should be in journals)?
+  Confirmed: archives save full alternate data stream bodies under Dc 385 so archives are completely self-contained. In journals (copy mode), stream bodies should not be duplicated into `.cscjournal`, only their metadata and checksums.
 
 - Are there any remaining redundant/duplicated implementations of filesystem traversal, or is it now all succesfully consolidated to file/traversal?
+  Confirmed: all recursive filesystem traversal across `ctb-io` and `ctb-io-csc` is consolidated to `src/io/file/traversal.rs` (`traverse_dir`, `read_dir_safe`, and `discover_directory`).
 
-- csc archive Notes say "General salvage extraction is not provided." but that should be trivial to offer just by adding an equivalent of the --allow-journal-errors csc option.
+- [x] csc archive: Added `--recover` (with aliases `--salvage`, `--allow-archive-errors`, `--allow-journal-errors`) to `ctb archive extract` and `ctb archive verify` to restore intact committed members from incomplete archives or archives containing capture diagnostics.
 
 - Regenerate Guix packaging in CI
 

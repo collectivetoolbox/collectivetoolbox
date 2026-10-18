@@ -125,6 +125,12 @@ impl JournalReader {
         self.verify_payloads()
     }
 
+    /// Checks structural and payload integrity for all committed members
+    /// without requiring a completion marker or zero capture diagnostics.
+    pub fn verify_recover(&self) -> Result<()> {
+        self.verify_payloads()
+    }
+
     pub(crate) fn verify_contents(&self) -> Result<()> {
         for member in &self.members {
             ensure_clean_metadata(&member.entity)?;

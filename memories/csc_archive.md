@@ -64,6 +64,12 @@
 - Raw archive capture/discovery disables Apple interpretation explicitly. Tests
   deliberately inspecting malformed or symlink companions as ordinary files must
   request raw capture; do not weaken interpreted-companion validation to fix them.
+- Extraction and verification support `--recover` (aliases: `--salvage`,
+  `--allow-archive-errors`, `--allow-journal-errors`). In recover mode,
+  `JournalReader` uses forgiving projection and recover scan mode, allows
+  incomplete archives and archives containing capture diagnostics, restores all
+  intact committed members, and logs warnings for damaged or unrecoverable ones
+  instead of failing the entire extraction upfront.
 
 Archive capability status and outstanding work are tracked in
 [the archive issue](../issues/csc-usability/archive.md).

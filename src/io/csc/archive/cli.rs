@@ -42,7 +42,12 @@ pub enum ArchiveCommand {
     /// List committed members and capture diagnostics.
     List { archive: PathBuf },
     /// Verify archive structure, checksums, and file contents without sources.
-    Verify { archive: PathBuf },
+    Verify {
+        archive: PathBuf,
+        /// Allow verification of incomplete archives or archives containing capture errors.
+        #[arg(long, alias = "salvage", alias = "allow-archive-errors", alias = "allow-journal-errors")]
+        recover: bool,
+    },
     /// Extract a verified archive beneath a destination directory.
     Extract {
         archive: PathBuf,
@@ -59,6 +64,9 @@ pub enum ArchiveCommand {
         /// Permit restoration of FIFOs and device nodes as special files.
         #[arg(long)]
         copy_specials_as_specials: bool,
+        /// Extract committed members from incomplete archives or archives containing capture errors.
+        #[arg(long, alias = "salvage", alias = "allow-archive-errors", alias = "allow-journal-errors")]
+        recover: bool,
     },
 }
 
@@ -140,17 +148,47 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                 exit_code: if reader.is_completed() && !reader.has_diagnostics() { 0 } else { 1 },
             })
         }
-        ArchiveCommand::Verify { archive } => {
-            let reader = JournalReader::new(File::open(archive)?)?;
-            reader.verify_self_contained()?;
+        ArchiveCommand::Verify { archive, recover } => {
+            let reader = if *recover {
+                JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
+            } else {
+                JournalReader::new(File::open(archive)?)?
+            };
+            if *recover {
+                reader.verify_recover()?;
+            } else {
+                reader.verify_self_contained()?;
+            }
             validate_members(&reader)?;
-            Ok(ToolResult::immediate_ok(b"Archive verified.\n".to_vec()))
+            let mut diagnostics = String::new();
+            use std::fmt::Write;
+            for error in &reader.errors {
+                writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
+            }
+            for warning in &reader.warnings {
+                writeln!(diagnostics, "Capture warning ({}): {}", warning.code, warning.message)?;
+            }
+            if *recover && (!reader.is_completed() || reader.has_diagnostics()) {
+                writeln!(diagnostics, "Archive verified in recover mode (incomplete: {}; errors: {}; warnings: {}).",
+                    !reader.is_completed(), reader.errors.len(), reader.warnings.len())?;
+                Ok(ToolResult::Immediate {
+                    stdout: b"Archive verified (with diagnostics).\n".to_vec(),
+                    stderr: diagnostics.into_bytes(),
+                    exit_code: 0,
+                })
+            } else {
+                Ok(ToolResult::immediate_ok(b"Archive verified.\n".to_vec()))
+            }
         }
         ArchiveCommand::Extract { archive, destination, overwrite, trust_symlink_targets,
-            best_effort_metadata, copy_specials_as_specials } => {
-            let reader = JournalReader::new(File::open(archive)?)?;
+            best_effort_metadata, copy_specials_as_specials, recover } => {
+            let reader = if *recover {
+                JournalReader::read(File::open(archive)?, crate::journal::ReadMode::Recover, &ctb_formats_dcstring::DcProjectionPolicy::forgiving())?
+            } else {
+                JournalReader::new(File::open(archive)?)?
+            };
             let options = MaterializeOptions {
-                strict_lossless: !best_effort_metadata,
+                strict_lossless: !best_effort_metadata && !*recover,
                 existing_entry_policy: if *overwrite { ctb_io::file::ExistingEntryPolicy::Replace }
                     else { ctb_io::file::ExistingEntryPolicy::Refuse },
                 force_overwrite: true,
@@ -160,8 +198,26 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
                 copy_specials: *copy_specials_as_specials,
                 ..Default::default()
             };
-            extract_archive(&reader, destination, &options)?;
-            Ok(ToolResult::immediate_ok(b"Archive extracted.\n".to_vec()))
+            extract_archive(&reader, destination, &options, *recover)?;
+            let mut diagnostics = String::new();
+            use std::fmt::Write;
+            for error in &reader.errors {
+                writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
+            }
+            for warning in &reader.warnings {
+                writeln!(diagnostics, "Capture warning ({}): {}", warning.code, warning.message)?;
+            }
+            if *recover && (!reader.is_completed() || reader.has_diagnostics()) {
+                writeln!(diagnostics, "Archive extracted in recover mode (incomplete: {}; errors: {}; warnings: {}).",
+                    !reader.is_completed(), reader.errors.len(), reader.warnings.len())?;
+                Ok(ToolResult::Immediate {
+                    stdout: b"Archive extracted (with diagnostics).\n".to_vec(),
+                    stderr: diagnostics.into_bytes(),
+                    exit_code: 0,
+                })
+            } else {
+                Ok(ToolResult::immediate_ok(b"Archive extracted.\n".to_vec()))
+            }
         }
     }
 }
@@ -584,9 +640,11 @@ fn validate_members(reader: &JournalReader) -> Result<()> {
     Ok(())
 }
 
-fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions) -> Result<()> {
+fn extract_archive(reader: &JournalReader, destination: &Path, options: &MaterializeOptions, recover: bool) -> Result<()> {
     ensure!(cfg!(unix), "Sandboxed archive extraction is currently supported only on Unix");
-    reader.verify_self_contained()?;
+    if !recover {
+        reader.verify_self_contained()?;
+    }
     validate_members(reader)?;
     if let Some(metadata) = existing_metadata(destination)? {
         ensure!(metadata.is_dir() && !metadata.file_type().is_symlink(), "Extraction destination is not a real directory");
@@ -603,7 +661,13 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
             FileEntityKind::Fifo | FileEntityKind::CharDevice { .. } | FileEntityKind::BlockDevice { .. } => {
                 ensure!(options.copy_specials, "Special member requires --copy-specials-as-specials: {}", relative.display());
             }
-            FileEntityKind::Socket | FileEntityKind::Door | FileEntityKind::Inaccessible => bail!("Archive member cannot be restored: {}", relative.display()),
+            FileEntityKind::Socket | FileEntityKind::Door | FileEntityKind::Inaccessible => {
+                if recover {
+                    warn_fmt!("Archive member cannot be restored: {}; skipping in recover mode", relative.display());
+                    continue;
+                }
+                bail!("Archive member cannot be restored: {}", relative.display());
+            }
             FileEntityKind::Symlink { target } if options.symlink_policy != SymlinkValidationPolicy::PreserveVerbatim => {
                 ctb_io::file::validate_symlink_target(destination, &path,
                     target.to_path_buf()?.as_os_str().as_encoded_bytes(), options.symlink_policy)?;
@@ -634,18 +698,46 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
     for member in reader.members.iter().filter(|member| member.entity.is_dir()) {
         let relative = member.entity.identity.relative_path.as_deref().context("Missing directory path")?;
         sandbox.ensure_dir_all(relative, PathTraversalPolicy::StrictSandboxed)?;
-        sandbox.authorize_metadata(relative, options.existing_entry_policy)?;
+        if let Err(error) = sandbox.authorize_metadata(relative, options.existing_entry_policy) {
+            if recover {
+                warn_fmt!("Failed to authorize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+            } else {
+                return Err(error);
+            }
+        }
     }
     for hardlinks in [false, true] {
         for member in reader.members.iter().filter(|member| !member.entity.is_dir()
             && matches!(member.entity.kind, FileEntityKind::Hardlink { .. }) == hardlinks) {
-            let receipt = if matches!(member.entity.kind, FileEntityKind::Regular { .. }) {
-                let mut payload = reader.payload(member)?;
-                member.entity.materialize(Some(&mut payload), &sandbox, options)?
-            } else { member.entity.materialize(None, &sandbox, options)? };
+            let relative = member.entity.identity.relative_path.as_deref().unwrap_or(Path::new(""));
+            if matches!(member.entity.kind, FileEntityKind::Socket | FileEntityKind::Door | FileEntityKind::Inaccessible) {
+                continue;
+            }
+            let materialize_res = if matches!(member.entity.kind, FileEntityKind::Regular { .. }) {
+                match reader.payload(member) {
+                    Ok(mut payload) => member.entity.materialize(Some(&mut payload), &sandbox, options),
+                    Err(err) => Err(err),
+                }
+            } else {
+                member.entity.materialize(None, &sandbox, options)
+            };
+            let receipt = match materialize_res {
+                Ok(receipt) => receipt,
+                Err(error) if recover => {
+                    warn_fmt!("Failed to extract member {}: {error:#}; skipping in recover mode", relative.display());
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
             for warning in receipt.warnings { warn_fmt!("{warning}"); }
             if !hardlinks {
-                ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, false, false)?;
+                if let Err(error) = ctb_io::file::verify_materialized_entity_ext(&receipt.destination_path, &member.entity, options.strict_lossless, false, false) {
+                    if recover {
+                        warn_fmt!("Materialized member verification failed for {}: {error:#}; continuing in recover mode", relative.display());
+                    } else {
+                        return Err(error);
+                    }
+                }
             }
         }
     }
@@ -654,14 +746,41 @@ fn extract_archive(reader: &JournalReader, destination: &Path, options: &Materia
     for member in directories {
         let relative = member.entity.identity.relative_path.as_deref().context("Missing directory path")?;
         if relative == Path::new(".") {
-            sandbox.authorize_metadata(relative, options.existing_entry_policy)?;
-            ctb_io::file::write_streams(destination, None, &member.entity.streams, options.strict_lossless)?;
-            for warning in ctb_io::file::apply_entity_metadata(destination, None, &member.entity.metadata, false, true, options.strict_lossless)? {
-                warn_fmt!("{warning}");
+            if let Err(error) = sandbox.authorize_metadata(relative, options.existing_entry_policy) {
+                if recover {
+                    warn_fmt!("Failed to authorize root directory metadata: {error:#}; skipping in recover mode");
+                    continue;
+                } else {
+                    return Err(error);
+                }
+            }
+            if let Err(error) = ctb_io::file::write_streams(destination, None, &member.entity.streams, options.strict_lossless) {
+                if recover {
+                    warn_fmt!("Failed to write root directory streams: {error:#}; skipping in recover mode");
+                    continue;
+                } else {
+                    return Err(error);
+                }
+            }
+            match ctb_io::file::apply_entity_metadata(destination, None, &member.entity.metadata, false, true, options.strict_lossless) {
+                Ok(warnings) => {
+                    for warning in warnings { warn_fmt!("{warning}"); }
+                }
+                Err(error) if recover => {
+                    warn_fmt!("Failed to apply root directory metadata: {error:#}; skipping in recover mode");
+                }
+                Err(error) => return Err(error),
             }
         } else {
-            let receipt = member.entity.materialize(None, &sandbox, options)?;
-            for warning in receipt.warnings { warn_fmt!("{warning}"); }
+            match member.entity.materialize(None, &sandbox, options) {
+                Ok(receipt) => {
+                    for warning in receipt.warnings { warn_fmt!("{warning}"); }
+                }
+                Err(error) if recover => {
+                    warn_fmt!("Failed to materialize directory metadata for {}: {error:#}; skipping in recover mode", relative.display());
+                }
+                Err(error) => return Err(error),
+            }
         }
     }
     Ok(())
@@ -866,7 +985,7 @@ mod tests {
             ensure!(&archived == bytes, "Raw container bytes changed: {relative}");
         }
         let destination = temporary.path().join("restored");
-        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() })?;
+        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() }, false)?;
         for (relative, bytes) in &originals {
             ensure!(std::fs::read(destination.join("source").join(relative))? == *bytes);
         }
@@ -1222,12 +1341,19 @@ mod tests {
         let listed = run_archive(&ArchiveArgs { command: ArchiveCommand::List { archive: archive.clone() } })?;
         ensure!(matches!(listed, ToolResult::Immediate { exit_code: 1, stderr, .. }
             if String::from_utf8_lossy(&stderr).contains("Injected capture failure")));
-        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone() } }).is_err());
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: false } }).is_err());
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+            archive: archive.clone(), destination: destination.clone(), overwrite: false,
+            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            recover: false,
+        } }).is_err());
+        ensure!(!destination.exists(), "Failed capture modified extraction destination");
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive.clone(), recover: true } }).is_ok());
         ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
             archive, destination: destination.clone(), overwrite: false,
             trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
-        } }).is_err());
-        ensure!(!destination.exists(), "Failed capture modified extraction destination");
+            recover: true,
+        } }).is_ok());
         Ok(())
     }
 
@@ -1239,6 +1365,55 @@ mod tests {
         ensure!(ArchiveArgs::try_parse_from(["archive", "create", "output", "--resume", "--continue-on-error"]).is_err());
         let stdout_resume = ArchiveArgs::try_parse_from(["archive", "create", "-", "--resume"])?;
         ensure!(run_archive(&stdout_resume).is_err());
+        let extract_recover = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--recover"])?;
+        ensure!(matches!(extract_recover.command, ArchiveCommand::Extract { recover: true, .. }));
+        let extract_salvage = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--salvage"])?;
+        ensure!(matches!(extract_salvage.command, ArchiveCommand::Extract { recover: true, .. }));
+        let extract_errors = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--allow-archive-errors"])?;
+        ensure!(matches!(extract_errors.command, ArchiveCommand::Extract { recover: true, .. }));
+        let extract_jerrors = ArchiveArgs::try_parse_from(["archive", "extract", "test.cscarchive", "dest/", "--allow-journal-errors"])?;
+        ensure!(matches!(extract_jerrors.command, ArchiveCommand::Extract { recover: true, .. }));
+        let verify_recover = ArchiveArgs::try_parse_from(["archive", "verify", "test.cscarchive", "--recover"])?;
+        ensure!(matches!(verify_recover.command, ArchiveCommand::Verify { recover: true, .. }));
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_recover_incomplete_archive() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir(&source)?;
+        std::fs::write(source.join("first"), b"hello first")?;
+        let archive_path = temporary.path().join("incomplete.cscarchive");
+        let sources = vec![source.clone()];
+        let plan = plan_sources(&sources, &archive_path)?;
+        let file = File::create(&archive_path)?;
+        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
+        drop(outcome.output);
+
+        let reader = JournalReader::recover(File::open(&archive_path)?)?;
+        ensure!(reader.is_completed());
+
+        // Truncate completion marker
+        let file = OpenOptions::new().read(true).write(true).open(&archive_path)?;
+        let marker_size = 1;
+        let len = file.metadata()?.len();
+        file.set_len(len.saturating_sub(marker_size))?;
+
+        let destination = temporary.path().join("restored");
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+            archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
+            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            recover: false,
+        } }).is_err());
+        ensure!(!destination.exists());
+
+        ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Extract {
+            archive: archive_path.clone(), destination: destination.clone(), overwrite: false,
+            trust_symlink_targets: false, best_effort_metadata: true, copy_specials_as_specials: false,
+            recover: true,
+        } }).is_ok());
+        ensure!(std::fs::read(destination.join("source/first"))? == b"hello first");
         Ok(())
     }
 
@@ -1274,7 +1449,7 @@ mod tests {
         reader.verify()?;
         extract_archive(&reader, &destination, &MaterializeOptions {
             strict_lossless: false, ..Default::default()
-        })?;
+        }, false)?;
         for name in &names {
             ensure!(std::fs::read(destination.join(name).join(name))? == name.as_encoded_bytes());
         }
@@ -1302,10 +1477,10 @@ mod tests {
         reader.verify()?;
         let destination = temporary.path().join("restored");
         let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
-        extract_archive(&reader, &destination, &options)?;
+        extract_archive(&reader, &destination, &options, false)?;
         ensure!(std::fs::read(destination.join("source/data"))? == data);
         ensure!(std::fs::read(destination.join("source/empty"))?.is_empty());
-        ensure!(extract_archive(&reader, &destination, &options).is_err());
+        ensure!(extract_archive(&reader, &destination, &options, false).is_err());
         Ok(())
     }
 
@@ -1328,17 +1503,17 @@ mod tests {
         } })?;
         let reader = JournalReader::new(File::open(archive)?)?;
         let options = MaterializeOptions { strict_lossless: false, ..Default::default() };
-        ensure!(extract_archive(&reader, &destination, &options).is_err());
+        ensure!(extract_archive(&reader, &destination, &options, false).is_err());
         ensure!(std::fs::read(destination.join("data"))? == b"original payload");
         ensure!(std::fs::metadata(&destination)?.permissions().mode() & 0o777 == 0o755);
         std::fs::remove_file(destination.join("data"))?;
-        ensure!(extract_archive(&reader, &destination, &options).is_err());
+        ensure!(extract_archive(&reader, &destination, &options, false).is_err());
         ensure!(!destination.join("data").exists());
         let options = MaterializeOptions {
             existing_entry_policy: ctb_io::file::ExistingEntryPolicy::Replace,
             ..options
         };
-        extract_archive(&reader, &destination, &options)?;
+        extract_archive(&reader, &destination, &options, false)?;
         ensure!(std::fs::read(destination.join("data"))? == b"new payload");
         ensure!(std::fs::metadata(destination)?.permissions().mode() & 0o777 == 0o700);
         Ok(())
@@ -1419,7 +1594,7 @@ mod tests {
             ensure!(extract_archive(&reader, &destination, &MaterializeOptions {
                 existing_entry_policy: ctb_io::file::ExistingEntryPolicy::Replace,
                 ..Default::default()
-            }).is_err());
+            }, false).is_err());
             ensure!(!outside.join("data").exists());
         }
         Ok(())
@@ -1464,11 +1639,11 @@ mod tests {
             let listed = run_archive(&ArchiveArgs { command: ArchiveCommand::List { archive: archive_path.clone() } })?;
             ensure!(matches!(listed, ToolResult::Immediate { exit_code: 1, stderr, .. }
                 if String::from_utf8_lossy(&stderr).contains("Unix cannot restore change time")));
-            ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive_path.clone() } }).is_err());
+            ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive_path.clone(), recover: false } }).is_err());
             let destination = temporary.path().join("refused");
             ensure!(extract_archive(&reader, &destination, &MaterializeOptions {
                 strict_lossless: false, ..Default::default()
-            }).is_err());
+            }, false).is_err());
             ensure!(!destination.exists());
         } else {
             let reader = JournalReader::new(File::open(&archive_path)?)?;
@@ -1516,7 +1691,7 @@ mod tests {
         use std::os::unix::fs::MetadataExt;
         reader.verify()?;
         let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
-        extract_archive(reader, destination, &options)?;
+        extract_archive(reader, destination, &options, false)?;
         let data = destination.join("source/data");
         let hardlink = destination.join("source/hardlink");
         ensure!(std::fs::read(&data)? == b"linked payload");
