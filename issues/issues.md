@@ -78,10 +78,6 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - Add optional, recommended TOTP step on login
 
-- Directory traversal centralization
-  Status: Partially Implemented
-  - Remaining Gaps & Pending Work: Safe entry discovery is shared, but recursive scheduling remains duplicated in `copy_engine::execute_copy_pipeline` (preflight and copy queues) and archive `plan_sources`; these do not use `file::traverse_dir`. Single-directory filename verification and source inventories also still enumerate directly; decide which belong in a shared raw-entry primitive without applying AppleDouble filtering to physical inventories.
-
 - csc archive: Durable destination identity and interrupted moves
   Status: Partially Implemented
   - Remaining Gaps & Pending Work:
@@ -111,11 +107,9 @@ File flags did not have complete implementation
 
 magic-square
 
--`+                    match legacy::decode_v4_entity(&mut reader, &shared_context) {` ??? v4 is the current format, not legacy. The test fixture may be a mangled document due to bugs, maybe this is trying to parse a document with invalid syntax? I'm not convinced it's worth implementing deserialization of a buggy format. One less weird way to do that might be to use the existing fuzzy 'tag-soup'-style parser and then map the larger already-parsed structures onto the Rust structs. Maintaining a dedicated parser layer for one-off serialization bugs during development doesn't smell right.
-
 - The parsing and serialization/deserialization of Dc documents are currently implemented in a few different ways in different places, I think. (1) What can be DRYed out from them? (2) To what degree can the parser and ser/de implementation be automatically generated from the 'Syntax' specifications in the database, rather than implemented in ad-hoc ways? Can we refactor it to be more data-driven - so when deserialzing for instance, it parses the document from the journal using rules generated from the syntax in the database, and then projects that onto the structs that it's deserializing into, logging/warning/erroring (depending on what the caller, e.g. the csc journal module, specifies)? That feels like it would be a lot cleaner than having two or three separate parsers that work in different ways, and a deserializer that can't handle garbled or outdated formats robustly and elegantly.
 
-"Include-ignored" tests argument in Windows tests runners should possibly be removed (maybe replaced with an encouragement not to add #[ignore] in AGENTS.md as a way to get around things).
+  - Agent update 18 Oct 2026: " Grammar tables are generated from the CSV Syntax definitions; parsing builds an arena, then derives project it onto Rust types under caller-selected diagnostic policies. See syntax.rs:61 and navigator.rs:1865. However, handwritten encapsulation parsing and specialized serializers remain. Keep a narrower issue to audit those remaining paths for duplication; fully generating serialization from Syntax is not complete."
 
 Cherry-pick 30f41d4a5
 

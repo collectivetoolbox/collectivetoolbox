@@ -313,7 +313,7 @@ struct SourceState {
 
 fn directory_inventory(path: &Path, metadata: &std::fs::Metadata) -> Result<Option<Vec<std::ffi::OsString>>> {
     if !metadata.is_dir() { return Ok(None); }
-    let mut names = std::fs::read_dir(path)?.map(|entry| entry.map(|entry| entry.file_name()))
+    let mut names = crate::traversal::read_dir_raw(path)?.map(|entry| entry.map(|entry| entry.file_name()))
         .collect::<std::io::Result<Vec<_>>>()?;
     names.sort();
     Ok(Some(names))

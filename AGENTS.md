@@ -83,6 +83,7 @@
 - **Tests**:
   - Always use `#[crate::ctb_test]` or `#[crate::ctb_test("tokio")]`—never `#[test]` or `#[tokio::test]` (except when patching vendor code).
   - Any important or nontrivial code must have test coverage.
+  - Never add `#[ignore]` or conditional ignore attributes to bypass failing, broken, or inconvenient tests; fix them or report the blocker. New intentional exclusions require operator approval. Preserve the approved exception: `test_bootstrap_ts_compilation`, the very slow full-from-source TypeScript bootstrap test, remains ignored in routine suites.
   - Disregard Clippy warnings about panics/unwrapping in tests when avoiding them would make the test more complex; the standard test boilerplate allows them.
 - **Docblocks & comments**:
   - Wrap docblocks at 80 columns (`//!` for modules, `///` for functions/items).

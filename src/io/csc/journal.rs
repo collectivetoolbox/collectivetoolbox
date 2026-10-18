@@ -916,7 +916,7 @@ pub fn resolve_journal_path(path: &Path) -> Result<PathBuf> {
 
     if path.is_dir() {
         let mut candidates = Vec::new();
-        for entry in std::fs::read_dir(path)? {
+        for entry in ctb_io::file::read_dir_raw(path)? {
             let entry = entry?;
             let p = entry.path();
             if p.extension().and_then(|e| e.to_str()) == Some("cscjournal") {
@@ -2902,8 +2902,10 @@ mod tests {
 
         // Snapshot reading restores exact 128-bit identity
         let snapshot = read_journal_snapshot(&journal_path)?;
-        assert_eq!(snapshot.applied_directories.get(&rel), Some(&id_128));
-        assert_eq!(snapshot.applied_directories.get(&rel).unwrap().as_u128(), Some(file_id_128));
+        let restored_identity = snapshot.applied_directories.get(&rel)
+            .context("Missing restored directory receipt")?;
+        assert_eq!(restored_identity, &id_128);
+        assert_eq!(restored_identity.as_u128(), Some(file_id_128));
 
         Ok(())
     }

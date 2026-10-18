@@ -3,7 +3,7 @@ use crate::utilities::*;
 
 use crate::journal::{JournalReader, JournalWriter};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalSessionRecord, JournalWarningRecord, current_platform};
-use crate::journal::capture::{CapturedSource, CapturedTree, CommittedHardlinks, attach_environment, discover_directory};
+use crate::journal::capture::{CapturedSource, CapturedTree, CommittedHardlinks, attach_environment};
 use clap::{Parser, Subcommand};
 use ctb_io::file::apple_double::AppleReadOptions;
 use ctb_io::file::{
@@ -276,17 +276,25 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
             let relative = normalized_member(&prefix)?;
             ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
             plan.members.push(SourceMember { source: absolute.clone(), relative });
-            let mut pending = std::collections::VecDeque::from([absolute.clone()]);
-            while let Some(directory) = pending.pop_front() {
-                let snapshot = ctb_io::file::payload::SourceSnapshot::capture(&directory, false)?;
+            let traversal_options = TraversalOptions::new()
+                .error_policy(ctb_io::file::OnTraversalError::Capture)
+                .apple_read_options(archive_apple_read_options());
+            let mut directories = ctb_io::file::traverse_dir(&absolute, traversal_options)?.directories()?;
+            while let Some(directory) = directories.next() {
+                let directory = directory?;
+                if !directory.errors.is_empty() {
+                    let error = anyhow::anyhow!("Source traversal errors: {}", directory.errors.join("; "));
+                    plan.diagnostics.push(JournalErrorRecord::from_error(&directory.path, JournalErrorStage::Traversal, &error));
+                    plan.members.retain(|member| member.source != directory.path);
+                    continue;
+                }
+                let snapshot = ctb_io::file::payload::SourceSnapshot::capture(&directory.path, false)?;
                 plan.tree.retain(&snapshot);
-                let entries = match discover_directory(&directory, &TraversalOptions {
-                    apple_read_options: archive_apple_read_options(), ..Default::default()
-                }) {
+                let entries = match directories.read_directory(&directory, Ok) {
                     Ok(entries) => entries,
                     Err(error) => {
-                        plan.diagnostics.push(JournalErrorRecord::from_error(&directory, JournalErrorStage::Traversal, &error));
-                        plan.members.retain(|member| member.source != directory);
+                        plan.diagnostics.push(JournalErrorRecord::from_error(&directory.path, JournalErrorStage::Traversal, &error));
+                        plan.members.retain(|member| member.source != directory.path);
                         continue;
                     }
                 };
@@ -299,7 +307,6 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
                 }
                 let relative = normalized_member(&prefix.join(item.path.strip_prefix(&absolute)?))?;
                 ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
-                if item.is_dir { pending.push_back(item.path.clone()); }
                 plan.members.push(SourceMember { source: item.path, relative });
                 }
                 snapshot.validate()?;

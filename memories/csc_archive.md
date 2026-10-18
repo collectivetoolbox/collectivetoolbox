@@ -41,6 +41,10 @@
   and shared capture primitives. `StateJournal` is only the persistent copy
   operation/descriptor workflow around the common writer. Archive-specific type
   aliases and format profiles were removed; do not reintroduce them.
+- CSC copy and archive planning share `file::traverse_dir` scheduling. Its
+  `directories()` batches capture source guards before reading and validate/order
+  siblings before scheduling descent. Physical inventories and exact filename
+  checks use `file::read_dir_raw`, never AppleDouble-filtered discovery.
 - Archive and journal are literally one format except header magic and optional
   primary bodies. `JournalMagic` selects only header bytes. Both permit metadata
   records, body-bearing records, multi-file batches, top-level diagnostics, and

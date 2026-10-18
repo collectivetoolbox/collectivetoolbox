@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, StateJournal};
-use crate::journal::capture::{CapturedSource, CapturedPayload, CommittedHardlinks, discover_directory, hash_primary, open_payload};
+use crate::journal::capture::{CapturedSource, CapturedPayload, CommittedHardlinks, hash_primary, open_payload};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::link_path::LinkPath;
@@ -192,38 +192,43 @@ pub fn execute_copy_pipeline(
     };
 
     if !args.dry_run && !args.overwrite {
-        let mut pending: Vec<_> = tasks.iter().map(|task| (task.source_root.clone(), task.target_root.clone())).collect();
-        while let Some((source, destination)) = pending.pop() {
-            if !std::fs::symlink_metadata(&source)?.is_dir() {
+        for task in tasks {
+            if !std::fs::symlink_metadata(&task.source_root)?.is_dir() {
                 continue;
             }
-            match std::fs::symlink_metadata(&destination) {
-                Ok(_) => {
-                    let is_resumed_and_authorized = if let Some(snap) = journal.snapshot() {
-                        if let Ok(rel) = compute_journal_relative_path(journal.destination(), &destination) {
-                            if let Some(expected_id) = snap.applied_directories.get(&rel) {
-                                ctb_io::file::identity::query_file_identity(&destination)
-                                    .is_ok_and(|actual_id| actual_id == *expected_id)
+            let traversal_options = ctb_io::file::TraversalOptions::new()
+                .yield_root(true)
+                .one_file_system(args.one_file_system)
+                .apple_read_options(apple_read_options);
+            for entry in ctb_io::file::traverse_dir(&task.source_root, traversal_options)? {
+                let entry = entry?;
+                ensure!(entry.errors.is_empty(), "Source traversal errors: {}", entry.errors.join("; "));
+                if !entry.is_dir {
+                    continue;
+                }
+                let destination = task.target_root.join(&entry.relative_path);
+                match std::fs::symlink_metadata(&destination) {
+                    Ok(_) => {
+                        let is_resumed_and_authorized = if let Some(snap) = journal.snapshot() {
+                            if let Ok(rel) = compute_journal_relative_path(journal.destination(), &destination) {
+                                if let Some(expected_id) = snap.applied_directories.get(&rel) {
+                                    ctb_io::file::identity::query_file_identity(&destination)
+                                        .is_ok_and(|actual_id| actual_id == *expected_id)
+                                } else {
+                                    false
+                                }
                             } else {
                                 false
                             }
                         } else {
                             false
+                        };
+                        if !is_resumed_and_authorized {
+                            anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display());
                         }
-                    } else {
-                        false
-                    };
-                    if !is_resumed_and_authorized {
-                        anyhow::bail!("Restoring directory metadata requires --overwrite for existing destination {}; resume does not grant permission", destination.display());
                     }
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-                Err(error) => return Err(error.into()),
-            }
-            for entry in discover_directory(&source, &ctb_io::file::TraversalOptions::default())? {
-                ensure!(entry.errors.is_empty(), "Source traversal errors: {}", entry.errors.join("; "));
-                if entry.is_dir {
-                    pending.push((entry.path, destination.join(entry.file_name)));
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                    Err(error) => return Err(error.into()),
                 }
             }
         }
@@ -275,10 +280,22 @@ pub fn execute_copy_pipeline(
                 journal.record_applied_directory(PathBuf::new(), root_id);
             }
 
-            let mut dir_queue: Vec<(PathBuf, PathBuf)> =
-                vec![(src_root.clone(), tgt_root.clone())];
+            let traversal_opts = ctb_io::file::TraversalOptions::new()
+                .order(ctb_io::file::TraversalOrder::PreOrderDepthFirst)
+                .one_file_system(args.one_file_system)
+                .error_policy(ctb_io::file::OnTraversalError::Capture)
+                .apple_read_options(apple_read_options);
+            let mut directories = ctb_io::file::traverse_dir(src_root, traversal_opts)?.directories()?;
 
-            while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
+            while let Some(directory) = directories.next() {
+                let directory = directory?;
+                let curr_src = directory.path.clone();
+                let curr_tgt = tgt_root.join(&directory.relative_path);
+                if !directory.errors.is_empty() {
+                    let error = anyhow::anyhow!("Source traversal errors: {}", directory.errors.join("; "));
+                    let _ = handle_item_error(&curr_src, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
+                    continue;
+                }
                 let CapturedSource { entity: mut dir_entity, snapshot: dir_snapshot } = match CapturedSource::capture(
                     &curr_src,
                     Some(src_root),
@@ -350,46 +367,28 @@ pub fn execute_copy_pipeline(
                     journal.commit_batch()?;
                 }
 
-                let traversal_opts = ctb_io::file::TraversalOptions::new()
-                    .one_file_system(args.one_file_system)
-                    .apple_read_options(apple_read_options);
-
-                let raw_dir_entries =
-                    match discover_directory(&curr_src, &traversal_opts) {
-                        Ok(entries) => entries,
-                        Err(e) => {
-                            let _ = handle_item_error(
-                                &curr_src,
-                                JournalErrorStage::Traversal,
-                                e,
-                                args,
-                                journal,
-                                &mut stats,
-                            )?;
-                            continue;
-                        }
-                    };
-                let mut discovered = Vec::new();
-                for item in raw_dir_entries {
-                    if item.errors.is_empty() {
-                        discovered.push(item);
-                    } else {
-                        let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
-                        let _ = handle_item_error(&item.path, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
-                    }
-                }
                 // Reason for fallback: absent relative path defaults to current directory "." as destination root
                 let dir_rel = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
-                let dir_entries = match ctb_io::file::validate_and_order_directory_entries(
-                    discovered,
-                    &curr_src,
-                    &curr_tgt,
-                    tgt_root,
-                    dir_rel,
-                    &apple_read_options,
-                    apple_write_mode,
-                    apple_single_write_extension,
-                ) {
+                let mut traversal_errors = Vec::new();
+                let entries_result = directories.read_directory(&directory, |entries| {
+                    let mut discovered = Vec::new();
+                    for item in entries {
+                        if item.errors.is_empty() {
+                            discovered.push(item);
+                        } else {
+                            let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
+                            traversal_errors.push((item.path, error));
+                        }
+                    }
+                    ctb_io::file::validate_and_order_directory_entries(
+                        discovered, &curr_src, &curr_tgt, tgt_root, dir_rel,
+                        &apple_read_options, apple_write_mode, apple_single_write_extension,
+                    )
+                });
+                for (path, error) in traversal_errors {
+                    let _ = handle_item_error(&path, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
+                }
+                let dir_entries = match entries_result {
                     Ok(entries) => entries,
                     Err(e) => {
                         let _ = handle_item_error(
@@ -418,7 +417,6 @@ pub fn execute_copy_pipeline(
 
                     if item.is_dir {
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
-                        dir_queue.push((entry_src, entry_tgt));
                     } else if item.is_symlink {
                         let CapturedSource { entity: sym_entity, snapshot } = match CapturedSource::capture(
                             &entry_src,

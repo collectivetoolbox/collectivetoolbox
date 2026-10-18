@@ -373,30 +373,7 @@ pub fn verify_filename_exact_bytes(
         return Ok(());
     }
 
-    let mut matched = false;
-    for entry in std::fs::read_dir(parent_dir)
-        .with_context(|| format!("Failed to read directory: {}", parent_dir.display()))?
-    {
-        let entry = entry.with_context(|| {
-            format!("Error reading entry in directory: {}", parent_dir.display())
-        })?;
-        let entry_name = entry.file_name();
-        #[cfg(unix)]
-        let entry_matches = entry_name.as_bytes() == expected_filename_bytes;
-        #[cfg(not(unix))]
-        let entry_matches = entry_name.as_encoded_bytes() == expected_filename_bytes;
-        if entry_matches {
-            matched = true;
-            break;
-        }
-    }
-
-    anyhow::ensure!(
-        matched,
-        "Target filesystem altered, normalized, or discarded filename bytes for {:?}",
-        String::from_utf8_lossy(expected_filename_bytes)
-    );
-    Ok(())
+    verify_directory_filenames_exact(parent_dir, &[expected_filename_bytes])
 }
 
 /// Global sequence generator for atomic temporary files.
@@ -1244,7 +1221,7 @@ pub fn verify_directory_filenames_exact(
     };
 
     let mut found = std::collections::HashSet::new();
-    for entry in std::fs::read_dir(dir_path)
+    for entry in crate::traversal::read_dir_raw(dir_path)
         .with_context(|| format!("Failed to read directory: {}", dir_path.display()))?
     {
         let entry = entry.with_context(|| {

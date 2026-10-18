@@ -285,8 +285,8 @@ pub use streams::{
 };
 pub use sys_flags::{apply_file_flags, query_file_flags};
 pub use traversal::{
-    DirEntryItem, DirTraverser, OnTraversalError, TraversalOptions, TraversalOrder,
-    read_dir_safe, traverse_dir,
+    DirectoryTraverser, DirEntryItem, DirTraverser, OnTraversalError, TraversalOptions, TraversalOrder,
+    read_dir_raw, read_dir_safe, traverse_dir,
 };
 pub use verifier::{
     DiffKind, EntityAuditOptions, IgnoredDifferences, StreamDiffKind, audit_entity,

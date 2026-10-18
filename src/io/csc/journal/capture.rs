@@ -119,13 +119,6 @@ pub(crate) fn hash_primary<P: PayloadSource>(entity: &mut FileEntity, payload: &
     Ok(())
 }
 
-pub(crate) fn discover_directory(path: &Path, options: &ctb_io::file::TraversalOptions) -> Result<Vec<ctb_io::file::DirEntryItem>> {
-    let mut options = options.clone();
-    options.error_policy = ctb_io::file::OnTraversalError::Capture;
-    options.follow_symlinks = false;
-    ctb_io::file::read_dir_safe(path, &options)
-}
-
 pub(crate) fn attach_environment(entity: &mut FileEntity, environment: &std::sync::Arc<ctb_io_environment::EnvDescription>) {
     if entity.environment().is_none() {
         entity.metadata.set_environment(std::sync::Arc::clone(environment));
@@ -317,7 +310,7 @@ mod tests {
         std::fs::create_dir(&outside)?;
         std::fs::write(outside.join("hidden"), b"outside")?;
         std::os::unix::fs::symlink(&outside, source.join("link"))?;
-        let entries = discover_directory(&source, &ctb_io::file::TraversalOptions::default().follow_symlinks(true))?;
+        let entries = ctb_io::file::read_dir_safe(&source, &ctb_io::file::TraversalOptions::default())?;
         ensure!(entries.len() == 1);
         let entry = entries.first().context("Missing symlink entry")?;
         ensure!(entry.is_symlink && !entry.is_dir && entry.errors.is_empty());
