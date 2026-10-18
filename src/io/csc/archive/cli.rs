@@ -3,10 +3,12 @@ use crate::utilities::*;
 
 use super::{ArchiveReader, ArchiveWriter};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalSessionRecord, JournalWarningRecord, current_platform};
+use crate::journal::capture::{CapturedSource, CapturedTree, CommittedHardlinks, attach_environment, discover_directory};
 use clap::{Parser, Subcommand};
+use ctb_io::file::apple_double::AppleReadOptions;
 use ctb_io::file::{
-    DirTraverser, DiskPayloadSource, FileEntity, FileEntityKind, FileOrigin,
-    InodeKey, LinkPath, MaterializeOptions, OnTraversalError, PathTraversalPolicy, PayloadSource, SandboxableDir,
+    DiskPayloadSource, FileEntity, FileEntityKind, FileOrigin,
+    LinkPath, MaterializeOptions, PathTraversalPolicy, PayloadSource, SandboxableDir,
     SymlinkValidationPolicy, TraversalOptions, path_has_trailing_slash,
     resolve_existing_ancestors,
 };
@@ -165,10 +167,23 @@ struct SourceMember {
     relative: PathBuf,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct SourcePlan {
     members: Vec<SourceMember>,
     diagnostics: Vec<JournalErrorRecord>,
+    tree: CapturedTree,
+}
+
+fn archive_apple_read_options() -> AppleReadOptions {
+    AppleReadOptions {
+        read_apple_double_alongside: false,
+        read_apple_double_zip: false,
+        read_apple_double_netatalk: false,
+        read_apple_single_without_extension: false,
+        read_apple_single: false,
+        read_apple_single_as: false,
+        read_apple_single_asf: false,
+    }
 }
 
 fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
@@ -197,36 +212,36 @@ fn plan_sources(sources: &[PathBuf], archive: &Path) -> Result<SourcePlan> {
             PathBuf::from(source.file_name().context("Source has no basename; use a trailing slash for a directory root")?)
         };
         if metadata.is_dir() {
-            let traverser = match DirTraverser::new(&absolute, TraversalOptions::default()
-                .yield_root(true).error_policy(OnTraversalError::Capture)) {
-                Ok(traverser) => traverser,
-                Err(error) => {
-                    plan.diagnostics.push(JournalErrorRecord::from_error(&absolute, JournalErrorStage::Traversal, &error));
-                    continue;
-                }
-            };
-            let mut root_names = HashSet::new();
-            for item in traverser {
-                let item = match item {
-                    Ok(item) => item,
+            let relative = normalized_member(&prefix)?;
+            ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
+            plan.members.push(SourceMember { source: absolute.clone(), relative });
+            let mut pending = std::collections::VecDeque::from([absolute.clone()]);
+            while let Some(directory) = pending.pop_front() {
+                let snapshot = ctb_io::file::payload::SourceSnapshot::capture(&directory, false)?;
+                plan.tree.retain(&snapshot);
+                let entries = match discover_directory(&directory, &TraversalOptions {
+                    apple_read_options: archive_apple_read_options(), ..Default::default()
+                }) {
+                    Ok(entries) => entries,
                     Err(error) => {
-                        plan.diagnostics.push(JournalErrorRecord::from_error(&absolute, JournalErrorStage::Traversal, &error));
+                        plan.diagnostics.push(JournalErrorRecord::from_error(&directory, JournalErrorStage::Traversal, &error));
+                        plan.members.retain(|member| member.source != directory);
                         continue;
                     }
                 };
-                let relative = normalized_member(&prefix.join(&item.relative_path))?;
-                if root_names.insert(relative.clone()) {
-                    ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
-                } else {
-                    ensure!(!item.errors.is_empty(), "Duplicate archive member: {}", relative.display());
-                }
+                for item in entries {
                 if !item.errors.is_empty() {
                     let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
                     plan.diagnostics.push(JournalErrorRecord::from_error(&item.path, JournalErrorStage::Traversal, &error));
                     plan.members.retain(|member| member.source != item.path);
                     continue;
                 }
+                let relative = normalized_member(&prefix.join(item.path.strip_prefix(&absolute)?))?;
+                ensure!(names.insert(relative.clone()), "Duplicate archive member: {}", relative.display());
+                if item.is_dir { pending.push_back(item.path.clone()); }
                 plan.members.push(SourceMember { source: item.path, relative });
+                }
+                snapshot.validate()?;
             }
         } else {
             let relative = normalized_member(&prefix)?;
@@ -339,7 +354,11 @@ struct CaptureOutcome<W> {
 }
 
 trait CaptureSource {
-    fn capture(&mut self, path: &Path) -> Result<FileEntity> { FileEntity::from_filesystem(path, None) }
+    fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
+        let mut source = CapturedSource::capture(path, None, &archive_apple_read_options(), false)?;
+        source.hash(path)?;
+        Ok(source)
+    }
     fn open(&mut self, path: &Path) -> Result<Box<dyn PayloadSource>> { Ok(Box::new(DiskPayloadSource::open(path)?)) }
 }
 
@@ -361,24 +380,23 @@ fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Pa
 
 fn persist_source_error<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, record: &JournalErrorRecord) -> Result<()> {
     writer.record_error(record).with_context(|| format!("Cannot persist source failure: {}", record.error_message))?;
-    writer.writer.flush().with_context(|| format!("Cannot flush source failure: {}", record.error_message))?;
-    writer.writer.sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
+    writer.output_mut().flush().with_context(|| format!("Cannot flush source failure: {}", record.error_message))?;
+    writer.output_mut().sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
 }
 
 fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut ArchiveWriter<W>, entity: &FileEntity,
     path: &Path, count: &mut usize) -> Result<()> {
-    for message in &entity.metadata.warnings {
+    crate::journal::capture::visit_warnings(entity, &mut |_entity, message| {
         let warning = JournalWarningRecord {
             code: "FileReadWarning".to_owned(), message: format!("{}: {message}", path.display()),
             timestamp_sec: i64::try_from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs())?,
         };
         writer.record_warning(&warning).with_context(|| format!("Cannot persist metadata warning: {message}"))?;
-        writer.writer.flush().with_context(|| format!("Cannot flush metadata warning: {message}"))?;
-        writer.writer.sync().with_context(|| format!("Cannot sync metadata warning: {message}"))?;
+        writer.output_mut().flush().with_context(|| format!("Cannot flush metadata warning: {message}"))?;
+        writer.output_mut().sync().with_context(|| format!("Cannot sync metadata warning: {message}"))?;
         *count = count.saturating_add(1);
-    }
-    for stream in &entity.streams { persist_metadata_warnings(writer, &stream.entity, path, count)?; }
-    Ok(())
+        Ok(())
+    })
 }
 
 fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, capture: &mut impl CaptureSource) -> Result<CaptureOutcome<W>> {
@@ -393,8 +411,8 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             environment: Some(ctb_io_environment::capture_quick_arc()),
         }
     };
-    let mut writer = if let Some(recovered) = recovered { ArchiveWriter::resume(output, recovered)? }
-        else { ArchiveWriter::new(output, &session)? };
+    let mut writer = if let Some(recovered) = recovered { recovered.resume_writer(output)? }
+        else { ArchiveWriter::new(output, &session, crate::journal::stream::JournalProfile::ArchiveV1)? };
     let mut error_count = 0_usize;
     let mut warning_count = 0_usize;
     for diagnostic in &plan.diagnostics {
@@ -402,67 +420,77 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         error_count = error_count.saturating_add(1);
     }
     if error_count != 0 && !continue_on_error {
-        return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+        return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
     }
-    let mut hardlinks = HashMap::<InodeKey, PathBuf>::new();
+    let mut hardlinks = CommittedHardlinks::default();
+    let mut tree = plan.tree.clone();
     let mut committed_paths = HashSet::new();
     if let Some(recovered) = recovered {
         for member in &recovered.members {
             let relative = member.entity.identity.relative_path.as_ref().context("Committed member missing path")?;
             committed_paths.insert(relative.clone());
             if matches!(member.entity.kind, FileEntityKind::Regular { .. }) {
-                if let FileOrigin::Filesystem { key, .. } = &member.entity.identity.origin {
-                    hardlinks.insert(key.clone(), relative.clone());
-                }
+                hardlinks.commit(&member.entity, relative, None);
             }
         }
     }
     for member in &plan.members {
         if committed_paths.contains(&member.relative) { continue; }
-        let mut entity = match capture.capture(&member.source) {
-            Ok(entity) => entity,
+        let CapturedSource { mut entity, snapshot } = match capture.capture(&member.source) {
+            Ok(source) => source,
             Err(error) => {
                 persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
                 error_count = error_count.saturating_add(1);
                 if continue_on_error { continue; }
-                return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+                return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
             }
         };
+        tree.retain(&snapshot);
+        crate::journal::capture::finalize_warnings(&snapshot, &mut entity, &mut |_, _| Ok(()))?;
         entity.identity.relative_path = Some(member.relative.clone());
         entity.identity.enclosing_path = None;
-        if let Some(environment) = &session.environment { entity.set_environment(environment.clone()); }
+        if let Some(environment) = &session.environment { attach_environment(&mut entity, environment); }
         persist_metadata_warnings(&mut writer, &entity, &member.source, &mut warning_count)?;
         if let Err(error) = super::ensure_clean_metadata(&entity) {
             persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::MetadataRead, &error))?;
             error_count = error_count.saturating_add(1);
             if continue_on_error { continue; }
-            return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+            return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
         }
         if matches!(entity.kind, FileEntityKind::Regular { .. }) && entity.identity.nlink > 1 {
-            if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-                if let Some(target) = hardlinks.get(key) {
-                    if target != &member.relative {
-                        entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_relative_path(target)? };
-                    }
+            match hardlinks.lookup(&entity, &member.relative) {
+                Ok(Some(target)) => entity.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_relative_path(target)? },
+                Ok(None) => {},
+                Err(error) => {
+                    persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PostCheck, &error))?;
+                    error_count = error_count.saturating_add(1);
+                    if continue_on_error { continue; }
+                    return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
                 }
             }
         }
         let mut payload = if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-            match capture.open(&member.source) {
+            match capture.open(&member.source).and_then(|mut payload| { payload.bind_snapshot(&snapshot)?; Ok(payload) }) {
                 Ok(payload) => Some(payload),
                 Err(error) => {
                     persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PayloadOpen, &error))?;
                     error_count = error_count.saturating_add(1);
                     if continue_on_error { continue; }
-                    return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+                    return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
                 }
             }
         } else { None };
-        let checkpoint = writer.writer.checkpoint()?;
+        let checkpoint = writer.output_mut().checkpoint()?;
+        let precommit = || {
+            tree.validate()?;
+            let warnings = snapshot.validate()?;
+            ensure!(warnings.is_empty(), "Source changed before commit: {}", warnings.join("; "));
+            Ok(())
+        };
         let result = if let Some(payload) = &mut payload {
-            writer.write_entity(&entity, Some(payload.as_mut()))
+            writer.write_entity_checked(&entity, Some(payload.as_mut()), precommit)
         } else {
-            writer.write_entity(&entity, None)
+            writer.write_entity_checked(&entity, None, precommit)
         };
         if let Err(error) = result {
             if writer.is_failed() {
@@ -476,14 +504,19 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
             persist_source_error(&mut writer, &JournalErrorRecord::from_error(&member.source, JournalErrorStage::PayloadRead, &error))?;
             error_count = error_count.saturating_add(1);
             if continue_on_error { continue; }
-            return Ok(CaptureOutcome { output: writer.writer, error_count, warning_count, completed: false });
+            return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
         }
-        writer.writer.flush()?;
-        writer.writer.sync()?;
+        writer.output_mut().flush()?;
+        writer.output_mut().sync()?;
         if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-            if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-                hardlinks.insert(key.clone(), member.relative.clone());
-            }
+            hardlinks.commit(&entity, &member.relative, Some(&snapshot));
+        }
+    }
+    if let Err(error) = tree.validate() {
+        persist_source_error(&mut writer, &JournalErrorRecord::from_error(archive, JournalErrorStage::PostCheck, &error))?;
+        error_count = error_count.saturating_add(1);
+        if !continue_on_error {
+            return Ok(CaptureOutcome { output: writer.into_output(), error_count, warning_count, completed: false });
         }
     }
     let mut output = writer.finish()?;
@@ -653,18 +686,18 @@ mod tests {
     }
 
     impl CaptureSource for FaultCapture {
-        fn capture(&mut self, path: &Path) -> Result<FileEntity> {
+        fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
             if path == self.path && matches!(self.fault, CaptureFault::Capture) {
                 bail!("injected metadata capture failure");
             }
-            let mut entity = FileEntity::from_filesystem(path, None)?;
+            let mut source = FilesystemCapture.capture(path)?;
             if path == self.path && matches!(self.fault, CaptureFault::Warning) {
                 let mut stream = ctb_io::file::AttachedStream::from_data(None,
                     ctb_io::file::StreamKind::infer_from_name(b"fixture"), Vec::new())?;
                 stream.entity.metadata.warnings.push("injected recursive warning".to_owned());
-                entity.streams.push(stream);
+                source.entity.streams.push(stream);
             }
-            Ok(entity)
+            Ok(source)
         }
         fn open(&mut self, path: &Path) -> Result<Box<dyn PayloadSource>> {
             self.opened.push(path.to_path_buf());
@@ -704,6 +737,9 @@ mod tests {
     }
 
     impl PayloadSource for FaultPayload {
+        fn bind_snapshot(&mut self, snapshot: &ctb_io::file::payload::SourceSnapshot) -> Result<()> {
+            self.source.bind_snapshot(snapshot)
+        }
         fn total_size(&self) -> u64 { self.source.total_size() }
         fn extents(&self) -> &[ctb_io::file::Extent] { self.source.extents() }
         fn finish(&mut self) -> Result<Vec<String>> {
@@ -772,6 +808,189 @@ mod tests {
     fn capture_request<'a>(sources: &'a [PathBuf], archive: &'a Path, plan: &'a SourcePlan,
         continue_on_error: bool) -> CaptureRequest<'a> {
         CaptureRequest { sources, archive, plan, continue_on_error, recovered: None }
+    }
+
+    #[crate::ctb_test]
+    fn archive_raw_apple_source_free_roundtrip() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let source = temporary.path().join("source");
+        std::fs::create_dir_all(source.join("__MACOSX"))?;
+        std::fs::create_dir(source.join(".AppleDouble"))?;
+        let mut apple = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: None, comment: None, timestamps: None, backup_timestamp_sec: None,
+            finder_info: None, extended_attributes: Vec::new(), data_fork: None,
+            resource_fork: Some(b"resource".to_vec()), data_fork_size: None,
+            resource_fork_size: Some(8), unrecognized_entries: Vec::new(), entries: Vec::new(),
+        };
+        let double = ctb_io::file::write_apple_single_double(&apple)?;
+        apple.format = ctb_io::file::AppleFormat::AppleSingle;
+        apple.data_fork = Some(b"single primary".to_vec());
+        let single = ctb_io::file::write_apple_single_double(&apple)?;
+        let originals = [
+            ("valid", b"primary valid".to_vec()), ("._valid", double.clone()),
+            ("malformed", b"primary malformed".to_vec()), ("._malformed", b"malformed".to_vec()),
+            ("._orphan", b"ordinary dot underscore".to_vec()),
+            ("__MACOSX/._valid", double.clone()), (".AppleDouble/valid", double),
+            ("single", single.clone()), ("single.as", single.clone()), ("single.asf", single),
+        ];
+        for (relative, bytes) in &originals { std::fs::write(source.join(relative), bytes)?; }
+        let sources = vec![source.clone()];
+        let archive = temporary.path().join("backup.cscarchive");
+        let plan = plan_sources(&sources, &archive)?;
+        ensure!(plan.diagnostics.is_empty());
+        let expected: HashSet<_> = originals.iter().map(|(relative, _)| Path::new("source").join(relative))
+            .chain([PathBuf::from("source"), PathBuf::from("source/__MACOSX"), PathBuf::from("source/.AppleDouble")]).collect();
+        ensure!(plan.members.iter().map(|member| member.relative.clone()).collect::<HashSet<_>>() == expected);
+        let outcome = create_archive(FileArchiveOutput::new(File::create(&archive)?), &sources, &archive, &plan, false, None)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
+        std::fs::remove_dir_all(&source)?;
+        let reader = ArchiveReader::new(File::open(&archive)?)?;
+        reader.verify()?;
+        ensure!(reader.members.iter().filter_map(|member| member.entity.identity.relative_path.clone()).collect::<HashSet<_>>() == expected);
+        for (relative, bytes) in &originals {
+            let member = reader.members.iter().find(|member| member.entity.identity.relative_path.as_deref() == Some(Path::new("source").join(relative).as_path()))
+                .context("Missing raw Apple member")?;
+            ensure!(member.entity.streams.is_empty() && member.entity.metadata.apple.is_none());
+            let mut payload = reader.payload(member)?;
+            let mut archived = Vec::new();
+            payload.read_to_end(&mut archived)?;
+            payload.finish()?;
+            ensure!(&archived == bytes, "Raw container bytes changed: {relative}");
+        }
+        let destination = temporary.path().join("restored");
+        extract_archive(&reader, &destination, &MaterializeOptions { strict_lossless: false, ..Default::default() })?;
+        for (relative, bytes) in &originals {
+            ensure!(std::fs::read(destination.join("source").join(relative))? == *bytes);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn archive_raw_capture_has_no_companion_dependency() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("main");
+        let companion = temporary.path().join("._main");
+        std::fs::write(&path, b"primary")?;
+        std::fs::write(&companion, b"malformed")?;
+        let raw = FilesystemCapture.capture(&path)?;
+        ensure!(CapturedSource::capture(&path, None, &AppleReadOptions::default(), false).is_err());
+        std::fs::write(&companion, b"changed companion")?;
+        ensure!(raw.snapshot.validate()?.is_empty());
+        let mut payload = raw.open(&path)?;
+        let mut bytes = Vec::new();
+        payload.read_to_end(&mut bytes)?;
+        payload.finish()?;
+        ensure!(bytes == b"primary");
+        #[cfg(unix)]
+        {
+            std::fs::remove_file(&companion)?;
+            std::os::unix::fs::symlink("missing", &companion)?;
+            FilesystemCapture.capture(&path)?;
+            ensure!(CapturedSource::capture(&path, None, &AppleReadOptions::default(), false).is_err());
+            ensure!(std::fs::read_link(&companion)? == Path::new("missing"));
+            ensure!(std::fs::read(&path)? == b"primary");
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn capture_final_tree_failure_obeys_continue_policy() -> Result<()> {
+        struct MutatingOutput { output: FileArchiveOutput, root: PathBuf, syncs: usize }
+        impl Write for MutatingOutput {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> { self.output.write(bytes) }
+            fn flush(&mut self) -> std::io::Result<()> { self.output.flush() }
+        }
+        impl ArchiveOutput for MutatingOutput {
+            fn checkpoint(&mut self) -> Result<Option<u64>> { self.output.checkpoint() }
+            fn rollback(&mut self, position: u64) -> Result<()> { self.output.rollback(position) }
+            fn sync(&mut self) -> Result<()> {
+                self.output.sync()?;
+                self.syncs = self.syncs.saturating_add(1);
+                if self.syncs == 2 { std::fs::write(self.root.join("late"), b"late")?; }
+                Ok(())
+            }
+        }
+        for continue_on_error in [false, true] {
+            let temporary = tempfile::tempdir()?;
+            let root = temporary.path().join("source");
+            std::fs::create_dir(&root)?;
+            std::fs::write(root.join("child"), b"primary")?;
+            let sources = vec![root.clone()];
+            let archive = temporary.path().join("output");
+            let plan = plan_sources(&sources, &archive)?;
+            let output = MutatingOutput { output: FileArchiveOutput::new(File::create(&archive)?), root, syncs: 0 };
+            let outcome = create_archive(output, &sources, &archive, &plan, continue_on_error, None)?;
+            ensure!(outcome.error_count == 1 && outcome.completed == continue_on_error);
+            drop(outcome.output);
+            let reader = ArchiveReader::recover(File::open(&archive)?)?;
+            ensure!(reader.members.len() == 2 && reader.errors.len() == 1);
+            ensure!(reader.is_completed() == continue_on_error && reader.verify().is_err());
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn capture_archive_retains_snapshot_cleanup_warning() -> Result<()> {
+        struct CleanupCapture;
+        impl CaptureSource for CleanupCapture {
+            fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
+                let source = FilesystemCapture.capture(path)?;
+                source.snapshot.retain_cleanup_warnings(vec!["injected symlink cleanup warning".to_owned()])?;
+                Ok(source)
+            }
+        }
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("link");
+        std::os::unix::fs::symlink("target", &path)?;
+        let sources = vec![path];
+        let archive = temporary.path().join("output");
+        let plan = plan_sources(&sources, &archive)?;
+        let outcome = capture_archive(FileArchiveOutput::new(File::create(&archive)?),
+            capture_request(&sources, &archive, &plan, false), &mut CleanupCapture)?;
+        ensure!(!outcome.completed && outcome.warning_count > 0 && outcome.error_count == 1);
+        drop(outcome.output);
+        let reader = ArchiveReader::recover(File::open(&archive)?)?;
+        ensure!(reader.warnings.iter().any(|warning| warning.message.contains("injected symlink cleanup")));
+        ensure!(reader.members.is_empty());
+        ensure!(reader.errors.iter().any(|error| error.error_message.contains("injected symlink cleanup")));
+        ensure!(reader.verify().is_err());
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn capture_tree_rejects_planning_and_later_child_changes() -> Result<()> {
+        struct AddChild { root: PathBuf }
+        impl CaptureSource for AddChild {
+            fn capture(&mut self, path: &Path) -> Result<CapturedSource> {
+                if path != self.root { std::fs::write(self.root.join("added"), b"new")?; }
+                FilesystemCapture.capture(path)
+            }
+        }
+        for during_capture in [false, true] {
+            for continue_on_error in [false, true] {
+                let temporary = tempfile::tempdir()?;
+                let root = temporary.path().join("source");
+                std::fs::create_dir(&root)?;
+                std::fs::write(root.join("child"), b"original")?;
+                let sources = vec![root.clone()];
+                let archive = temporary.path().join("output");
+                let plan = plan_sources(&sources, &archive)?;
+                if !during_capture { std::fs::write(root.join("added"), b"new")?; }
+                let outcome = capture_archive(FileArchiveOutput::new(File::create(&archive)?),
+                    capture_request(&sources, &archive, &plan, continue_on_error), &mut AddChild { root })?;
+                ensure!(outcome.error_count > 0);
+                ensure!(outcome.completed == continue_on_error);
+                drop(outcome.output);
+                let reader = ArchiveReader::recover(File::open(&archive)?)?;
+                ensure!(reader.has_diagnostics() && reader.verify().is_err());
+                if during_capture { ensure!(reader.members.len() == 1); }
+            }
+        }
+        Ok(())
     }
 
     #[crate::ctb_test]
@@ -988,7 +1207,7 @@ mod tests {
             sources: vec![source.clone()], destination: archive.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = ArchiveWriter::new(File::create(&archive)?, &session)?;
+        let mut writer = ArchiveWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalProfile::ArchiveV1)?;
         writer.record_error(&crate::journal::JournalErrorRecord {
             path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
             stage: crate::journal::JournalErrorStage::MetadataRead,
@@ -1070,7 +1289,9 @@ mod tests {
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
         let file = File::create(&archive_path)?;
-        create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
+        let outcome = create_archive(FileArchiveOutput::new(file), &sources, &archive_path, &plan, false, None)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
         let reader = ArchiveReader::new(File::open(&archive_path)?)?;
         reader.verify()?;
@@ -1126,7 +1347,9 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
         let completed = std::fs::read(&path)?;
         let mut marker = DcMstring::new();
         marker.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
@@ -1147,7 +1370,9 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
         let length = std::fs::metadata(&path)?.len();
         let mut marker = DcMstring::new();
         marker.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
@@ -1175,7 +1400,9 @@ mod tests {
         let path = temporary.path().join("backup.cscarchive");
         let sources = vec![source];
         let plan = plan_sources(&sources, &path)?;
-        create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&path)?, &sources, &path, &plan, false, None)?;
+        ensure!(outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0);
+        drop(outcome.output);
         let reader = ArchiveReader::new(File::open(&path)?)?;
         let destination = temporary.path().join("destination");
         std::fs::create_dir(&destination)?;
@@ -1195,8 +1422,7 @@ mod tests {
 
     #[cfg(unix)]
     #[crate::ctb_test]
-    fn archive_links_and_attached_streams_roundtrip() -> Result<()> {
-        use std::os::unix::fs::MetadataExt;
+    fn archive_links_and_attached_streams_capture_fidelity_contract() -> Result<()> {
         let temporary = tempfile::tempdir()?;
         let source = temporary.path().join("source");
         std::fs::create_dir(&source)?;
@@ -1207,18 +1433,93 @@ mod tests {
         let archive_path = temporary.path().join("backup.cscarchive");
         let sources = vec![source.clone()];
         let plan = plan_sources(&sources, &archive_path)?;
-        create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, false, None)?;
+        let outcome = create_archive(File::create(&archive_path)?, &sources, &archive_path, &plan, false, None)?;
+        let clean = outcome.completed && outcome.error_count == 0 && outcome.warning_count == 0;
+        if !clean {
+            ensure!(!outcome.completed && outcome.error_count == 1 && outcome.warning_count > 0);
+        }
+        let error_count = outcome.error_count;
+        let warning_count = outcome.warning_count;
+        drop(outcome.output);
         std::fs::remove_dir_all(&source)?;
+        if !clean {
+            let reader = ArchiveReader::recover(File::open(&archive_path)?)?;
+            ensure!(!reader.is_completed());
+            ensure!(reader.errors.len() == error_count && reader.warnings.len() == warning_count);
+            let link = source.join("symlink");
+            ensure!(reader.warnings.iter().any(|warning| warning.message.contains(&link.display().to_string())
+                && warning.message.contains("Restoring source access time changed source change time")
+                && warning.message.contains("Unix cannot restore change time")));
+            ensure!(reader.errors.iter().any(|error| error.path == link
+                && error.stage == JournalErrorStage::MetadataRead
+                && error.error_message.contains("Unix cannot restore change time")));
+            ensure!(!reader.members.iter().any(|member| member.entity.identity.relative_path.as_deref() == Some(Path::new("source/symlink"))));
+            ensure!(reader.verify().is_err());
+            ensure!(ArchiveReader::new(File::open(&archive_path)?).is_err());
+            let listed = run_archive(&ArchiveArgs { command: ArchiveCommand::List { archive: archive_path.clone() } })?;
+            ensure!(matches!(listed, ToolResult::Immediate { exit_code: 1, stderr, .. }
+                if String::from_utf8_lossy(&stderr).contains("Unix cannot restore change time")));
+            ensure!(run_archive(&ArchiveArgs { command: ArchiveCommand::Verify { archive: archive_path.clone() } }).is_err());
+            let destination = temporary.path().join("refused");
+            ensure!(extract_archive(&reader, &destination, &MaterializeOptions {
+                strict_lossless: false, ..Default::default()
+            }).is_err());
+            ensure!(!destination.exists());
+        } else {
+            let reader = ArchiveReader::new(File::open(&archive_path)?)?;
+            ensure!(reader.is_completed() && reader.errors.is_empty() && reader.warnings.is_empty());
+            assert_links_and_attached_streams_restored(&reader, &temporary.path().join("restored"))?;
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn archive_links_and_attached_streams_declared_source_free_roundtrip() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let archive_path = temporary.path().join("declared.cscarchive");
+        let session = JournalSessionRecord {
+            sources: Vec::new(), destination: archive_path.clone(),
+            origin_platform: u32::from(current_platform()), environment: None,
+        };
+        let mut writer = ArchiveWriter::new(File::create(&archive_path)?, &session,
+            crate::journal::stream::JournalProfile::ArchiveV1)?;
+        let mut data = FileEntity::from_vec(b"linked payload".to_vec());
+        data.identity.relative_path = Some(PathBuf::from("source/data"));
+        data.streams.push(ctb_io::file::AttachedStream::from_data(
+            Some(ctb_io::file::StreamName::from_bytes(b"user.ctb.archive")),
+            ctb_io::file::StreamKind::infer_from_name(b"user.ctb.archive"), b"stream payload".to_vec())?);
+        let mut payload = ctb_io::file::MemoryPayloadSource::new(b"linked payload".to_vec())?;
+        writer.write_entity(&data, Some(&mut payload))?;
+        let mut hardlink = FileEntity::from_vec(Vec::new());
+        hardlink.identity.relative_path = Some(PathBuf::from("source/hardlink"));
+        hardlink.kind = FileEntityKind::Hardlink { target_relative_path: LinkPath::from_relative_path(Path::new("source/data"))? };
+        writer.write_entity(&hardlink, None)?;
+        let mut symlink = FileEntity::from_vec(Vec::new());
+        symlink.identity.relative_path = Some(PathBuf::from("source/symlink"));
+        symlink.kind = FileEntityKind::Symlink { target: LinkPath::from_relative_path(Path::new("data"))? };
+        writer.write_entity(&symlink, None)?;
+        drop(writer.finish()?);
         let reader = ArchiveReader::new(File::open(&archive_path)?)?;
+        ensure!(reader.is_completed() && reader.errors.is_empty() && reader.warnings.is_empty());
+        ensure!(reader.members.len() == 3);
+        assert_links_and_attached_streams_restored(&reader, &temporary.path().join("restored"))
+    }
+
+    #[cfg(unix)]
+    fn assert_links_and_attached_streams_restored(reader: &ArchiveReader, destination: &Path) -> Result<()> {
+        use std::os::unix::fs::MetadataExt;
         reader.verify()?;
-        let destination = temporary.path().join("restored");
         let options = MaterializeOptions { strict_lossless: false, force_overwrite: true, ..Default::default() };
-        extract_archive(&reader, &destination, &options)?;
+        extract_archive(reader, destination, &options)?;
         let data = destination.join("source/data");
         let hardlink = destination.join("source/hardlink");
+        ensure!(std::fs::read(&data)? == b"linked payload");
+        ensure!(std::fs::read(&hardlink)? == b"linked payload");
         ensure!(std::fs::metadata(&data)?.ino() == std::fs::metadata(&hardlink)?.ino());
         ensure!(std::fs::read_link(destination.join("source/symlink"))? == Path::new("data"));
-        ensure!(xattr::get(data, "user.ctb.archive")? == Some(b"stream payload".to_vec()));
+        ensure!(xattr::get(&data, "user.ctb.archive")? == Some(b"stream payload".to_vec()));
+        ensure!(xattr::get(hardlink, "user.ctb.archive")? == Some(b"stream payload".to_vec()));
         Ok(())
     }
 }

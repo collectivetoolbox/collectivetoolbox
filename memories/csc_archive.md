@@ -33,9 +33,26 @@
   sink failures separately; sink/encoding ambiguity is fatal. File-output
   rollback discards BufWriter bytes via `into_parts` before truncating/seeking;
   never flush the failed section to roll it back. Stdout cannot roll back.
-- Recovery must reject every byte after completion, including partial tokens;
-  permissive EOF recovery applies only before completion. Journal `mark_failed`
+- Archive recovery must reject every byte after completion, including partial
+  tokens; permissive archive EOF recovery applies only before completion. Journal `mark_failed`
   must propagate pending-record commit errors before updating its descriptor.
+- Journal owns the modern `stream::RecordWriter`, `scanner`, and shared `capture`
+  primitives. ArchiveWriter is a type alias, not another state machine. Profiles
+  select headers, bodies, diagnostic placement, and legacy-compatible scan rules.
+  Do not reintroduce archive-to-journal duplication or journal imports of archive.
+- Historical journal completion is nonterminal on read. Explicit resume preserves
+  all committed bytes, including diagnostics after completion; never subtract a
+  marker length from valid_length to reopen. Same-instance writing is terminal.
+- Descriptor updates after durable journal writes can fail independently.
+  Pending-descriptor state blocks new operations; retry_descriptor repairs only
+  metadata, without duplicate journal bytes/counters/completion markers.
+- CapturedTree final validation and pending-warning persistence must precede
+  completion. Best-effort validation returning Ok can still retain warnings;
+  drain them through the shared visitor before discarding snapshots. Companion
+  dependencies and cleanup warnings must use the same retained source guards.
+- Raw archive capture/discovery disables Apple interpretation explicitly. Tests
+  deliberately inspecting malformed or symlink companions as ordinary files must
+  request raw capture; do not weaken interpreted-companion validation to fix them.
 
 Archive capability status and outstanding work are tracked in
 [the archive issue](../issues/csc-usability/archive.md).

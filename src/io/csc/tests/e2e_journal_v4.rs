@@ -401,13 +401,17 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
         writer.commit_batch()?;
         if batch_num == 2 {
             writer.mark_completed()?;
-            ensure!(read_journal_snapshot(&journal_path)?.is_completed);
+            let snapshot = read_journal_snapshot(&journal_path)?;
+            ensure!(snapshot.is_completed);
+            ensure!(writer.mark_completed().is_err());
+            drop(writer);
+            writer = JournalWriter::open_for_resume(&journal_path, &desc_path, &snapshot)?;
         }
     }
 
     ensure!(
         !read_journal_snapshot(&journal_path)?.is_completed,
-        "A newly committed batch must invalidate an earlier completion marker"
+        "An explicitly reopened journal must remain unfinished until completed again"
     );
     writer.mark_completed()?;
 

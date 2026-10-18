@@ -264,6 +264,11 @@ pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
 
 /// Abstract streaming provider for file payload data and extents.
 pub trait PayloadSource: Read + Seek + Send {
+    /// Binds this reader to the physical state observed before metadata capture.
+    fn bind_snapshot(&mut self, snapshot: &SourceSnapshot) -> Result<()> {
+        snapshot.validate().map(|_| ())
+    }
+
     /// Total logical byte size of the payload.
     fn total_size(&self) -> u64;
     /// Discovered sparse extents.
@@ -287,6 +292,185 @@ pub trait PayloadSource: Read + Seek + Send {
     }
 }
 
+/// Physical source state retained across metadata capture and payload readers.
+#[derive(Clone)]
+pub struct SourceSnapshot {
+    path: PathBuf,
+    identity: crate::identity::InodeKey,
+    state: std::sync::Arc<std::sync::Mutex<SourceState>>,
+    best_effort: bool,
+    change_warnings: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    cleanup_warnings: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    dependencies: std::sync::Arc<std::sync::Mutex<Vec<SourceSnapshot>>>,
+    interpreted_payload: std::sync::Arc<std::sync::Mutex<Option<Vec<u8>>>>,
+}
+
+struct SourceState {
+    metadata: std::fs::Metadata,
+    change_time: Option<(i64, u32)>,
+    children: Option<Vec<std::ffi::OsString>>,
+}
+
+fn directory_inventory(path: &Path, metadata: &std::fs::Metadata) -> Result<Option<Vec<std::ffi::OsString>>> {
+    if !metadata.is_dir() { return Ok(None); }
+    let mut names = std::fs::read_dir(path)?.map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<std::io::Result<Vec<_>>>()?;
+    names.sort();
+    Ok(Some(names))
+}
+
+fn physical_change_time(path: &Path, metadata: &std::fs::Metadata) -> Result<Option<(i64, u32)>> {
+    #[cfg(unix)]
+    {
+        let _ = path;
+        Ok(Some((metadata.ctime(), u32::try_from(metadata.ctime_nsec())?)))
+    }
+    #[cfg(windows)]
+    {
+        let native = crate::metadata::capture_native_metadata(path, metadata)?;
+        let Some(crate::metadata::NativeMetadataValue::Signed(ticks)) = native.values.get("change_time") else {
+            anyhow::bail!("Source capture omitted native change time: {}", path.display());
+        };
+        let time = crate::metadata::windows::filetime_from_windows_ticks(*ticks)?;
+        Ok(Some((time.unix_seconds(), time.nanoseconds())))
+    }
+    #[cfg(not(any(unix, windows)))]
+    { let _ = (path, metadata); Ok(None) }
+}
+
+impl SourceSnapshot {
+    /// Captures physical state independently of any decoded payload size.
+    /// Best effort permits metadata drift with retained warnings, never identity
+    /// or type replacement. Payload length and checksum checks remain mandatory.
+    pub fn capture(path: &Path, best_effort: bool) -> Result<Self> {
+        let metadata = std::fs::symlink_metadata(path)?;
+        let identity = crate::identity::extract_file_identity(path, &metadata)?;
+        let change_time = physical_change_time(path, &metadata)?;
+        let children = directory_inventory(path, &metadata)?;
+        Ok(Self {
+            path: path.to_path_buf(), identity,
+            state: std::sync::Arc::new(std::sync::Mutex::new(SourceState { metadata, change_time, children })),
+            best_effort,
+            change_warnings: std::sync::Arc::default(),
+            cleanup_warnings: std::sync::Arc::default(),
+            dependencies: std::sync::Arc::default(),
+            interpreted_payload: std::sync::Arc::default(),
+        })
+    }
+
+    /// Validates the current namespace entry against the captured physical state.
+    pub fn validate(&self) -> Result<Vec<String>> {
+        let warnings = self.validate_metadata(&std::fs::symlink_metadata(&self.path)?)?;
+        for dependency in self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.iter() {
+            dependency.retain_changes(dependency.validate()?)?;
+        }
+        Ok(warnings)
+    }
+
+    /// Registers physical input before reading a logically merged companion.
+    pub fn capture_dependency(&self, path: &Path) -> Result<SourceSnapshot> {
+        let dependency = Self::capture(path, false)?;
+        self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.push(dependency.clone());
+        Ok(dependency)
+    }
+
+    /// Retains the decoded primary fork without changing physical source state.
+    pub fn set_interpreted_payload(&self, bytes: Vec<u8>) -> Result<()> {
+        *self.interpreted_payload.lock().map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))? = Some(bytes);
+        Ok(())
+    }
+
+    /// Returns the primary fork selected during the original container read.
+    pub fn interpreted_payload(&self) -> Result<Option<Vec<u8>>> {
+        Ok(self.interpreted_payload.lock().map_err(|_| anyhow::anyhow!("Source payload lock poisoned"))?.clone())
+    }
+
+    /// Retains policy-permitted changes separately from fidelity failures.
+    pub fn retain_changes(&self, warnings: Vec<String>) -> Result<()> {
+        let mut retained = self.change_warnings.lock().map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?;
+        for warning in warnings {
+            if !retained.contains(&warning) { retained.push(warning); }
+        }
+        Ok(())
+    }
+
+    /// Returns policy-permitted source changes for the operation's journal.
+    pub fn change_warnings(&self) -> Result<Vec<String>> {
+        Ok(self.change_warnings.lock().map_err(|_| anyhow::anyhow!("Source warning lock poisoned"))?.clone())
+    }
+
+    /// Retains diagnostics before a cleanup-adjusted baseline is reused.
+    pub fn retain_cleanup_warnings(&self, warnings: Vec<String>) -> Result<()> {
+        let mut retained = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?;
+        for warning in warnings {
+            if !retained.contains(&warning) { retained.push(warning); }
+        }
+        Ok(())
+    }
+
+    /// Returns retained diagnostics for this capture's timestamp cleanup.
+    pub fn cleanup_warnings(&self) -> Result<Vec<String>> {
+        let mut warnings = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?.clone();
+        for dependency in self.dependencies.lock().map_err(|_| anyhow::anyhow!("Source dependency lock poisoned"))?.iter() {
+            for warning in dependency.cleanup_warnings()? {
+                if !warnings.contains(&warning) { warnings.push(warning); }
+            }
+        }
+        Ok(warnings)
+    }
+
+    /// Completes symlink inspection without accepting unrelated source changes.
+    #[cfg(unix)]
+    pub fn restore_symlink_access_time(&self, observed: &std::fs::Metadata) -> Result<()> {
+        let before = std::fs::symlink_metadata(&self.path)?;
+        self.retain_changes(self.validate_metadata(&before)?)?;
+        crate::metadata::restore_symlink_access_time(&self.path, observed)?;
+        let after = std::fs::symlink_metadata(&self.path)?;
+        self.restored(&before, after)
+    }
+
+    fn validate_metadata(&self, current: &std::fs::Metadata) -> Result<Vec<String>> {
+        let original = self.state.lock().map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
+        anyhow::ensure!(crate::identity::extract_file_identity(&self.path, current)? == self.identity
+            && original.metadata.file_type() == current.file_type(),
+            "Source identity or type changed: {}", self.path.display());
+        anyhow::ensure!(directory_inventory(&self.path, current)? == original.children,
+            "Source directory inventory changed since capture: {}", self.path.display());
+        let changed = current.len() != original.metadata.len() || current.modified()? != original.metadata.modified()?
+            || current.permissions() != original.metadata.permissions()
+            || physical_change_time(&self.path, current)? != original.change_time;
+        if changed {
+            anyhow::ensure!(self.best_effort, "Source metadata changed since capture: {}", self.path.display());
+            return Ok(vec![format!("Source file {} changed during copy; proceeding best-effort.", self.path.display())]);
+        }
+        Ok(Vec::new())
+    }
+
+    fn restored(&self, before: &std::fs::Metadata, after: std::fs::Metadata) -> Result<()> {
+        anyhow::ensure!(crate::identity::extract_file_identity(&self.path, before)? == crate::identity::extract_file_identity(&self.path, &after)?
+            && before.file_type() == after.file_type() && before.len() == after.len()
+            && before.modified()? == after.modified()? && before.permissions() == after.permissions(),
+            "Source changed during timestamp cleanup: {}", self.path.display());
+        let mut original = self.state.lock().map_err(|_| anyhow::anyhow!("Source snapshot lock poisoned"))?;
+        #[cfg(unix)]
+        if original.change_time == physical_change_time(&self.path, before)? {
+            let change_time = physical_change_time(&self.path, &after)?;
+            if original.change_time != change_time {
+                let warning = format!("Restoring source access time changed source change time on {}; Unix cannot restore change time", self.path.display());
+                let mut retained = self.cleanup_warnings.lock().map_err(|_| anyhow::anyhow!("Source cleanup warning lock poisoned"))?;
+                if !retained.contains(&warning) {
+                    warn_fmt!("{warning}");
+                    retained.push(warning);
+                }
+                original.change_time = change_time;
+            }
+        }
+        #[cfg(not(unix))]
+        { let _ = (&mut original, before, after); }
+        Ok(())
+    }
+}
+
 /// A payload source reading from an on-disk file.
 pub struct DiskPayloadSource {
     path: PathBuf,
@@ -297,6 +481,8 @@ pub struct DiskPayloadSource {
     #[cfg(unix)]
     orig_times: Option<(FileTime, FileTime)>,
     opened_with_noatime: bool,
+    snapshot: Option<SourceSnapshot>,
+    warnings: Vec<String>,
 }
 
 #[cfg(unix)]
@@ -325,17 +511,23 @@ impl DiskPayloadSource {
             use std::os::unix::fs::OpenOptionsExt;
             let mut opts = File::options();
             opts.read(true);
-            opts.custom_flags(nix::libc::O_NOATIME);
+            opts.custom_flags(nix::libc::O_NOATIME | nix::libc::O_NOFOLLOW);
             match opts.open(path) {
                 Ok(f) => (f, true),
                 Err(_) => {
-                    let f = File::open(path)
+                    opts.custom_flags(nix::libc::O_NOFOLLOW);
+                    let f = opts.open(path)
                         .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
                     (f, false)
                 }
             }
         };
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(all(unix, not(target_os = "linux")))]
+        let mut file = {
+            use std::os::unix::fs::OpenOptionsExt;
+            File::options().read(true).custom_flags(nix::libc::O_NOFOLLOW).open(path)?
+        };
+        #[cfg(not(unix))]
         let mut file = File::open(path)
             .with_context(|| format!("Failed to open payload file: {}", path.display()))?;
         let meta = file.metadata()?;
@@ -389,6 +581,8 @@ impl DiskPayloadSource {
             #[cfg(unix)]
             orig_times,
             opened_with_noatime,
+            snapshot: None,
+            warnings: Vec::new(),
         })
     }
 
@@ -419,6 +613,13 @@ impl Seek for DiskPayloadSource {
 }
 
 impl PayloadSource for DiskPayloadSource {
+    fn bind_snapshot(&mut self, snapshot: &SourceSnapshot) -> Result<()> {
+        snapshot.retain_changes(snapshot.validate_metadata(&self.file.metadata()?)?)?;
+        snapshot.retain_changes(snapshot.validate()?)?;
+        self.snapshot = Some(snapshot.clone());
+        Ok(())
+    }
+
     fn total_size(&self) -> u64 {
         self.size
     }
@@ -433,28 +634,37 @@ impl PayloadSource for DiskPayloadSource {
 
     fn finish(&mut self) -> Result<Vec<String>> {
         let current = self.file.metadata()?;
+        if let Some(snapshot) = &self.snapshot {
+            snapshot.retain_changes(snapshot.validate_metadata(&current)?)?;
+            snapshot.retain_changes(snapshot.validate()?)?;
+        } else {
         anyhow::ensure!(current.len() == self.original_metadata.len()
             && current.modified()? == self.original_metadata.modified()?,
             "Payload source {} changed while reading; refusing timestamp restoration", self.path.display());
-        #[cfg(unix)]
-        let mut warnings = Vec::new();
-        #[cfg(not(unix))]
-        let warnings = Vec::new();
+        }
         #[cfg(unix)]
         if let Some((atime, _mtime)) = self.orig_times {
             if FileTime::from_last_access_time(&current) != atime {
             if let Err(error) = filetime::set_file_handle_times(&self.file, Some(atime), None) {
-                    warnings.push(format!("Failed to restore payload source timestamps for {}: {error}; reading may have changed source metadata", self.path.display()));
+                    self.warnings.push(format!("Failed to restore payload source timestamps for {}: {error}; reading may have changed source metadata", self.path.display()));
                 } else {
                     let restored = self.file.metadata()?;
                     if restored.ctime() != current.ctime() || restored.ctime_nsec() != current.ctime_nsec() {
-                        warnings.push(format!("Restoring payload source access time changed the source change time for {}; Unix cannot restore change time", self.path.display()));
+                        self.warnings.push(format!("Restoring payload source access time changed the source change time for {}; Unix cannot restore change time", self.path.display()));
                     }
+                    if let Some(snapshot) = &self.snapshot {
+                        snapshot.restored(&current, restored.clone())?;
+                    }
+                    self.original_metadata = restored;
                 }
             }
             self.orig_times = None;
         }
-        Ok(warnings)
+        if let Some(snapshot) = &self.snapshot {
+            snapshot.retain_cleanup_warnings(self.warnings.clone())?;
+            snapshot.retain_changes(snapshot.validate()?)?;
+        }
+        Ok(self.warnings.clone())
     }
 }
 
@@ -816,6 +1026,71 @@ mod tests {
         assert!(source.finish().is_err());
         drop(source);
         assert_eq!(filetime::FileTime::from_last_modification_time(&std::fs::metadata(&path).unwrap()), changed);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn capture_snapshot_cleanup_is_idempotent_without_waiving_external_changes() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("source");
+        std::fs::write(&path, b"original")?;
+        let snapshot = SourceSnapshot::capture(&path, false)?;
+        let mut source = DiskPayloadSource::open(&path)?;
+        source.bind_snapshot(&snapshot)?;
+        let original_atime = FileTime::from_last_access_time(&source.original_metadata);
+        source.orig_times = Some((FileTime::from_unix_time(1_234_567, 123), original_atime));
+        let before = source.file.metadata()?;
+        let warnings = source.finish()?;
+        let after = source.file.metadata()?;
+        assert_eq!(warnings.is_empty(), before.ctime() == after.ctime() && before.ctime_nsec() == after.ctime_nsec());
+        assert_eq!(source.finish()?, warnings);
+        assert!(snapshot.validate()?.is_empty());
+        filetime::set_file_mtime(&path, FileTime::from_unix_time(1_111_111, 456))?;
+        assert!(source.finish().is_err());
+        assert!(snapshot.validate().is_err());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn capture_symlink_cleanup_retains_warning_and_own_baseline() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("link");
+        std::os::unix::fs::symlink("target", &path)?;
+        let observed = std::fs::symlink_metadata(&path)?;
+        let old = FileTime::from_unix_time(1_234_567, 123);
+        filetime::set_symlink_file_times(&path, old, FileTime::from_last_modification_time(&observed))?;
+        let snapshot = SourceSnapshot::capture(&path, false)?;
+        let before = std::fs::symlink_metadata(&path)?;
+        snapshot.restore_symlink_access_time(&observed)?;
+        let after = std::fs::symlink_metadata(&path)?;
+        assert_eq!(snapshot.cleanup_warnings()?.is_empty(), physical_change_time(&path, &before)? == physical_change_time(&path, &after)?);
+        snapshot.retain_cleanup_warnings(vec!["injected symlink cleanup diagnostic".to_owned()])?;
+        let warnings = snapshot.cleanup_warnings()?;
+        assert!(!warnings.is_empty());
+        assert!(snapshot.validate()?.is_empty());
+        snapshot.restore_symlink_access_time(&observed)?;
+        assert_eq!(snapshot.cleanup_warnings()?, warnings);
+        assert!(snapshot.validate()?.is_empty());
+        filetime::set_symlink_file_times(&path, old, FileTime::from_unix_time(1_234_568, 456))?;
+        assert!(snapshot.validate().is_err());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn capture_snapshot_nanosecond_ctime_is_not_rounded() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("source");
+        std::fs::write(&path, b"original")?;
+        let snapshot = SourceSnapshot::capture(&path, false)?;
+        let mut baseline = snapshot.state.lock().map_err(|_| anyhow::anyhow!("Test lock poisoned"))?;
+        let (seconds, nanos) = baseline.change_time.context("Missing Unix change time")?;
+        let different_nanos = if nanos == 0 { 1 } else { 0 };
+        baseline.change_time = Some((seconds, different_nanos));
+        drop(baseline);
+        assert!(snapshot.validate().is_err());
+        Ok(())
     }
 
     #[cfg(unix)]

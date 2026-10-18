@@ -28,20 +28,19 @@ use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalWriter};
+use crate::journal::capture::{CapturedSource, CapturedPayload, CommittedHardlinks, discover_directory, hash_primary, open_payload};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
-use ctb_io::file::identity::{FileOrigin, InodeKey};
 use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::materializer::{
     MaterializeOptions, apply_entity_metadata, materialize_entity,
 };
 use ctb_io::file::path_policy::{PathTraversalPolicy, SymlinkValidationPolicy};
-use ctb_io::file::payload::{DiskPayloadSource, Extent, PayloadSource};
+use ctb_io::file::payload::{Extent, PayloadSource};
 use ctb_io::file::{query_block_device_size, verify_directory_filenames_exact};
 use ctb_io::file::sandboxable_dir::SandboxableDir;
 use ctb_io::file::streams::write_streams;
 use ctb_io::file::verifier::{try_drop_system_caches, verify_materialized_entity_ext};
-use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Instant;
 #[cfg(unix)]
@@ -71,6 +70,7 @@ struct DeferredSymlink {
     dest_path: PathBuf,
     entity: FileEntity,
     dest_dir_root: PathBuf,
+    snapshot: ctb_io::file::payload::SourceSnapshot,
 }
 
 /// Deferred directory metadata fixup item for Pass 3.
@@ -80,6 +80,7 @@ struct DeferredDirFixup {
     sandbox: std::sync::Arc<SandboxableDir>,
     dir_entity: FileEntity,
     expected_filenames: Vec<Vec<u8>>,
+    snapshot: ctb_io::file::payload::SourceSnapshot,
 }
 
 /// Records an item failure and either swallows it under `--continue-on-error` or
@@ -108,11 +109,11 @@ fn handle_item_error(
 }
 
 fn record_entity_warnings(entity: &FileEntity, journal: &mut JournalWriter) -> Result<()> {
-    for warning in &entity.metadata.warnings {
+    crate::journal::capture::visit_warnings(entity, &mut |entity, warning| {
         journal.record_warning("FileReadWarning", warning)?;
         warn_fmt!("{}: {}", entity.identity.display_path(), warning);
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
@@ -143,7 +144,8 @@ pub fn execute_copy_pipeline(
 ) -> Result<CopyStats> {
     crate::path_resolution::validate_task_overlap(tasks)?;
     let mut stats = CopyStats::default();
-    let mut hardlink_map: HashMap<InodeKey, PathBuf> = HashMap::new();
+    let mut hardlink_map = CommittedHardlinks::default();
+    let mut captured_tree = crate::journal::capture::CapturedTree::default();
     let mut deferred_dirs: Vec<DeferredDirFixup> = Vec::new();
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
@@ -200,10 +202,10 @@ pub fn execute_copy_pipeline(
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
                 Err(error) => return Err(error.into()),
             }
-            for entry in std::fs::read_dir(&source)? {
-                let entry = entry?;
-                if entry.file_type()?.is_dir() {
-                    pending.push((entry.path(), destination.join(entry.file_name())));
+            for entry in discover_directory(&source, &ctb_io::file::TraversalOptions::default())? {
+                ensure!(entry.errors.is_empty(), "Source traversal errors: {}", entry.errors.join("; "));
+                if entry.is_dir {
+                    pending.push((entry.path, destination.join(entry.file_name)));
                 }
             }
         }
@@ -250,14 +252,15 @@ pub fn execute_copy_pipeline(
                 vec![(src_root.clone(), tgt_root.clone())];
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
-                let mut dir_entity = match FileEntity::from_filesystem_with_apple_options(
+                let CapturedSource { entity: mut dir_entity, snapshot: dir_snapshot } = match CapturedSource::capture(
                     &curr_src,
                     Some(src_root),
                     &apple_read_options,
+                    args.on_source_change == SourceChangePolicy::BestEffort,
                 ) {
-                    Ok(e) => {
-                        record_entity_warnings(&e, journal)?;
-                        e
+                    Ok(source) => {
+                        record_entity_warnings(&source.entity, journal)?;
+                        source
                     }
                     Err(e) => {
                         let _ = handle_item_error(
@@ -288,15 +291,16 @@ pub fn execute_copy_pipeline(
                 }
 
                 let rel = compute_journal_relative_path(journal.destination(), &curr_tgt)?;
+                captured_tree.retain(&dir_snapshot);
                 dir_entity.identity.relative_path = Some(rel.clone());
 
                 if !args.dry_run {
                     // Reason for fallback: absent relative path defaults to current directory "." as destination root
                     let rel_dir = if rel.as_os_str().is_empty() { Path::new(".") } else { &rel };
-                    if let Err(e) = dest_dir.ensure_dir_all(
+                    if let Err(e) = validate_copy_source(&dir_snapshot, &mut dir_entity, journal).and_then(|()| dest_dir.ensure_dir_all(
                         rel_dir,
                         options.path_policy,
-                    ).and_then(|_| dest_dir.authorize_metadata(rel_dir, options.existing_entry_policy)) {
+                    )).and_then(|_| dest_dir.authorize_metadata(rel_dir, options.existing_entry_policy)) {
                         record_materialization_failure(journal, &dest_dir.root_path().join(rel_dir), &dir_entity, &e)?;
                         let _ = handle_item_error(
                             &curr_src,
@@ -316,18 +320,12 @@ pub fn execute_copy_pipeline(
                     journal.commit_batch()?;
                 }
 
-                let error_policy = if args.continue_on_error {
-                    ctb_io::file::OnTraversalError::Skip
-                } else {
-                    ctb_io::file::OnTraversalError::Bail
-                };
                 let traversal_opts = ctb_io::file::TraversalOptions::new()
                     .one_file_system(args.one_file_system)
-                    .error_policy(error_policy)
                     .apple_read_options(apple_read_options);
 
                 let raw_dir_entries =
-                    match ctb_io::file::read_dir_safe(&curr_src, &traversal_opts) {
+                    match discover_directory(&curr_src, &traversal_opts) {
                         Ok(entries) => entries,
                         Err(e) => {
                             let _ = handle_item_error(
@@ -341,10 +339,19 @@ pub fn execute_copy_pipeline(
                             continue;
                         }
                     };
+                let mut discovered = Vec::new();
+                for item in raw_dir_entries {
+                    if item.errors.is_empty() {
+                        discovered.push(item);
+                    } else {
+                        let error = anyhow::anyhow!("Source traversal errors: {}", item.errors.join("; "));
+                        let _ = handle_item_error(&item.path, JournalErrorStage::Traversal, error, args, journal, &mut stats)?;
+                    }
+                }
                 // Reason for fallback: absent relative path defaults to current directory "." as destination root
                 let dir_rel = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
                 let dir_entries = match ctb_io::file::validate_and_order_directory_entries(
-                    raw_dir_entries,
+                    discovered,
                     &curr_src,
                     &curr_tgt,
                     tgt_root,
@@ -383,14 +390,15 @@ pub fn execute_copy_pipeline(
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         dir_queue.push((entry_src, entry_tgt));
                     } else if item.is_symlink {
-                        let sym_entity = match FileEntity::from_filesystem_with_apple_options(
+                        let CapturedSource { entity: sym_entity, snapshot } = match CapturedSource::capture(
                             &entry_src,
                             Some(src_root),
                             &apple_read_options,
+                            args.on_source_change == SourceChangePolicy::BestEffort,
                         ) {
-                            Ok(e) => {
-                                record_entity_warnings(&e, journal)?;
-                                e
+                            Ok(source) => {
+                                record_entity_warnings(&source.entity, journal)?;
+                                source
                             }
                             Err(e) => {
                                 let _ = handle_item_error(
@@ -427,6 +435,7 @@ pub fn execute_copy_pipeline(
                             dest_path: entry_tgt,
                             entity: sym_entity,
                             dest_dir_root: dest_dir.root_path().to_path_buf(),
+                            snapshot,
                         });
                     } else {
                         let created_path = copy_single_item(
@@ -468,6 +477,7 @@ pub fn execute_copy_pipeline(
                     sandbox: std::sync::Arc::clone(&dest_dir),
                     dir_entity: dir_entity.clone(),
                     expected_filenames,
+                    snapshot: dir_snapshot,
                 });
             }
         } else {
@@ -489,10 +499,11 @@ pub fn execute_copy_pipeline(
             let target_rel_path = Path::new(target_file_name);
 
             if src_meta.is_symlink() {
-                let mut sym_entity = match FileEntity::from_filesystem(src_root, None) {
-                    Ok(e) => {
-                        record_entity_warnings(&e, journal)?;
-                        e
+                let CapturedSource { entity: mut sym_entity, snapshot } = match CapturedSource::capture(src_root, None,
+                    &apple_read_options, args.on_source_change == SourceChangePolicy::BestEffort) {
+                    Ok(source) => {
+                        record_entity_warnings(&source.entity, journal)?;
+                        source
                     }
                     Err(e) => {
                         let _ = handle_item_error(
@@ -527,6 +538,7 @@ pub fn execute_copy_pipeline(
                     dest_path: tgt_root.clone(),
                     entity: sym_entity,
                     dest_dir_root: parent_dest.to_path_buf(),
+                    snapshot,
                 });
             } else {
                 copy_single_item(
@@ -557,6 +569,10 @@ pub fn execute_copy_pipeline(
     for symlink_item in deferred_symlinks {
         let dest_path = &symlink_item.dest_path;
         let mut entity = symlink_item.entity;
+        if let Err(error) = validate_copy_source(&symlink_item.snapshot, &mut entity, journal) {
+            let _ = handle_item_error(&symlink_item.src_path, JournalErrorStage::PostCheck, error, args, journal, &mut stats)?;
+            continue;
+        }
         if !args.dry_run {
             record_journal_entry(journal, dest_path, &entity)?;
             journal.commit_batch()?;
@@ -640,6 +656,10 @@ pub fn execute_copy_pipeline(
     // =========================================================================
     if !args.dry_run {
         while let Some(mut fixup) = deferred_dirs.pop() {
+            if let Err(error) = validate_copy_source(&fixup.snapshot, &mut fixup.dir_entity, journal) {
+                let _ = handle_item_error(&fixup.src_path, JournalErrorStage::PostCheck, error, args, journal, &mut stats)?;
+                continue;
+            }
             if fixup.dest_path.exists() {
                 let expected_refs: Vec<&[u8]> =
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
@@ -816,12 +836,32 @@ pub fn execute_copy_pipeline(
         }
     }
 
+    stats.copied_entities = files_to_verify;
+    finalize_copy_pipeline(&captured_tree, args, journal, &mut stats)?;
+    Ok(stats)
+}
+
+fn finalize_copy_pipeline(
+    captured_tree: &crate::journal::capture::CapturedTree,
+    args: &CscArgs,
+    journal: &mut JournalWriter,
+    stats: &mut CopyStats,
+) -> Result<()> {
+    if let Err(error) = captured_tree.validate() {
+        let path = journal.destination().to_path_buf();
+        let _ = handle_item_error(&path, JournalErrorStage::PostCheck, error, args, journal, stats)?;
+    }
+    captured_tree.visit_pending_warnings(&mut |code, warning| {
+        if !journal.warnings().iter().any(|record| record.message == warning) {
+            journal.record_warning(code, warning)?;
+            warn_fmt!("{warning}");
+        }
+        Ok(())
+    })?;
     if args.should_verify_after() && !args.dry_run {
         journal.mark_completed()?;
     }
-
-    stats.copied_entities = files_to_verify;
-    Ok(stats)
+    Ok(())
 }
 
 #[expect(
@@ -836,7 +876,7 @@ fn copy_single_item(
     options: &MaterializeOptions,
     args: &CscArgs,
     journal: &mut JournalWriter,
-    hardlink_map: &mut HashMap<InodeKey, PathBuf>,
+    hardlink_map: &mut CommittedHardlinks,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
     progress: &Progress,
@@ -844,15 +884,16 @@ fn copy_single_item(
 ) -> Result<Option<PathBuf>> {
     // 2. Discover metadata-only entity from filesystem (avoiding full payload hash when unnecessary)
     let apple_read_options = args.resolve_apple_read_options();
-    let entity_res = FileEntity::from_filesystem_metadata_only_with_apple_options(
+    let entity_res = CapturedSource::capture(
         src_path,
         None,
         &apple_read_options,
+        args.on_source_change == SourceChangePolicy::BestEffort,
     );
-    let mut entity = match entity_res {
-        Ok(e) => {
-            record_entity_warnings(&e, journal)?;
-            e
+    let CapturedSource { mut entity, snapshot } = match entity_res {
+        Ok(source) => {
+            record_entity_warnings(&source.entity, journal)?;
+            source
         }
         Err(err) => {
             return handle_item_error(
@@ -905,15 +946,11 @@ fn copy_single_item(
 
     entity.identity.relative_path = Some(effective_dest_rel);
 
-    if let FileEntityKind::Regular {
-        size,
-        ref extents,
-        is_sparse,
-        ref mut sha256,
-    } = entity.kind
+    if let FileEntityKind::Regular { size, sha256, .. } = &entity.kind
     {
         if *sha256 == [0_u8; 32] {
-            let payload = match DiskPayloadSource::open(src_path) {
+            let size = *size;
+            let payload = match open_payload(src_path, &snapshot) {
                 Ok(payload) => payload,
                 Err(error) => {
                     return handle_item_error(src_path, JournalErrorStage::PayloadOpen,
@@ -929,18 +966,10 @@ fn copy_single_item(
                 size,
                 "Checksumming",
             );
-            *sha256 = match ctb_io::file::payload::hash_payload_stream(
-                &mut p_stream,
-                extents,
-                is_sparse,
-                src_path,
-            ) {
-                Ok(hash) => hash,
-                Err(error) => {
+            if let Err(error) = hash_primary(&mut entity, &mut p_stream, src_path) {
                     return handle_item_error(src_path, JournalErrorStage::PayloadRead,
                         error.context("Failed to checksum source payload"), args, journal, stats);
-                }
-            };
+            }
             match p_stream.finish() {
                 Ok(warnings) => {
                     for warning in warnings {
@@ -964,12 +993,12 @@ fn copy_single_item(
 
     // 3. Hardlink detection (nlink > 1)
     if entity.identity.nlink > 1 && entity.is_regular() {
-        let key = match &entity.identity.origin {
-            FileOrigin::Filesystem { key, .. } => key,
-            _ => anyhow::bail!("Filesystem entity has no inode identity"),
+        let first_target = match hardlink_map.lookup(&entity, dest_rel_path) {
+            Ok(target) => target,
+            Err(error) => return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats),
         };
 
-        if let Some(first_target_rel) = hardlink_map.get(key) {
+        if let Some(first_target_rel) = first_target {
             let this_full_path = match &entity.identity.relative_path {
                 Some(p) => dest_dir.root_path().join(p),
                 None => dest_dir.root_path().to_path_buf(),
@@ -980,6 +1009,9 @@ fn copy_single_item(
                 || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
                     .is_some_and(|path| std::fs::canonicalize(&first_full_path).is_ok_and(|first| path == first));
             if !is_self {
+                if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
+                    return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
+                }
                 let original_entity = entity.clone();
                 entity.kind = FileEntityKind::Hardlink {
                     target_relative_path: LinkPath::from_relative_path(first_target_rel)?,
@@ -1137,6 +1169,9 @@ fn copy_single_item(
             } else if args.copy_specials_as_specials
                 && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
             {
+                if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
+                    return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
+                }
                 let receipt = match materialize_entity(&entity, None, dest_dir, options) {
                     Ok(receipt) => receipt,
                     Err(err) => {
@@ -1165,34 +1200,13 @@ fn copy_single_item(
     }
 
     // 5. Regular files: Sparse support, in-flight SHA-256, atomic rename
-    #[cfg(unix)]
-    let captured_mtime = entity.metadata.timestamps.as_ref().map(|ts| ts.mtime_sec);
-    #[cfg(unix)]
-    let captured_ctime = entity.metadata.timestamps.as_ref().map(|ts| ts.ctime_sec);
     let initial_size = match &entity.kind {
         FileEntityKind::Regular { size, .. } => *size,
         _ => 0,
     };
 
     // Materialize payload
-    let apple_single_data = if apple_read_options.any_apple_single() && entity.is_regular() {
-        if let Ok(data) = std::fs::read(src_path) {
-            if let Ok(archive) = ctb_io::file::read_apple_single_double(&data) {
-                if archive.format == ctb_io::file::AppleFormat::AppleSingle {
-                    // Reason for fallback: empty data fork represents empty file payload
-                    Some(archive.data_fork.unwrap_or_default())
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let apple_single_data = snapshot.interpreted_payload()?;
 
     let memory_payload_data = apple_single_data.or(fifo_payload_data);
 
@@ -1200,7 +1214,8 @@ fn copy_single_item(
     let (receipt, file_used_noatime) = if args.dry_run {
         (materialize_entity(&entity, None, dest_dir, options), false)
     } else if let Some(mem_bytes) = memory_payload_data.as_ref() {
-        let mut mem_payload = match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone()) {
+        let mut mem_payload = match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone())
+            .and_then(|payload| CapturedPayload::new(payload, &snapshot)) {
             Ok(p) => p,
             Err(err) => {
                 return handle_item_error(
@@ -1218,7 +1233,7 @@ fn copy_single_item(
             false,
         )
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-        let payload = match DiskPayloadSource::open(src_path) {
+        let payload = match open_payload(src_path, &snapshot) {
             Ok(p) => p,
             Err(err) => {
                 return handle_item_error(
@@ -1275,63 +1290,8 @@ fn copy_single_item(
         journal.record_noatime_used(true);
     }
 
-    // Verify source wasn't modified concurrently during copy
-    let after_meta = match std::fs::symlink_metadata(src_path) {
-        Ok(m) => m,
-        Err(err) => {
-            return handle_item_error(
-                src_path,
-                JournalErrorStage::PostCheck,
-                err.into(),
-                args,
-                journal,
-                stats,
-            );
-        }
-    };
-    #[cfg(unix)]
-    let is_block_device_as_regular = args.copy_block_devices_as_regular_files
-        && after_meta.file_type().is_block_device();
-    #[cfg(unix)]
-    let is_fifo_as_regular = args.copy_fifos_as_regular_files
-        && after_meta.file_type().is_fifo();
-    #[cfg(not(unix))]
-    let is_block_device_as_regular = false;
-    #[cfg(not(unix))]
-    let is_fifo_as_regular = false;
-
-    #[cfg(unix)]
-    let changed = captured_mtime.is_some_and(|m| after_meta.mtime() != m)
-        || entity.metadata.timestamps.as_ref().is_some_and(|ts| after_meta.mtime_nsec() != i64::from(ts.mtime_nsec))
-        || (memory_payload_data.is_none() && after_meta.len() != initial_size)
-        || (!cfg!(any(target_os = "freebsd", target_os = "dragonfly"))
-            && captured_ctime.is_some_and(|c| after_meta.ctime() != c));
-    #[cfg(not(unix))]
-    let changed = (memory_payload_data.is_none() && after_meta.len() != initial_size)
-        || entity.metadata.timestamps.as_ref().is_some_and(|ts| {
-            filetime::FileTime::from_last_modification_time(&after_meta)
-                != filetime::FileTime::from_unix_time(ts.mtime_sec, ts.mtime_nsec)
-        });
-
-    if !is_block_device_as_regular && !is_fifo_as_regular && changed {
-        if args.on_source_change == SourceChangePolicy::Error {
-            let err = anyhow::anyhow!(
-                "Source file {} was modified concurrently during copy (timestamps or size changed)",
-                src_path.display()
-            );
-            return handle_item_error(
-                src_path,
-                JournalErrorStage::PostCheck,
-                err,
-                args,
-                journal,
-                stats,
-            );
-        }
-        let warning = format!("Source file {} changed during copy; proceeding best-effort.", src_path.display());
-        eprintln!("WARNING: {warning}");
-        journal.record_warning("SourceModifiedDuringCopy", &warning)?;
-        entity.metadata.push_warning(warning);
+    if let Err(error) = validate_copy_source(&snapshot, &mut entity, journal) {
+        return handle_item_error(src_path, JournalErrorStage::PostCheck, error, args, journal, stats);
     }
 
     if receipt.skipped_identical {
@@ -1342,13 +1302,9 @@ fn copy_single_item(
     stats.bytes_copied = stats.bytes_copied.saturating_add(receipt.bytes_written);
 
     if entity.identity.nlink > 1 && entity.is_regular() {
-        if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-            if let Some(ref rel) = entity.identity.relative_path {
-                hardlink_map.insert(
-                    key.clone(),
-                    rel.clone(),
-                );
-            }
+        if let Some(ref rel) = entity.identity.relative_path {
+            journal.commit_batch()?;
+            hardlink_map.commit(&entity, rel, Some(&snapshot));
         }
     }
 
@@ -1390,6 +1346,15 @@ fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Resul
     let relative = dest_path.strip_prefix(&canonical_root)
         .with_context(|| format!("Journal entry {} is outside destination {}", dest_path.display(), canonical_root.display()))?;
     Ok(relative.to_path_buf())
+}
+
+fn validate_copy_source(
+    snapshot: &ctb_io::file::payload::SourceSnapshot,
+    entity: &mut FileEntity,
+    journal: &mut JournalWriter,
+) -> Result<()> {
+    snapshot.retain_changes(snapshot.validate()?)?;
+    crate::journal::capture::finalize_warnings(snapshot, entity, &mut |code, warning| journal.record_warning(code, warning))
 }
 
 fn record_materialization_warnings(
@@ -1443,6 +1408,152 @@ mod fidelity_tests {
     use super::*;
     use crate::args::default_test_args;
     use crate::journal::read_journal_snapshot;
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_final_tree_best_effort_late_warnings_persist_before_completion() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+        for fail_persistence in [false, true] {
+            let temporary = tempfile::tempdir()?;
+            let source = temporary.path().join("source");
+            let destination = temporary.path().join("destination");
+            std::fs::create_dir(&source)?;
+            std::fs::create_dir(&destination)?;
+            let journal_path = temporary.path().join("copy.cscjournal");
+            let descriptor_path = temporary.path().join("copy.cscdesc");
+            let mut journal = JournalWriter::create_at_path(
+                &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
+            )?;
+            let mut args = default_test_args(vec![source.clone(), destination.clone()], temporary.path().to_path_buf());
+            args.on_source_change = SourceChangePolicy::BestEffort;
+            args.continue_on_error = true;
+            let mut captured = CapturedSource::capture(&source, Some(&source), &Default::default(),
+                args.on_source_change == SourceChangePolicy::BestEffort)?;
+            let mut tree = crate::journal::capture::CapturedTree::default();
+            tree.retain(&captured.snapshot);
+            let early_warning = format!("early cleanup warning: {}", source.display());
+            captured.snapshot.retain_cleanup_warnings(vec![early_warning.clone()])?;
+            validate_copy_source(&captured.snapshot, &mut captured.entity, &mut journal)?;
+            record_journal_entry(&mut journal, &destination, &captured.entity)?;
+            journal.commit_batch()?;
+            tree.validate()?;
+
+            let mode = std::fs::metadata(&source)?.permissions().mode() ^ 0o100;
+            std::fs::set_permissions(&source, std::fs::Permissions::from_mode(mode))?;
+            let late_cleanup = format!("late cleanup warning: {}", source.display());
+            captured.snapshot.retain_cleanup_warnings(vec![late_cleanup.clone()])?;
+            if fail_persistence {
+                std::fs::remove_file(&descriptor_path)?;
+                std::fs::create_dir(&descriptor_path)?;
+            }
+            let mut stats = CopyStats::default();
+            let result = finalize_copy_pipeline(&tree, &args, &mut journal, &mut stats);
+            assert_eq!(result.is_err(), fail_persistence, "{result:?}");
+            let recorded = read_journal_snapshot(&journal_path)?;
+            assert_eq!(recorded.is_completed, !fail_persistence);
+            assert!(recorded.errors.is_empty());
+            assert_eq!(recorded.warnings.iter().filter(|record| record.message == early_warning).count(), 1);
+            let changed = recorded.warnings.iter().find(|record| record.code == "SourceModifiedDuringCopy")
+                .context("Missing late source change warning")?;
+            assert!(changed.message.contains(&source.display().to_string()));
+            assert!(changed.message.contains("changed during copy; proceeding best-effort"));
+            if fail_persistence {
+                assert!(format!("{:#}", result.unwrap_err()).contains("operation is durable"));
+                assert!(journal.pending_descriptor_status().is_some());
+            } else {
+                assert_eq!(recorded.warnings.iter().filter(|record| record.message == late_cleanup).count(), 1);
+                let descriptor = std::fs::read_to_string(&descriptor_path)?;
+                assert!(descriptor.contains("Status: Completed with 3 warning(s)\n"));
+                assert!(!descriptor.contains("Status: Completed\n"));
+                tree.validate()?;
+                let mut repeated = Vec::new();
+                tree.visit_pending_warnings(&mut |code, warning| {
+                    repeated.push((code.to_owned(), warning.to_owned()));
+                    Ok(())
+                })?;
+                assert!(repeated.is_empty());
+                assert_eq!(read_journal_snapshot(&journal_path)?.warnings, recorded.warnings);
+            }
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_final_tree_change_after_validated_fixup_is_journaled_before_completion() -> Result<()> {
+        for continue_on_error in [false, true] {
+            let temporary = tempfile::tempdir()?;
+            let source = temporary.path().join("source");
+            let destination = temporary.path().join("destination");
+            std::fs::create_dir(&source)?;
+            std::fs::create_dir(&destination)?;
+            let journal_path = temporary.path().join("copy.cscjournal");
+            let descriptor_path = temporary.path().join("copy.cscdesc");
+            let mut journal = JournalWriter::create_at_path(
+                &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
+            )?;
+            let mut captured = CapturedSource::capture(&source, Some(&source), &Default::default(), false)?;
+            let mut captured_tree = crate::journal::capture::CapturedTree::default();
+            captured_tree.retain(&captured.snapshot);
+            validate_copy_source(&captured.snapshot, &mut captured.entity, &mut journal)?;
+            record_journal_entry(&mut journal, &destination, &captured.entity)?;
+            journal.commit_batch()?;
+            captured_tree.validate()?;
+
+            std::fs::rename(&source, temporary.path().join("original-source"))?;
+            std::fs::create_dir(&source)?;
+            let mut args = default_test_args(vec![source, destination], temporary.path().to_path_buf());
+            args.continue_on_error = continue_on_error;
+            let mut stats = CopyStats { dirs_created: 1, ..Default::default() };
+            let result = finalize_copy_pipeline(&captured_tree, &args, &mut journal, &mut stats);
+            assert_eq!(result.is_ok(), continue_on_error, "{result:?}");
+            let snapshot = read_journal_snapshot(&journal_path)?;
+            assert_eq!(snapshot.errors.len(), 1);
+            assert!(matches!(snapshot.errors[0].stage, JournalErrorStage::PostCheck));
+            assert_eq!(snapshot.errors[0].path, journal.destination());
+            assert_eq!(snapshot.is_completed, continue_on_error);
+            assert!(!snapshot.is_completed || !snapshot.errors.is_empty());
+            assert_eq!(snapshot.committed_entities.len(), 1);
+            assert_eq!(stats.files_failed, u64::from(continue_on_error));
+            assert_eq!(stats.dirs_created, 1);
+            let descriptor = std::fs::read_to_string(&descriptor_path)?;
+            assert!(descriptor.contains("ErrorsCount: 1\n"));
+            assert!(!descriptor.contains("Status: Completed\n"));
+            if continue_on_error {
+                assert!(descriptor.contains("Status: Completed with 1 error(s)\n"));
+            } else {
+                let error = result.unwrap_err();
+                assert!(format!("{error:#}").contains(&snapshot.errors[0].error_message));
+                assert!(descriptor.contains("Status: Failed: "));
+            }
+            assert!(journal.pending_descriptor_status().is_none());
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn capture_copy_retains_snapshot_cleanup_warning_once() -> Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let path = temporary.path().join("link");
+        std::os::unix::fs::symlink("target", &path)?;
+        let mut source = CapturedSource::capture(&path, None, &Default::default(), false)?;
+        let destination = temporary.path().join("destination");
+        let journal_path = temporary.path().join("copy.cscjournal");
+        let mut journal = JournalWriter::create_at_path(&journal_path, &temporary.path().join("copy.cscdesc"),
+            std::slice::from_ref(&path), &destination)?;
+        record_entity_warnings(&source.entity, &mut journal)?;
+        let warning = "injected symlink cleanup warning".to_owned();
+        source.snapshot.retain_cleanup_warnings(vec![warning.clone()])?;
+        validate_copy_source(&source.snapshot, &mut source.entity, &mut journal)?;
+        validate_copy_source(&source.snapshot, &mut source.entity, &mut journal)?;
+        record_journal_entry(&mut journal, &destination.join("link"), &source.entity)?;
+        journal.commit_batch()?;
+        let recorded = read_journal_snapshot(&journal_path)?;
+        ensure!(recorded.warnings.iter().filter(|record| record.message == warning).count() == 1);
+        ensure!(recorded.committed_entities.values().any(|entity| entity.metadata.warnings.contains(&warning)));
+        ensure!(source.snapshot.cleanup_warnings()?.contains(&warning));
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn test_materialization_fidelity_warnings_are_journaled() {

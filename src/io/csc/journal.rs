@@ -46,7 +46,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub(crate) mod capture;
 pub mod legacy;
+pub(crate) mod scanner;
+pub mod stream;
 
 pub use legacy::{
     convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
@@ -63,6 +66,15 @@ pub(crate) use legacy::{
 pub const JOURNAL_MAGIC_V4: &[u8; 8] = b"CTBCSCJ\x04";
 pub const JOURNAL_MAGIC: &[u8; 8] = JOURNAL_MAGIC_V4;
 pub const SESSION_ENVIRONMENT_BINDING: &str = "csc.session.environment";
+
+pub(crate) fn session_context(session: &JournalSessionRecord) -> Result<SharedValueContext> {
+    let mut context = SharedValueContext::default();
+    if let Some(environment) = &session.environment {
+        context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(environment))?;
+        context.insert("environment", Arc::clone(environment))?;
+    }
+    Ok(context)
+}
 
 pub const PLATFORM_LINUX: u8 = 1;
 pub const PLATFORM_MACOS: u8 = 2;
@@ -438,7 +450,7 @@ pub(crate) fn entity_requires_metadata_retention(entity: &FileEntity) -> bool {
 pub struct JournalWriter {
     journal_path: PathBuf,
     desc_path: PathBuf,
-    writer: BufWriter<File>,
+    writer: stream::RecordWriter<BufWriter<File>>,
     sources: Vec<PathBuf>,
     destination: PathBuf,
     current_batch_id: u64,
@@ -448,10 +460,10 @@ pub struct JournalWriter {
     noatime_used: bool,
     pub environment: Option<Arc<EnvDescription>>,
     snapshot: Option<JournalSnapshot>,
-    shared_context: SharedValueContext,
     errors: Vec<JournalErrorRecord>,
     warnings: Vec<JournalWarningRecord>,
     is_legacy: bool,
+    pending_descriptor_status: Option<String>,
 }
 
 impl JournalWriter {
@@ -476,17 +488,15 @@ impl JournalWriter {
                 )
             })?;
 
-        let mut writer = BufWriter::new(file);
-        writer.write_all(JOURNAL_MAGIC_V4)?;
-        let header = DcMstring::new();
-        writer.write_all(header.as_bytes())?;
-
         let env = ctb_io_environment::capture_quick_arc();
-        let mut shared_context = SharedValueContext::default();
-        shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(&env))?;
-        shared_context.insert("environment", Arc::clone(&env))?;
+        let session = JournalSessionRecord {
+            sources: sources.to_vec(), destination: destination.to_path_buf(),
+            origin_platform: u32::from(current_platform()), environment: Some(Arc::clone(&env)),
+        };
+        let mut writer = stream::RecordWriter::new(BufWriter::new(file), &session, stream::JournalProfile::JournalV4)?;
+        Self::sync_output(writer.output_mut())?;
 
-        let mut jw = Self {
+        let jw = Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
             writer,
@@ -499,13 +509,12 @@ impl JournalWriter {
             noatime_used: false,
             environment: Some(env),
             snapshot: None,
-            shared_context,
             errors: Vec::new(),
             warnings: Vec::new(),
             is_legacy: false,
+            pending_descriptor_status: None,
         };
 
-        jw.write_session_header(sources, destination)?;
         jw.update_desc_file("InProgress")?;
         Ok(jw)
     }
@@ -531,7 +540,8 @@ impl JournalWriter {
     }
 
 
-    /// Reopens an existing journal for resuming, seeking to the end.
+    /// Reopens a journal, preserving all committed bytes and completion markers.
+    /// Previously completed journals explicitly begin a new writable session.
     pub fn open_for_resume(
         journal_path: &Path,
         desc_path: &Path,
@@ -543,10 +553,6 @@ impl JournalWriter {
             .with_context(|| {
                 format!("Failed to reopen state journal: {}", journal_path.display())
             })?;
-        file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
-        file.sync_all()?;
-        std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?;
-
         let mut total_bytes = 0_u64;
         let mut total_files = 0_u64;
         for e in snapshot.committed_entities.values() {
@@ -566,12 +572,15 @@ impl JournalWriter {
             false
         };
 
-        let writer = BufWriter::new(file);
-        let mut shared_context = SharedValueContext::default();
-        if let Some(environment) = &snapshot.environment {
-            shared_context.insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(environment))?;
-            shared_context.insert("environment", Arc::clone(environment))?;
-        }
+        file.set_len(snapshot.valid_length).context("Failed to discard uncommitted journal tail")?;
+        file.sync_all()?;
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?;
+        let session = JournalSessionRecord {
+            sources: snapshot.sources.clone(), destination: snapshot.destination.clone(),
+            origin_platform: u32::from(snapshot.origin_platform), environment: snapshot.environment.clone(),
+        };
+        let writer = stream::RecordWriter::resume_output(BufWriter::new(file), &session,
+            stream::JournalProfile::JournalV4, snapshot.last_batch_id, false)?;
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -585,10 +594,10 @@ impl JournalWriter {
             noatime_used: snapshot.noatime_used,
             environment: snapshot.environment.clone(),
             snapshot: Some(snapshot.clone()),
-            shared_context,
             errors: snapshot.errors.clone(),
             warnings: snapshot.warnings.clone(),
             is_legacy,
+            pending_descriptor_status: None,
         })
     }
 
@@ -605,103 +614,63 @@ impl JournalWriter {
         self.noatime_used
     }
 
-    /// Validates a serialized DcMstring segment strictly against authoritative Dc syntax rules.
-    fn validate_segment(&self, mst: &DcMstring) -> Result<()> {
-        ctb_formats_dcstring::validate_dc_mixed_strict(mst)
-            .context("CSC Journal segment failed strict Dc syntax validation")?;
-        Ok(())
-    }
-
-    fn write_session_header(&mut self, sources: &[PathBuf], destination: &Path) -> Result<()> {
-        let record = JournalSessionRecord {
-            sources: sources.to_vec(),
-            destination: destination.to_path_buf(),
-            origin_platform: u32::from(current_platform()),
-            environment: self.environment.clone(),
-        };
-        let mut mst = DcMstring::new();
-        record.encode_dc_mixed(&mut mst)?;
-
-        self.validate_segment(&mst)?;
-        self.writer.write_all(mst.payload_bytes())?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
+    fn sync_output(writer: &mut BufWriter<File>) -> Result<()> {
+        writer.flush()?;
+        writer.get_ref().sync_data()?;
         Ok(())
     }
 
     /// Queues a `FileEntity` for transactional commit.
+    /// A poisoned or completed writer retains the item; the next commit fails.
     pub fn record_entity(&mut self, entity: &FileEntity) {
         self.uncommitted_entities.push(entity.clone());
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.
     pub fn commit_batch(&mut self) -> Result<()> {
+        self.ensure_ready()?;
         if self.uncommitted_entities.is_empty() {
             return Ok(());
         }
 
         if self.is_legacy {
+            let next = self.current_batch_id.checked_add(1).context("Journal sequence overflow")?;
+            self.writer.transaction(|writer, context| {
             let mut batch_hasher = Sha256Stream::new();
             for entity in &self.uncommitted_entities {
                 let mut payload = Vec::new();
-                legacy::write_entity_payload(&mut payload, entity, &self.shared_context)?;
+                legacy::write_entity_payload(&mut payload, entity, context)?;
                 let payload_len = u32::try_from(payload.len())?;
                 let checksum = xxhash::xxhash3_64(&payload);
 
                 batch_hasher.update(&payload);
 
-                self.writer.write_all(&[legacy::TAG_ENTITY])?;
-                legacy::write_u32(&mut self.writer, payload_len)?;
-                self.writer.write_all(&checksum)?;
-                self.writer.write_all(&payload)?;
-
-                if let FileEntityKind::Regular { size, .. } = entity.kind {
-                    self.total_committed_files = self.total_committed_files.saturating_add(1);
-                    self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
-                }
+                writer.write_all(&[legacy::TAG_ENTITY])?;
+                legacy::write_u32(writer, payload_len)?;
+                writer.write_all(&checksum)?;
+                writer.write_all(&payload)?;
             }
 
-            self.current_batch_id = self.current_batch_id.saturating_add(1);
-            self.writer.write_all(&[legacy::TAG_BATCH_COMMIT])?;
-            legacy::write_u64(&mut self.writer, self.current_batch_id)?;
+            writer.write_all(&[legacy::TAG_BATCH_COMMIT])?;
+            legacy::write_u64(writer, next)?;
             let batch_sha256 = batch_hasher.finalize();
-            self.writer.write_all(&batch_sha256)?;
-
-            self.writer.flush()?;
-            self.writer.get_ref().sync_data()?;
-
-            self.uncommitted_entities.clear();
-            self.update_desc_file("InProgress")?;
-            return Ok(());
+            writer.write_all(&batch_sha256)?;
+            Ok(())
+            }, Self::sync_output)?;
+            self.current_batch_id = next;
+        } else {
+            self.writer.write_batch(&self.uncommitted_entities, Self::sync_output)?;
+            self.current_batch_id = self.writer.sequence();
         }
-
-        self.current_batch_id = self.current_batch_id.saturating_add(1);
-
-        let mut mst = DcMstring::new();
         for entity in &self.uncommitted_entities {
-            if let Some(read_time) = entity.metadata.read_time {
-                read_time
-                    .duration_since(UNIX_EPOCH)
-                    .context("Read time timestamp is before Unix epoch")?;
-            }
-            entity.encode_dc_mixed_with_context(&mut mst, &self.shared_context)?;
-
             if let FileEntityKind::Regular { size, .. } = entity.kind {
                 self.total_committed_files = self.total_committed_files.saturating_add(1);
                 self.total_committed_bytes = self.total_committed_bytes.saturating_add(size);
             }
         }
 
-        self.validate_segment(&mst)?;
-        crate::section::write_section(&mut self.writer, self.current_batch_id, |writer| {
-            writer.write_all(mst.payload_bytes())?;
-            Ok(())
-        })?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
-
         self.uncommitted_entities.clear();
-        self.update_desc_file("InProgress")?;
+        self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
     }
 
@@ -709,57 +678,41 @@ impl JournalWriter {
     pub fn mark_completed(&mut self) -> Result<()> {
         self.commit_batch()?;
         if self.is_legacy {
-            self.writer.write_all(&[legacy::TAG_JOB_COMPLETED])?;
-            self.writer.flush()?;
-            self.writer.get_ref().sync_data()?;
-            if self.errors.is_empty() {
-                self.update_desc_file("Completed")?;
-            } else {
-                self.update_desc_file(&format!("Completed with {} error(s)", self.errors.len()))?;
-            }
-            return Ok(());
-        }
-        let mut mst = DcMstring::new();
-        mst.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
-        self.validate_segment(&mst)?;
-        self.writer.write_all(mst.payload_bytes())?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
-        if self.errors.is_empty() {
-            self.update_desc_file("Completed")?;
+            self.writer.complete_legacy(Self::sync_output)?;
         } else {
-            self.update_desc_file(&format!("Completed with {} error(s)", self.errors.len()))?;
+            self.writer.complete(Self::sync_output)?;
+        }
+        if self.errors.is_empty() && !self.warnings.is_empty() {
+            self.persist_descriptor(format!("Completed with {} warning(s)", self.warnings.len()))?;
+        } else if self.errors.is_empty() {
+            self.persist_descriptor("Completed".to_owned())?;
+        } else {
+            self.persist_descriptor(format!("Completed with {} error(s)", self.errors.len()))?;
         }
         Ok(())
     }
 
     /// Records an item or operational error directly into the state journal and descriptor.
     pub fn record_error(&mut self, error: &JournalErrorRecord) -> Result<()> {
+        self.ensure_ready()?;
         if self.is_legacy {
+            self.writer.transaction(|writer, _| {
             let json = serde_json::to_vec(error)?;
-            self.writer.write_all(&[legacy::TAG_ERROR_RECORD])?;
-            legacy::write_bytes(&mut self.writer, &json)?;
-            self.writer.flush()?;
-            self.writer.get_ref().sync_data()?;
-            self.errors.push(error.clone());
-            self.update_desc_file("InProgress")?;
-            return Ok(());
+            writer.write_all(&[legacy::TAG_ERROR_RECORD])?;
+            legacy::write_bytes(writer, &json)?;
+            Ok(())
+            }, Self::sync_output)?;
+        } else {
+            self.writer.record_error_durable(error, Self::sync_output)?;
         }
-        let payload = JournalErrorRecordPayload::from_record(error)?;
-        let mut mst = DcMstring::new();
-        payload.encode_dc_mixed(&mut mst)?;
-
-        self.validate_segment(&mst)?;
-        self.writer.write_all(mst.payload_bytes())?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
         self.errors.push(error.clone());
-        self.update_desc_file("InProgress")?;
+        self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
     }
 
     /// Records a caveat or operational warning directly into the state journal and descriptor.
     pub fn record_warning(&mut self, code: &str, message: &str) -> Result<()> {
+        self.ensure_ready()?;
         // Reason for fallback: pre-epoch system clock failure defaults warning timestamp to 0
         let now_sec = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -772,35 +725,55 @@ impl JournalWriter {
             timestamp_sec: now_sec,
         };
         if self.is_legacy {
+            self.writer.transaction(|writer, _| {
             let json = serde_json::to_vec(&record)?;
-            self.writer.write_all(&[legacy::TAG_WARNING_RECORD])?;
-            legacy::write_bytes(&mut self.writer, &json)?;
-            self.writer.flush()?;
-            self.writer.get_ref().sync_data()?;
-            self.warnings.push(record);
-            self.update_desc_file("InProgress")?;
-            return Ok(());
+            writer.write_all(&[legacy::TAG_WARNING_RECORD])?;
+            legacy::write_bytes(writer, &json)?;
+            Ok(())
+            }, Self::sync_output)?;
+        } else {
+            self.writer.record_warning_durable(&record, Self::sync_output)?;
         }
-        let payload = JournalWarningRecordPayload::from_record(&record);
-        let mut mst = DcMstring::new();
-        payload.encode_dc_mixed(&mut mst)?;
-
-        self.validate_segment(&mst)?;
-        self.writer.write_all(mst.payload_bytes())?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
         self.warnings.push(record);
-        self.update_desc_file("InProgress")?;
+        self.persist_descriptor("InProgress".to_owned())?;
         Ok(())
     }
 
     /// Marks the job as failed with a specified reason and updates `.cscdesc`.
     pub fn mark_failed(&mut self, reason: &str) -> Result<()> {
         self.commit_batch().with_context(|| format!("Failed to commit pending journal records while marking failure: {reason}"))?;
-        self.writer.flush()?;
-        self.writer.get_ref().sync_data()?;
+        self.writer.transaction(|_, _| Ok(()), Self::sync_output)?;
         let status = format!("Failed: {reason}");
-        self.update_desc_file(&status)?;
+        self.persist_descriptor(status)?;
+        Ok(())
+    }
+
+    fn ensure_ready(&self) -> Result<()> {
+        ensure!(self.pending_descriptor_status.is_none(),
+            "Journal metadata repair pending; call retry_descriptor before writing");
+        self.writer.ensure_ready()
+    }
+
+    /// Returns the descriptor status awaiting metadata-only repair.
+    #[must_use]
+    pub fn pending_descriptor_status(&self) -> Option<&str> {
+        self.pending_descriptor_status.as_deref()
+    }
+
+    fn persist_descriptor(&mut self, status: String) -> Result<()> {
+        self.pending_descriptor_status = Some(status);
+        self.retry_descriptor()
+    }
+
+    /// Retries only a pending descriptor update, without writing journal bytes.
+    /// Failure retains the pending status and blocks further journal writes.
+    /// Success does not reopen a completed writer or permit duplicate completion.
+    pub fn retry_descriptor(&mut self) -> Result<()> {
+        let status = self.pending_descriptor_status.as_deref()
+            .context("No journal descriptor repair is pending")?;
+        self.update_desc_file(status)
+            .context("Journal operation is durable but descriptor update failed; retry_descriptor is required")?;
+        self.pending_descriptor_status = None;
         Ok(())
     }
 
@@ -1054,246 +1027,36 @@ pub fn read_v4_journal_snapshot(
     let nav_file = file
         .try_clone()
         .with_context(|| format!("Failed to clone file handle for {}", journal_path.display()))?;
-    let mut nav = ctb_formats_dcstring::DcDocumentNavigator::from_dcmm_file(nav_file, 8)
-        .with_context(|| format!("Invalid DcMixed journal header in {}", journal_path.display()))?;
-
-    let mut sources = Vec::new();
-    let mut destination = PathBuf::new();
-    let mut origin_platform = 0_u8;
-    let mut environment: Option<Arc<EnvDescription>> = None;
-    let mut shared_context = SharedValueContext::default();
-    let mut committed_entities = HashMap::new();
-    let mut pending_entities = HashMap::new();
-    let mut is_completed = false;
-    let mut last_batch_id = 0_u64;
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-    let mut valid_length = 0_u64;
-    let mut arena = ctb_formats_dcstring::DcSyntaxArena::new();
-
-    let nav_scan_policy = ctb_formats_dcstring::DcProjectionPolicy::forgiving_quiet();
-
-    // 1. Decode session header (Dc 547..548)
-    let first_stub = match nav.next_sibling_stub(&nav_scan_policy) {
-        Ok(Some(stub)) => stub,
-        Ok(None) => anyhow::bail!("Journal session header is incomplete"),
-        Err(err) => {
-            if err
-                .downcast_ref::<ctb_formats_dcstring::DcMixedError>()
-                .is_some_and(|e| {
-                    matches!(
-                        e,
-                        ctb_formats_dcstring::DcMixedError::UnsupportedLegacyType { .. }
-                    )
-                })
-            {
-                return Err(err).context("Invalid DcMixed journal structure");
-            }
-            anyhow::bail!("Journal session header is incomplete: {err:#}");
+    let scanned = scanner::scan::<FileEntity>(
+        nav_file, scanner::ReaderProfile::Journal { projection_policy: policy },
+    ).with_context(|| format!("Invalid DcMixed journal in {}", journal_path.display()))?;
+    let origin_platform = match u8::try_from(scanned.session.origin_platform) {
+        Ok(platform) => platform,
+        Err(_) => {
+            anyhow::ensure!(!policy.is_strict(), "Invalid origin platform code in session header");
+            current_platform()
         }
     };
-
-    if first_stub.head_dc == ctb_formats_dcdata::dc::DC_BEGIN_OPERATION_SESSION
-        && !first_stub.is_unclosed()
-    {
-        arena.clear();
-        let session: JournalSessionRecord = nav
-            .decode_frame_with_arena(&first_stub, &mut arena, None, policy)
-            .context("Failed to decode journal session header")?;
-
-        sources = session.sources;
-        destination = session.destination;
-        origin_platform = match u8::try_from(session.origin_platform) {
-            Ok(p) => p,
-            Err(_) => {
-                if policy.is_strict() {
-                    anyhow::bail!("Invalid origin platform code in session header");
-                }
-                current_platform()
-            }
+    let mut committed_entities = HashMap::new();
+    for entity in scanned.members {
+        let path_key = match entity.identity.path_bytes() {
+            Some(bytes) => bytes.to_vec(),
+            None => Vec::new(),
         };
-        environment = session.environment;
-        if let Some(ref env_arc) = environment {
-            let _ = shared_context
-                .insert(SESSION_ENVIRONMENT_BINDING, Arc::clone(env_arc));
-            let _ = shared_context.insert("environment", Arc::clone(env_arc));
-        }
-        valid_length = first_stub.outer_span.end;
+        committed_entities.insert(path_key, entity);
     }
-
-    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
-
-    // 2. Stream across top-level journal records at depth 0
-    loop {
-        let stub = match nav.next_sibling_stub(&nav_scan_policy) {
-            Ok(Some(stub)) => stub,
-            Ok(None) => break,
-            Err(err) => {
-                if err.downcast_ref::<std::io::Error>().is_some_and(|error| {
-                    error.kind() == std::io::ErrorKind::UnexpectedEof
-                }) {
-                    break;
-                }
-                return Err(err).context("Invalid DcMixed journal structure");
-            }
-        };
-
-        match stub.head_dc {
-            ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION => {
-                if stub.is_unclosed() {
-                    break;
-                }
-                let (batch_id, digest_valid) = match stub.header_info {
-                    ctb_formats_dcstring::DcFrameHeaderInfo::ChecksummedSection {
-                        sequence_id: Some(seq),
-                        digest_valid,
-                        ..
-                    } => (seq, digest_valid),
-                    _ => {
-                        anyhow::bail!("Missing sequence identifier in closed journal checksummed section");
-                    }
-                };
-
-                if !digest_valid {
-                    if policy.is_strict() {
-                        anyhow::ensure!(
-                            stub.outer_span.end == nav.active_span().end,
-                            "Digest mismatch in interior journal batch {batch_id}"
-                        );
-                        warn!("Digest mismatch in final journal checksummed section under strict policy; rolling back tail");
-                        break;
-                    }
-                    let message = format!("Journal batch {batch_id} was salvaged despite an invalid section digest; its integrity is not verified");
-                    policy.handle(policy.syntax_error, &message)?;
-                    warnings.push(JournalWarningRecord {
-                        code: "journal-digest-mismatch".to_owned(),
-                        message,
-                        timestamp_sec: 0,
-                    });
-                }
-
-                nav.enter_frame(&stub)?;
-                // Skip leading Dc 546 SequenceIdentifier stub
-                let seq_stub = nav.next_sibling_stub(&nav_scan_policy)?
-                    .context("Missing sequence identifier in closed journal batch")?;
-                anyhow::ensure!(
-                    seq_stub.head_dc == ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER,
-                    "Invalid sequence identifier in closed journal batch"
-                );
-
-                while let Some(entity_stub) = nav.next_sibling_stub(&nav_scan_policy)? {
-                    arena.clear();
-                    match nav.decode_frame_with_arena::<FileEntity>(&entity_stub, &mut arena, Some(&shared_context), policy) {
-                        Ok(entity) => {
-                            let path_key = match entity.identity.path_bytes() {
-                                Some(b) => b.to_vec(),
-                                None => Vec::new(),
-                            };
-                            pending_entities.insert(path_key, entity);
-                        }
-                        Err(err) => {
-                            return Err(err).with_context(|| {
-                                format!(
-                                    "Failed to decode FileEntity in journal batch {batch_id} (digest valid: {digest_valid}) of {} (pass --allow-journal-errors for forgiving recovery)",
-                                    journal_path.display()
-                                )
-                            });
-                        }
-                    }
-                }
-                nav.exit_frame()?;
-
-                last_batch_id = batch_id;
-                committed_entities.extend(pending_entities.drain());
-                is_completed = false;
-                valid_length = stub.outer_span.end;
-            }
-            ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED => {
-                let mut completion = DcMstring::new();
-                completion.push_char(ctb_formats_dcdata::dc::DC_OPERATION_COMPLETED);
-                anyhow::ensure!(
-                    stub.outer_span.len() == u64::try_from(completion.payload_bytes().len())?,
-                    "Escaped operation-completed character is not a journal completion record"
-                );
-                if !pending_entities.is_empty() {
-                    break;
-                }
-                is_completed = true;
-                valid_length = stub.outer_span.end;
-            }
-            ctb_formats_dcdata::dc::DC_BEGIN_ERROR_RECORD => {
-                if stub.is_unclosed() {
-                    break;
-                }
-                arena.clear();
-                let payload: JournalErrorRecordPayload = nav.decode_frame_with_arena(
-                    &stub,
-                    &mut arena,
-                    Some(&shared_context),
-                    policy,
-                ).context("Failed to decode closed journal error record")?;
-                errors.push(payload.to_record(policy)?);
-                valid_length = stub.outer_span.end;
-            }
-            ctb_formats_dcdata::dc::DC_BEGIN_WARNING_RECORD => {
-                if stub.is_unclosed() {
-                    break;
-                }
-                arena.clear();
-                let payload = match nav.decode_frame_with_arena::<JournalWarningRecordPayload>(
-                    &stub,
-                    &mut arena,
-                    Some(&shared_context),
-                    policy,
-                ) {
-                    Ok(payload) => payload,
-                    Err(timestamped_error) => {
-                        arena.clear();
-                        match nav.decode_frame_with_arena::<JournalWarningRecordStringPayload>(
-                            &stub,
-                            &mut arena,
-                            Some(&shared_context),
-                            policy,
-                        ) {
-                            Ok(payload) => JournalWarningRecordPayload {
-                                message: payload.message,
-                                timestamp: UNIX_EPOCH,
-                            },
-                            Err(string_error) => {
-                                return Err(string_error).with_context(|| format!(
-                                    "Failed to decode closed journal warning record (timestamped form: {timestamped_error:#})"
-                                ));
-                            }
-                        }
-                    }
-                };
-                warnings.push(payload.to_record());
-                valid_length = stub.outer_span.end;
-            }
-            _ => {
-                anyhow::bail!(
-                    "Unsupported journal record {:?} at offset {}",
-                    stub.head_dc,
-                    stub.outer_span.start
-                );
-            }
-        }
-    }
-
-    anyhow::ensure!(valid_length > 0, "Journal session header is incomplete");
-
     Ok(JournalSnapshot {
-        sources,
-        destination,
+        sources: scanned.session.sources,
+        destination: scanned.session.destination,
         origin_platform,
         committed_entities,
-        is_completed,
-        last_batch_id,
-        valid_length,
+        is_completed: scanned.completed,
+        last_batch_id: scanned.sequence,
+        valid_length: scanned.valid_length,
         noatime_used,
-        environment,
-        errors,
-        warnings,
+        environment: scanned.session.environment,
+        errors: scanned.errors,
+        warnings: scanned.warnings,
     })
 }
 
@@ -1339,6 +1102,224 @@ mod tests {
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn journal_failed_commit_preserves_counters_queue_and_refuses_retry() -> Result<()> {
+        for fault in ["encoding", "write", "flush", "sync"] {
+            let temporary = tempdir()?;
+            let journal = temporary.path().join("copy.cscjournal");
+            let description = temporary.path().join("copy.cscdesc");
+            let mut writer = JournalWriter::create_at_path(&journal, &description, &[], temporary.path())?;
+            let entity = FileEntity::from_vec(b"payload".to_vec());
+            writer.record_entity(&entity);
+            writer.commit_batch()?;
+            writer.record_entity(&entity);
+            let mut second = entity.clone();
+            if fault == "encoding" {
+                second.metadata.read_time = Some(UNIX_EPOCH.checked_sub(std::time::Duration::from_secs(1)).context("Test time underflow")?);
+            }
+            writer.record_entity(&second);
+            match fault {
+                "write" => {
+                    let output = File::open(&journal)?;
+                    writer.writer = writer.writer.map_output(|_| BufWriter::with_capacity(0, output));
+                }
+                "flush" => {
+                    let output = File::open(&journal)?;
+                    writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
+                }
+                "sync" => {
+                    let output = OpenOptions::new().write(true).open("/dev/null")?;
+                    writer.writer = writer.writer.map_output(|_| BufWriter::new(output));
+                }
+                _ => {}
+            }
+            let description_before = fs::read(&description)?;
+            ensure!(writer.commit_batch().is_err(), "Accepted {fault} failure");
+            ensure!(writer.current_batch_id == 1 && writer.total_committed_files == 1 && writer.total_committed_bytes == 7);
+            ensure!(writer.uncommitted_entities == vec![entity, second]);
+            ensure!(writer.writer.is_failed());
+            let bytes_after_failure = fs::read(&journal)?;
+            ensure!(writer.commit_batch().is_err());
+            ensure!(writer.mark_completed().is_err());
+            ensure!(writer.record_warning("late", "must fail").is_err());
+            ensure!(writer.mark_failed("failed commit").is_err());
+            ensure!(writer.current_batch_id == 1 && writer.total_committed_files == 1 && writer.total_committed_bytes == 7);
+            ensure!(writer.uncommitted_entities.len() == 2);
+            ensure!(fs::read(&journal)? == bytes_after_failure && fs::read(&description)? == description_before);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn journal_descriptor_failure_requires_metadata_only_repair() -> Result<()> {
+        for legacy in [false, true] {
+            for operation in ["batch", "completion", "warning", "error", "failure"] {
+                let temporary = tempdir()?;
+                let journal = temporary.path().join("copy.cscjournal");
+                let description = temporary.path().join("copy.cscdesc");
+                let mut writer = journal_lifecycle_writer(&journal, &description, legacy)?;
+                let mut entity = FileEntity::from_vec(b"payload".to_vec());
+                entity.identity.relative_path = Some("payload".into());
+                writer.record_entity(&entity);
+                writer.commit_batch()?;
+                let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("injected"));
+                if operation == "completion" {
+                    writer.record_error(&error)?;
+                }
+                fs::remove_file(&description)?;
+                fs::create_dir(&description)?;
+                let result = match operation {
+                    "batch" => {
+                        entity.identity.relative_path = Some("second".into());
+                        writer.record_entity(&entity);
+                        writer.commit_batch()
+                    }
+                    "completion" => writer.mark_completed(),
+                    "warning" => writer.record_warning("injected", "warning"),
+                    "error" => writer.record_error(&error),
+                    _ => writer.mark_failed("injected"),
+                };
+                ensure!(format!("{:#}", result.expect_err("Descriptor failure must propagate")).contains("operation is durable"));
+                let status = writer.pending_descriptor_status().context("Missing pending descriptor")?.to_owned();
+                ensure!(status == match operation {
+                    "completion" => "Completed with 1 error(s)",
+                    "failure" => "Failed: injected",
+                    _ => "InProgress",
+                });
+                let bytes = fs::read(&journal)?;
+                let counters = (writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes);
+                ensure!(writer.uncommitted_entities.is_empty());
+                ensure!(!writer.writer.is_failed());
+                ensure!(writer.retry_descriptor().is_err());
+                ensure!(writer.commit_batch().is_err());
+                ensure!(writer.mark_completed().is_err());
+                ensure!(writer.record_warning("blocked", "blocked").is_err());
+                ensure!(writer.record_error(&error).is_err());
+                ensure!(writer.mark_failed("blocked").is_err());
+                ensure!(writer.pending_descriptor_status() == Some(status.as_str()));
+                ensure!(fs::read(&journal)? == bytes);
+                fs::remove_dir(&description)?;
+                writer.retry_descriptor()?;
+                ensure!(writer.pending_descriptor_status().is_none());
+                ensure!(fs::read(&journal)? == bytes);
+                ensure!((writer.current_batch_id, writer.total_committed_files, writer.total_committed_bytes) == counters);
+                let descriptor = fs::read_to_string(&description)?;
+                ensure!(descriptor.contains(&format!("Status: {status}\n")));
+                ensure!(descriptor.contains(&format!("FilesCommitted: {}\nBytesCommitted: {}\n", counters.1, counters.2)));
+                ensure!(descriptor.contains(&format!("ErrorsCount: {}\n", writer.errors().len())));
+                ensure!(descriptor.contains(&format!("WarningsCount: {}\n", writer.warnings().len())));
+                ensure!(writer.retry_descriptor().is_err());
+                if operation == "completion" {
+                    ensure!(writer.mark_completed().is_err());
+                    ensure!(writer.record_warning("late", "late").is_err());
+                    ensure!(fs::read(&journal)? == bytes);
+                } else {
+                    writer.mark_completed()?;
+                }
+                let snapshot = read_journal_snapshot(&journal)?;
+                ensure!(snapshot.is_completed && snapshot.last_batch_id == counters.0);
+            }
+        }
+        Ok(())
+    }
+
+    fn journal_lifecycle_writer(journal: &Path, description: &Path, legacy: bool) -> Result<JournalWriter> {
+        if !legacy {
+            return JournalWriter::create_at_path(journal, description, &[], Path::new(""));
+        }
+        let mut bytes = JOURNAL_MAGIC_V1.to_vec();
+        bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
+        write_u32(&mut bytes, 0)?;
+        write_bytes(&mut bytes, b"")?;
+        fs::write(journal, bytes)?;
+        let snapshot = read_journal_snapshot(journal)?;
+        JournalWriter::open_for_resume(journal, description, &snapshot)
+    }
+
+    #[crate::ctb_test]
+    fn journal_resume_preserves_completed_diagnostics_and_prefix() -> Result<()> {
+        for legacy in [false, true] {
+            let temporary = tempdir()?;
+            let journal = temporary.path().join("copy.cscjournal");
+            let description = temporary.path().join("copy.cscdesc");
+            let mut writer = journal_lifecycle_writer(&journal, &description, legacy)?;
+            let mut entity = FileEntity::from_vec(b"original".to_vec());
+            entity.identity.relative_path = Some("original".into());
+            writer.record_entity(&entity);
+            writer.mark_completed()?;
+            drop(writer);
+            let warning = JournalWarningRecord { code: "historical".into(), message: "warning".into(), timestamp_sec: 1 };
+            let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("historical"));
+            let mut output = OpenOptions::new().append(true).open(&journal)?;
+            if legacy {
+                output.write_all(&[legacy::TAG_WARNING_RECORD])?;
+                write_bytes(&mut output, &serde_json::to_vec(&warning)?)?;
+                output.write_all(&[legacy::TAG_ERROR_RECORD])?;
+                write_bytes(&mut output, &serde_json::to_vec(&error)?)?;
+            } else {
+                let mut diagnostics = DcMstring::new();
+                JournalWarningRecordPayload::from_record(&warning).encode_dc_mixed(&mut diagnostics)?;
+                JournalErrorRecordPayload::from_record(&error)?.encode_dc_mixed(&mut diagnostics)?;
+                output.write_all(diagnostics.payload_bytes())?;
+            }
+            output.sync_all()?;
+            drop(output);
+            let prefix = fs::read(&journal)?;
+            let snapshot = read_journal_snapshot(&journal)?;
+            ensure!(snapshot.is_completed && snapshot.valid_length == u64::try_from(prefix.len())?);
+            let mut resumed = JournalWriter::open_for_resume(&journal, &description, &snapshot)?;
+            ensure!(fs::read(&journal)? == prefix);
+            entity.identity.relative_path = Some("resumed".into());
+            resumed.record_entity(&entity);
+            resumed.commit_batch()?;
+            let snapshot = read_journal_snapshot(&journal)?;
+            ensure!(!snapshot.is_completed && snapshot.last_batch_id == 2);
+            ensure!(snapshot.is_committed(b"original") && snapshot.is_committed(b"resumed"));
+            ensure!(snapshot.warnings.len() == 1 && snapshot.warnings.first() == Some(&warning));
+            ensure!(snapshot.errors.len() == 1 && snapshot.errors.first() == Some(&error));
+            resumed.mark_completed()?;
+            ensure!(fs::read(&journal)?.starts_with(&prefix));
+            let snapshot = read_journal_snapshot(&journal)?;
+            ensure!(snapshot.is_completed && snapshot.errors.len() == 1 && snapshot.warnings.len() == 1);
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn journal_completion_refuses_reuse_and_explicit_resume_reopens() -> Result<()> {
+        let temporary = tempdir()?;
+        let journal = temporary.path().join("copy.cscjournal");
+        let description = temporary.path().join("copy.cscdesc");
+        let mut writer = JournalWriter::create_at_path(&journal, &description, &[], temporary.path())?;
+        writer.mark_completed()?;
+        let completed = fs::read(&journal)?;
+        ensure!(writer.mark_completed().is_err());
+        ensure!(writer.record_warning("late", "must fail").is_err());
+        let error = JournalErrorRecord::from_error(temporary.path(), JournalErrorStage::PayloadRead, &anyhow::anyhow!("late"));
+        ensure!(writer.record_error(&error).is_err());
+        let mut entity = FileEntity::from_vec(b"resumed".to_vec());
+        entity.identity.relative_path = Some("resumed".into());
+        writer.record_entity(&entity);
+        ensure!(writer.commit_batch().is_err() && writer.mark_completed().is_err());
+        ensure!(writer.uncommitted_entities.len() == 1 && writer.current_batch_id == 0);
+        ensure!(fs::read(&journal)? == completed);
+        drop(writer);
+        let snapshot = read_journal_snapshot(&journal)?;
+        ensure!(snapshot.is_completed);
+        let mut resumed = JournalWriter::open_for_resume(&journal, &description, &snapshot)?;
+        ensure!(fs::read(&journal)? == completed);
+        ensure!(read_journal_snapshot(&journal)?.is_completed);
+        resumed.record_entity(&entity);
+        resumed.commit_batch()?;
+        ensure!(!read_journal_snapshot(&journal)?.is_completed);
+        resumed.mark_completed()?;
+        ensure!(fs::read(&journal)?.starts_with(&completed));
+        let snapshot = read_journal_snapshot(&journal)?;
+        ensure!(snapshot.is_completed && snapshot.last_batch_id == 1 && snapshot.is_committed(b"resumed"));
+        Ok(())
+    }
 
     #[crate::ctb_test]
     fn diagnostic_mark_failed_propagates_pending_encoding_failure() -> Result<()> {
@@ -1774,7 +1755,7 @@ mod tests {
         assert!(snapshot.committed_entities.get(b"unknown".as_slice()).context("Missing unknown")?.metadata.environment.is_none());
         assert!(snapshot.committed_entities.get(b"equal".as_slice()).context("Missing equal")?.metadata.environment.as_ref().is_some_and(|value| Arc::ptr_eq(value, stored)));
         let mut payload = Vec::new();
-        write_entity_payload(&mut payload, &entity, &writer.shared_context)?;
+        write_entity_payload(&mut payload, &entity, writer.writer.context())?;
         assert!(read_entity_payload(&payload, current_platform(), &SharedValueContext::default(), &ctb_formats_dcstring::DcProjectionPolicy::strict()).is_err());
         Ok(())
     }

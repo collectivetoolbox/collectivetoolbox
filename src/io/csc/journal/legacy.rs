@@ -445,12 +445,6 @@ pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
                 batch_hasher = Sha256Stream::new();
 
                 let mut mst = DcMstring::new();
-                mst.push_char(ctb_formats_dcdata::dc::DC_BEGIN_CHECKSUMMED_SECTION);
-
-                let payload_start = mst.payload_bytes().len();
-                mst.push_char(ctb_formats_dcdata::dc::DC_SEQUENCE_IDENTIFIER);
-                batch_id.encode_dc_mixed(&mut mst)?;
-
                 for entity in &pending_entities {
                     if let Some(read_time) = entity.metadata.read_time {
                         read_time
@@ -460,18 +454,10 @@ pub fn convert_legacy_journal_to_v4_with_policy<R: Read + Seek, W: Write>(
                     entity.encode_dc_mixed_with_context(&mut mst, &shared_context)?;
                 }
 
-                let payload_end = mst.payload_bytes().len();
-                let section_bytes = mst
-                    .payload_bytes()
-                    .get(payload_start..payload_end)
-                    .context("Invalid payload slice range for journal section")?;
-                let digest = ctb_formats_checksum::sha256(section_bytes);
-
-                mst.push_char(ctb_formats_dcdata::dc::DC_END_CHECKSUMMED_SECTION);
-                mst.push_char(ctb_formats_dcdata::dc::DC_SECTION_DIGEST);
-                mst.push_checksum(ctb_utilities::format_id::DC_SHA256, &digest)?;
-
-                writer.write_all(mst.payload_bytes())?;
+                crate::section::write_section(writer, batch_id, |output| {
+                    output.write_all(mst.payload_bytes())?;
+                    Ok(())
+                })?;
                 pending_entities.clear();
             }
             TAG_JOB_COMPLETED => {

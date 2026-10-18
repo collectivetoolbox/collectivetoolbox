@@ -682,7 +682,7 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
-        let mut entity = Self::from_filesystem_internal(path, base_dir, true)?;
+        let mut entity = Self::from_filesystem_internal(path, base_dir, true, None)?;
         crate::apple_double::join_apple_double_or_single(
             &mut entity,
             path,
@@ -710,12 +710,23 @@ impl FileEntity {
         base_dir: Option<&Path>,
         apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
-        let mut entity = Self::from_filesystem_internal(path, base_dir, false)?;
-        crate::apple_double::join_apple_double_or_single(
+        Self::from_filesystem_metadata_only_captured(path, base_dir, apple_options, None)
+    }
+
+    /// Captures metadata with an optional physical source lifecycle binding.
+    pub fn from_filesystem_metadata_only_captured(
+        path: &Path,
+        base_dir: Option<&Path>,
+        apple_options: &crate::apple_double::AppleReadOptions,
+        snapshot: Option<&crate::payload::SourceSnapshot>,
+    ) -> Result<Self> {
+        let mut entity = Self::from_filesystem_internal(path, base_dir, false, snapshot)?;
+        crate::apple_double::join_apple_double_or_single_captured(
             &mut entity,
             path,
             base_dir,
             apple_options,
+            snapshot,
         )?;
         Ok(entity)
     }
@@ -725,6 +736,7 @@ impl FileEntity {
         path: &Path,
         _base_dir: Option<&Path>,
         _compute_hash: bool,
+        _snapshot: Option<&crate::payload::SourceSnapshot>,
     ) -> Result<Self> {
         anyhow::bail!("Lossless filesystem capture (native identity, security metadata, and streams) is not implemented on this platform: {}", path.display())
     }
@@ -734,6 +746,7 @@ impl FileEntity {
         path: &Path,
         base_dir: Option<&Path>,
         compute_hash: bool,
+        _snapshot: Option<&crate::payload::SourceSnapshot>,
     ) -> Result<Self> {
         use std::os::windows::fs::MetadataExt;
         use windows_sys::Win32::Storage::FileSystem::{
@@ -957,6 +970,7 @@ impl FileEntity {
         path: &Path,
         base_dir: Option<&Path>,
         compute_hash: bool,
+        snapshot: Option<&crate::payload::SourceSnapshot>,
     ) -> Result<Self> {
         let sym_meta = match std::fs::symlink_metadata(path) {
             Ok(m) => m,
@@ -976,7 +990,9 @@ impl FileEntity {
         let symlink_target = if is_symlink {
             let target_result = std::fs::read_link(path)
                 .with_context(|| format!("Failed to read symlink target for {}", path.display()));
-            if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+            if let Some(snapshot) = snapshot {
+                snapshot.restore_symlink_access_time(&sym_meta)?;
+            } else if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
                 warnings.push(format!("Failed to restore source symlink timestamps after reading {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
             let target = target_result?;
@@ -1244,7 +1260,9 @@ impl FileEntity {
 
         #[cfg(unix)]
         if is_symlink {
-            if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
+            if let Some(snapshot) = snapshot {
+                snapshot.restore_symlink_access_time(&sym_meta)?;
+            } else if let Err(error) = crate::metadata::restore_symlink_access_time(path, &sym_meta) {
                 metadata.push_warning(format!("Failed to restore source symlink timestamps after reading streams on {}: {error:#}; inspection may have changed source metadata", path.display()));
             }
         }

@@ -101,6 +101,52 @@ stronger guarantees.
 	Native Windows runtime, a new executable smoke run, and generated CLI reference
 	refresh remain unverified. The latest disk check left 31 GB free.
 
+### Journal Consolidation Audit
+
+Status: **Verified for the four reviewed findings on Linux**. This is a bounded
+architecture/correctness refactor, not completion of archive production readiness.
+
+1. Writer ownership and failure state: both formats use the existing journal
+	module's `RecordWriter`. `ArchiveWriter` is only a type alias. Header/profile,
+	context, sequence, diagnostics, source/sink poisoning, rollback eligibility,
+	and completion are implemented once. Journal accounting advances only after
+	successful durability; failed transactions cannot be retried into partial data.
+2. Completion lifecycle: the shared engine enforces terminal completion. Explicit
+	journal reopen preserves historical completion markers and trailing diagnostics
+	without truncating them. Post-durability descriptor failures block further
+	journal operations until `retry_descriptor` repairs metadata without duplicating
+	bytes, markers, or counters. Source/tree validation and warning persistence run
+	before completion, including best-effort and continue-on-error paths.
+3. Source capture reuse: journal-owned capture primitives serve copy and archive
+	discovery, physical snapshots, hashing, provenance, recursive warnings, payload
+	binding/finalization, and committed hardlink tracking. Live directory inventories
+	are checked across planning, capture, and completion. Deliberately interpreted
+	Apple companions are guarded dependencies; decoded AppleSingle payloads are
+	reused rather than independently reread by CSC. Cleanup and late best-effort
+	warnings are retained before completion, not discarded with local snapshots.
+4. Format/scanner reuse: both readers use one journal-owned modern scanner with
+	explicit compatibility profiles and separate projections. Existing journal
+	batching/top-level diagnostics and archive singleton checked records retain
+	their wire layouts; compatibility differences are policies, not separate
+	parsing/commit implementations. Legacy conversion shares section framing.
+
+Independent GPT-6.1 Sol audits found additional resume, descriptor, finalization,
+and warning-retention defects during review; those were repaired and re-audited.
+All 438 musl tests/doctests passed with no failures or ignored tests, including
+byte-differential, scanner-policy, legacy/journal-v4, failure-injection, and source
+change regressions. Scoped file/CSC/CLI Clippy and editor diagnostics passed.
+
+The physical symlink capture test now explicitly asserts either clean capture or
+the retained, non-successful Unix ctime-loss outcome. A separate declared-payload
+fixture always exercises source-free hardlink/symlink/stream restoration. Default
+archive capture preserves raw Apple container and companion entries; deliberate
+interpretation retains strict malformed/ambiguous-companion validation.
+
+Windows recompilation initially deferred at the disk guard, then passed for
+file/CSC tests after available space recovered to 31 GB. Native Windows execution
+and full-binary smoke tests were not performed for this refactor. Those runtime
+checks remain unverified, not passes.
+
 #### Pending Work
 
 - Qualify authorization under hostile concurrent mutation and replace remaining

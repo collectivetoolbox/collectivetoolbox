@@ -1464,6 +1464,21 @@ fn parse_files_manifest(
     })
 }
 
+fn is_archive_org_host(host: &str) -> bool {
+    let host_no_port = host.split(':').next().unwrap_or(host);
+    let host_clean = host_no_port.strip_suffix('.').unwrap_or(host_no_port);
+    host_clean.eq_ignore_ascii_case("archive.org")
+        || host_clean
+            .to_ascii_lowercase()
+            .ends_with(".archive.org")
+}
+
+fn is_wayback_host(host: &str) -> bool {
+    let host_no_port = host.split(':').next().unwrap_or(host);
+    let host_clean = host_no_port.strip_suffix('.').unwrap_or(host_no_port);
+    host_clean.eq_ignore_ascii_case("web.archive.org")
+}
+
 fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
     let trimmed = target.trim();
     if trimmed.is_empty() {
@@ -1473,88 +1488,107 @@ fn parse_archive_target(target: &str) -> Result<ArchiveTarget> {
     let url_candidate =
         if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
             Some(trimmed.to_string())
-        } else if trimmed.starts_with("archive.org/")
-            || trimmed.starts_with("www.archive.org/")
-        {
-            Some(format!("https://{trimmed}"))
+        } else if let Some((host_candidate, _)) = trimmed.split_once('/') {
+            if is_archive_org_host(host_candidate) {
+                Some(format!("https://{trimmed}"))
+            } else {
+                None
+            }
         } else {
             None
         };
 
+    if is_archive_org_host(trimmed) {
+        bail!("An Internet Archive identifier is required");
+    }
+
     if let Some(url_str) = url_candidate {
-        if let Ok(url) = reqwest::Url::parse(&url_str)
-            && let Some(host) = url.host_str()
-            && (host == "archive.org" || host == "www.archive.org")
-        {
-            let segments: Vec<&str> = url
-                .path_segments()
-                // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
-                .map(|segs| {
-                    segs.filter(|segment| !segment.is_empty()).collect()
-                })
-                .unwrap_or_default();
-
-            if let Some(first) = segments.first() {
-                let (ident_segment, path_slice) = if matches!(
-                    *first,
-                    "details"
-                        | "download"
-                        | "metadata"
-                        | "stream"
-                        | "embed"
-                        | "items"
-                ) {
-                    let Some(ident_raw) = segments.get(1) else {
-                        bail!("An Internet Archive identifier is required");
-                    };
-                    let path_slice = match segments.get(2..) {
-                        Some(slice) => slice,
-                        None => &[],
-                    };
-                    (*ident_raw, path_slice)
-                } else {
-                    let path_slice = match segments.get(1..) {
-                        Some(slice) => slice,
-                        None => &[],
-                    };
-                    (*first, path_slice)
-                };
-
-                let ident = percent_encoding::percent_decode_str(ident_segment)
-                    .decode_utf8()
-                    .context("Invalid UTF-8 in identifier")?;
-                if !is_probable_identifier(&ident) {
-                    bail!(
-                        "{ident} is not a plausible Internet Archive identifier"
-                    );
-                }
-
-                let archive_path = if path_slice.is_empty() {
-                    None
-                } else {
-                    let mut parts = Vec::new();
-                    for part in path_slice {
-                        let decoded =
-                            percent_encoding::percent_decode_str(part)
-                                .decode_utf8()
-                                .context("Invalid UTF-8 in archive path")?;
-                        parts.push(decoded.into_owned());
-                    }
-                    let path_str = parts.join("/");
-                    if path_str.is_empty() {
-                        None
-                    } else {
-                        Some(path_str)
-                    }
-                };
-
-                return Ok(ArchiveTarget {
-                    identifier: ident.into_owned(),
-                    archive_path,
-                });
-            }
-            bail!("An Internet Archive identifier is required");
+        let url = reqwest::Url::parse(&url_str)
+            .map_err(|e| anyhow!("Failed to parse URL '{url_str}': {e}"))?;
+        let Some(host) = url.host_str() else {
+            bail!("URL has no host: {url_str}");
+        };
+        if is_wayback_host(host) {
+            bail!(
+                "Wayback Machine URLs (web.archive.org) are not supported as item targets"
+            );
         }
+        if !is_archive_org_host(host) {
+            bail!("'{host}' is not an Internet Archive host");
+        }
+
+        let segments: Vec<&str> = url
+            .path_segments()
+            // Reason for fallback: URL without a path produces empty segments; empty list safely avoids panic.
+            .map(|segs| {
+                segs.filter(|segment| !segment.is_empty()).collect()
+            })
+            .unwrap_or_default();
+
+        let keyword_pos = segments.iter().position(|segment| {
+            matches!(
+                *segment,
+                "details"
+                    | "download"
+                    | "metadata"
+                    | "stream"
+                    | "embed"
+                    | "items"
+            )
+        });
+
+        let (ident_segment, path_slice) = if let Some(idx) = keyword_pos {
+            let Some(ident_raw) = segments.get(idx.saturating_add(1)) else {
+                bail!("An Internet Archive identifier is required");
+            };
+            let path_slice = match segments.get(idx.saturating_add(2)..) {
+                Some(slice) => slice,
+                None => &[],
+            };
+            (*ident_raw, path_slice)
+        } else {
+            let Some(first) = segments.first() else {
+                bail!("An Internet Archive identifier is required");
+            };
+            let path_slice = match segments.get(1..) {
+                Some(slice) => slice,
+                None => &[],
+            };
+            (*first, path_slice)
+        };
+
+        let ident = percent_encoding::percent_decode_str(ident_segment)
+            .decode_utf8()
+            .context("Invalid UTF-8 in identifier")?;
+        if !is_probable_identifier(&ident) {
+            bail!(
+                "{ident} is not a plausible Internet Archive identifier"
+            );
+        }
+
+        let archive_path = if path_slice.is_empty() {
+            None
+        } else {
+            let mut parts = Vec::new();
+            for part in path_slice {
+                let decoded =
+                    percent_encoding::percent_decode_str(part)
+                        .decode_utf8()
+                        .context("Invalid UTF-8 in archive path")?;
+                parts.push(decoded.into_owned());
+            }
+            let path_str = parts.join("/");
+            if path_str.is_empty() {
+                None
+            } else {
+                Some(path_str)
+            }
+        };
+
+        return Ok(ArchiveTarget {
+            identifier: ident.into_owned(),
+            archive_path,
+        });
     }
 
     parse_archive_target_path(trimmed)
@@ -2112,6 +2146,30 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_checkeddl_with_client_data_node_url() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let data_node_url = format!(
+            "https://dn711000.ca.archive.org/0/items/{TEST_IDENTIFIER}/{AUDIO_FILE_NAME}"
+        );
+        let result = checkeddl_with_client(
+            &fixture_client(),
+            &data_node_url,
+            Some(temp_dir.path()),
+            false,
+            Progress::new(false),
+        )
+        .unwrap();
+        let result_json: serde_json::Value =
+            serde_json::from_slice(&result).unwrap();
+
+        assert_eq!(result_json["valid"], true);
+        assert_eq!(
+            result_json["checked_files"],
+            serde_json::json!([AUDIO_FILE_NAME])
+        );
+    }
+
+    #[crate::ctb_test]
     fn test_checkeddl_with_client_original() {
         let temp_dir = tempfile::tempdir().unwrap();
         let result = checkeddl_with_client(
@@ -2200,9 +2258,50 @@ mod tests {
         assert_eq!(target.identifier, "populationschedu1331unix");
         assert_eq!(target.archive_path, Some("01 Track 01.m4a".to_string()));
 
+        let data_node_url = "https://dn711000.ca.archive.org/0/items/prideandprejudice_1005_librivox/prideandprejudice_01_austen.ogg";
+        let target = parse_archive_target(data_node_url).unwrap();
+        assert_eq!(target.identifier, "prideandprejudice_1005_librivox");
+        assert_eq!(
+            target.archive_path,
+            Some("prideandprejudice_01_austen.ogg".to_string())
+        );
+
+        let data_node_no_scheme = "dn711000.ca.archive.org/0/items/prideandprejudice_1005_librivox/prideandprejudice_01_austen.ogg";
+        let target = parse_archive_target(data_node_no_scheme).unwrap();
+        assert_eq!(target.identifier, "prideandprejudice_1005_librivox");
+        assert_eq!(
+            target.archive_path,
+            Some("prideandprejudice_01_austen.ogg".to_string())
+        );
+
+        let us_node_url = "https://ia800100.us.archive.org/3/items/prideandprejudice_1005_librivox/prideandprejudice_01_austen.ogg";
+        let target = parse_archive_target(us_node_url).unwrap();
+        assert_eq!(target.identifier, "prideandprejudice_1005_librivox");
+        assert_eq!(
+            target.archive_path,
+            Some("prideandprejudice_01_austen.ogg".to_string())
+        );
+
+        let node_no_disk_url = "https://ia600201.us.archive.org/items/prideandprejudice_1005_librivox/prideandprejudice_01_austen.ogg";
+        let target = parse_archive_target(node_no_disk_url).unwrap();
+        assert_eq!(target.identifier, "prideandprejudice_1005_librivox");
+        assert_eq!(
+            target.archive_path,
+            Some("prideandprejudice_01_austen.ogg".to_string())
+        );
+
+        let node_item_only = "https://dn711000.ca.archive.org/0/items/prideandprejudice_1005_librivox";
+        let target = parse_archive_target(node_item_only).unwrap();
+        assert_eq!(target.identifier, "prideandprejudice_1005_librivox");
+        assert_eq!(target.archive_path, None);
+
         parse_archive_target("").unwrap_err();
         parse_archive_target("https://archive.org/details/").unwrap_err();
         parse_archive_target("https://archive.org/").unwrap_err();
+        parse_archive_target("https://dn711000.ca.archive.org/0/items/").unwrap_err();
+        parse_archive_target("https://dn711000.ca.archive.org/").unwrap_err();
+        parse_archive_target("https://web.archive.org/web/20261018/https://example.com").unwrap_err();
+        parse_archive_target("https://example.com/items/test/file.ogg").unwrap_err();
     }
 
     #[crate::ctb_test]

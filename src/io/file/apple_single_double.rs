@@ -400,6 +400,16 @@ pub fn join_apple_double_or_single(
     base_dir: Option<&Path>,
     options: &AppleReadOptions,
 ) -> Result<()> {
+    join_apple_double_or_single_captured(entity, file_path, base_dir, options, None)
+}
+
+pub(crate) fn join_apple_double_or_single_captured(
+    entity: &mut FileEntity,
+    file_path: &Path,
+    base_dir: Option<&Path>,
+    options: &AppleReadOptions,
+    snapshot: Option<&crate::payload::SourceSnapshot>,
+) -> Result<()> {
     // 1. If any AppleSingle read style is enabled and this is a regular file, check if it's AppleSingle
     if options.any_apple_single() && entity.is_regular() {
         // Reason for fallback: file path without a file name component defaults to verbatim OsStr
@@ -420,38 +430,24 @@ pub fn join_apple_double_or_single(
         };
 
         if let Some(matched_ext) = single_match {
-            let is_single_magic = match std::fs::File::open(file_path) {
-                Ok(mut f) => {
-                    use std::io::Read;
-                    let mut magic = [0u8; 4];
-                    if f.read_exact(&mut magic).is_ok() {
-                        let m = u32::from_be_bytes(magic);
-                        m == APPLESINGLE_MAGIC_BE || m == APPLESINGLE_MAGIC_LE
-                    } else {
-                        false
-                    }
+            if let Some(data) = read_captured_apple_input(file_path, snapshot, true)? {
+                let archive = read_apple_single_double(&data)?;
+                ensure!(archive.format == AppleFormat::AppleSingle, "Recognized container is not AppleSingle");
+                unpack_apple_single_into_entity(entity, &archive)?;
+                if let Some(snapshot) = snapshot {
+                    // Reason for fallback: empty data fork represents empty file payload
+                    snapshot.set_interpreted_payload(archive.data_fork.clone().unwrap_or_default())?;
                 }
-                Err(_) => false,
-            };
-
-            if is_single_magic {
-                if let Ok(data) = std::fs::read(file_path) {
-                    if let Ok(archive) = read_apple_single_double(&data) {
-                        if archive.format == AppleFormat::AppleSingle {
-                            unpack_apple_single_into_entity(entity, &archive)?;
-                            match matched_ext {
-                                AppleSingleExtension::As => {
-                                    strip_apple_single_extension_from_entity(entity, AppleSingleExtension::As);
-                                }
-                                AppleSingleExtension::Asf => {
-                                    strip_apple_single_extension_from_entity(entity, AppleSingleExtension::Asf);
-                                }
-                                AppleSingleExtension::WithoutExtension => {}
-                            }
-                            return Ok(());
-                        }
+                match matched_ext {
+                    AppleSingleExtension::As => {
+                        strip_apple_single_extension_from_entity(entity, AppleSingleExtension::As);
                     }
+                    AppleSingleExtension::Asf => {
+                        strip_apple_single_extension_from_entity(entity, AppleSingleExtension::Asf);
+                    }
+                    AppleSingleExtension::WithoutExtension => {}
                 }
+                return Ok(());
             }
         }
     }
@@ -499,20 +495,45 @@ pub fn join_apple_double_or_single(
         companion_candidates.push(path);
     }
 
+    let mut existing = Vec::new();
     for companion_path in companion_candidates {
-        if companion_path.is_file() {
-            if let Ok(data) = std::fs::read(&companion_path) {
-                if let Ok(archive) = read_apple_single_double(&data) {
-                    if archive.format == AppleFormat::AppleDouble {
-                        join_apple_archive_into_entity(entity, &archive)?;
-                        break;
-                    }
-                }
+        match std::fs::symlink_metadata(&companion_path) {
+            Ok(metadata) => {
+                ensure!(metadata.is_file(), "AppleDouble companion is not a regular file: {}", companion_path.display());
+                if !existing.contains(&companion_path) { existing.push(companion_path); }
             }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => return Err(error).context("Cannot inspect AppleDouble companion"),
         }
+    }
+    ensure!(existing.len() <= 1, "Multiple AppleDouble companions for {}", file_path.display());
+    if let Some(companion_path) = existing.first() {
+        let dependency = snapshot.map(|snapshot| snapshot.capture_dependency(companion_path)).transpose()?;
+        let data = read_captured_apple_input(companion_path, dependency.as_ref(), false)?.context("AppleDouble input omitted")?;
+        let archive = read_apple_single_double(&data).with_context(|| format!("Invalid AppleDouble companion: {}", companion_path.display()))?;
+        ensure!(archive.format == AppleFormat::AppleDouble, "Companion is not AppleDouble: {}", companion_path.display());
+        join_apple_archive_into_entity(entity, &archive)?;
+        if let Some(snapshot) = snapshot { snapshot.retain_changes(snapshot.validate()?)?; }
     }
 
     Ok(())
+}
+
+fn read_captured_apple_input(path: &Path, snapshot: Option<&crate::payload::SourceSnapshot>, single_only: bool) -> Result<Option<Vec<u8>>> {
+    use crate::payload::PayloadSource;
+    use std::io::Read;
+    let mut payload = crate::payload::DiskPayloadSource::open(path)?;
+    if let Some(snapshot) = snapshot { payload.bind_snapshot(snapshot)?; }
+    let mut data = Vec::new();
+    let selected = if single_only {
+        (&mut payload).take(4).read_to_end(&mut data)?;
+        matches!(<[u8; 4]>::try_from(data.as_slice()).map(u32::from_be_bytes), Ok(APPLESINGLE_MAGIC_BE | APPLESINGLE_MAGIC_LE))
+    } else { true };
+    if selected { payload.read_to_end(&mut data)?; }
+    let warnings = payload.finish()?;
+    if let Some(snapshot) = snapshot { snapshot.retain_cleanup_warnings(warnings)?; }
+    else { ensure!(warnings.is_empty(), "Apple input cleanup diagnostics: {}", warnings.join("; ")); }
+    Ok(if selected { Some(data) } else { None })
 }
 
 fn unpack_apple_single_into_entity(entity: &mut FileEntity, archive: &AppleArchive) -> Result<()> {
@@ -681,13 +702,18 @@ mod tests {
             if !dangling { std::fs::write(&target, b"target original")?; }
             std::os::unix::fs::symlink(&target, &companion)?;
             let sandbox = SandboxableDir::open(temp.path())?;
-            let mut entity = FileEntity::from_filesystem(&path, None)?;
+            let options = AppleReadOptions { read_apple_double_alongside: false, ..Default::default() };
+            let mut entity = FileEntity::from_filesystem_with_apple_options(&path, None, &options)?;
             entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
             assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Refuse).is_err());
             assert_eq!(std::fs::read_link(&companion)?, target);
+            assert_eq!(std::fs::read(&path)?, b"primary");
+            if dangling { assert!(!target.try_exists()?); }
+            else { assert_eq!(std::fs::read(&target)?, b"target original"); }
             write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Alongside, ExistingEntryPolicy::Replace)?;
             assert!(!std::fs::symlink_metadata(&companion)?.file_type().is_symlink());
             assert_eq!(std::fs::read(&companion)?, serialize_apple_double_for_entity(&entity)?);
+            assert_eq!(std::fs::read(&path)?, b"primary");
             if dangling { assert!(!target.try_exists()?); }
             else { assert_eq!(std::fs::read(&target)?, b"target original"); }
             assert_eq!(std::fs::read_dir(temp.path())?.count(), if dangling { 2 } else { 3 });
@@ -703,7 +729,8 @@ mod tests {
         std::fs::write(&path, b"primary")?;
         std::fs::write(&companion, b"original")?;
         let sandbox = SandboxableDir::open(temp.path())?;
-        let mut entity = FileEntity::from_filesystem(&path, None)?;
+        let options = AppleReadOptions { read_apple_double_alongside: false, ..Default::default() };
+        let mut entity = FileEntity::from_filesystem_with_apple_options(&path, None, &options)?;
         entity.metadata.apple = Some(AppleMetadata { comment: Some("replacement".into()), ..Default::default() });
         for existing in [ExistingEntryPolicy::Refuse, ExistingEntryPolicy::Replace] {
             for overflow in [false, true] {
@@ -720,6 +747,7 @@ mod tests {
         entity.identity.relative_path = Some(PathBuf::from("../../file"));
         assert!(write_apple_double_companion(&entity, &path, &sandbox, AppleDoubleStyle::Zip, ExistingEntryPolicy::Replace).is_err());
         assert_eq!(std::fs::read(&companion)?, b"original");
+        assert_eq!(std::fs::read(&path)?, b"primary");
         assert_eq!(std::fs::read_dir(temp.path())?.count(), 2);
         Ok(())
     }

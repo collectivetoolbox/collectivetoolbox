@@ -12,6 +12,18 @@ magic `CTBCSCA\x01` and format identities, while sharing journal-style DcMixed
 records and checksummed-section framing. Creation can stream to stdout without
 seeking; only file output supports resume.
 
+Archive writing is a configured journal-owned record engine, not a separate
+writer implementation. Journal and archive readers share the modern scanner;
+profiles preserve the existing layouts and recovery policies. File/descriptor
+durability, archive member naming, and extraction remain workflow adapters.
+Source discovery, capture, payload binding, recursive diagnostics, and hardlink
+bookkeeping are shared through the journal capture module.
+
+Live source guards retain directory inventories and deliberately interpreted
+Apple companion dependencies. Source changes and timestamp-cleanup losses are
+checked and retained before record publication or completion. These are live
+consistency checks, not filesystem snapshots or a persisted resume inventory.
+
 Archive support is **Partially Implemented**. Capture failures and warnings now
 use the shared journal diagnostic representation in checksummed archive sections.
 Completion is not a clean-capture guarantee: diagnostic archives return nonzero
