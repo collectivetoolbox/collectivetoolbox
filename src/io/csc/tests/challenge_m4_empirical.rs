@@ -52,7 +52,7 @@ use ctb_io::file::streams::StreamName;
 use ctb_io_csc::journal::{
     JOURNAL_MAGIC_V4, JournalErrorRecord, JournalErrorRecordPayload, JournalErrorStage,
     JournalSessionRecord, JournalSnapshot, JournalWarningRecord,
-    JournalWarningRecordPayload, JournalWarningRecordStringPayload, JournalWriter,
+    JournalWarningRecordPayload, JournalWarningRecordStringPayload, StateJournal,
     convert_cscjournal_to_dcmstring, convert_cscjournal_to_v4_bytes,
     read_journal_snapshot, read_journal_snapshot_with_policy, read_v4_journal_snapshot,
 };
@@ -272,7 +272,7 @@ fn test_challenge_o1_arena_reuse_multi_batch_stream() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -841,7 +841,7 @@ fn test_challenge_read_v4_journal_snapshot_adversarial_inputs() -> Result<()> {
         fs::create_dir_all(&src)?;
         fs::create_dir_all(&dest)?;
 
-        let mut writer = JournalWriter::create_at_path(
+        let mut writer = StateJournal::create_at_path(
             &journal_path,
             &desc_path,
             &[src.clone()],
@@ -916,7 +916,7 @@ fn test_challenge_interleaved_journal_records_lossless_roundtrip() -> Result<()>
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -1067,7 +1067,7 @@ fn test_challenge_m5_o1_arena_reuse_under_continuous_streaming() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -1216,7 +1216,7 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &base_journal,
         &base_desc,
         &[src.clone()],
@@ -1342,21 +1342,13 @@ fn test_challenge_m5_crash_rollback_mid_batch_truncations() -> Result<()> {
         test_bytes.extend_from_slice(tampered_mst.payload_bytes());
         fs::write(&tampered_path, test_bytes)?;
 
-        let snapshot = read_journal_snapshot(&tampered_path)
-            .context("Tampered digest journal must recover gracefully")?;
-
-        ensure!(
-            snapshot.last_batch_id == 2,
-            "Tampered digest: snapshot must isolate corrupt batch and roll back to batch 2"
-        );
-        ensure!(
-            snapshot.committed_entities.len() == 2,
-            "Tampered digest: snapshot must contain exactly 2 entities"
-        );
-        ensure!(
-            !snapshot.is_committed(b"uncommitted_crash_file.txt"),
-            "Tampered entity must NOT be committed"
-        );
+        ensure!(read_journal_snapshot(&tampered_path).is_err(),
+            "Strict recovery must not discard a closed corrupt batch as an incomplete write");
+        let salvaged = ctb_io_csc::journal::read_journal_snapshot_with_policy(
+            &tampered_path, &DcProjectionPolicy::forgiving_quiet())?;
+        ensure!(salvaged.last_batch_id == 3 && salvaged.committed_entities.len() == 3);
+        ensure!(salvaged.warnings.iter().any(|warning| warning.code == "journal-digest-mismatch"),
+            "Explicit salvage must retain the integrity failure");
     }
 
     Ok(())

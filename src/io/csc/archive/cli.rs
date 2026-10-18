@@ -1,7 +1,7 @@
 #[expect(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
-use crate::journal::{JournalReader, stream::RecordWriter};
+use crate::journal::{JournalReader, JournalWriter};
 use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalSessionRecord, JournalWarningRecord, current_platform};
 use crate::journal::capture::{CapturedSource, CapturedTree, CommittedHardlinks, attach_environment, discover_directory};
 use clap::{Parser, Subcommand};
@@ -119,6 +119,11 @@ pub fn run_archive(args: &ArchiveArgs) -> Result<ToolResult> {
             let mut diagnostics = String::new();
             if !reader.is_completed() {
                 diagnostics.push_str("Archive is incomplete; listing committed members only.\n");
+            }
+            for member in &reader.members {
+                if let Err(error) = crate::journal::stream::ensure_clean_metadata(&member.entity) {
+                    writeln!(diagnostics, "Member diagnostics {}: {error:#}", member.entity.identity.display_path())?;
+                }
             }
             for error in &reader.errors {
                 writeln!(diagnostics, "Capture error ({:?}) {}: {}", error.stage, error.path.display(), error.error_message)?;
@@ -378,13 +383,13 @@ fn create_archive<W: ArchiveOutput>(output: W, sources: &[PathBuf], archive: &Pa
     capture_archive(output, CaptureRequest { sources, archive, plan, continue_on_error, recovered }, &mut FilesystemCapture)
 }
 
-fn persist_source_error<W: ArchiveOutput>(writer: &mut RecordWriter<W>, record: &JournalErrorRecord) -> Result<()> {
+fn persist_source_error<W: ArchiveOutput>(writer: &mut JournalWriter<W>, record: &JournalErrorRecord) -> Result<()> {
     writer.record_error(record).with_context(|| format!("Cannot persist source failure: {}", record.error_message))?;
     writer.output_mut().flush().with_context(|| format!("Cannot flush source failure: {}", record.error_message))?;
     writer.output_mut().sync().with_context(|| format!("Cannot sync source failure: {}", record.error_message))
 }
 
-fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut RecordWriter<W>, entity: &FileEntity,
+fn persist_metadata_warnings<W: ArchiveOutput>(writer: &mut JournalWriter<W>, entity: &FileEntity,
     path: &Path, count: &mut usize) -> Result<()> {
     crate::journal::capture::visit_warnings(entity, &mut |_entity, message| {
         let warning = JournalWarningRecord {
@@ -412,7 +417,7 @@ fn capture_archive<W: ArchiveOutput>(output: W, request: CaptureRequest<'_>, cap
         }
     };
     let mut writer = if let Some(recovered) = recovered { recovered.resume_writer(output)? }
-        else { RecordWriter::new(output, &session, crate::journal::stream::JournalMagic::ArchiveV1)? };
+        else { JournalWriter::new(output, &session, crate::journal::stream::JournalMagic::ArchiveV1)? };
     let mut error_count = 0_usize;
     let mut warning_count = 0_usize;
     for diagnostic in &plan.diagnostics {
@@ -1091,7 +1096,7 @@ mod tests {
                 drop(outcome.output);
                 let reader = JournalReader::recover(File::open(&archive)?)?;
                 ensure!(reader.errors.len() == 1 && reader.members.len() == if continue_on_error { 2 } else { 1 });
-                ensure!(reader.sequence == if continue_on_error { 3 } else { 2 });
+                ensure!(reader.sequence == if continue_on_error { 2 } else { 1 });
                 let mut contents = Vec::new();
                 reader.payload(reader.members.first().context("Missing first member")?)?.read_to_end(&mut contents)?;
                 ensure!(contents == b"first committed contents");
@@ -1207,7 +1212,7 @@ mod tests {
             sources: vec![source.clone()], destination: archive.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = RecordWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(File::create(&archive)?, &session, crate::journal::stream::JournalMagic::ArchiveV1)?;
         writer.record_error(&crate::journal::JournalErrorRecord {
             path: source.clone(), raw_path: source.as_os_str().as_encoded_bytes().to_vec(),
             stage: crate::journal::JournalErrorStage::MetadataRead,
@@ -1482,7 +1487,7 @@ mod tests {
             sources: Vec::new(), destination: archive_path.clone(),
             origin_platform: u32::from(current_platform()), environment: None,
         };
-        let mut writer = RecordWriter::new(File::create(&archive_path)?, &session,
+        let mut writer = JournalWriter::new(File::create(&archive_path)?, &session,
             crate::journal::stream::JournalMagic::ArchiveV1)?;
         let mut data = FileEntity::from_vec(b"linked payload".to_vec());
         data.identity.relative_path = Some(PathBuf::from("source/data"));

@@ -103,13 +103,17 @@ stronger guarantees.
 
 ### Journal Consolidation Audit
 
-Status: **Verified for the four reviewed findings on Linux**. This is a bounded
-architecture/correctness refactor, not completion of archive production readiness.
+Status: **Corrected to the identical-format requirement**. The first
+consolidation audit overstated completion by preserving archive-only grammar
+rules. This correction was performed directly, without sub-agent delegation.
+Archive production readiness remains partial.
 
-1. Writer ownership and failure state: both formats use the existing journal
-	module's `RecordWriter`. `ArchiveWriter` is only a type alias. Header/profile,
-	context, sequence, diagnostics, source/sink poisoning, rollback eligibility,
-	and completion are implemented once. Journal accounting advances only after
+1. Both formats use the canonical `JournalWriter<W>` and `JournalReader` in the
+	journal module. There are no archive writer/reader aliases or implementations.
+	`JournalMagic` selects only the header; file bodies are optional under either
+	magic. The file/descriptor workflow is named `StateJournal`. Context, sequence,
+	diagnostics, source/sink poisoning, rollback eligibility, and completion are
+	implemented once. Journal accounting advances only after
 	successful durability; failed transactions cannot be retried into partial data.
 2. Completion lifecycle: the shared engine enforces terminal completion. Explicit
 	journal reopen preserves historical completion markers and trailing diagnostics
@@ -124,17 +128,22 @@ architecture/correctness refactor, not completion of archive production readines
 	Apple companions are guarded dependencies; decoded AppleSingle payloads are
 	reused rather than independently reread by CSC. Cleanup and late best-effort
 	warnings are retained before completion, not discarded with local snapshots.
-4. Format/scanner reuse: both readers use one journal-owned modern scanner with
-	explicit compatibility profiles and separate projections. Existing journal
-	batching/top-level diagnostics and archive singleton checked records retain
-	their wire layouts; compatibility differences are policies, not separate
-	parsing/commit implementations. Legacy conversion shares section framing.
+4. One scanner handles metadata-only and body-bearing file records, arbitrary
+	journal batch cardinality, top-level diagnostics, sequence IDs, and completion
+	identically under either magic. `ReadMode` and projection strictness are caller
+	policies, not format profiles. `JournalSnapshot` is a metadata projection of
+	`JournalReader`; legacy conversion retains its existing decoder and framing.
+	The accidental archive-only diagnostic/cardinality grammar is not preserved.
 
-Independent GPT-6.1 Sol audits found additional resume, descriptor, finalization,
-and warning-retention defects during review; those were repaired and re-audited.
+Earlier audits found resume, descriptor, finalization, and warning-retention
+defects; their repairs remain covered. New tests require identical bytes after
+either magic, accept metadata-only and body-bearing records with either header,
+and exercise mixed-body batches, diagnostics, completion, and explicit recovery.
 All 438 musl tests/doctests passed with no failures or ignored tests, including
-byte-differential, scanner-policy, legacy/journal-v4, failure-injection, and source
+byte-differential, common-reader policy, legacy/journal-v4, failure-injection, and source
 change regressions. Scoped file/CSC/CLI Clippy and editor diagnostics passed.
+Strict recovery now rejects closed checksum corruption; explicit forgiving
+salvage reports it. A partial trailing record cannot retain completed status.
 
 The physical symlink capture test now explicitly asserts either clean capture or
 the retained, non-successful Unix ctime-loss outcome. A separate declared-payload

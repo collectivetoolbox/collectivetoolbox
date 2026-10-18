@@ -82,6 +82,19 @@ FNV: //! FIXME: They can be folded to arbitrary bit lengths (fnv_xor_fold) but
 
 - csc archive: "durable ownership recovery needs more than the current journal intent records" - not sure what this means, but is there more info that needs to be recorded in the journal? As-close-to-lossless metadata capture in the journal (in copy mode) or archive (in archive mode) is a key goal.
 
+- csc archive:
+
+Still pending: lazy attached streams, durable source inventory and recovery transactions, native Windows runtime tests, and executable smoke testing.
+
+Remaining implementation gaps: attached-stream streaming across file I/O, CSC, and archives, then move to recovery and losslessness issues.
+
+
+- csc archive: Do large alternate data streams get fully saved in archives (rather than only a checksum as they are/should be in journals)?
+
+- Are there any remaining redundant/duplicated implementations of filesystem traversal, or is it now all succesfully consolidated to file/traversal?
+
+- csc archive Notes say "General salvage extraction is not provided." but that should be trivial to offer just by adding an equivalent of the --allow-journal-errors csc option.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container

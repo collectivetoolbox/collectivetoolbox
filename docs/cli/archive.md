@@ -92,21 +92,34 @@ Version 1 starts with the eight bytes `CTBCSCA\x01`, followed by a normal
 DcMixed document header. Format identities are f633 (`CscArchive`) and f634
 (`CscArchive1`). The suggested extension is `.cscarchive`.
 
-The body uses the CSC journal's operation-session representation, sequenced
-checksummed sections, and completion marker. Each section contains one file
-entity, error record (Dc 552..553), or warning record (Dc 554..555). Primary
-contents use existing Dc 392; attached streams retain their
+The body is the CSC journal format: the same operation session, checked file
+batches, top-level error/warning records, and completion markers. Batches may
+contain zero, one, or multiple file records. Only the eight-byte magic differs;
+neither magic changes the record grammar or recovery policy. Primary contents
+are optional under either magic and use existing Dc 392. Archive creation
+includes them to produce a self-contained capture. Attached streams retain their
 existing metadata and Dc 385 data representation. Zero-size regular files may
 omit the primary data field. Original sparse extents are recorded, but logical
 file bytes are stored densely. Hardlink members refer to a defining regular
 member rather than repeating its primary contents.
 
-Earlier experimental readers that accept only file sections reject archives
-containing diagnostic sections. Diagnostic-free v1 archives remain readable;
-the magic and format IDs have not changed.
+The earlier experimental archive-only layout with diagnostic records inside
+checked sections was an implementation error, not a separate supported format.
+It is not retained as another compatibility profile. Keep original sources and
+recreate such experimental captures. Existing journal versions retain their
+legacy decoding support.
 
-The format is uncompressed and unauthenticated. Checksums detect corruption,
-not malicious replacement. Archive contents and provenance may be sensitive;
+Both formats use `JournalWriter<W>` and `JournalReader`. Reader policy is selected
+by `ReadMode` and the projection policy, independently of magic. Verification of
+available bodies does not require every file to have one; extraction explicitly
+requires self-contained verification. Strict recovery rejects a closed bad
+checksum rather than discarding the section as an incomplete write. Explicit
+forgiving salvage retains an integrity warning and does not establish fidelity.
+
+The format is uncompressed and unauthenticated. Checked sections detect byte
+corruption; top-level diagnostics follow the existing journal encoding and are
+not separately checksummed. Nothing establishes authenticity. Contents and
+provenance may be sensitive;
 file-output creation uses private permissions on Unix.
 
 ## Pending Work

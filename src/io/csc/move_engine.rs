@@ -29,7 +29,7 @@ use crate::utilities::*;
 
 use crate::args::{CscArgs, MvArgs, SourceChangePolicy};
 use crate::copy_engine::execute_copy_pipeline;
-use crate::journal::JournalWriter;
+use crate::journal::StateJournal;
 use crate::path_resolution::resolve_tasks;
 use ctb_io::file::{FileEntity, FileOrigin, is_cross_device_error, verify_materialized_entity};
 use ctb_utilities::cli::ToolResult;
@@ -202,7 +202,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
 
                 let mut temp_state_dir = tempfile::tempdir()
                     .context("Failed to create temporary directory for move state journal")?;
-                let mut journal = JournalWriter::create_new(
+                let mut journal = StateJournal::create_new(
                     temp_state_dir.path(),
                     &[task.source_root.clone()],
                     &task.target_root,

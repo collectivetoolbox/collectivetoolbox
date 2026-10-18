@@ -50,10 +50,11 @@ pub(crate) mod capture;
 pub mod legacy;
 pub(crate) mod scanner;
 mod reader;
-pub mod stream;
+pub(crate) mod stream;
 
 pub use reader::{JournalReader, JournalPayload};
 pub use scanner::ReadMode;
+pub use stream::{JournalWriter, JournalMagic, ARCHIVE_MAGIC};
 
 pub use legacy::{
     convert_legacy_journal_bytes_to_v4, convert_legacy_journal_bytes_to_v4_with_policy,
@@ -451,10 +452,10 @@ pub(crate) fn entity_requires_metadata_retention(entity: &FileEntity) -> bool {
 }
 
 /// Writer managing the persistent state journal and its companion `.cscdesc` file.
-pub struct JournalWriter {
+pub struct StateJournal {
     journal_path: PathBuf,
     desc_path: PathBuf,
-    writer: stream::RecordWriter<BufWriter<File>>,
+    writer: stream::JournalWriter<BufWriter<File>>,
     sources: Vec<PathBuf>,
     destination: PathBuf,
     current_batch_id: u64,
@@ -470,7 +471,7 @@ pub struct JournalWriter {
     pending_descriptor_status: Option<String>,
 }
 
-impl JournalWriter {
+impl StateJournal {
     /// Creates a new state journal at the specified path.
     /// Fails with an error if either file already exists.
     pub fn create_at_path(
@@ -497,7 +498,7 @@ impl JournalWriter {
             sources: sources.to_vec(), destination: destination.to_path_buf(),
             origin_platform: u32::from(current_platform()), environment: Some(Arc::clone(&env)),
         };
-        let mut writer = stream::RecordWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV4)?;
+        let mut writer = stream::JournalWriter::new(BufWriter::new(file), &session, stream::JournalMagic::JournalV4)?;
         Self::sync_output(writer.output_mut())?;
 
         let jw = Self {
@@ -583,8 +584,8 @@ impl JournalWriter {
             sources: snapshot.sources.clone(), destination: snapshot.destination.clone(),
             origin_platform: u32::from(snapshot.origin_platform), environment: snapshot.environment.clone(),
         };
-        let writer = stream::RecordWriter::resume_output(BufWriter::new(file), &session,
-            stream::JournalMagic::JournalV4, snapshot.last_batch_id, false)?;
+        let writer = stream::JournalWriter::resume_output(BufWriter::new(file), &session,
+            snapshot.last_batch_id, false)?;
         Ok(Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -1021,7 +1022,7 @@ pub fn convert_cscjournal_to_v4_bytes_with_policy(
 }
 
 /// Reads a v4 native DcMixed state journal using [`ctb_formats_dcstring::DcDocumentNavigator`]
-/// so large journals stream directly from disk in $O(1)$ steady-state memory.
+/// without buffering file bodies. Member metadata is retained for projection.
 pub fn read_v4_journal_snapshot(
     file: &mut File,
     journal_path: &Path,
@@ -1114,7 +1115,7 @@ mod tests {
             let temporary = tempdir()?;
             let journal = temporary.path().join("copy.cscjournal");
             let description = temporary.path().join("copy.cscdesc");
-            let mut writer = JournalWriter::create_at_path(&journal, &description, &[], temporary.path())?;
+            let mut writer = StateJournal::create_at_path(&journal, &description, &[], temporary.path())?;
             let entity = FileEntity::from_vec(b"payload".to_vec());
             writer.record_entity(&entity);
             writer.commit_batch()?;
@@ -1229,9 +1230,9 @@ mod tests {
         Ok(())
     }
 
-    fn journal_lifecycle_writer(journal: &Path, description: &Path, legacy: bool) -> Result<JournalWriter> {
+    fn journal_lifecycle_writer(journal: &Path, description: &Path, legacy: bool) -> Result<StateJournal> {
         if !legacy {
-            return JournalWriter::create_at_path(journal, description, &[], Path::new(""));
+            return StateJournal::create_at_path(journal, description, &[], Path::new(""));
         }
         let mut bytes = JOURNAL_MAGIC_V1.to_vec();
         bytes.extend_from_slice(&[TAG_SESSION_HEADER, current_platform()]);
@@ -1239,7 +1240,7 @@ mod tests {
         write_bytes(&mut bytes, b"")?;
         fs::write(journal, bytes)?;
         let snapshot = read_journal_snapshot(journal)?;
-        JournalWriter::open_for_resume(journal, description, &snapshot)
+        StateJournal::open_for_resume(journal, description, &snapshot)
     }
 
     #[crate::ctb_test]
@@ -1273,7 +1274,7 @@ mod tests {
             let prefix = fs::read(&journal)?;
             let snapshot = read_journal_snapshot(&journal)?;
             ensure!(snapshot.is_completed && snapshot.valid_length == u64::try_from(prefix.len())?);
-            let mut resumed = JournalWriter::open_for_resume(&journal, &description, &snapshot)?;
+            let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
             ensure!(fs::read(&journal)? == prefix);
             entity.identity.relative_path = Some("resumed".into());
             resumed.record_entity(&entity);
@@ -1296,7 +1297,7 @@ mod tests {
         let temporary = tempdir()?;
         let journal = temporary.path().join("copy.cscjournal");
         let description = temporary.path().join("copy.cscdesc");
-        let mut writer = JournalWriter::create_at_path(&journal, &description, &[], temporary.path())?;
+        let mut writer = StateJournal::create_at_path(&journal, &description, &[], temporary.path())?;
         writer.mark_completed()?;
         let completed = fs::read(&journal)?;
         ensure!(writer.mark_completed().is_err());
@@ -1312,7 +1313,7 @@ mod tests {
         drop(writer);
         let snapshot = read_journal_snapshot(&journal)?;
         ensure!(snapshot.is_completed);
-        let mut resumed = JournalWriter::open_for_resume(&journal, &description, &snapshot)?;
+        let mut resumed = StateJournal::open_for_resume(&journal, &description, &snapshot)?;
         ensure!(fs::read(&journal)? == completed);
         ensure!(read_journal_snapshot(&journal)?.is_completed);
         resumed.record_entity(&entity);
@@ -1334,7 +1335,7 @@ mod tests {
         fs::write(&source, b"payload")?;
         let mut entity = FileEntity::from_filesystem(&source, None)?;
         entity.metadata.timestamps.as_mut().context("Missing captured timestamps")?.mtime_nsec = 1_000_000_000;
-        let mut writer = JournalWriter::create_at_path(&journal, &description,
+        let mut writer = StateJournal::create_at_path(&journal, &description,
             std::slice::from_ref(&source), temporary.path())?;
         let before = fs::read(&description)?;
         writer.record_entity(&entity);
@@ -1476,7 +1477,7 @@ mod tests {
         assert_eq!(payload.to_record(&ctb_formats_dcstring::DcProjectionPolicy::strict())?, record);
         let temp = tempdir()?;
         let journal_path = temp.path().join("raw-path.cscjournal");
-        let mut writer = JournalWriter::create_at_path(
+        let mut writer = StateJournal::create_at_path(
             &journal_path, &journal_path.with_extension("cscdesc"),
             &[temp.path().join("source")], &temp.path().join("destination"),
         )?;
@@ -1523,7 +1524,7 @@ mod tests {
     fn test_journal_signed_os_errors_roundtrip() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("signed-errors.cscjournal");
-        let mut writer = JournalWriter::create_at_path(
+        let mut writer = StateJournal::create_at_path(
             &journal_path, &journal_path.with_extension("cscdesc"),
             &[temp.path().join("source")], &temp.path().join("destination"),
         )?;
@@ -1728,7 +1729,7 @@ mod tests {
     fn test_journal_shared_environment_provenance() -> Result<()> {
         let temp = tempdir()?;
         let journal_path = temp.path().join("sharing.cscjournal");
-        let mut writer = JournalWriter::create_at_path(&journal_path, &temp.path().join("sharing.cscdesc"), &[], temp.path())?;
+        let mut writer = StateJournal::create_at_path(&journal_path, &temp.path().join("sharing.cscdesc"), &[], temp.path())?;
         let environment = writer.environment.clone().context("Missing writer environment")?;
         let distinct = Arc::new(EnvDescription {
             os: "original-foreign-environment".to_owned(),
@@ -1775,7 +1776,7 @@ mod tests {
         bytes.push(TAG_JOB_COMPLETED);
         fs::write(&journal_path, bytes)?;
         let snapshot = read_journal_snapshot(&journal_path)?;
-        let mut writer = JournalWriter::open_for_resume(&journal_path, &temp.path().join("legacy.cscdesc"), &snapshot)?;
+        let mut writer = StateJournal::open_for_resume(&journal_path, &temp.path().join("legacy.cscdesc"), &snapshot)?;
         assert!(writer.environment.is_none());
         let mut entity = FileEntity::from_vec(b"unknown".to_vec());
         entity.identity.relative_path = Some(PathBuf::from("unknown"));
@@ -1789,7 +1790,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_journal_entity_format_and_checksum_resilience() {
-        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use crate::journal::{StateJournal, read_journal_snapshot};
         use ctb_io::file::entity::{FileEntity, FileEntityKind};
         use ctb_io::file::identity::{FileIdentity, FileOrigin};
         use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
@@ -1801,7 +1802,7 @@ mod tests {
         fs::create_dir_all(&src).expect("create src");
         fs::create_dir_all(&dest).expect("create dest");
 
-        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+        let mut writer = StateJournal::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
 
         let read_time_expected = std::time::SystemTime::UNIX_EPOCH
             .checked_add(std::time::Duration::from_secs(1_700_000_000))
@@ -1982,7 +1983,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_journal_pre_epoch_read_time_rejected() {
-        use crate::journal::JournalWriter;
+        use crate::journal::StateJournal;
         use ctb_io::file::entity::{FileEntity, FileEntityKind};
         use ctb_io::file::identity::{FileIdentity, FileOrigin};
         use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
@@ -1993,7 +1994,7 @@ mod tests {
         std::fs::create_dir_all(&src).expect("create src");
         std::fs::create_dir_all(&dest).expect("create dest");
 
-        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+        let mut writer = StateJournal::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
 
         let pre_epoch_time = std::time::SystemTime::UNIX_EPOCH
             .checked_sub(std::time::Duration::from_secs(10))
@@ -2163,7 +2164,7 @@ mod tests {
 
     #[crate::ctb_test("tokio")]
     async fn test_journal_and_index_environment_metadata() {
-        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use crate::journal::{StateJournal, read_journal_snapshot};
         use ctb_io::file::entity::{FileEntity, FileEntityKind};
         use ctb_io::file::identity::{FileIdentity, FileOrigin};
         use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
@@ -2179,14 +2180,14 @@ mod tests {
         fs::create_dir_all(&dest).expect("create dest");
 
         // 1. Create journal and verify environment is initialized
-        let mut writer = JournalWriter::create_at_path(
+        let mut writer = StateJournal::create_at_path(
             &journal_path,
             &desc_path,
             &[src.clone()],
             &dest,
         ).expect("create_at_path");
 
-        assert!(writer.environment.is_some(), "JournalWriter should initialize environment");
+        assert!(writer.environment.is_some(), "StateJournal should initialize environment");
 
         let rel_path = PathBuf::from("file_a.txt");
         let entity = FileEntity {

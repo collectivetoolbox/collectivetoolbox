@@ -12,10 +12,12 @@ magic `CTBCSCA\x01` and format identities, while sharing journal-style DcMixed
 records and checksummed-section framing. Creation can stream to stdout without
 seeking; only file output supports resume.
 
-Archive writing is a configured journal-owned record engine, not a separate
-writer implementation. Journal and archive readers share the modern scanner;
-profiles preserve the existing layouts and recovery policies. File/descriptor
-durability, archive member naming, and extraction remain workflow adapters.
+Journal and archive bodies use literally the same grammar; only magic and the
+presence of optional primary file bodies differ. Both use `JournalWriter<W>`
+and `JournalReader`. Magic never selects diagnostic placement, batch size,
+sequence rules, completion rules, or recovery strictness. `StateJournal` manages
+the copy operation's file durability and descriptor around the common writer;
+archive member naming and extraction remain workflow adapters.
 Source discovery, capture, payload binding, recursive diagnostics, and hardlink
 bookkeeping are shared through the journal capture module.
 

@@ -698,7 +698,7 @@ mod tests {
         let mut entity = ctb_io::file::FileEntity::from_filesystem(&path, Some(&destination)).unwrap();
         entity.metadata.timestamps.as_mut().unwrap().ctime_sec = entity.metadata.timestamps.as_ref().unwrap().ctime_sec.saturating_sub(100);
         let journal = temp.path().join("ctime.cscjournal");
-        let mut writer = crate::journal::JournalWriter::create_at_path(
+        let mut writer = crate::journal::StateJournal::create_at_path(
             &journal, &temp.path().join("ctime.cscdesc"), &[], &destination,
         ).unwrap();
         for warning in &entity.metadata.warnings {
@@ -814,7 +814,7 @@ mod tests {
             ("target", "existing", invalid_component.as_str(), "Failed to query hardlink target metadata"),
         ] {
             let journal = temp.path().join(format!("{case}.cscjournal"));
-            let mut writer = crate::journal::JournalWriter::create_at_path(
+            let mut writer = crate::journal::StateJournal::create_at_path(
                 &journal, &journal.with_extension("cscdesc"), &[], &destination,
             ).unwrap();
             let mut entity = ctb_io::file::FileEntity::from_vec(Vec::new());
@@ -1498,7 +1498,7 @@ mod tests {
             ctb_io::file::Extent::Hole { offset: 6, length: size.saturating_sub(10) },
             ctb_io::file::Extent::Data { offset: size.saturating_sub(4), length: 4 },
         ];
-        let mut journal = crate::journal::JournalWriter::create_new(
+        let mut journal = crate::journal::StateJournal::create_new(
             &state, &[src], &dest,
         ).unwrap();
         journal.record_entity(&expected);

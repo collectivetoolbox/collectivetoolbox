@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use crate::args::CscArgs;
 use crate::copy_engine::execute_copy_pipeline;
-use crate::journal::{JournalWriter, read_journal_snapshot_with_policy};
+use crate::journal::{StateJournal, read_journal_snapshot_with_policy};
 use crate::path_resolution::resolve_tasks;
 use crate::verifier::check_cache_flush_privileges;
 use ctb_utilities::cli::ToolResult;
@@ -108,7 +108,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         }
         crate::path_resolution::validate_task_overlap(&resolved)?;
 
-        let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
+        let jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
         (resolved, jw)
     } else {
         // New run: resolve tasks from command-line arguments
@@ -134,9 +134,9 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
                 "Journal file already exists at {}: will not overwrite existing file (pass --resume to resume an interrupted run)",
                 journal_path.display()
             );
-            JournalWriter::create_at_path(&journal_path, &desc_path, &sources, &dest_path)?
+            StateJournal::create_at_path(&journal_path, &desc_path, &sources, &dest_path)?
         } else {
-            JournalWriter::create_new(&home_dir, &sources, &dest_path)?
+            StateJournal::create_new(&home_dir, &sources, &dest_path)?
         };
         progress.message(&format!("State journal: {}", jw.journal_path().display()));
         (resolved, jw)
@@ -498,7 +498,7 @@ mod tests {
         let resumed_dest = temp.path().join("resumed.txt");
         let journal_path = state.join("diagnostics.cscjournal");
         let desc_path = journal_path.with_extension("cscdesc");
-        let mut journal = JournalWriter::create_at_path(
+        let mut journal = StateJournal::create_at_path(
             &journal_path, &desc_path, &[source_file.clone()], &resumed_dest,
         ).unwrap();
         let message = "Destination filesystem does not support sparse files for resumed.txt";

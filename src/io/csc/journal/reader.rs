@@ -18,7 +18,7 @@ use ctb_io::file::{Extent, FileEntity, FileEntityKind, FileEntityWithPayload, Pa
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::journal::stream::{ARCHIVE_MAGIC, RecordWriter, JournalMagic, ensure_clean_metadata};
+use crate::journal::stream::{ARCHIVE_MAGIC, JournalWriter, JournalMagic, ensure_clean_metadata};
 
 pub struct JournalReader {
     pub(crate) file: File,
@@ -41,14 +41,13 @@ impl JournalReader {
     }
 
     /// Continues encoding after the caller verifies and positions the output.
-    pub(crate) fn resume_writer<W: Write>(&self, writer: W) -> Result<RecordWriter<W>> {
+    pub(crate) fn resume_writer<W: Write>(&self, writer: W) -> Result<JournalWriter<W>> {
         ensure!(!self.is_completed(), "Cannot resume a completed archive");
         ensure!(!self.has_diagnostics(), "Cannot resume an archive containing capture diagnostics");
         for member in &self.members {
             ensure_clean_metadata(&member.entity)?;
         }
-        RecordWriter::resume_output(writer, &self.session,
-            JournalMagic::ArchiveV1, self.sequence, false)
+        JournalWriter::resume_output(writer, &self.session, self.sequence, false)
     }
 
     /// Reads either header using the same record grammar and caller policy.
@@ -116,6 +115,7 @@ impl JournalReader {
 
     pub fn has_diagnostics(&self) -> bool {
         !self.errors.is_empty() || !self.warnings.is_empty()
+            || self.members.iter().any(|member| ensure_clean_metadata(&member.entity).is_err())
     }
 
     /// Checks completion and structural/payload integrity, not capture success
@@ -126,10 +126,11 @@ impl JournalReader {
     }
 
     pub(crate) fn verify_contents(&self) -> Result<()> {
-        ensure!(!self.has_diagnostics(), "Archive capture has {} errors and {} warnings", self.errors.len(), self.warnings.len());
         for member in &self.members {
             ensure_clean_metadata(&member.entity)?;
         }
+        ensure!(self.errors.is_empty() && self.warnings.is_empty(),
+            "Journal capture has {} errors and {} warnings", self.errors.len(), self.warnings.len());
         self.verify_payloads()
     }
 
@@ -233,7 +234,7 @@ mod tests {
         for magic in [JournalMagic::JournalV4, JournalMagic::ArchiveV1] {
             for include_body in [false, true] {
                 let entity = FileEntity::from_vec(b"body".to_vec());
-                let mut writer = RecordWriter::new(Vec::new(), &session, magic)?;
+                let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
                 if include_body {
                     let mut source = MemoryPayloadSource::new(b"body".to_vec())?;
                     writer.write_entity(&entity, Some(&mut source))?;
@@ -249,7 +250,7 @@ mod tests {
                 ctb_io::file::StreamKind::infer_from_name(b"stream"), b"original".to_vec())?;
             stream.data = Some(b"modified".to_vec());
             entity.streams.push(stream);
-            let mut writer = RecordWriter::new(Vec::new(), &session, magic)?;
+            let mut writer = JournalWriter::new(Vec::new(), &session, magic)?;
             writer.write_entity(&entity, None)?;
             let reader = JournalReader::new(archive_file(&writer.finish()?)?)?;
             ensure!(reader.verify().is_err(), "Metadata-only verification skipped attached stream integrity");
@@ -263,15 +264,15 @@ mod tests {
                 sources: Vec::new(), destination: "archive.cscarchive".into(),
                 origin_platform: u32::from(crate::journal::current_platform()), environment: None,
             };
-            let bytes = RecordWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?.finish()?;
+            let bytes = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?.finish()?;
             let mut marker = DcMstring::new();
             marker.push_char(dc::DC_BEGIN_CHECKSUMMED_SECTION);
             for length in 1..=marker.payload_bytes().len() {
                 let mut file = tempfile::tempfile()?;
                 file.write_all(&bytes)?;
                 file.write_all(marker.payload_bytes().get(..length).context("Invalid test marker prefix")?)?;
-                ensure!(JournalReader::recover(file.try_clone()?).is_err(),
-                    "Recovery accepted trailing marker prefix of {length} bytes");
+                let recovered = JournalReader::recover(file.try_clone()?)?;
+                ensure!(!recovered.is_completed(), "Recovery presented a partial trailing record as completed");
                 ensure!(JournalReader::new(file).is_err(), "Strict read accepted trailing marker bytes");
             }
             Ok(())
@@ -281,8 +282,8 @@ mod tests {
     use crate::journal::stream::{ObservedSink, VerifiedSource};
     use ctb_io::file::MemoryPayloadSource;
 
-    fn diagnostic_writer() -> Result<RecordWriter<Vec<u8>>> {
-        RecordWriter::new(Vec::new(), &JournalSessionRecord {
+    fn diagnostic_writer() -> Result<JournalWriter<Vec<u8>>> {
+        JournalWriter::new(Vec::new(), &JournalSessionRecord {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
         }, JournalMagic::ArchiveV1)
@@ -348,17 +349,17 @@ mod tests {
         let entity = FileEntity::from_vec(b"good".to_vec());
         let mut source = MemoryPayloadSource::new(b"good".to_vec())?;
         writer.write_entity(&entity, Some(&mut source))?;
-        ensure!(writer.sequence() == 3 && !writer.is_failed());
+        ensure!(writer.sequence() == 1 && !writer.is_failed());
         let prefix = writer.output_mut().clone();
         let recovered = JournalReader::recover(archive_file(&prefix)?)?;
-        ensure!(!recovered.is_completed() && recovered.sequence == 3);
+        ensure!(!recovered.is_completed() && recovered.sequence == 1);
         ensure!(recovered.verify_contents().is_err());
         ensure!(recovered.resume_writer(Vec::new()).is_err());
         let bytes = writer.finish()?;
         let archive = JournalReader::new(archive_file(&bytes)?)?;
         ensure!(archive.is_completed() && archive.has_diagnostics());
         ensure!(archive.errors == vec![error] && archive.warnings == vec![warning]);
-        ensure!(archive.members.len() == 1 && archive.sequence == 3);
+        ensure!(archive.members.len() == 1 && archive.sequence == 1);
         archive.verify_integrity()?;
         ensure!(archive.verify().is_err());
         Ok(())
@@ -378,13 +379,13 @@ mod tests {
     #[crate::ctb_test]
     fn archive_committed_invalid_diagnostic_decode_is_not_recoverable() -> Result<()> {
         let mut writer = diagnostic_writer()?;
-        writer.write_record(|output, _| {
+        writer.transaction(|output, _| {
             let payload = JournalErrorRecordPayload::new("source".into(), 256_u64 << 32, "bad stage".into(), 0);
             let mut record = DcMstring::new();
             payload.encode_dc_mixed(&mut record)?;
             output.write_all(record.payload_bytes())?;
             Ok(())
-        })?;
+        }, |_| Ok(()))?;
         let bytes = writer.finish()?;
         ensure!(JournalReader::new(archive_file(&bytes)?).is_err());
         ensure!(JournalReader::recover(archive_file(&bytes)?).is_err());
@@ -409,20 +410,22 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_diagnostic_corruption_is_not_recoverable() -> Result<()> {
+    fn journal_top_level_diagnostics_do_not_claim_authentication() -> Result<()> {
         let mut writer = diagnostic_writer()?;
         writer.record_error(&error_record())?;
         let mut bytes = writer.finish()?;
         let position = bytes.windows(b"injected".len()).position(|part| part == b"injected")
             .context("Missing diagnostic message")?;
         *bytes.get_mut(position).context("Missing corruption byte")? = b'X';
-        ensure!(JournalReader::new(archive_file(&bytes)?).is_err());
-        ensure!(JournalReader::recover(archive_file(&bytes)?).is_err());
+        let reader = JournalReader::new(archive_file(&bytes)?)?;
+        ensure!(reader.errors.first().context("Missing diagnostic")?.error_message.starts_with('X'));
+        reader.verify_integrity()?;
+        ensure!(reader.verify().is_err());
         Ok(())
     }
 
     #[crate::ctb_test]
-    fn archive_closed_unknown_extra_and_invalid_sequence_are_rejected() -> Result<()> {
+    fn journal_non_file_records_inside_batches_are_rejected() -> Result<()> {
         for sequence in [0, 2] {
             let mut writer = diagnostic_writer()?;
             crate::section::write_section(writer.output_mut(), sequence, |output| {
@@ -457,7 +460,7 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_metadata_warnings_rejected_before_emission_and_on_legacy_read() -> Result<()> {
+    fn journal_preserves_metadata_diagnostics_without_claiming_clean_capture() -> Result<()> {
         for (nested, is_error) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut warned = FileEntity::from_vec(Vec::new());
             if is_error {
@@ -474,27 +477,16 @@ mod tests {
                 entity
             } else { warned };
             let mut writer = diagnostic_writer()?;
-            let before = writer.output_mut().clone();
-            let error = writer.write_entity(&entity, None).expect_err("Metadata warning accepted");
-            ensure!(error.to_string().contains("unread metadata detail"));
-            ensure!(*writer.output_mut() == before && writer.sequence() == 0 && !writer.is_failed());
+            writer.write_entity(&entity, None)?;
+            ensure!(writer.sequence() == 1 && !writer.is_failed());
             ensure!(!writer.can_rollback_source_failure());
-            writer.record_warning(&warning_record())?;
-            JournalReader::new(archive_file(&writer.finish()?)?)?.verify_integrity()?;
-
-            let mut legacy = diagnostic_writer()?;
-            legacy.write_record(|output, context| {
-                let mut record = DcMstring::new();
-                entity.encode_dc_mixed_with_context(&mut record, context)?;
-                output.write_all(record.payload_bytes())?;
-                Ok(())
-            })?;
-            let prefix = legacy.output_mut().clone();
+            let prefix = writer.output_mut().clone();
             let recovered = JournalReader::recover(archive_file(&prefix)?)?;
             ensure!(recovered.verify_contents().is_err());
             ensure!(recovered.resume_writer(Vec::new()).is_err());
-            let archive = JournalReader::new(archive_file(&legacy.finish()?)?)?;
+            let archive = JournalReader::new(archive_file(&writer.finish()?)?)?;
             archive.verify_integrity()?;
+            ensure!(archive.has_diagnostics());
             ensure!(archive.verify().is_err());
         }
         Ok(())
@@ -507,7 +499,7 @@ mod tests {
         interrupted: bool,
     }
 
-    fn assert_rollback_refused<W: Write>(writer: &mut RecordWriter<W>) -> Result<()> {
+    fn assert_rollback_refused<W: Write>(writer: &mut JournalWriter<W>) -> Result<()> {
         let mut called = false;
         ensure!(writer.rollback_source_failure(|_| {
             called = true;
@@ -632,10 +624,10 @@ mod tests {
                 ensure!(error.downcast_ref::<std::io::Error>()
                     .is_some_and(|error| error.kind() == std::io::ErrorKind::UnexpectedEof));
             }
-            ensure!(writer.is_failed() && writer.can_rollback_source_failure() && writer.sequence() == 1);
+            ensure!(writer.is_failed() && writer.can_rollback_source_failure() && writer.sequence() == 0);
             let partial = writer.output_mut().get_ref().clone();
             let recovered = JournalReader::recover(archive_file(&partial)?)?;
-            ensure!(recovered.sequence == 1 && recovered.members.is_empty() && !recovered.is_completed());
+            ensure!(recovered.sequence == 0 && recovered.members.is_empty() && !recovered.is_completed());
             ensure!(JournalReader::new(archive_file(&partial)?).is_err());
             ensure!(writer.record_error(&error_record()).is_err());
             ensure!(writer.can_rollback_source_failure());
@@ -644,14 +636,14 @@ mod tests {
                 output.set_position(boundary);
                 Ok(())
             })?;
-            ensure!(!writer.is_failed() && !writer.can_rollback_source_failure() && writer.sequence() == 1);
+            ensure!(!writer.is_failed() && !writer.can_rollback_source_failure() && writer.sequence() == 0);
             writer.record_error(&error_record())?;
             let mut source = MemoryPayloadSource::new(b"expected".to_vec())?;
             writer.write_entity(&entity, Some(&mut source))?;
             let bytes = writer.finish()?.into_inner();
             let archive = JournalReader::new(archive_file(&bytes)?)?;
             archive.verify_integrity()?;
-            ensure!(archive.sequence == 3 && archive.members.len() == 1 && archive.errors.len() == 1);
+            ensure!(archive.sequence == 1 && archive.members.len() == 1 && archive.errors.len() == 1);
             ensure!(archive.verify().is_err());
         }
         Ok(())
@@ -663,7 +655,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(), origin_platform: 1, environment: None,
         };
         for fail_rollback in [false, true] {
-            let mut writer = RecordWriter::new(tempfile::tempfile()?, &session, JournalMagic::ArchiveV1)?;
+            let mut writer = JournalWriter::new(tempfile::tempfile()?, &session, JournalMagic::ArchiveV1)?;
             let boundary = writer.output_mut().stream_position()?;
             let entity = FileEntity::from_vec(b"expected".to_vec());
             let mut source = FaultySource::new(SourceFault::Finish)?;
@@ -688,7 +680,7 @@ mod tests {
                 writer.write_entity(&entity, Some(&mut source))?;
                 let archive = JournalReader::new(writer.finish()?)?;
                 archive.verify_integrity()?;
-                ensure!(archive.sequence == 2 && archive.members.len() == 1 && archive.errors.len() == 1);
+                ensure!(archive.sequence == 1 && archive.members.len() == 1 && archive.errors.len() == 1);
             }
         }
         Ok(())
@@ -760,11 +752,10 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn archive_payload_prevalidation_leaves_writer_ready() -> Result<()> {
+    fn journal_supplied_payload_prevalidation_leaves_writer_ready() -> Result<()> {
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut writer = diagnostic_writer()?;
         let before = writer.output_mut().clone();
-        ensure!(writer.write_entity(&entity, None).is_err());
         let mut source = MemoryPayloadSource::new(Vec::new())?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
         ensure!(*writer.output_mut() == before && !writer.is_failed() && !writer.can_rollback_source_failure());
@@ -794,7 +785,7 @@ mod tests {
         let data = vec![0xA5; 131_072];
         let entity = FileEntity::from_vec(data.clone());
         let mut source = MemoryPayloadSource::new(data.clone())?;
-        let mut writer = RecordWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
         writer.write_entity(&entity, Some(&mut source))?;
         let bytes = writer.finish()?;
         let mut file = tempfile::tempfile()?;
@@ -803,6 +794,8 @@ mod tests {
         archive.verify()?;
         let member = archive.members.first().context("Missing member")?;
         ensure!(member.entity == entity);
+        ensure!(matches!(member.payload.as_ref().map(|payload| &payload.0),
+            Some(BinaryPayloadRef::FileSpan { .. })), "Large body was materialized during reading");
         let mut payload = archive.payload(member)?;
         ensure!(payload.seek(SeekFrom::End(1)).is_err());
         let mut decoded = Vec::new();
@@ -819,7 +812,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
         };
-        let mut writer = RecordWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
+        let mut writer = JournalWriter::new(Vec::new(), &session, JournalMagic::ArchiveV1)?;
         let entity = FileEntity::from_vec(b"expected".to_vec());
         let mut source = MemoryPayloadSource::new(b"modified".to_vec())?;
         ensure!(writer.write_entity(&entity, Some(&mut source)).is_err());
@@ -845,7 +838,7 @@ mod tests {
             sources: Vec::new(), destination: "-".into(),
             origin_platform: u32::from(crate::journal::current_platform()), environment: None,
         };
-        let writer = RecordWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV1)?;
+        let writer = JournalWriter::new(FlushFailure(Vec::new()), &session, JournalMagic::ArchiveV1)?;
         ensure!(writer.finish().is_err(), "Broken stdout reported success");
         Ok(())
     }

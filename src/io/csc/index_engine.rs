@@ -28,7 +28,7 @@ use crate::utilities::*;
 
 use crate::args::FsindexArgs;
 use crate::journal::{
-    JournalSnapshot, JournalWriter, resolve_journal_path,
+    JournalSnapshot, StateJournal, resolve_journal_path,
 };
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use std::fmt::Write as _;
@@ -289,7 +289,7 @@ fn index_directory_to_journal(
             &args.journal_projection_policy(),
         )?;
         progress.message(&format!("Resuming indexing from journal: {}", journal_path.display()));
-        let jw = JournalWriter::open_for_resume(&journal_path, &desc_path, &snap)?;
+        let jw = StateJournal::open_for_resume(&journal_path, &desc_path, &snap)?;
         (jw, Some(snap))
     } else {
         let (journal_path, desc_path) = if let Some(ref custom_jp) = args.journal_path {
@@ -326,7 +326,7 @@ fn index_directory_to_journal(
         };
 
         progress.message(&format!("Creating state journal: {}", journal_path.display()));
-        let jw = JournalWriter::create_at_path(
+        let jw = StateJournal::create_at_path(
             &journal_path,
             &desc_path,
             std::slice::from_ref(&target_dir),

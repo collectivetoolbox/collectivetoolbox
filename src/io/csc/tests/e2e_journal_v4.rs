@@ -43,7 +43,7 @@ use ctb_io::file::identity::{FileIdentity, FileOrigin};
 use ctb_io::file::link_path::LinkPath;
 use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
 use ctb_io_csc::journal::{
-    JOURNAL_MAGIC_V4, JournalSnapshot, JournalWriter, read_journal_snapshot,
+    JOURNAL_MAGIC_V4, JournalSnapshot, StateJournal, read_journal_snapshot,
     read_journal_snapshot_with_policy,
 };
 use std::fs;
@@ -181,7 +181,7 @@ fn test_tier4_strict_v4_journal_lossless_roundtrip() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -345,7 +345,7 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -405,7 +405,7 @@ fn test_tier4_multi_record_journal_streaming_monotonic_batches() -> Result<()> {
             ensure!(snapshot.is_completed);
             ensure!(writer.mark_completed().is_err());
             drop(writer);
-            writer = JournalWriter::open_for_resume(&journal_path, &desc_path, &snapshot)?;
+            writer = StateJournal::open_for_resume(&journal_path, &desc_path, &snapshot)?;
         }
     }
 
@@ -450,7 +450,7 @@ fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()
 
     let temp = tempdir()?;
     let journal_path = temp.path().join("invalid_records.cscjournal");
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &journal_path.with_extension("cscdesc"),
         &[temp.path().join("src")],
@@ -496,7 +496,7 @@ fn test_journal_rejects_closed_invalid_records_without_truncating() -> Result<()
         let result = read_journal_snapshot(&test_path);
         if incomplete {
             let snapshot = result?;
-            ensure!(snapshot.is_completed);
+            ensure!(!snapshot.is_completed, "A partial trailing record must not be presented as completed");
             ensure!(snapshot.valid_length == u64::try_from(original.len())?);
         } else {
             ensure!(result.is_err(), "Malformed token must not be mistaken for EOF");
@@ -517,7 +517,7 @@ fn test_tier4_unclosed_trailing_batch_crash_rollback() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -630,7 +630,7 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
     fs::create_dir_all(&src)?;
     fs::create_dir_all(&dest)?;
 
-    let mut writer = JournalWriter::create_at_path(
+    let mut writer = StateJournal::create_at_path(
         &journal_path,
         &desc_path,
         &[src.clone()],
@@ -748,29 +748,12 @@ fn test_tier4_tampered_batch_digest_rejection_and_isolation() -> Result<()> {
         file.write_all(tampered_mst.payload_bytes())?;
     }
 
-    // Read snapshot: the journal streaming engine must detect the invalid digest,
-    // reject batch 2, and roll back to batch 1.
-    let snapshot = read_journal_snapshot(&journal_path)?;
-
-    ensure!(
-        snapshot.last_batch_id == 1,
-        "Snapshot must roll back to batch 1 on tampered digest"
-    );
-    ensure!(
-        snapshot.committed_entities.len() == 1,
-        "Tampered batch entities must not be committed"
-    );
-    ensure!(
-        snapshot.is_committed(b"safe_record.txt"),
-        "Batch 1 entity must remain committed"
-    );
-    ensure!(
-        !snapshot.is_committed(b"tampered_file.txt"),
-        "Tampered entity must NOT be committed"
-    );
+    // A closed corrupt batch is not an incomplete write and requires explicit salvage.
+    ensure!(read_journal_snapshot(&journal_path).is_err(), "Strict replay accepted a closed corrupt batch");
 
     let salvaged = read_journal_snapshot_with_policy(&journal_path, &DcProjectionPolicy::forgiving())?;
     ensure!(salvaged.last_batch_id == 2 && salvaged.is_committed(b"tampered_file.txt"));
+    ensure!(salvaged.is_committed(b"safe_record.txt"));
     ensure!(salvaged.warnings.iter().any(|warning| warning.code == "journal-digest-mismatch"));
 
     let mut suffix = DcMstring::new();

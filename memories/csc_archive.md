@@ -24,8 +24,8 @@
 - File publication and moves share `rename_from_parent`, preserving native I/O
   errors so EXDEV can select verified copy fallback. AppleDouble companions use
   staged publication, but paired-file crash recovery remains pending.
-- Archive diagnostics reuse journal error/warning payload conversions in checked
-  sections. Completion and byte integrity do not imply clean capture;
+- Both magics use journal top-level error/warning records, not separate checked
+  diagnostic sections. Completion and byte integrity do not imply clean capture;
   `verify_integrity` is separate from `verify`, which rejects retained diagnostics
   and semantic metadata warnings. Resume refuses committed diagnostics before
   truncation until resolution semantics and durable inventory exist.
@@ -33,13 +33,24 @@
   sink failures separately; sink/encoding ambiguity is fatal. File-output
   rollback discards BufWriter bytes via `into_parts` before truncating/seeking;
   never flush the failed section to roll it back. Stdout cannot roll back.
-- Archive recovery must reject every byte after completion, including partial
-  tokens; permissive archive EOF recovery applies only before completion. Journal `mark_failed`
-  must propagate pending-record commit errors before updating its descriptor.
-- Journal owns the modern `stream::RecordWriter`, `scanner`, and shared `capture`
-  primitives. ArchiveWriter is a type alias, not another state machine. Profiles
-  select headers, bodies, diagnostic placement, and legacy-compatible scan rules.
-  Do not reintroduce archive-to-journal duplication or journal imports of archive.
+- Recovery returns the committed prefix with incomplete status after partial
+  trailing records. Complete reads reject them. Strict checksum failure is not
+  an incomplete write: closed corruption requires explicit warning-bearing
+  forgiving salvage. `mark_failed` propagates pending-record commit failures.
+- Journal owns `JournalWriter<W>`, `JournalReader`, `JournalPayload`, the scanner,
+  and shared capture primitives. `StateJournal` is only the persistent copy
+  operation/descriptor workflow around the common writer. Archive-specific type
+  aliases and format profiles were removed; do not reintroduce them.
+- Archive and journal are literally one format except header magic and optional
+  primary bodies. `JournalMagic` selects only header bytes. Both permit metadata
+  records, body-bearing records, multi-file batches, top-level diagnostics, and
+  the same sequence/completion rules. `ReadMode` and projection policy select
+  reader behavior independently of magic. Do not preserve the mistaken earlier
+  experimental archive grammar as another compatibility target.
+- `JournalReader::verify` checks metadata and bodies that are present, including
+  attached streams when primary bytes are omitted. `verify_self_contained`
+  additionally requires regular-file bodies; archive extraction requests that
+  capability explicitly. `JournalSnapshot` projects this same reader to metadata.
 - Historical journal completion is nonterminal on read. Explicit resume preserves
   all committed bytes, including diagnostics after completion; never subtract a
   marker length from valid_length to reopen. Same-instance writing is terminal.

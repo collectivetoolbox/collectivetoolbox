@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
-use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalWriter};
+use crate::journal::{JournalErrorRecord, JournalErrorStage, StateJournal};
 use crate::journal::capture::{CapturedSource, CapturedPayload, CommittedHardlinks, discover_directory, hash_primary, open_payload};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
@@ -90,7 +90,7 @@ fn handle_item_error(
     stage: JournalErrorStage,
     err: anyhow::Error,
     args: &CscArgs,
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     stats: &mut CopyStats,
 ) -> Result<Option<PathBuf>> {
     let err_record = JournalErrorRecord::from_error(src_path, stage, &err);
@@ -108,7 +108,7 @@ fn handle_item_error(
     }
 }
 
-fn record_entity_warnings(entity: &FileEntity, journal: &mut JournalWriter) -> Result<()> {
+fn record_entity_warnings(entity: &FileEntity, journal: &mut StateJournal) -> Result<()> {
     crate::journal::capture::visit_warnings(entity, &mut |entity, warning| {
         journal.record_warning("FileReadWarning", warning)?;
         warn_fmt!("{}: {}", entity.identity.display_path(), warning);
@@ -139,7 +139,7 @@ fn validate_filesystem_known(path: &Path, fs_type: Option<&str>, args: &CscArgs)
 pub fn execute_copy_pipeline(
     tasks: &[ResolvedCopyTask],
     args: &CscArgs,
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     progress: &Progress,
 ) -> Result<CopyStats> {
     crate::path_resolution::validate_task_overlap(tasks)?;
@@ -844,7 +844,7 @@ pub fn execute_copy_pipeline(
 fn finalize_copy_pipeline(
     captured_tree: &crate::journal::capture::CapturedTree,
     args: &CscArgs,
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     stats: &mut CopyStats,
 ) -> Result<()> {
     if let Err(error) = captured_tree.validate() {
@@ -875,7 +875,7 @@ fn copy_single_item(
     dest_dir: &SandboxableDir,
     options: &MaterializeOptions,
     args: &CscArgs,
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     hardlink_map: &mut CommittedHardlinks,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
@@ -1351,14 +1351,14 @@ fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> Resul
 fn validate_copy_source(
     snapshot: &ctb_io::file::payload::SourceSnapshot,
     entity: &mut FileEntity,
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
 ) -> Result<()> {
     snapshot.retain_changes(snapshot.validate()?)?;
     crate::journal::capture::finalize_warnings(snapshot, entity, &mut |code, warning| journal.record_warning(code, warning))
 }
 
 fn record_materialization_warnings(
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     entity: &mut FileEntity,
     warnings: Vec<String>,
 ) -> Result<()> {
@@ -1371,7 +1371,7 @@ fn record_materialization_warnings(
 }
 
 fn record_materialization_failure(
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     dest_path: &Path,
     entity: &FileEntity,
     error: &anyhow::Error,
@@ -1383,7 +1383,7 @@ fn record_materialization_failure(
 }
 
 fn record_journal_entry(
-    journal: &mut JournalWriter,
+    journal: &mut StateJournal,
     dest_path: &Path,
     entity: &FileEntity,
 ) -> Result<()> {
@@ -1421,7 +1421,7 @@ mod fidelity_tests {
             std::fs::create_dir(&destination)?;
             let journal_path = temporary.path().join("copy.cscjournal");
             let descriptor_path = temporary.path().join("copy.cscdesc");
-            let mut journal = JournalWriter::create_at_path(
+            let mut journal = StateJournal::create_at_path(
                 &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
             )?;
             let mut args = default_test_args(vec![source.clone(), destination.clone()], temporary.path().to_path_buf());
@@ -1488,7 +1488,7 @@ mod fidelity_tests {
             std::fs::create_dir(&destination)?;
             let journal_path = temporary.path().join("copy.cscjournal");
             let descriptor_path = temporary.path().join("copy.cscdesc");
-            let mut journal = JournalWriter::create_at_path(
+            let mut journal = StateJournal::create_at_path(
                 &journal_path, &descriptor_path, std::slice::from_ref(&source), &destination,
             )?;
             let mut captured = CapturedSource::capture(&source, Some(&source), &Default::default(), false)?;
@@ -1539,7 +1539,7 @@ mod fidelity_tests {
         let mut source = CapturedSource::capture(&path, None, &Default::default(), false)?;
         let destination = temporary.path().join("destination");
         let journal_path = temporary.path().join("copy.cscjournal");
-        let mut journal = JournalWriter::create_at_path(&journal_path, &temporary.path().join("copy.cscdesc"),
+        let mut journal = StateJournal::create_at_path(&journal_path, &temporary.path().join("copy.cscdesc"),
             std::slice::from_ref(&path), &destination)?;
         record_entity_warnings(&source.entity, &mut journal)?;
         let warning = "injected symlink cleanup warning".to_owned();
@@ -1568,7 +1568,7 @@ mod fidelity_tests {
             ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
         );
         let journal_path = temp.path().join("copy.cscjournal");
-        let mut journal = JournalWriter::create_at_path(
+        let mut journal = StateJournal::create_at_path(
             &journal_path, &temp.path().join("copy.cscdesc"),
             std::slice::from_ref(&source), &destination,
         ).unwrap();
@@ -1604,7 +1604,7 @@ mod fidelity_tests {
         let sources = vec![PathBuf::from(r"C:\source"), PathBuf::from(r"\\server\share\source")];
         let destination = PathBuf::from(r"\\?\D:\destination");
         let journal_path = temp.path().join("copy.cscjournal");
-        let journal = JournalWriter::create_at_path(
+        let journal = StateJournal::create_at_path(
             &journal_path, &temp.path().join("copy.cscdesc"), &sources, &destination,
         ).unwrap();
         let snapshot = read_journal_snapshot(journal.journal_path()).unwrap();
@@ -1622,7 +1622,7 @@ mod fidelity_tests {
             let destination = temp.path().join("destination");
             let journal_path = temp.path().join("copy.cscjournal");
             let desc_path = temp.path().join("copy.cscdesc");
-            let mut journal = JournalWriter::create_at_path(
+            let mut journal = StateJournal::create_at_path(
                 &journal_path, &desc_path, std::slice::from_ref(&source), &destination,
             ).unwrap();
             let mut entity = FileEntity::inaccessible(&source, None, "read failure");
@@ -1672,7 +1672,7 @@ mod fidelity_tests {
         let source = temp.path().join("source");
         let destination = temp.path().join("destination");
         let desc_path = temp.path().join("copy.cscdesc");
-        let mut journal = JournalWriter::create_at_path(
+        let mut journal = StateJournal::create_at_path(
             &temp.path().join("copy.cscjournal"), &desc_path,
             std::slice::from_ref(&source), &destination,
         ).unwrap();
